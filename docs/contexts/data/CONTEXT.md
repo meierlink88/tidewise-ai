@@ -543,7 +543,8 @@ internal/server/ Kratos transport, auth and lifecycle wiring
 internal/conf/ Data-only runtime configuration
 ```
 
-`analyse-data-service/backend/migrations/` 与 `analyse-data-service/backend/data/` 是 Data 的统一事实资产，可以保留为 Backend 根资产，但不得被 BFF 直接读取。
+`analyse-data-service/backend/migrations/` 是 Data 的 PostgreSQL schema 资产，保留在 Backend
+根目录；BFF 不得直接读取 migration 或 Data PostgreSQL。
 
 ## Runtime
 

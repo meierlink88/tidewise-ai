@@ -376,8 +376,6 @@ func TestAgentRunStandaloneRepositoryAssetsAreConverged(t *testing.T) {
 		"docs/contexts/agentrun/CONTEXT.md",
 		"docs/contexts/agentrun/adr/0001-limit-plaintext-provider-credentials-to-development.md",
 		"docs/contexts/agentrun/adr/0002-use-kratos-as-service-shell-and-eino-inside-agent-capabilities.md",
-		"docs/architecture/agentrun/collector-agent-v1-platform-foundation.md",
-		"docs/research/agentrun/agent-schedule-go-library-options.md",
 	} {
 		if _, err := os.Stat(filepath.Join(repoRoot, required)); err != nil {
 			t.Errorf("converged AgentRun asset %q is missing: %v", required, err)

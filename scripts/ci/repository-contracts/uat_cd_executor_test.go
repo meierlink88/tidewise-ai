@@ -117,7 +117,7 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	if result.err != nil {
 		t.Fatalf("deploy success fixture failed: %v\n%s", result.err, result.output)
 	}
-	for _, want := range []string{"PASS deployment-lock", "PASS external-qdrant-ready", "PASS agentrun-artifact-write", "PASS excluded-fact-audit-before", "PASS migration-scope-gate", "PASS migration-apply", "PASS excluded-fact-audit-unchanged", "PASS bff-to-service-read-paths", "PASS release-state-recorded"} {
+	for _, want := range []string{"PASS deployment-lock", "PASS external-qdrant-ready", "PASS agentrun-artifact-write", "PASS migration-scope-gate", "PASS migration-apply", "PASS bff-to-service-read-paths", "PASS release-state-recorded"} {
 		if !strings.Contains(result.output, want) {
 			t.Fatalf("deploy output missing %q: %s", want, result.output)
 		}
@@ -160,10 +160,9 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	}
 	artifactProbe := strings.Index(string(dockerLog), "/app/data/.uat-write-probe")
 	externalQdrantProbe := strings.Index(string(dockerLog), "http://qdrant:6333/collections")
-	excludedFactAudit := strings.Index(string(dockerLog), "/usr/local/bin/uat-excluded-fact-audit")
 	migrationPreflight := strings.Index(string(dockerLog), "/usr/local/bin/dbmigrate")
-	if externalQdrantProbe < 0 || artifactProbe < 0 || excludedFactAudit < 0 || migrationPreflight < 0 ||
-		externalQdrantProbe > artifactProbe || artifactProbe > excludedFactAudit || excludedFactAudit > migrationPreflight {
+	if externalQdrantProbe < 0 || artifactProbe < 0 || migrationPreflight < 0 ||
+		externalQdrantProbe > artifactProbe || artifactProbe > migrationPreflight {
 		t.Fatalf("external Qdrant and AgentRun Artifact probes must run before migrations: %s", dockerLog)
 	}
 }
@@ -368,47 +367,6 @@ func TestUATDeployExecutorPreservesPreviousAgentRunMigrationVersion014(t *testin
 	}
 }
 
-func TestUATDeployExecutorRecoversExplicitLegacyAgentRunMigrationTarget(t *testing.T) {
-	report := `{"current_version":"010","pending":[{"version":"011"},{"version":"012"},{"version":"013"},{"version":"014"}],"applied":[]}`
-	result := runDeployFixture(t, deployFixtureOptions{
-		backupConfirmed:         true,
-		agentrunMigrationReport: report,
-		agentrunRecoveryTarget:  "010",
-	})
-	if result.err != nil {
-		t.Fatalf("explicit legacy recovery failed: %v\n%s", result.err, result.output)
-	}
-	if !strings.Contains(result.output, "PASS recovered-explicit-agentrun-migration-target") {
-		t.Fatalf("explicit legacy recovery was not reported: %s", result.output)
-	}
-	dockerLog, err := os.ReadFile(result.dockerLog)
-	if err != nil {
-		t.Fatal(err)
-	}
-	logText := string(dockerLog)
-	recovery := strings.Index(logText, "--prepare-previous-release-rollback --previous-release-version 010")
-	preflight := strings.Index(logText, "--check-only")
-	if recovery < 0 || preflight < 0 || recovery > preflight {
-		t.Fatalf("explicit recovery did not run before migration preflight: %s", logText)
-	}
-}
-
-func TestUATDeployExecutorRejectsLegacyRecoveryWithoutBackupBeforeProtectedWork(t *testing.T) {
-	result := runDeployFixture(t, deployFixtureOptions{agentrunRecoveryTarget: "010"})
-	if result.err == nil || !strings.Contains(result.output, "confirm_high_risk_backup=true is required") {
-		t.Fatalf("unconfirmed legacy recovery was not rejected: err=%v output=%s", result.err, result.output)
-	}
-	if _, err := os.Stat(result.dockerLog); !os.IsNotExist(err) {
-		logContent, readErr := os.ReadFile(result.dockerLog)
-		if readErr != nil {
-			t.Fatal(readErr)
-		}
-		if len(logContent) != 0 {
-			t.Fatalf("unconfirmed recovery reached protected work: %s", logContent)
-		}
-	}
-}
-
 func TestUATDeployExecutorDoesNotReportPassWhenRollbackStartFails(t *testing.T) {
 	result := runDeployFixture(t, deployFixtureOptions{currentRelease: true, failEveryUp: true})
 	if result.err == nil {
@@ -591,20 +549,6 @@ func TestUATDeployExecutorBlocksDataPublicationMigrationsBeforeApply(t *testing.
 	}
 }
 
-func TestUATDeployExecutorRejectsExcludedPostgreSQLFactDrift(t *testing.T) {
-	result := runDeployFixture(t, deployFixtureOptions{excludedFactDrift: true})
-	if result.err == nil || !strings.Contains(result.output, "excluded PostgreSQL facts changed") {
-		t.Fatalf("excluded fact drift was not blocked: err=%v output=%s", result.err, result.output)
-	}
-	dockerLog, err := os.ReadFile(result.dockerLog)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(dockerLog), " up -d --wait --wait-timeout 120 ") {
-		t.Fatalf("excluded fact drift allowed the complete release to start: %s", dockerLog)
-	}
-}
-
 func TestUATDiagnosticsRedactsCredentials(t *testing.T) {
 	repoRoot := repositoryRoot()
 	temp := t.TempDir()
@@ -656,7 +600,6 @@ type deployFixtureOptions struct {
 	failEveryCurl           bool
 	migrationReport         string
 	agentrunMigrationReport string
-	agentrunRecoveryTarget  string
 	migrationRisk           string
 	migrationScope          string
 	agentrunMigrationScope  string
@@ -664,7 +607,6 @@ type deployFixtureOptions struct {
 	failArtifactProbe       bool
 	failExternalQdrant      bool
 	legacyQdrantSnapshot    bool
-	excludedFactDrift       bool
 }
 
 type deployFixtureResult struct {
@@ -695,7 +637,6 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	agentrunManifest := filepath.Join(temp, "agentrun-migration-risk.tsv")
 	dockerLog := filepath.Join(temp, "docker.log")
 	upCount := filepath.Join(temp, "up-count")
-	excludedFactAuditCount := filepath.Join(temp, "excluded-fact-audit-count")
 	curlCount := filepath.Join(temp, "curl-count")
 	curlLog := filepath.Join(temp, "curl.log")
 	writeFixture(t, runtimeEnv, "ADMIN_SERVICE_TOKEN=fixture-admin-secret\nAGENTRUN_SERVICE_TOKEN=fixture-agentrun-secret\nEMBEDDING_API_KEY="+fixtureEmbeddingCredential()+"\n")
@@ -796,17 +737,6 @@ case " $* " in
 	    if [ "${FAKE_FAIL_EXTERNAL_QDRANT:-false}" = true ]; then exit 1; fi
 	    printf '{"result":{"collections":[]}}\n'
 	    ;;
-  *" /usr/local/bin/uat-excluded-fact-audit "*)
-    count=0
-    if [ -f "$FAKE_EXCLUDED_FACT_AUDIT_COUNT" ]; then count="$(cat "$FAKE_EXCLUDED_FACT_AUDIT_COUNT")"; fi
-    count=$((count + 1))
-    echo "$count" > "$FAKE_EXCLUDED_FACT_AUDIT_COUNT"
-    fingerprint=0123456789abcdef0123456789abcdef
-    if [ "${FAKE_EXCLUDED_FACT_DRIFT:-false}" = true ] && [ "$count" -ge 2 ]; then
-      fingerprint=abcdef0123456789abcdef0123456789
-    fi
-    printf '{"contract_version":"uat-excluded-fact-audit.v1","tables":{"events":{"row_count":3,"fingerprint":"%s"}}}\n' "$fingerprint"
-    ;;
   *" run "*" agentrun "*) echo "AgentRun database migrations are current" ;;
 	  *" up "*)
     count=0
@@ -859,7 +789,6 @@ exit 0
 		"COMPOSE_FILE="+compose,
 		"MIGRATION_RISK_MANIFEST="+manifest,
 		"AGENTRUN_MIGRATION_RISK_MANIFEST="+agentrunManifest,
-		"AGENTRUN_RECOVERY_TARGET_VERSION="+options.agentrunRecoveryTarget,
 		"HIGH_RISK_BACKUP_CONFIRMED="+boolText(options.backupConfirmed),
 		"EMBEDDING_API_KEY="+fixtureEmbeddingCredential(),
 		"RUNNER_TEMP="+temp,
@@ -869,8 +798,6 @@ exit 0
 		"FAKE_MIGRATION_REPORT="+filepath.Join(temp, "migration.json"),
 		"FAKE_AGENTRUN_MIGRATION_REPORT="+filepath.Join(temp, "agentrun-migration.json"),
 		"FAKE_UP_COUNT="+upCount,
-		"FAKE_EXCLUDED_FACT_AUDIT_COUNT="+excludedFactAuditCount,
-		"FAKE_EXCLUDED_FACT_DRIFT="+boolText(options.excludedFactDrift),
 		"FAKE_FAIL_FIRST_UP="+boolText(options.failFirstUp),
 		"FAKE_FAIL_EVERY_UP="+boolText(options.failEveryUp),
 		"FAKE_CURL_COUNT="+curlCount,

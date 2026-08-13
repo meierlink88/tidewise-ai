@@ -124,20 +124,6 @@ Apply migrations explicitly when needed; normal stack startup already performs t
 docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm data-migrate
 ```
 
-Run Data-owned commands from the Data image:
-
-```bash
-docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --entrypoint /usr/local/bin/research-theme-dev-reset data
-```
-
-The destructive Research Theme reset still requires both explicit flags:
-
-```bash
-docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm \
-  --entrypoint /usr/local/bin/research-theme-dev-reset data \
-  --execute --confirm-database tidewise_local
-```
-
 PostgreSQL remains the Data fact source. Data no longer seeds Entity packages or writes Neo4j/Qdrant
 projections. AgentRun's existing Qdrant reader remains configured, but its projection-dependent
 workflow stays paused until a new projection owner is approved.

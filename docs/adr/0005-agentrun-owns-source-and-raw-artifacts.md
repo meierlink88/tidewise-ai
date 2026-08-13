@@ -68,6 +68,6 @@ AgentRun。作为交换，Source、Artifact 和执行血缘只有一个权威来
 ## 与既有决策的关系
 
 本 ADR 取代 ADR-0002 中“Tidewise 保留 Source Catalog”的局部决策，并明确
-`unified-data-collection-center-v1.md` 的 Proposed Data-owned 采集中心设计已
-被废弃。ADR-0002 的 Application Backend Service、Domain Service 和 REST
+此前提出的 Data-owned 采集中心设计已被废弃。ADR-0002 的 Application Backend
+Service、Domain Service 和 REST
 边界继续有效。

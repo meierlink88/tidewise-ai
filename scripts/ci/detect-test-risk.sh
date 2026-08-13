@@ -129,7 +129,7 @@ case "$scope" in
     fi
     ;;
   repository)
-    if matches '^(go\.mod|go\.sum|AGENTS\.md|CONTEXT-MAP\.md)$|^(analyse-data-service|miniapp|admin-portal|agent-run)/backend/.*\.go$|^docs/(agents/|adr/|architecture/|contexts/)|^infra/uat/|^scripts/ci/|^\.github/workflows/'; then
+    if matches '^(go\.mod|go\.sum|AGENTS\.md|CONTEXT-MAP\.md)$|^(analyse-data-service|miniapp|admin-portal|agent-run)/backend/.*\.go$|^docs/(agents/|adr/|contexts/|development-standards/)|^infra/uat/|^scripts/ci/|^\.github/workflows/'; then
       architecture=true
     fi
     ;;

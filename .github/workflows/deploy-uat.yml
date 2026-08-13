@@ -12,10 +12,6 @@ on:
         required: false
         default: false
         type: boolean
-      recover_agentrun_previous_release_version:
-        description: Emergency-only AgentRun rollback target (010-013) for an interrupted legacy migration; requires a confirmed backup.
-        required: false
-        type: string
 
 permissions:
   actions: read
@@ -446,7 +442,6 @@ jobs:
       AGENTRUN_SERVICE_TOKEN: ${{ secrets.AGENTRUN_SERVICE_TOKEN }}
       EMBEDDING_API_KEY: ${{ secrets.EMBEDDING_API_KEY }}
       HIGH_RISK_BACKUP_CONFIRMED: ${{ inputs.confirm_high_risk_backup }}
-      AGENTRUN_RECOVERY_TARGET_VERSION: ${{ inputs.recover_agentrun_previous_release_version }}
     steps:
       - name: Login to SWR with pull credentials
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0

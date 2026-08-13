@@ -17,7 +17,7 @@ case "$scope" in
     pattern='^(admin-portal/|analyse-data-service/backend/api/|agent-run/backend/api/|go\.mod$|go\.sum$|package\.json$|package-lock\.json$|AGENTS\.md$|CONTEXT-MAP\.md$|docs/(agents/|contexts/adminportal/)|infra/(local|uat)/|scripts/ci/|\.github/workflows/(ci|deploy-uat)\.yml$)'
     ;;
   agentrun)
-    pattern='^(agent-run/|admin-portal/backend/|admin-portal/frontend/(Dockerfile|nginx/)|go\.mod$|go\.sum$|AGENTS\.md$|CONTEXT-MAP\.md$|docs/(agents/|contexts/agentrun/|architecture/agentrun/|research/agentrun/)|infra/(local|uat)/|scripts/ci/|\.github/workflows/(ci|deploy-uat)\.yml$)'
+    pattern='^(agent-run/|admin-portal/backend/|admin-portal/frontend/(Dockerfile|nginx/)|go\.mod$|go\.sum$|AGENTS\.md$|CONTEXT-MAP\.md$|docs/(agents/|contexts/agentrun/)|infra/(local|uat)/|scripts/ci/|\.github/workflows/(ci|deploy-uat)\.yml$)'
     ;;
   *)
     echo "unsupported application scope: ${scope:-<empty>}" >&2

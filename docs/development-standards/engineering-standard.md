@@ -4,8 +4,8 @@
 标准。任务生命周期属于 `workflow.md`，源码规则属于 `coding-standard.md`，测试策略属于
 `testing.md`，框架细节属于对应技术栈规范。
 
-Context、ADR、OpenAPI 和已评审 Spec 拥有产品事实与系统边界；本文不复制应用列表、
-当前迁移状态或业务流程。
+Context 与 ADR 拥有领域事实和已接受边界；OpenAPI、冻结 fixture、数据约束和当前实现
+提供可执行合同。仓库不再维护 Architecture Spec。
 
 ## Authority
 
@@ -13,9 +13,9 @@ Context、ADR、OpenAPI 和已评审 Spec 拥有产品事实与系统边界；�
 
 1. 当前用户明确授权的目标、范围与限制；
 2. 根目录或更窄目录的 `AGENTS.md`；
-3. 已接受 ADR、受影响 Context、OpenAPI、冻结 fixture 与数据约束；
+3. 已接受 ADR 与受影响 Context；
 4. 本目录中适用的开发规范；
-5. 已评审 Spec 与 Issue 验收条件；
+5. OpenAPI、冻结 fixture、数据约束与 Issue 验收条件；
 6. 当前实现、测试、框架默认值与示例。
 
 低优先级材料不得静默覆盖高优先级权威。Skill 和外部示例只提供路由或证据，不是项目
@@ -30,7 +30,7 @@ Context、ADR、OpenAPI 和已评审 Spec 拥有产品事实与系统边界；�
 
 ## Design Gate
 
-下列变更实施前必须将决策写入权威 Spec，必要时同步 Context 或 ADR：
+下列变更实施前必须将决策写入 GitHub Issue 验收条件，必要时同步 Context 或 ADR：
 
 - 新能力或存在实质歧义的行为；
 - 新 Service、Agent、Tool、框架、持久化对象、基础设施或重要依赖；
