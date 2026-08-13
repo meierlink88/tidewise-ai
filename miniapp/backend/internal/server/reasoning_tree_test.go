@@ -17,7 +17,7 @@ import (
 	appservice "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/service"
 )
 
-func TestResearchReasoningTreeRoutesMapSharedFixturesWithOneDataCall(t *testing.T) {
+func TestResearchReasoningTreeRoutesMapDataResultsWithOneDataCall(t *testing.T) {
 	t.Run("list", func(t *testing.T) {
 		now := time.Date(2026, 7, 28, 8, 10, 0, 0, time.UTC)
 		dataResult := usecase.ResearchReasoningTreeList{

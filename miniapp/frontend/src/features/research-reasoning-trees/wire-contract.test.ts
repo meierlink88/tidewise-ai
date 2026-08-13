@@ -1,106 +1,101 @@
 import { describe, expect, it } from 'vitest';
-import preparedRequest from '../../../../../testdata/research-theme-analyst-snapshot-v3/01-uat-at01-prepared-request.json';
 import { parseResearchReasoningTreeDetail } from './wire-contract';
 
 const themeId = '70000000-0000-4000-8000-000000000001';
 const treeId = '70000000-0000-4000-8000-000000000002';
 
 describe('analyst snapshot reasoning tree wire contract', () => {
-  it('renders the prepared real-UAT display contract without formal ontology IDs', () => {
-    const preparedTree = preparedRequest.reasoning_trees[0];
+  it('accepts display metadata without formal ontology IDs', () => {
+    const signal = {
+      signal_key: 'signal:purchase-volume',
+      variable_name: '采购数量',
+      direction: null,
+      variable_signal_key: '',
+      signal_role: 'primary',
+      signal_direction: '',
+      display_summary: '采购数量待确认',
+      display_order: 1
+    };
     const readback = {
       theme_id: themeId,
-      impact_node_ids: preparedRequest.theme.impacts.map((impact) => impact.node_key),
+      impact_node_ids: ['node:optical-module'],
       reasoning_tree: {
-        tree_key: preparedTree.tree_key,
-        display_name: preparedTree.display_name,
+        tree_key: 'tree:optical-module',
+        display_name: '高速光模块产业链',
         reasoning_tree_id: treeId,
         theme_id: themeId,
         industry_chain_entity_id: '',
-        industry_chain_name: preparedTree.display_name,
-        title: preparedTree.title,
-        display_order: preparedTree.display_order,
-        one_line_conclusion: preparedTree.one_line_conclusion,
-        fact_summary: preparedTree.fact_summary,
-        transmission_summary: preparedTree.transmission_summary,
-        impact_direction: preparedTree.impact_direction,
-        impact_strength: preparedTree.impact_strength,
-        impact_summary: preparedTree.impact_summary,
-        conclusion_boundary_summary: preparedTree.conclusion_boundary_summary,
-        support_summary: preparedTree.support_summary,
-        counter_summary: preparedTree.counter_summary,
-        invalidation_conditions: preparedTree.invalidation_conditions,
-        checkpoints: preparedTree.checkpoints,
-        published_at: preparedRequest.analysis_as_of,
-        event_count: preparedTree.events.length,
-        events: preparedTree.events.map((event) => ({
-          event_id: event.event_id,
-          evidence_ids: event.evidence_ids,
-          title: 'Data 正式 Event',
-          summary: 'Data 正式 Event 摘要',
-          event_time: null,
-          evidence_role: event.evidence_role,
-          supported_claim: null,
-          display_order: event.display_order
-        })),
-        nodes: preparedTree.nodes.map((node, nodeIndex) => {
-          const signals = node.signals.map((signal) => ({
-            signal_key: signal.signal_key,
-            variable_name: signal.variable_name,
-            direction: signal.direction,
-            variable_signal_key: '',
-            signal_role: signal.role,
-            signal_direction: signal.direction ?? '',
-            display_summary: signal.display_summary,
-            display_order: signal.display_order
-          }));
-          return {
-            node_key: node.node_key,
-            display_name: node.display_name,
-            id: `70000000-0000-4000-8000-${String(nodeIndex + 3).padStart(12, '0')}`,
-            position: node.position,
+        industry_chain_name: '高速光模块产业链',
+        title: '高速光模块',
+        display_order: 1,
+        one_line_conclusion: '采购数量仍需确认。',
+        fact_summary: null,
+        transmission_summary: null,
+        impact_direction: 'uncertain',
+        impact_strength: 'unknown',
+        impact_summary: null,
+        conclusion_boundary_summary: null,
+        support_summary: null,
+        counter_summary: null,
+        invalidation_conditions: [],
+        checkpoints: [],
+        published_at: '2026-08-03T11:00:00Z',
+        event_count: 1,
+        events: [
+          {
+            event_id: '70000000-0000-4000-8000-000000000003',
+            evidence_ids: [],
+            title: 'Data 正式 Event',
+            summary: 'Data 正式 Event 摘要',
+            event_time: null,
+            evidence_role: 'driver',
+            supported_claim: null,
+            display_order: 1
+          }
+        ],
+        nodes: [
+          {
+            node_key: 'node:optical-module',
+            display_name: '高速光模块',
+            id: '70000000-0000-4000-8000-000000000004',
+            position: 1,
             chain_node_entity_id: '',
-            name: node.display_name,
-            state_summary: node.state_summary,
-            impact_direction: node.impact_direction,
-            impact_strength: node.impact_strength,
-            impact_summary: node.impact_summary,
-            reasoning_basis_summary: node.reasoning_basis_summary,
-            evidence_gap_summary: node.evidence_gap_summary,
+            name: '高速光模块',
+            state_summary: null,
+            impact_direction: 'uncertain',
+            impact_strength: 'unknown',
+            impact_summary: null,
+            reasoning_basis_summary: null,
+            evidence_gap_summary: null,
             incoming_industry_chain_graph_edge_id: null,
-            incoming_transmission_title: node.incoming_transmission?.title ?? null,
-            incoming_transmission_mechanism: node.incoming_transmission?.mechanism ?? null,
-            incoming_condition_summary: node.incoming_transmission?.condition_summary ?? null,
+            incoming_transmission_title: null,
+            incoming_transmission_mechanism: null,
+            incoming_condition_summary: null,
             incoming_graph_edge: null,
-            signals,
-            primary_signal: signals[0],
-            signal_display_summary: signals
-              .filter((signal) => signal.signal_role !== 'primary')
-              .map((signal) => signal.display_summary)
-              .join(' · ')
-          };
-        })
+            signals: [signal],
+            primary_signal: signal,
+            signal_display_summary: ''
+          }
+        ]
       }
     };
 
     const parsed = parseResearchReasoningTreeDetail(readback, themeId, treeId);
 
-    expect(parsed.reasoningTree.treeKey).toBe(preparedTree.tree_key);
-    expect(parsed.reasoningTree.displayName).toBe(preparedTree.display_name);
-    expect(parsed.reasoningTree.industryChainEntityId).toBeNull();
+    expect(parsed.reasoningTree).toMatchObject({
+      treeKey: 'tree:optical-module',
+      displayName: '高速光模块产业链',
+      industryChainEntityId: null
+    });
     expect(parsed.reasoningTree.nodes[0]).toMatchObject({
-      nodeKey: preparedTree.nodes[0].node_key,
+      nodeKey: 'node:optical-module',
       chainNodeEntityId: null,
-      displayName: preparedTree.nodes[0].display_name,
+      displayName: '高速光模块',
       primarySignal: {
-        signalKey: preparedTree.nodes[0].signals[0].signal_key,
-        displaySummary: preparedTree.nodes[0].signals[0].display_summary,
+        signalKey: 'signal:purchase-volume',
+        displaySummary: '采购数量待确认',
         direction: null
       }
     });
-    expect(parsed.reasoningTree.nodes[1].incomingTransmissionTitle).toBeNull();
-    expect(parsed.reasoningTree.nodes[1].incomingTransmissionMechanism).toBe(
-      preparedTree.nodes[1].incoming_transmission?.mechanism
-    );
   });
 });

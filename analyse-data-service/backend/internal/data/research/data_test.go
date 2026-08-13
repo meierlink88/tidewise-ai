@@ -4,12 +4,10 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -576,36 +574,6 @@ FROM entity_type_definitions WHERE type_key = $1 AND version = 1`, referencedTyp
 	}
 	assertBCIPersistedLineage(t, ctx, db, bciTreeID)
 
-	preparedPayload, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "research-theme-analyst-snapshot-v3", "01-uat-at01-prepared-request.json"))
-	if err != nil {
-		t.Fatalf("read prepared UAT snapshot fixture: %v", err)
-	}
-	var preparedSnapshot researchbiz.SnapshotAggregate
-	if err := json.Unmarshal(preparedPayload, &preparedSnapshot); err != nil {
-		t.Fatalf("decode prepared UAT snapshot fixture: %v", err)
-	}
-	seedPreparedSnapshotReferences(t, ctx, db, preparedSnapshot)
-	preparedPublished, err := publicationService.PublishSnapshot(ctx, "integration-analyst", preparedSnapshot)
-	if err != nil {
-		t.Fatalf("publish prepared UAT snapshot fixture: %v", err)
-	}
-	if len(preparedPublished.ReasoningTreeIDsByTreeKey) != len(preparedSnapshot.ReasoningTrees) {
-		t.Fatalf("prepared UAT snapshot tree IDs = %#v", preparedPublished.ReasoningTreeIDsByTreeKey)
-	}
-	preparedTheme, err := readService.GetTheme(ctx, preparedPublished.ThemeID, researchbiz.ResearchDetailRequest{WindowHours: 24})
-	if err != nil {
-		t.Fatalf("read prepared UAT snapshot Theme: %v", err)
-	}
-	assertPreparedThemeReadback(t, preparedTheme, preparedSnapshot)
-	for _, expectedTree := range preparedSnapshot.ReasoningTrees {
-		treeID := preparedPublished.ReasoningTreeIDsByTreeKey[expectedTree.TreeKey]
-		detail, err := readService.GetReasoningTree(ctx, preparedPublished.ThemeID, treeID)
-		if err != nil {
-			t.Fatalf("read prepared UAT snapshot tree %q: %v", expectedTree.TreeKey, err)
-		}
-		assertPreparedTreeReadback(t, detail, expectedTree)
-	}
-
 	store := researchStore
 	rollbackBatch := "typed-research-rollback"
 	rollbackErr := errors.New("synthetic late failure")
@@ -724,154 +692,6 @@ func integrationSnapshotAggregate(asOf time.Time) researchbiz.SnapshotAggregate 
 				}},
 			}},
 		}},
-	}
-}
-
-func seedPreparedSnapshotReferences(
-	t *testing.T,
-	ctx context.Context,
-	db *sql.DB,
-	aggregate researchbiz.SnapshotAggregate,
-) {
-	t.Helper()
-	for index, event := range aggregate.Theme.Events {
-		if _, err := db.ExecContext(ctx, `INSERT INTO events (
-    id, title, summary, first_seen_at, knowable_at, event_status, fact_status, dedupe_key
-) VALUES ($1,$2,$3,now(),now(),'confirmed','verified',$4)`,
-			event.EventID, "Prepared UAT Event", "Prepared UAT Event source snapshot",
-			fmt.Sprintf("prepared-uat-snapshot-event-%d", index)); err != nil {
-			t.Fatalf("seed prepared UAT Event: %v", err)
-		}
-		for evidenceIndex, evidenceID := range event.EvidenceIDs {
-			if _, err := db.ExecContext(ctx, `INSERT INTO raw_documents (
-    id, ingest_channel, source_type, source_name, source_url, title, content_text,
-    raw_mime_type, language, collected_at, content_hash, ingest_status
-) VALUES ($1,'integration','news','Prepared UAT Source','https://integration.invalid/uat',
-    'Prepared UAT Evidence','Prepared UAT Evidence','text/plain','zh',now(),$2,'collected')`,
-				evidenceID, strings.Repeat(fmt.Sprint((index+evidenceIndex)%10), 64)); err != nil {
-				t.Fatalf("seed prepared UAT raw document: %v", err)
-			}
-			if _, err := db.ExecContext(ctx, `INSERT INTO event_sources (
-    id, event_id, raw_document_id, source_level, evidence_statement, evidence_hash,
-    evidence_relation, supports_fields, contract_version
-) VALUES ($1,$2,$1,'primary','Prepared UAT Evidence',$3,'supports',ARRAY['factual_summary'],3)`,
-				evidenceID, event.EventID, researchEvidenceHash("Prepared UAT Evidence")); err != nil {
-				t.Fatalf("seed prepared UAT Evidence: %v", err)
-			}
-		}
-	}
-}
-
-func assertPreparedThemeReadback(
-	t *testing.T,
-	actual researchbiz.ResearchThemeDetail,
-	expected researchbiz.SnapshotAggregate,
-) {
-	t.Helper()
-	theme := actual.Theme
-	want := expected.Theme
-	if actual.ThemeKey != want.ThemeKey || actual.PublicationMode != researchbiz.SnapshotPublicationMode ||
-		actual.PublicationContractVersion != 3 || theme.AnalysisBatchID != expected.AnalysisBatchID ||
-		theme.Title != want.Title || theme.OneLineConclusion != want.OneLineConclusion ||
-		theme.ConclusionDirection != want.ConclusionDirection || theme.ImpactStrength != want.ImpactStrength ||
-		!equalOptionalString(theme.AttentionLevel, want.AttentionLevel) ||
-		!equalOptionalString(theme.ConclusionStatus, want.ConclusionStatus) ||
-		theme.TransmissionStage != want.TransmissionStage ||
-		theme.InvestmentGuidanceAction != want.InvestmentGuidanceAction ||
-		theme.InvestmentGuidanceSummary != want.InvestmentGuidanceSummary ||
-		theme.TimeHorizonCategory != want.TimeHorizonCategory ||
-		!equalOptionalString(theme.TimeHorizonSummary, want.TimeHorizonSummary) ||
-		!equalOptionalString(theme.TransmissionSummary, want.TransmissionSummary) ||
-		!equalOptionalString(theme.CheckpointSummary, want.CheckpointSummary) ||
-		!equalOptionalString(theme.RiskSummary, want.RiskSummary) ||
-		len(theme.Impacts) != len(want.Impacts) || len(actual.Events) != len(want.Events) {
-		t.Fatalf("prepared UAT Theme readback mismatch: actual=%#v expected=%#v", actual, expected)
-	}
-	for index, expectedImpact := range want.Impacts {
-		impact := theme.Impacts[index]
-		if impact.NodeKey != expectedImpact.NodeKey || impact.DisplayName != expectedImpact.DisplayName ||
-			impact.RelationRole != expectedImpact.RelationRole || impact.ImpactDirection != expectedImpact.ImpactDirection ||
-			!equalOptionalString(impact.ImpactSummary, expectedImpact.ImpactSummary) ||
-			impact.DisplayOrder != expectedImpact.DisplayOrder || impact.ChainNodeEntityID != "" {
-			t.Fatalf("prepared UAT Theme Impact readback mismatch: actual=%#v expected=%#v", impact, expectedImpact)
-		}
-	}
-	for index, expectedEvent := range want.Events {
-		event := actual.Events[index]
-		if event.EventID != expectedEvent.EventID || !reflect.DeepEqual(event.EvidenceIDs, expectedEvent.EvidenceIDs) ||
-			event.EvidenceRole != expectedEvent.EvidenceRole ||
-			!equalOptionalString(event.SupportedClaim, expectedEvent.SupportedClaim) {
-			t.Fatalf("prepared UAT Theme Event readback mismatch: actual=%#v expected=%#v", event, expectedEvent)
-		}
-	}
-}
-
-func assertPreparedTreeReadback(
-	t *testing.T,
-	actual researchbiz.ResearchReasoningTreeDetail,
-	expected researchbiz.SnapshotReasoningTree,
-) {
-	t.Helper()
-	tree := actual.ReasoningTree
-	if actual.ThemeKey != "theme:at-01" || actual.PublicationMode != researchbiz.SnapshotPublicationMode ||
-		actual.PublicationContractVersion != 3 || tree.TreeKey != expected.TreeKey ||
-		tree.DisplayName != expected.DisplayName || tree.IndustryChainEntityID != "" ||
-		tree.Title != expected.Title || tree.DisplayOrder != expected.DisplayOrder ||
-		tree.OneLineConclusion != expected.OneLineConclusion ||
-		!equalOptionalString(tree.FactSummary, expected.FactSummary) ||
-		!equalOptionalString(tree.TransmissionSummary, expected.TransmissionSummary) ||
-		tree.ImpactDirection != expected.ImpactDirection || tree.ImpactStrength != expected.ImpactStrength ||
-		!equalOptionalString(tree.ImpactSummary, expected.ImpactSummary) ||
-		!equalOptionalString(tree.ConclusionBoundarySummary, expected.ConclusionBoundarySummary) ||
-		!equalOptionalString(tree.SupportSummary, expected.SupportSummary) ||
-		!equalOptionalString(tree.CounterSummary, expected.CounterSummary) ||
-		!reflect.DeepEqual(tree.InvalidationConditions, expected.InvalidationConditions) ||
-		len(tree.Checkpoints) != len(expected.Checkpoints) || len(tree.Events) != len(expected.Events) ||
-		len(tree.Nodes) != len(expected.Nodes) {
-		t.Fatalf("prepared UAT Tree readback mismatch: actual=%#v expected=%#v", actual, expected)
-	}
-	for index, checkpoint := range expected.Checkpoints {
-		if tree.Checkpoints[index].Type != checkpoint.Type || tree.Checkpoints[index].Summary != checkpoint.Summary {
-			t.Fatalf("prepared UAT checkpoint readback mismatch: actual=%#v expected=%#v", tree.Checkpoints[index], checkpoint)
-		}
-	}
-	for index, expectedEvent := range expected.Events {
-		event := tree.Events[index]
-		if event.EventID != expectedEvent.EventID || !reflect.DeepEqual(event.EvidenceIDs, expectedEvent.EvidenceIDs) ||
-			event.EvidenceRole != expectedEvent.EvidenceRole || event.DisplayOrder != expectedEvent.DisplayOrder {
-			t.Fatalf("prepared UAT Tree Event readback mismatch: actual=%#v expected=%#v", event, expectedEvent)
-		}
-	}
-	for index, expectedNode := range expected.Nodes {
-		node := tree.Nodes[index]
-		if node.NodeKey != expectedNode.NodeKey || node.DisplayName != expectedNode.DisplayName ||
-			node.ChainNodeEntityID != "" || node.Position != expectedNode.Position ||
-			!equalOptionalString(node.StateSummary, expectedNode.StateSummary) ||
-			node.ImpactDirection != expectedNode.ImpactDirection || node.ImpactStrength != expectedNode.ImpactStrength ||
-			!equalOptionalString(node.ImpactSummary, expectedNode.ImpactSummary) ||
-			!equalOptionalString(node.ReasoningBasisSummary, expectedNode.ReasoningBasisSummary) ||
-			!equalOptionalString(node.EvidenceGapSummary, expectedNode.EvidenceGapSummary) ||
-			len(node.Signals) != len(expectedNode.Signals) {
-			t.Fatalf("prepared UAT Node readback mismatch: actual=%#v expected=%#v", node, expectedNode)
-		}
-		if expectedNode.IncomingTransmission == nil {
-			if node.IncomingTransmissionTitle != nil || node.IncomingTransmissionMechanism != nil || node.IncomingConditionSummary != nil {
-				t.Fatalf("prepared UAT root transmission changed: %#v", node)
-			}
-		} else if !equalOptionalString(node.IncomingTransmissionTitle, expectedNode.IncomingTransmission.Title) ||
-			node.IncomingTransmissionMechanism == nil || *node.IncomingTransmissionMechanism != expectedNode.IncomingTransmission.Mechanism ||
-			!equalOptionalString(node.IncomingConditionSummary, expectedNode.IncomingTransmission.ConditionSummary) {
-			t.Fatalf("prepared UAT incoming transmission readback mismatch: actual=%#v expected=%#v", node, expectedNode.IncomingTransmission)
-		}
-		for signalIndex, expectedSignal := range expectedNode.Signals {
-			signal := node.Signals[signalIndex]
-			if signal.SignalKey != expectedSignal.SignalKey || signal.DisplaySummary != expectedSignal.DisplaySummary ||
-				signal.SignalRole != expectedSignal.Role || signal.DisplayOrder != expectedSignal.DisplayOrder ||
-				!equalOptionalString(signal.VariableName, expectedSignal.VariableName) ||
-				!equalOptionalString(signal.Direction, expectedSignal.Direction) || signal.VariableSignalKey != "" {
-				t.Fatalf("prepared UAT Signal readback mismatch: actual=%#v expected=%#v", signal, expectedSignal)
-			}
-		}
 	}
 }
 

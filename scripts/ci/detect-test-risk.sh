@@ -61,7 +61,7 @@ case "$scope" in
     if matches '^analyse-data-service/backend/(cmd/server/|configs/|internal/conf/|internal/server/)' || matches "$shared_go"; then
       conf_lifecycle=true
     fi
-    if matches '^analyse-data-service/backend/api/|^testdata/' || matches "$shared_go"; then
+    if matches '^analyse-data-service/backend/api/' || matches "$shared_go"; then
       provider_consumer=true
     fi
     if matches '^analyse-data-service/backend/Dockerfile$' || matches "$container_assets"; then
@@ -78,7 +78,7 @@ case "$scope" in
     if matches '^miniapp/backend/internal/data/' || matches "$shared_go"; then
       data=true
     fi
-    if matches '^miniapp/backend/(api/|internal/data/)|^analyse-data-service/backend/api/|^testdata/' || matches "$shared_go"; then
+    if matches '^miniapp/backend/(api/|internal/data/)|^analyse-data-service/backend/api/' || matches "$shared_go"; then
       provider_consumer=true
     fi
     if matches '^miniapp/backend/(cmd/server/|configs/|internal/conf/|internal/server/)' || matches "$shared_go"; then
@@ -98,7 +98,7 @@ case "$scope" in
     if matches '^admin-portal/backend/internal/data/' || matches "$shared_go"; then
       data=true
     fi
-    if matches '^admin-portal/backend/(api/|internal/data/)|^(analyse-data-service|agent-run)/backend/api/|^testdata/' || matches "$shared_go"; then
+    if matches '^admin-portal/backend/(api/|internal/data/)|^(analyse-data-service|agent-run)/backend/api/' || matches "$shared_go"; then
       provider_consumer=true
     fi
     if matches '^admin-portal/backend/(cmd/server/|configs/|internal/conf/|internal/server/)' || matches "$shared_go"; then

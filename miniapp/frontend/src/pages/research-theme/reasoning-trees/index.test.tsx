@@ -1,7 +1,7 @@
 import Taro from '@tarojs/taro';
 import { Children, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import listFixture from '../../../../../../testdata/reasoning-tree-v1/01-reasoning-tree-list-result.json';
+import listFixture from '../../../mocks/research-reasoning-trees/list.json';
 import type { ResearchReasoningTreePort } from '../../../features/research-reasoning-trees/contract';
 import { ResearchReasoningTreeSession } from '../../../features/research-reasoning-trees/session';
 import { parseResearchReasoningTreeIndex } from '../../../features/research-reasoning-trees/wire-contract';

@@ -2,14 +2,11 @@ package data
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -89,7 +86,7 @@ func TestResearchListPathForwardsExplicitPublicationRange(t *testing.T) {
 	}
 }
 
-func TestHTTPClientReadsResearchReasoningTreeListFromSharedFixture(t *testing.T) {
+func TestHTTPClientReadsResearchReasoningTreeList(t *testing.T) {
 	t.Parallel()
 	var gotAuthorization, gotRequestID, gotPath, gotQuery string
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -98,7 +95,9 @@ func TestHTTPClientReadsResearchReasoningTreeListFromSharedFixture(t *testing.T)
 		gotPath = request.URL.EscapedPath()
 		gotQuery = request.URL.RawQuery
 		writer.Header().Set("Content-Type", "application/json")
-		_, _ = writer.Write(readReasoningTreeFixture(t, "01-reasoning-tree-list-result.json"))
+		if _, err := writer.Write([]byte(`{"request_id":"data-req-reasoning-list","result":{"theme":{"id":"c26337f2-a79f-5089-84f4-63d57bc32230"},"reasoning_trees":[{"industry_chain_name":"高速光模块产业链"},{}]}}`)); err != nil {
+			t.Errorf("write reasoning tree list response: %v", err)
+		}
 	}))
 	defer server.Close()
 
@@ -118,14 +117,16 @@ func TestHTTPClientReadsResearchReasoningTreeListFromSharedFixture(t *testing.T)
 	}
 }
 
-func TestHTTPClientReadsResearchReasoningTreeDetailFromSharedFixture(t *testing.T) {
+func TestHTTPClientReadsResearchReasoningTreeDetail(t *testing.T) {
 	t.Parallel()
 	var gotPath, gotQuery string
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		gotPath = request.URL.EscapedPath()
 		gotQuery = request.URL.RawQuery
 		writer.Header().Set("Content-Type", "application/json")
-		_, _ = writer.Write(readReasoningTreeFixture(t, "02-reasoning-tree-with-contradiction-result.json"))
+		if _, err := writer.Write([]byte(`{"request_id":"data-req-reasoning-detail","result":{"theme_id":"c26337f2-a79f-5089-84f4-63d57bc32230","reasoning_tree":{"event_count":2,"events":[{}, {"evidence_role":"contradicting"}],"nodes":[{}, {}, {"primary_signal":{"variable_signal_key":"dsp-demand"}}]}}}`)); err != nil {
+			t.Errorf("write reasoning tree detail response: %v", err)
+		}
 	}))
 	defer server.Close()
 
@@ -142,21 +143,14 @@ func TestHTTPClientReadsResearchReasoningTreeDetailFromSharedFixture(t *testing.
 	}
 }
 
-func TestHTTPClientPreservesReasoningTreesNotFoundFromSharedFixture(t *testing.T) {
+func TestHTTPClientPreservesReasoningTreesNotFound(t *testing.T) {
 	t.Parallel()
-	var fixture struct {
-		Response struct {
-			Status int             `json:"status"`
-			Body   json.RawMessage `json:"body"`
-		} `json:"response"`
-	}
-	if err := json.Unmarshal(readReasoningTreeFixture(t, "04-theme-without-reasoning-trees-error.json"), &fixture); err != nil {
-		t.Fatalf("decode error fixture: %v", err)
-	}
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "application/json")
-		writer.WriteHeader(fixture.Response.Status)
-		_, _ = writer.Write(fixture.Response.Body)
+		writer.WriteHeader(http.StatusNotFound)
+		if _, err := writer.Write([]byte(`{"request_id":"data-req-reasoning-not-found","error":{"code":"RESEARCH_REASONING_TREES_NOT_FOUND","message":"research Theme has no published reasoning trees","details":{}}}`)); err != nil {
+			t.Errorf("write reasoning tree not-found response: %v", err)
+		}
 	}))
 	defer server.Close()
 
@@ -309,15 +303,6 @@ func newTestClient(t *testing.T, baseURL string, httpClient *http.Client, token 
 		t.Fatal(err)
 	}
 	return client
-}
-
-func readReasoningTreeFixture(t *testing.T, name string) []byte {
-	t.Helper()
-	payload, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "testdata", "reasoning-tree-v1", name))
-	if err != nil {
-		t.Fatalf("read reasoning tree fixture %s: %v", name, err)
-	}
-	return payload
 }
 
 func assertErrorKind(t *testing.T, err error, want ErrorKind) {

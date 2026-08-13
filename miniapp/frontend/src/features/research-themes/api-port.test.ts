@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import reasoningTreeListFixture from '../../../../../testdata/reasoning-tree-v1/01-reasoning-tree-list-result.json';
-import reasoningTreeDetailFixture from '../../../../../testdata/reasoning-tree-v1/02-reasoning-tree-with-contradiction-result.json';
+import reasoningTreeListFixture from '../../mocks/research-reasoning-trees/list.json';
+import reasoningTreeDetailFixture from '../../mocks/research-reasoning-trees/detail.json';
 import { createResearchThemeApiPort } from './api-port';
 
 describe('research theme BFF adapter', () => {
