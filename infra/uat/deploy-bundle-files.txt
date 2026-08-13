@@ -1,5 +1,5 @@
 release	infra/uat/docker-compose.yaml
-release	analyse-data-service/backend/configs/config.uat.yaml
+release	data-service/backend/configs/config.uat.yaml
 release	agent-run/backend/configs/config.uat.yaml
 control	infra/uat/preflight.sh
 control	infra/uat/deploy.sh

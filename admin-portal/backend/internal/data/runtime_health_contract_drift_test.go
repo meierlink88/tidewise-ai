@@ -14,7 +14,7 @@ func TestProviderRuntimeHealthFixturesMatchAdminConsumer(t *testing.T) {
 		path     []string
 		expected []biz.RuntimeServiceKey
 	}{
-		{path: []string{"analyse-data-service", "backend", "api", "data", "v1", "runtimehealth", "testdata", "runtime-health.json"}, expected: []biz.RuntimeServiceKey{biz.RuntimeServiceData}},
+		{path: []string{"data-service", "backend", "api", "data", "v1", "runtimehealth", "testdata", "runtime-health.json"}, expected: []biz.RuntimeServiceKey{biz.RuntimeServiceData}},
 		{path: []string{"agent-run", "backend", "api", "agentrun", "v1", "testdata", "runtime-health.json"}, expected: []biz.RuntimeServiceKey{biz.RuntimeServiceAgentRun, biz.RuntimeServiceQdrant}},
 	}
 	for _, fixture := range fixtures {

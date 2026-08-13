@@ -83,7 +83,7 @@ def database_config(path):
     return values
 
 paths = (
-    "analyse-data-service/backend/configs/config.uat.yaml",
+    "data-service/backend/configs/config.uat.yaml",
     "agent-run/backend/configs/config.uat.yaml",
 )
 endpoints = [database_config(path) for path in paths]

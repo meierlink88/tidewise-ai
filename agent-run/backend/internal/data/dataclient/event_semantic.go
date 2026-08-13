@@ -240,7 +240,7 @@ func invalidSemanticResponse() *eventsemantic.RemoteError {
 }
 
 func validSemanticContext(value eventsemantic.Context, contextLeaseID string) bool {
-	if value.ContextLeaseID != contextLeaseID || value.ManifestContractVersion != "event-semantic-context-manifest.v3" ||
+	if value.ContextLeaseID != contextLeaseID || value.ManifestContractVersion != "event-semantic-context-manifest.v4" ||
 		!validUUID(value.ContextLeaseID) || strings.TrimSpace(value.AgentExecutionID) == "" ||
 		strings.TrimSpace(value.WorkerID) == "" || !validRFC3339(value.LeaseExpiresAt) ||
 		!validSemanticHash(value.ContextFingerprint) || !validSemanticHash(value.EventFingerprint) ||
@@ -248,7 +248,7 @@ func validSemanticContext(value eventsemantic.Context, contextLeaseID string) bo
 		strings.TrimSpace(value.AcceptancePolicyVersion) == "" || !validUUID(value.Event.ID) ||
 		strings.TrimSpace(value.Event.Title) == "" || value.Event.EventStatus != "confirmed" ||
 		value.Event.FactStatus != "verified" || len(value.Evidence) == 0 ||
-		len(value.EntityTypeDefinitions) == 0 || len(value.VariableDefinitions) == 0 ||
+		len(value.VariableDefinitions) == 0 ||
 		len(value.AssertionModalities) == 0 || value.MeasurementContract.Representation != "evidence_grounded_narrative" ||
 		value.MeasurementContract.MaxItemsPerSignal < 1 || value.MeasurementContract.MaxTextCharacters < 1 ||
 		!value.MeasurementContract.RequiresEvidenceIDs || value.MeasurementContract.NumericValidation {
@@ -265,18 +265,6 @@ func validSemanticContext(value eventsemantic.Context, contextLeaseID string) bo
 			return false
 		}
 	}
-	entityTypes := make(map[string]struct{}, len(value.EntityTypeDefinitions))
-	for _, definition := range value.EntityTypeDefinitions {
-		if strings.TrimSpace(definition.TypeKey) == "" || definition.Version < 1 ||
-			strings.TrimSpace(definition.NameZH) == "" || strings.TrimSpace(definition.NameEN) == "" ||
-			strings.TrimSpace(definition.BusinessDefinition) == "" ||
-			!validNonblankSet(definition.InclusionCriteria) ||
-			!validNonblankSet(definition.ExclusionCriteria) ||
-			definition.Status != "active" || !validNonblankSet(definition.AllowedEventRoles) ||
-			duplicateString(entityTypes, definition.TypeKey) {
-			return false
-		}
-	}
 	variables := make(map[string]struct{}, len(value.VariableDefinitions))
 	for _, definition := range value.VariableDefinitions {
 		identity := definition.Key + "\x00" + strconv.Itoa(definition.Version)
@@ -286,7 +274,6 @@ func validSemanticContext(value eventsemantic.Context, contextLeaseID string) bo
 			strings.TrimSpace(definition.ValueType) == "" || definition.Status != "active" ||
 			!validNonblankSet(definition.AllowedDirections) ||
 			!validNonblankSet(definition.ApplicableEntityTypes) ||
-			!allMembers(definition.ApplicableEntityTypes, entityTypes) ||
 			!validOptionalNonblankSet(definition.AllowedUnits) || duplicateString(variables, identity) {
 			return false
 		}

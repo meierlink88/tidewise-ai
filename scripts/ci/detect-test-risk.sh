@@ -38,6 +38,7 @@ conf_lifecycle=false
 provider_consumer=false
 container=false
 architecture=false
+object_schema=false
 
 shared_go='^(go\.mod|go\.sum)$'
 shared_frontend='^(package\.json|package-lock\.json)$'
@@ -45,26 +46,29 @@ container_assets='(^|/)(Dockerfile|docker-compose[^/]*\.ya?ml)$|^infra/(local|ua
 
 case "$scope" in
   data)
-    if matches_excluding '^analyse-data-service/backend/(api/|cmd/|configs/|internal/)' '^analyse-data-service/backend/internal/data/dbmigration/' || matches "$shared_go"; then
+    if matches '^data-service/doctype/|^scripts/ci/(verify-openspg-schemas\.py|verify-openspg-schemas\.sh|openspg-parser-requirements\.txt)$|^docs/development-standards/openspg-schema\.md$'; then
+      object_schema=true
+    fi
+    if matches_excluding '^data-service/backend/(api/|cmd/|configs/|internal/)' '^data-service/backend/internal/data/dbmigration/' || matches "$shared_go"; then
       default=true
     fi
-    if matches_excluding '^analyse-data-service/backend/internal/data/' '^analyse-data-service/backend/internal/data/dbmigration/' || matches "$shared_go"; then
+    if matches_excluding '^data-service/backend/internal/data/' '^data-service/backend/internal/data/dbmigration/' || matches "$shared_go"; then
       data=true
     fi
-    if matches '^analyse-data-service/backend/(migrations/.*\.sql$|internal/data/dbmigration/.*\.go$)' || matches "$shared_go"; then
+    if matches '^data-service/backend/(migrations/.*\.sql$|internal/data/dbmigration/.*\.go$)' || matches "$shared_go"; then
       migration=true
       migration_smoke=true
     fi
-    if matches '^analyse-data-service/backend/internal/data/dbmigration/.*\.go$' || matches "$shared_go"; then
+    if matches '^data-service/backend/internal/data/dbmigration/.*\.go$' || matches "$shared_go"; then
       migration_framework=true
     fi
-    if matches '^analyse-data-service/backend/(cmd/server/|configs/|internal/conf/|internal/server/)' || matches "$shared_go"; then
+    if matches '^data-service/backend/(cmd/server/|configs/|internal/conf/|internal/server/)' || matches "$shared_go"; then
       conf_lifecycle=true
     fi
-    if matches '^analyse-data-service/backend/api/' || matches "$shared_go"; then
+    if matches '^data-service/backend/api/' || matches "$shared_go"; then
       provider_consumer=true
     fi
-    if matches '^analyse-data-service/backend/Dockerfile$' || matches "$container_assets"; then
+    if matches '^data-service/backend/Dockerfile$' || matches "$container_assets"; then
       container=true
     fi
     ;;
@@ -78,7 +82,7 @@ case "$scope" in
     if matches '^miniapp/backend/internal/data/' || matches "$shared_go"; then
       data=true
     fi
-    if matches '^miniapp/backend/(api/|internal/data/)|^analyse-data-service/backend/api/' || matches "$shared_go"; then
+    if matches '^miniapp/backend/(api/|internal/data/)|^data-service/backend/api/' || matches "$shared_go"; then
       provider_consumer=true
     fi
     if matches '^miniapp/backend/(cmd/server/|configs/|internal/conf/|internal/server/)' || matches "$shared_go"; then
@@ -98,7 +102,7 @@ case "$scope" in
     if matches '^admin-portal/backend/internal/data/' || matches "$shared_go"; then
       data=true
     fi
-    if matches '^admin-portal/backend/(api/|internal/data/)|^(analyse-data-service|agent-run)/backend/api/' || matches "$shared_go"; then
+    if matches '^admin-portal/backend/(api/|internal/data/)|^(data-service|agent-run)/backend/api/' || matches "$shared_go"; then
       provider_consumer=true
     fi
     if matches '^admin-portal/backend/(cmd/server/|configs/|internal/conf/|internal/server/)' || matches "$shared_go"; then
@@ -129,7 +133,7 @@ case "$scope" in
     fi
     ;;
   repository)
-    if matches '^(go\.mod|go\.sum|AGENTS\.md|CONTEXT-MAP\.md)$|^(analyse-data-service|miniapp|admin-portal|agent-run)/backend/.*\.go$|^docs/(agents/|adr/|contexts/|development-standards/)|^infra/uat/|^scripts/ci/|^\.github/workflows/'; then
+    if matches '^(go\.mod|go\.sum|AGENTS\.md|CONTEXT-MAP\.md)$|^(data-service|miniapp|admin-portal|agent-run)/backend/.*\.go$|^docs/(agents/|adr/|contexts/|development-standards/)|^infra/uat/|^scripts/ci/|^\.github/workflows/'; then
       architecture=true
     fi
     ;;
@@ -146,4 +150,5 @@ esac
   echo "provider_consumer=$provider_consumer"
   echo "container=$container"
   echo "architecture=$architecture"
+  echo "object_schema=$object_schema"
 } >>"$GITHUB_OUTPUT"

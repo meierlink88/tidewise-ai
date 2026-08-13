@@ -2,7 +2,7 @@
 .trae-local/
 .env.local
 .env.*.local
-analyse-data-service/backend/.env.local
+data-service/backend/.env.local
 infra/local/.env.local
 .data/
 .worktrees/

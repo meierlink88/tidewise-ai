@@ -15,10 +15,10 @@ import (
 func TestServiceOwnedPackagesAndCommandsExist(t *testing.T) {
 	packages := listServicePackages(t)
 	for _, suffix := range []string{
-		"analyse-data-service/backend/api/data/v1",
-		"analyse-data-service/backend/cmd/server",
-		"analyse-data-service/backend/internal/conf",
-		"analyse-data-service/backend/internal/server",
+		"data-service/backend/api/data/v1",
+		"data-service/backend/cmd/server",
+		"data-service/backend/internal/conf",
+		"data-service/backend/internal/server",
 		"miniapp/backend/api/miniapp/v1",
 		"miniapp/backend/cmd/server",
 		"miniapp/backend/internal/biz",
@@ -48,7 +48,7 @@ func TestServiceOwnedPackagesAndCommandsExist(t *testing.T) {
 	}
 
 	for _, service := range []string{
-		"analyse-data-service/backend",
+		"data-service/backend",
 		"miniapp/backend",
 		"admin-portal/backend",
 		"agent-run/backend",
@@ -81,7 +81,7 @@ func TestDeployableServicesDoNotImportEachOther(t *testing.T) {
 
 func TestEinoDependenciesStayInAgentRunBinaryClosure(t *testing.T) {
 	commands := map[string]string{
-		"data":         "./analyse-data-service/backend/cmd/server",
+		"data":         "./data-service/backend/cmd/server",
 		"miniapp":      "./miniapp/backend/cmd/server",
 		"admin-portal": "./admin-portal/backend/cmd/server",
 	}
@@ -142,7 +142,7 @@ func TestEventSemanticEmbeddingOwnership(t *testing.T) {
 		t.Fatal("AgentRun Qdrant adapter must batch through an injected Eino embedding.Embedder")
 	}
 
-	if _, err := os.Stat(filepath.Join(root, "analyse-data-service", "backend", "internal", "data", "semanticprojection")); !errors.Is(err, os.ErrNotExist) {
+	if _, err := os.Stat(filepath.Join(root, "data-service", "backend", "internal", "data", "semanticprojection")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("Data semantic projection adapter must be retired: %v", err)
 	}
 }
@@ -215,7 +215,7 @@ func TestKratosLayersFollowOneCentralDependencyPolicy(t *testing.T) {
 func TestDeployableServicesUseExplicitConstructionWithoutWire(t *testing.T) {
 	root := repositoryRoot()
 	for _, service := range []string{
-		"analyse-data-service/backend",
+		"data-service/backend",
 		"miniapp/backend",
 		"admin-portal/backend",
 		"agent-run/backend",
@@ -247,8 +247,8 @@ func assertImportOutside(t *testing.T, owner, imported string, forbidden ...stri
 
 func serviceRoot(service string) string {
 	switch service {
-	case "analyse-data-service":
-		return "analyse-data-service/backend"
+	case "data-service":
+		return "data-service/backend"
 	case "miniapp":
 		return "miniapp/backend"
 	case "admin-portal":
@@ -262,7 +262,7 @@ func serviceRoot(service string) string {
 
 func deployableService(packageName string) string {
 	services := map[string]string{
-		"analyse-data-service/backend": "analyse-data-service",
+		"data-service/backend": "data-service",
 		"miniapp/backend":              "miniapp",
 		"admin-portal/backend":         "admin-portal",
 		"agent-run/backend":            "agent-run",
@@ -316,7 +316,7 @@ func listServicePackages(t *testing.T) []packageInfo {
 
 	command := exec.Command(
 		"go", "list", "-json",
-		"./analyse-data-service/backend/...",
+		"./data-service/backend/...",
 		"./miniapp/backend/...",
 		"./admin-portal/backend/...",
 		"./agent-run/backend/...",

@@ -229,11 +229,6 @@ func TestWorkflowAcceptsEventOnlyMentionWithPrimarySupportingLineageAndNoSignal(
 
 func TestWorkflowVectorRecallsAndMergesNonUniqueExactCandidates(t *testing.T) {
 	input := testInput()
-	input.Context.EntityTypeDefinitions = append(input.Context.EntityTypeDefinitions, eventsemantic.EntityTypeDefinition{
-		TypeKey: "concept", Version: 1, NameZH: "概念", NameEN: "Concept", BusinessDefinition: "受控概念",
-		InclusionCriteria: []string{"正式概念"}, ExclusionCriteria: []string{"企业"}, EventLinkAllowed: true,
-		SignalSubjectAllowed: true, AllowedEventRoles: []string{"event_subject"}, Status: "active",
-	})
 	generator := &queuedModel{responses: []string{
 		`{"mentions":[{"candidate_key":"nvidia","mention":"英伟达","evidence_ids":["` + testEvidenceID + `"]}]}`,
 		`{"selections":[{"candidate_key":"nvidia","entity_id":"33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false}]}`,
@@ -293,11 +288,6 @@ func TestWorkflowDoesNotRecheckVectorCandidateWithoutFormalAliasIdentity(t *test
 	input.Context.Event.Title = "非侵入式脑机接口取得进展"
 	input.Context.Event.Summary = "非侵入式脑机接口已完成新一轮验证。"
 	input.Context.Evidence[0].Statement = "非侵入式脑机接口已完成新一轮验证。"
-	input.Context.EntityTypeDefinitions = append(input.Context.EntityTypeDefinitions, eventsemantic.EntityTypeDefinition{
-		TypeKey: "technology", Version: 1, NameZH: "技术", NameEN: "Technology", BusinessDefinition: "可识别技术体系",
-		InclusionCriteria: []string{"技术与技术系统"}, ExclusionCriteria: []string{"企业"}, EventLinkAllowed: true,
-		SignalSubjectAllowed: false, AllowedEventRoles: []string{"event_subject", "context"}, Status: "active",
-	})
 	generator := &queuedModel{responses: []string{
 		`{"mentions":[{"candidate_key":"bci","mention":"非侵入式脑机接口","evidence_ids":["` + testEvidenceID + `"]}]}`,
 		`{"selections":[{"candidate_key":"bci","entity_id":"","entity_role":"","no_match":true,"no_match_reason":"no_candidate_same_entity"}]}`,
@@ -559,17 +549,13 @@ func testInput() *Input {
 
 func testContext() eventsemantic.Context {
 	return eventsemantic.Context{
-		ContextLeaseID: "11111111-1111-4111-8111-111111111111", ManifestContractVersion: "event-semantic-context-manifest.v3",
+		ContextLeaseID: "11111111-1111-4111-8111-111111111111", ManifestContractVersion: "event-semantic-context-manifest.v4",
 		OntologyVersion: "event-semantics.objective-v3@1", AcceptancePolicyVersion: "event-semantics.objective-v2@1",
 		Event: eventsemantic.Event{ID: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", Title: "英伟达与安靠科技达成15亿美元战略合作", Summary: "首次把预付款锁定产能延伸至第三方封测厂。"},
 		Evidence: []eventsemantic.Evidence{{
 			EvidenceID: testEvidenceID, Statement: "英伟达与安靠科技达成价值15亿美元战略合作，首次把预付款锁定产能延伸至第三方封测厂。",
 			Relation: "supports",
 		}},
-		EntityTypeDefinitions: []eventsemantic.EntityTypeDefinition{
-			{TypeKey: "company", Version: 1, NameZH: "企业", NameEN: "Company", BusinessDefinition: "依法设立的企业主体", InclusionCriteria: []string{"公司"}, ExclusionCriteria: []string{"产品"}, EventLinkAllowed: true, SignalSubjectAllowed: true, AllowedEventRoles: []string{"actor", "event_subject", "affected_entity"}, Status: "active"},
-			{TypeKey: "chain_node", Version: 1, NameZH: "产业链环节", NameEN: "Chain node", BusinessDefinition: "产业链中的正式环节", InclusionCriteria: []string{"工艺环节"}, ExclusionCriteria: []string{"企业"}, EventLinkAllowed: true, SignalSubjectAllowed: true, AllowedEventRoles: []string{"event_subject", "affected_entity"}, Status: "active"},
-		},
 		VariableDefinitions: []eventsemantic.VariableDefinition{{
 			Key: "capacity_commitment", Version: 1, NameZH: "产能承诺", NameEN: "Capacity commitment", Domain: "operations", BusinessDefinition: "正式产能承诺", ValueType: "narrative", Status: "active",
 			AllowedDirections: []string{"increase"}, ApplicableEntityTypes: []string{"company"},

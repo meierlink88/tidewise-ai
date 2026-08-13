@@ -4,7 +4,7 @@ services:
   data-migrate:
     build:
       context: ../..
-      dockerfile: analyse-data-service/backend/Dockerfile
+      dockerfile: data-service/backend/Dockerfile
     image: '${DATA_SERVICE_IMAGE:-tidewise-data:local}'
     entrypoint: ['/usr/local/bin/dbmigrate']
     command: ['-apply']
@@ -21,7 +21,7 @@ services:
   data:
     build:
       context: ../..
-      dockerfile: analyse-data-service/backend/Dockerfile
+      dockerfile: data-service/backend/Dockerfile
     image: '${DATA_SERVICE_IMAGE:-tidewise-data:local}'
     ports:
       - '${DATA_SERVICE_PORT:-9011}:9011'

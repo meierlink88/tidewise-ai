@@ -52,7 +52,7 @@ outside_application_directories=false
 while IFS= read -r -d '' path; do
   changed=true
   case "$path" in
-    analyse-data-service/*) deploy_data=true ;;
+    data-service/*) deploy_data=true ;;
     agent-run/*) deploy_agentrun=true ;;
     miniapp/backend/*) deploy_miniapp=true ;;
     admin-portal/backend/*) deploy_adminportal=true ;;

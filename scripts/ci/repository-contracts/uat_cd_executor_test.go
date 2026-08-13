@@ -16,7 +16,7 @@ func TestUATServiceReleasePlannerUsesLastSuccessfulReleaseRange(t *testing.T) {
 	runGitFixture(t, repository, "config", "user.email", "uat-planner@example.test")
 	runGitFixture(t, repository, "config", "user.name", "UAT Planner")
 	for _, directory := range []string{
-		"analyse-data-service", "agent-run", "miniapp/backend",
+		"data-service", "agent-run", "miniapp/backend",
 		"admin-portal/backend", "admin-portal/frontend", "docs",
 	} {
 		if err := os.MkdirAll(filepath.Join(repository, directory), 0o750); err != nil {
@@ -24,7 +24,7 @@ func TestUATServiceReleasePlannerUsesLastSuccessfulReleaseRange(t *testing.T) {
 		}
 	}
 
-	writeFixture(t, filepath.Join(repository, "analyse-data-service", "service.go"), "data-v1\n")
+	writeFixture(t, filepath.Join(repository, "data-service", "service.go"), "data-v1\n")
 	writeFixture(t, filepath.Join(repository, "agent-run", "service.go"), "agentrun-v1\n")
 	writeFixture(t, filepath.Join(repository, "miniapp", "backend", "service.go"), "miniapp-v1\n")
 	writeFixture(t, filepath.Join(repository, "admin-portal", "backend", "service.go"), "admin-backend-v1\n")
@@ -32,7 +32,7 @@ func TestUATServiceReleasePlannerUsesLastSuccessfulReleaseRange(t *testing.T) {
 	writeFixture(t, filepath.Join(repository, "docs", "architecture.md"), "docs-v1\n")
 	base := commitGitFixture(t, repository, "initial")
 
-	writeFixture(t, filepath.Join(repository, "analyse-data-service", "service.go"), "data-v2\n")
+	writeFixture(t, filepath.Join(repository, "data-service", "service.go"), "data-v2\n")
 	dataCommit := commitGitFixture(t, repository, "data")
 	assertServicePlan(t, repository, base, dataCommit, map[string]string{
 		"deploy_all": "false", "deploy_data": "true", "deploy_agentrun": "false",

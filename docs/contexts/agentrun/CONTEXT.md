@@ -140,27 +140,27 @@ _Avoid_: Data Import Receipt、Eino checkpoint、可原地修改的 Outbox 草�
 并继续只读消费外部 Qdrant 中已保留的 Entity 快照。Qdrant reader、健康检查、Work Item
 与 API 合同保持不变；新增或修改 Entity 不会自动进入召回目录，直到新的 projection owner
 与 rollout 合同获批。Event Semantic 最终事实继续写入 Data PostgreSQL，不写入 Qdrant。
-在正式 Event 已存在后，从 Data 的精简、pinned Context 动态取得 Entity Type/角色、
+在正式 Event 已存在后，从 Data 的精简、pinned Context 动态取得正式 Entity 候选、
 Variable Definition、适用 Entity Type、方向、modality 和 Measurement 合同。
 `event-semantic-enricher.v3` 的 Stage A 只提取 Event 原文 raw mention 与 Evidence 血缘；
 不预测 Entity Type、不预先分配角色，也不生成 Signal。AgentRun 先对整个 Event 批量执行
 跨 Entity Type 正规名/别名精确匹配，再对未唯一命中 mention 执行一次跨类型 batch vector
 recall。Selector 只能从当前 mention 的 Qdrant 候选选择正式 ID 或 `no_match`，并按候选携带
-的正式 Entity Type Definition 分配允许角色；Entity Type 不由模型输出。Data 在 Submission
-中比对 `projected_entity_type` 与 PostgreSQL Entity ID/type/status/TBox。Vector Top-K 由
+的正式 Entity Type 和事件语义分配受控角色；Entity Type 不由模型输出。Data 在 Submission
+中比对 `projected_entity_type` 与 PostgreSQL Entity ID/type/status。Vector Top-K 由
 `semantic_retrieval.entity_top_k` 配置，范围 1..20，当前校准值为 10。
 Selector 与独立 Review 只使用候选 canonical name、name 和正式 aliases 确认 identity；不删除
 “系统/服务/设备/产品”等后缀，不使用字符串包含或其他手写简称规则。vector Top-1 不自动接受；
 只有唯一 exact identity 被主 Selector 拒绝时，由独立 Reviewer 做一次有界选择复核。
 `mention_not_entity` 只用于日期、数值、
-状态、行为、报告、会议等真正非实体，真实公司、产品、技术、指数不得用它掩盖 ABox/TBox gap。
+状态、行为、报告、会议等真正非实体，真实公司、产品、技术、指数不得用它掩盖正式 Entity 目录缺口。
 Entity Resolution 完成后，AgentRun 才按正式 Entity Type 从 pinned complete Variable
 Definition directory 确定性筛选适用目录，并以独立 Signal Stage 生成 Event-native
 VariableSignal 与可选自然语言 Measurement。EventEntityLink 可以没有 Signal；单个 Mention、
 Selection、Signal 或 Review item 非法时只隔离该候选，不撤销同 Event 的其他合法事实。
 对象同一性不使用 AgentRun 手写简称、职衔、国别前缀或证券后缀规则。唯一 canonical/alias exact
 identity 来自正式投影；其他候选由 Selector 提议并由独立 AI Reviewer 判断是否同一业务对象。
-合法简称缺口归正式 alias 数据治理，不在 Workflow 中建设第二套字符串 TBox。
+合法简称缺口归正式 alias 数据治理，不在 Workflow 中建设第二套字符串类型定义。
 AgentRun 的 embedding 调用必须经 Eino `embedding.Embedder`与 eino-ext 官方
 OpenAI-compatible adapter；自定义 Qdrant adapter 只弥补官方单 query Retriever 无法提供的
 Event-batch、跨类型召回和候选白名单能力。每批未命中 mention 只发生一次
@@ -168,7 +168,7 @@ Event-batch、跨类型召回和候选白名单能力。每批未命中 mention 
 模型只有在严格 JSON envelope 一次修复后仍不可解析时才终止整个 Event；Candidate 只需
 引用属于当前 Event 的 Evidence ID，AgentRun 不再要求 Mention 字符串逐字出现在 Event 或
 Evidence 文本中。候选内容错误进入
-per-stage audit/isolation，并为 `no_match`、TBox 排除、retrieval/transport failure 记录 owner
+per-stage audit/isolation，并为 `no_match`、retrieval/transport failure 记录 owner
 classification。Reviewer 的缺失或非法 item 会被隔离并使用该候选自身 Evidence 形成 fail，不扩大为
 Execution 失败。Submission 同时冻结 Reviewer 与 Adjudicator 的 Prompt/模型身份；首次
 `indeterminate` 后只允许以冻结的 Adjudicator 身份执行第二轮，未知结果按 Data 已持久化

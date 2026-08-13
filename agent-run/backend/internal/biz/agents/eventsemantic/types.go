@@ -89,20 +89,6 @@ type VariableDefinition struct {
 	ApplicableEntityTypes []string `json:"applicable_entity_types"`
 }
 
-type EntityTypeDefinition struct {
-	TypeKey              string   `json:"type_key"`
-	Version              int      `json:"version"`
-	NameZH               string   `json:"name_zh"`
-	NameEN               string   `json:"name_en"`
-	BusinessDefinition   string   `json:"business_definition"`
-	InclusionCriteria    []string `json:"inclusion_criteria"`
-	ExclusionCriteria    []string `json:"exclusion_criteria"`
-	EventLinkAllowed     bool     `json:"event_link_allowed"`
-	SignalSubjectAllowed bool     `json:"signal_subject_allowed"`
-	AllowedEventRoles    []string `json:"allowed_event_roles"`
-	Status               string   `json:"status"`
-}
-
 type MeasurementContract struct {
 	Representation      string `json:"representation"`
 	MaxItemsPerSignal   int    `json:"max_items_per_signal"`
@@ -112,22 +98,21 @@ type MeasurementContract struct {
 }
 
 type Context struct {
-	ContextLeaseID          string                 `json:"context_lease_id"`
-	AgentExecutionID        string                 `json:"agent_execution_id"`
-	WorkerID                string                 `json:"worker_id"`
-	LeaseExpiresAt          string                 `json:"lease_expires_at"`
-	ManifestContractVersion string                 `json:"manifest_contract_version"`
-	ContextFingerprint      string                 `json:"context_fingerprint"`
-	EventFingerprint        string                 `json:"event_fingerprint"`
-	EvidenceFingerprint     string                 `json:"evidence_fingerprint"`
-	OntologyVersion         string                 `json:"ontology_version"`
-	AcceptancePolicyVersion string                 `json:"acceptance_policy_version"`
-	Event                   Event                  `json:"event"`
-	Evidence                []Evidence             `json:"evidence"`
-	EntityTypeDefinitions   []EntityTypeDefinition `json:"entity_type_definitions"`
-	VariableDefinitions     []VariableDefinition   `json:"variable_definitions"`
-	AssertionModalities     []string               `json:"assertion_modalities"`
-	MeasurementContract     MeasurementContract    `json:"measurement_contract"`
+	ContextLeaseID          string               `json:"context_lease_id"`
+	AgentExecutionID        string               `json:"agent_execution_id"`
+	WorkerID                string               `json:"worker_id"`
+	LeaseExpiresAt          string               `json:"lease_expires_at"`
+	ManifestContractVersion string               `json:"manifest_contract_version"`
+	ContextFingerprint      string               `json:"context_fingerprint"`
+	EventFingerprint        string               `json:"event_fingerprint"`
+	EvidenceFingerprint     string               `json:"evidence_fingerprint"`
+	OntologyVersion         string               `json:"ontology_version"`
+	AcceptancePolicyVersion string               `json:"acceptance_policy_version"`
+	Event                   Event                `json:"event"`
+	Evidence                []Evidence           `json:"evidence"`
+	VariableDefinitions     []VariableDefinition `json:"variable_definitions"`
+	AssertionModalities     []string             `json:"assertion_modalities"`
+	MeasurementContract     MeasurementContract  `json:"measurement_contract"`
 }
 
 type Measurement struct {

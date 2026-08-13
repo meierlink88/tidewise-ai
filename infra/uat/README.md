@@ -21,7 +21,7 @@ UAT 由 GitHub Actions 手工发布到华为云 ECS，运行时数据库使用�
 
 服务目录与部署映射固定为：
 
-- `analyse-data-service/` → Data Service；
+- `data-service/` → Data Service；
 - `agent-run/` → AgentRun；
 - `miniapp/backend/` → Miniapp Backend；
 - `admin-portal/backend/` → Admin Portal Backend；
