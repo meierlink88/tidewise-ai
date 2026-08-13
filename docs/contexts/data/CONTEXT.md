@@ -416,8 +416,14 @@ _Avoid_: Agent Execution 副本、Theme Analysis Batch、原地覆盖重新分�
 Data Service 面向工程外部 Codex 分析师提供的同步、无状态、实时批量读取合同。调用方
 显式提交 discovery window、`analysis_as_of` 与 page size；Data 只返回
 `confirmed + verified` Event 及 accepted/latest/non-superseded Event Semantics、
-Evidence 和版本化 TBox。分页单位是完整 Event Bundle；Data 先选本页 Event，再返回
+既有 Event Publication 的 Event Evidence Record/Link 和版本化 TBox。这里的 Evidence
+只来自 `event_sources + raw_documents`，不读取、不关联、也不回退到新的
+`raw_evidences + evidences`。分页单位是完整 Event Bundle；Data 先选本页 Event，再返回
 这些正式事实所引用 Entity、Relation、Variable、Rule、Policy 及端点的最小引用闭包。
+Event 是否进入页面不以当前 `analysis_as_of` 存在非空 Event Evidence 为前提；当旧来源
+尚不可用时保留 Event 并返回空 `evidence` 数组。旧来源可用时间不得早于 Event 可知时间，
+但不要求二者完全相等。依赖当前不可用 Event Evidence ID 的 Event Semantic 对象被安全
+过滤，不得输出悬空引用，也不得因此丢弃 Event 或使整页失败。
 cursor 只绑定标准化查询、稳定排序与合同版本，不绑定全库或页级字典 Payload；
 `event_page_fingerprint` 与 `reference_closure_fingerprint` 分别记录本页事实和闭包
 血缘。MVP 不保存 Snapshot，也不宣称严格历史回放；响应固定标记
@@ -427,7 +433,8 @@ cursor 只绑定标准化查询、稳定排序与合同版本，不绑定全库�
 上限和技术性重试建议的结构化 `429`；只有完成计数或测量时返回实际值，bounded
 traversal 在 `budget+1` 提前停止时省略未知的实际总数。
 _Avoid_: Data 聚合 Event 成 Theme、Snapshot/Task 表、Codex 直连 PG/Neo4j、当前 TBox
-冒充严格历史 TBox、把全库字典重复装入每个 Event 页、先物化无界 JSON 再做资源限制
+冒充严格历史 TBox、把全库字典重复装入每个 Event 页、先物化无界 JSON 再做资源限制、
+用 Atomic Evidence 替代或约束既有 Event Evidence 读取
 
 **Research Graph Search**:
 Data Service 面向 Codex 分析师提供的同步、无状态、幂等只读图谱检索合同。Codex 显式

@@ -1176,6 +1176,43 @@ func TestAnalysisContextReturnsStableCursorBoundToTheResearchWindow(t *testing.T
 	}
 }
 
+func TestAnalysisContextFiltersSemanticsWhenLegacyEvidenceIsUnavailable(t *testing.T) {
+	eventID := "11111111-1111-4111-8111-111111111111"
+	evidenceID := "22222222-2222-4222-8222-222222222222"
+	linkID := "33333333-3333-4333-8333-333333333333"
+	store := &contextStoreStub{page: AnalysisContextStorePage{Bundles: []BundleRecord{{
+		KnowledgeAvailableAt: time.Date(2026, 7, 28, 8, 0, 0, 0, time.UTC),
+		EventID:              eventID,
+		Bundle: EventSemanticBundle{
+			Event: Event{ID: eventID},
+			EntityLinks: []EntityLink{{
+				EventEntityLinkID: linkID,
+				EvidenceIDs:       []string{evidenceID},
+			}},
+			VariableSignals: []VariableSignal{{
+				VariableSignalID:         "44444444-4444-4444-8444-444444444444",
+				SubjectEventEntityLinkID: linkID,
+				EvidenceIDs:              []string{evidenceID},
+			}},
+		},
+	}}}}
+	result, err := newAnalysisContextTestUseCase(store).List(context.Background(), AnalysisContextRequest{
+		DiscoveryWindowStart: "2026-07-28T00:00:00Z",
+		DiscoveryWindowEnd:   "2026-07-29T00:00:00Z",
+		AnalysisAsOf:         "2026-07-29T00:00:00Z",
+		PageSize:             1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.EventSemanticBundles) != 1 ||
+		len(result.EventSemanticBundles[0].Evidence) != 0 ||
+		len(result.EventSemanticBundles[0].EntityLinks) != 0 ||
+		len(result.EventSemanticBundles[0].VariableSignals) != 0 {
+		t.Fatalf("Analysis Context Event-only bundle = %#v", result.EventSemanticBundles)
+	}
+}
+
 func TestAnalysisContextReturnsVersionedPageAndReferenceClosureFingerprints(t *testing.T) {
 	store := &contextStoreStub{page: AnalysisContextStorePage{
 		Bundles: []BundleRecord{},

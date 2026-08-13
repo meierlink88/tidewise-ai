@@ -188,6 +188,20 @@ INSERT INTO variable_definitions (
 	if err != nil {
 		t.Fatal(err)
 	}
+	eventOnlyAsOf := now.Add(-30*time.Minute - 30*time.Second)
+	eventOnlyPage, err := contextService.List(ctx, researchbiz.AnalysisContextRequest{
+		DiscoveryWindowStart: now.Add(-time.Hour).Format(time.RFC3339),
+		DiscoveryWindowEnd:   eventOnlyAsOf.Format(time.RFC3339),
+		AnalysisAsOf:         eventOnlyAsOf.Format(time.RFC3339),
+		PageSize:             20,
+	})
+	if err != nil || len(eventOnlyPage.EventSemanticBundles) != 1 {
+		t.Fatalf("list Event-only Research Analysis Context page: %#v, %v", eventOnlyPage, err)
+	}
+	eventOnlyBundle := eventOnlyPage.EventSemanticBundles[0]
+	if eventOnlyBundle.Event.ID != testTypedEventID || len(eventOnlyBundle.Evidence) != 0 {
+		t.Fatalf("Event-only Research Analysis Context bundle = %#v", eventOnlyBundle)
+	}
 	request := researchbiz.AnalysisContextRequest{
 		DiscoveryWindowStart: now.Add(-time.Hour).Format(time.RFC3339),
 		DiscoveryWindowEnd:   now.Format(time.RFC3339),
@@ -217,6 +231,12 @@ INSERT INTO variable_definitions (
 	bundles := append(firstPage.EventSemanticBundles, secondPage.EventSemanticBundles...)
 	var actualFound, forecastFound bool
 	for _, bundle := range bundles {
+		if bundle.Event.ID == testTypedEventID {
+			if len(bundle.Evidence) != 1 ||
+				!bundle.Evidence[0].KnowledgeAvailableAt.After(bundle.Event.KnowledgeAvailableAt) {
+				t.Fatalf("legacy Event Evidence availability = %#v, want later than Event availability", bundle)
+			}
+		}
 		if len(bundle.VariableSignals) != 1 {
 			t.Fatalf("typed Analysis Context bundle = %#v", bundle)
 		}
@@ -1093,9 +1113,9 @@ func seedTypedResearchSemanticFact(
 	}{
 		{
 			`UPDATE events
-SET first_seen_at = $1, knowable_at = $1, event_time = $1,
-    fact_payload = '{"statement_source":"Integration Source"}'::jsonb
-WHERE id = $2`,
+	SET first_seen_at = $1, knowable_at = $1::timestamptz - interval '1 minute', event_time = $1,
+	    fact_payload = '{"statement_source":"Integration Source"}'::jsonb
+	WHERE id = $2`,
 			[]any{availableAt, testTypedEventID},
 		},
 		{
