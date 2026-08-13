@@ -1,5 +1,5 @@
-import listFixture from '../../../../../testdata/reasoning-tree-v1/01-reasoning-tree-list-result.json';
-import detailFixture from '../../../../../testdata/reasoning-tree-v1/02-reasoning-tree-with-contradiction-result.json';
+import listFixture from './list.json';
+import detailFixture from './detail.json';
 import { ResearchReasoningTreeError } from '../../features/research-reasoning-trees/contract';
 import type { ResearchReasoningTreePort } from '../../features/research-reasoning-trees/contract';
 import {

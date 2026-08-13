@@ -1,8 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { Children, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import listFixture from '../../../../../../testdata/reasoning-tree-v1/01-reasoning-tree-list-result.json';
-import detailFixture from '../../../../../../testdata/reasoning-tree-v1/02-reasoning-tree-with-contradiction-result.json';
+import listFixture from '../../../mocks/research-reasoning-trees/list.json';
+import detailFixture from '../../../mocks/research-reasoning-trees/detail.json';
 import {
   parseResearchReasoningTreeDetail,
   parseResearchReasoningTreeIndex

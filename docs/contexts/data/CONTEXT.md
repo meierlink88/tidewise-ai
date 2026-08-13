@@ -521,9 +521,10 @@ Theme 与 Tree 都可保存 `transmission_summary` 和检查点信息，但作�
 Theme 概括整体投资结论，可综合多棵 Tree；Tree 只解释一条 Industry Chain 路径。
 Data 原样承接分析师内容，不复制、拼接或执行研究质量校验。
 
-**推理树共享测试 Fixture（Reasoning Tree Shared Test Fixture）**:
-`testdata/reasoning-tree-v1/` 保存 provider/consumer 共用的确定性合同样例，不是
-生产数据来源；真实 Theme/Tree 只能经发布 API 入库。
+**推理树合同验证（Reasoning Tree Contract Verification）**:
+Data OpenAPI、稳定 wire DTO、错误码和 Data contract test 拥有 provider 合同；消费者使用
+自己的 typed Adapter、OpenAPI drift test 和必要 HTTP smoke 验证消费。应用内 mock 只属于
+该应用，不是 Data 合同或生产数据来源；真实 Theme/Tree 只能经发布 API 入库。
 
 **传导阶段（Transmission Stage）**:
 Research Theme 的分析阶段，仅允许 `identification`、`validation`、`diffusion`
@@ -543,7 +544,8 @@ internal/server/ Kratos transport, auth and lifecycle wiring
 internal/conf/ Data-only runtime configuration
 ```
 
-`analyse-data-service/backend/migrations/` 与 `analyse-data-service/backend/data/` 是 Data 的统一事实资产，可以保留为 Backend 根资产，但不得被 BFF 直接读取。
+`analyse-data-service/backend/migrations/` 是 Data 的 PostgreSQL schema 资产，保留在 Backend
+根目录；BFF 不得直接读取 migration 或 Data PostgreSQL。
 
 ## Runtime
 

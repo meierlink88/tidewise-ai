@@ -66,6 +66,7 @@ Data Domain Service
 - `docs/adr/0012-docker-only-service-runtime.md`
 - `docs/adr/0013-data-entity-domain-and-projection-retirement.md`
 - `docs/adr/0014-agentrun-consumes-retained-qdrant-snapshot.md`
+- `docs/adr/0015-retire-root-shared-test-fixtures.md`
 
 ## Runtime
 

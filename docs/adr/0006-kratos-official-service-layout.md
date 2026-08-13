@@ -77,8 +77,7 @@ Application Layout：
   保留 Gin/Kratos 双栈。
 - 各 Service 的现有路径、DTO、状态码、错误语义、Request ID、OpenAPI 和
   Swagger UI 行为保持不变。
-- Data 的独立迁移由 GitHub Issue #105 与
-  `docs/architecture/data-domain-service-kratos-migration-v1.md` 冻结；其中
+- Data 的独立迁移由 GitHub Issue #105 冻结；其中
   `graph-projector` 按产品决策退役，Neo4j 可选基础设施保留但不再是 Data Server
   运行依赖。
 - 架构测试必须验证 Kratos 目录存在、服务间无实现依赖，以及已迁移 Service 的

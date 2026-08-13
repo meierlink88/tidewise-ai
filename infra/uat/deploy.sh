@@ -15,7 +15,6 @@ expected_current_adminportal_image="${EXPECTED_CURRENT_ADMINPORTAL_IMAGE:-}"
 expected_current_admin_image="${EXPECTED_CURRENT_ADMIN_IMAGE:-}"
 expected_current_agentrun_image="${EXPECTED_CURRENT_AGENTRUN_IMAGE:-}"
 backup_confirmed="${HIGH_RISK_BACKUP_CONFIRMED:-false}"
-agentrun_recovery_target_version="${AGENTRUN_RECOVERY_TARGET_VERSION:-}"
 compose_file="${COMPOSE_FILE:-infra/uat/docker-compose.yaml}"
 migration_risk_manifest="${MIGRATION_RISK_MANIFEST:-infra/uat/migration-risk.tsv}"
 agentrun_migration_risk_manifest="${AGENTRUN_MIGRATION_RISK_MANIFEST:-infra/uat/agentrun-migration-risk.tsv}"
@@ -33,27 +32,13 @@ report_file="${RUNNER_TEMP:-/tmp}/tidewise-uat-migration-${GITHUB_RUN_ID:-manual
 agentrun_report_file="${RUNNER_TEMP:-/tmp}/tidewise-uat-agentrun-migration-${GITHUB_RUN_ID:-manual}.json"
 agentrun_rollback_compatibility_required=false
 agentrun_rollback_target_version=""
-# Retain the legacy filename so an interrupted zero-byte 010-era marker can be
-# recovered by the explicit operator-supplied target instead of being orphaned.
+# Keep the established state filename so an interrupted migration rollback remains recoverable.
 agentrun_rollback_marker="${state_dir}/agentrun-010-rollback-required"
 release_state_write_marker="${state_dir}/release-state-write-in-progress"
 candidate_services_started=false
 rollback_snapshot_ready=false
-excluded_fact_before_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-excluded-facts-before-${GITHUB_RUN_ID:-manual}.json"
-excluded_fact_after_report="${RUNNER_TEMP:-/tmp}/tidewise-uat-excluded-facts-after-${GITHUB_RUN_ID:-manual}.json"
 host_base_url="${UAT_HOST_BASE_URL:-http://127.0.0.1}"
 event_semantic_qdrant_url="http://qdrant:6333"
-
-if [ -n "$agentrun_recovery_target_version" ]; then
-  if ! [[ "$agentrun_recovery_target_version" =~ ^01[0-3]$ ]]; then
-    echo "FAIL agentrun-recovery-gate: recovery target must be 010 through 013" >&2
-    exit 1
-  fi
-  if [ "$backup_confirmed" != true ]; then
-    echo "FAIL agentrun-recovery-gate: confirm_high_risk_backup=true is required" >&2
-    exit 1
-  fi
-fi
 
 test -d "$state_dir"
 test -w "$state_dir"
@@ -315,21 +300,6 @@ fi
 "${candidate_compose[@]}" config --quiet
 echo "PASS compose-contract"
 
-if [ -n "$agentrun_recovery_target_version" ]; then
-  if [ -s "$agentrun_rollback_marker" ] && [ "$(sed -n '1p' "$agentrun_rollback_marker")" != "$agentrun_recovery_target_version" ]; then
-    echo "FAIL agentrun-recovery-gate: recovery input conflicts with persisted rollback target" >&2
-    exit 1
-  fi
-  printf '%s\n' "$agentrun_recovery_target_version" > "$agentrun_rollback_marker"
-  chmod 0640 "$agentrun_rollback_marker"
-  sync "$agentrun_rollback_marker"
-  sync -f "$state_dir"
-  prepare_previous_release_agentrun_rollback
-  rm -f "$agentrun_rollback_marker"
-  sync -f "$state_dir"
-  echo "PASS recovered-explicit-agentrun-migration-target"
-fi
-
 verify_external_qdrant "${candidate_compose[@]}"
 echo "PASS external-qdrant-ready"
 
@@ -338,11 +308,6 @@ echo "PASS external-qdrant-ready"
 "${candidate_compose[@]}" run --rm --no-deps --entrypoint /bin/sh agentrun \
   -c 'probe="$(mktemp /app/data/.uat-write-probe.XXXXXX)" && rm -f "$probe"'
 echo "PASS agentrun-artifact-write"
-
-"${candidate_compose[@]}" run --rm --no-deps \
-  --entrypoint /usr/local/bin/uat-excluded-fact-audit data \
-  > "$excluded_fact_before_report"
-echo "PASS excluded-fact-audit-before"
 
 if [ -f "$agentrun_rollback_marker" ]; then
   prepare_previous_release_agentrun_rollback
@@ -511,36 +476,6 @@ fi
   echo '</details>'
 } >> "$summary_file"
 echo "PASS migration-apply"
-
-"${candidate_compose[@]}" run --rm --no-deps \
-  --entrypoint /usr/local/bin/uat-excluded-fact-audit data \
-  > "$excluded_fact_after_report"
-python3 - "$excluded_fact_before_report" "$excluded_fact_after_report" <<'PY'
-import json
-import pathlib
-import sys
-
-before = json.loads(pathlib.Path(sys.argv[1]).read_text())
-after = json.loads(pathlib.Path(sys.argv[2]).read_text())
-expected_contract = "uat-excluded-fact-audit.v1"
-if before.get("contract_version") != expected_contract or after.get("contract_version") != expected_contract:
-    raise SystemExit("excluded fact audit contract version does not match")
-if before.get("tables") != after.get("tables"):
-    before_tables = before.get("tables") or {}
-    after_tables = after.get("tables") or {}
-    changed = sorted(
-        table for table in set(before_tables) | set(after_tables)
-        if before_tables.get(table) != after_tables.get(table)
-    )
-    raise SystemExit("excluded PostgreSQL facts changed during deployment: " + ",".join(changed))
-PY
-echo "PASS excluded-fact-audit-unchanged"
-{
-  echo
-  echo "### UAT excluded PostgreSQL fact audit"
-  echo
-  echo "Event, RawDocument, Theme, and Reason Tree table counts and schema-normalized content fingerprints are unchanged."
-} >> "$summary_file"
 
 if ! "${candidate_compose[@]}" up -d --wait --wait-timeout 120; then
   if [ "$candidate_services_started" != true ]; then

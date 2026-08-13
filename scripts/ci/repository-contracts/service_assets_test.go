@@ -96,7 +96,7 @@ func TestDataImageExcludesRetiredEventSemanticProjection(t *testing.T) {
 			t.Fatalf("Data delivery retains retired semantic projection operation %q", forbidden)
 		}
 	}
-	for _, required := range []string{"event-semantic-acceptance-audit", "event-semantic-history-audit", "uat-excluded-fact-audit"} {
+	for _, required := range []string{"event-semantic-acceptance-audit", "event-semantic-history-audit"} {
 		if !strings.Contains(dockerfile, required) {
 			t.Fatalf("Data image lost retained audit command %q", required)
 		}
@@ -117,13 +117,6 @@ func TestServiceImagesCarryEventSemanticHistoryMaintenanceCommands(t *testing.T)
 		"backend",
 		"Dockerfile",
 	))
-	uatRunbook := readContractFile(t, filepath.Join(
-		repoRoot,
-		"infra",
-		"uat",
-		"README.md",
-	))
-
 	for _, required := range []string{
 		"-o /out/event-semantic-history-audit ./analyse-data-service/backend/cmd/event-semantic-history-audit",
 		"COPY --from=builder /out/event-semantic-history-audit /usr/local/bin/event-semantic-history-audit",
@@ -138,14 +131,6 @@ func TestServiceImagesCarryEventSemanticHistoryMaintenanceCommands(t *testing.T)
 	} {
 		if !strings.Contains(agentrunDockerfile, required) {
 			t.Fatalf("AgentRun runtime image missing Event Semantic history contract %q", required)
-		}
-	}
-	for _, required := range []string{
-		"/usr/local/bin/event-semantic-history-audit",
-		"/app/agentrun-event-semantic-history",
-	} {
-		if !strings.Contains(uatRunbook, required) {
-			t.Fatalf("UAT runbook missing Event Semantic history command %q", required)
 		}
 	}
 }
@@ -200,57 +185,6 @@ func TestRetiredDataGraphProjectorIsAbsent(t *testing.T) {
 		}
 		if strings.Contains(string(contents), "\nneo4j:") {
 			t.Fatalf("Data Server config %q retains retired Neo4j runtime configuration", path)
-		}
-	}
-}
-
-func TestAgentRunMigrationManifestAccountsForEveryFrozenTrackedFile(t *testing.T) {
-	repoRoot := repositoryRoot()
-	path := filepath.Join(repoRoot, "docs", "architecture", "agentrun", "agentrun-monorepo-file-disposition.tsv")
-	contents, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read AgentRun file disposition manifest: %v", err)
-	}
-	lines := strings.Split(strings.TrimSpace(string(contents)), "\n")
-	if len(lines) != 110 {
-		t.Fatalf("AgentRun file disposition rows = %d, want header plus 109 frozen files", len(lines))
-	}
-	if lines[0] != "source_path\tdisposition\tdestination" {
-		t.Fatalf("AgentRun file disposition header = %q", lines[0])
-	}
-	allowed := map[string]bool{
-		"moved":                   true,
-		"merged":                  true,
-		"superseded-as-duplicate": true,
-		"retired-low-value-test":  true,
-	}
-	seen := make(map[string]bool, len(lines)-1)
-	for lineNumber, line := range lines[1:] {
-		fields := strings.Split(line, "\t")
-		if len(fields) != 3 {
-			t.Fatalf("AgentRun file disposition line %d has %d fields", lineNumber+2, len(fields))
-		}
-		source, disposition, destinations := fields[0], fields[1], fields[2]
-		if seen[source] {
-			t.Fatalf("AgentRun source asset %q is classified more than once", source)
-		}
-		seen[source] = true
-		if !allowed[disposition] {
-			t.Fatalf("AgentRun source asset %q has unsupported disposition %q", source, disposition)
-		}
-		if disposition == "retired-low-value-test" {
-			if destinations != "-" {
-				t.Fatalf("retired AgentRun test %q destination = %q, want -", source, destinations)
-			}
-			continue
-		}
-		for _, destination := range strings.Split(destinations, ";") {
-			if destination == "" {
-				t.Fatalf("AgentRun source asset %q has an empty destination", source)
-			}
-			if _, err := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(destination))); err != nil {
-				t.Fatalf("AgentRun source asset %q destination %q is missing: %v", source, destination, err)
-			}
 		}
 	}
 }

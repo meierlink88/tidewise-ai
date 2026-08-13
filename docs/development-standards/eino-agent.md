@@ -3,8 +3,9 @@
 本规范只定义已批准 Agent capability 内使用 CloudWeGo Eino 的技术规则，适用于 Prompt、
 Model Provider、Tool、Workflow/Graph/ADK、Callback、Stream、Checkpoint、MCP 和 structured output。
 
-具体 Agent 宿主、应用目录、业务状态、数据 ownership 和运行时迁移由 Context、ADR 与 Spec
-拥有，不属于本规范。Eino 是 capability 内的编排实现，不是顶层仓库或 Service 架构。
+具体 Agent 宿主、应用目录、业务状态、数据 ownership 和运行时迁移由 Context、ADR 与
+当前可执行合同拥有，不属于本规范。Eino 是 capability 内的编排实现，不是顶层仓库或
+Service 架构。
 
 ## Reference-first Gate
 

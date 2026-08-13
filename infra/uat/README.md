@@ -163,28 +163,11 @@ UAT 目录、Seed、Agent 注册数据、配置、事实回填和清理使用独
 migration 文件及已执行 ledger 不改写；若全新环境仍 pending 历史 `data`/`mixed` 版本，
 普通 UAT Deploy 必须失败并等待独立、可审计的 bootstrap/data publication 方案。
 
-`000044` 是专门退役 Evidence Receipt 的 `high/mixed` 版本，只能通过 GitHub Actions
-`UAT Evidence Receipt Cleanup` 手工执行。操作员必须先确认 RDS 自动备份/PITR 或手工恢复点
-当前可用，再勾选 `confirm_recovery_point`。该操作使用 main 最新成功 CI commit 的 immutable
-Data image，只允许 `000043 -> 000044` 或已完成后的 verified no-op；不会更新或重启任何服务，
-也不写 `/opt/tidewise/uat/state/current.*`。完成后普通 `Deploy UAT` 只会读取到已应用的 ledger。
-
-`recover_agentrun_previous_release_version` 只用于恢复被旧版发布器中断的 AgentRun
-迁移，值必须是已确认上一成功发布所拥有的 `010`–`013`，并同时勾选
-`confirm_high_risk_backup`。正常发布必须留空；该输入会在其他数据库工作之前显式恢复迁移
-ledger 与旧版约束，不从已中断的 ledger 状态猜测回滚目标。
-
 部署脚本不会自动注入历史 migration 内部要求的人工 Review session 参数。若全新数据库
 仍 pending 这些受控 migration，普通 UAT Deploy 应失败；必须先按对应 migration 的
 Review、备份和零行校验要求执行独立、可审计的受控迁移，不能用通用备份勾选替代。
 
 Data 与 AgentRun migration 都通过各自镜像执行只读预检和风险分类，成功后才更新服务。若启动或健康检查失败，脚本使用发布前持久记录的 runtime、Compose 与五个业务镜像自动回退一次，并再次检查健康；不执行 down migration，不循环重试，也不改变 Qdrant 或 PostgreSQL 基础设施运行时。Schema migration 必须兼容至少前一个应用版本。
-
-本轮 TBox/Qdrant rollout 还在 migration 前后各运行一次只读
-`uat-excluded-fact-audit`。该命令对 Event、RawDocument、Theme 和 Reason Tree 全部受保护表
-计算行数及按目标 schema 规范化的逐行事实指纹；规范化只吸收 migration `000035`/`000038`
-已批准的字段新增、删除、重命名与合同版本升级，其余事实字段仍全部比较。前后任一表
-不一致都会在完整服务启动前阻断发布。审计只输出表级计数和指纹，不输出业务正文。
 
 ## Entity projection retirement
 
@@ -204,126 +187,6 @@ Miniapp 客户端地址和 Admin CORS 配置。发布完成后应从 ECS 外部�
 每个容器使用 Docker `json-file` 日志，单文件最多 20 MB、保留 5 个。失败诊断经过数据库密码、Authorization 和常见 Secret 模式过滤后，以保留 7 天的 Actions artifact 上传。
 
 首次由本方案接管 UAT 时尚无 `current.images.env`，因此不存在可自动回退的仓库管理版本；首次发布前应另行保留当前环境恢复方案。
-
-### Event Semantic compact context rollout
-
-Migration `000035` 是 additive forward migration：新增 `context_manifest` 与 selected
-resolution binding，不修改或回写 `000032` 的历史 `context_snapshot`。该版本必须在
-Event Semantic scheduler 暂停状态下发布；先确认 Data migration 与新 Data provider
-健康，再切换同一 release unit 的 AgentRun consumer。两者版本混合、旧 active Lease
-尚未过期或回退到旧服务组合期间，不得恢复 Event Semantic scheduler，也不得回退到全量
-Context 响应。若同一 execution 重放旧 Lease，Data 会在保留历史 snapshot 的同时只为该
-Lease 生成 compact manifest，避免续期后无法读取。恢复 scheduler 后，以 synthetic E2E 或等价 UAT Event 验证 compact Context
-小于 100 KB、正式 Anchor→ChainNode receipt、Submission/Review 和可重试 drift。
-
-## Event Semantic 历史处置
-
-历史处置使用当前成功发布镜像内的两个维护命令，不在 ECS 临时构建或复制二进制。
-Data audit 和 AgentRun dry-run 都是只读操作；Apply 必须在审阅计划、确认没有 running
-Work Item 并建立 UAT 恢复点后另行授权。维护期间先停止 AgentRun，避免正常周期与维护
-命令竞争数据库独占锁；只读审阅结束后先恢复 AgentRun，Apply 获得授权时再进入一次短暂
-维护窗口并重新生成、核对计划。
-
-在 ECS 上以部署用户执行：
-
-```bash
-cd /opt/tidewise/uat
-DEPLOY_ROOT=/opt/tidewise/uat
-audit_name="event-semantic-history-audit-$(date -u +%Y%m%dT%H%M%SZ).json"
-plan_name="event-semantic-history-plan-$(date -u +%Y%m%dT%H%M%SZ).json"
-umask 077
-set -o noclobber
-
-docker compose \
-  --env-file runtime.env \
-  --env-file state/current.images.env \
-  -f state/current.compose.yaml \
-  stop --timeout 240 agentrun
-
-docker compose \
-  --env-file runtime.env \
-  --env-file state/current.images.env \
-  -f state/current.compose.yaml \
-  run --rm --no-deps \
-  --user 10001:10001 \
-  -v "${DEPLOY_ROOT}/agentrun-artifacts:/maintenance" \
-  --entrypoint /usr/local/bin/event-semantic-history-audit \
-  data -output "/maintenance/${audit_name}"
-
-docker compose \
-  --env-file runtime.env \
-  --env-file state/current.images.env \
-  -f state/current.compose.yaml \
-  run --rm --no-deps \
-  --entrypoint /app/agentrun-event-semantic-history \
-  agentrun -dry-run -manifest "/app/data/${audit_name}" \
-  > "${DEPLOY_ROOT}/agentrun-artifacts/${plan_name}"
-
-docker compose \
-  --env-file runtime.env \
-  --env-file state/current.images.env \
-  -f state/current.compose.yaml \
-  start agentrun
-```
-
-manifest 由容器 UID `10001` 创建为 `0640`；Artifact 目录的 setgid 会让它继承
-`tidewise-agentrun` 组，因此部署用户可直接审阅，其他用户不可读。`noclobber` 使
-dry-run 在同名计划已存在时失败，不会截断已审阅证据。若只读命令失败，也应执行上面的
-`start agentrun` 恢复服务。
-
-确认 dry-run 后，重新停止 AgentRun，重跑 audit 和 dry-run；只有新计划与已授权统计一致
-时才继续 Apply，否则重新确认。Apply 使用这份最新 manifest，并为导出和执行报告指定
-尚不存在的文件：
-
-```bash
-(
-set -euo pipefail
-set -o noclobber
-approved_plan_name="将已授权的 plan 文件名填在这里"
-fresh_audit_name="event-semantic-history-audit-$(date -u +%Y%m%dT%H%M%SZ).json"
-fresh_plan_name="event-semantic-history-plan-$(date -u +%Y%m%dT%H%M%SZ).json"
-export_name="event-semantic-work-items-before-$(date -u +%Y%m%dT%H%M%SZ).json"
-apply_name="event-semantic-history-apply-$(date -u +%Y%m%dT%H%M%SZ).json"
-
-compose_uat() {
-  docker compose \
-    --env-file runtime.env \
-    --env-file state/current.images.env \
-    -f state/current.compose.yaml \
-    "$@"
-}
-trap 'compose_uat start agentrun' EXIT
-
-compose_uat stop --timeout 240 agentrun
-
-compose_uat run --rm --no-deps \
-  --user 10001:10001 \
-  -v "${DEPLOY_ROOT}/agentrun-artifacts:/maintenance" \
-  --entrypoint /usr/local/bin/event-semantic-history-audit \
-  data -output "/maintenance/${fresh_audit_name}"
-
-compose_uat run --rm --no-deps \
-  --entrypoint /app/agentrun-event-semantic-history \
-  agentrun -dry-run -manifest "/app/data/${fresh_audit_name}" \
-  > "${DEPLOY_ROOT}/agentrun-artifacts/${fresh_plan_name}"
-
-cmp --silent \
-  "${DEPLOY_ROOT}/agentrun-artifacts/${approved_plan_name}" \
-  "${DEPLOY_ROOT}/agentrun-artifacts/${fresh_plan_name}"
-
-compose_uat run --rm --no-deps \
-  --entrypoint /app/agentrun-event-semantic-history \
-  agentrun -apply -allow-env uat \
-  -manifest "/app/data/${fresh_audit_name}" \
-  -export "/app/data/${export_name}" \
-  > "${DEPLOY_ROOT}/agentrun-artifacts/${apply_name}"
-)
-```
-
-pre-change export 同样以 `0640` 独占创建，执行报告受 `noclobber` 保护。无论 Apply
-成功、失败或取消，都必须恢复 AgentRun。维护命令在 plan/export/Apply 期间持有 AgentRun
-数据库独占 advisory lock；Apply 产生 `skipped` 后不得回滚到不认识该状态的旧 AgentRun
-版本。
 
 ## 首次发布清单
 

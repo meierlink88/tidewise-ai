@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -849,23 +847,6 @@ func TestSnapshotAggregateValidateAcceptsAnalystDisplayContentWithoutFormalIDs(t
 	}
 	if themeID == "" {
 		t.Fatal("Validate() themeID is empty")
-	}
-}
-
-func TestUATPreparedSnapshotFixtureIsPublishableWithoutFormalOntologyIDs(t *testing.T) {
-	payload, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "testdata", "research-theme-analyst-snapshot-v3", "01-uat-at01-prepared-request.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var aggregate SnapshotAggregate
-	if err := json.Unmarshal(payload, &aggregate); err != nil {
-		t.Fatal(err)
-	}
-	if _, _, err := aggregate.Validate(); err != nil {
-		t.Fatalf("prepared UAT fixture Validate() error = %v", err)
-	}
-	if len(aggregate.ReasoningTrees) != 2 || aggregate.ReasoningTrees[0].Nodes[2].DisplayName == aggregate.Theme.Impacts[0].DisplayName {
-		t.Fatalf("fixture did not preserve distinct Theme/Tree presentation snapshots: %#v", aggregate)
 	}
 }
 

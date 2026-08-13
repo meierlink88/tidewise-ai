@@ -31,8 +31,6 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 		"ADMIN_SERVICE_TOKEN",
 		"AGENTRUN_SERVICE_TOKEN",
 		"EMBEDDING_API_KEY",
-		"recover_agentrun_previous_release_version:",
-		"AGENTRUN_RECOVERY_TARGET_VERSION:",
 		"infra/uat/preflight.sh",
 		"infra/uat/deploy.sh",
 		"infra/uat/collect-diagnostics.sh",
@@ -470,9 +468,6 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 		"PASS external-qdrant-ready",
 		"qdrant-ownership: application release state must not manage Qdrant",
 		"wget -q -T 10 -t 2 -O-",
-		"/usr/local/bin/uat-excluded-fact-audit",
-		"PASS excluded-fact-audit-before",
-		"PASS excluded-fact-audit-unchanged",
 	} {
 		if !strings.Contains(deploy, required) {
 			t.Fatalf("UAT deploy executor missing %q", required)

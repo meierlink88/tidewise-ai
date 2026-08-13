@@ -1,6 +1,6 @@
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
+import listFixture from '../../mocks/research-reasoning-trees/list.json';
+import detailFixture from '../../mocks/research-reasoning-trees/detail.json';
 import { createResearchReasoningTreeApiPort } from './api-port';
 
 const themeId = 'c26337f2-a79f-5089-84f4-63d57bc32230';
@@ -9,8 +9,8 @@ const success = (result: unknown) => ({ request_id: 'miniapp-reasoning-test', re
 
 describe('research reasoning tree BFF adapter', () => {
   it('maps the V1 shared list and detail fixtures through the public Port', async () => {
-    const list = await fixtureResult('01-reasoning-tree-list-result.json');
-    const detail = await fixtureResult('02-reasoning-tree-with-contradiction-result.json');
+    const list = listFixture.result;
+    const detail = detailFixture.result;
     const request = vi
       .fn()
       .mockResolvedValueOnce({ statusCode: 200, data: success(list) })
@@ -103,7 +103,7 @@ describe('research reasoning tree BFF adapter', () => {
   });
 
   it('rejects a detail payload whose identity does not match the route', async () => {
-    const detail = await fixtureResult('02-reasoning-tree-with-contradiction-result.json');
+    const detail = detailFixture.result;
     const request = vi.fn().mockResolvedValue({ statusCode: 200, data: success(detail) });
     const port = createResearchReasoningTreeApiPort({
       baseUrl: 'https://miniapp.example.test',
@@ -116,7 +116,7 @@ describe('research reasoning tree BFF adapter', () => {
   });
 
   it('rejects the retired Anchor V1 identity field', async () => {
-    const detail = (await fixtureResult('02-reasoning-tree-with-contradiction-result.json')) as {
+    const detail = detailFixture.result as {
       reasoning_tree: Record<string, unknown>;
     };
     const legacyDetail = {
@@ -137,9 +137,3 @@ describe('research reasoning tree BFF adapter', () => {
     });
   });
 });
-
-async function fixtureResult(name: string): Promise<unknown> {
-  const path = resolve(import.meta.dirname, '../../../../../testdata/reasoning-tree-v1', name);
-  const fixture = JSON.parse(await readFile(path, 'utf8')) as { result: unknown };
-  return fixture.result;
-}

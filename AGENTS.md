@@ -37,7 +37,7 @@
 任何会改变系统行为、项目事实、API、数据、配置、运行时、部署或测试合同的任务，都必须
 先使用 `$ganchaojia-development-standard` 发现共享规范，再按 behavior owner 读取对应
 技术栈规范。全局 Skill 和外部参考提供路由与证据；Skill 发现的仓库内规范、Context、
-ADR、OpenAPI 和已评审 Spec 才是项目权威。
+ADR、OpenAPI 和当前数据约束才是项目权威。
 
 ### Testing
 
@@ -56,7 +56,7 @@ Lifecycle 和 Architecture 仅在对应风险被本次修改触及时启用。�
 - Admin Portal 前端工作执行 Skill 路由的 shadcn 分支；不得为适配前端框架改造 Admin
   Backend API。
 - Backend Service 工作执行 Skill 路由的 Kratos 分支；工程结构使用当前结构规范，
-  运行时、API、数据与业务事实以 Context、ADR、OpenAPI 和已评审 Spec 为准。
+  运行时、API、数据与业务事实以 Context、ADR、OpenAPI 和当前数据约束为准。
 - Eino/Agent 工作执行 Skill 路由的 Eino reference-first 分支。
 - 跨前端、Service 与 Agent 的需求同时执行所有适用分支，并先冻结 API、数据和所有权边界。
 - 仅不改变系统行为或项目事实的纯解释、纯文案工作可以不触发。

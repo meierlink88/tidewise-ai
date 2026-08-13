@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -220,17 +218,6 @@ func TestResearchThemeBindingRejectsDuplicateAndUnknownFieldsWithPath(t *testing
 				t.Fatalf("details = %#v, want path %q", publicError.Details, test.path)
 			}
 		})
-	}
-}
-
-func TestResearchThemeBindingAcceptsPreparedUATAnalystSnapshotFixture(t *testing.T) {
-	payload, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "..", "..", "testdata", "research-theme-analyst-snapshot-v3", "01-uat-at01-prepared-request.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	request, err := decodeResearchThemeImport(payload)
-	if err != nil || request.Snapshot == nil || len(request.Snapshot.ReasoningTrees) != 2 {
-		t.Fatalf("decode prepared UAT fixture = %#v, %v", request, err)
 	}
 }
 
