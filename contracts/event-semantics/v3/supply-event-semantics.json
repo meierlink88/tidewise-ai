@@ -79,7 +79,7 @@
       "context_lease_id": "11111111-1111-4111-8111-111111111111",
       "agent_execution_id": "execution-v3-001",
       "agent_key": "event-semantic-enricher",
-      "agent_version": "event-semantic-enricher.v3",
+      "agent_version": "event-semantic-enricher.v4",
       "generator_prompt_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       "generator_model": "fixture-generator",
       "reviewer_prompt_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",

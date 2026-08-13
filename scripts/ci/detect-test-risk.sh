@@ -46,7 +46,7 @@ container_assets='(^|/)(Dockerfile|docker-compose[^/]*\.ya?ml)$|^infra/(local|ua
 
 case "$scope" in
   data)
-    if matches '^data-service/doctype/|^scripts/ci/(verify-openspg-schemas\.py|verify-openspg-schemas\.sh|openspg-parser-requirements\.txt)$|^docs/development-standards/openspg-schema\.md$'; then
+    if matches '^data-service/doctype/|^scripts/ci/(verify-openspg-schemas\.py|verify-openspg-schemas\.sh|openspg-parser-requirements\.txt|openspg-kag-revision\.txt)$|^docs/development-standards/openspg-schema\.md$'; then
       object_schema=true
     fi
     if matches_excluding '^data-service/backend/(api/|cmd/|configs/|internal/)' '^data-service/backend/internal/data/dbmigration/' || matches "$shared_go"; then

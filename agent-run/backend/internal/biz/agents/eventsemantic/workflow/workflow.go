@@ -18,7 +18,7 @@ import (
 )
 
 const mentionProtocol = `你是 Event Semantic V3 实体 Mention 提取器。只返回严格 JSON，不返回 Markdown。根据 Event title、summary 和 Evidence title/evidence_statement 的完整语义识别可能指向正式实体的 mention，并引用属于本 Event 的 evidence_ids；可做必要的简称还原或规范化表达，不要求输出字符串逐字存在于输入。每个 mention 的 candidate_key 必须是非空、在本次输出内唯一的稳定短键；不得返回空键或重复键。每个 Mention 必须保留至少一条属于当前 Event 的 Evidence 作为正式血缘。公司、人物、机构、国家/地区、产品、技术、指数等明确专名即使出现在将来时、公告、报告或状态陈述中仍必须提取；复合短语只输出其中的机构 Mention，例如“日本央行将公布决议”输出“日本央行”，“多数美联储委员”输出“美联储”，“央行报告”输出“央行”，不得把整段状态或报告短语当成 Mention。纯数值、金额、百分比、日期、期间、价格、指标值、报告/决议/会议纪要名称、事件行为或状态不是实体 Mention；例如“15亿美元”“10月30日”“利率不变”不得输出。不得预测 Entity Type、不得分配角色、不得生成或创造 Entity ID，也不得生成 VariableSignal、Measurement、DirectImpact、跨实体传导、Theme 或投资判断。`
-const selectorProtocol = `你是 Event Semantic V3 受控实体消歧器。只返回严格 JSON。每个 selection 只能处理输入 candidate_sets 中的 candidate_key，entity_id 只能逐字取自同一 candidate_key 的 candidates。identity_locked_candidate_keys 已由唯一 canonical name/alias exact lookup 确定对象 identity；对这些 key 必须选择唯一候选，只负责分配角色，不得 no_match。其他候选只有在 Mention 与候选的 canonical_name、name 或正式 aliases 能确认同一业务对象时才选择；不得根据手写简称、删除后缀、字符串包含、字面相似、同类型、同行业、上下级/隶属、背景相关或向量分高推定对象同一性，没有正式身份依据就安全 no_match。例如“国新办”不得绑定为“国务院”。例如“国新办”不得绑定为“国务院”。entity_role 必须取自 statement_source、actor、event_subject、event_object、affected_entity 或 context：statement_source 是声明或报告来源，actor 是主动行动主体，event_subject 只表示自身状态或行动构成事件核心的实体，event_object 是他方行动对象，affected_entity 是直接受影响实体，context 是背景。“特朗普发布对伊朗48小时通牒”中伊朗是 event_object；“美国暂停对伊朗军事打击”中伊朗是 affected_entity；“巴西对原产于中国的钢瓶发起调查”中巴西是 actor、钢瓶是 event_object。“特朗普发布对伊朗48小时通牒”中伊朗是 event_object；“美国暂停对伊朗军事打击”中伊朗是 affected_entity；“巴西对原产于中国的钢瓶发起调查”中巴西是 actor、钢瓶是 event_object。被通牒、被调查或被暂停打击的实体不能标为 event_subject。no_match 时 entity_id 和 entity_role 均为空，no_match_reason 只能是 mention_not_entity、no_candidate_same_entity 或 insufficient_context；命中时 no_match_reason 为空。mention_not_entity 只用于日期、数值、状态、行为、报告、会议等真正非实体。类型由正式候选携带，不得输出或改写 Entity Type。文档名、报告名、职位、期间、数值、事件、行为或状态不能仅因包含、隶属或背景相关而绑定候选。不得创造 ID、DirectImpact、跨实体传导、Theme 或投资判断。`
+const selectorProtocol = `你是 Event Semantic V3 受控实体消歧器。只返回严格 JSON。每个 selection 只能处理输入 candidate_sets 中的 candidate_key，entity_id 只能逐字取自同一 candidate_key 的 candidates。identity_locked_candidate_keys 已由唯一 canonical name/alias exact lookup 确定对象 identity；对这些 key 必须选择唯一候选，只负责分配角色，不得 no_match。其他候选只有在 Mention 与候选的 canonical_name、name 或正式 aliases 能确认同一业务对象时才选择；不得根据手写简称、删除后缀、字符串包含、字面相似、同类型、同行业、上下级/隶属、背景相关或向量分高推定对象同一性，没有正式身份依据就安全 no_match。例如“国新办”不得绑定为“国务院”。entity_role 必须取自 statement_source、actor、event_subject、event_object、affected_entity 或 context：statement_source 是声明或报告来源，actor 是主动行动主体，event_subject 只表示自身状态或行动构成事件核心的实体，event_object 是他方行动对象，affected_entity 是直接受影响实体，context 是背景。“特朗普发布对伊朗48小时通牒”中伊朗是 event_object；“美国暂停对伊朗军事打击”中伊朗是 affected_entity；“巴西对原产于中国的钢瓶发起调查”中巴西是 actor、钢瓶是 event_object。被通牒、被调查或被暂停打击的实体不能标为 event_subject。no_match 时 entity_id 和 entity_role 均为空，no_match_reason 只能是 mention_not_entity、no_candidate_same_entity 或 insufficient_context；命中时 no_match_reason 为空。mention_not_entity 只用于日期、数值、状态、行为、报告、会议等真正非实体。类型由正式候选携带，不得输出或改写 Entity Type。文档名、报告名、职位、期间、数值、事件、行为或状态不能仅因包含、隶属或背景相关而绑定候选。不得创造 ID、DirectImpact、跨实体传导、Theme 或投资判断。`
 const selectionRecheckProtocol = `你是独立 Event Semantic V3 实体选择复核器。只返回严格 JSON。输入只包含 primary Selector 拒绝、但 Qdrant exact lookup 已通过正式 canonical name 或 alias 唯一确定 identity 的 disputed_candidate_sets。对这些唯一正式 exact identity 必须选择候选并分配准确角色；不得用删除后缀、字符串包含或其他手写简称规则扩展 identity。角色定义与主 Selector 相同：statement_source 是声明来源，actor 是主动行动者，event_subject 仅表示自身状态或行动构成事件核心的实体，event_object 是行动对象，affected_entity 是直接受影响实体，context 是背景。真实公司、产品、技术、指数不得归为 mention_not_entity。选择仍必须限定在当前 candidate_key 的候选白名单，不能创造或改写 Entity ID/Type。此复核只产生待审核 Candidate，后续独立事实 Review 仍会校验对象同一性与角色。不得生成 DirectImpact、跨实体传导、Theme 或投资判断。`
 const signalProtocol = `你是 Event Semantic V3 客观 Signal 提取器。只返回严格 JSON。输入已经包含解析完成的 EventEntityLink，以及按其正式 Entity Type 确定性筛选出的完整适用 Variable Definition 目录。VariableSignal 只能引用已有 subject_link_key，并只能使用该 link 的 applicable_variable_definitions 中的 key/version、allowed direction 和运行时 assertion modality。EventEntityLink 可以没有 Signal；不要为了覆盖率伪造 Signal。Measurement 是可选的自然语言量化片段，只保留原文完整 measurement_text 与 evidence_ids，不做数值归一化或结构化计算；不得伪造数值。若原文明示 resolved company 的合作/订单价值，且其完整适用目录包含 order_value，可以生成 Event-native order_value Signal 并保留原文金额 Measurement；融资额、市值或分析师目标价不得冒充 order_value。不得把 Evidence.published_at 当 statement_at，不得把 Event.occurred_at 当 measurement/report/forecast period。不得生成 DirectImpact、跨实体传导、Theme、机会或风险判断。`
 const reviewerProtocol = `你是独立 Event Semantic V3 审核器。只返回严格 JSON。逐项审核 expected_candidates。EventEntityLink 只审核 Mention 与 resolved entity 是否由候选 canonical_name、name 或正式 aliases 确认为同一个业务对象、Evidence 是否支持，以及角色是否符合事件语义。不得用删除后缀、字符串包含、广为使用的简称或手写规则补足正式 identity；仅字面相似、同行业、隶属关系、背景相关或向量相似必须 fail。例如“国新办”不得审核为“国务院”。角色边界为：statement_source 是声明或报告来源，actor 是主动行动主体，event_subject 只表示自身状态或行动构成事件核心的实体，event_object 是他方行动对象，affected_entity 是直接受影响实体，context 是背景。“特朗普发布对伊朗48小时通牒”中伊朗是 event_object；“美国暂停对伊朗军事打击”中伊朗是 affected_entity；“巴西对原产于中国的钢瓶发起调查”中巴西是 actor、钢瓶是 event_object。被通牒、被调查或被暂停打击的实体不能标为 event_subject。Stage A 若把状态或陈述短语当成 Mention，必须 fail。文档名、报告名、职位、期间、数值、事件、行为或状态不能仅因包含、隶属或背景相关而绑定候选。VariableSignal 必须是 Event 对其已解析 Entity 的原生客观陈述，Measurement 的完整自然语言含义必须由引用 Evidence 支持。不得审核或生成 DirectImpact、跨实体传导、Theme 或投资结论。`
@@ -31,10 +31,6 @@ const reviewSchema = `{"items":[{"candidate_type":"entity_link|variable_signal",
 
 const maxMentions = 30
 const maxSignals = 60
-
-var allowedEntityRoles = []string{
-	"statement_source", "actor", "event_subject", "event_object", "affected_entity", "context",
-}
 
 type Input struct {
 	Attempt            eventsemantic.ExecutionAttempt
@@ -473,7 +469,7 @@ func isolateSelectionsAt(items []entitySelection, sets []eventsemantic.EntityCan
 			reason = "selection_no_match_reason_invalid"
 		case !item.NoMatch && candidates[item.EntityID].EntityID == "":
 			reason = "selection_outside_qdrant_response"
-		case !item.NoMatch && !contains(allowedEntityRoles, item.EntityRole):
+		case !item.NoMatch && !validEntityRole(item.EntityRole):
 			reason = "selection_role_invalid"
 		}
 		if reason != "" {
@@ -488,6 +484,15 @@ func isolateSelectionsAt(items []entitySelection, sets []eventsemantic.EntityCan
 		}
 	}
 	return result
+}
+
+func validEntityRole(value string) bool {
+	switch value {
+	case "statement_source", "actor", "event_subject", "event_object", "affected_entity", "context":
+		return true
+	default:
+		return false
+	}
 }
 
 func applicableVariables(items []eventsemantic.VariableDefinition, entityType string) []eventsemantic.VariableDefinition {

@@ -438,7 +438,7 @@ func (s *UseCase) CreateSubmission(ctx context.Context, submission Submission) (
 	if strings.TrimSpace(submission.ContextLeaseID) == "" || strings.TrimSpace(submission.EventID) == "" ||
 		strings.TrimSpace(submission.AgentExecutionID) == "" ||
 		submission.AgentKey != "event-semantic-enricher" ||
-		submission.AgentVersion != "event-semantic-enricher.v3" {
+		submission.AgentVersion != "event-semantic-enricher.v4" {
 		return SubmissionResult{}, &ValidationError{Reason: "submission identity is invalid"}
 	}
 	if err := validateSubmissionMetadata(submission); err != nil {

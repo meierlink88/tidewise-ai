@@ -21,7 +21,9 @@ Tidewise AI 2.0 不保留该模式的兼容入口。每个 Object 需要自己�
   build、Docker、Compose、CI、脚本、Go import 和开发文档只使用新路径；
   不保留软链接、双入口或运行兼容层。
 - 删除 `entity_type_definitions` 表以及 Data/AgentRun 中的专用领域类型、查询、
-  HTTP 字段、Context manifest 引用和提交门禁。Context manifest 升为 v4。
+  HTTP 字段、Context manifest 引用和提交门禁。Context manifest 升为 v4，
+  因输入 DTO、Prompt 和校验行为发生变化，Agent Version 同步升为不可变的
+  `event-semantic-enricher.v4`。
 - Data Service 根目录建立 `doctype/`，每个 Object Type 使用一个 OpenSPG Schema
   Mark Language `.schema` 文件描述完整元数据。语法以
   `docs/development-standards/openspg-schema.md` 及其固定的 OpenSPG/KAG revision 为准。
@@ -49,3 +51,17 @@ Tidewise AI 2.0 不保留该模式的兼容入口。每个 Object 需要自己�
 `000045` 是破坏性 forward-only migration。部署前必须完成 PostgreSQL 快照；需要回滚时
 恢复切换前快照和旧应用版本，不运行 down migration。单独恢复表或旧 HTTP 字段不构成
 有效回滚。
+
+## OpenSPG 解析器依赖记录
+
+- Owner 为 Data Object Schema CI；用途仅是在 CI 中使用官方 MarkLang parser
+  校验 `doctype/*.schema`，不进入 Data 运行镜像或生产依赖。
+- KAG revision 的机器权威只保存在 `scripts/ci/openspg-kag-revision.txt`；
+  Python 转递依赖固定在 `scripts/ci/openspg-parser-requirements.txt`。
+- 已评估替代方案：重新实现部分语法会形成第二解析器；引入完整 KAG runtime
+  会扩大运行依赖；把上游源码 vendoring 到仓库会增加升级与许可维护。因此选择
+  仅 CI 临时获取固定 revision 并安装 parser 的最小直接 Python 依赖。
+- 安全影响限于 CI 出站获取；固定 Git SHA 与 Python 版本，并由 GitHub
+  dependency review 检查新依赖风险。不执行不受控 Schema 输入。
+- KAG 为 Apache-2.0；直接 Python 依赖为 Apache-2.0、MIT、BSD、PSF 或
+  MPL-2.0 等允许性/文件级开源许可。它们只作为 CI 工具不随产品分发。

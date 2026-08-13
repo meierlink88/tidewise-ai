@@ -88,7 +88,7 @@ FROM regions
 ORDER BY code ASC, id ASC
 `)
 	if err != nil {
-		return nil, ErrPersistence
+		return nil, classifyReadError(err)
 	}
 	defer rows.Close()
 
@@ -101,7 +101,7 @@ ORDER BY code ASC, id ASC
 		regions = append(regions, region)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, ErrPersistence
+		return nil, classifyReadError(err)
 	}
 	return regions, nil
 }
@@ -181,6 +181,9 @@ func isStableCode(code string) bool {
 }
 
 func classifyWriteError(err error) error {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
 	var postgresError *pgconn.PgError
 	if !errors.As(err, &postgresError) {
 		return ErrPersistence
@@ -196,6 +199,9 @@ func classifyWriteError(err error) error {
 }
 
 func classifyReadError(err error) error {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound
 	}

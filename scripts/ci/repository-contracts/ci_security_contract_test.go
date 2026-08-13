@@ -60,6 +60,7 @@ func TestCIWorkflowEnforcesQualityAndSecurityGates(t *testing.T) {
 		"Smoke Data forward migration chain",
 		"Verify OpenSPG Object Schemas",
 		"bash scripts/ci/verify-openspg-schemas.sh",
+		"Verify Region Schema and PostgreSQL parity",
 		"./data-service/backend/api/data/v1/...",
 		"./data-service/backend/internal/service/...",
 		"./data-service/backend/internal/data/evidence",

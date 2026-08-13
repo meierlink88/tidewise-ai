@@ -99,7 +99,7 @@ INSERT INTO entity_edges (
 func Submission(leaseID, executionID, supersedesSubmissionID string) eventbiz.Submission {
 	return eventbiz.Submission{
 		ContextLeaseID: leaseID, EventID: EventID, AgentExecutionID: executionID,
-		AgentKey: "event-semantic-enricher", AgentVersion: "event-semantic-enricher.v3",
+		AgentKey: "event-semantic-enricher", AgentVersion: "event-semantic-enricher.v4",
 		SupersedesSubmissionID: supersedesSubmissionID,
 		GeneratorPromptHash:    strings.Repeat("a", 64), GeneratorModel: "fixture-generator",
 		ReviewerPromptHash: strings.Repeat("b", 64), ReviewerModel: "fixture-reviewer",

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repository_root="$(git rev-parse --show-toplevel)"
-kag_commit="fdab15b3929d2ee40dfcdd388f90233096a6afc9"
+kag_commit="$(tr -d '[:space:]' < "$repository_root/scripts/ci/openspg-kag-revision.txt")"
 kag_checkout="$(mktemp -d)"
 parser_environment="$(mktemp -d)"
 
@@ -19,4 +19,5 @@ python3 -m venv "$parser_environment"
 "$parser_environment/bin/pip" install --quiet --requirement "$repository_root/scripts/ci/openspg-parser-requirements.txt"
 "$parser_environment/bin/python" "$repository_root/scripts/ci/verify-openspg-schemas.py" \
   --kag-root "$kag_checkout" \
-  --schema-root "$repository_root/data-service/doctype"
+  --schema-root "$repository_root/data-service/doctype" \
+  --expected-revision "$kag_commit"

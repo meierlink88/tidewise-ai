@@ -9,7 +9,7 @@ import (
 
 const (
 	AgentKey     = "event-semantic-enricher"
-	AgentVersion = "event-semantic-enricher.v3"
+	AgentVersion = "event-semantic-enricher.v4"
 )
 
 type ContextLease struct {

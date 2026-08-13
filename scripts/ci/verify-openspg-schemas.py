@@ -5,15 +5,13 @@ import sys
 from pathlib import Path
 
 
-OPENSPG_KAG_COMMIT = "fdab15b3929d2ee40dfcdd388f90233096a6afc9"
-
-
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Verify Tidewise Object Schemas with the repository-pinned OpenSPG parser."
     )
     parser.add_argument("--kag-root", required=True, type=Path)
     parser.add_argument("--schema-root", required=True, type=Path)
+    parser.add_argument("--expected-revision", required=True)
     return parser.parse_args()
 
 
@@ -24,15 +22,15 @@ def load_parser(kag_root):
     return SPGSchemaMarkLang
 
 
-def verify_parser_revision(kag_root):
+def verify_parser_revision(kag_root, expected_revision):
     revision = subprocess.run(
         ["git", "-C", str(kag_root), "rev-parse", "HEAD"],
         check=True,
         capture_output=True,
         text=True,
     ).stdout.strip()
-    assert revision == OPENSPG_KAG_COMMIT, (
-        f"OpenSPG parser revision is {revision}, want {OPENSPG_KAG_COMMIT}"
+    assert revision == expected_revision, (
+        f"OpenSPG parser revision is {revision}, want {expected_revision}"
     )
 
 
@@ -80,19 +78,21 @@ def verify_region(parser):
         "INVESTMENT",
     ]
     meanings = {
-        "CONTINENT": "大洲",
-        "GEOGRAPHIC": "地理区域",
-        "MULTILATERAL": "多边合作或倡议区域",
-        "INVESTMENT": "投资主题区域",
+        "CONTINENT": ["大洲", "亚洲", "欧洲", "非洲"],
+        "GEOGRAPHIC": ["地理区域", "可跨洲", "地理上相邻", "APAC", "EMEA"],
+        "MULTILATERAL": ["多边合作或倡议区域", "可跨地理边界", "存在合作机制", "APEC"],
+        "INVESTMENT": ["投资主题区域", "可跨地理边界", "不要求组织实体", "新兴市场"],
     }
-    for enum_value, meaning in meanings.items():
-        assert enum_value in region_type.desc and meaning in region_type.desc
+    for enum_value, phrases in meanings.items():
+        assert enum_value in region_type.desc
+        for phrase in phrases:
+            assert phrase in region_type.desc, f"{enum_value} requires meaning {phrase}"
 
 
 def main():
     args = parse_args()
     assert args.kag_root.is_dir(), f"KAG root does not exist: {args.kag_root}"
-    verify_parser_revision(args.kag_root)
+    verify_parser_revision(args.kag_root, args.expected_revision)
     schema_files = sorted(args.schema_root.glob("*.schema"))
     assert schema_files, f"no Object Schema found in {args.schema_root}"
 
@@ -104,7 +104,7 @@ def main():
     assert "region.schema" in parsed, "Region Object Schema is required"
     verify_region(parsed["region.schema"])
     print(
-        f"verified {len(parsed)} OpenSPG schema(s) with KAG {OPENSPG_KAG_COMMIT}"
+        f"verified {len(parsed)} OpenSPG schema(s) with KAG {args.expected_revision}"
     )
 
 

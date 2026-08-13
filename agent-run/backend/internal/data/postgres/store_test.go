@@ -47,7 +47,7 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 15 {
+	if report.CurrentVersion != "" || len(report.Applied) != 0 || len(report.Pending) != 16 {
 		t.Fatalf("empty database migration report = %#v", report)
 	}
 	var ledger *string
@@ -65,8 +65,8 @@ func TestMigrationReportIsReadOnlyAndTracksPendingMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if report.CurrentVersion != "015" ||
-		len(report.Applied) != 15 || len(report.Pending) != 0 {
+	if report.CurrentVersion != "016" ||
+		len(report.Applied) != 16 || len(report.Pending) != 0 {
 		t.Fatalf("migrated database report = %#v", report)
 	}
 }
@@ -356,7 +356,7 @@ func TestPreparePreviousReleaseRollbackRestoresPre011InvariantAndMigrationsRepla
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := migrationVersions(report.Pending); !reflect.DeepEqual(got, []string{"011", "012", "013", "014", "015"}) {
+	if got := migrationVersions(report.Pending); !reflect.DeepEqual(got, []string{"011", "012", "013", "014", "015", "016"}) {
 		t.Fatalf("rollback-compatible migration report = %#v", report)
 	}
 	if err := postgres.Migrate(ctx, database); err != nil {
@@ -395,14 +395,14 @@ func TestPreparePreviousReleaseRollbackPreservesMigrationsOwnedByPreviousRelease
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := migrationVersions(report.Pending); !reflect.DeepEqual(got, []string{"014", "015"}) {
+	if got := migrationVersions(report.Pending); !reflect.DeepEqual(got, []string{"014", "015", "016"}) {
 		t.Fatalf("partial rollback migration report = %#v", report)
 	}
 	if err := postgres.Migrate(ctx, database); err != nil {
 		t.Fatal(err)
 	}
 	if !postgres.New(database).SchemaReady(ctx) {
-		t.Fatal("replayed migrations 014-015 schema is not ready")
+		t.Fatal("replayed migrations 014-016 schema is not ready")
 	}
 }
 

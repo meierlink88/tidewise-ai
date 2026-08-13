@@ -142,7 +142,7 @@ _Avoid_: Data Import Receipt、Eino checkpoint、可原地修改的 Outbox 草�
 与 rollout 合同获批。Event Semantic 最终事实继续写入 Data PostgreSQL，不写入 Qdrant。
 在正式 Event 已存在后，从 Data 的精简、pinned Context 动态取得正式 Entity 候选、
 Variable Definition、适用 Entity Type、方向、modality 和 Measurement 合同。
-`event-semantic-enricher.v3` 的 Stage A 只提取 Event 原文 raw mention 与 Evidence 血缘；
+`event-semantic-enricher.v4` 的 Stage A 只提取 Event 原文 raw mention 与 Evidence 血缘；
 不预测 Entity Type、不预先分配角色，也不生成 Signal。AgentRun 先对整个 Event 批量执行
 跨 Entity Type 正规名/别名精确匹配，再对未唯一命中 mention 执行一次跨类型 batch vector
 recall。Selector 只能从当前 mention 的 Qdrant 候选选择正式 ID 或 `no_match`，并按候选携带

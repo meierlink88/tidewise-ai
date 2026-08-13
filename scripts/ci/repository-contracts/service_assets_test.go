@@ -137,6 +137,7 @@ func TestServiceImagesCarryEventSemanticHistoryMaintenanceCommands(t *testing.T)
 
 func TestApplicationRootsAreCanonical(t *testing.T) {
 	repoRoot := repositoryRoot()
+	legacyDataRoot := "analyse-" + "data-service"
 	for _, path := range []string{
 		"miniapp/frontend",
 		"miniapp/backend",
@@ -153,9 +154,44 @@ func TestApplicationRootsAreCanonical(t *testing.T) {
 			t.Fatalf("canonical application source %q must be a real directory", path)
 		}
 	}
-	for _, path := range []string{"src", "backend", "frontend", "services"} {
+	for _, path := range []string{"src", "backend", "frontend", "services", legacyDataRoot} {
 		if _, err := os.Lstat(filepath.Join(repoRoot, path)); !errors.Is(err, os.ErrNotExist) {
 			t.Fatalf("legacy product source %q must be absent: %v", path, err)
+		}
+	}
+}
+
+func TestActiveRepositoryContractsDoNotReferenceLegacyDataServiceRoot(t *testing.T) {
+	repoRoot := repositoryRoot()
+	legacyDataRoot := "analyse-" + "data-service"
+	paths := []string{
+		".github", "admin-portal", "agent-run", "contracts", "data-service", "infra", "miniapp", "scripts",
+		"AGENTS.md", "CONTEXT-MAP.md", "package.json", "package-lock.json",
+		"docs/agents/domain.md", "docs/contexts", "docs/development-standards",
+	}
+	for _, relative := range paths {
+		root := filepath.Join(repoRoot, filepath.FromSlash(relative))
+		err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.IsDir() {
+				if entry.Name() == "node_modules" || entry.Name() == ".git" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			contents, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			if strings.Contains(string(contents), legacyDataRoot) {
+				t.Errorf("active repository contract %q references the retired Data Service root", path)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("scan active repository contract %q: %v", relative, err)
 		}
 	}
 }

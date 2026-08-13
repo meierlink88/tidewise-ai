@@ -476,7 +476,7 @@ func validUseCaseSubmission() Submission {
 		ContextLeaseID:   "10000000-0000-4000-8000-000000000002",
 		EventID:          "10000000-0000-4000-8000-000000000001",
 		AgentExecutionID: "execution", AgentKey: "event-semantic-enricher",
-		AgentVersion:        "event-semantic-enricher.v3",
+		AgentVersion:        "event-semantic-enricher.v4",
 		GeneratorPromptHash: strings.Repeat("a", 64), GeneratorModel: "generator",
 		ReviewerPromptHash: strings.Repeat("b", 64), ReviewerModel: "reviewer",
 		AdjudicatorPromptHash: strings.Repeat("c", 64), AdjudicatorModel: "adjudicator",

@@ -16,7 +16,7 @@ Region(区域): EntityType
             desc: 区域的英文显示名称
             constraint: NotNull
         regionType(区域类型): Text
-            desc: 区域对象的形成或使用类型；CONTINENT 表示大洲，GEOGRAPHIC 表示地理区域，MULTILATERAL 表示多边合作或倡议区域，INVESTMENT 表示投资主题区域
+            desc: 区域对象的形成或使用类型；CONTINENT 表示大洲，例如亚洲、欧洲、非洲；GEOGRAPHIC 表示可跨洲但在地理上相邻的地理区域，例如 APAC、EMEA、LATAM、NA；MULTILATERAL 表示可跨地理边界且存在合作机制的多边合作或倡议区域，例如一带一路沿线、东盟经济共同体、APEC；INVESTMENT 表示可跨地理边界且不要求组织实体的投资主题区域，例如新兴市场、前沿市场
             constraint: NotNull, Enum="CONTINENT,GEOGRAPHIC,MULTILATERAL,INVESTMENT"
         description(区域说明): Text
             desc: 对区域边界、用途或业务语义的可选补充说明

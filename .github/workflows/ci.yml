@@ -91,7 +91,8 @@ jobs:
           steps.risks.outputs.migration_smoke == 'true' ||
           steps.risks.outputs.migration_framework == 'true' ||
           steps.risks.outputs.conf_lifecycle == 'true' ||
-          steps.risks.outputs.provider_consumer == 'true'
+          steps.risks.outputs.provider_consumer == 'true' ||
+          steps.risks.outputs.object_schema == 'true'
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
@@ -115,6 +116,17 @@ jobs:
       - name: Verify OpenSPG Object Schemas
         if: steps.risks.outputs.object_schema == 'true'
         run: bash scripts/ci/verify-openspg-schemas.sh
+
+      - name: Verify Region Schema and PostgreSQL parity
+        if: >-
+          steps.risks.outputs.object_schema == 'true' ||
+          steps.risks.outputs.migration_smoke == 'true'
+        env:
+          TIDEWISE_TEST_DATABASE_URL: postgres://tidewise:tidewise-ci-password@localhost:5432/tidewise_local?sslmode=disable
+        run: >-
+          go test ./data-service/backend/internal/data/entity/region
+          -run '^TestRegionSchemaAndPersistenceStayAligned$'
+          -count=1
 
       - name: Vet Data Service
         if: >-

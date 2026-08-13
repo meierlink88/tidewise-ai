@@ -3686,6 +3686,7 @@ components:
           minLength: 1
         entity_role:
           type: string
+          enum: [event_subject, actor, affected_entity, statement_source, event_object, context]
         evidence_ids:
           type: array
           minItems: 1
@@ -3765,7 +3766,7 @@ components:
           enum: [event-semantic-enricher]
         agent_version:
           type: string
-          enum: [event-semantic-enricher.v3]
+          enum: [event-semantic-enricher.v4]
         supersedes_submission_id:
           $ref: '#/components/schemas/UUID'
         generator_prompt_hash:
@@ -3890,7 +3891,7 @@ components:
           enum: [event-semantic-enricher]
         agent_version:
           type: string
-          enum: [event-semantic-enricher.v2, event-semantic-enricher.v3]
+          enum: [event-semantic-enricher.v2, event-semantic-enricher.v3, event-semantic-enricher.v4]
         supersedes_submission_id:
           $ref: '#/components/schemas/UUID'
         generator_prompt_hash:

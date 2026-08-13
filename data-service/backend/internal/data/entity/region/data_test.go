@@ -125,14 +125,45 @@ func TestStoreClassifiesRegionFailures(t *testing.T) {
 	}
 }
 
-func TestRegionDatabaseRejectsNullRequiredFields(t *testing.T) {
+func TestStorePreservesContextCancellation(t *testing.T) {
 	db := openRegionTestDatabase(t)
-	_, err := db.ExecContext(context.Background(), `
-INSERT INTO regions (id, code, name, name_en, region_type)
-VALUES ('REG_NULL_NAME', 'NULL_NAME', NULL, 'Null Name', 'GEOGRAPHIC')
-`)
-	if err == nil {
-		t.Fatal("regions accepted a null required name")
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	valid := Region{
+		ID: "REG_APAC", Code: "APAC", Name: "亚太地区", NameEn: "Asia Pacific",
+		RegionType: RegionTypeGeographic,
+	}
+	if _, err := store.Create(ctx, valid); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Create(cancelled) error = %v, want context.Canceled", err)
+	}
+	if _, err := store.GetByID(ctx, valid.ID); !errors.Is(err, context.Canceled) {
+		t.Fatalf("GetByID(cancelled) error = %v, want context.Canceled", err)
+	}
+	if _, err := store.List(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("List(cancelled) error = %v, want context.Canceled", err)
+	}
+}
+
+func TestRegionDatabaseRejectsInvalidFacts(t *testing.T) {
+	db := openRegionTestDatabase(t)
+	statements := map[string]string{
+		"null required name": `INSERT INTO regions (id, code, name, name_en, region_type) VALUES ('REG_NULL_NAME', 'NULL_NAME', NULL, 'Null Name', 'GEOGRAPHIC')`,
+		"invalid enum":       `INSERT INTO regions (id, code, name, name_en, region_type) VALUES ('REG_BAD_ENUM', 'BAD_ENUM', '无效枚举', 'Bad Enum', 'INVALID')`,
+		"mismatched id":      `INSERT INTO regions (id, code, name, name_en, region_type) VALUES ('REG_ASIA', 'APAC', '亚太', 'Asia Pacific', 'GEOGRAPHIC')`,
+		"lowercase code":     `INSERT INTO regions (id, code, name, name_en, region_type) VALUES ('REG_apac', 'apac', '亚太', 'Asia Pacific', 'GEOGRAPHIC')`,
+		"blank name":         `INSERT INTO regions (id, code, name, name_en, region_type) VALUES ('REG_BLANK', 'BLANK', ' ', 'Blank', 'GEOGRAPHIC')`,
+		"overlong code":      `INSERT INTO regions (id, code, name, name_en, region_type) VALUES ('REG_ABCDEFGHIJKLMNOPQRSTU', 'ABCDEFGHIJKLMNOPQRSTU', '过长', 'Long', 'GEOGRAPHIC')`,
+	}
+	for name, statement := range statements {
+		t.Run(name, func(t *testing.T) {
+			if _, err := db.ExecContext(context.Background(), statement); err == nil {
+				t.Fatalf("regions accepted %s", name)
+			}
+		})
 	}
 }
 
@@ -230,6 +261,15 @@ ORDER BY enumsortorder`)
 	wantEnumValues := []string{"CONTINENT", "GEOGRAPHIC", "MULTILATERAL", "INVESTMENT"}
 	if !reflect.DeepEqual(enumValues, wantEnumValues) {
 		t.Fatalf("region_type enum = %q, want %q", enumValues, wantEnumValues)
+	}
+	goEnumValues := []string{
+		string(RegionTypeContinent),
+		string(RegionTypeGeographic),
+		string(RegionTypeMultilateral),
+		string(RegionTypeInvestment),
+	}
+	if !reflect.DeepEqual(goEnumValues, wantEnumValues) {
+		t.Fatalf("RegionType constants = %q, want %q", goEnumValues, wantEnumValues)
 	}
 	if !strings.Contains(string(schema), `Enum="`+strings.Join(wantEnumValues, ",")+`"`) {
 		t.Fatal("Region Object Schema enum does not match PostgreSQL region_type")
