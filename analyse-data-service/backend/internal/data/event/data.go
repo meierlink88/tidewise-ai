@@ -121,7 +121,6 @@ func validateResearchEventRecord(record eventbiz.ResearchEventRecord) error {
 		return errors.New("persisted Research Event violates invariants")
 	}
 	seen := make(map[string]struct{}, len(record.Evidence))
-	knowledgeAnchorFound := false
 	for _, evidence := range record.Evidence {
 		stored := eventbiz.StoredEventEvidenceLink{
 			ID: evidence.EvidenceID, EventID: record.Event.ID, RawDocumentID: evidence.RawDocumentID,
@@ -136,16 +135,10 @@ func validateResearchEventRecord(record eventbiz.ResearchEventRecord) error {
 			evidence.KnowledgeAvailableAt.Before(record.KnowledgeAvailableAt) {
 			return errors.New("persisted Research Evidence violates invariants")
 		}
-		if evidence.KnowledgeAvailableAt.Equal(record.KnowledgeAvailableAt) {
-			knowledgeAnchorFound = true
-		}
 		if _, duplicate := seen[evidence.EvidenceID]; duplicate {
 			return errors.New("persisted Research Evidence contains a duplicate")
 		}
 		seen[evidence.EvidenceID] = struct{}{}
-	}
-	if len(record.Evidence) == 0 || !knowledgeAnchorFound {
-		return errors.New("persisted Research Event has no Evidence knowledge anchor")
 	}
 	return nil
 }
