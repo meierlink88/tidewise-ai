@@ -56,34 +56,17 @@ func (s *Store) GetAgentVersion(ctx context.Context, version string) (agentrun.A
 
 // PublishAgentVersions installs code-owned immutable Agent Version identities.
 // Version publication is deliberately separate from schema migration.
-func (s *Store) PublishAgentVersions(ctx context.Context, versions []agentrun.AgentVersion) error {
-	if len(versions) == 0 {
-		return errors.New("at least one Agent Version is required")
-	}
-	seenVersions := make(map[string]string, len(versions))
-	uniqueVersions := make([]agentrun.AgentVersion, 0, len(versions))
-	for _, candidate := range versions {
-		if candidate.AgentKey == "" || candidate.Version == "" ||
-			candidate.AgentKey != strings.TrimSpace(candidate.AgentKey) ||
-			candidate.Version != strings.TrimSpace(candidate.Version) {
-			return errors.New("Agent Version publication contains an invalid identity")
-		}
-		if agentKey, exists := seenVersions[candidate.Version]; exists {
-			if agentKey != candidate.AgentKey {
-				return fmt.Errorf("Agent Version %q has conflicting Agent Definitions", candidate.Version)
-			}
-			continue
-		}
-		seenVersions[candidate.Version] = candidate.AgentKey
-		uniqueVersions = append(uniqueVersions, candidate)
-	}
-
+func (s *Store) PublishAgentVersions(
+	ctx context.Context,
+	versions []agentrun.AgentVersion,
+) ([]agentrun.AgentVersion, error) {
 	tx, err := s.database.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
-		return fmt.Errorf("begin Agent Version publication: %w", err)
+		return nil, fmt.Errorf("begin Agent Version publication: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
-	for _, candidate := range uniqueVersions {
+	added := make([]agentrun.AgentVersion, 0, len(versions))
+	for _, candidate := range versions {
 		version, agentKey := candidate.Version, candidate.AgentKey
 		var definitionExists bool
 		if err := tx.QueryRow(
@@ -91,20 +74,24 @@ func (s *Store) PublishAgentVersions(ctx context.Context, versions []agentrun.Ag
 			`SELECT EXISTS (SELECT 1 FROM agent_definitions WHERE agent_key = $1)`,
 			agentKey,
 		).Scan(&definitionExists); err != nil {
-			return fmt.Errorf("verify Agent Definition for version publication: %w", err)
+			return nil, fmt.Errorf("verify Agent Definition for version publication: %w", err)
 		}
 		if !definitionExists {
-			return fmt.Errorf("Agent Definition %q does not exist", agentKey)
+			return nil, fmt.Errorf("Agent Definition %q does not exist", agentKey)
 		}
-		if _, err := tx.Exec(
+		result, err := tx.Exec(
 			ctx,
 			`INSERT INTO agent_versions (version, agent_key)
 			 VALUES ($1, $2)
 			 ON CONFLICT (version) DO NOTHING`,
 			version,
 			agentKey,
-		); err != nil {
-			return fmt.Errorf("publish Agent Version: %w", err)
+		)
+		if err != nil {
+			return nil, fmt.Errorf("publish Agent Version: %w", err)
+		}
+		if result.RowsAffected() == 1 {
+			added = append(added, candidate)
 		}
 		var publishedAgentKey string
 		if err := tx.QueryRow(
@@ -112,14 +99,41 @@ func (s *Store) PublishAgentVersions(ctx context.Context, versions []agentrun.Ag
 			`SELECT agent_key FROM agent_versions WHERE version = $1`,
 			version,
 		).Scan(&publishedAgentKey); err != nil {
-			return fmt.Errorf("verify published Agent Version: %w", err)
+			return nil, fmt.Errorf("verify published Agent Version: %w", err)
 		}
 		if publishedAgentKey != agentKey {
-			return fmt.Errorf("Agent Version %q is already owned by another Agent Definition", version)
+			return nil, fmt.Errorf("Agent Version %q is already owned by another Agent Definition", version)
 		}
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return fmt.Errorf("commit Agent Version publication: %w", err)
+		return nil, fmt.Errorf("commit Agent Version publication: %w", err)
+	}
+	return added, nil
+}
+
+func (s *Store) WithdrawAgentVersions(ctx context.Context, versions []agentrun.AgentVersion) error {
+	tx, err := s.database.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return fmt.Errorf("begin Agent Version withdrawal: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	for index := len(versions) - 1; index >= 0; index-- {
+		candidate := versions[index]
+		result, err := tx.Exec(
+			ctx,
+			`DELETE FROM agent_versions WHERE version = $1 AND agent_key = $2`,
+			candidate.Version,
+			candidate.AgentKey,
+		)
+		if err != nil {
+			return fmt.Errorf("withdraw Agent Version: %w", err)
+		}
+		if result.RowsAffected() != 1 {
+			return fmt.Errorf("withdraw Agent Version %q: published identity is missing", candidate.Version)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("commit Agent Version withdrawal: %w", err)
 	}
 	return nil
 }

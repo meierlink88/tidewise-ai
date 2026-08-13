@@ -12,7 +12,9 @@ _Avoid_: 用命令名、模型名或一次任务标识 Agent
 某个 Agent Definition 的不可变执行合同版本，冻结其输入、输出、工作流能力和执行协议。
 当前 Agent Version 是代码拥有的目录事实，由 AgentRun 镜像内的一次性数据发布
 命令在 schema migration 之后、服务启动之前幂等登记；新版本不得通过 schema
-migration 或服务启动副作用写入。
+migration 或服务启动副作用写入。候选发布保留本次新增版本记录；失败回退只能撤回
+尚未被 Execution 引用的新增版本。一旦形成执行血缘，Agent Version 不得删除，
+应用不得单独回滚到会错误宣告 current Version 的旧镜像。
 已批准的特定例外只有 Collector Issue #121：其 Web Search freshness 修正按
 `collector.v1` conformance fix 交付，并由 Collector 可靠性 Spec 记录部署前后的
 可观察差异；以及 Event Fact Extractor Issue #211：`event-fact-extractor.v2` 原 Tag

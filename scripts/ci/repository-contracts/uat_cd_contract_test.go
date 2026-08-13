@@ -461,6 +461,7 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 	for _, required := range []string{
 		"flock -n", "dbmigrate -apply", "rollback_current_release",
 		"/app/agentrun-agent-version", "publish-current", "PASS agent-version-publication",
+		"withdraw-publication", "PASS agent-version-withdrawal",
 		"current.images.env", "previous.images.env", "current.compose.yaml", "previous.compose.yaml",
 		"current.sha", "previous.sha", "PASS rds-tls-readonly", "PASS agentrun-rds-tls-readonly", "PASS bff-to-service-read-paths",
 		"/api/admin/v1/model-providers",

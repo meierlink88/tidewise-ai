@@ -244,7 +244,9 @@ ORDER BY ordinal_position`)
 SELECT enumlabel
 FROM pg_enum
 JOIN pg_type ON pg_type.oid = pg_enum.enumtypid
+JOIN pg_namespace ON pg_namespace.oid = pg_type.typnamespace
 WHERE pg_type.typname = 'region_type'
+  AND pg_namespace.nspname = current_schema()
 ORDER BY enumsortorder`)
 	if err != nil {
 		t.Fatal(err)

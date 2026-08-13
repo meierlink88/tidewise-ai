@@ -26,6 +26,9 @@ Tidewise AI 2.0 不保留该模式的兼容入口。每个 Object 需要自己�
   `event-semantic-enricher.v4`。Agent Version 是代码拥有的目录事实，不由 schema
   migration 写入；AgentRun 镜像在 migration 之后、服务启动之前通过独立的
   `agentrun-agent-version publish-current` 数据发布命令幂等登记当前版本。
+  发布返回本次新增版本的机器记录；候选发布失败时，UAT 必须在恢复旧镜像前
+  撤回这些尚未被 Execution 引用的新增版本。版本已被引用时禁止应用单独回滚，
+  必须恢复切换前数据库快照和旧应用。
 - Data Service 根目录建立 `doctype/`，每个 Object Type 使用一个 OpenSPG Schema
   Mark Language `.schema` 文件描述完整元数据。语法以
   `docs/development-standards/openspg-schema.md` 及其固定的 OpenSPG/KAG revision 为准。

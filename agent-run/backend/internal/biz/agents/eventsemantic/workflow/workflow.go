@@ -720,7 +720,7 @@ func generateEnvelope[T any](ctx context.Context, chatModel model.BaseChatModel,
 	if decodeStageEnvelope(repaired.Content, stage, &value) != nil {
 		recordViolation(audit, stage, "repair", []string{"json_typed_contract_invalid"})
 		return zero, &eventsemantic.RemoteError{
-			Code: "event_semantic_model_contract_invalid", Summary: "Event Semantic model violated the V3 JSON envelope contract", Retryable: false,
+			Code: "event_semantic_model_contract_invalid", Summary: "Event Semantic model violated the V4 JSON envelope contract", Retryable: false,
 		}
 	}
 	return value, nil

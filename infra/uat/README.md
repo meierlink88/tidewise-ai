@@ -16,7 +16,8 @@ UAT 由 GitHub Actions 手工发布到华为云 ECS，运行时数据库使用�
   校验 release SHA、control-plane SHA 和逐文件 SHA-256。Bundle tag 使用
   `<release-sha>-<control-plane-sha>`，文件集合由 `deploy-bundle-files.txt` 单一维护。
 - ECS runner 不 checkout Git repository，只负责 SWR 制品拉取、preflight、
-  AgentRun Artifact 写入探针、Data/AgentRun migration、Compose 启动、两层健康
+  AgentRun Artifact 写入探针、Data/AgentRun migration、Agent Version 数据发布、
+  Compose 启动、两层健康
   检查和失败时的整套镜像回退。
 
 服务目录与部署映射固定为：
@@ -167,7 +168,13 @@ migration 文件及已执行 ledger 不改写；若全新环境仍 pending 历�
 仍 pending 这些受控 migration，普通 UAT Deploy 应失败；必须先按对应 migration 的
 Review、备份和零行校验要求执行独立、可审计的受控迁移，不能用通用备份勾选替代。
 
-Data 与 AgentRun migration 都通过各自镜像执行只读预检和风险分类，成功后才更新服务。若启动或健康检查失败，脚本使用发布前持久记录的 runtime、Compose 与五个业务镜像自动回退一次，并再次检查健康；不执行 down migration，不循环重试，也不改变 Qdrant 或 PostgreSQL 基础设施运行时。Schema migration 必须兼容至少前一个应用版本。
+Data 与 AgentRun migration 都通过各自镜像执行只读预检和风险分类，成功后才更新服务。
+AgentRun 在 migration 后通过独立命令发布代码拥有的当前 Agent Version，并把本次新增
+版本保存为发布期记录。若启动或健康检查失败，脚本先撤回未被 Execution 引用的
+候选 Agent Version，再使用发布前持久记录的 runtime、Compose 与五个业务镜像自动回退一次。
+若候选版本已被 Execution 引用，撤回安全失败，操作员必须恢复发布前 PostgreSQL 快照和旧应用；
+脚本不会让旧镜像在数据库仍宣告新 current Version 时启动。发布不执行 down migration，
+不循环重试，也不改变 Qdrant 或 PostgreSQL 基础设施运行时。Schema migration 必须兼容至少前一个应用版本。
 
 ## Entity projection retirement
 

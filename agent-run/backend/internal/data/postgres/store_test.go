@@ -31,7 +31,11 @@ func publishCurrentEventSemanticVersion(
 	store *postgres.Store,
 ) {
 	t.Helper()
-	if err := store.PublishAgentVersions(ctx, []agentrun.AgentVersion{{
+	publisher, err := agentrun.NewAgentVersionPublisher(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := publisher.PublishCurrent(ctx, []agentrun.AgentVersion{{
 		AgentKey: eventsemantic.AgentKey,
 		Version:  eventsemantic.AgentVersion,
 	}}); err != nil {
@@ -148,11 +152,33 @@ func TestPublishAgentVersionsMakesCurrentVersionAvailable(t *testing.T) {
 	currentVersions := []agentrun.AgentVersion{
 		{AgentKey: eventsemantic.AgentKey, Version: eventsemantic.AgentVersion},
 	}
-	if err := store.PublishAgentVersions(ctx, currentVersions); err != nil {
+	publisher, err := agentrun.NewAgentVersionPublisher(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publication, err := publisher.PublishCurrent(ctx, currentVersions)
+	if err != nil {
 		t.Fatalf("publish current Agent Versions: %v", err)
 	}
-	if err := store.PublishAgentVersions(ctx, currentVersions); err != nil {
+	if len(publication.Added) != 1 {
+		t.Fatalf("published Agent Versions = %#v", publication.Added)
+	}
+	replay, err := publisher.PublishCurrent(ctx, currentVersions)
+	if err != nil {
 		t.Fatalf("replay current Agent Version publication: %v", err)
+	}
+	if len(replay.Added) != 0 {
+		t.Fatalf("replayed publication added Agent Versions = %#v", replay.Added)
+	}
+	if err := publisher.Withdraw(ctx, publication); err != nil {
+		t.Fatalf("withdraw candidate Agent Version publication: %v", err)
+	}
+	if _, err := store.GetAgentVersion(ctx, eventsemantic.AgentVersion); err == nil {
+		t.Fatal("withdrawn Event Semantic Agent Version is still available")
+	}
+	activePublication, err := publisher.PublishCurrent(ctx, currentVersions)
+	if err != nil {
+		t.Fatalf("republish current Agent Versions: %v", err)
 	}
 	semanticV4, err := store.GetAgentVersion(ctx, eventsemantic.AgentVersion)
 	if err != nil {
@@ -169,6 +195,12 @@ func TestPublishAgentVersionsMakesCurrentVersionAvailable(t *testing.T) {
 	})
 	if err != nil || disposition != agentrun.ExecutionCreated || execution.AgentKey != eventsemantic.AgentKey {
 		t.Fatalf("create Event Semantic V4 execution = %#v, %q, %v", execution, disposition, err)
+	}
+	if err := publisher.Withdraw(ctx, activePublication); err == nil {
+		t.Fatal("Agent Version with Execution lineage was withdrawn")
+	}
+	if _, err := store.GetAgentVersion(ctx, eventsemantic.AgentVersion); err != nil {
+		t.Fatalf("referenced Agent Version was not preserved: %v", err)
 	}
 	if _, err := database.Exec(ctx, `ALTER TABLE connector_configs DROP COLUMN updated_at`); err != nil {
 		t.Fatal(err)
