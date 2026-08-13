@@ -263,9 +263,9 @@ func serviceRoot(service string) string {
 func deployableService(packageName string) string {
 	services := map[string]string{
 		"data-service/backend": "data-service",
-		"miniapp/backend":              "miniapp",
-		"admin-portal/backend":         "admin-portal",
-		"agent-run/backend":            "agent-run",
+		"miniapp/backend":      "miniapp",
+		"admin-portal/backend": "admin-portal",
+		"agent-run/backend":    "agent-run",
 	}
 	for prefix, service := range services {
 		if packageName == prefix || strings.HasPrefix(packageName, prefix+"/") {
