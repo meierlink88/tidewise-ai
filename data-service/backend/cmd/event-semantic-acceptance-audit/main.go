@@ -197,10 +197,19 @@ func parseOptions(arguments []string) (string, string, string, error) {
 
 func loadEntities(ctx context.Context, database *sql.DB) ([]entityIdentity, error) {
 	rows, err := database.QueryContext(ctx, `
-		SELECT entity.id, entity.entity_type, entity.name, entity.canonical_name,
-		       array_to_json(entity.aliases)::text, entity.status
-		FROM entity_nodes entity
-		ORDER BY entity.id`)
+		SELECT identity.id, identity.object_type, identity.name, identity.canonical_name,
+		       identity.aliases_json, identity.status
+		FROM (
+			SELECT entity.id::text id, entity.entity_type::text object_type,
+			       entity.name, entity.canonical_name,
+			       array_to_json(entity.aliases)::text aliases_json, entity.status::text status
+			FROM entity_nodes entity
+			UNION ALL
+			SELECT country.id, 'country', country.name, country.name,
+			       array_to_json(ARRAY[country.name_en])::text, 'active'
+			FROM countries country
+		) identity
+		ORDER BY identity.id`)
 	if err != nil {
 		return nil, err
 	}
@@ -280,11 +289,11 @@ func expectedFormalIdentities(text string, referenceMentions []string, entities 
 	haystack := normalize(text)
 	result := []entityIdentity{}
 	seen := make(map[string]struct{})
-	hasReferenceEconomy := false
+	hasReferenceCountry := false
 	for _, mention := range referenceMentions {
 		for _, entity := range exactIdentities(mention, entities) {
-			if entity.EntityType == "economy" {
-				hasReferenceEconomy = true
+			if entity.EntityType == "country" {
+				hasReferenceCountry = true
 			}
 			if _, exists := seen[entity.ID]; !exists {
 				seen[entity.ID] = struct{}{}
@@ -292,11 +301,11 @@ func expectedFormalIdentities(text string, referenceMentions []string, entities 
 			}
 		}
 	}
-	if !hasReferenceEconomy {
+	if !hasReferenceCountry {
 		return result
 	}
 	for _, entity := range entities {
-		if entity.EntityType != "economy" {
+		if entity.EntityType != "country" {
 			continue
 		}
 		// The supplemental pass deliberately excludes aliases. Short Latin aliases

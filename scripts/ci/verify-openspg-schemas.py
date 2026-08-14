@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import argparse
+import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 
@@ -89,6 +91,73 @@ def verify_region(parser):
             assert phrase in region_type.desc, f"{enum_value} requires meaning {phrase}"
 
 
+def verify_country(parser, country_migration):
+    country = parser.types.get("Tidewise.Country")
+    assert country is not None, "country.schema must define Tidewise.Country"
+    assert country.spg_type_enum.value == "ENTITY_TYPE"
+    assert country.name_zh == "国家"
+    assert country.desc and country.desc.strip()
+
+    expected_properties = {
+        "id",
+        "code",
+        "name",
+        "nameEn",
+        "strategicPositioning",
+        "keyResources",
+        "createdAt",
+        "updatedAt",
+    }
+    assert set(country.properties) == expected_properties
+    for name, prop in country.properties.items():
+        assert prop.name_zh and prop.name_zh.strip(), f"{name} requires a Chinese name"
+        assert prop.desc and prop.desc.strip(), f"{name} requires a description"
+        assert prop.object_type_name == "Text", f"{name} must use OpenSPG Text"
+
+    required = {"id", "code", "name", "nameEn", "createdAt", "updatedAt"}
+    for name in required:
+        assert "NOT_NULL" in constraint_values(country.properties[name]), (
+            f"{name} must be NotNull"
+        )
+    for name in {"strategicPositioning", "keyResources"}:
+        assert "NOT_NULL" not in constraint_values(country.properties[name])
+    assert constraint_values(country.properties["id"])["REGULAR"] == "^COU_[A-Z]{3}$"
+    assert constraint_values(country.properties["code"])["REGULAR"] == "^[A-Z]{3}$"
+
+    regions = next(
+        (relation for relation in country.relations.values() if relation.name == "regions"),
+        None,
+    )
+    assert regions is not None, "Country must declare its Region relation"
+    assert regions.name_zh == "所属区域"
+    assert regions.desc and regions.desc.strip()
+    assert regions.object_type_name == "Tidewise.Region"
+    assert "零个或多个" in regions.desc and "多值关系集合" in regions.desc
+
+    migration = country_migration.read_text(encoding="utf-8")
+    persistence_columns = {
+        "id": r"\bid\s+VARCHAR\(32\)\s+PRIMARY KEY",
+        "code": r"\bcode\s+CHAR\(3\)\s+NOT NULL\s+UNIQUE",
+        "name": r"\bname\s+VARCHAR\(100\)\s+NOT NULL",
+        "nameEn": r"\bname_en\s+VARCHAR\(100\)\s+NOT NULL",
+        "strategicPositioning": r"\bstrategic_positioning\s+TEXT\s*,",
+        "keyResources": r"\bkey_resources\s+TEXT\s*,",
+        "createdAt": r"\bcreated_at\s+TIMESTAMPTZ\s+NOT NULL\s+DEFAULT\s+now\(\)",
+        "updatedAt": r"\bupdated_at\s+TIMESTAMPTZ\s+NOT NULL\s+DEFAULT\s+now\(\)",
+    }
+    for property_name, pattern in persistence_columns.items():
+        assert re.search(pattern, migration, re.IGNORECASE), (
+            f"Country.{property_name} has no matching PostgreSQL persistence column"
+        )
+    assert "CONSTRAINT chk_countries_code CHECK (code ~ '^[A-Z]{3}$')" in migration
+    assert "CONSTRAINT chk_countries_identity CHECK (id = 'COU_' || code)" in migration
+    assert re.search(
+        r"CREATE TABLE country_region_links\s*\(.*?country_id VARCHAR\(32\) NOT NULL REFERENCES countries\(id\) ON DELETE RESTRICT.*?region_id VARCHAR\(32\) NOT NULL REFERENCES regions\(id\) ON DELETE RESTRICT.*?UNIQUE \(country_id, region_id\)",
+        migration,
+        re.DOTALL,
+    ), "Country.regions has no matching restrictive, unique PostgreSQL relationship"
+
+
 def main():
     args = parse_args()
     assert args.kag_root.is_dir(), f"KAG root does not exist: {args.kag_root}"
@@ -97,14 +166,34 @@ def main():
     assert schema_files, f"no Object Schema found in {args.schema_root}"
 
     parser_type = load_parser(args.kag_root)
-    parsed = {}
-    for schema_file in schema_files:
-        parsed[schema_file.name] = parser_type(str(schema_file), with_server=False)
+    schema_names = {schema_file.name for schema_file in schema_files}
+    assert "region.schema" in schema_names, "Region Object Schema is required"
+    assert "country.schema" in schema_names, "Country Object Schema is required"
 
-    assert "region.schema" in parsed, "Region Object Schema is required"
-    verify_region(parsed["region.schema"])
+    combined_lines = ["namespace Tidewise", ""]
+    for schema_file in schema_files:
+        lines = schema_file.read_text(encoding="utf-8").splitlines()
+        assert lines and lines[0] == "namespace Tidewise", (
+            f"{schema_file.name} must declare namespace Tidewise"
+        )
+        combined_lines.extend(lines[1:])
+        combined_lines.append("")
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".schema", encoding="utf-8") as bundle:
+        bundle.write("\n".join(combined_lines))
+        bundle.flush()
+        parsed = parser_type(bundle.name, with_server=False)
+
+    verify_region(parsed)
+    country_migration = (
+        args.schema_root.parent
+        / "backend"
+        / "migrations"
+        / "000046_replace_economy_with_countries.sql"
+    )
+    assert country_migration.is_file(), f"Country migration is missing: {country_migration}"
+    verify_country(parsed, country_migration)
     print(
-        f"verified {len(parsed)} OpenSPG schema(s) with KAG {args.expected_revision}"
+        f"verified {len(schema_files)} OpenSPG schema(s) with KAG {args.expected_revision}"
     )
 
 

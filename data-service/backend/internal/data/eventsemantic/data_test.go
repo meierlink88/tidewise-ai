@@ -93,6 +93,38 @@ func openEventPublicationTestDatabaseAt(t *testing.T, version int64) *sql.DB {
 	return postgresfixture.OpenIsolated(t, "tw_event_semantic", migrationDir, version)
 }
 
+func TestHydrateSubmissionContextResolvesCountryWithoutShadowEntity(t *testing.T) {
+	db := openEventPublicationTestDatabase(t)
+	if _, err := db.ExecContext(context.Background(), `
+		INSERT INTO countries (id, code, name, name_en)
+		VALUES ('COU_CHN', 'CHN', '中国', 'China')`); err != nil {
+		t.Fatal(err)
+	}
+	for _, lockSelectedFacts := range []bool{false, true} {
+		result, err := hydrateEventSemanticSubmissionContext(
+			context.Background(), db, eventbiz.Context{}, eventbiz.Submission{
+				EntityLinks: []eventbiz.EntityLinkCandidate{{
+					Key: "country", Mention: "中国", EntityID: "COU_CHN", ProjectedEntityType: "country",
+				}},
+			}, lockSelectedFacts,
+		)
+		if err != nil {
+			t.Fatalf("lockSelectedFacts=%v: %v", lockSelectedFacts, err)
+		}
+		if len(result.Entities) != 1 || result.Entities[0].ID != "COU_CHN" ||
+			result.Entities[0].Type != "country" || result.Entities[0].Aliases[0] != "China" {
+			t.Fatalf("lockSelectedFacts=%v entities=%#v", lockSelectedFacts, result.Entities)
+		}
+	}
+	var shadowRows int
+	if err := db.QueryRowContext(context.Background(), `SELECT count(*) FROM entity_nodes WHERE entity_type = 'country'`).Scan(&shadowRows); err != nil {
+		t.Fatal(err)
+	}
+	if shadowRows != 0 {
+		t.Fatalf("Country hydration created %d shadow Entity rows", shadowRows)
+	}
+}
+
 func assertMeasurementEvidenceIDs(t *testing.T, db *sql.DB, measurementID, evidenceID string) {
 	t.Helper()
 	var evidenceIDs string

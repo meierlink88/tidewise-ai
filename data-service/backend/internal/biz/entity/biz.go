@@ -11,6 +11,23 @@ import (
 
 var ErrResearchHistoricalReferencesUnavailable = errors.New("strict historical Entity references are unavailable because selected facts changed after analysis_as_of")
 
+const (
+	ObjectTypeCountry = "country"
+	CountryIDPrefix   = "COU_"
+)
+
+func IsCountryID(value string) bool {
+	if len(value) != len(CountryIDPrefix)+3 || !strings.HasPrefix(value, CountryIDPrefix) {
+		return false
+	}
+	for _, character := range value[len(CountryIDPrefix):] {
+		if character < 'A' || character > 'Z' {
+			return false
+		}
+	}
+	return true
+}
+
 // ResearchGraphRepository exposes persisted Entity graph facts to the Entity domain.
 type ResearchGraphRepository interface {
 	SearchResearchGraph(context.Context, ResearchGraphQuery) (ResearchGraphSubgraph, error)
@@ -142,6 +159,7 @@ type ResearchGraphIndustryChain struct {
 	TargetOutput          string `json:"target_output"`
 	EndUse                string `json:"end_use"`
 	Geography             string `json:"geography"`
+	PrimaryCountryID      string `json:"primary_country_id,omitempty"`
 	AsOfDate              string `json:"as_of_date"`
 	ReviewStatus          string `json:"review_status"`
 }
@@ -197,7 +215,6 @@ type EntityType string
 
 const (
 	EntityTypeAllianceOrg   EntityType = "alliance_org"
-	EntityTypeEconomy       EntityType = "economy"
 	EntityTypePolicyBody    EntityType = "policy_body"
 	EntityTypeMarket        EntityType = "market"
 	EntityTypeIndex         EntityType = "index"
@@ -411,14 +428,15 @@ type ConceptProfile struct {
 }
 
 type IndustryChainDefinition struct {
-	EntityID     string
-	Scope        string
-	TargetOutput string
-	EndUse       string
-	Geography    string
-	AsOfDate     time.Time
-	ReviewStatus ReviewStatus
-	ReviewNote   string
+	EntityID         string
+	Scope            string
+	TargetOutput     string
+	EndUse           string
+	Geography        string
+	PrimaryCountryID string
+	AsOfDate         time.Time
+	ReviewStatus     ReviewStatus
+	ReviewNote       string
 }
 
 func (d IndustryChainDefinition) Validate() error {
@@ -432,6 +450,9 @@ func (d IndustryChainDefinition) Validate() error {
 	}
 	if !validMasterDataReviewStatus(d.ReviewStatus) {
 		return fmt.Errorf("unsupported industry chain review status %q", d.ReviewStatus)
+	}
+	if d.PrimaryCountryID != "" && !IsCountryID(d.PrimaryCountryID) {
+		return fmt.Errorf("industry chain primary country must be a stable Country ID")
 	}
 	if d.ReviewNote != "" && strings.TrimSpace(d.ReviewNote) == "" {
 		return fmt.Errorf("industry chain review note must be nonblank when present")
@@ -542,13 +563,6 @@ func validMasterDataReviewStatus(value ReviewStatus) bool {
 	return validStatus(value, ReviewStatusCandidate, ReviewStatusApproved)
 }
 
-type EconomyProfile struct {
-	EntityID     string
-	CountryCode  string
-	CurrencyCode string
-	Region       string
-}
-
 type PolicyBodyProfile struct {
 	EntityID     string
 	BodyType     string
@@ -557,11 +571,11 @@ type PolicyBodyProfile struct {
 }
 
 type MarketProfile struct {
-	EntityID        string
-	MarketType      string
-	EconomyEntityID string
-	CurrencyCode    string
-	Timezone        string
+	EntityID     string
+	MarketType   string
+	CountryID    string
+	CurrencyCode string
+	Timezone     string
 }
 
 type IndexProfile struct {
@@ -690,19 +704,19 @@ type BenchmarkObservationWriteResult struct {
 }
 
 type SectorProfile struct {
-	EntityID               string
-	SectorSystem           string
-	SectorCode             string
-	SectorType             string
-	ExchangeScope          string
-	ConstituentCount       int
-	ListDate               *time.Time
-	ParentSectorEntityID   string
-	ClassificationCode     SectorClassification
-	PrimaryMarketEntityID  string
-	PrimaryEconomyEntityID string
-	MethodologyURL         string
-	ReviewStatus           SectorReviewStatus
+	EntityID              string
+	SectorSystem          string
+	SectorCode            string
+	SectorType            string
+	ExchangeScope         string
+	ConstituentCount      int
+	ListDate              *time.Time
+	ParentSectorEntityID  string
+	ClassificationCode    SectorClassification
+	PrimaryMarketEntityID string
+	PrimaryCountryID      string
+	MethodologyURL        string
+	ReviewStatus          SectorReviewStatus
 }
 
 type SectorClassification string
@@ -724,6 +738,9 @@ const (
 )
 
 func (p SectorProfile) Validate() error {
+	if p.PrimaryCountryID != "" && !IsCountryID(p.PrimaryCountryID) {
+		return fmt.Errorf("sector primary country must be a stable Country ID")
+	}
 	if p.EntityID == "" {
 		return fmt.Errorf("entity id is required")
 	}
@@ -820,12 +837,12 @@ func (p ThemeProfile) Validate() error {
 }
 
 type CompanyProfile struct {
-	EntityID                    string
-	RegistrationEconomyEntityID string
-	Area                        string
-	IndustryName                string
-	ControllerName              string
-	ControllerType              string
+	EntityID              string
+	RegistrationCountryID string
+	Area                  string
+	IndustryName          string
+	ControllerName        string
+	ControllerType        string
 }
 
 type SecurityProfile struct {
@@ -866,7 +883,7 @@ type PersonProfile struct {
 	EntityID             string
 	RoleTitle            string
 	OrganizationEntityID string
-	EconomyEntityID      string
+	CountryID            string
 }
 
 type ProductProfile struct {
@@ -909,7 +926,6 @@ func validEntityType(value EntityType) bool {
 	return validStatus(
 		value,
 		EntityTypeAllianceOrg,
-		EntityTypeEconomy,
 		EntityTypePolicyBody,
 		EntityTypeMarket,
 		EntityTypeIndex,

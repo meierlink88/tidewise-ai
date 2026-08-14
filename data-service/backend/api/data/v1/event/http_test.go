@@ -16,6 +16,7 @@ import (
 	"github.com/go-kratos/kratos/v3/transport"
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
+	countryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/country"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
@@ -804,7 +805,7 @@ func newEventHTTPHandler(t *testing.T, application *eventservice.Service, creden
 	httpServer, err := serverpkg.NewHTTPServer(conf.Config{
 		App:    conf.AppConfig{Env: conf.EnvLocal},
 		Server: conf.ServerConfig{Host: "127.0.0.1", Port: 18081, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10},
-	}, testRuntimeHealthService{}, researchfixture.Service{}, application, testEventSemanticService{}, testEvidenceService{}, testRawDocumentService{}, authenticator, nil)
+	}, testRuntimeHealthService{}, researchfixture.Service{}, application, testEventSemanticService{}, testEvidenceService{}, testRawDocumentService{}, testCountryService{}, authenticator, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -812,6 +813,28 @@ func newEventHTTPHandler(t *testing.T, application *eventservice.Service, creden
 }
 
 type testRuntimeHealthService struct{}
+
+type testCountryService struct{}
+
+func (testCountryService) Create(context.Context, *countryapi.CreateRequest) (*v1.Response[countryapi.Country], error) {
+	return &v1.Response[countryapi.Country]{Status: http.StatusNoContent}, nil
+}
+
+func (testCountryService) List(context.Context, *countryapi.ListRequest) (*v1.Response[countryapi.CountryList], error) {
+	return &v1.Response[countryapi.CountryList]{Status: http.StatusNoContent}, nil
+}
+
+func (testCountryService) Get(context.Context, *countryapi.GetRequest) (*v1.Response[countryapi.Country], error) {
+	return &v1.Response[countryapi.Country]{Status: http.StatusNoContent}, nil
+}
+
+func (testCountryService) Update(context.Context, *countryapi.UpdateRequest) (*v1.Response[countryapi.Country], error) {
+	return &v1.Response[countryapi.Country]{Status: http.StatusNoContent}, nil
+}
+
+func (testCountryService) ReplaceRegions(context.Context, *countryapi.ReplaceRegionsRequest) (*v1.Response[countryapi.Country], error) {
+	return &v1.Response[countryapi.Country]{Status: http.StatusNoContent}, nil
+}
 
 func (testRuntimeHealthService) GetRuntimeHealth(context.Context, *runtimehealthapi.Request) (*v1.Response[runtimehealthapi.Result], error) {
 	return &v1.Response[runtimehealthapi.Result]{Status: http.StatusNoContent}, nil

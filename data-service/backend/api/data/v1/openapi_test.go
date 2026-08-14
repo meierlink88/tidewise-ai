@@ -45,6 +45,13 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/raw-evidence-publications":                                      {method: "post", operationID: "publishRawEvidence", driftAnchor: "data.v1.publishRawEvidence", scope: "data.raw-evidences.import"},
 		namespace + "/evidence-publications":                                          {method: "post", operationID: "publishEvidence", driftAnchor: "data.v1.publishEvidence", scope: "data.evidences.import"},
 		namespace + "/research-theme-imports":                                         {method: "post", operationID: "publishResearchTheme", driftAnchor: "data.v1.publishResearchTheme", scope: "data.research.import"},
+		namespace + "/entities/countries":                                             {method: "get", operationID: "listCountries", driftAnchor: "data.v1.listCountries", scope: "data.countries.read"},
+		namespace + "/entities/countries/{country_id}":                                {method: "get", operationID: "getCountry", driftAnchor: "data.v1.getCountry", scope: "data.countries.read"},
+		namespace + "/entities/countries/{country_id}/regions":                        {method: "put", operationID: "replaceCountryRegions", driftAnchor: "data.v1.replaceCountryRegions", scope: "data.countries.write"},
+	}
+	additionalMethods := map[string]map[string]struct{}{
+		namespace + "/entities/countries":              {"post": {}},
+		namespace + "/entities/countries/{country_id}": {"put": {}},
 	}
 
 	if len(paths) != len(want) {
@@ -66,10 +73,27 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		for _, method := range []string{"get", "post", "put", "patch", "delete"} {
 			if method != expected.method {
 				if _, exists := pathItem[method]; exists {
-					t.Fatalf("path %q unexpectedly defines %s", path, method)
+					if _, allowed := additionalMethods[path][method]; !allowed {
+						t.Fatalf("path %q unexpectedly defines %s", path, method)
+					}
 				}
 			}
 		}
+	}
+}
+
+func TestOpenAPIContractFreezesCountryWriteOperations(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	for path, expected := range map[string]operationContract{
+		namespace + "/entities/countries":              {method: "post", operationID: "createCountry", driftAnchor: "data.v1.createCountry", scope: "data.countries.write"},
+		namespace + "/entities/countries/{country_id}": {method: "put", operationID: "updateCountry", driftAnchor: "data.v1.updateCountry", scope: "data.countries.write"},
+	} {
+		operation := object(t, object(t, paths[path], path)[expected.method], expected.method+" "+path)
+		assertString(t, operation, "operationId", expected.operationID)
+		assertString(t, operation, "x-client-drift-anchor", expected.driftAnchor)
+		assertString(t, operation, "x-required-service-scope", expected.scope)
+		assertInt(t, operation, "x-timeout-budget-ms", 5000)
 	}
 }
 

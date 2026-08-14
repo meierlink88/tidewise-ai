@@ -15,6 +15,7 @@ import (
 	"github.com/go-kratos/kratos/v3/transport"
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
+	countryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/country"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
@@ -465,7 +466,7 @@ func newEventSemanticHTTPHandler(t *testing.T, application *eventsemanticservice
 	httpServer, err := serverpkg.NewHTTPServer(
 		conf.Config{App: conf.AppConfig{Env: conf.EnvLocal}, Server: conf.ServerConfig{Host: "127.0.0.1", Port: 18082, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10}},
 		semanticTestRuntimeHealthService{}, researchfixture.Service{}, semanticTestEventService{}, application,
-		semanticTestEvidenceService{}, semanticTestRawDocumentService{}, authenticator, nil,
+		semanticTestEvidenceService{}, semanticTestRawDocumentService{}, semanticTestCountryService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -474,6 +475,28 @@ func newEventSemanticHTTPHandler(t *testing.T, application *eventsemanticservice
 }
 
 type semanticTestEventService struct{}
+
+type semanticTestCountryService struct{}
+
+func (semanticTestCountryService) Create(context.Context, *countryapi.CreateRequest) (*v1.Response[countryapi.Country], error) {
+	return &v1.Response[countryapi.Country]{Status: http.StatusNoContent}, nil
+}
+
+func (semanticTestCountryService) List(context.Context, *countryapi.ListRequest) (*v1.Response[countryapi.CountryList], error) {
+	return &v1.Response[countryapi.CountryList]{Status: http.StatusNoContent}, nil
+}
+
+func (semanticTestCountryService) Get(context.Context, *countryapi.GetRequest) (*v1.Response[countryapi.Country], error) {
+	return &v1.Response[countryapi.Country]{Status: http.StatusNoContent}, nil
+}
+
+func (semanticTestCountryService) Update(context.Context, *countryapi.UpdateRequest) (*v1.Response[countryapi.Country], error) {
+	return &v1.Response[countryapi.Country]{Status: http.StatusNoContent}, nil
+}
+
+func (semanticTestCountryService) ReplaceRegions(context.Context, *countryapi.ReplaceRegionsRequest) (*v1.Response[countryapi.Country], error) {
+	return &v1.Response[countryapi.Country]{Status: http.StatusNoContent}, nil
+}
 
 type semanticTestRuntimeHealthService struct{}
 

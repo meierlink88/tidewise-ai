@@ -11,6 +11,7 @@ import (
 
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	dataapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
+	countryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/country"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
@@ -150,7 +151,7 @@ func TestServerEnforcesResearchReadScopeOnResearchRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server, err := NewHTTPServer(testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{}, serverTestEventSemanticService{}, serverTestEvidenceService{}, serverTestRawDocumentService{}, authenticator, nil)
+	server, err := NewHTTPServer(testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{}, serverTestEventSemanticService{}, serverTestEvidenceService{}, serverTestRawDocumentService{}, serverTestCountryService{}, authenticator, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,6 +169,45 @@ func TestServerEnforcesResearchReadScopeOnResearchRoutes(t *testing.T) {
 		server.ServeHTTP(response, request)
 		if response.Code != test.want {
 			t.Fatalf("token=%s status=%d want=%d body=%s", test.token, response.Code, test.want, response.Body.String())
+		}
+	}
+}
+
+func TestServerEnforcesDedicatedCountryReadAndWriteScopes(t *testing.T) {
+	authenticator, err := NewAuthenticator([]Credential{
+		{Secret: "country-read-token", Principal: dataapi.Principal{Identity: "country-reader", Scopes: []string{ScopeCountryRead}}},
+		{Secret: "country-write-token", Principal: dataapi.Principal{Identity: "country-writer", Scopes: []string{ScopeCountryWrite}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := NewHTTPServer(
+		testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{},
+		serverTestEventSemanticService{}, serverTestEvidenceService{}, serverTestRawDocumentService{},
+		serverTestCountryService{}, authenticator, nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		method, path, token string
+		want                int
+	}{
+		{method: http.MethodGet, path: dataapi.APIPrefix + "/entities/countries", token: "country-read-token", want: http.StatusNoContent},
+		{method: http.MethodGet, path: dataapi.APIPrefix + "/entities/countries", token: "country-write-token", want: http.StatusForbidden},
+		{method: http.MethodPost, path: dataapi.APIPrefix + "/entities/countries", token: "country-write-token", want: http.StatusNoContent},
+		{method: http.MethodPost, path: dataapi.APIPrefix + "/entities/countries", token: "country-read-token", want: http.StatusForbidden},
+		{method: http.MethodGet, path: dataapi.APIPrefix + "/entities/countries", want: http.StatusUnauthorized},
+	} {
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(test.method, test.path, strings.NewReader(`{"id":"COU_CHN","code":"CHN","name":"中国","name_en":"China","strategic_positioning":null,"key_resources":null}`))
+		request.Header.Set("Content-Type", "application/json")
+		if test.token != "" {
+			request.Header.Set("Authorization", "Bearer "+test.token)
+		}
+		server.ServeHTTP(response, request)
+		if response.Code != test.want {
+			t.Fatalf("%s %s token=%s status=%d want=%d body=%s", test.method, test.path, test.token, response.Code, test.want, response.Body.String())
 		}
 	}
 }
@@ -226,18 +266,20 @@ func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
 		eventSemantic eventsemanticapi.Service
 		evidence      evidenceapi.Service
 		rawDocument   rawdocumentapi.Service
+		country       countryapi.Service
 		auth          *Authenticator
 	}{
-		{name: "Runtime Health API", research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
-		{name: "Research API", application: serverTestDataService{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
-		{name: "Event API", application: serverTestDataService{}, research: researchfixture.Service{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
-		{name: "Event Semantic API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
-		{name: "Evidence API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
-		{name: "RawDocument API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, auth: authenticator},
-		{name: "authenticator", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}},
+		{name: "Runtime Health API", research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, auth: authenticator},
+		{name: "Research API", application: serverTestDataService{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, auth: authenticator},
+		{name: "Event API", application: serverTestDataService{}, research: researchfixture.Service{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, auth: authenticator},
+		{name: "Event Semantic API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, auth: authenticator},
+		{name: "Evidence API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, auth: authenticator},
+		{name: "RawDocument API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, auth: authenticator},
+		{name: "Country API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, auth: authenticator},
+		{name: "authenticator", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := NewHTTPServer(testConfig(), test.application, test.research, test.event, test.eventSemantic, test.evidence, test.rawDocument, test.auth, nil); err == nil {
+			if _, err := NewHTTPServer(testConfig(), test.application, test.research, test.event, test.eventSemantic, test.evidence, test.rawDocument, test.country, test.auth, nil); err == nil {
 				t.Fatal("NewHTTPServer() error = nil")
 			}
 		})
@@ -279,6 +321,7 @@ func TestEveryBusinessOperationHasAnAuthenticationScope(t *testing.T) {
 	businessOperations = append(businessOperations, eventsemanticapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, evidenceapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, rawdocumentapi.BusinessOperations()...)
+	businessOperations = append(businessOperations, countryapi.BusinessOperations()...)
 	for _, operation := range businessOperations {
 		if _, exists := openAPIOperations[operation]; !exists {
 			t.Errorf("business operation %q is absent from OpenAPI", operation)
@@ -345,7 +388,7 @@ func newTestHTTPServer(config conf.Config, application runtimehealthapi.Service,
 }
 
 func newTestHTTPServerWithEvent(config conf.Config, application runtimehealthapi.Service, eventApplication eventapi.Service, evidenceApplication evidenceapi.Service, authenticator *Authenticator) *kratoshttp.Server {
-	server, err := NewHTTPServer(config, application, researchfixture.Service{}, eventApplication, serverTestEventSemanticService{}, evidenceApplication, serverTestRawDocumentService{}, authenticator, nil)
+	server, err := NewHTTPServer(config, application, researchfixture.Service{}, eventApplication, serverTestEventSemanticService{}, evidenceApplication, serverTestRawDocumentService{}, serverTestCountryService{}, authenticator, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -355,6 +398,28 @@ func newTestHTTPServerWithEvent(config conf.Config, application runtimehealthapi
 type serverTestDataService struct{}
 
 type serverTestRawDocumentService struct{}
+
+type serverTestCountryService struct{}
+
+func (serverTestCountryService) Create(context.Context, *countryapi.CreateRequest) (*dataapi.Response[countryapi.Country], error) {
+	return serverTestResponse[countryapi.Country]()
+}
+
+func (serverTestCountryService) List(context.Context, *countryapi.ListRequest) (*dataapi.Response[countryapi.CountryList], error) {
+	return serverTestResponse[countryapi.CountryList]()
+}
+
+func (serverTestCountryService) Get(context.Context, *countryapi.GetRequest) (*dataapi.Response[countryapi.Country], error) {
+	return serverTestResponse[countryapi.Country]()
+}
+
+func (serverTestCountryService) Update(context.Context, *countryapi.UpdateRequest) (*dataapi.Response[countryapi.Country], error) {
+	return serverTestResponse[countryapi.Country]()
+}
+
+func (serverTestCountryService) ReplaceRegions(context.Context, *countryapi.ReplaceRegionsRequest) (*dataapi.Response[countryapi.Country], error) {
+	return serverTestResponse[countryapi.Country]()
+}
 
 func (serverTestRawDocumentService) List(context.Context, *rawdocumentapi.ListRequest) (*dataapi.Response[rawdocumentapi.Page], error) {
 	return serverTestResponse[rawdocumentapi.Page]()

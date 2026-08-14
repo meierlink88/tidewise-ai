@@ -7,8 +7,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
+	"time"
 
+	"github.com/google/uuid"
 	biz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
 	bizidentity "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/identity"
 )
@@ -246,6 +249,9 @@ func (s *Store) SearchResearchGraph(
 	if s == nil || s.db == nil {
 		return biz.ResearchGraphSubgraph{}, errors.New("research graph database is required")
 	}
+	if containsCountrySeed(query.SeedEntityIDs) {
+		return s.searchCountryResearchGraph(ctx, query)
+	}
 	relationTypes := make([]string, 0, len(query.RelationFilters))
 	directions := make([]string, 0, len(query.RelationFilters))
 	for _, filter := range query.RelationFilters {
@@ -346,9 +352,10 @@ func (s *Store) SearchResearchGraph(
 		            'industry_chain_entity_id', definition.entity_id,
 		            'scope', definition.scope,
 		            'target_output', definition.target_output,
-		            'end_use', definition.end_use,
-		            'geography', definition.geography,
-		            'as_of_date', definition.as_of_date,
+			            'end_use', definition.end_use,
+			            'geography', definition.geography,
+			            'primary_country_id', definition.primary_country_id,
+			            'as_of_date', definition.as_of_date,
 		            'review_status', definition.review_status
 		        ) ORDER BY definition.entity_id)
 		        FROM selected_industry_chains definition
@@ -396,13 +403,181 @@ func (s *Store) SearchResearchGraph(
 	return graph, nil
 }
 
+const countryRegionRelationType = "belongs_to_region"
+
+func containsCountrySeed(ids []string) bool {
+	for _, id := range ids {
+		if biz.IsCountryID(id) {
+			return true
+		}
+	}
+	return false
+}
+
+func validIndependentObjectID(id string) bool {
+	if biz.IsCountryID(id) {
+		return true
+	}
+	if !strings.HasPrefix(id, "REG_") || len(id) <= 4 || len(id) > 32 {
+		return false
+	}
+	for _, character := range id[4:] {
+		if (character >= 'A' && character <= 'Z') || (character >= '0' && character <= '9') || character == '_' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func validResearchGraphIdentity(id, objectType string) bool {
+	if bizidentity.IsUUID(id) {
+		return objectType != biz.ObjectTypeCountry && objectType != "region"
+	}
+	if biz.IsCountryID(id) {
+		return objectType == biz.ObjectTypeCountry
+	}
+	return validIndependentObjectID(id) && objectType == "region"
+}
+
+func (s *Store) searchCountryResearchGraph(
+	ctx context.Context,
+	query biz.ResearchGraphQuery,
+) (biz.ResearchGraphSubgraph, error) {
+	if query.IndustryChainEntityID != nil {
+		return biz.ResearchGraphSubgraph{}, &biz.ResearchGraphValidationError{Reason: "Country seeds cannot use an Industry Chain scope"}
+	}
+	for _, id := range query.SeedEntityIDs {
+		if !biz.IsCountryID(id) {
+			return biz.ResearchGraphSubgraph{}, &biz.ResearchGraphValidationError{Reason: "Country and legacy Entity seeds cannot be mixed"}
+		}
+	}
+	includeRegions := false
+	for _, filter := range query.RelationFilters {
+		if filter.RelationType != countryRegionRelationType {
+			return biz.ResearchGraphSubgraph{}, &biz.ResearchGraphValidationError{Reason: "Country graph supports only belongs_to_region"}
+		}
+		includeRegions = filter.Direction == biz.ResearchGraphDirectionOutgoing || filter.Direction == biz.ResearchGraphDirectionBoth
+	}
+
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, name, name_en, created_at, updated_at
+		FROM countries
+		WHERE id = ANY($1::text[])
+		ORDER BY code, id`, query.SeedEntityIDs)
+	if err != nil {
+		return biz.ResearchGraphSubgraph{}, err
+	}
+	defer rows.Close()
+	graph := biz.ResearchGraphSubgraph{
+		Entities:                 make([]biz.ResearchGraphEntity, 0, len(query.SeedEntityIDs)),
+		RelationDefinitions:      []biz.ResearchGraphRelation{{RelationType: countryRegionRelationType, Direction: "directed"}},
+		EntityRelations:          []biz.ResearchGraphEntityRelation{},
+		IndustryChains:           []biz.ResearchGraphIndustryChain{},
+		IndustryChainMemberships: []biz.ResearchGraphMembership{},
+		IndustryChainGraphEdges:  []biz.ResearchGraphIndustryEdge{},
+	}
+	for rows.Next() {
+		var id, name, nameEn string
+		var createdAt, updatedAt time.Time
+		if err := rows.Scan(&id, &name, &nameEn, &createdAt, &updatedAt); err != nil {
+			return biz.ResearchGraphSubgraph{}, err
+		}
+		if createdAt.After(query.AnalysisAsOf) {
+			continue
+		}
+		if updatedAt.After(query.AnalysisAsOf) {
+			return biz.ResearchGraphSubgraph{}, biz.ErrResearchHistoricalReferencesUnavailable
+		}
+		graph.Entities = append(graph.Entities, biz.ResearchGraphEntity{
+			EntityID: id, EntityType: biz.ObjectTypeCountry, Name: name, CanonicalName: name,
+			Aliases: []string{nameEn}, Status: "active",
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return biz.ResearchGraphSubgraph{}, err
+	}
+	if len(graph.Entities) != len(query.SeedEntityIDs) {
+		return biz.ResearchGraphSubgraph{}, &biz.ResearchGraphValidationError{Reason: "one or more seed countries are unavailable"}
+	}
+
+	if includeRegions {
+		linkRows, err := s.db.QueryContext(ctx, `
+			SELECT link.id, link.country_id, region.id, region.name, region.name_en
+			FROM country_region_links link
+			JOIN regions region ON region.id = link.region_id
+			WHERE link.country_id = ANY($1::text[])
+			  AND link.created_at <= $2
+			  AND region.created_at <= $2
+			ORDER BY link.country_id, region.code, region.id`, query.SeedEntityIDs, query.AnalysisAsOf)
+		if err != nil {
+			return biz.ResearchGraphSubgraph{}, err
+		}
+		defer linkRows.Close()
+		regions := map[string]biz.ResearchGraphEntity{}
+		for linkRows.Next() {
+			var linkID int64
+			var countryID, regionID, name, nameEn string
+			if err := linkRows.Scan(&linkID, &countryID, &regionID, &name, &nameEn); err != nil {
+				return biz.ResearchGraphSubgraph{}, err
+			}
+			regions[regionID] = biz.ResearchGraphEntity{
+				EntityID: regionID, EntityType: "region", Name: name, CanonicalName: name,
+				Aliases: []string{nameEn}, Status: "active",
+			}
+			graph.EntityRelations = append(graph.EntityRelations, biz.ResearchGraphEntityRelation{
+				EntityRelationID: uuid.NewSHA1(uuid.NameSpaceOID, []byte(fmt.Sprintf("country-region:%d", linkID))).String(),
+				FromEntityID:     countryID, ToEntityID: regionID,
+				RelationType: countryRegionRelationType, Status: "active",
+			})
+		}
+		if err := linkRows.Err(); err != nil {
+			return biz.ResearchGraphSubgraph{}, err
+		}
+		for _, region := range regions {
+			graph.Entities = append(graph.Entities, region)
+		}
+		if len(graph.EntityRelations) > 0 {
+			graph.ActualDepth = 1
+		}
+	}
+
+	sort.Slice(graph.Entities, func(i, j int) bool {
+		if graph.Entities[i].EntityType != graph.Entities[j].EntityType {
+			return graph.Entities[i].EntityType < graph.Entities[j].EntityType
+		}
+		if graph.Entities[i].CanonicalName != graph.Entities[j].CanonicalName {
+			return graph.Entities[i].CanonicalName < graph.Entities[j].CanonicalName
+		}
+		return graph.Entities[i].EntityID < graph.Entities[j].EntityID
+	})
+	if len(graph.Entities) > query.NodeBudget {
+		maximum := int64(query.NodeBudget)
+		return biz.ResearchGraphSubgraph{}, &biz.ResearchGraphResourceLimitError{
+			Reason: "research graph result exceeds the requested node budget", Component: "research_graph_nodes",
+			MaxRows: &maximum, RetryGuidance: "reduce_depth_relation_types_or_chain_scope",
+		}
+	}
+	if len(graph.EntityRelations) > query.EdgeBudget {
+		maximum := int64(query.EdgeBudget)
+		return biz.ResearchGraphSubgraph{}, &biz.ResearchGraphResourceLimitError{
+			Reason: "research graph result exceeds the requested edge budget", Component: "research_graph_edges",
+			MaxRows: &maximum, RetryGuidance: "reduce_depth_relation_types_or_chain_scope",
+		}
+	}
+	if err := validatePersistedResearchGraph(graph, query.MaxDepth); err != nil {
+		return biz.ResearchGraphSubgraph{}, err
+	}
+	return graph, nil
+}
+
 func validatePersistedResearchGraph(graph biz.ResearchGraphSubgraph, maxDepth int) error {
 	if graph.ActualDepth < 0 || graph.ActualDepth > maxDepth {
 		return errors.New("persisted Research Graph depth violates invariants")
 	}
 	entities := make(map[string]struct{}, len(graph.Entities))
 	for _, entity := range graph.Entities {
-		if !bizidentity.IsUUID(entity.EntityID) || strings.TrimSpace(entity.EntityType) == "" ||
+		if !validResearchGraphIdentity(entity.EntityID, entity.EntityType) ||
 			strings.TrimSpace(entity.Name) == "" || strings.TrimSpace(entity.CanonicalName) == "" ||
 			entity.Status != "active" {
 			return errors.New("persisted Research Graph Entity violates invariants")
@@ -446,7 +621,8 @@ func validatePersistedResearchGraph(graph biz.ResearchGraphSubgraph, maxDepth in
 		if !bizidentity.IsUUID(chain.IndustryChainEntityID) || chain.ReviewStatus != "approved" ||
 			strings.TrimSpace(chain.Scope) == "" || strings.TrimSpace(chain.TargetOutput) == "" ||
 			strings.TrimSpace(chain.EndUse) == "" || strings.TrimSpace(chain.Geography) == "" ||
-			strings.TrimSpace(chain.AsOfDate) == "" {
+			strings.TrimSpace(chain.AsOfDate) == "" ||
+			(chain.PrimaryCountryID != "" && !biz.IsCountryID(chain.PrimaryCountryID)) {
 			return errors.New("persisted Research Graph Industry Chain violates invariants")
 		}
 		if _, ok := entities[chain.IndustryChainEntityID]; !ok {
@@ -509,6 +685,15 @@ func (s *Store) ResearchReferenceClosure(
 	if s == nil || s.db == nil {
 		return biz.ResearchReferenceDictionaries{}, errors.New("Entity reference database is required")
 	}
+	legacyEntityIDs := make([]string, 0, len(query.EntityIDs))
+	countryIDs := make([]string, 0, len(query.EntityIDs))
+	for _, id := range query.EntityIDs {
+		if biz.IsCountryID(id) {
+			countryIDs = append(countryIDs, id)
+		} else {
+			legacyEntityIDs = append(legacyEntityIDs, id)
+		}
+	}
 	var historicalGap bool
 	if err := s.db.QueryRowContext(ctx, `WITH
 requested_entities(id) AS (SELECT unnest($2::uuid[])),
@@ -522,7 +707,7 @@ SELECT EXISTS (
 ) OR EXISTS (
     SELECT 1 FROM industry_chain_definitions definition JOIN requested_entities requested ON requested.id = definition.entity_id
     WHERE definition.created_at <= $1 AND definition.updated_at > $1
-)`, query.AnalysisAsOf, query.EntityIDs, query.EntityRelationIDs).Scan(&historicalGap); err != nil {
+)`, query.AnalysisAsOf, legacyEntityIDs, query.EntityRelationIDs).Scan(&historicalGap); err != nil {
 		return biz.ResearchReferenceDictionaries{}, fmt.Errorf("check historical Entity reference closure: %w", err)
 	}
 	if historicalGap {
@@ -571,13 +756,14 @@ SELECT jsonb_build_object(
     ) ORDER BY relation.relation_type, relation.from_entity_id, relation.to_entity_id, relation.id) FROM selected_relations relation), '[]'::jsonb),
     'industry_chains', COALESCE((SELECT jsonb_agg(jsonb_build_object(
         'industry_chain_entity_id', definition.entity_id, 'scope', definition.scope,
-        'target_output', definition.target_output, 'end_use', definition.end_use,
-        'geography', definition.geography, 'as_of_date', definition.as_of_date,
+		'target_output', definition.target_output, 'end_use', definition.end_use,
+		'geography', definition.geography, 'primary_country_id', definition.primary_country_id,
+		'as_of_date', definition.as_of_date,
         'review_status', definition.review_status
     ) ORDER BY definition.entity_id) FROM selected_industry_chains definition), '[]'::jsonb),
     'industry_chain_memberships', '[]'::jsonb,
     'industry_chain_graph_edges', '[]'::jsonb
-)`, query.AnalysisAsOf, query.EntityIDs, query.EntityRelationIDs, query.RelationTypes).Scan(&payload)
+)`, query.AnalysisAsOf, legacyEntityIDs, query.EntityRelationIDs, query.RelationTypes).Scan(&payload)
 	if err != nil {
 		return biz.ResearchReferenceDictionaries{}, fmt.Errorf("query Entity reference closure: %w", err)
 	}
@@ -591,10 +777,68 @@ SELECT jsonb_build_object(
 		IndustryChainMemberships: persisted.IndustryChainMemberships,
 		IndustryChainGraphEdges:  persisted.IndustryChainGraphEdges,
 	}
+	countries, err := s.researchCountryReferences(ctx, query.AnalysisAsOf, countryIDs)
+	if err != nil {
+		return biz.ResearchReferenceDictionaries{}, err
+	}
+	dictionaries.Entities = append(dictionaries.Entities, countries...)
+	sort.Slice(dictionaries.Entities, func(i, j int) bool {
+		if dictionaries.Entities[i].EntityType != dictionaries.Entities[j].EntityType {
+			return dictionaries.Entities[i].EntityType < dictionaries.Entities[j].EntityType
+		}
+		if dictionaries.Entities[i].CanonicalName != dictionaries.Entities[j].CanonicalName {
+			return dictionaries.Entities[i].CanonicalName < dictionaries.Entities[j].CanonicalName
+		}
+		return dictionaries.Entities[i].EntityID < dictionaries.Entities[j].EntityID
+	})
 	if err := validateResearchReferenceDictionaries(dictionaries); err != nil {
 		return biz.ResearchReferenceDictionaries{}, err
 	}
 	return dictionaries, nil
+}
+
+func (s *Store) researchCountryReferences(
+	ctx context.Context,
+	analysisAsOf time.Time,
+	ids []string,
+) ([]biz.ResearchGraphEntity, error) {
+	if len(ids) == 0 {
+		return []biz.ResearchGraphEntity{}, nil
+	}
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT id, name, name_en, created_at, updated_at
+		FROM countries
+		WHERE id = ANY($1::text[])
+		ORDER BY code, id`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]biz.ResearchGraphEntity, 0, len(ids))
+	for rows.Next() {
+		var id, name, nameEn string
+		var createdAt, updatedAt time.Time
+		if err := rows.Scan(&id, &name, &nameEn, &createdAt, &updatedAt); err != nil {
+			return nil, err
+		}
+		if createdAt.After(analysisAsOf) {
+			continue
+		}
+		if updatedAt.After(analysisAsOf) {
+			return nil, biz.ErrResearchHistoricalReferencesUnavailable
+		}
+		result = append(result, biz.ResearchGraphEntity{
+			EntityID: id, EntityType: biz.ObjectTypeCountry, Name: name, CanonicalName: name,
+			Aliases: []string{nameEn}, Status: "active",
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(result) != len(ids) {
+		return nil, errors.New("one or more Country references are unavailable")
+	}
+	return result, nil
 }
 
 type persistedResearchReferenceDictionaries struct {
@@ -609,7 +853,7 @@ type persistedResearchReferenceDictionaries struct {
 func validateResearchReferenceDictionaries(value biz.ResearchReferenceDictionaries) error {
 	entities := make(map[string]struct{}, len(value.Entities))
 	for _, entity := range value.Entities {
-		if !bizidentity.IsUUID(entity.EntityID) || strings.TrimSpace(entity.Name) == "" ||
+		if !validResearchGraphIdentity(entity.EntityID, entity.EntityType) || strings.TrimSpace(entity.Name) == "" ||
 			strings.TrimSpace(entity.CanonicalName) == "" || entity.Status != "active" {
 			return errors.New("persisted Research Entity violates invariants")
 		}
@@ -639,7 +883,8 @@ func validateResearchReferenceDictionaries(value biz.ResearchReferenceDictionari
 	for _, chain := range value.IndustryChains {
 		if _, ok := entities[chain.IndustryChainEntityID]; !ok || chain.ReviewStatus != "approved" ||
 			strings.TrimSpace(chain.Scope) == "" || strings.TrimSpace(chain.TargetOutput) == "" ||
-			strings.TrimSpace(chain.AsOfDate) == "" {
+			strings.TrimSpace(chain.AsOfDate) == "" ||
+			(chain.PrimaryCountryID != "" && !biz.IsCountryID(chain.PrimaryCountryID)) {
 			return errors.New("persisted Research Industry Chain violates invariants")
 		}
 	}

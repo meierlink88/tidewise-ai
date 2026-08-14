@@ -1596,6 +1596,33 @@ func testGraphHashPattern(value string) bool {
 	return true
 }
 
+func TestGraphAcceptsIndependentCountryAndRegionObjects(t *testing.T) {
+	store := &graphStoreStub{graph: GraphSubgraph{
+		ActualDepth: 1,
+		Entities: []GraphEntity{
+			{EntityID: "COU_CHN", EntityType: "country", Name: "中国", CanonicalName: "中国", Status: "active"},
+			{EntityID: "REG_APAC", EntityType: "region", Name: "亚太地区", CanonicalName: "亚太地区", Status: "active"},
+		},
+		RelationDefinitions: []GraphRelationDefinition{{RelationType: "belongs_to_region", Direction: "directed"}},
+		EntityRelations: []GraphEntityRelation{{
+			EntityRelationID: "33333333-3333-4333-8333-333333333333",
+			FromEntityID:     "COU_CHN", ToEntityID: "REG_APAC", RelationType: "belongs_to_region", Status: "active",
+		}},
+		IndustryChains: []GraphIndustryChain{}, IndustryChainMemberships: []GraphIndustryChainMembership{}, IndustryChainGraphEdges: []GraphIndustryChainEdge{},
+	}}
+	result, err := (&UseCase{graphStore: store}).Search(context.Background(), GraphSearchRequest{
+		AnalysisAsOf: "2026-08-14T00:00:00Z", SeedEntityIDs: []string{"COU_CHN"},
+		RelationFilters: []RelationFilter{{RelationType: "belongs_to_region", Direction: DirectionOutgoing}},
+		MaxDepth:        1, NodeBudget: 10, EdgeBudget: 10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Entities) != 2 || result.Entities[0].EntityID != "COU_CHN" || store.query.SeedEntityIDs[0] != "COU_CHN" {
+		t.Fatalf("Country graph result=%#v query=%#v", result, store.query)
+	}
+}
+
 func TestGraphRejectsInvalidOrOrphanedGraphRequests(t *testing.T) {
 	valid := GraphSearchRequest{
 		AnalysisAsOf:  "2026-07-30T00:00:00Z",
