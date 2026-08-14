@@ -17,6 +17,7 @@ import (
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	countryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/country"
+	organizationapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/organization"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
@@ -28,10 +29,42 @@ import (
 	serverpkg "github.com/meierlink88/tidewise-ai/data-service/backend/internal/server"
 	eventservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/event"
 	eventfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/event"
-	organizationfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/organization"
 	postgresfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/postgres"
 	researchfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/research"
 )
+
+type eventHTTPOrganizationStub struct{}
+
+func (eventHTTPOrganizationStub) Create(context.Context, *organizationapi.CreateRequest) (*v1.Response[organizationapi.Organization], error) {
+	return &v1.Response[organizationapi.Organization]{Status: http.StatusNoContent}, nil
+}
+func (eventHTTPOrganizationStub) List(context.Context, *organizationapi.ListRequest) (*v1.Response[organizationapi.OrganizationList], error) {
+	return &v1.Response[organizationapi.OrganizationList]{Status: http.StatusNoContent}, nil
+}
+func (eventHTTPOrganizationStub) Get(context.Context, *organizationapi.GetRequest) (*v1.Response[organizationapi.Organization], error) {
+	return &v1.Response[organizationapi.Organization]{Status: http.StatusNoContent}, nil
+}
+func (eventHTTPOrganizationStub) Update(context.Context, *organizationapi.UpdateRequest) (*v1.Response[organizationapi.Organization], error) {
+	return &v1.Response[organizationapi.Organization]{Status: http.StatusNoContent}, nil
+}
+func (eventHTTPOrganizationStub) ReplaceDomainTags(context.Context, *organizationapi.ReplaceDomainTagsRequest) (*v1.Response[organizationapi.Organization], error) {
+	return &v1.Response[organizationapi.Organization]{Status: http.StatusNoContent}, nil
+}
+func (eventHTTPOrganizationStub) GetCatalog(context.Context, *organizationapi.CatalogRequest) (*v1.Response[organizationapi.Catalog], error) {
+	return &v1.Response[organizationapi.Catalog]{Status: http.StatusNoContent}, nil
+}
+func (eventHTTPOrganizationStub) ListMembers(context.Context, *organizationapi.ListMembersRequest) (*v1.Response[organizationapi.MemberList], error) {
+	return &v1.Response[organizationapi.MemberList]{Status: http.StatusNoContent}, nil
+}
+func (eventHTTPOrganizationStub) CreateMember(context.Context, *organizationapi.CreateMemberRequest) (*v1.Response[organizationapi.Member], error) {
+	return &v1.Response[organizationapi.Member]{Status: http.StatusNoContent}, nil
+}
+func (eventHTTPOrganizationStub) UpdateMember(context.Context, *organizationapi.UpdateMemberRequest) (*v1.Response[organizationapi.Member], error) {
+	return &v1.Response[organizationapi.Member]{Status: http.StatusNoContent}, nil
+}
+func (eventHTTPOrganizationStub) DeleteMember(context.Context, *organizationapi.DeleteMemberRequest) (*v1.Response[organizationapi.DeleteResult], error) {
+	return &v1.Response[organizationapi.DeleteResult]{Status: http.StatusNoContent}, nil
+}
 
 func TestHTTPRoutesPreserveEventContract(t *testing.T) {
 	for _, test := range []struct {
@@ -806,7 +839,7 @@ func newEventHTTPHandler(t *testing.T, application *eventservice.Service, creden
 	httpServer, err := serverpkg.NewHTTPServer(conf.Config{
 		App:    conf.AppConfig{Env: conf.EnvLocal},
 		Server: conf.ServerConfig{Host: "127.0.0.1", Port: 18081, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10},
-	}, testRuntimeHealthService{}, researchfixture.Service{}, application, testEventSemanticService{}, testEvidenceService{}, testRawDocumentService{}, testCountryService{}, organizationfixture.Service{}, authenticator, nil)
+	}, testRuntimeHealthService{}, researchfixture.Service{}, application, testEventSemanticService{}, testEvidenceService{}, testRawDocumentService{}, testCountryService{}, eventHTTPOrganizationStub{}, authenticator, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

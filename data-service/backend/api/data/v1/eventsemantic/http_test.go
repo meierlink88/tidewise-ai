@@ -16,6 +16,7 @@ import (
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	countryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/country"
+	organizationapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/organization"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
@@ -27,10 +28,42 @@ import (
 	serverpkg "github.com/meierlink88/tidewise-ai/data-service/backend/internal/server"
 	eventsemanticservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/eventsemantic"
 	eventsemanticfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/eventsemantic"
-	organizationfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/organization"
 	postgresfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/postgres"
 	researchfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/research"
 )
+
+type eventSemanticHTTPOrganizationStub struct{}
+
+func (eventSemanticHTTPOrganizationStub) Create(context.Context, *organizationapi.CreateRequest) (*v1.Response[organizationapi.Organization], error) {
+	return &v1.Response[organizationapi.Organization]{Status: http.StatusNoContent}, nil
+}
+func (eventSemanticHTTPOrganizationStub) List(context.Context, *organizationapi.ListRequest) (*v1.Response[organizationapi.OrganizationList], error) {
+	return &v1.Response[organizationapi.OrganizationList]{Status: http.StatusNoContent}, nil
+}
+func (eventSemanticHTTPOrganizationStub) Get(context.Context, *organizationapi.GetRequest) (*v1.Response[organizationapi.Organization], error) {
+	return &v1.Response[organizationapi.Organization]{Status: http.StatusNoContent}, nil
+}
+func (eventSemanticHTTPOrganizationStub) Update(context.Context, *organizationapi.UpdateRequest) (*v1.Response[organizationapi.Organization], error) {
+	return &v1.Response[organizationapi.Organization]{Status: http.StatusNoContent}, nil
+}
+func (eventSemanticHTTPOrganizationStub) ReplaceDomainTags(context.Context, *organizationapi.ReplaceDomainTagsRequest) (*v1.Response[organizationapi.Organization], error) {
+	return &v1.Response[organizationapi.Organization]{Status: http.StatusNoContent}, nil
+}
+func (eventSemanticHTTPOrganizationStub) GetCatalog(context.Context, *organizationapi.CatalogRequest) (*v1.Response[organizationapi.Catalog], error) {
+	return &v1.Response[organizationapi.Catalog]{Status: http.StatusNoContent}, nil
+}
+func (eventSemanticHTTPOrganizationStub) ListMembers(context.Context, *organizationapi.ListMembersRequest) (*v1.Response[organizationapi.MemberList], error) {
+	return &v1.Response[organizationapi.MemberList]{Status: http.StatusNoContent}, nil
+}
+func (eventSemanticHTTPOrganizationStub) CreateMember(context.Context, *organizationapi.CreateMemberRequest) (*v1.Response[organizationapi.Member], error) {
+	return &v1.Response[organizationapi.Member]{Status: http.StatusNoContent}, nil
+}
+func (eventSemanticHTTPOrganizationStub) UpdateMember(context.Context, *organizationapi.UpdateMemberRequest) (*v1.Response[organizationapi.Member], error) {
+	return &v1.Response[organizationapi.Member]{Status: http.StatusNoContent}, nil
+}
+func (eventSemanticHTTPOrganizationStub) DeleteMember(context.Context, *organizationapi.DeleteMemberRequest) (*v1.Response[organizationapi.DeleteResult], error) {
+	return &v1.Response[organizationapi.DeleteResult]{Status: http.StatusNoContent}, nil
+}
 
 type eventSemanticHTTPStubBase struct{}
 
@@ -467,7 +500,7 @@ func newEventSemanticHTTPHandler(t *testing.T, application *eventsemanticservice
 	httpServer, err := serverpkg.NewHTTPServer(
 		conf.Config{App: conf.AppConfig{Env: conf.EnvLocal}, Server: conf.ServerConfig{Host: "127.0.0.1", Port: 18082, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10}},
 		semanticTestRuntimeHealthService{}, researchfixture.Service{}, semanticTestEventService{}, application,
-		semanticTestEvidenceService{}, semanticTestRawDocumentService{}, semanticTestCountryService{}, organizationfixture.Service{}, authenticator, nil,
+		semanticTestEvidenceService{}, semanticTestRawDocumentService{}, semanticTestCountryService{}, eventSemanticHTTPOrganizationStub{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
