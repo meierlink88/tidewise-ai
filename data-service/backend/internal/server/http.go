@@ -16,6 +16,7 @@ import (
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
+	countryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/country"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
@@ -34,7 +35,7 @@ type healthResponse struct {
 	Checks      map[string]string `json:"checks,omitempty"`
 }
 
-func NewHTTPServer(config conf.Config, runtimeHealthApplication runtimehealthapi.Service, researchApplication researchapi.Service, eventApplication eventapi.Service, eventSemanticApplication eventsemanticapi.Service, evidenceApplication evidenceapi.Service, rawDocumentApplication rawdocumentapi.Service, authenticator *Authenticator, logger *slog.Logger) (*kratoshttp.Server, error) {
+func NewHTTPServer(config conf.Config, runtimeHealthApplication runtimehealthapi.Service, researchApplication researchapi.Service, eventApplication eventapi.Service, eventSemanticApplication eventsemanticapi.Service, evidenceApplication evidenceapi.Service, rawDocumentApplication rawdocumentapi.Service, countryApplication countryapi.Service, authenticator *Authenticator, logger *slog.Logger) (*kratoshttp.Server, error) {
 	if runtimeHealthApplication == nil {
 		return nil, errors.New("Runtime Health API service is required")
 	}
@@ -52,6 +53,9 @@ func NewHTTPServer(config conf.Config, runtimeHealthApplication runtimehealthapi
 	}
 	if rawDocumentApplication == nil {
 		return nil, errors.New("RawDocument API service is required")
+	}
+	if countryApplication == nil {
+		return nil, errors.New("Country API service is required")
 	}
 	if authenticator == nil {
 		return nil, errors.New("Data API authenticator is required")
@@ -82,6 +86,7 @@ func NewHTTPServer(config conf.Config, runtimeHealthApplication runtimehealthapi
 	eventsemanticapi.RegisterHTTPServer(server, eventSemanticApplication)
 	evidenceapi.RegisterHTTPServer(server, evidenceApplication)
 	rawdocumentapi.RegisterHTTPServer(server, rawDocumentApplication)
+	countryapi.RegisterHTTPServer(server, countryApplication)
 
 	documented := wrapAPIDocs(config.App.Env, server.Server.Handler, apiDocsConfig{
 		Title:    "Tidewise Data Service API",

@@ -79,6 +79,9 @@ Region(区域): EntityType
 - Object Schema 文件统一使用 `.schema` 扩展名，并直接存放在 owning application 的
   `doctype/` 目录。
 - 一个 Object Type 使用一个同名小写文件，例如 `Region` 使用 `region.schema`。
+- 跨 Object 关系仍分别保存在各自文件中。固定 OpenSPG parser 要求关系目标出现在同一解析
+  单元，因此 CI 会按文件名排序，在临时内存构建的同一 `Tidewise` namespace bundle 中统一
+  解析；这只是语法校验输入，不产生第二份 Schema 文件或发布事实。
 - 每个类型、属性和关系必须提供中文显示名；每个类型和业务属性必须提供非空 `desc:`。
 - 每个受控枚举必须同时给出机器约束值和每个枚举值的业务含义。
 - 新增或修改 Schema 时，必须使用本规范固定基线兼容的 OpenSPG MarkLang parser 校验。

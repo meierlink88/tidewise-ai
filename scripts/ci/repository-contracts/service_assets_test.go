@@ -4,9 +4,66 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
+
+func TestActiveRepositoryRetiresEconomyEntityModel(t *testing.T) {
+	repoRoot := repositoryRoot()
+	retirementEvidence := map[string]struct{}{
+		"data-service/backend/internal/data/entity/country/data_test.go": {},
+	}
+	retired := []*regexp.Regexp{
+		regexp.MustCompile(`\becono` + `m(?:y|ies)\b`),
+		regexp.MustCompile(`EntityType` + `Economy`),
+		regexp.MustCompile(`Economy` + `Profile`),
+		regexp.MustCompile(`Economy` + `EntityID`),
+		regexp.MustCompile(`Primary` + `Economy`),
+		regexp.MustCompile(`Registration` + `Economy`),
+	}
+	for _, root := range []string{"data-service", "miniapp", "admin-portal", "agent-run", "scripts", "infra"} {
+		err := filepath.WalkDir(filepath.Join(repoRoot, root), func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			relative, err := filepath.Rel(repoRoot, path)
+			if err != nil {
+				return err
+			}
+			relative = filepath.ToSlash(relative)
+			if entry.IsDir() {
+				if relative == "data-service/backend/migrations" || relative == "scripts/ci/repository-contracts" {
+					return filepath.SkipDir
+				}
+				switch entry.Name() {
+				case "node_modules", "dist", "coverage", "vendor":
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			if relative == "infra/uat/migration-risk.tsv" {
+				return nil
+			}
+			if _, documentsDestructiveCutover := retirementEvidence[relative]; documentsDestructiveCutover {
+				return nil
+			}
+			contents, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			for _, pattern := range retired {
+				if pattern.Match(contents) {
+					t.Errorf("active repository file %s retains retired Economy entity behavior matching %s", relative, pattern)
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("scan %s for retired Economy behavior: %v", root, err)
+		}
+	}
+}
 
 func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 	repoRoot := repositoryRoot()

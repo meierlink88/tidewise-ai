@@ -11,6 +11,7 @@ import (
 	"github.com/go-kratos/kratos/v3/transport"
 
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
+	countryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/country"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
@@ -29,6 +30,8 @@ const (
 	ScopeEventTagRead        = "data.event-tags.read"
 	ScopeEventSemanticsRead  = "data.event-semantics.read"
 	ScopeEventSemanticsWrite = "data.event-semantics.write"
+	ScopeCountryRead         = "data.countries.read"
+	ScopeCountryWrite        = "data.countries.write"
 	operationHealth          = "data.health"
 	operationReady           = "data.ready"
 )
@@ -130,6 +133,10 @@ func requiredScope(operation string) (string, bool) {
 		eventsemanticapi.OperationCreateSubmission,
 		eventsemanticapi.OperationSubmitReview:
 		return ScopeEventSemanticsWrite, true
+	case countryapi.OperationList, countryapi.OperationGet:
+		return ScopeCountryRead, true
+	case countryapi.OperationCreate, countryapi.OperationUpdate, countryapi.OperationReplaceRegions:
+		return ScopeCountryWrite, true
 	default:
 		return "", false
 	}

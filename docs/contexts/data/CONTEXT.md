@@ -344,6 +344,28 @@ MULTILATERAL | INVESTMENT`，由 PostgreSQL 原生 enum 保证。Region 不使�
 主表或 profile 表。
 _Avoid_: `region_profiles`、`region_types` 字典表、把 Region 写回旧 Entity 聚合模式
 
+**Country**:
+一个拥有 ISO 3166-1 alpha-3 代码的主权国家独立事实，由稳定 `COU_ + code` 标识、中英文
+简称、可选战略定位、可选关键资源和数据库生成时间构成。Country 通过显式多对多关系属于
+零个或多个 Region；它不使用 `entity_nodes` 或 profile 表，语义消费者将其类型识别为
+`country`。
+_Avoid_: Economy、全球范围、超国家组织、Region、Country Profile、Country shadow Entity
+
+**Country–Region Link**:
+Country 被纳入一个 Region 的正式集合关系；其含义继承目标 Region 的形成或使用类型，
+不复制 `region_type`。完整关系集合由 Country 聚合原子替换，重复 Country–Region 对只保留
+一个事实。
+_Avoid_: 自由文本区域、单值 Region 字段、把关系类型写在 Country 行中
+
+Industry Chain 的可选主要国家范围使用 `primary_country_id` 引用独立 Country；不得把国家
+写回 `geography` 自由文本或旧 Economy UUID。已退役的 Sector 持久化表不因 Country 切换而恢复。
+
+**Economy Entity Retirement**:
+Tidewise AI 1.0 用于混合表达国家、全球范围、区域和跨国对象的旧通用 Entity 类型已经退役。
+活动代码、API、Schema 和最终数据库状态不得把 Country 表达为 `economy`，也不得为新
+Country 创建兼容 UUID、双读或双写入口；历史 migration 和合法宏观经济词汇不受影响。
+_Avoid_: Economy alias、Country/Economy fallback、从混合旧行猜测 Country
+
 **Benchmark Observation**:
 挂在一个正式 Benchmark Entity 下、带观测时间、数值、单位、来源与质量状态的时序事实。
 它属于 Entity 领域事实，但不是 Entity identity、Benchmark Profile、Event Measurement 或

@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	entitybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
 	eventbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/eventsemantic"
 )
 
@@ -94,6 +95,10 @@ func invalidPersistedEventSemantic(resource string) error {
 func validPersistedUUID(value string) bool {
 	_, err := uuid.Parse(value)
 	return err == nil
+}
+
+func validPersistedObjectID(value string) bool {
+	return validPersistedUUID(value) || entitybiz.IsCountryID(value)
 }
 
 func validPersistedSHA256(value string) bool {
@@ -233,7 +238,8 @@ func validatePersistedEvidence(item eventbiz.Evidence) error {
 }
 
 func validatePersistedEntity(item eventbiz.Entity) error {
-	if !validPersistedUUID(item.ID) || strings.TrimSpace(item.Type) == "" ||
+	if !validPersistedObjectID(item.ID) || strings.TrimSpace(item.Type) == "" ||
+		(entitybiz.IsCountryID(item.ID) != (item.Type == entitybiz.ObjectTypeCountry)) ||
 		strings.TrimSpace(item.Name) == "" || strings.TrimSpace(item.CanonicalName) == "" ||
 		item.Status != "active" || !validPersistedStringSet(item.Aliases, false) {
 		return invalidPersistedEventSemantic("Entity")
@@ -365,16 +371,34 @@ func hydrateEventSemanticSubmissionContext(
 		lockClause = " FOR SHARE"
 	}
 	entityIDs := make([]string, 0, len(submission.EntityLinks))
+	countryIDs := make([]string, 0, len(submission.EntityLinks))
 	for _, link := range submission.EntityLinks {
-		entityIDs = append(entityIDs, link.EntityID)
+		if entitybiz.IsCountryID(link.EntityID) {
+			countryIDs = append(countryIDs, link.EntityID)
+		} else {
+			entityIDs = append(entityIDs, link.EntityID)
+		}
 	}
-	if len(entityIDs) > 0 {
+	if len(entityIDs)+len(countryIDs) > 0 {
 		rows, err := query.QueryContext(ctx, `
-			SELECT id, entity_type, name, canonical_name, array_to_json(aliases), status
-			FROM entity_nodes
-			WHERE id = ANY($1::uuid[])
-			ORDER BY entity_type, canonical_name, id
-		`+lockClause, entityIDs)
+			WITH selected_entities AS MATERIALIZED (
+				SELECT id::text, entity_type::text, name, canonical_name,
+				       array_to_json(aliases) aliases, status::text
+				FROM entity_nodes
+				WHERE id = ANY($1::uuid[])
+				`+lockClause+`
+			), selected_countries AS MATERIALIZED (
+				SELECT id, 'country' object_type, name, name canonical_name,
+				       array_to_json(ARRAY[name_en]) aliases, 'active' status
+				FROM countries
+				WHERE id = ANY($2::text[])
+				`+lockClause+`
+			)
+			SELECT * FROM selected_entities
+			UNION ALL
+			SELECT * FROM selected_countries
+			ORDER BY 2, 4, 1
+		`, entityIDs, countryIDs)
 		if err != nil {
 			return eventbiz.Context{}, err
 		}
@@ -848,13 +872,24 @@ func (r Store) Resolve(
 	for _, mention := range mentions {
 		resolution := eventbiz.EntityResolution{Mention: mention.Mention}
 		rows, err := r.db.QueryContext(ctx, `
-			SELECT id, entity_type, name, canonical_name, array_to_json(aliases), status
-			FROM entity_nodes
-			WHERE status = 'active'
-			  AND entity_type = ANY($1)
-			  AND (lower(name) = lower($2) OR lower(canonical_name) = lower($2)
-			       OR EXISTS (SELECT 1 FROM unnest(aliases) alias WHERE lower(alias) = lower($2)))
-			ORDER BY (lower(canonical_name) = lower($2)) DESC, canonical_name, id
+			SELECT candidate.id, candidate.object_type, candidate.name,
+			       candidate.canonical_name, candidate.aliases, candidate.status
+			FROM (
+				SELECT id::text, entity_type::text object_type, name, canonical_name,
+				       array_to_json(aliases) aliases, status::text
+				FROM entity_nodes
+				WHERE status = 'active'
+				  AND entity_type = ANY($1)
+				  AND (lower(name) = lower($2) OR lower(canonical_name) = lower($2)
+				       OR EXISTS (SELECT 1 FROM unnest(aliases) alias WHERE lower(alias) = lower($2)))
+				UNION ALL
+				SELECT id, 'country', name, name, array_to_json(ARRAY[name_en]), 'active'
+				FROM countries
+				WHERE 'country' = ANY($1)
+				  AND (lower(name) = lower($2) OR lower(name_en) = lower($2))
+			) candidate
+			ORDER BY (lower(candidate.canonical_name) = lower($2)) DESC,
+			         candidate.canonical_name, candidate.id
 			LIMIT 10
 		`, mention.AllowedEntityTypes, mention.Mention)
 		if err != nil {
@@ -1501,13 +1536,17 @@ func insertReviewableSemanticCandidates(
 		}
 		id := uuid.NewString()
 		linkIDs[candidate.Key] = id
+		entityID, countryID := any(candidate.EntityID), any(nil)
+		if candidate.ProjectedEntityType == entitybiz.ObjectTypeCountry {
+			entityID, countryID = nil, candidate.EntityID
+		}
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO event_entity_links(
-			    id,event_id,entity_id,entity_role,assign_source,review_status,evidence_note,
+			    id,event_id,entity_id,country_id,entity_role,assign_source,review_status,evidence_note,
 			    semantic_submission_id,candidate_key,resolved_mention,resolution_method,
 			    resolution_confidence,evidence_ids,provenance,reason_code
-			) VALUES ($1,$2,$3,$4,'ai',$5,'',$6,$7,$8,$9,$10,$11,'semantic',$12)
-		`, id, submission.EventID, candidate.EntityID, candidate.EntityRole, decision.Status,
+			) VALUES ($1,$2,$3,$4,$5,'ai',$6,'',$7,$8,$9,$10,$11,$12,'semantic',$13)
+		`, id, submission.EventID, entityID, countryID, candidate.EntityRole, decision.Status,
 			submissionID, candidate.Key, candidate.Mention, candidate.ResolutionMethod,
 			nullString(candidate.ResolutionConfidence), candidate.EvidenceIDs, nullString(decision.ReasonCode),
 		); err != nil {
@@ -1571,7 +1610,7 @@ func validatePersistedCandidateDecisions(items []eventbiz.CandidateDecision) (ma
 
 func validatePersistedEntityLinkCandidate(item eventbiz.EntityLinkCandidate) error {
 	if strings.TrimSpace(item.Key) == "" || strings.TrimSpace(item.Mention) == "" ||
-		!validPersistedUUID(item.EntityID) || strings.TrimSpace(item.ProjectedEntityType) == "" ||
+		!validPersistedObjectID(item.EntityID) || strings.TrimSpace(item.ProjectedEntityType) == "" ||
 		strings.TrimSpace(item.EntityRole) == "" || strings.TrimSpace(item.ResolutionMethod) == "" ||
 		!validPersistedUUIDSet(item.EvidenceIDs, true) {
 		return invalidPersistedEventSemantic("Entity Link candidate")
@@ -2491,14 +2530,14 @@ func (s *Store) researchSemanticRecord(
 		        SELECT jsonb_agg(jsonb_build_object(
 		            'event_entity_link_id', link.id,
 		            'semantic_submission_id', link.semantic_submission_id,
-		            'entity_id', link.entity_id,
+			            'entity_id', COALESCE(link.country_id, link.entity_id::text),
 		            'entity_role', link.entity_role,
 		            'resolved_mention', link.resolved_mention,
 		            'resolution_method', link.resolution_method,
 		            'resolution_confidence', link.resolution_confidence,
 		            'evidence_ids', link.evidence_ids,
 		            'review_status', link.review_status
-		        ) ORDER BY link.entity_role, link.entity_id, link.id)
+			        ) ORDER BY link.entity_role, COALESCE(link.country_id, link.entity_id::text), link.id)
 		        FROM event_entity_links link
 		        JOIN event_semantic_submissions submission
 		          ON submission.id = link.semantic_submission_id
@@ -2514,7 +2553,7 @@ func (s *Store) researchSemanticRecord(
 		            'semantic_submission_id', signal.semantic_submission_id,
 		            'source_event_id', signal.source_event_id,
 		            'subject_event_entity_link_id', signal.subject_event_entity_link_id,
-		            'subject_entity_id', subject.entity_id,
+			            'subject_entity_id', COALESCE(subject.country_id, subject.entity_id::text),
 		            'variable_key', signal.variable_key,
 		            'variable_version', signal.variable_version,
 		            'direction', signal.direction,

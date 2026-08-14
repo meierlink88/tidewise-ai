@@ -3,8 +3,8 @@ package main
 import "testing"
 
 func TestClassifySeparatesMentionRetrievalSelectorAndReviewFailures(t *testing.T) {
-	china := entityIdentity{ID: "china", EntityType: "economy", CanonicalName: "中国", Status: "active"}
-	brazil := entityIdentity{ID: "brazil", EntityType: "economy", CanonicalName: "巴西", Status: "active"}
+	china := entityIdentity{ID: "COU_CHN", EntityType: "country", CanonicalName: "中国", Status: "active"}
+	brazil := entityIdentity{ID: "COU_BRA", EntityType: "country", CanonicalName: "巴西", Status: "active"}
 	entities := []entityIdentity{china, brazil}
 	tests := []struct {
 		name string
@@ -31,7 +31,7 @@ func TestClassifySeparatesMentionRetrievalSelectorAndReviewFailures(t *testing.T
 			name: "formal candidate rejected by selector",
 			run: acceptanceRun{Status: "rejected", StageAudit: stageAudit{
 				Mentions:      []mentionAudit{{CandidateKey: "china", Mention: "中国"}},
-				CandidateSets: []candidateSetAudit{{CandidateKey: "china", Candidates: []candidateAudit{{EntityID: "china"}}}},
+				CandidateSets: []candidateSetAudit{{CandidateKey: "china", Candidates: []candidateAudit{{EntityID: "COU_CHN"}}}},
 				Selections:    []selectionAudit{{CandidateKey: "china", NoMatch: true}},
 			}},
 			text: eventText{Corpus: "中国"}, want: "selector_false_reject",
@@ -40,8 +40,8 @@ func TestClassifySeparatesMentionRetrievalSelectorAndReviewFailures(t *testing.T
 			name: "candidate rejected by review",
 			run: acceptanceRun{Status: "rejected", EntityRejected: 1, StageAudit: stageAudit{
 				Mentions:      []mentionAudit{{CandidateKey: "china", Mention: "中国"}},
-				CandidateSets: []candidateSetAudit{{CandidateKey: "china", Candidates: []candidateAudit{{EntityID: "china"}}}},
-				Selections:    []selectionAudit{{CandidateKey: "china", EntityID: "china"}},
+				CandidateSets: []candidateSetAudit{{CandidateKey: "china", Candidates: []candidateAudit{{EntityID: "COU_CHN"}}}},
+				Selections:    []selectionAudit{{CandidateKey: "china", EntityID: "COU_CHN"}},
 			}},
 			text: eventText{Corpus: "中国"}, want: "review_reject",
 		},
@@ -56,9 +56,9 @@ func TestClassifySeparatesMentionRetrievalSelectorAndReviewFailures(t *testing.T
 	}
 }
 
-func TestExpectedFormalIdentitiesDoesNotTreatCompanySubstringAsEconomy(t *testing.T) {
-	usa := entityIdentity{ID: "usa", EntityType: "economy", CanonicalName: "美国", Status: "active"}
-	gabon := entityIdentity{ID: "gabon", EntityType: "economy", CanonicalName: "加蓬", Aliases: []string{"GA"}, Status: "active"}
+func TestExpectedFormalIdentitiesDoesNotTreatCompanySubstringAsCountry(t *testing.T) {
+	usa := entityIdentity{ID: "COU_USA", EntityType: "country", CanonicalName: "美国", Status: "active"}
+	gabon := entityIdentity{ID: "COU_GAB", EntityType: "country", CanonicalName: "加蓬", Aliases: []string{"GA"}, Status: "active"}
 	airline := entityIdentity{ID: "american-airlines", EntityType: "company", CanonicalName: "美国航空", Status: "active"}
 
 	got := expectedFormalIdentities("美国航空公布业绩", []string{"美国航空"}, []entityIdentity{usa, gabon, airline})
@@ -68,9 +68,9 @@ func TestExpectedFormalIdentitiesDoesNotTreatCompanySubstringAsEconomy(t *testin
 
 	got = expectedFormalIdentities("Israel withdrew from Zawtar al-Gharbiyeh", []string{"以色列"}, []entityIdentity{
 		gabon,
-		{ID: "israel", EntityType: "economy", CanonicalName: "以色列", Status: "active"},
+		{ID: "COU_ISR", EntityType: "country", CanonicalName: "以色列", Status: "active"},
 	})
-	if len(got) != 1 || got[0].ID != "israel" {
+	if len(got) != 1 || got[0].ID != "COU_ISR" {
 		t.Fatalf("identities=%+v, want only Israel", got)
 	}
 }

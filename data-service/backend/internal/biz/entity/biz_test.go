@@ -191,8 +191,17 @@ func TestIndustryChainMasterDataTypesValidateNewSchemaVocabulary(t *testing.T) {
 			name: "definition",
 			value: IndustryChainDefinition{
 				EntityID: "chain", Scope: "AI 算力主链", TargetOutput: "可用算力", EndUse: "AI 训练与推理",
-				Geography: "global_with_china_research_focus", AsOfDate: validDate, ReviewStatus: ReviewStatusCandidate,
+				Geography: "global_with_china_research_focus", PrimaryCountryID: "COU_CHN",
+				AsOfDate: validDate, ReviewStatus: ReviewStatusCandidate,
 			},
+		},
+		{
+			name: "definition rejects legacy country identity",
+			value: IndustryChainDefinition{
+				EntityID: "chain", Scope: "AI 算力主链", TargetOutput: "可用算力", EndUse: "AI 训练与推理",
+				Geography: "china", PrimaryCountryID: "legacy-country-id", AsOfDate: validDate, ReviewStatus: ReviewStatusCandidate,
+			},
+			wantErr: true,
 		},
 		{
 			name: "membership",
@@ -366,6 +375,11 @@ func TestSectorProfileAndSourceMappingValidateSemanticBoundaries(t *testing.T) {
 	profile.ClassificationCode = SectorClassification("index_sector")
 	if err := profile.Validate(); err == nil {
 		t.Fatal("SectorProfile.Validate() expected index_sector rejection")
+	}
+	profile.ClassificationCode = SectorClassificationTheme
+	profile.PrimaryCountryID = "legacy-country-id"
+	if err := profile.Validate(); err == nil {
+		t.Fatal("SectorProfile.Validate() expected legacy country identity rejection")
 	}
 	mapping := SectorSourceMapping{
 		ID: "mapping-id", SectorEntityID: "sector-id", SourceSystem: "ths",
