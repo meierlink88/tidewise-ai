@@ -44,7 +44,7 @@ AgentRun 运行时下架、旧 `tidewise_ai_server` 数据搬迁和历史 8/19 �
 
 **Raw Evidence**:
 Data 正式保存的一份完整原始采集材料，包含来源与转载快照、完整正文、文章发布时间、
-采集时间、正文哈希和有序 Keywords。它可以在清洗完成前暂时没有 Evidence，但不能以
+采集时间、正文哈希、有序 Keywords 和受控内容分类。它可以在清洗完成前暂时没有 Evidence，但不能以
 零 Evidence 作为正式清洗结果。
 Data 还为新建 Raw Evidence 保存数据库生成的内部 `created_at`；发布方不提交，发布 API
 不返回，历史行不回填。
@@ -54,6 +54,16 @@ _Avoid_: Event Evidence Record、AgentRun Artifact、Raw Document、只含摘录
 发布方随 Raw Evidence 提交的有序阅读辅助字符串列表，顺序表达重要性。其内容规则由
 发布方治理；Data 原样保存，不生成、不规范化，也不将它用于 Evidence 拆分或去重。
 _Avoid_: Evidence、Tag、Expression Key、Data 生成关键词
+
+**Raw Evidence Content Category**:
+描述一份完整 Raw Evidence 的内容形态或编辑目的的受控分类；同一材料可以拥有多个分类，
+分类不表达 Atomic Evidence 的事实、预测、意图、推断或观点性质。
+_Avoid_: Atomic Evidence Claim Type、自由文本标签、OpenSPG Object
+
+**Raw Evidence Category Link**:
+一份 Raw Evidence 与一个受控 Content Category 之间的无顺序事实关系；同一分类在一份材料中
+只能出现一次。
+_Avoid_: Primary Category、分类置信度、Atomic Evidence Category
 
 **Atomic Evidence**:
 清洗流程从一个 Raw Evidence 得到的、可直接消费的一条原子 5W1H 事实表达。一个 Raw
@@ -70,8 +80,8 @@ _Avoid_: Event Evidence Link、完整 Raw Evidence、Evidence Group、Event
 _Avoid_: Evidence Group 实体、唯一 expression_key、Data 语义召回、embedding
 
 **Raw Evidence Publication**:
-采集完成后把一份完整 Raw Evidence 及其 Keywords 原子接纳为正式 Data 事实的同步发布。
-相同身份内容一致时允许安全重试，内容漂移时冲突；成功响应只返回正式 Raw Evidence ID，
+采集完成后把一份完整 Raw Evidence、Keywords 及可选 Content Category 集合原子接纳为正式 Data 事实的同步发布。
+相同身份的全部内容及无序分类集合一致时允许安全重试，内容或分类漂移时冲突；成功响应只返回正式 Raw Evidence ID，
 不创建发布回执或返回创建/复用分类。
 _Avoid_: Evidence Publication、异步 Import Job、Idempotency-Key
 

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -15,6 +16,7 @@ import (
 type SourceLevel string
 type LayerType string
 type IssueCode string
+type CategoryID string
 
 const (
 	SourceLevelOfficial SourceLevel = "L1_OFFICIAL"
@@ -31,12 +33,14 @@ const (
 	IssueInvalidURL              IssueCode = "INVALID_URL"
 	IssueInvalidOrigin           IssueCode = "INVALID_ORIGIN"
 	IssueInvalidTimestamp        IssueCode = "INVALID_TIMESTAMP"
+	IssueInvalidFormat           IssueCode = "INVALID_FORMAT"
 	IssueDuplicate               IssueCode = "DUPLICATE"
 	IssueOutOfRange              IssueCode = "OUT_OF_RANGE"
 	IssueInvalidLayer            IssueCode = "INVALID_LAYER"
 	IssueNonContinuousSplitOrder IssueCode = "NON_CONTINUOUS_SPLIT_ORDER"
 	IssueRawEvidenceConflict     IssueCode = "RAW_EVIDENCE_CONFLICT"
 	IssueRawEvidenceNotFound     IssueCode = "RAW_EVIDENCE_NOT_FOUND"
+	IssueCategoryNotFound        IssueCode = "EVIDENCE_CATEGORY_NOT_FOUND"
 	IssueEvidenceIDConflict      IssueCode = "EVIDENCE_ID_CONFLICT"
 	IssueEvidenceSetConflict     IssueCode = "EVIDENCE_SET_CONFLICT"
 )
@@ -55,11 +59,21 @@ type RawEvidence struct {
 	PublishedAt      *time.Time
 	CollectedAt      time.Time
 	Keywords         []string
+	CategoryIDs      []CategoryID
 }
 
 type StoredRawEvidence struct {
 	RawEvidence
 	ContentHash string
+	Categories  []Category
+}
+
+type Category struct {
+	ID          CategoryID
+	Code        string
+	Name        string
+	Description string
+	CreatedAt   time.Time
 }
 
 type Evidence struct {
@@ -133,11 +147,19 @@ func (e *ReferenceError) Error() string {
 	return e.Issues[0].Path + ": " + e.Issues[0].Message
 }
 
+var ErrRawEvidenceNotFound = errors.New("Raw Evidence was not found")
+
 var allowedSourceLevels = map[SourceLevel]struct{}{
 	SourceLevelOfficial: {},
 	SourceLevelWire:     {},
 	SourceLevelMedia:    {},
 	SourceLevelSocial:   {},
+}
+
+var categoryIDPattern = regexp.MustCompile(`^EVC_[0-9]{3}$`)
+
+func (id CategoryID) IsValid() bool {
+	return categoryIDPattern.MatchString(string(id))
 }
 
 type UseCase struct {
@@ -165,6 +187,14 @@ func (s *UseCase) PublishRawEvidence(ctx context.Context, input RawEvidence) (Ra
 		if err := tx.LockIdentities(ctx, []string{"raw-evidence:" + input.RawEvidenceID}); err != nil {
 			return err
 		}
+		categories, err := tx.CategoriesByIDs(ctx, record.CategoryIDs)
+		if err != nil {
+			return err
+		}
+		if issue := missingCategoryIssue(input.CategoryIDs, categories); issue != nil {
+			return &ReferenceError{Issues: []Issue{*issue}}
+		}
+		record.Categories = cloneCategories(categories)
 		existing, err := tx.RawEvidence(ctx, input.RawEvidenceID)
 		if err != nil {
 			return err
@@ -176,14 +206,46 @@ func (s *UseCase) PublishRawEvidence(ctx context.Context, input RawEvidence) (Ra
 					Message: "raw_evidence_id conflicts with stored content",
 				}}}
 			}
-		} else if err := tx.InsertRawEvidence(ctx, record); err != nil {
-			return err
+		} else {
+			if err := tx.InsertRawEvidence(ctx, record); err != nil {
+				return err
+			}
+			if err := tx.InsertRawEvidenceCategoryLinks(ctx, record.RawEvidenceID, record.CategoryIDs); err != nil {
+				return err
+			}
 		}
 		result = RawEvidenceResult{RawEvidenceID: record.RawEvidenceID}
 		return nil
 	})
 	if err != nil {
 		return RawEvidenceResult{}, err
+	}
+	return result, nil
+}
+
+func (s *UseCase) GetRawEvidence(ctx context.Context, rawEvidenceID string) (StoredRawEvidence, error) {
+	if s == nil || s.store == nil {
+		return StoredRawEvidence{}, errors.New("Evidence store is required")
+	}
+	var issues []Issue
+	required(&issues, "raw_evidence_id", rawEvidenceID, 32)
+	if len(issues) > 0 {
+		return StoredRawEvidence{}, &ValidationError{Issues: issues}
+	}
+	var result StoredRawEvidence
+	err := s.store.InTransaction(ctx, func(tx Transaction) error {
+		record, err := tx.RawEvidence(ctx, rawEvidenceID)
+		if err != nil {
+			return err
+		}
+		if record == nil {
+			return ErrRawEvidenceNotFound
+		}
+		result = cloneStoredRawEvidence(*record)
+		return nil
+	})
+	if err != nil {
+		return StoredRawEvidence{}, err
 	}
 	return result, nil
 }
@@ -366,6 +428,18 @@ func validateRawEvidence(input RawEvidence) error {
 	if input.PublishedAt != nil && !isUTC(*input.PublishedAt) {
 		issues = append(issues, Issue{Path: "raw_evidence.published_at", Code: IssueInvalidTimestamp, Message: "published_at must use UTC"})
 	}
+	seenCategories := make(map[CategoryID]struct{}, len(input.CategoryIDs))
+	for index, categoryID := range input.CategoryIDs {
+		path := fmt.Sprintf("raw_evidence.category_ids[%d]", index)
+		required(&issues, path, string(categoryID), 32)
+		if categoryID != "" && !categoryID.IsValid() {
+			issues = append(issues, Issue{Path: path, Code: IssueInvalidFormat, Message: "category_id must use EVC_ followed by three digits"})
+		}
+		if _, exists := seenCategories[categoryID]; exists {
+			issues = append(issues, Issue{Path: path, Code: IssueDuplicate, Message: "category_id must be unique within the Raw Evidence"})
+		}
+		seenCategories[categoryID] = struct{}{}
+	}
 	if len(issues) == 0 {
 		return nil
 	}
@@ -420,7 +494,37 @@ func cloneRawEvidence(input RawEvidence) RawEvidence {
 	}
 	input.CollectedAt = normalizePostgresTime(input.CollectedAt)
 	input.Keywords = append([]string(nil), input.Keywords...)
+	input.CategoryIDs = append([]CategoryID(nil), input.CategoryIDs...)
+	sort.Slice(input.CategoryIDs, func(i, j int) bool { return input.CategoryIDs[i] < input.CategoryIDs[j] })
 	return input
+}
+
+func cloneStoredRawEvidence(input StoredRawEvidence) StoredRawEvidence {
+	input.RawEvidence = cloneRawEvidence(input.RawEvidence)
+	input.Categories = cloneCategories(input.Categories)
+	return input
+}
+
+func cloneCategories(input []Category) []Category {
+	result := append([]Category(nil), input...)
+	sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })
+	return result
+}
+
+func missingCategoryIssue(requested []CategoryID, categories []Category) *Issue {
+	found := make(map[CategoryID]struct{}, len(categories))
+	for _, category := range categories {
+		found[category.ID] = struct{}{}
+	}
+	for index, categoryID := range requested {
+		if _, exists := found[categoryID]; !exists {
+			return &Issue{
+				Path: fmt.Sprintf("raw_evidence.category_ids[%d]", index), Code: IssueCategoryNotFound,
+				Message: "category_id does not reference an Evidence Category",
+			}
+		}
+	}
+	return nil
 }
 
 func cloneEvidence(input Evidence) Evidence {
@@ -474,7 +578,8 @@ func sameRawEvidence(left, right StoredRawEvidence) bool {
 		sameString(left.QuotedSourceName, right.QuotedSourceName) &&
 		sameString(left.Title, right.Title) && left.RawText == right.RawText &&
 		sameTime(left.PublishedAt, right.PublishedAt) && left.CollectedAt.Equal(right.CollectedAt) &&
-		left.ContentHash == right.ContentHash && equalStringSlice(left.Keywords, right.Keywords)
+		left.ContentHash == right.ContentHash && equalStringSlice(left.Keywords, right.Keywords) &&
+		equalCategoryIDs(left.CategoryIDs, right.CategoryIDs)
 }
 
 func sameEvidenceSet(left, right []StoredEvidence) bool {
@@ -517,6 +622,18 @@ func sameTime(left, right *time.Time) bool {
 }
 
 func equalStringSlice(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func equalCategoryIDs(left, right []CategoryID) bool {
 	if len(left) != len(right) {
 		return false
 	}

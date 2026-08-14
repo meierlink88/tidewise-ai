@@ -1,11 +1,8 @@
 package server
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"path/filepath"
 	"testing"
 
@@ -109,37 +106,12 @@ VALUES ('REG_APAC', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC')`); err
 
 func productionCountryRequest(t *testing.T, handler http.Handler, method, path, token, body string, wantStatus int) map[string]any {
 	t.Helper()
-	request := httptest.NewRequest(method, path, bytes.NewBufferString(body))
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("X-Request-ID", "country-contract-request")
-	if token != "" {
-		request.Header.Set("Authorization", "Bearer "+token)
-	}
-	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, request)
-	if response.Code != wantStatus {
-		t.Fatalf("%s %s status=%d want=%d body=%s", method, path, response.Code, wantStatus, response.Body.String())
-	}
-	if response.Header().Get("X-Request-ID") != "country-contract-request" {
-		t.Fatalf("%s %s X-Request-ID=%q", method, path, response.Header().Get("X-Request-ID"))
-	}
-	var envelope map[string]any
-	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
-		t.Fatalf("decode %s %s response: %v; body=%s", method, path, err, response.Body.String())
-	}
-	if envelope["request_id"] != "country-contract-request" {
-		t.Fatalf("%s %s envelope request_id=%#v", method, path, envelope["request_id"])
-	}
-	return envelope
+	return productionContractRequest(t, handler, method, path, token, body, "country-contract-request", wantStatus)
 }
 
 func productionCountryError(t *testing.T, handler http.Handler, method, path, token, body string, wantStatus int, wantCode string) {
 	t.Helper()
-	envelope := productionCountryRequest(t, handler, method, path, token, body, wantStatus)
-	errorValue, ok := envelope["error"].(map[string]any)
-	if !ok || errorValue["code"] != wantCode {
-		t.Fatalf("%s %s error envelope=%#v, want code %s", method, path, envelope, wantCode)
-	}
+	_ = productionContractError(t, handler, method, path, token, body, "country-contract-request", wantStatus, wantCode)
 }
 
 var _ countryapi.Service = (*countryservice.Service)(nil)

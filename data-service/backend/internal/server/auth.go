@@ -26,6 +26,7 @@ const (
 	ScopeAdminRead           = "data.admin.read"
 	ScopeReviewedEventImport = "data.reviewed-events.import"
 	ScopeRawEvidenceImport   = "data.raw-evidences.import"
+	ScopeRawEvidenceRead     = "data.raw-evidences.read"
 	ScopeEvidenceImport      = "data.evidences.import"
 	ScopeEventTagRead        = "data.event-tags.read"
 	ScopeEventSemanticsRead  = "data.event-semantics.read"
@@ -114,6 +115,8 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeReviewedEventImport, true
 	case evidenceapi.OperationPublishRawEvidence:
 		return ScopeRawEvidenceImport, true
+	case evidenceapi.OperationGetRawEvidence:
+		return ScopeRawEvidenceRead, true
 	case evidenceapi.OperationPublishEvidence:
 		return ScopeEvidenceImport, true
 	case eventapi.OperationListActiveEventTags:

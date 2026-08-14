@@ -83,10 +83,65 @@ WHERE raw_evidence_id = $1`, id).Scan(
 	if err := json.Unmarshal(keywordsJSON, &record.Keywords); err != nil {
 		return nil, fmt.Errorf("decode Raw Evidence keywords: %w", err)
 	}
+	if err := validateStoredRawEvidenceBase(&record, id); err != nil {
+		return nil, fmt.Errorf("read Raw Evidence invariant: %w", err)
+	}
+	categories, err := t.categoriesByRawEvidence(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	record.Categories = categories
+	record.CategoryIDs = make([]evidencebiz.CategoryID, len(categories))
+	for index, category := range categories {
+		record.CategoryIDs[index] = category.ID
+	}
 	if err := validateStoredRawEvidence(&record, id); err != nil {
 		return nil, fmt.Errorf("read Raw Evidence invariant: %w", err)
 	}
 	return &record, nil
+}
+
+func (t *transaction) CategoriesByIDs(ctx context.Context, ids []evidencebiz.CategoryID) ([]evidencebiz.Category, error) {
+	if len(ids) == 0 {
+		return []evidencebiz.Category{}, nil
+	}
+	return t.categories(ctx, categorySelect+` WHERE id = ANY($1) ORDER BY id`, categoryIDStrings(ids))
+}
+
+func (t *transaction) categoriesByRawEvidence(ctx context.Context, rawEvidenceID string) ([]evidencebiz.Category, error) {
+	return t.categories(ctx, categorySelect+`
+JOIN raw_evidence_category_links AS link ON link.category_id = category.id
+WHERE link.raw_evidence_id = $1
+ORDER BY category.id`, rawEvidenceID)
+}
+
+const categorySelect = `
+SELECT category.id, category.code, category.name, category.description, category.created_at
+FROM evidence_categories AS category`
+
+func (t *transaction) categories(ctx context.Context, query string, argument any) ([]evidencebiz.Category, error) {
+	rows, err := t.tx.QueryContext(ctx, query, argument)
+	if err != nil {
+		return nil, fmt.Errorf("read Evidence Categories: %w", err)
+	}
+	defer rows.Close()
+	result := make([]evidencebiz.Category, 0)
+	for rows.Next() {
+		var category evidencebiz.Category
+		var id string
+		if err := rows.Scan(&id, &category.Code, &category.Name, &category.Description, &category.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan Evidence Category: %w", err)
+		}
+		category.ID = evidencebiz.CategoryID(id)
+		if err := validateStoredCategory(&category); err != nil {
+			return nil, fmt.Errorf("read Evidence Category invariant: %w", err)
+		}
+		result = append(result, category)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate Evidence Categories: %w", err)
+	}
+	return result, nil
 }
 
 func (t *transaction) InsertRawEvidence(ctx context.Context, record evidencebiz.StoredRawEvidence) error {
@@ -103,6 +158,28 @@ INSERT INTO raw_evidences (
 		return fmt.Errorf("insert Raw Evidence: %w", err)
 	}
 	return nil
+}
+
+func (t *transaction) InsertRawEvidenceCategoryLinks(ctx context.Context, rawEvidenceID string, categoryIDs []evidencebiz.CategoryID) error {
+	if len(categoryIDs) == 0 {
+		return nil
+	}
+	_, err := t.tx.ExecContext(ctx, `
+INSERT INTO raw_evidence_category_links (raw_evidence_id, category_id)
+SELECT $1, category_id
+FROM unnest($2::varchar[]) AS category_id`, rawEvidenceID, categoryIDStrings(categoryIDs))
+	if err != nil {
+		return fmt.Errorf("insert Raw Evidence Category links: %w", err)
+	}
+	return nil
+}
+
+func categoryIDStrings(categoryIDs []evidencebiz.CategoryID) []string {
+	result := make([]string, len(categoryIDs))
+	for index, categoryID := range categoryIDs {
+		result[index] = string(categoryID)
+	}
+	return result
 }
 
 func (t *transaction) EvidencesByRawEvidence(ctx context.Context, rawEvidenceID string) ([]evidencebiz.StoredEvidence, error) {

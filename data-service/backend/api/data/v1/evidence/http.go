@@ -17,7 +17,19 @@ func RegisterHTTPServer(server *kratoshttp.Server, application Service) {
 func registerHTTPServer(server *kratoshttp.Server, application Service, executionBudget time.Duration) {
 	router := server.Route(v1.APIPrefix)
 	router.POST("/raw-evidence-publications", rawEvidenceHandler(application, executionBudget))
+	router.GET("/raw-evidences/{raw_evidence_id}", getRawEvidenceHandler(application, executionBudget))
 	router.POST("/evidence-publications", evidenceHandler(application, executionBudget))
+}
+
+func getRawEvidenceHandler(application Service, executionBudget time.Duration) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		request := &GetRawEvidenceRequest{RawEvidenceID: ctx.Vars().Get("raw_evidence_id")}
+		return v1.Call(ctx, OperationGetRawEvidence, request, func(callContext context.Context) (*v1.Response[RawEvidenceReadResult], error) {
+			deadlineContext, cancel := context.WithTimeout(callContext, executionBudget)
+			defer cancel()
+			return application.GetRawEvidence(deadlineContext, request)
+		})
+	}
 }
 
 func rawEvidenceHandler(application Service, executionBudget time.Duration) kratoshttp.HandlerFunc {
@@ -84,6 +96,7 @@ func rawEvidenceShape() *v1.StrictJSONShape {
 		"quoted_source_id": nullableStringShape, "quoted_source_name": nullableStringShape,
 		"title": nullableStringShape, "raw_text": stringShape, "published_at": nullableStringShape,
 		"collected_at": stringShape, "keywords": v1.StrictJSONArray(stringShape),
+		"category_ids": v1.StrictJSONArray(stringShape),
 	})
 	return v1.StrictJSONRequiredObject([]string{"raw_evidence"}, map[string]*v1.StrictJSONShape{"raw_evidence": raw})
 }

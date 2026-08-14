@@ -37,6 +37,23 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000044_remove_evidence_publication_receipts.sql`：历史上物理删除两张 Evidence 发布回执表及其专用不可变函数；该一次性清理入口已退役，migration ledger 继续保留。
 - `000045_add_regions_and_remove_entity_type_definitions.sql`：Tidewise AI 2.0 一次性切换，删除数据库 Entity Type Definition，并创建独立 `regions` 事实表与 `region_type` 枚举。该 migration 为 forward-only；回滚必须恢复切换前 PostgreSQL 快照，不运行 down migration。
 - `000046_replace_economy_with_countries.sql`：Tidewise AI 2.0 一次性破坏性切换，创建独立 `countries` 与 `country_region_links`，把活动 Country 引用改为稳定 Country ID，清除指向旧 Economy 身份的 Entity/Event 关系，并删除 `economy_profiles` 与 Economy Entity 行。该版本经 ADR-0017 明确豁免兼容窗口；发布前停止写入并取得 PostgreSQL 快照，回滚时必须同时恢复快照和上一版应用。
+- `000047_add_raw_evidence_categories.sql`：新增受控 Evidence Category 目录与 Raw Evidence 多标签关系，并初始化 11 个稳定内容分类。
+
+`000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
+分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
+一次安装，范围不扩展到普通 seed、历史回填或可运营目录。该例外不引入 Secret 或外部数据；
+由全账本 smoke 和真实 PostgreSQL API seam 校验。回滚使用 reviewed forward repair，未来若
+分类获得独立管理生命周期，则由新的受控目录发布合同替代该例外。
+
+`000047` 的发布顺序固定为“受控 migration → 校验目录→新 Data Service”。由于
+UAT risk manifest 将它标记为 `mixed`，普通系统 Deploy 不得自动执行；操作员必须先
+确认 PostgreSQL 恢复点，用本次候选 Data 镜像的正式 `/usr/local/bin/dbmigrate`
+在独立、可审计的发布动作中先执行 check-only，确认 `000047` 是唯一 pending
+Data migration 后执行 `-apply`。执行后必须确认 ledger 为 `47`、目录恰有
+11 行且所有 description 非空，然后才允许普通 Deploy 发布新应用。旧应用不读写新表，
+因此可与已应用的 `000047` 共存；新应用回退时保留 schema、目录和已发布关系，
+不执行 down migration。如受控 migration 未通过，不发布新应用，并依恢复点或新的
+reviewed forward repair 处理，不在原 migration 上就地修改。
 
 Entity seed、关系包及其导入/投影执行能力已按
 `docs/adr/0013-data-entity-domain-and-projection-retirement.md` 从 Data 退役；历史 PostgreSQL

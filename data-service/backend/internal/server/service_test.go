@@ -466,6 +466,10 @@ func (serverTestEvidenceService) PublishRawEvidence(context.Context, *evidenceap
 	return serverTestResponse[evidenceapi.RawEvidencePublicationResult]()
 }
 
+func (serverTestEvidenceService) GetRawEvidence(context.Context, *evidenceapi.GetRawEvidenceRequest) (*dataapi.Response[evidenceapi.RawEvidenceReadResult], error) {
+	return serverTestResponse[evidenceapi.RawEvidenceReadResult]()
+}
+
 func (serverTestEvidenceService) PublishEvidence(context.Context, *evidenceapi.EvidencePublicationRequest) (*dataapi.Response[evidenceapi.EvidencePublicationResult], error) {
 	return serverTestResponse[evidenceapi.EvidencePublicationResult]()
 }

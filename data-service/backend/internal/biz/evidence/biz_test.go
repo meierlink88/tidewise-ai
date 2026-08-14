@@ -261,8 +261,20 @@ func (t *memoryTransaction) RawEvidence(_ context.Context, id string) (*StoredRa
 	return &record, nil
 }
 
+func (*memoryTransaction) CategoriesByIDs(_ context.Context, ids []CategoryID) ([]Category, error) {
+	result := make([]Category, len(ids))
+	for index, id := range ids {
+		result[index] = Category{ID: id, Code: "TEST", Name: "测试", Description: "测试分类"}
+	}
+	return result, nil
+}
+
 func (t *memoryTransaction) InsertRawEvidence(_ context.Context, record StoredRawEvidence) error {
 	t.raw[record.RawEvidenceID] = record
+	return nil
+}
+
+func (*memoryTransaction) InsertRawEvidenceCategoryLinks(context.Context, string, []CategoryID) error {
 	return nil
 }
 
