@@ -176,6 +176,7 @@ func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 			Principal: v1.Principal{Identity: "tidewise-internal-service", Scopes: []string{
 				server.ScopeReviewedEventImport,
 				server.ScopeRawEvidenceImport,
+				server.ScopeRawEvidenceRead,
 				server.ScopeEvidenceImport,
 				server.ScopeEventTagRead,
 				server.ScopeEventSemanticsRead,

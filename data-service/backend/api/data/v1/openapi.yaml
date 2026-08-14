@@ -774,6 +774,50 @@ paths:
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
+  /api/data/v1/raw-evidences/{raw_evidence_id}:
+    get:
+      tags: [Evidence publication]
+      operationId: getRawEvidence
+      x-client-drift-anchor: data.v1.getRawEvidence
+      x-required-service-scope: data.raw-evidences.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 3000
+      summary: 读取一份完整 Raw Evidence
+      description: >-
+        按正式身份读取完整 Raw Evidence、原始 Keywords 和按 Category ID 稳定排序的
+        Evidence Category 内容。历史未分类 Raw Evidence 返回空 categories。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - name: raw_evidence_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 32
+      responses:
+        '200':
+          description: 返回完整 Raw Evidence 及其内容分类
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RawEvidenceReadEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
   /api/data/v1/raw-evidence-publications:
     post:
       tags: [Evidence publication]
@@ -2441,6 +2485,124 @@ components:
           description: 发布方治理内容；Data 按给定字符串和顺序原样保存。
           items:
             type: string
+        category_ids:
+          type: array
+          description: >-
+            Raw Evidence的受控内容分类ID集合；顺序不构成业务语义，省略或空数组表示尚未分类。
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 32
+            pattern: '^EVC_[0-9]{3}$'
+
+    EvidenceCategory:
+      type: object
+      additionalProperties: false
+      required: [id, code, name, description]
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 32
+        code:
+          type: string
+          minLength: 1
+          maxLength: 50
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        description:
+          type: string
+          minLength: 1
+
+    RawEvidenceRead:
+      type: object
+      additionalProperties: false
+      required:
+        - raw_evidence_id
+        - source_id
+        - source_name
+        - source_level
+        - source_url
+        - is_original
+        - raw_text
+        - collected_at
+        - keywords
+        - categories
+      properties:
+        raw_evidence_id:
+          type: string
+          minLength: 1
+          maxLength: 32
+        source_id:
+          type: string
+          minLength: 1
+          maxLength: 32
+        source_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        source_level:
+          type: string
+          enum: [L1_OFFICIAL, L2_WIRE, L3_MEDIA, L4_SOCIAL]
+        source_url:
+          type: string
+          minLength: 1
+        is_original:
+          type: boolean
+        quoted_source_id:
+          type: string
+          minLength: 1
+          maxLength: 32
+          nullable: true
+        quoted_source_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          nullable: true
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+          nullable: true
+        raw_text:
+          type: string
+          minLength: 1
+        published_at:
+          allOf:
+            - $ref: '#/components/schemas/UTCTimestamp'
+          nullable: true
+        collected_at:
+          $ref: '#/components/schemas/UTCTimestamp'
+        keywords:
+          type: array
+          items:
+            type: string
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceCategory'
+
+    RawEvidenceReadResult:
+      type: object
+      additionalProperties: false
+      required: [raw_evidence]
+      properties:
+        raw_evidence:
+          $ref: '#/components/schemas/RawEvidenceRead'
+
+    RawEvidenceReadEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+          minLength: 1
+        result:
+          $ref: '#/components/schemas/RawEvidenceReadResult'
 
     RawEvidencePublicationRequest:
       type: object

@@ -12,6 +12,7 @@
     "raw_text": "A complete original article used by a contract-neutral publication fixture.",
     "published_at": "2026-08-11T01:00:00Z",
     "collected_at": "2026-08-11T01:05:00Z",
-    "keywords": [" AI芯片 ", "供应链", "AI芯片"]
+    "keywords": [" AI芯片 ", "供应链", "AI芯片"],
+    "category_ids": ["EVC_006", "EVC_007"]
   }
 }

@@ -37,6 +37,9 @@ func TestEvidencePublicationProviderFixturesAreContractNeutralAndTwoPhase(t *tes
 	if rawRequest.RawEvidence.RawEvidenceID != evidenceRequest.RawEvidenceID {
 		t.Fatalf("fixture parent identity mismatch: %q != %q", rawRequest.RawEvidence.RawEvidenceID, evidenceRequest.RawEvidenceID)
 	}
+	if len(rawRequest.RawEvidence.CategoryIDs) != 2 || rawRequest.RawEvidence.CategoryIDs[0] != "EVC_006" || rawRequest.RawEvidence.CategoryIDs[1] != "EVC_007" {
+		t.Fatalf("fixture Raw Evidence categories = %#v", rawRequest.RawEvidence.CategoryIDs)
+	}
 	if len(evidenceRequest.Evidences) != 2 ||
 		evidenceRequest.Evidences[0].ExpressionKey != evidenceRequest.Evidences[1].ExpressionKey {
 		t.Fatalf("fixture must preserve two source Evidences sharing one expression_key: %#v", evidenceRequest.Evidences)
@@ -83,5 +86,34 @@ func TestEvidencePublicationOpenAPISuccessResultsContainOnlyFormalIdentities(t *
 		if schema["additionalProperties"] != false {
 			t.Fatalf("%s must reject additional response properties", name)
 		}
+	}
+}
+
+func TestRawEvidenceCategoryOpenAPIContract(t *testing.T) {
+	var document map[string]any
+	if err := yaml.Unmarshal(v1.Document(), &document); err != nil {
+		t.Fatal(err)
+	}
+	components := document["components"].(map[string]any)["schemas"].(map[string]any)
+	raw := components["RawEvidence"].(map[string]any)
+	categoryIDs := raw["properties"].(map[string]any)["category_ids"].(map[string]any)
+	if categoryIDs["type"] != "array" || categoryIDs["uniqueItems"] != true {
+		t.Fatalf("RawEvidence category_ids = %#v", categoryIDs)
+	}
+	category := components["EvidenceCategory"].(map[string]any)
+	properties := category["properties"].(map[string]any)
+	for _, field := range []string{"id", "code", "name", "description"} {
+		if _, exists := properties[field]; !exists {
+			t.Fatalf("EvidenceCategory is missing %q", field)
+		}
+	}
+	if len(properties) != 4 || category["additionalProperties"] != false {
+		t.Fatalf("EvidenceCategory contract = %#v", category)
+	}
+	read := components["RawEvidenceRead"].(map[string]any)
+	categories := read["properties"].(map[string]any)["categories"].(map[string]any)
+	items := categories["items"].(map[string]any)
+	if items["$ref"] != "#/components/schemas/EvidenceCategory" {
+		t.Fatalf("RawEvidenceRead categories = %#v", categories)
 	}
 }

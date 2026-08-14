@@ -9,6 +9,7 @@ import (
 
 const (
 	OperationPublishRawEvidence = "data.v1.publishRawEvidence"
+	OperationGetRawEvidence     = "data.v1.getRawEvidence"
 	OperationPublishEvidence    = "data.v1.publishEvidence"
 
 	ErrorInvalidRequest                      = "INVALID_REQUEST"
@@ -17,14 +18,18 @@ const (
 	ErrorEvidencePublicationConflict         = "EVIDENCE_PUBLICATION_CONFLICT"
 	ErrorEvidencePublicationTimeout          = "EVIDENCE_PUBLICATION_TIMEOUT"
 	ErrorEvidencePublicationFailed           = "EVIDENCE_PUBLICATION_FAILED"
+	ErrorRawEvidenceNotFound                 = "RAW_EVIDENCE_NOT_FOUND"
+	ErrorRawEvidenceReadTimeout              = "RAW_EVIDENCE_READ_TIMEOUT"
+	ErrorRawEvidenceReadFailed               = "RAW_EVIDENCE_READ_FAILED"
 )
 
 func BusinessOperations() []string {
-	return []string{OperationPublishRawEvidence, OperationPublishEvidence}
+	return []string{OperationPublishRawEvidence, OperationGetRawEvidence, OperationPublishEvidence}
 }
 
 type Service interface {
 	PublishRawEvidence(context.Context, *RawEvidencePublicationRequest) (*v1.Response[RawEvidencePublicationResult], error)
+	GetRawEvidence(context.Context, *GetRawEvidenceRequest) (*v1.Response[RawEvidenceReadResult], error)
 	PublishEvidence(context.Context, *EvidencePublicationRequest) (*v1.Response[EvidencePublicationResult], error)
 }
 
@@ -46,6 +51,39 @@ type RawEvidence struct {
 	PublishedAt      *time.Time `json:"published_at"`
 	CollectedAt      time.Time  `json:"collected_at"`
 	Keywords         []string   `json:"keywords"`
+	CategoryIDs      []string   `json:"category_ids,omitempty"`
+}
+
+type GetRawEvidenceRequest struct {
+	RawEvidenceID string `json:"-"`
+}
+
+type EvidenceCategory struct {
+	ID          string `json:"id"`
+	Code        string `json:"code"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type RawEvidenceRead struct {
+	RawEvidenceID    string             `json:"raw_evidence_id"`
+	SourceID         string             `json:"source_id"`
+	SourceName       string             `json:"source_name"`
+	SourceLevel      string             `json:"source_level"`
+	SourceURL        string             `json:"source_url"`
+	IsOriginal       bool               `json:"is_original"`
+	QuotedSourceID   *string            `json:"quoted_source_id"`
+	QuotedSourceName *string            `json:"quoted_source_name"`
+	Title            *string            `json:"title"`
+	RawText          string             `json:"raw_text"`
+	PublishedAt      *time.Time         `json:"published_at"`
+	CollectedAt      time.Time          `json:"collected_at"`
+	Keywords         []string           `json:"keywords"`
+	Categories       []EvidenceCategory `json:"categories"`
+}
+
+type RawEvidenceReadResult struct {
+	RawEvidence RawEvidenceRead `json:"raw_evidence"`
 }
 
 type EvidencePublicationRequest struct {

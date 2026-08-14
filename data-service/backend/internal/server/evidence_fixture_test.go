@@ -171,8 +171,18 @@ func (t *fixtureEvidenceTransaction) RawEvidence(_ context.Context, id string) (
 	}
 	return &record, nil
 }
+func (*fixtureEvidenceTransaction) CategoriesByIDs(_ context.Context, ids []evidencebiz.CategoryID) ([]evidencebiz.Category, error) {
+	result := make([]evidencebiz.Category, len(ids))
+	for index, id := range ids {
+		result[index] = evidencebiz.Category{ID: id, Code: "TEST", Name: "测试", Description: "测试分类"}
+	}
+	return result, nil
+}
 func (t *fixtureEvidenceTransaction) InsertRawEvidence(_ context.Context, record evidencebiz.StoredRawEvidence) error {
 	t.raw[record.RawEvidenceID] = record
+	return nil
+}
+func (*fixtureEvidenceTransaction) InsertRawEvidenceCategoryLinks(context.Context, string, []evidencebiz.CategoryID) error {
 	return nil
 }
 func (t *fixtureEvidenceTransaction) EvidencesByRawEvidence(_ context.Context, rawID string) ([]evidencebiz.StoredEvidence, error) {

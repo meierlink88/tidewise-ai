@@ -7,12 +7,15 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strings"
 
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
 )
 
 type Store struct{ db *sql.DB }
+
+var categoryCodePattern = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 
 func NewStore(db *sql.DB) (Store, error) {
 	if db == nil {
@@ -36,6 +39,28 @@ func persistedInvariant(resource, field, reason string) error {
 }
 
 func validateStoredRawEvidence(record *evidencebiz.StoredRawEvidence, expectedID string) error {
+	if err := validateStoredRawEvidenceBase(record, expectedID); err != nil {
+		return err
+	}
+	const resource = "Raw Evidence"
+	if record.CategoryIDs == nil || record.Categories == nil {
+		return persistedInvariant(resource, "categories", "collection is null")
+	}
+	if len(record.CategoryIDs) != len(record.Categories) {
+		return persistedInvariant(resource, "categories", "identity and value counts differ")
+	}
+	for index, category := range record.Categories {
+		if err := validateStoredCategory(&category); err != nil {
+			return err
+		}
+		if record.CategoryIDs[index] != category.ID || index > 0 && record.CategoryIDs[index-1] >= category.ID {
+			return persistedInvariant(resource, "categories", "collection is not uniquely ordered by category ID")
+		}
+	}
+	return nil
+}
+
+func validateStoredRawEvidenceBase(record *evidencebiz.StoredRawEvidence, expectedID string) error {
 	const resource = "Raw Evidence"
 	if record.RawEvidenceID != expectedID {
 		return persistedInvariant(resource, "raw_evidence_id", "query identity does not match the stored row")
@@ -95,6 +120,35 @@ func validateStoredRawEvidence(record *evidencebiz.StoredRawEvidence, expectedID
 	if record.Keywords == nil {
 		return persistedInvariant(resource, "keywords", "array is null")
 	}
+	return nil
+}
+
+func validateStoredCategory(record *evidencebiz.Category) error {
+	const resource = "Evidence Category"
+	for _, field := range []struct {
+		name  string
+		value string
+		max   int
+	}{
+		{name: "id", value: string(record.ID), max: 32},
+		{name: "code", value: record.Code, max: 50},
+		{name: "name", value: record.Name, max: 50},
+		{name: "description", value: record.Description},
+	} {
+		if err := validateStoredRequired(resource, field.name, field.value, field.max); err != nil {
+			return err
+		}
+	}
+	if !record.ID.IsValid() {
+		return persistedInvariant(resource, "id", "value is not a stable EVC identity")
+	}
+	if !categoryCodePattern.MatchString(record.Code) {
+		return persistedInvariant(resource, "code", "value is not a stable machine code")
+	}
+	if record.CreatedAt.IsZero() {
+		return persistedInvariant(resource, "created_at", "timestamp is zero")
+	}
+	record.CreatedAt = record.CreatedAt.UTC()
 	return nil
 }
 

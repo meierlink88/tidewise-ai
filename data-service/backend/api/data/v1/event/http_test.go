@@ -878,6 +878,10 @@ func (testEvidenceService) PublishRawEvidence(context.Context, *evidenceapi.RawE
 	return &v1.Response[evidenceapi.RawEvidencePublicationResult]{Status: http.StatusNoContent}, nil
 }
 
+func (testEvidenceService) GetRawEvidence(context.Context, *evidenceapi.GetRawEvidenceRequest) (*v1.Response[evidenceapi.RawEvidenceReadResult], error) {
+	return &v1.Response[evidenceapi.RawEvidenceReadResult]{Status: http.StatusNoContent}, nil
+}
+
 func (testEvidenceService) PublishEvidence(context.Context, *evidenceapi.EvidencePublicationRequest) (*v1.Response[evidenceapi.EvidencePublicationResult], error) {
 	return &v1.Response[evidenceapi.EvidencePublicationResult]{Status: http.StatusNoContent}, nil
 }

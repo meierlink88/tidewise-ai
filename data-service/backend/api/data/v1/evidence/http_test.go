@@ -70,6 +70,17 @@ func (s *evidencePublicationHTTPStub) PublishRawEvidence(ctx context.Context, re
 	}}, nil
 }
 
+func (s *evidencePublicationHTTPStub) GetRawEvidence(ctx context.Context, request *GetRawEvidenceRequest) (*v1.Response[RawEvidenceReadResult], error) {
+	s.deadline, _ = ctx.Deadline()
+	if s.blockUntilDone {
+		<-ctx.Done()
+		return nil, v1.NewPublicError(v1.StatusServiceUnavailable, ErrorRawEvidenceReadTimeout, "Raw Evidence read execution budget exceeded", nil)
+	}
+	return &v1.Response[RawEvidenceReadResult]{Status: v1.StatusOK, Result: RawEvidenceReadResult{
+		RawEvidence: RawEvidenceRead{RawEvidenceID: request.RawEvidenceID, Keywords: []string{}, Categories: []EvidenceCategory{}},
+	}}, nil
+}
+
 func (s *evidencePublicationHTTPStub) PublishEvidence(ctx context.Context, request *EvidencePublicationRequest) (*v1.Response[EvidencePublicationResult], error) {
 	s.evidenceRequest = request
 	s.deadline, _ = ctx.Deadline()

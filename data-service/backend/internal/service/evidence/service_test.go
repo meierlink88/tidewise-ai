@@ -65,6 +65,10 @@ func (failingUseCase) PublishRawEvidence(context.Context, evidencebiz.RawEvidenc
 	return evidencebiz.RawEvidenceResult{}, context.Canceled
 }
 
+func (u failingUseCase) GetRawEvidence(context.Context, string) (evidencebiz.StoredRawEvidence, error) {
+	return evidencebiz.StoredRawEvidence{}, u.err
+}
+
 func (u failingUseCase) PublishEvidence(context.Context, string, []evidencebiz.Evidence) (evidencebiz.EvidenceResult, error) {
 	return evidencebiz.EvidenceResult{}, u.err
 }

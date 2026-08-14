@@ -11,6 +11,7 @@ import (
 
 type UseCase interface {
 	PublishRawEvidence(context.Context, evidencebiz.RawEvidence) (evidencebiz.RawEvidenceResult, error)
+	GetRawEvidence(context.Context, string) (evidencebiz.StoredRawEvidence, error)
 	PublishEvidence(context.Context, string, []evidencebiz.Evidence) (evidencebiz.EvidenceResult, error)
 }
 
@@ -21,6 +22,20 @@ func NewService(useCase UseCase) (*Service, error) {
 		return nil, errors.New("Evidence use case is required")
 	}
 	return &Service{useCase: useCase}, nil
+}
+
+func (s *Service) GetRawEvidence(ctx context.Context, request *evidenceapi.GetRawEvidenceRequest) (*v1.Response[evidenceapi.RawEvidenceReadResult], error) {
+	if s == nil || s.useCase == nil {
+		return nil, publicError(v1.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "Evidence service is unavailable")
+	}
+	result, err := s.useCase.GetRawEvidence(ctx, request.RawEvidenceID)
+	if err != nil {
+		return nil, rawEvidenceReadError(err)
+	}
+	return &v1.Response[evidenceapi.RawEvidenceReadResult]{
+		Status: v1.StatusOK,
+		Result: evidenceapi.RawEvidenceReadResult{RawEvidence: rawEvidenceReadDTO(result)},
+	}, nil
 }
 
 func (s *Service) PublishRawEvidence(ctx context.Context, request *evidenceapi.RawEvidencePublicationRequest) (*v1.Response[evidenceapi.RawEvidencePublicationResult], error) {
@@ -84,6 +99,23 @@ func rawEvidencePublicationError(err error) error {
 	return evidencePublicationError(err)
 }
 
+func rawEvidenceReadError(err error) error {
+	if errors.Is(err, context.Canceled) {
+		return context.Canceled
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return publicError(v1.StatusServiceUnavailable, evidenceapi.ErrorRawEvidenceReadTimeout, "Raw Evidence read execution budget exceeded")
+	}
+	var validation *evidencebiz.ValidationError
+	if errors.As(err, &validation) {
+		return publicErrorWithDetails(v1.StatusBadRequest, evidenceapi.ErrorInvalidRequest, "Raw Evidence identity is invalid", map[string]any{"issues": validation.Issues})
+	}
+	if errors.Is(err, evidencebiz.ErrRawEvidenceNotFound) {
+		return publicError(v1.StatusNotFound, evidenceapi.ErrorRawEvidenceNotFound, "Raw Evidence was not found")
+	}
+	return publicError(v1.StatusInternalServerError, evidenceapi.ErrorRawEvidenceReadFailed, "Raw Evidence read failed")
+}
+
 func evidenceValidationStatus(issues []evidencebiz.Issue) int {
 	for _, issue := range issues {
 		if issue.Path == "evidences" || issue.Code == evidencebiz.IssueDuplicate {
@@ -101,6 +133,31 @@ func rawEvidenceInput(input evidenceapi.RawEvidence) evidencebiz.RawEvidence {
 		QuotedSourceID: input.QuotedSourceID, QuotedSourceName: input.QuotedSourceName,
 		Title: input.Title, RawText: input.RawText, PublishedAt: input.PublishedAt,
 		CollectedAt: input.CollectedAt, Keywords: append([]string(nil), input.Keywords...),
+		CategoryIDs: categoryIDsInput(input.CategoryIDs),
+	}
+}
+
+func categoryIDsInput(input []string) []evidencebiz.CategoryID {
+	result := make([]evidencebiz.CategoryID, len(input))
+	for index, categoryID := range input {
+		result[index] = evidencebiz.CategoryID(categoryID)
+	}
+	return result
+}
+
+func rawEvidenceReadDTO(input evidencebiz.StoredRawEvidence) evidenceapi.RawEvidenceRead {
+	categories := make([]evidenceapi.EvidenceCategory, len(input.Categories))
+	for index, category := range input.Categories {
+		categories[index] = evidenceapi.EvidenceCategory{
+			ID: string(category.ID), Code: category.Code, Name: category.Name, Description: category.Description,
+		}
+	}
+	return evidenceapi.RawEvidenceRead{
+		RawEvidenceID: input.RawEvidenceID, SourceID: input.SourceID, SourceName: input.SourceName,
+		SourceLevel: string(input.SourceLevel), SourceURL: input.SourceURL, IsOriginal: input.IsOriginal,
+		QuotedSourceID: input.QuotedSourceID, QuotedSourceName: input.QuotedSourceName,
+		Title: input.Title, RawText: input.RawText, PublishedAt: input.PublishedAt,
+		CollectedAt: input.CollectedAt, Keywords: append([]string(nil), input.Keywords...), Categories: categories,
 	}
 }
 
