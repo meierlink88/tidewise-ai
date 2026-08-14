@@ -46,3 +46,4 @@
 000045	high	mixed	drop database-backed Entity Type Definitions and add the independent Region fact schema for the Tidewise AI 2.0 cutover
 000046	high	mixed	replace Economy with independent Country facts and Country-to-Region relationships in a coordinated Tidewise AI 2.0 cutover
 000047	normal	mixed	add Raw Evidence category schema and publish the fixed 11-category contract catalog
+000048	high	mixed	replace legacy Alliance facts with independent Organization schema and retire dependent immutable aggregates in a coordinated cutover

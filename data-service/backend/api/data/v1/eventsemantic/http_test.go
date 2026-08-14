@@ -27,6 +27,7 @@ import (
 	serverpkg "github.com/meierlink88/tidewise-ai/data-service/backend/internal/server"
 	eventsemanticservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/eventsemantic"
 	eventsemanticfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/eventsemantic"
+	organizationfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/organization"
 	postgresfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/postgres"
 	researchfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/research"
 )
@@ -466,7 +467,7 @@ func newEventSemanticHTTPHandler(t *testing.T, application *eventsemanticservice
 	httpServer, err := serverpkg.NewHTTPServer(
 		conf.Config{App: conf.AppConfig{Env: conf.EnvLocal}, Server: conf.ServerConfig{Host: "127.0.0.1", Port: 18082, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10}},
 		semanticTestRuntimeHealthService{}, researchfixture.Service{}, semanticTestEventService{}, application,
-		semanticTestEvidenceService{}, semanticTestRawDocumentService{}, semanticTestCountryService{}, authenticator, nil,
+		semanticTestEvidenceService{}, semanticTestRawDocumentService{}, semanticTestCountryService{}, organizationfixture.Service{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)

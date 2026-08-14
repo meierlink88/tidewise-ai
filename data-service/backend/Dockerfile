@@ -12,6 +12,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/event-s
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/event-semantic-history-audit ./data-service/backend/cmd/event-semantic-history-audit
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/event-semantics-synthetic-fixture ./data-service/backend/cmd/event-semantics-synthetic-fixture
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/research-theme-dev-reset ./data-service/backend/cmd/research-theme-dev-reset
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/organization-catalog-publish ./data-service/backend/cmd/organization-catalog-publish
 
 FROM alpine:3.20
 
@@ -26,6 +27,7 @@ COPY --from=builder /out/event-semantic-acceptance-audit /usr/local/bin/event-se
 COPY --from=builder /out/event-semantic-history-audit /usr/local/bin/event-semantic-history-audit
 COPY --from=builder /out/event-semantics-synthetic-fixture /usr/local/bin/event-semantics-synthetic-fixture
 COPY --from=builder /out/research-theme-dev-reset /usr/local/bin/research-theme-dev-reset
+COPY --from=builder /out/organization-catalog-publish /usr/local/bin/organization-catalog-publish
 COPY data-service/backend/configs ./configs
 COPY data-service/backend/migrations ./migrations
 

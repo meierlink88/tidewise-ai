@@ -6,14 +6,15 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"unicode/utf8"
 )
 
 var ErrResearchHistoricalReferencesUnavailable = errors.New("strict historical Entity references are unavailable because selected facts changed after analysis_as_of")
 
 const (
-	ObjectTypeCountry = "country"
-	CountryIDPrefix   = "COU_"
+	ObjectTypeCountry      = "country"
+	ObjectTypeOrganization = "organization"
+	CountryIDPrefix        = "COU_"
+	OrganizationIDPrefix   = "ORG_"
 )
 
 func IsCountryID(value string) bool {
@@ -24,6 +25,23 @@ func IsCountryID(value string) bool {
 		if character < 'A' || character > 'Z' {
 			return false
 		}
+	}
+	return true
+}
+
+func IsOrganizationID(value string) bool {
+	if len(value) <= len(OrganizationIDPrefix) || len(value) > 32 || !strings.HasPrefix(value, OrganizationIDPrefix) {
+		return false
+	}
+	code := value[len(OrganizationIDPrefix):]
+	if code[0] < 'A' || code[0] > 'Z' {
+		return false
+	}
+	for _, character := range code {
+		if (character >= 'A' && character <= 'Z') || (character >= '0' && character <= '9') || character == '_' {
+			continue
+		}
+		return false
 	}
 	return true
 }
@@ -214,7 +232,6 @@ const (
 type EntityType string
 
 const (
-	EntityTypeAllianceOrg   EntityType = "alliance_org"
 	EntityTypePolicyBody    EntityType = "policy_body"
 	EntityTypeMarket        EntityType = "market"
 	EntityTypeIndex         EntityType = "index"
@@ -265,41 +282,6 @@ func (e Entity) Validate() error {
 	}
 	if !validStatus(e.Status, StatusActive, StatusInactive, StatusMerged) {
 		return fmt.Errorf("unsupported entity status %q", e.Status)
-	}
-	return nil
-}
-
-type AllianceOrgProfile struct {
-	EntityID              string
-	Abbreviation          string
-	LeadershipSummary     string
-	InfluenceScopeSummary string
-}
-
-func (p AllianceOrgProfile) Validate() error {
-	if strings.TrimSpace(p.EntityID) == "" {
-		return fmt.Errorf("entity id is required")
-	}
-	abbreviation := strings.TrimSpace(p.Abbreviation)
-	if utf8.RuneCountInString(abbreviation) > 32 {
-		return fmt.Errorf("abbreviation exceeds 32 characters")
-	}
-	if abbreviation == "—" {
-		return fmt.Errorf("abbreviation placeholder is not allowed")
-	}
-	leadership := strings.TrimSpace(p.LeadershipSummary)
-	if leadership == "" {
-		return fmt.Errorf("leadership summary is required")
-	}
-	if utf8.RuneCountInString(leadership) > 500 {
-		return fmt.Errorf("leadership summary exceeds 500 characters")
-	}
-	influence := strings.TrimSpace(p.InfluenceScopeSummary)
-	if influence == "" {
-		return fmt.Errorf("influence scope summary is required")
-	}
-	if utf8.RuneCountInString(influence) > 1000 {
-		return fmt.Errorf("influence scope summary exceeds 1000 characters")
 	}
 	return nil
 }
@@ -925,7 +907,6 @@ func validStatus[T comparable](value T, allowed ...T) bool {
 func validEntityType(value EntityType) bool {
 	return validStatus(
 		value,
-		EntityTypeAllianceOrg,
 		EntityTypePolicyBody,
 		EntityTypeMarket,
 		EntityTypeIndex,

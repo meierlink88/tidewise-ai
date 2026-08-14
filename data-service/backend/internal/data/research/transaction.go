@@ -333,7 +333,7 @@ WHERE id = ANY($1::uuid[]) AND status = 'active' AND review_status = 'approved'`
 
 func (t *publicationTransaction) signals(ctx context.Context, ids []string) (map[string]researchbiz.SignalFact, error) {
 	rows, err := t.tx.QueryContext(ctx, `SELECT signal.id::text, signal.semantic_submission_id::text,
-	       signal.source_event_id::text, COALESCE(link.country_id, link.entity_id::text), signal.variable_key, signal.direction,
+	       signal.source_event_id::text, COALESCE(link.country_id, link.organization_id, link.entity_id::text), signal.variable_key, signal.direction,
        to_json(signal.evidence_ids), COALESCE(submission.finalized_at, submission.created_at)
 FROM variable_signals signal
 JOIN event_semantic_submissions submission
@@ -369,7 +369,7 @@ func (t *publicationTransaction) impacts(ctx context.Context, ids []string) (map
 	rows, err := t.tx.QueryContext(ctx, `SELECT impact.id::text, impact.semantic_submission_id::text,
        impact.source_variable_signal_id::text, impact.target_entity_id::text,
        impact.affected_variable_key, impact.affected_direction, signal.source_event_id::text,
-	       COALESCE(source_link.country_id, source_link.entity_id::text),
+	       COALESCE(source_link.country_id, source_link.organization_id, source_link.entity_id::text),
        to_json(impact.evidence_ids), COALESCE(submission.finalized_at, submission.created_at)
 FROM direct_impact_assertions impact
 JOIN event_semantic_submissions submission

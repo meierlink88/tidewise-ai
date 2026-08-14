@@ -48,7 +48,7 @@ VALUES ('REG_APAC', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC')`); err
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{},
 		serverTestEventSemanticService{}, serverTestEvidenceService{}, serverTestRawDocumentService{},
-		application, authenticator, nil,
+		application, serverTestOrganizationService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)

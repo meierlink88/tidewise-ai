@@ -98,7 +98,7 @@ func validPersistedUUID(value string) bool {
 }
 
 func validPersistedObjectID(value string) bool {
-	return validPersistedUUID(value) || entitybiz.IsCountryID(value)
+	return validPersistedUUID(value) || entitybiz.IsCountryID(value) || entitybiz.IsOrganizationID(value)
 }
 
 func validPersistedSHA256(value string) bool {
@@ -240,6 +240,7 @@ func validatePersistedEvidence(item eventbiz.Evidence) error {
 func validatePersistedEntity(item eventbiz.Entity) error {
 	if !validPersistedObjectID(item.ID) || strings.TrimSpace(item.Type) == "" ||
 		(entitybiz.IsCountryID(item.ID) != (item.Type == entitybiz.ObjectTypeCountry)) ||
+		(entitybiz.IsOrganizationID(item.ID) != (item.Type == entitybiz.ObjectTypeOrganization)) ||
 		strings.TrimSpace(item.Name) == "" || strings.TrimSpace(item.CanonicalName) == "" ||
 		item.Status != "active" || !validPersistedStringSet(item.Aliases, false) {
 		return invalidPersistedEventSemantic("Entity")
@@ -372,14 +373,17 @@ func hydrateEventSemanticSubmissionContext(
 	}
 	entityIDs := make([]string, 0, len(submission.EntityLinks))
 	countryIDs := make([]string, 0, len(submission.EntityLinks))
+	organizationIDs := make([]string, 0, len(submission.EntityLinks))
 	for _, link := range submission.EntityLinks {
 		if entitybiz.IsCountryID(link.EntityID) {
 			countryIDs = append(countryIDs, link.EntityID)
+		} else if entitybiz.IsOrganizationID(link.EntityID) {
+			organizationIDs = append(organizationIDs, link.EntityID)
 		} else {
 			entityIDs = append(entityIDs, link.EntityID)
 		}
 	}
-	if len(entityIDs)+len(countryIDs) > 0 {
+	if len(entityIDs)+len(countryIDs)+len(organizationIDs) > 0 {
 		rows, err := query.QueryContext(ctx, `
 			WITH selected_entities AS MATERIALIZED (
 				SELECT id::text, entity_type::text, name, canonical_name,
@@ -393,12 +397,20 @@ func hydrateEventSemanticSubmissionContext(
 				FROM countries
 				WHERE id = ANY($2::text[])
 				`+lockClause+`
+			), selected_organizations AS MATERIALIZED (
+				SELECT id, 'organization' object_type, name, name canonical_name,
+				       array_to_json(ARRAY[name_en]) aliases, 'active' status
+				FROM organizations
+				WHERE id = ANY($3::text[])
+				`+lockClause+`
 			)
 			SELECT * FROM selected_entities
 			UNION ALL
 			SELECT * FROM selected_countries
+			UNION ALL
+			SELECT * FROM selected_organizations
 			ORDER BY 2, 4, 1
-		`, entityIDs, countryIDs)
+		`, entityIDs, countryIDs, organizationIDs)
 		if err != nil {
 			return eventbiz.Context{}, err
 		}
@@ -886,6 +898,11 @@ func (r Store) Resolve(
 				SELECT id, 'country', name, name, array_to_json(ARRAY[name_en]), 'active'
 				FROM countries
 				WHERE 'country' = ANY($1)
+				  AND (lower(name) = lower($2) OR lower(name_en) = lower($2))
+				UNION ALL
+				SELECT id, 'organization', name, name, array_to_json(ARRAY[name_en]), 'active'
+				FROM organizations
+				WHERE 'organization' = ANY($1)
 				  AND (lower(name) = lower($2) OR lower(name_en) = lower($2))
 			) candidate
 			ORDER BY (lower(candidate.canonical_name) = lower($2)) DESC,
@@ -1536,17 +1553,19 @@ func insertReviewableSemanticCandidates(
 		}
 		id := uuid.NewString()
 		linkIDs[candidate.Key] = id
-		entityID, countryID := any(candidate.EntityID), any(nil)
+		entityID, countryID, organizationID := any(candidate.EntityID), any(nil), any(nil)
 		if candidate.ProjectedEntityType == entitybiz.ObjectTypeCountry {
 			entityID, countryID = nil, candidate.EntityID
+		} else if candidate.ProjectedEntityType == entitybiz.ObjectTypeOrganization {
+			entityID, organizationID = nil, candidate.EntityID
 		}
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO event_entity_links(
-			    id,event_id,entity_id,country_id,entity_role,assign_source,review_status,evidence_note,
+			    id,event_id,entity_id,country_id,organization_id,entity_role,assign_source,review_status,evidence_note,
 			    semantic_submission_id,candidate_key,resolved_mention,resolution_method,
 			    resolution_confidence,evidence_ids,provenance,reason_code
-			) VALUES ($1,$2,$3,$4,$5,'ai',$6,'',$7,$8,$9,$10,$11,$12,'semantic',$13)
-		`, id, submission.EventID, entityID, countryID, candidate.EntityRole, decision.Status,
+			) VALUES ($1,$2,$3,$4,$5,$6,'ai',$7,'',$8,$9,$10,$11,$12,$13,'semantic',$14)
+		`, id, submission.EventID, entityID, countryID, organizationID, candidate.EntityRole, decision.Status,
 			submissionID, candidate.Key, candidate.Mention, candidate.ResolutionMethod,
 			nullString(candidate.ResolutionConfidence), candidate.EvidenceIDs, nullString(decision.ReasonCode),
 		); err != nil {
@@ -2530,14 +2549,14 @@ func (s *Store) researchSemanticRecord(
 		        SELECT jsonb_agg(jsonb_build_object(
 		            'event_entity_link_id', link.id,
 		            'semantic_submission_id', link.semantic_submission_id,
-			            'entity_id', COALESCE(link.country_id, link.entity_id::text),
+			            'entity_id', COALESCE(link.country_id, link.organization_id, link.entity_id::text),
 		            'entity_role', link.entity_role,
 		            'resolved_mention', link.resolved_mention,
 		            'resolution_method', link.resolution_method,
 		            'resolution_confidence', link.resolution_confidence,
 		            'evidence_ids', link.evidence_ids,
 		            'review_status', link.review_status
-			        ) ORDER BY link.entity_role, COALESCE(link.country_id, link.entity_id::text), link.id)
+			        ) ORDER BY link.entity_role, COALESCE(link.country_id, link.organization_id, link.entity_id::text), link.id)
 		        FROM event_entity_links link
 		        JOIN event_semantic_submissions submission
 		          ON submission.id = link.semantic_submission_id
@@ -2553,7 +2572,7 @@ func (s *Store) researchSemanticRecord(
 		            'semantic_submission_id', signal.semantic_submission_id,
 		            'source_event_id', signal.source_event_id,
 		            'subject_event_entity_link_id', signal.subject_event_entity_link_id,
-			            'subject_entity_id', COALESCE(subject.country_id, subject.entity_id::text),
+			            'subject_entity_id', COALESCE(subject.country_id, subject.organization_id, subject.entity_id::text),
 		            'variable_key', signal.variable_key,
 		            'variable_version', signal.variable_version,
 		            'direction', signal.direction,

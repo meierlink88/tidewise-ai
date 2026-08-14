@@ -49,10 +49,20 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/entities/countries":                                             {method: "get", operationID: "listCountries", driftAnchor: "data.v1.listCountries", scope: "data.countries.read"},
 		namespace + "/entities/countries/{country_id}":                                {method: "get", operationID: "getCountry", driftAnchor: "data.v1.getCountry", scope: "data.countries.read"},
 		namespace + "/entities/countries/{country_id}/regions":                        {method: "put", operationID: "replaceCountryRegions", driftAnchor: "data.v1.replaceCountryRegions", scope: "data.countries.write"},
+		namespace + "/entities/organizations":                                         {method: "get", operationID: "listOrganizations", driftAnchor: "data.v1.listOrganizations", scope: "data.organizations.read"},
+		namespace + "/entities/organizations/{organization_id}":                       {method: "get", operationID: "getOrganization", driftAnchor: "data.v1.getOrganization", scope: "data.organizations.read"},
+		namespace + "/entities/organizations/{organization_id}/domain-tags":           {method: "put", operationID: "replaceOrganizationDomainTags", driftAnchor: "data.v1.replaceOrganizationDomainTags", scope: "data.organizations.write"},
+		namespace + "/organization-catalog":                                           {method: "get", operationID: "getOrganizationCatalog", driftAnchor: "data.v1.getOrganizationCatalog", scope: "data.organizations.read"},
+		namespace + "/entities/organizations/{organization_id}/members":               {method: "get", operationID: "listOrganizationMembers", driftAnchor: "data.v1.listOrganizationMembers", scope: "data.organizations.read"},
+		namespace + "/entities/organizations/{organization_id}/members/{member_id}":   {method: "put", operationID: "updateOrganizationMember", driftAnchor: "data.v1.updateOrganizationMember", scope: "data.organizations.write"},
 	}
 	additionalMethods := map[string]map[string]struct{}{
-		namespace + "/entities/countries":              {"post": {}},
-		namespace + "/entities/countries/{country_id}": {"put": {}},
+		namespace + "/entities/countries":                                           {"post": {}},
+		namespace + "/entities/countries/{country_id}":                              {"put": {}},
+		namespace + "/entities/organizations":                                       {"post": {}},
+		namespace + "/entities/organizations/{organization_id}":                     {"put": {}},
+		namespace + "/entities/organizations/{organization_id}/members":             {"post": {}},
+		namespace + "/entities/organizations/{organization_id}/members/{member_id}": {"delete": {}},
 	}
 
 	if len(paths) != len(want) {
@@ -96,6 +106,52 @@ func TestOpenAPIContractFreezesCountryWriteOperations(t *testing.T) {
 		assertString(t, operation, "x-required-service-scope", expected.scope)
 		assertInt(t, operation, "x-timeout-budget-ms", 5000)
 	}
+}
+
+func TestOpenAPIContractFreezesOrganizationNullsErrorsAndRequestIDs(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	operations := []struct {
+		path     string
+		method   string
+		statuses []string
+	}{
+		{namespace + "/entities/organizations", "get", []string{"200", "401", "403", "422", "500", "503"}},
+		{namespace + "/entities/organizations", "post", []string{"201", "400", "401", "403", "409", "422", "500", "503"}},
+		{namespace + "/entities/organizations/{organization_id}", "get", []string{"200", "401", "403", "404", "422", "500", "503"}},
+		{namespace + "/entities/organizations/{organization_id}", "put", []string{"200", "400", "401", "403", "404", "422", "500", "503"}},
+		{namespace + "/entities/organizations/{organization_id}/domain-tags", "put", []string{"200", "400", "401", "403", "404", "422", "500", "503"}},
+		{namespace + "/organization-catalog", "get", []string{"200", "401", "403", "500", "503"}},
+		{namespace + "/entities/organizations/{organization_id}/members", "get", []string{"200", "401", "403", "404", "422", "500", "503"}},
+		{namespace + "/entities/organizations/{organization_id}/members", "post", []string{"201", "400", "401", "403", "409", "422", "500", "503"}},
+		{namespace + "/entities/organizations/{organization_id}/members/{member_id}", "put", []string{"200", "400", "401", "403", "404", "409", "422", "500", "503"}},
+		{namespace + "/entities/organizations/{organization_id}/members/{member_id}", "delete", []string{"200", "401", "403", "404", "422", "500", "503"}},
+	}
+	for _, expected := range operations {
+		operation := object(t, object(t, paths[expected.path], expected.path)[expected.method], expected.method+" "+expected.path)
+		parameters := array(t, operation["parameters"], expected.method+" parameters")
+		if len(parameters) == 0 || stringValue(t, object(t, parameters[0], "request ID parameter")["$ref"], "$ref") != "#/components/parameters/RequestID" {
+			t.Errorf("%s %s does not accept X-Request-ID first: %v", expected.method, expected.path, parameters)
+		}
+		responses := object(t, operation["responses"], expected.method+" responses")
+		for _, status := range expected.statuses {
+			if _, exists := responses[status]; !exists {
+				t.Errorf("%s %s missing response %s", expected.method, expected.path, status)
+			}
+		}
+	}
+
+	assertRequired(t, schema(t, document, "Organization"),
+		"id", "code", "name", "name_en", "region_id", "category", "function",
+		"legal_entity_code", "dominant_party_id", "binding_power_level", "influence_rating",
+		"strategic_positioning", "core_impact_scope", "founding_document", "established_date",
+		"headquarters_city", "headquarters_country_id", "headquarters_subdivision_id", "description",
+		"domain_tags", "created_at", "updated_at",
+	)
+	assertRequired(t, schema(t, document, "OrganizationMember"),
+		"id", "organization_id", "country_id", "membership_type", "effective_date", "expiry_date", "created_at", "updated_at",
+	)
+	assertRequired(t, schema(t, document, "OrganizationMemberDeleteEnvelope"), "request_id", "result")
 }
 
 func TestEventSemanticManifestReadersDeclareRequestIDAndContextDrift(t *testing.T) {

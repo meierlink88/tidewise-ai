@@ -252,6 +252,9 @@ func (s *Store) SearchResearchGraph(
 	if containsCountrySeed(query.SeedEntityIDs) {
 		return s.searchCountryResearchGraph(ctx, query)
 	}
+	if containsOrganizationSeed(query.SeedEntityIDs) {
+		return s.searchOrganizationResearchGraph(ctx, query)
+	}
 	relationTypes := make([]string, 0, len(query.RelationFilters))
 	directions := make([]string, 0, len(query.RelationFilters))
 	for _, filter := range query.RelationFilters {
@@ -404,6 +407,7 @@ func (s *Store) SearchResearchGraph(
 }
 
 const countryRegionRelationType = "belongs_to_region"
+const organizationMemberRelationType = "has_member"
 
 func containsCountrySeed(ids []string) bool {
 	for _, id := range ids {
@@ -414,8 +418,20 @@ func containsCountrySeed(ids []string) bool {
 	return false
 }
 
+func containsOrganizationSeed(ids []string) bool {
+	for _, id := range ids {
+		if biz.IsOrganizationID(id) {
+			return true
+		}
+	}
+	return false
+}
+
 func validIndependentObjectID(id string) bool {
 	if biz.IsCountryID(id) {
+		return true
+	}
+	if biz.IsOrganizationID(id) {
 		return true
 	}
 	if !strings.HasPrefix(id, "REG_") || len(id) <= 4 || len(id) > 32 {
@@ -432,12 +448,106 @@ func validIndependentObjectID(id string) bool {
 
 func validResearchGraphIdentity(id, objectType string) bool {
 	if bizidentity.IsUUID(id) {
-		return objectType != biz.ObjectTypeCountry && objectType != "region"
+		return objectType != biz.ObjectTypeCountry && objectType != biz.ObjectTypeOrganization && objectType != "region"
 	}
 	if biz.IsCountryID(id) {
 		return objectType == biz.ObjectTypeCountry
 	}
+	if biz.IsOrganizationID(id) {
+		return objectType == biz.ObjectTypeOrganization
+	}
 	return validIndependentObjectID(id) && objectType == "region"
+}
+
+func (s *Store) searchOrganizationResearchGraph(ctx context.Context, query biz.ResearchGraphQuery) (biz.ResearchGraphSubgraph, error) {
+	if query.IndustryChainEntityID != nil {
+		return biz.ResearchGraphSubgraph{}, &biz.ResearchGraphValidationError{Reason: "Organization seeds cannot use an Industry Chain scope"}
+	}
+	for _, id := range query.SeedEntityIDs {
+		if !biz.IsOrganizationID(id) {
+			return biz.ResearchGraphSubgraph{}, &biz.ResearchGraphValidationError{Reason: "Organization and other Object seeds cannot be mixed"}
+		}
+	}
+	includeMembers := false
+	for _, filter := range query.RelationFilters {
+		if filter.RelationType != organizationMemberRelationType {
+			return biz.ResearchGraphSubgraph{}, &biz.ResearchGraphValidationError{Reason: "Organization graph supports only has_member"}
+		}
+		includeMembers = filter.Direction == biz.ResearchGraphDirectionOutgoing || filter.Direction == biz.ResearchGraphDirectionBoth
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT id,name,name_en,created_at,updated_at FROM organizations WHERE id=ANY($1::text[]) ORDER BY code,id`, query.SeedEntityIDs)
+	if err != nil {
+		return biz.ResearchGraphSubgraph{}, err
+	}
+	defer rows.Close()
+	graph := biz.ResearchGraphSubgraph{Entities: []biz.ResearchGraphEntity{}, RelationDefinitions: []biz.ResearchGraphRelation{{RelationType: organizationMemberRelationType, Direction: "directed"}}, EntityRelations: []biz.ResearchGraphEntityRelation{}, IndustryChains: []biz.ResearchGraphIndustryChain{}, IndustryChainMemberships: []biz.ResearchGraphMembership{}, IndustryChainGraphEdges: []biz.ResearchGraphIndustryEdge{}}
+	for rows.Next() {
+		var id, name, nameEn string
+		var createdAt, updatedAt time.Time
+		if err := rows.Scan(&id, &name, &nameEn, &createdAt, &updatedAt); err != nil {
+			return graph, err
+		}
+		if createdAt.After(query.AnalysisAsOf) {
+			continue
+		}
+		if updatedAt.After(query.AnalysisAsOf) {
+			return graph, biz.ErrResearchHistoricalReferencesUnavailable
+		}
+		graph.Entities = append(graph.Entities, biz.ResearchGraphEntity{EntityID: id, EntityType: biz.ObjectTypeOrganization, Name: name, CanonicalName: name, Aliases: []string{nameEn}, Status: "active"})
+	}
+	if err := rows.Err(); err != nil {
+		return graph, err
+	}
+	if len(graph.Entities) != len(query.SeedEntityIDs) {
+		return graph, &biz.ResearchGraphValidationError{Reason: "one or more seed organizations are unavailable"}
+	}
+	if includeMembers {
+		memberRows, err := s.db.QueryContext(ctx, `SELECT member.id,member.organization_id,country.id,country.name,country.name_en FROM organization_members member JOIN countries country ON country.id=member.country_id WHERE member.organization_id=ANY($1::text[]) AND (member.effective_date IS NULL OR member.effective_date <= $2::date) AND (member.expiry_date IS NULL OR member.expiry_date >= $2::date) ORDER BY member.organization_id,country.code,member.id`, query.SeedEntityIDs, query.AnalysisAsOf)
+		if err != nil {
+			return graph, err
+		}
+		defer memberRows.Close()
+		countries := map[string]biz.ResearchGraphEntity{}
+		for memberRows.Next() {
+			var memberID int64
+			var organizationID, countryID, name, nameEn string
+			if err := memberRows.Scan(&memberID, &organizationID, &countryID, &name, &nameEn); err != nil {
+				return graph, err
+			}
+			countries[countryID] = biz.ResearchGraphEntity{EntityID: countryID, EntityType: biz.ObjectTypeCountry, Name: name, CanonicalName: name, Aliases: []string{nameEn}, Status: "active"}
+			graph.EntityRelations = append(graph.EntityRelations, biz.ResearchGraphEntityRelation{EntityRelationID: uuid.NewSHA1(uuid.NameSpaceOID, []byte(fmt.Sprintf("organization-member:%d", memberID))).String(), FromEntityID: organizationID, ToEntityID: countryID, RelationType: organizationMemberRelationType, Status: "active"})
+		}
+		if err := memberRows.Err(); err != nil {
+			return graph, err
+		}
+		for _, country := range countries {
+			graph.Entities = append(graph.Entities, country)
+		}
+		if len(graph.EntityRelations) > 0 {
+			graph.ActualDepth = 1
+		}
+	}
+	sort.Slice(graph.Entities, func(i, j int) bool {
+		if graph.Entities[i].EntityType != graph.Entities[j].EntityType {
+			return graph.Entities[i].EntityType < graph.Entities[j].EntityType
+		}
+		if graph.Entities[i].CanonicalName != graph.Entities[j].CanonicalName {
+			return graph.Entities[i].CanonicalName < graph.Entities[j].CanonicalName
+		}
+		return graph.Entities[i].EntityID < graph.Entities[j].EntityID
+	})
+	if len(graph.Entities) > query.NodeBudget {
+		maximum := int64(query.NodeBudget)
+		return graph, &biz.ResearchGraphResourceLimitError{Reason: "research graph result exceeds the requested node budget", Component: "research_graph_nodes", MaxRows: &maximum, RetryGuidance: "reduce_depth_or_seed_count"}
+	}
+	if len(graph.EntityRelations) > query.EdgeBudget {
+		maximum := int64(query.EdgeBudget)
+		return graph, &biz.ResearchGraphResourceLimitError{Reason: "research graph result exceeds the requested edge budget", Component: "research_graph_edges", MaxRows: &maximum, RetryGuidance: "reduce_seed_count"}
+	}
+	if err := validatePersistedResearchGraph(graph, query.MaxDepth); err != nil {
+		return graph, err
+	}
+	return graph, nil
 }
 
 func (s *Store) searchCountryResearchGraph(
