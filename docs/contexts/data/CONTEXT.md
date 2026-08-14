@@ -6,7 +6,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 
 ## Owns
 
-- Entity、Entity Type Definition、产业链节点及关系、Benchmark、Benchmark Observation、
+- Entity 事实、独立 Object 事实、Object Schema、产业链节点及关系、Benchmark、Benchmark Observation、
   Index 等正式事实。
 - 完整 Raw Evidence、阅读辅助 Keywords、原子 Evidence 及其确定性去重身份。
 - 正式 Event、被 Event 引用的轻量 Evidence Record 及其证据关联。
@@ -25,7 +25,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 - 数据采集 connector、parser、采集 prompt、采集调度执行或清洗/语义判断工作流。
 - Agent 的模型推理和工作流运行。
 - Entity seed、关系包构建/导入、历史主数据收敛批次，以及向 Neo4j 或 Qdrant
-  投影 Entity/TBox 的执行能力；这些 authoring 能力转移给 Tidewise Reason。
+  投影 Entity 的执行能力；这些 authoring 能力转移给 Tidewise Reason。
 - Neo4j、Qdrant、embedding Provider 的写入、同步、运行健康或生命周期管理。
 
 ## Acquisition And Agent Boundary
@@ -330,14 +330,19 @@ _Avoid_: 实现状态、审核状态、Agent 预测置信度
 方向和适用 Entity Type。它不是一次观测、一个 Metric Entity 或自由 Prompt 词汇。
 _Avoid_: Observation、Event-native Variable Signal、Metric Entity、模型自由变量名
 
-**Entity Type Definition**:
-Data PostgreSQL 中对规范 Entity Type 的受控 TBox 定义。除稳定 `type_key/version`、Signal
-Subject 能力与允许 Event 角色外，V3 还持久化中英文名称、业务定义、纳入标准、排除标准和
-`event_link_allowed`。它属于 Entity 领域；这些字段由 Entity Data boundary 及明确消费者读取、
-Context API 和 Research Analysis Context 暴露，并约束 Event Semantic 提交预检。首批既有 active 类型的内容
-由本次 forward migration 一次性人工编写回填；这不表示存在运行时生成器、Curator、管理 UI
-或持续同步功能。
-_Avoid_: Prompt 内写死类型清单、模型预测类型作为事实、单独 TBox 生成系统、只改数据库而不改领域读取合同
+**Object Schema**:
+Data Service 工程 `doctype/` 中每个 Object Type 独立维护的 OpenSPG Schema Mark
+Language 文件，定义对象语义、属性和 OpenSPG 可表达的约束。它不是 PostgreSQL
+行事实，也不由通用 `entity_type_definitions` 表持久化。SQL migration 仍独立表达
+主键、唯一性、长度、默认值与 PostgreSQL 类型，并通过合同测试防止两侧漂移。
+_Avoid_: JSON Schema、数据库通用类型定义表、未经项目规范批准的 OpenSPG 语法
+
+**Region**:
+一个独立区域事实，由稳定 `REG_ + code` 标识、中英文名称、形成或使用类型、
+可选说明和数据库生成创建时间构成。`region_type` 只取 `CONTINENT | GEOGRAPHIC |
+MULTILATERAL | INVESTMENT`，由 PostgreSQL 原生 enum 保证。Region 不使用 `entity_nodes`
+主表或 profile 表。
+_Avoid_: `region_profiles`、`region_types` 字典表、把 Region 写回旧 Entity 聚合模式
 
 **Benchmark Observation**:
 挂在一个正式 Benchmark Entity 下、带观测时间、数值、单位、来源与质量状态的时序事实。
@@ -404,9 +409,9 @@ Data Service 对一个正式 Event 的一次语义提交、确定性校验、独
 Acceptance Policy 裁决和产物血缘记录，与 AgentRun 的一个 Agent Execution 一对一。
 新 V3 Submission 仅包含 EventEntityLink 和 VariableSignal（其可选包含自然语言
 Measurement），不接受、生成或要求 DirectImpact。Data 在写事务内以 PostgreSQL 正式
-Entity/TBox/Evidence 重新校验外部候选中被选中的 ID，并要求 Submission 的
-`projected_entity_type` 与 PG Entity Type 完全一致；Signal 还必须满足该正式类型的
-`signal_subject_allowed`。
+Entity/Evidence 重新校验外部候选中被选中的 ID，并要求 Submission 的
+`projected_entity_type` 与 PG Entity Type 完全一致；Signal 的适用性由受控 Variable
+Definition 的 `applicable_entity_types` 校验。
 它保存外部执行身份及 Agent/Ontology/Rule/Prompt/Model 版本快照，但不复制 AgentRun 的
 runtime 状态、调度重试或执行错误；重新分析创建新 Submission 并 supersede 旧
 Submission。
@@ -416,7 +421,7 @@ _Avoid_: Agent Execution 副本、Theme Analysis Batch、原地覆盖重新分�
 Data Service 面向工程外部 Codex 分析师提供的同步、无状态、实时批量读取合同。调用方
 显式提交 discovery window、`analysis_as_of` 与 page size；Data 只返回
 `confirmed + verified` Event 及 accepted/latest/non-superseded Event Semantics、
-既有 Event Publication 的 Event Evidence Record/Link 和版本化 TBox。这里的 Evidence
+既有 Event Publication 的 Event Evidence Record/Link 和版本化 Variable/Rule/Policy 定义。这里的 Evidence
 只来自 `event_sources + raw_documents`，不读取、不关联、也不回退到新的
 `raw_evidences + evidences`。分页单位是完整 Event Bundle；Data 先选本页 Event，再返回
 这些正式事实所引用 Entity、Relation、Variable、Rule、Policy 及端点的最小引用闭包。
@@ -432,8 +437,8 @@ cursor 只绑定标准化查询、稳定排序与合同版本，不绑定全库�
 执行行数与原始字节预算，最终编码仍执行 Bundle、闭包和整页预算。超限返回包含组件、
 上限和技术性重试建议的结构化 `429`；只有完成计数或测量时返回实际值，bounded
 traversal 在 `budget+1` 提前停止时省略未知的实际总数。
-_Avoid_: Data 聚合 Event 成 Theme、Snapshot/Task 表、Codex 直连 PG/Neo4j、当前 TBox
-冒充严格历史 TBox、把全库字典重复装入每个 Event 页、先物化无界 JSON 再做资源限制、
+_Avoid_: Data 聚合 Event 成 Theme、Snapshot/Task 表、Codex 直连 PG/Neo4j、当前字典
+冒充严格历史字典、把全库字典重复装入每个 Event 页、先物化无界 JSON 再做资源限制、
 用 Atomic Evidence 替代或约束既有 Event Evidence 读取
 
 **Research Graph Search**:
@@ -449,9 +454,9 @@ Codex 直连 PostgreSQL/Neo4j、把页级引用闭包当完整研究图谱、未
 
 **Event Semantic Context Lease**:
 Data Service 为 AgentRun 已领取的一个 Event Semantic Work Item 提供的短时数据快照授权。
-它通过轻量 `context_manifest` 固定 Event/Evidence 身份与指纹、Ontology/Policy、Entity Type 与
+它通过轻量 `context_manifest` 固定 Event/Evidence 身份与指纹、Ontology/Policy、
 Variable Definition 版本引用和可选 superseded Submission 边界；Evidence 摘录和
-完整 TBox 对象由 Context API 按这些 pinned identities 读取，不复制进 manifest，也不复制全量
+完整 Variable Definition 对象由 Context API 按这些 pinned identities 读取，不复制进 manifest，也不复制全量
 Entity / EntityRelation ABox。Lease 以 Agent Execution ID 为唯一恢复身份；同一执行可
 精确续期并复用原 manifest；旧 snapshot-only Lease 重放时仅为该 Lease 生成 compact
 manifest，并保留历史 snapshot。历史 `context_snapshot` 只保留审计兼容，新 Lease 不再写入
@@ -532,7 +537,7 @@ Research Theme 的分析阶段，仅允许 `identification`、`validation`、`di
 
 ## Source Ownership
 
-Data Backend 使用 Kratos 分层，业务代码必须收敛到 `analyse-data-service/backend/`：
+Data Backend 使用 Kratos 分层，业务代码必须收敛到 `data-service/backend/`：
 
 ```text
 api/data/v1/  versioned HTTP contract, strict binding and DTOs
@@ -544,7 +549,7 @@ internal/server/ Kratos transport, auth and lifecycle wiring
 internal/conf/ Data-only runtime configuration
 ```
 
-`analyse-data-service/backend/migrations/` 是 Data 的 PostgreSQL schema 资产，保留在 Backend
+`data-service/backend/migrations/` 是 Data 的 PostgreSQL schema 资产，保留在 Backend
 根目录；BFF 不得直接读取 migration 或 Data PostgreSQL。
 
 ## Runtime

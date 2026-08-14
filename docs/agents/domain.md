@@ -34,11 +34,11 @@ Data、Miniapp、Admin Portal 使用各自定义的领域术语。跨上下文�
 ```text
 miniapp/{frontend,backend}
 admin-portal/{frontend,backend}
-analyse-data-service/backend
+data-service/backend
 agent-run/backend
 ```
 
-`analyse-data-service` 是工程应用名；对应领域术语仍为 Data Domain Service。
+`data-service` 是工程应用名；对应领域术语仍为 Data Domain Service。
 AgentRun 使用独立应用根，不因物理共仓改变上下文、数据库或 Artifact ownership。
 仓库根不承载应用间共享运行时源码；公共目录只保存治理、基础设施、脚本和冻结合同
 资产。

@@ -17,7 +17,7 @@ func TestEventPipelineDoesNotReintroduceSourceTextSemanticGates(t *testing.T) {
 		"agent-run/backend/internal/biz/agents/eventsemantic/workflow/workflow.go": {
 			"mentionSupported(", "entity_mention_not_in_evidence",
 		},
-		"analyse-data-service/backend/internal/biz/eventsemantic/biz.go": {
+		"data-service/backend/internal/biz/eventsemantic/biz.go": {
 			"entity_mention_not_in_evidence", "strings.Contains(context.Event",
 		},
 	}
@@ -37,7 +37,7 @@ func TestEventPipelineDoesNotReintroduceSourceTextSemanticGates(t *testing.T) {
 func TestActiveEventContractsExcludePrimaryEvidenceFields(t *testing.T) {
 	root := repositoryRoot()
 	for _, name := range []string{
-		"analyse-data-service/backend/api/data/v1/openapi.yaml",
+		"data-service/backend/api/data/v1/openapi.yaml",
 		"admin-portal/backend/api/admin/v1/openapi.yaml",
 		"contracts/event-semantics/v3/supply-context.json",
 		"contracts/event-semantics/v3/supply-event-semantics.json",

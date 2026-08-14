@@ -91,7 +91,8 @@ jobs:
           steps.risks.outputs.migration_smoke == 'true' ||
           steps.risks.outputs.migration_framework == 'true' ||
           steps.risks.outputs.conf_lifecycle == 'true' ||
-          steps.risks.outputs.provider_consumer == 'true'
+          steps.risks.outputs.provider_consumer == 'true' ||
+          steps.risks.outputs.object_schema == 'true'
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
@@ -105,12 +106,33 @@ jobs:
           steps.risks.outputs.conf_lifecycle == 'true' ||
           steps.risks.outputs.provider_consumer == 'true'
         run: |
-          unformatted="$(gofmt -l analyse-data-service/backend scripts/ci/repository-contracts)"
+          unformatted="$(gofmt -l data-service/backend scripts/ci/repository-contracts)"
           if [ -n "$unformatted" ]; then
             echo "The following Data Service or repository contract files are not formatted:"
             echo "$unformatted"
             exit 1
           fi
+
+      - name: Setup Python for OpenSPG schema validation
+        if: steps.risks.outputs.object_schema == 'true'
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12.11'
+
+      - name: Verify OpenSPG Object Schemas
+        if: steps.risks.outputs.object_schema == 'true'
+        run: bash scripts/ci/verify-openspg-schemas.sh
+
+      - name: Verify Region Schema and PostgreSQL parity
+        if: >-
+          steps.risks.outputs.object_schema == 'true' ||
+          steps.risks.outputs.migration_smoke == 'true'
+        env:
+          TIDEWISE_TEST_DATABASE_URL: postgres://tidewise:tidewise-ci-password@localhost:5432/tidewise_local?sslmode=disable
+        run: >-
+          go test ./data-service/backend/internal/data/entity/region
+          -run '^TestRegionSchemaAndPersistenceStayAligned$'
+          -count=1
 
       - name: Vet Data Service
         if: >-
@@ -119,16 +141,16 @@ jobs:
           steps.risks.outputs.migration_framework == 'true' ||
           steps.risks.outputs.conf_lifecycle == 'true' ||
           steps.risks.outputs.provider_consumer == 'true'
-        run: go vet ./analyse-data-service/backend/...
+        run: go vet ./data-service/backend/...
 
       - name: Test Data Biz and API seams
         if: steps.risks.outputs.default == 'true'
         run: >-
           go test -race
-          ./analyse-data-service/backend/internal/biz/...
-          ./analyse-data-service/backend/api/data/v1/...
-          ./analyse-data-service/backend/internal/service/...
-          ./analyse-data-service/backend/internal/server
+          ./data-service/backend/internal/biz/...
+          ./data-service/backend/api/data/v1/...
+          ./data-service/backend/internal/service/...
+          ./data-service/backend/internal/server
           -count=1
 
       - name: Test Data PostgreSQL boundaries
@@ -137,29 +159,30 @@ jobs:
           TIDEWISE_TEST_DATABASE_URL: postgres://tidewise:tidewise-ci-password@localhost:5432/tidewise_local?sslmode=disable
         run: |
           go test \
-            ./analyse-data-service/backend/internal/data/entity \
-            ./analyse-data-service/backend/internal/data/event \
-            ./analyse-data-service/backend/internal/data/eventsemantic \
-            ./analyse-data-service/backend/internal/data/evidence \
-            ./analyse-data-service/backend/internal/data/rawdocument \
-            ./analyse-data-service/backend/internal/data/research \
+            ./data-service/backend/internal/data/entity \
+            ./data-service/backend/internal/data/entity/region \
+            ./data-service/backend/internal/data/event \
+            ./data-service/backend/internal/data/eventsemantic \
+            ./data-service/backend/internal/data/evidence \
+            ./data-service/backend/internal/data/rawdocument \
+            ./data-service/backend/internal/data/research \
             -count=1
           go test \
-            ./analyse-data-service/backend/api/data/v1/event \
+            ./data-service/backend/api/data/v1/event \
             -run '^(TestPostgresEventPublicationResponseLossReplayReusesFactsAndPreservesLineage|TestPostgresEventPublicationContractScenarios)$/^(artifact_conflict_rolls_back_the_whole_batch|receipt_failure_rolls_back_Event_evidence_and_Tag_writes)?$' \
             -count=1
           go test \
-            ./analyse-data-service/backend/api/data/v1/eventsemantic \
+            ./data-service/backend/api/data/v1/eventsemantic \
             -run '^TestPostgresEventSemanticHTTPFlowPreservesLeaseSubmissionReviewAndRead$' \
             -count=1
 
       - name: Test Data migration framework
         if: steps.risks.outputs.migration_framework == 'true'
-        run: go test ./analyse-data-service/backend/internal/data/dbmigration -count=1
+        run: go test ./data-service/backend/internal/data/dbmigration -count=1
 
       - name: Smoke Data forward migration chain
         if: steps.risks.outputs.migration_smoke == 'true'
-        working-directory: analyse-data-service/backend
+        working-directory: data-service/backend
         env:
           APP_ENV: local
           TIDEWISE_CONFIG_DIR: configs
@@ -179,8 +202,8 @@ jobs:
           TIDEWISE_TEST_DATABASE_URL: postgres://tidewise:tidewise-ci-password@localhost:5432/tidewise_local?sslmode=disable
         run: >-
           go test
-          ./analyse-data-service/backend/internal/conf
-          ./analyse-data-service/backend/cmd/research-theme-dev-reset
+          ./data-service/backend/internal/conf
+          ./data-service/backend/cmd/research-theme-dev-reset
           -count=1
 
       - name: Build Data Service binary
@@ -190,11 +213,11 @@ jobs:
           steps.risks.outputs.migration_framework == 'true' ||
           steps.risks.outputs.conf_lifecycle == 'true' ||
           steps.risks.outputs.provider_consumer == 'true'
-        run: go build -o /tmp/data-service ./analyse-data-service/backend/cmd/server
+        run: go build -o /tmp/data-service ./data-service/backend/cmd/server
 
       - name: Build Data Service image
         if: steps.risks.outputs.container == 'true'
-        run: docker build -f analyse-data-service/backend/Dockerfile -t tidewise-data:ci .
+        run: docker build -f data-service/backend/Dockerfile -t tidewise-data:ci .
 
       - name: Validate local and UAT Compose contracts
         if: steps.risks.outputs.container == 'true'
@@ -273,7 +296,7 @@ jobs:
         if: >-
           steps.risks.outputs.data == 'true' ||
           steps.risks.outputs.provider_consumer == 'true'
-        run: go test ./analyse-data-service/backend/api/data/v1 ./miniapp/backend/internal/data
+        run: go test ./data-service/backend/api/data/v1 ./miniapp/backend/internal/data
 
       - name: Test Miniapp configuration and lifecycle
         if: steps.risks.outputs.conf_lifecycle == 'true'
@@ -337,7 +360,7 @@ jobs:
           steps.risks.outputs.container == 'true' ||
           steps.risks.outputs.provider_consumer == 'true'
         run: |
-          docker build -f analyse-data-service/backend/Dockerfile -t tidewise-data:ci .
+          docker build -f data-service/backend/Dockerfile -t tidewise-data:ci .
           docker build -f miniapp/backend/Dockerfile -t tidewise-miniapp:ci .
 
       - name: Smoke Miniapp to Data Service
@@ -414,7 +437,7 @@ jobs:
         if: >-
           steps.risks.outputs.data == 'true' ||
           steps.risks.outputs.provider_consumer == 'true'
-        run: go test ./analyse-data-service/backend/api/data/v1 ./agent-run/backend/api/agentrun/v1 ./admin-portal/backend/internal/data
+        run: go test ./data-service/backend/api/data/v1 ./agent-run/backend/api/agentrun/v1 ./admin-portal/backend/internal/data
 
       - name: Test Admin Portal configuration and lifecycle
         if: steps.risks.outputs.conf_lifecycle == 'true'
@@ -574,6 +597,7 @@ jobs:
         run: |
           go build -o /tmp/agentrun ./agent-run/backend/cmd/server
           go build -o /tmp/agentrun-migrate ./agent-run/backend/cmd/migrate
+          go build -o /tmp/agentrun-agent-version ./agent-run/backend/cmd/agent-version
           go build -o /tmp/agentrun-config ./agent-run/backend/cmd/config
           go build -o /tmp/agentrun-artifacts ./agent-run/backend/cmd/artifacts
 
@@ -592,7 +616,7 @@ jobs:
       - name: Build Data and Admin Portal images for AgentRun smoke
         if: steps.risks.outputs.provider_consumer == 'true'
         run: |
-          docker build -f analyse-data-service/backend/Dockerfile -t tidewise-data:ci .
+          docker build -f data-service/backend/Dockerfile -t tidewise-data:ci .
           docker build -f admin-portal/backend/Dockerfile -t tidewise-adminportal:ci .
           docker build -f admin-portal/frontend/Dockerfile -t tidewise-admin:ci .
 

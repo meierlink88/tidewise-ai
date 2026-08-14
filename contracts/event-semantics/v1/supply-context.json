@@ -40,22 +40,6 @@
         "statement_source": "某晶圆厂"
       }
     ],
-    "entity_type_definitions": [
-      {
-        "type_key": "chain_node",
-        "version": 1,
-        "signal_subject_allowed": true,
-        "direct_target_mode": "allow",
-        "status": "active"
-      },
-      {
-        "type_key": "company",
-        "version": 1,
-        "signal_subject_allowed": true,
-        "direct_target_mode": "allow",
-        "status": "active"
-      }
-    ],
     "variable_definitions": [
       {
         "key": "production_volume",

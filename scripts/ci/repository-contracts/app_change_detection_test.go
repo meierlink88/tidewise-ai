@@ -31,7 +31,7 @@ func TestApplicationChangeDetectionRoutesAffectedBoundaries(t *testing.T) {
 		},
 		{
 			name: "Data API",
-			path: "analyse-data-service/backend/api/data/v1/research.go",
+			path: "data-service/backend/api/data/v1/research.go",
 			want: map[string]bool{"data": true, "miniapp": true, "adminportal": true, "agentrun": false},
 		},
 		{
@@ -107,31 +107,37 @@ func TestRiskBoundaryDetectionSelectsOnlyAffectedSuites(t *testing.T) {
 		{
 			name:  "Data Biz change uses default seams",
 			scope: "data",
-			path:  "analyse-data-service/backend/internal/biz/research/biz.go",
+			path:  "data-service/backend/internal/biz/research/biz.go",
 			want:  map[string]bool{"default": true},
 		},
 		{
 			name:  "Data API change does not select migration seams",
 			scope: "data",
-			path:  "analyse-data-service/backend/api/data/v1/event/http.go",
+			path:  "data-service/backend/api/data/v1/event/http.go",
 			want:  map[string]bool{"default": true, "provider_consumer": true},
 		},
 		{
 			name:  "Data adapter change does not select migration seams",
 			scope: "data",
-			path:  "analyse-data-service/backend/internal/data/evidence/data.go",
+			path:  "data-service/backend/internal/data/evidence/data.go",
 			want:  map[string]bool{"default": true, "data": true},
+		},
+		{
+			name:  "Data Object Schema selects the pinned OpenSPG parser",
+			scope: "data",
+			path:  "data-service/doctype/region.schema",
+			want:  map[string]bool{"object_schema": true},
 		},
 		{
 			name:  "Data migration SQL selects only the forward smoke",
 			scope: "data",
-			path:  "analyse-data-service/backend/migrations/000099_example.sql",
+			path:  "data-service/backend/migrations/000099_example.sql",
 			want:  map[string]bool{"migration": true, "migration_smoke": true},
 		},
 		{
 			name:  "Data migration framework selects unit tests and forward smoke",
 			scope: "data",
-			path:  "analyse-data-service/backend/internal/data/dbmigration/executor.go",
+			path:  "data-service/backend/internal/data/dbmigration/executor.go",
 			want:  map[string]bool{"migration": true, "migration_smoke": true, "migration_framework": true},
 		},
 		{
@@ -270,6 +276,7 @@ func TestRiskBoundaryDetectionSelectsOnlyAffectedSuites(t *testing.T) {
 			for _, risk := range []string{
 				"default", "frontend", "data", "migration", "migration_smoke", "migration_framework", "conf_lifecycle",
 				"provider_consumer", "container", "architecture",
+				"object_schema",
 			} {
 				if got[risk] != tt.want[risk] {
 					t.Fatalf("%s = %t, want %t; output=%q", risk, got[risk], tt.want[risk], result)

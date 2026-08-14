@@ -5,7 +5,7 @@
     "agent_execution_id": "semantic-execution-v3-1",
     "worker_id": "contract-worker",
     "lease_expires_at": "2026-08-01T09:05:00Z",
-    "manifest_contract_version": "event-semantic-context-manifest.v3",
+    "manifest_contract_version": "event-semantic-context-manifest.v4",
     "context_fingerprint": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
     "event_fingerprint": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
     "evidence_fingerprint": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
@@ -36,19 +36,6 @@
       "knowledge_available_at": "2026-07-01T00:05:00Z",
       "accepted_at": "2026-07-01T00:10:00Z",
       "statement_source": "英伟达"
-    }],
-    "entity_type_definitions": [{
-      "type_key": "company",
-      "version": 1,
-      "name_zh": "企业",
-      "name_en": "Company",
-      "business_definition": "依法设立并以组织身份参与经营活动的企业主体。",
-      "inclusion_criteria": ["公司、集团及其他正式企业法人"],
-      "exclusion_criteria": ["证券、产品、品牌或产业链环节"],
-      "event_link_allowed": true,
-      "signal_subject_allowed": true,
-      "allowed_event_roles": ["event_subject", "actor", "affected_entity", "statement_source"],
-      "status": "active"
     }],
     "variable_definitions": [{
       "key": "capacity_commitment",

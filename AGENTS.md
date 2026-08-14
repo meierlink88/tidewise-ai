@@ -28,7 +28,7 @@
 ### Domain docs
 
 采用 Data、Miniapp、Admin Portal、AgentRun 四个上下文的 multi-context 布局。应用
-源码分别位于 `analyse-data-service/`、`miniapp/`、`admin-portal/` 和
+源码分别位于 `data-service/`、`miniapp/`、`admin-portal/` 和
 `agent-run/`；AgentRun 共仓后仍保持独立 Context、数据库、Artifact 与 API 边界。
 详见 `docs/agents/domain.md`。
 

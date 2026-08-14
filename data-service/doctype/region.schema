@@ -1,0 +1,25 @@
+namespace Tidewise
+
+Region(区域): EntityType
+    desc: 表示由地理边界、跨地理合作机制或投资用途形成的稳定区域对象
+    properties:
+        id(区域标识): Text
+            desc: 区域的稳定主标识，由 REG_ 与 code 拼接而成
+            constraint: NotNull, Regular="^REG_[A-Z][A-Z0-9_]*$"
+        code(区域编码): Text
+            desc: 全大写的稳定唯一业务编码
+            constraint: NotNull, Regular="^[A-Z][A-Z0-9_]*$"
+        name(区域中文名称): Text
+            desc: 区域的中文显示名称
+            constraint: NotNull
+        nameEn(区域英文名称): Text
+            desc: 区域的英文显示名称
+            constraint: NotNull
+        regionType(区域类型): Text
+            desc: 区域对象的形成或使用类型；CONTINENT 表示大洲，例如亚洲、欧洲、非洲；GEOGRAPHIC 表示可跨洲但在地理上相邻的地理区域，例如 APAC、EMEA、LATAM、NA；MULTILATERAL 表示可跨地理边界且存在合作机制的多边合作或倡议区域，例如一带一路沿线、东盟经济共同体、APEC；INVESTMENT 表示可跨地理边界且不要求组织实体的投资主题区域，例如新兴市场、前沿市场
+            constraint: NotNull, Enum="CONTINENT,GEOGRAPHIC,MULTILATERAL,INVESTMENT"
+        description(区域说明): Text
+            desc: 对区域边界、用途或业务语义的可选补充说明
+        createdAt(创建时间): Text
+            desc: PostgreSQL 生成的区域事实创建时间
+            constraint: NotNull

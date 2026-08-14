@@ -19,7 +19,7 @@ func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 		configDir  string
 		mustCopyDB bool
 	}{
-		{name: "analyse-data-service", root: "analyse-data-service/backend", binary: "data-service", port: "9011", command: "cmd/server", configDir: "configs", mustCopyDB: true},
+		{name: "data-service", root: "data-service/backend", binary: "data-service", port: "9011", command: "cmd/server", configDir: "configs", mustCopyDB: true},
 		{name: "miniapp", root: "miniapp/backend", binary: "miniapp-service", port: "9012", command: "cmd/server", configDir: "configs"},
 		{name: "admin-portal", root: "admin-portal/backend", binary: "adminportal-service", port: "9013", command: "cmd/server", configDir: "configs"},
 	}
@@ -42,7 +42,7 @@ func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 				t.Fatalf("%s Dockerfile missing %q", asset.name, required)
 			}
 		}
-		if asset.mustCopyDB && !strings.Contains(text, "COPY analyse-data-service/backend/migrations ./migrations") {
+		if asset.mustCopyDB && !strings.Contains(text, "COPY data-service/backend/migrations ./migrations") {
 			t.Fatal("Data Dockerfile must own migration assets")
 		}
 		if !strings.Contains(text, "COPY "+asset.root+"/"+asset.configDir+" ./config") {
@@ -78,7 +78,7 @@ func TestServiceOwnedDockerAssetsReplaceLegacyBackendImage(t *testing.T) {
 
 func TestDataImageExcludesRetiredEntityOperations(t *testing.T) {
 	repoRoot := repositoryRoot()
-	dockerfile := readContractFile(t, filepath.Join(repoRoot, "analyse-data-service", "backend", "Dockerfile"))
+	dockerfile := readContractFile(t, filepath.Join(repoRoot, "data-service", "backend", "Dockerfile"))
 	deploy := readContractFile(t, filepath.Join(repoRoot, "infra", "uat", "deploy.sh"))
 	for _, forbidden := range []string{"entity-seed", "industry-relationship-import", "industry-graph-projector"} {
 		if strings.Contains(dockerfile, forbidden) || strings.Contains(deploy, forbidden) {
@@ -89,7 +89,7 @@ func TestDataImageExcludesRetiredEntityOperations(t *testing.T) {
 
 func TestDataImageExcludesRetiredEventSemanticProjection(t *testing.T) {
 	repoRoot := repositoryRoot()
-	dockerfile := readContractFile(t, filepath.Join(repoRoot, "analyse-data-service", "backend", "Dockerfile"))
+	dockerfile := readContractFile(t, filepath.Join(repoRoot, "data-service", "backend", "Dockerfile"))
 	deploy := readContractFile(t, filepath.Join(repoRoot, "infra", "uat", "deploy.sh"))
 	for _, forbidden := range []string{"event-semantic-projector", "EVENT_SEMANTIC_PROJECTION_ENABLED"} {
 		if strings.Contains(dockerfile, forbidden) || strings.Contains(deploy, forbidden) {
@@ -107,7 +107,7 @@ func TestServiceImagesCarryEventSemanticHistoryMaintenanceCommands(t *testing.T)
 	repoRoot := repositoryRoot()
 	dataDockerfile := readContractFile(t, filepath.Join(
 		repoRoot,
-		"analyse-data-service",
+		"data-service",
 		"backend",
 		"Dockerfile",
 	))
@@ -118,7 +118,7 @@ func TestServiceImagesCarryEventSemanticHistoryMaintenanceCommands(t *testing.T)
 		"Dockerfile",
 	))
 	for _, required := range []string{
-		"-o /out/event-semantic-history-audit ./analyse-data-service/backend/cmd/event-semantic-history-audit",
+		"-o /out/event-semantic-history-audit ./data-service/backend/cmd/event-semantic-history-audit",
 		"COPY --from=builder /out/event-semantic-history-audit /usr/local/bin/event-semantic-history-audit",
 	} {
 		if !strings.Contains(dataDockerfile, required) {
@@ -128,6 +128,8 @@ func TestServiceImagesCarryEventSemanticHistoryMaintenanceCommands(t *testing.T)
 	for _, required := range []string{
 		"-o /out/agentrun-event-semantic-history ./agent-run/backend/cmd/event-semantic-history",
 		"COPY --from=build /out/agentrun-event-semantic-history /app/agentrun-event-semantic-history",
+		"-o /out/agentrun-agent-version ./agent-run/backend/cmd/agent-version",
+		"COPY --from=build /out/agentrun-agent-version /app/agentrun-agent-version",
 	} {
 		if !strings.Contains(agentrunDockerfile, required) {
 			t.Fatalf("AgentRun runtime image missing Event Semantic history contract %q", required)
@@ -137,12 +139,13 @@ func TestServiceImagesCarryEventSemanticHistoryMaintenanceCommands(t *testing.T)
 
 func TestApplicationRootsAreCanonical(t *testing.T) {
 	repoRoot := repositoryRoot()
+	legacyDataRoot := "analyse-" + "data-service"
 	for _, path := range []string{
 		"miniapp/frontend",
 		"miniapp/backend",
 		"admin-portal/frontend",
 		"admin-portal/backend",
-		"analyse-data-service/backend",
+		"data-service/backend",
 		"agent-run/backend",
 	} {
 		info, err := os.Lstat(filepath.Join(repoRoot, filepath.FromSlash(path)))
@@ -153,9 +156,44 @@ func TestApplicationRootsAreCanonical(t *testing.T) {
 			t.Fatalf("canonical application source %q must be a real directory", path)
 		}
 	}
-	for _, path := range []string{"src", "backend", "frontend", "services"} {
+	for _, path := range []string{"src", "backend", "frontend", "services", legacyDataRoot} {
 		if _, err := os.Lstat(filepath.Join(repoRoot, path)); !errors.Is(err, os.ErrNotExist) {
 			t.Fatalf("legacy product source %q must be absent: %v", path, err)
+		}
+	}
+}
+
+func TestActiveRepositoryContractsDoNotReferenceLegacyDataServiceRoot(t *testing.T) {
+	repoRoot := repositoryRoot()
+	legacyDataRoot := "analyse-" + "data-service"
+	paths := []string{
+		".github", "admin-portal", "agent-run", "contracts", "data-service", "infra", "miniapp", "scripts",
+		"AGENTS.md", "CONTEXT-MAP.md", "package.json", "package-lock.json",
+		"docs/agents/domain.md", "docs/contexts", "docs/development-standards",
+	}
+	for _, relative := range paths {
+		root := filepath.Join(repoRoot, filepath.FromSlash(relative))
+		err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if entry.IsDir() {
+				if entry.Name() == "node_modules" || entry.Name() == ".git" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			contents, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			if strings.Contains(string(contents), legacyDataRoot) {
+				t.Errorf("active repository contract %q references the retired Data Service root", path)
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatalf("scan active repository contract %q: %v", relative, err)
 		}
 	}
 }
@@ -163,12 +201,12 @@ func TestApplicationRootsAreCanonical(t *testing.T) {
 func TestRetiredDataGraphProjectorIsAbsent(t *testing.T) {
 	repoRoot := repositoryRoot()
 	for _, path := range []string{
-		"analyse-data-service/backend/adapters/graphdb",
-		"analyse-data-service/backend/cmd/graph-projector",
-		"analyse-data-service/backend/internal/biz/graphprojection",
-		"analyse-data-service/backend/internal/data/graphdb",
-		"analyse-data-service/backend/internal/data/postgres/graph_projection.go",
-		"analyse-data-service/backend/usecase/graphprojection",
+		"data-service/backend/adapters/graphdb",
+		"data-service/backend/cmd/graph-projector",
+		"data-service/backend/internal/biz/graphprojection",
+		"data-service/backend/internal/data/graphdb",
+		"data-service/backend/internal/data/postgres/graph_projection.go",
+		"data-service/backend/usecase/graphprojection",
 	} {
 		if _, err := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(path))); !errors.Is(err, os.ErrNotExist) {
 			t.Fatalf("retired Data graph projection path %q must be absent: %v", path, err)
@@ -176,8 +214,8 @@ func TestRetiredDataGraphProjectorIsAbsent(t *testing.T) {
 	}
 
 	for _, path := range []string{
-		"analyse-data-service/backend/configs/config.local.yaml",
-		"analyse-data-service/backend/configs/config.uat.yaml",
+		"data-service/backend/configs/config.local.yaml",
+		"data-service/backend/configs/config.uat.yaml",
 	} {
 		contents, err := os.ReadFile(filepath.Join(repoRoot, filepath.FromSlash(path)))
 		if err != nil {
@@ -198,9 +236,9 @@ func TestLocalComposeOwnsOnlyApplicationServices(t *testing.T) {
 	text := string(contents)
 	for _, required := range []string{
 		"  data:", "  data-migrate:", "  miniapp:",
-		"  adminportal:", "  admin:", "  agentrun:", "  agentrun-migrate:",
+		"  adminportal:", "  admin:", "  agentrun:", "  agentrun-migrate:", "  agentrun-agent-version:",
 		"context: ../..",
-		"analyse-data-service/backend/Dockerfile", "miniapp/backend/Dockerfile",
+		"data-service/backend/Dockerfile", "miniapp/backend/Dockerfile",
 		"admin-portal/backend/Dockerfile", "admin-portal/frontend/Dockerfile", "agent-run/backend/Dockerfile",
 		"tidewise-local", "/healthz", "/readyz",
 	} {
@@ -238,7 +276,7 @@ func TestLocalComposeOwnsOnlyApplicationServices(t *testing.T) {
 			t.Fatalf("AgentRun compose service missing %q", required)
 		}
 	}
-	dataComposeConfig := readContractFile(t, filepath.Join(repoRoot, "analyse-data-service", "backend", "configs", "config.local.yaml"))
+	dataComposeConfig := readContractFile(t, filepath.Join(repoRoot, "data-service", "backend", "configs", "config.local.yaml"))
 	agentRunComposeConfig := readContractFile(t, filepath.Join(repoRoot, "agent-run", "backend", "configs", "config.dev.yaml"))
 	for service, config := range map[string]string{"Data": dataComposeConfig, "AgentRun": agentRunComposeConfig} {
 		if !strings.Contains(config, "host: host.docker.internal") {
@@ -254,7 +292,7 @@ func TestLocalComposeOwnsOnlyApplicationServices(t *testing.T) {
 		t.Fatal("Data local Compose service must use the canonical image config directory")
 	}
 	for _, path := range []string{
-		"analyse-data-service/backend/configs/compose",
+		"data-service/backend/configs/compose",
 		"agent-run/backend/configs/compose",
 	} {
 		if _, err := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(path))); !errors.Is(err, os.ErrNotExist) {
@@ -273,14 +311,14 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	for _, required := range []string{
 		"go-version-file: go.mod",
 		"cache-dependency-path: go.sum",
-		"go test ./analyse-data-service/backend/api/data/v1 ./miniapp/backend/internal/data",
-		"go test ./analyse-data-service/backend/api/data/v1 ./agent-run/backend/api/agentrun/v1 ./admin-portal/backend/internal/data",
+		"go test ./data-service/backend/api/data/v1 ./miniapp/backend/internal/data",
+		"go test ./data-service/backend/api/data/v1 ./agent-run/backend/api/agentrun/v1 ./admin-portal/backend/internal/data",
 		"go test ./scripts/ci/repository-contracts -count=1",
-		"go build -o /tmp/data-service ./analyse-data-service/backend/cmd/server",
+		"go build -o /tmp/data-service ./data-service/backend/cmd/server",
 		"go build -o /tmp/miniapp-service ./miniapp/backend/cmd/server",
 		"go build -o /tmp/adminportal-service ./admin-portal/backend/cmd/server",
 		"go build -o /tmp/agentrun ./agent-run/backend/cmd/server",
-		"-f analyse-data-service/backend/Dockerfile",
+		"-f data-service/backend/Dockerfile",
 		"-f miniapp/backend/Dockerfile",
 		"-f admin-portal/backend/Dockerfile",
 		"-f agent-run/backend/Dockerfile",

@@ -32,9 +32,9 @@
     "backend:dev:miniapp": "docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml up -d --build miniapp",
     "backend:dev:admin": "docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml up -d --build adminportal",
     "backend:dev:agentrun": "docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml up -d --build agentrun",
-    "backend:test": "go test ./analyse-data-service/backend/... ./admin-portal/backend/... ./miniapp/backend/... ./agent-run/backend/... ./scripts/ci/repository-contracts",
-    "backend:fmt": "gofmt -w analyse-data-service/backend admin-portal/backend miniapp/backend agent-run/backend scripts/ci/repository-contracts",
-    "backend:vet": "go vet ./analyse-data-service/backend/... ./admin-portal/backend/... ./miniapp/backend/... ./agent-run/backend/... ./scripts/ci/repository-contracts",
+    "backend:test": "go test ./data-service/backend/... ./admin-portal/backend/... ./miniapp/backend/... ./agent-run/backend/... ./scripts/ci/repository-contracts",
+    "backend:fmt": "gofmt -w data-service/backend admin-portal/backend miniapp/backend agent-run/backend scripts/ci/repository-contracts",
+    "backend:vet": "go vet ./data-service/backend/... ./admin-portal/backend/... ./miniapp/backend/... ./agent-run/backend/... ./scripts/ci/repository-contracts",
     "format": "prettier --check ."
   },
   "devDependencies": {

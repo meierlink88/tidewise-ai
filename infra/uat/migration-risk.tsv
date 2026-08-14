@@ -43,3 +43,4 @@
 000042	high	schema	forward-only Raw Evidence and immutable atomic Evidence publication contracts
 000043	normal	schema	add database-owned creation timestamps for future Raw Evidence and Evidence rows without historical backfill
 000044	high	mixed	remove retired Evidence publication receipt tables and their historical audit rows after the receipt-free application became the rollback baseline
+000045	high	mixed	drop database-backed Entity Type Definitions and add the independent Region fact schema for the Tidewise AI 2.0 cutover

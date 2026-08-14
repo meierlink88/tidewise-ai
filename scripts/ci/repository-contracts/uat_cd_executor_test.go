@@ -16,7 +16,7 @@ func TestUATServiceReleasePlannerUsesLastSuccessfulReleaseRange(t *testing.T) {
 	runGitFixture(t, repository, "config", "user.email", "uat-planner@example.test")
 	runGitFixture(t, repository, "config", "user.name", "UAT Planner")
 	for _, directory := range []string{
-		"analyse-data-service", "agent-run", "miniapp/backend",
+		"data-service", "agent-run", "miniapp/backend",
 		"admin-portal/backend", "admin-portal/frontend", "docs",
 	} {
 		if err := os.MkdirAll(filepath.Join(repository, directory), 0o750); err != nil {
@@ -24,7 +24,7 @@ func TestUATServiceReleasePlannerUsesLastSuccessfulReleaseRange(t *testing.T) {
 		}
 	}
 
-	writeFixture(t, filepath.Join(repository, "analyse-data-service", "service.go"), "data-v1\n")
+	writeFixture(t, filepath.Join(repository, "data-service", "service.go"), "data-v1\n")
 	writeFixture(t, filepath.Join(repository, "agent-run", "service.go"), "agentrun-v1\n")
 	writeFixture(t, filepath.Join(repository, "miniapp", "backend", "service.go"), "miniapp-v1\n")
 	writeFixture(t, filepath.Join(repository, "admin-portal", "backend", "service.go"), "admin-backend-v1\n")
@@ -32,7 +32,7 @@ func TestUATServiceReleasePlannerUsesLastSuccessfulReleaseRange(t *testing.T) {
 	writeFixture(t, filepath.Join(repository, "docs", "architecture.md"), "docs-v1\n")
 	base := commitGitFixture(t, repository, "initial")
 
-	writeFixture(t, filepath.Join(repository, "analyse-data-service", "service.go"), "data-v2\n")
+	writeFixture(t, filepath.Join(repository, "data-service", "service.go"), "data-v2\n")
 	dataCommit := commitGitFixture(t, repository, "data")
 	assertServicePlan(t, repository, base, dataCommit, map[string]string{
 		"deploy_all": "false", "deploy_data": "true", "deploy_agentrun": "false",
@@ -117,7 +117,7 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	if result.err != nil {
 		t.Fatalf("deploy success fixture failed: %v\n%s", result.err, result.output)
 	}
-	for _, want := range []string{"PASS deployment-lock", "PASS external-qdrant-ready", "PASS agentrun-artifact-write", "PASS migration-scope-gate", "PASS migration-apply", "PASS bff-to-service-read-paths", "PASS release-state-recorded"} {
+	for _, want := range []string{"PASS deployment-lock", "PASS external-qdrant-ready", "PASS agentrun-artifact-write", "PASS migration-scope-gate", "PASS migration-apply", "PASS agent-version-publication", "PASS bff-to-service-read-paths", "PASS release-state-recorded"} {
 		if !strings.Contains(result.output, want) {
 			t.Fatalf("deploy output missing %q: %s", want, result.output)
 		}
@@ -303,6 +303,23 @@ func TestUATDeployExecutorRestoresCurrentReleaseAfterCandidateHealthFailure(t *t
 	if strings.Contains(string(dockerLog), "exec -T qdrant") ||
 		strings.Contains(string(dockerLog), " up -d --wait --wait-timeout 120 qdrant ") {
 		t.Fatalf("rollback attempted to manage independently operated Qdrant: %s", dockerLog)
+	}
+	if !strings.Contains(string(dockerLog), "withdraw-publication") {
+		t.Fatalf("rollback did not withdraw the candidate Agent Version publication: %s", dockerLog)
+	}
+}
+
+func TestUATDeployExecutorRefusesImageRollbackWhenCandidateAgentVersionIsReferenced(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:             true,
+		failFirstUp:                true,
+		failAgentVersionWithdrawal: true,
+	})
+	if result.err == nil || !strings.Contains(result.output, "FAIL agent-version-withdrawal") {
+		t.Fatalf("referenced candidate Agent Version did not fail rollback safely: %v\n%s", result.err, result.output)
+	}
+	if strings.Contains(result.output, "PASS rollback: previous complete release restored") {
+		t.Fatalf("unsafe image-only rollback was reported as successful: %s", result.output)
 	}
 }
 
@@ -589,24 +606,25 @@ const (
 )
 
 type deployFixtureOptions struct {
-	currentRelease          bool
-	expectedCurrentSHA      string
-	expectedCurrentMissing  bool
-	releaseStateWritePhase  string
-	invalidCurrentRelease   bool
-	failFirstUp             bool
-	failEveryUp             bool
-	failFirstCurl           bool
-	failEveryCurl           bool
-	migrationReport         string
-	agentrunMigrationReport string
-	migrationRisk           string
-	migrationScope          string
-	agentrunMigrationScope  string
-	backupConfirmed         bool
-	failArtifactProbe       bool
-	failExternalQdrant      bool
-	legacyQdrantSnapshot    bool
+	currentRelease             bool
+	expectedCurrentSHA         string
+	expectedCurrentMissing     bool
+	releaseStateWritePhase     string
+	invalidCurrentRelease      bool
+	failFirstUp                bool
+	failEveryUp                bool
+	failFirstCurl              bool
+	failEveryCurl              bool
+	migrationReport            string
+	agentrunMigrationReport    string
+	migrationRisk              string
+	migrationScope             string
+	agentrunMigrationScope     string
+	backupConfirmed            bool
+	failArtifactProbe          bool
+	failExternalQdrant         bool
+	failAgentVersionWithdrawal bool
+	legacyQdrantSnapshot       bool
 }
 
 type deployFixtureResult struct {
@@ -733,6 +751,11 @@ case " $* " in
     ;;
   *" --check-only "*) cat "$FAKE_AGENTRUN_MIGRATION_REPORT" ;;
   *" run "*" /usr/local/bin/dbmigrate "*) cat "$FAKE_MIGRATION_REPORT" ;;
+	  *" publish-current "*) printf '{"added":[{"agent_key":"event-semantic-enricher","version":"event-semantic-enricher.v4"}]}\n' ;;
+	  *" withdraw-publication "*)
+	    if [ "${FAKE_FAIL_AGENT_VERSION_WITHDRAWAL:-false}" = true ]; then exit 1; fi
+	    echo "AgentRun candidate Agent Versions are withdrawn"
+	    ;;
 	  *"http://qdrant:6333/collections "*)
 	    if [ "${FAKE_FAIL_EXTERNAL_QDRANT:-false}" = true ]; then exit 1; fi
 	    printf '{"result":{"collections":[]}}\n'
@@ -806,6 +829,7 @@ exit 0
 		"FAKE_FAIL_EVERY_CURL="+boolText(options.failEveryCurl),
 		"FAKE_FAIL_ARTIFACT_PROBE="+boolText(options.failArtifactProbe),
 		"FAKE_FAIL_EXTERNAL_QDRANT="+boolText(options.failExternalQdrant),
+		"FAKE_FAIL_AGENT_VERSION_WITHDRAWAL="+boolText(options.failAgentVersionWithdrawal),
 		"DATA_IMAGE=fixture/data:"+fixtureSHA,
 		"MINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA,
 		"ADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA,

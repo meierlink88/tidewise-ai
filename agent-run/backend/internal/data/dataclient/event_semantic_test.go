@@ -12,7 +12,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/agent-run/backend/internal/biz/agents/eventsemantic"
 )
 
-func TestEventSemanticClientConsumesV3ContextWithoutSearchContracts(t *testing.T) {
+func TestEventSemanticClientConsumesV4ContextWithoutDatabaseTypeDefinitions(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.URL.Path != "/api/data/v1/event-semantics/context-leases/11111111-1111-4111-8111-111111111111/context" {
 			t.Fatalf("unexpected Data path %s", request.URL.Path)
@@ -26,7 +26,7 @@ func TestEventSemanticClientConsumesV3ContextWithoutSearchContracts(t *testing.T
 				"context_lease_id":   "11111111-1111-4111-8111-111111111111",
 				"agent_execution_id": "execution", "worker_id": "worker",
 				"lease_expires_at":          "2026-08-01T10:00:00Z",
-				"manifest_contract_version": "event-semantic-context-manifest.v3",
+				"manifest_contract_version": "event-semantic-context-manifest.v4",
 				"context_fingerprint":       strings.Repeat("a", 64), "event_fingerprint": strings.Repeat("b", 64), "evidence_fingerprint": strings.Repeat("c", 64),
 				"ontology_version":          "event-semantics.objective-v3@1",
 				"acceptance_policy_version": "event-semantics.objective-v2@1",
@@ -36,12 +36,6 @@ func TestEventSemanticClientConsumesV3ContextWithoutSearchContracts(t *testing.T
 					"evidence_statement": "title", "source_level": "primary", "relation": "supports", "supports_fields": []string{"title"},
 					"raw_document_id": "33333333-3333-4333-8333-333333333333", "source_name": "fixture", "source_type": "news", "title": "title",
 					"first_seen_at": "2026-08-01T09:00:00Z", "knowledge_available_at": "2026-08-01T09:00:00Z", "accepted_at": "2026-08-01T09:00:00Z", "statement_source": "",
-				}},
-				"entity_type_definitions": []any{map[string]any{
-					"type_key": "company", "version": 1, "name_zh": "企业", "name_en": "Company",
-					"business_definition": "依法设立的企业主体", "inclusion_criteria": []string{"公司"},
-					"exclusion_criteria": []string{"产品"}, "event_link_allowed": true,
-					"signal_subject_allowed": true, "allowed_event_roles": []string{"actor"}, "status": "active",
 				}},
 				"variable_definitions": []any{map[string]any{"key": "revenue", "version": 1, "name_zh": "收入", "name_en": "Revenue", "domain": "finance", "business_definition": "正式收入", "value_type": "narrative", "status": "active", "allowed_directions": []string{"increase"}, "allowed_units": []string{}, "applicable_entity_types": []string{"company"}}},
 				"assertion_modalities": []string{"actual"},
@@ -58,7 +52,7 @@ func TestEventSemanticClientConsumesV3ContextWithoutSearchContracts(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if contextValue.ManifestContractVersion != "event-semantic-context-manifest.v3" || contextValue.MeasurementContract.NumericValidation {
+	if contextValue.ManifestContractVersion != "event-semantic-context-manifest.v4" || contextValue.MeasurementContract.NumericValidation {
 		t.Fatalf("context = %#v", contextValue)
 	}
 	invalid := contextValue

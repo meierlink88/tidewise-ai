@@ -95,7 +95,7 @@ func TestUATWorkflowPlansSelectiveServicesFromRecordedReleaseState(t *testing.T)
 	planner := readContractFile(t, filepath.Join(root, "infra", "uat", "plan-service-release.sh"))
 	for _, required := range []string{
 		"git diff --name-only --no-renames -z",
-		"analyse-data-service/*",
+		"data-service/*",
 		"agent-run/*",
 		"miniapp/backend/*",
 		"admin-portal/backend/*",
@@ -216,17 +216,17 @@ func TestStageUATDeployBundlePinsIdentityAndChecksums(t *testing.T) {
 	bundleRoot := filepath.Join(temp, "bundle")
 
 	fixtures := map[string]string{
-		filepath.Join(releaseRoot, "infra/uat/docker-compose.yaml"):                        "release-compose\n",
-		filepath.Join(releaseRoot, "analyse-data-service/backend/configs/config.uat.yaml"): "data-config\n",
-		filepath.Join(releaseRoot, "agent-run/backend/configs/config.uat.yaml"):            "agentrun-config\n",
-		filepath.Join(controlRoot, "infra/uat/preflight.sh"):                               "preflight\n",
-		filepath.Join(controlRoot, "infra/uat/deploy.sh"):                                  "deploy\n",
-		filepath.Join(controlRoot, "infra/uat/collect-diagnostics.sh"):                     "diagnostics\n",
-		filepath.Join(controlRoot, "infra/uat/migration-risk.tsv"):                         "data-risk\n",
-		filepath.Join(controlRoot, "infra/uat/agentrun-migration-risk.tsv"):                "agentrun-risk\n",
+		filepath.Join(releaseRoot, "infra/uat/docker-compose.yaml"):                "release-compose\n",
+		filepath.Join(releaseRoot, "data-service/backend/configs/config.uat.yaml"): "data-config\n",
+		filepath.Join(releaseRoot, "agent-run/backend/configs/config.uat.yaml"):    "agentrun-config\n",
+		filepath.Join(controlRoot, "infra/uat/preflight.sh"):                       "preflight\n",
+		filepath.Join(controlRoot, "infra/uat/deploy.sh"):                          "deploy\n",
+		filepath.Join(controlRoot, "infra/uat/collect-diagnostics.sh"):             "diagnostics\n",
+		filepath.Join(controlRoot, "infra/uat/migration-risk.tsv"):                 "data-risk\n",
+		filepath.Join(controlRoot, "infra/uat/agentrun-migration-risk.tsv"):        "agentrun-risk\n",
 		filepath.Join(controlRoot, "infra/uat/deploy-bundle-files.txt"): strings.Join([]string{
 			"release\tinfra/uat/docker-compose.yaml",
-			"release\tanalyse-data-service/backend/configs/config.uat.yaml",
+			"release\tdata-service/backend/configs/config.uat.yaml",
 			"release\tagent-run/backend/configs/config.uat.yaml",
 			"control\tinfra/uat/preflight.sh",
 			"control\tinfra/uat/deploy.sh",
@@ -320,7 +320,7 @@ func TestEveryAgentRunMigrationHasExplicitUATRiskClassification(t *testing.T) {
 
 func TestEveryMigrationHasExplicitUATRiskClassification(t *testing.T) {
 	root := repositoryRoot()
-	entries, err := filepath.Glob(filepath.Join(root, "analyse-data-service", "backend", "migrations", "*.sql"))
+	entries, err := filepath.Glob(filepath.Join(root, "data-service", "backend", "migrations", "*.sql"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -416,7 +416,7 @@ func TestUATServiceConfigsAndImagesUseFixedPortsAndNonRoot(t *testing.T) {
 		configDir string
 		port      string
 	}{
-		"data":        {root: "analyse-data-service/backend", configDir: "configs", port: "9011"},
+		"data":        {root: "data-service/backend", configDir: "configs", port: "9011"},
 		"miniapp":     {root: "miniapp/backend", configDir: "configs", port: "9012"},
 		"adminportal": {root: "admin-portal/backend", configDir: "configs", port: "9013"},
 		"agentrun":    {root: "agent-run/backend", configDir: "configs", port: "9080"},
@@ -431,7 +431,7 @@ func TestUATServiceConfigsAndImagesUseFixedPortsAndNonRoot(t *testing.T) {
 			t.Fatalf("%s image does not enforce non-root port %s runtime", service, asset.port)
 		}
 	}
-	dataConfig := readContractFile(t, filepath.Join(root, "analyse-data-service", "backend", "configs", "config.uat.yaml"))
+	dataConfig := readContractFile(t, filepath.Join(root, "data-service", "backend", "configs", "config.uat.yaml"))
 	for _, required := range []string{"user: tidewise_uat", "ssl_mode: require", "auto_apply: false"} {
 		if !strings.Contains(dataConfig, required) {
 			t.Fatalf("Data UAT config missing %q", required)
@@ -460,6 +460,8 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 	deploy := readContractFile(t, filepath.Join(root, "infra", "uat", "deploy.sh"))
 	for _, required := range []string{
 		"flock -n", "dbmigrate -apply", "rollback_current_release",
+		"/app/agentrun-agent-version", "publish-current", "PASS agent-version-publication",
+		"withdraw-publication", "PASS agent-version-withdrawal",
 		"current.images.env", "previous.images.env", "current.compose.yaml", "previous.compose.yaml",
 		"current.sha", "previous.sha", "PASS rds-tls-readonly", "PASS agentrun-rds-tls-readonly", "PASS bff-to-service-read-paths",
 		"/api/admin/v1/model-providers",

@@ -4,7 +4,7 @@ services:
   data-migrate:
     build:
       context: ../..
-      dockerfile: analyse-data-service/backend/Dockerfile
+      dockerfile: data-service/backend/Dockerfile
     image: '${DATA_SERVICE_IMAGE:-tidewise-data:local}'
     entrypoint: ['/usr/local/bin/dbmigrate']
     command: ['-apply']
@@ -21,7 +21,7 @@ services:
   data:
     build:
       context: ../..
-      dockerfile: analyse-data-service/backend/Dockerfile
+      dockerfile: data-service/backend/Dockerfile
     image: '${DATA_SERVICE_IMAGE:-tidewise-data:local}'
     ports:
       - '${DATA_SERVICE_PORT:-9011}:9011'
@@ -68,7 +68,7 @@ services:
     volumes:
       - agentrun_artifacts:/app/data
     depends_on:
-      agentrun-migrate:
+      agentrun-agent-version:
         condition: service_completed_successfully
       data:
         condition: service_healthy
@@ -95,6 +95,27 @@ services:
       AGENTRUN_DB_PASSWORD: '${AGENTRUN_DB_PASSWORD:?set AGENTRUN_DB_PASSWORD in infra/local/.env.local}'
       AGENTRUN_SERVICE_TOKEN: '${AGENTRUN_SERVICE_TOKEN:?set AGENTRUN_SERVICE_TOKEN in infra/local/.env.local}'
       DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    restart: 'no'
+    networks: [tidewise-local]
+
+  agentrun-agent-version:
+    build:
+      context: ../..
+      dockerfile: agent-run/backend/Dockerfile
+    image: '${AGENTRUN_SERVICE_IMAGE:-tidewise-agentrun:local}'
+    entrypoint: ['/app/agentrun-agent-version']
+    command: ['publish-current']
+    environment:
+      APP_ENV: dev
+      AGENTRUN_CONFIG_DIR: /app/configs
+      AGENTRUN_DB_HOST: '${AGENTRUN_DB_HOST:-host.docker.internal}'
+      TZ: Asia/Shanghai
+      AGENTRUN_DB_PASSWORD: '${AGENTRUN_DB_PASSWORD:?set AGENTRUN_DB_PASSWORD in infra/local/.env.local}'
+    depends_on:
+      agentrun-migrate:
+        condition: service_completed_successfully
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     restart: 'no'

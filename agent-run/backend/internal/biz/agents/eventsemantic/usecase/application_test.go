@@ -585,14 +585,10 @@ func TestTickScansPastKnownFirstPageAndCompletesLaterEvent(t *testing.T) {
 		contextSnapshot: eventsemantic.Context{
 			ContextLeaseID: "lease-1", AgentExecutionID: "execution-1",
 			WorkerID: "event-semantic-enricher", LeaseExpiresAt: "2026-08-01T00:00:00Z",
-			ManifestContractVersion: "event-semantic-context-manifest.v3",
+			ManifestContractVersion: "event-semantic-context-manifest.v4",
 			Event:                   eventsemantic.Event{ID: "event-later"},
-			EntityTypeDefinitions: []eventsemantic.EntityTypeDefinition{{
-				TypeKey: "company", NameZH: "企业", NameEN: "Company", BusinessDefinition: "企业主体",
-				InclusionCriteria: []string{"公司"}, ExclusionCriteria: []string{"产品"}, EventLinkAllowed: true, Status: "active",
-			}},
-			VariableDefinitions: []eventsemantic.VariableDefinition{{Key: "revenue", Version: 1, Status: "active"}},
-			MeasurementContract: eventsemantic.MeasurementContract{Representation: "evidence_grounded_narrative"},
+			VariableDefinitions:     []eventsemantic.VariableDefinition{{Key: "revenue", Version: 1, Status: "active"}},
+			MeasurementContract:     eventsemantic.MeasurementContract{Representation: "evidence_grounded_narrative"},
 		},
 		submissionResult: eventsemantic.SubmissionResult{
 			SubmissionID: "submission-later",

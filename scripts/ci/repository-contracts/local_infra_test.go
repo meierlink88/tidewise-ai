@@ -32,6 +32,7 @@ func TestLocalApplicationComposeExcludesInfrastructureMiddleware(t *testing.T) {
 		"admin:",
 		"agentrun:",
 		"agentrun-migrate:",
+		"agentrun-agent-version:",
 		"host.docker.internal:host-gateway",
 		"9080",
 	} {

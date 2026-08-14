@@ -37,13 +37,6 @@
       "accepted_at": "2026-07-01T00:10:00Z",
       "statement_source": "英伟达"
     }],
-    "entity_type_definitions": [{
-      "type_key": "company",
-      "version": 1,
-      "signal_subject_allowed": true,
-      "allowed_event_roles": ["event_subject", "actor", "affected_entity", "statement_source"],
-      "status": "active"
-    }],
     "variable_definitions": [{
       "key": "capacity_commitment",
       "version": 1,

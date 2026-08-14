@@ -34,6 +34,7 @@ agentrun_rollback_compatibility_required=false
 agentrun_rollback_target_version=""
 # Keep the established state filename so an interrupted migration rollback remains recoverable.
 agentrun_rollback_marker="${state_dir}/agentrun-010-rollback-required"
+agent_version_publication_marker="${state_dir}/agentrun-agent-version-publication.json"
 release_state_write_marker="${state_dir}/release-state-write-in-progress"
 candidate_services_started=false
 rollback_snapshot_ready=false
@@ -232,7 +233,29 @@ prepare_previous_release_agentrun_rollback() {
     --previous-release-version "$previous_release_version"
 }
 
+withdraw_candidate_agent_versions() {
+  if [ ! -e "$agent_version_publication_marker" ]; then
+    return 0
+  fi
+  if [ ! -s "$agent_version_publication_marker" ]; then
+    echo "FAIL agent-version-withdrawal: publication record is empty" >&2
+    return 1
+  fi
+  if ! "${candidate_compose[@]}" run --rm -T --no-deps \
+    --entrypoint /app/agentrun-agent-version agentrun withdraw-publication \
+    < "$agent_version_publication_marker"; then
+    echo "FAIL agent-version-withdrawal: candidate version is already in use; restore the pre-cutover database snapshot" >&2
+    return 1
+  fi
+  rm -f "$agent_version_publication_marker"
+  sync -f "$state_dir"
+  echo "PASS agent-version-withdrawal" >&2
+}
+
 rollback_current_release() {
+  if ! withdraw_candidate_agent_versions; then
+    return 1
+  fi
   local rollback_runtime="$current_runtime"
   local rollback_images="$current_images"
   local rollback_compose_file="$current_compose"
@@ -283,10 +306,15 @@ cleanup_unfinished_agentrun_migration() {
   if [ "$exit_status" -ne 0 ]; then
     if [ "$candidate_services_started" = true ]; then
       rollback_current_release || true
-    elif [ -f "$agentrun_rollback_marker" ] && prepare_previous_release_agentrun_rollback; then
-      rm -f "$agentrun_rollback_marker"
-    elif [ -f "$agentrun_rollback_marker" ]; then
-      echo "FAIL interrupted AgentRun migration cleanup: marker retained" >&2
+    else
+      if [ -e "$agent_version_publication_marker" ]; then
+        withdraw_candidate_agent_versions || true
+      fi
+      if [ -f "$agentrun_rollback_marker" ] && prepare_previous_release_agentrun_rollback; then
+        rm -f "$agentrun_rollback_marker"
+      elif [ -f "$agentrun_rollback_marker" ]; then
+        echo "FAIL interrupted AgentRun migration cleanup: marker retained" >&2
+      fi
     fi
   fi
   exit "$exit_status"
@@ -299,6 +327,11 @@ if [ "$expected_current_available" = true ]; then
 fi
 "${candidate_compose[@]}" config --quiet
 echo "PASS compose-contract"
+
+if [ -e "$agent_version_publication_marker" ]; then
+  withdraw_candidate_agent_versions
+  echo "PASS recovered-interrupted-agent-version-publication"
+fi
 
 verify_external_qdrant "${candidate_compose[@]}"
 echo "PASS external-qdrant-ready"
@@ -459,6 +492,18 @@ if [ "$agentrun_rollback_compatibility_required" = true ]; then
   trap cleanup_unfinished_agentrun_migration EXIT
 fi
 "${candidate_compose[@]}" run --rm --no-deps --entrypoint /app/agentrun-migrate agentrun > "$agentrun_report_file"
+agent_version_publication_temp="$(mktemp "${state_dir}/agentrun-agent-version-publication.XXXXXX")"
+if ! "${candidate_compose[@]}" run --rm --no-deps \
+  --entrypoint /app/agentrun-agent-version agentrun publish-current \
+  > "$agent_version_publication_temp"; then
+  rm -f "$agent_version_publication_temp"
+  exit 1
+fi
+chmod 0640 "$agent_version_publication_temp"
+sync "$agent_version_publication_temp"
+mv -f "$agent_version_publication_temp" "$agent_version_publication_marker"
+sync -f "$state_dir"
+trap cleanup_unfinished_agentrun_migration EXIT
 {
   echo
   echo '<details><summary>Migration apply result</summary>'
@@ -476,6 +521,7 @@ fi
   echo '</details>'
 } >> "$summary_file"
 echo "PASS migration-apply"
+echo "PASS agent-version-publication"
 
 if ! "${candidate_compose[@]}" up -d --wait --wait-timeout 120; then
   if [ "$candidate_services_started" != true ]; then
@@ -513,6 +559,7 @@ sync "$current_runtime" "$current_images" "$current_compose" "$current_sha"
 sync -f "$deployment_root"
 write_release_state_marker committed
 rm -f "$agentrun_rollback_marker"
+rm -f "$agent_version_publication_marker"
 sync -f "$state_dir"
 agentrun_rollback_compatibility_required=false
 rm -f "$release_state_write_marker"
