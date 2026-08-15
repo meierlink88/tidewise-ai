@@ -94,6 +94,15 @@ _Avoid_: Evidence、Tag、Expression Key、Data 生成关键词
 分类不表达 Atomic Evidence 的事实、预测、意图、推断或观点性质。
 _Avoid_: Atomic Evidence Claim Type、自由文本标签、OpenSPG Object
 
+**Evidence Category Catalog**:
+Data PostgreSQL 拥有的唯一当前 Raw Evidence Content Category 目录，包含正式 Evidence
+Category ID、稳定机器 code、中文名称和完整分类描述。AgentOS 在 Evidence Extraction 前通过
+Data 只读合同取得全部目录，用模型输出的 code 确定性映射正式 ID，再通过 Raw Evidence
+Publication 的 `category_ids` 发布；Data 继续根据 PostgreSQL 当前目录校验最终 ID 并创建
+Raw Evidence Category Link。目录读取原样返回当前名称和描述，不提供 active、置信度、主分类、
+展示顺序、版本、revision 或内容 hash，也不允许调用方复制或修改目录事实。
+_Avoid_: AgentOS 自建或持久化 Catalog 副本、Prompt/YAML 中复制分类 ID、模糊名称映射、通过读取 API 修改或补写目录
+
 **Raw Evidence Category Link**:
 一份 Raw Evidence 与一个受控 Content Category 之间的无顺序事实关系；同一分类在一份材料中
 只能出现一次。

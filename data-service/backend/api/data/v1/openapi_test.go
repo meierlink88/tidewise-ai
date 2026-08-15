@@ -23,11 +23,12 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
 	want := map[string]operationContract{
-		"/healthz":                     {method: "get", operationID: "getDataServiceHealth"},
-		"/readyz":                      {method: "get", operationID: "getDataServiceReadiness"},
-		namespace + "/event-tags":      {method: "get", operationID: "listActiveEventTags", driftAnchor: "data.v1.listActiveEventTags", scope: "data.event-tags.read"},
-		namespace + "/research/themes": {method: "get", operationID: "listResearchThemes", driftAnchor: "data.v1.listResearchThemes", scope: "data.research.read"},
-		namespace + "/research/themes/{theme_id}":                                     {method: "get", operationID: "getResearchTheme", driftAnchor: "data.v1.getResearchTheme", scope: "data.research.read"},
+		"/healthz":                                {method: "get", operationID: "getDataServiceHealth"},
+		"/readyz":                                 {method: "get", operationID: "getDataServiceReadiness"},
+		namespace + "/event-tags":                 {method: "get", operationID: "listActiveEventTags", driftAnchor: "data.v1.listActiveEventTags", scope: "data.event-tags.read"},
+		namespace + "/evidence-categories":        {method: "get", operationID: "listEvidenceCategories", driftAnchor: "data.v1.listEvidenceCategories", scope: "data.evidence-categories.read"},
+		namespace + "/research/themes":            {method: "get", operationID: "listResearchThemes", driftAnchor: "data.v1.listResearchThemes", scope: "data.research.read"},
+		namespace + "/research/themes/{theme_id}": {method: "get", operationID: "getResearchTheme", driftAnchor: "data.v1.getResearchTheme", scope: "data.research.read"},
 		namespace + "/research/themes/{theme_id}/reasoning-trees":                     {method: "get", operationID: "listResearchThemeReasoningTrees", driftAnchor: "data.v1.listResearchThemeReasoningTrees", scope: "data.research.read"},
 		namespace + "/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}": {method: "get", operationID: "getResearchThemeReasoningTree", driftAnchor: "data.v1.getResearchThemeReasoningTree", scope: "data.research.read"},
 		namespace + "/raw-documents":                                                  {method: "get", operationID: "listAdminRawDocuments", driftAnchor: "data.v1.listAdminRawDocuments", scope: "data.admin.read"},

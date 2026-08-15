@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
@@ -104,6 +105,114 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 		t.Fatalf("drift error = %v, want ConflictError", err)
 	}
 
+}
+
+func TestPostgresEvidenceCategoryCatalogReturnsCurrentFixedCategories(t *testing.T) {
+	db := openEvidencePublicationTestDatabase(t)
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	categories, err := store.ListCategories(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	fixturePayload, err := os.ReadFile(filepath.Join("..", "..", "..", "api", "data", "v1", "evidence", "testdata", "evidence-category-catalog.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		Result struct {
+			Categories []struct {
+				ID          string `json:"id"`
+				Code        string `json:"code"`
+				Name        string `json:"name"`
+				Description string `json:"description"`
+			} `json:"categories"`
+		} `json:"result"`
+	}
+	if err := json.Unmarshal(fixturePayload, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	want := fixture.Result.Categories
+	if len(want) != 11 || len(categories) != len(want) {
+		t.Fatalf("Evidence Category count = %d, fixture count %d", len(categories), len(want))
+	}
+	for index, expected := range want {
+		category := categories[index]
+		if string(category.ID) != expected.ID || category.Code != expected.Code || category.Name != expected.Name || category.Description != expected.Description {
+			t.Fatalf("category[%d] = %#v, want exact fixture %#v", index, category, expected)
+		}
+	}
+}
+
+func TestEvidenceCategoryCatalogRejectsInvalidPersistedCollection(t *testing.T) {
+	now := time.Date(2026, 8, 16, 8, 0, 0, 0, time.UTC)
+	validID := "EVCc18ddddb-14bc-5496-99ea-963ee2c25597"
+	otherID := "EVC5b12ffce-178d-56ed-a54f-c01696c486f4"
+	tests := []struct {
+		name string
+		rows *sqlmock.Rows
+	}{
+		{name: "empty", rows: categoryCatalogRows()},
+		{name: "invalid row", rows: categoryCatalogRows().AddRow("EVC_001", "EVENT_BRIEF", "事件快讯", "事件快讯定义", now)},
+		{name: "duplicate ID", rows: categoryCatalogRows().
+			AddRow(validID, "EVENT_BRIEF", "事件快讯", "事件快讯定义", now).
+			AddRow(validID, "SECOND_CODE", "第二分类", "第二分类定义", now)},
+		{name: "duplicate code", rows: categoryCatalogRows().
+			AddRow(validID, "EVENT_BRIEF", "事件快讯", "事件快讯定义", now).
+			AddRow(otherID, "EVENT_BRIEF", "第二分类", "第二分类定义", now)},
+		{name: "unstable order", rows: categoryCatalogRows().
+			AddRow(otherID, "IN_DEPTH_REPORT", "专题/深度报道", "专题定义", now).
+			AddRow(validID, "EVENT_BRIEF", "事件快讯", "事件快讯定义", now)},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			db, mock, err := sqlmock.New()
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = db.Close() })
+			mock.ExpectQuery(regexp.QuoteMeta(categoryCatalogQuery)).WillReturnRows(test.rows)
+			store, err := NewStore(db)
+			if err != nil {
+				t.Fatal(err)
+			}
+			categories, err := store.ListCategories(context.Background())
+			var invariant *persistedInvariantError
+			if err == nil || !errors.As(err, &invariant) || len(categories) != 0 {
+				t.Fatalf("categories=%#v error=%v, want persisted invariant failure", categories, err)
+			}
+			if err := mock.ExpectationsWereMet(); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestEvidenceCategoryCatalogRejectsRepositoryFailure(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	mock.ExpectQuery(regexp.QuoteMeta(categoryCatalogQuery)).
+		WillReturnError(errors.New("database unavailable"))
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	categories, err := store.ListCategories(context.Background())
+	if err == nil || len(categories) != 0 {
+		t.Fatalf("categories=%#v error=%v, want closed repository failure", categories, err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func categoryCatalogRows() *sqlmock.Rows {
+	return sqlmock.NewRows([]string{"id", "code", "name", "description", "created_at"})
 }
 
 func storedCreationTime(t *testing.T, db *sql.DB, table, identityColumn, identity string) time.Time {

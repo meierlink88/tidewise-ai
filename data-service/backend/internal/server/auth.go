@@ -22,22 +22,23 @@ import (
 )
 
 const (
-	ScopeResearchRead        = "data.research.read"
-	ScopeResearchImport      = "data.research.import"
-	ScopeAdminRead           = "data.admin.read"
-	ScopeReviewedEventImport = "data.reviewed-events.import"
-	ScopeRawEvidenceImport   = "data.raw-evidences.import"
-	ScopeRawEvidenceRead     = "data.raw-evidences.read"
-	ScopeEvidenceImport      = "data.evidences.import"
-	ScopeEventTagRead        = "data.event-tags.read"
-	ScopeEventSemanticsRead  = "data.event-semantics.read"
-	ScopeEventSemanticsWrite = "data.event-semantics.write"
-	ScopeCountryRead         = "data.countries.read"
-	ScopeCountryWrite        = "data.countries.write"
-	ScopeOrganizationRead    = "data.organizations.read"
-	ScopeOrganizationWrite   = "data.organizations.write"
-	operationHealth          = "data.health"
-	operationReady           = "data.ready"
+	ScopeResearchRead         = "data.research.read"
+	ScopeResearchImport       = "data.research.import"
+	ScopeAdminRead            = "data.admin.read"
+	ScopeReviewedEventImport  = "data.reviewed-events.import"
+	ScopeRawEvidenceImport    = "data.raw-evidences.import"
+	ScopeRawEvidenceRead      = "data.raw-evidences.read"
+	ScopeEvidenceImport       = "data.evidences.import"
+	ScopeEvidenceCategoryRead = "data.evidence-categories.read"
+	ScopeEventTagRead         = "data.event-tags.read"
+	ScopeEventSemanticsRead   = "data.event-semantics.read"
+	ScopeEventSemanticsWrite  = "data.event-semantics.write"
+	ScopeCountryRead          = "data.countries.read"
+	ScopeCountryWrite         = "data.countries.write"
+	ScopeOrganizationRead     = "data.organizations.read"
+	ScopeOrganizationWrite    = "data.organizations.write"
+	operationHealth           = "data.health"
+	operationReady            = "data.ready"
 )
 
 type Credential struct {
@@ -122,6 +123,8 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeRawEvidenceRead, true
 	case evidenceapi.OperationPublishEvidence:
 		return ScopeEvidenceImport, true
+	case evidenceapi.OperationListEvidenceCategories:
+		return ScopeEvidenceCategoryRead, true
 	case eventapi.OperationListActiveEventTags:
 		return ScopeEventTagRead, true
 	case researchapi.OperationPublishResearchTheme:

@@ -193,6 +193,7 @@ func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 				server.ScopeRawEvidenceImport,
 				server.ScopeRawEvidenceRead,
 				server.ScopeEvidenceImport,
+				server.ScopeEvidenceCategoryRead,
 				server.ScopeEventTagRead,
 				server.ScopeEventSemanticsRead,
 				server.ScopeEventSemanticsWrite,

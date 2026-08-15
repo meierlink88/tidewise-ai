@@ -17,6 +17,7 @@ tags:
   - name: Research
   - name: Admin aggregates
   - name: Evidence publication
+  - name: Evidence Category Catalog
   - name: Event publication
   - name: Event Tag Catalog
   - name: Event Semantics
@@ -820,6 +821,42 @@ paths:
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
+  /api/data/v1/evidence-categories:
+    get:
+      tags: [Evidence Category Catalog]
+      operationId: listEvidenceCategories
+      x-client-drift-anchor: data.v1.listEvidenceCategories
+      x-required-service-scope: data.evidence-categories.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 3000
+      summary: 获取完整 Evidence Category Catalog
+      description: >-
+        从 Data PostgreSQL 返回当前全部固定 Evidence Category，按 code ASC、id ASC 稳定排序。
+        目录用于把受控 code 确定性映射为 Raw Evidence Publication 使用的正式 category_id；
+        不提供分页、筛选、版本、revision 或内容 hash。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          description: 完整且已验证的 Evidence Category Catalog
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvidenceCategoryCatalogEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/EvidenceCategoryCatalogFailed'
+        '503':
+          $ref: '#/components/responses/EvidenceCategoryCatalogTimeout'
+
   /api/data/v1/raw-evidence-publications:
     post:
       tags: [Evidence publication]
@@ -1582,6 +1619,24 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
+    EvidenceCategoryCatalogFailed:
+      description: Evidence Category Catalog 读取或完整性校验失败；错误码 EVIDENCE_CATEGORY_CATALOG_FAILED
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EvidenceCategoryCatalogFailedErrorEnvelope'
+    EvidenceCategoryCatalogTimeout:
+      description: Evidence Category Catalog 超过内部执行预算；错误码 EVIDENCE_CATEGORY_CATALOG_TIMEOUT
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/EvidenceCategoryCatalogTimeoutErrorEnvelope'
     NotFound:
       description: caller scope 内不存在目标资源
       headers:
@@ -2093,6 +2148,62 @@ components:
       properties:
         error:
           $ref: '#/components/schemas/ErrorDetail'
+        request_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+
+    EvidenceCategoryCatalogFailedErrorDetail:
+      type: object
+      additionalProperties: false
+      required: [code, message, details]
+      properties:
+        code:
+          type: string
+          enum: [EVIDENCE_CATEGORY_CATALOG_FAILED]
+        message:
+          type: string
+          minLength: 1
+          maxLength: 500
+        details:
+          type: object
+          additionalProperties: true
+
+    EvidenceCategoryCatalogFailedErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error, request_id]
+      properties:
+        error:
+          $ref: '#/components/schemas/EvidenceCategoryCatalogFailedErrorDetail'
+        request_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+
+    EvidenceCategoryCatalogTimeoutErrorDetail:
+      type: object
+      additionalProperties: false
+      required: [code, message, details]
+      properties:
+        code:
+          type: string
+          enum: [EVIDENCE_CATEGORY_CATALOG_TIMEOUT]
+        message:
+          type: string
+          minLength: 1
+          maxLength: 500
+        details:
+          type: object
+          additionalProperties: true
+
+    EvidenceCategoryCatalogTimeoutErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error, request_id]
+      properties:
+        error:
+          $ref: '#/components/schemas/EvidenceCategoryCatalogTimeoutErrorDetail'
         request_id:
           type: string
           minLength: 1
@@ -2987,6 +3098,7 @@ components:
           type: string
           minLength: 1
           maxLength: 50
+          pattern: '^[A-Z][A-Z0-9_]*$'
         name:
           type: string
           minLength: 1
@@ -2994,6 +3106,29 @@ components:
         description:
           type: string
           minLength: 1
+
+    EvidenceCategoryCatalog:
+      type: object
+      additionalProperties: false
+      required: [categories]
+      properties:
+        categories:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/EvidenceCategory'
+
+    EvidenceCategoryCatalogEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        result:
+          $ref: '#/components/schemas/EvidenceCategoryCatalog'
 
     RawEvidenceRead:
       type: object

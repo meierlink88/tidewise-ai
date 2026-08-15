@@ -16,6 +16,52 @@ func TestNewUseCaseRejectsMissingStore(t *testing.T) {
 	}
 }
 
+func TestListCategoriesReturnsCompleteStableCatalog(t *testing.T) {
+	store := newMemoryStore()
+	store.categories = []Category{
+		{ID: "EVC5b12ffce-178d-56ed-a54f-c01696c486f4", Code: "IN_DEPTH_REPORT", Name: "专题/深度报道", Description: "围绕一个专题进行长篇、多角度调查、梳理或深度报道。"},
+		{ID: "EVCc18ddddb-14bc-5496-99ea-963ee2c25597", Code: "EVENT_BRIEF", Name: "事件快讯", Description: "简短报告已经发生或正在发生的事件，核心目的是说明发生了什么。"},
+	}
+	catalog, err := mustNewUseCase(t, store).ListCategories(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(catalog.Categories) != 2 || catalog.Categories[0].Code != "EVENT_BRIEF" || catalog.Categories[1].Code != "IN_DEPTH_REPORT" {
+		t.Fatalf("catalog = %#v", catalog)
+	}
+	if catalog.Categories[0].Description != store.categories[1].Description {
+		t.Fatalf("description = %q, want exact stored value %q", catalog.Categories[0].Description, store.categories[1].Description)
+	}
+}
+
+func TestListCategoriesFailsClosedForInvalidCatalog(t *testing.T) {
+	valid := Category{ID: "EVCc18ddddb-14bc-5496-99ea-963ee2c25597", Code: "EVENT_BRIEF", Name: "事件快讯", Description: "事件快讯定义"}
+	tests := []struct {
+		name       string
+		categories []Category
+		err        error
+	}{
+		{name: "empty"},
+		{name: "invalid ID", categories: []Category{{ID: "EVC_001", Code: valid.Code, Name: valid.Name, Description: valid.Description}}},
+		{name: "invalid code", categories: []Category{{ID: valid.ID, Code: "event-brief", Name: valid.Name, Description: valid.Description}}},
+		{name: "missing content", categories: []Category{{ID: valid.ID, Code: valid.Code, Name: " ", Description: valid.Description}}},
+		{name: "duplicate ID", categories: []Category{valid, {ID: valid.ID, Code: "SECOND_CODE", Name: "第二分类", Description: "第二分类定义"}}},
+		{name: "duplicate code", categories: []Category{valid, {ID: "EVC5b12ffce-178d-56ed-a54f-c01696c486f4", Code: valid.Code, Name: "第二分类", Description: "第二分类定义"}}},
+		{name: "repository failure", err: errors.New("database unavailable")},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			store := newMemoryStore()
+			store.categories = test.categories
+			store.categoryErr = test.err
+			catalog, err := mustNewUseCase(t, store).ListCategories(context.Background())
+			if err == nil || len(catalog.Categories) != 0 {
+				t.Fatalf("catalog=%#v error=%v, want empty failure", catalog, err)
+			}
+		})
+	}
+}
+
 func TestPublishRawEvidenceReturnsFormalIdentityAndPreservesKeywordsAcrossRetry(t *testing.T) {
 	store := newMemoryStore()
 	service := mustNewUseCase(t, store)
@@ -246,12 +292,18 @@ func hasIssueCode(issues []Issue, code IssueCode) bool {
 }
 
 type memoryStore struct {
-	raw       map[string]StoredRawEvidence
-	evidences map[string]StoredEvidence
+	raw         map[string]StoredRawEvidence
+	evidences   map[string]StoredEvidence
+	categories  []Category
+	categoryErr error
 }
 
 func newMemoryStore() *memoryStore {
 	return &memoryStore{raw: make(map[string]StoredRawEvidence), evidences: make(map[string]StoredEvidence)}
+}
+
+func (s *memoryStore) ListCategories(context.Context) ([]Category, error) {
+	return cloneCategories(s.categories), s.categoryErr
 }
 
 func (s *memoryStore) InTransaction(_ context.Context, fn func(Transaction) error) error {

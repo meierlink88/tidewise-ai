@@ -19,6 +19,20 @@ func registerHTTPServer(server *kratoshttp.Server, application Service, executio
 	router.POST("/raw-evidence-publications", rawEvidenceHandler(application, executionBudget))
 	router.GET("/raw-evidences/{raw_evidence_id}", getRawEvidenceHandler(application, executionBudget))
 	router.POST("/evidence-publications", evidenceHandler(application, executionBudget))
+	router.GET("/evidence-categories", evidenceCategoryCatalogHandler(application, executionBudget))
+}
+
+func evidenceCategoryCatalogHandler(application Service, executionBudget time.Duration) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		if ctx.Request().URL.RawQuery != "" {
+			return v1.NewPublicError(v1.StatusBadRequest, ErrorInvalidRequest, "Evidence Category Catalog does not accept query parameters", nil)
+		}
+		return v1.Call(ctx, OperationListEvidenceCategories, nil, func(callContext context.Context) (*v1.Response[EvidenceCategoryCatalog], error) {
+			deadlineContext, cancel := context.WithTimeout(callContext, executionBudget)
+			defer cancel()
+			return application.ListEvidenceCategories(deadlineContext)
+		})
+	}
 }
 
 func getRawEvidenceHandler(application Service, executionBudget time.Duration) kratoshttp.HandlerFunc {
