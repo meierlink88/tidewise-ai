@@ -74,7 +74,10 @@ func NewStore(db *sql.DB) (*Store, error) {
 	return &Store{db: db}, nil
 }
 
-func LoadCatalog(path string) (CatalogPublication, error) {
+func LoadCatalog(ctx context.Context, path string) (CatalogPublication, error) {
+	if err := ctx.Err(); err != nil {
+		return CatalogPublication{}, err
+	}
 	file, err := os.Open(path)
 	if err != nil {
 		return CatalogPublication{}, fmt.Errorf("open Region catalog: %w", err)
@@ -86,6 +89,9 @@ func LoadCatalog(path string) (CatalogPublication, error) {
 	var publication CatalogPublication
 	if err := decoder.Decode(&publication); err != nil {
 		return CatalogPublication{}, fmt.Errorf("decode Region catalog: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return CatalogPublication{}, err
 	}
 	var trailing any
 	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
@@ -100,9 +106,9 @@ func LoadCatalog(path string) (CatalogPublication, error) {
 	return publication, nil
 }
 
-// PublishCatalog replaces Region facts and Country-Region links in one
-// transaction. Foreign keys owned by other domains intentionally remain
-// restrictive so their references make the complete replacement roll back.
+// PublishCatalog replaces Region facts in one transaction. Foreign keys owned
+// by other domains intentionally remain restrictive so any Country-Region or
+// Organization reference makes the complete replacement roll back.
 func PublishCatalog(ctx context.Context, db *sql.DB, publication CatalogPublication) error {
 	if db == nil {
 		return errors.New("Region catalog database is required")
@@ -116,11 +122,8 @@ func PublishCatalog(ctx context.Context, db *sql.DB, publication CatalogPublicat
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	if _, err := tx.ExecContext(ctx, `LOCK TABLE country_region_links, regions IN ACCESS EXCLUSIVE MODE`); err != nil {
+	if _, err := tx.ExecContext(ctx, `LOCK TABLE regions IN ACCESS EXCLUSIVE MODE`); err != nil {
 		return fmt.Errorf("lock Region catalog replacement: %w", err)
-	}
-	if _, err := tx.ExecContext(ctx, `DELETE FROM country_region_links`); err != nil {
-		return fmt.Errorf("delete Country-Region links: %w", err)
 	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM regions`); err != nil {
 		return fmt.Errorf("delete Region facts: %w", err)
@@ -164,6 +167,10 @@ func validateCatalog(publication CatalogPublication) error {
 		if item.RegionType != RegionTypeGeographic {
 			return fmt.Errorf("%w: Region catalog item %d must be GEOGRAPHIC", ErrInvalidRegion, index)
 		}
+		name, nameEn, canonical := canonicalUNM49Subregion(item.M49Code)
+		if !canonical || item.Name != name || item.NameEn != nameEn {
+			return fmt.Errorf("%w: Region catalog item %d is not a canonical UN M49 sub-region", ErrInvalidRegion, index)
+		}
 		if err := validateRegion(Region{
 			ID: item.ID, Code: item.Code, Name: item.Name, NameEn: item.NameEn, RegionType: item.RegionType,
 		}); err != nil {
@@ -183,6 +190,57 @@ func validateCatalog(publication CatalogPublication) error {
 		seenM49Codes[item.M49Code] = struct{}{}
 	}
 	return nil
+}
+
+func canonicalUNM49Subregion(code string) (string, string, bool) {
+	switch code {
+	case "005":
+		return "南美洲", "South America", true
+	case "011":
+		return "西非", "Western Africa", true
+	case "013":
+		return "中美洲", "Central America", true
+	case "014":
+		return "东非", "Eastern Africa", true
+	case "015":
+		return "北非", "Northern Africa", true
+	case "017":
+		return "中非", "Middle Africa", true
+	case "018":
+		return "南部非洲", "Southern Africa", true
+	case "021":
+		return "北美", "Northern America", true
+	case "029":
+		return "加勒比", "Caribbean", true
+	case "030":
+		return "东亚", "Eastern Asia", true
+	case "034":
+		return "南亚", "Southern Asia", true
+	case "035":
+		return "东南亚", "South-eastern Asia", true
+	case "039":
+		return "南欧", "Southern Europe", true
+	case "053":
+		return "澳大利亚和新西兰", "Australia and New Zealand", true
+	case "054":
+		return "美拉尼西亚", "Melanesia", true
+	case "057":
+		return "密克罗尼西亚", "Micronesia", true
+	case "061":
+		return "波利尼西亚", "Polynesia", true
+	case "143":
+		return "中亚", "Central Asia", true
+	case "145":
+		return "西亚", "Western Asia", true
+	case "151":
+		return "东欧", "Eastern Europe", true
+	case "154":
+		return "北欧", "Northern Europe", true
+	case "155":
+		return "西欧", "Western Europe", true
+	default:
+		return "", "", false
+	}
 }
 
 func isM49Code(code string) bool {

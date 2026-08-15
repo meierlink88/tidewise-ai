@@ -44,11 +44,12 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 ```
 
 The command uses the Data database-operation configuration and replaces the
-catalog in one transaction: it locks the replacement seam, deletes every
-Country-Region link, deletes every Region, inserts all 22 packaged Regions,
-and commits. It never uses `TRUNCATE ... CASCADE` and never modifies another
-domain. A Region referenced by Organization or another domain makes the
-publication fail and fully roll back.
+catalog in one transaction: it locks the Region replacement seam, deletes
+every Region, inserts all 22 packaged Regions, and commits. It never uses
+`TRUNCATE ... CASCADE` and never modifies another domain. A Region referenced
+by a Country-Region Link, Organization, or another domain makes the
+publication fail and fully roll back; clear or republish that owning domain
+separately before retrying.
 
 UAT uses the same command and `/app/initdata/regions-v1.json` from the released
 Data image with `APP_ENV=uat` and the approved database secret. Take the

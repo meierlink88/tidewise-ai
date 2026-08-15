@@ -19,12 +19,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("load database operation config: %v", err)
 	}
-	catalog, err := regiondata.LoadCatalog(*catalogPath)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	catalog, err := regiondata.LoadCatalog(ctx, *catalogPath)
 	if err != nil {
 		log.Fatalf("load Region catalog: %v", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 	db, err := data.OpenPostgres(ctx, config)
 	if err != nil {
 		log.Fatalf("open Data PostgreSQL: %v", err)

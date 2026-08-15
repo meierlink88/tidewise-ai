@@ -153,7 +153,7 @@ func TestLoadCatalogAcceptsUNM49Package(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	catalog, err := LoadCatalog(catalogPath)
+	catalog, err := LoadCatalog(context.Background(), catalogPath)
 	if err != nil {
 		t.Fatalf("LoadCatalog() error = %v", err)
 	}
@@ -213,11 +213,7 @@ func TestPublishCatalogReplacesRegionFacts(t *testing.T) {
 
 	if _, err := db.ExecContext(ctx, `
 INSERT INTO regions (id, code, name, name_en, region_type)
-VALUES ('REG_APAC', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC');
-INSERT INTO countries (id, code, name, name_en)
-VALUES ('COU_CHN', 'CHN', '中国', 'China');
-INSERT INTO country_region_links (country_id, region_id)
-VALUES ('COU_CHN', 'REG_APAC')`); err != nil {
+VALUES ('REG_APAC', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC')`); err != nil {
 		t.Fatal(err)
 	}
 
@@ -241,7 +237,23 @@ WHERE id = 'REG_M49_030'`).Scan(&name, &nameEn, &regionType); err != nil {
 	}
 }
 
-func TestPublishCatalogRollsBackWhenAnotherDomainReferencesRegion(t *testing.T) {
+func TestPublishCatalogRejectsNoncanonicalUNM49Package(t *testing.T) {
+	catalog := loadRegionCatalog(t)
+	catalog.Regions[0].M49Code = "999"
+	catalog.Regions[0].Code = "M49_999"
+	catalog.Regions[0].ID = "REG_M49_999"
+	if err := validateCatalog(catalog); !errors.Is(err, ErrInvalidRegion) {
+		t.Fatalf("validateCatalog(noncanonical code) error = %v, want ErrInvalidRegion", err)
+	}
+
+	catalog = loadRegionCatalog(t)
+	catalog.Regions[0].NameEn = "Fabricated Region"
+	if err := validateCatalog(catalog); !errors.Is(err, ErrInvalidRegion) {
+		t.Fatalf("validateCatalog(noncanonical name) error = %v, want ErrInvalidRegion", err)
+	}
+}
+
+func TestPublishCatalogRollsBackWhenCountryReferencesRegion(t *testing.T) {
 	db := openRegionTestDatabase(t)
 	ctx := context.Background()
 	catalog := loadRegionCatalog(t)
@@ -252,7 +264,24 @@ VALUES ('REG_APAC', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC');
 INSERT INTO countries (id, code, name, name_en)
 VALUES ('COU_CHN', 'CHN', '中国', 'China');
 INSERT INTO country_region_links (country_id, region_id)
-VALUES ('COU_CHN', 'REG_APAC');
+VALUES ('COU_CHN', 'REG_APAC')`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := PublishCatalog(ctx, db, catalog); err == nil {
+		t.Fatal("PublishCatalog() error = nil, want Country reference failure")
+	}
+	assertCatalogState(t, db, 1, 1)
+}
+
+func TestPublishCatalogRollsBackWhenOrganizationReferencesRegion(t *testing.T) {
+	db := openRegionTestDatabase(t)
+	ctx := context.Background()
+	catalog := loadRegionCatalog(t)
+
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO regions (id, code, name, name_en, region_type)
+VALUES ('REG_APAC', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC');
 INSERT INTO organization_categories (code, name_zh)
 VALUES ('INTERGOVERNMENTAL', '政府间国际组织');
 INSERT INTO organization_functions (code, name_zh)
@@ -263,9 +292,9 @@ VALUES ('ORG_TEST', 'TEST', '测试组织', 'Test Organization', 'REG_APAC', 'IN
 	}
 
 	if err := PublishCatalog(ctx, db, catalog); err == nil {
-		t.Fatal("PublishCatalog() error = nil, want cross-domain reference failure")
+		t.Fatal("PublishCatalog() error = nil, want Organization reference failure")
 	}
-	assertCatalogState(t, db, 1, 1)
+	assertCatalogState(t, db, 1, 0)
 	var regionID string
 	if err := db.QueryRowContext(ctx, `SELECT region_id FROM organizations WHERE id = 'ORG_TEST'`).Scan(&regionID); err != nil {
 		t.Fatal(err)
@@ -420,7 +449,7 @@ func loadRegionCatalog(t *testing.T) CatalogPublication {
 	if err != nil {
 		t.Fatal(err)
 	}
-	catalog, err := LoadCatalog(catalogPath)
+	catalog, err := LoadCatalog(context.Background(), catalogPath)
 	if err != nil {
 		t.Fatal(err)
 	}
