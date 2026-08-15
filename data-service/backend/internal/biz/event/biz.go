@@ -3,7 +3,6 @@ package event
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -19,8 +18,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/google/uuid"
-	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/identity"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 const (
@@ -103,7 +101,6 @@ type ResearchEvidenceFact struct {
 
 var (
 	lowerSHA256 = regexp.MustCompile(`^[0-9a-f]{64}$`)
-	lowerUUID   = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 )
 
 type PublicationBatch struct {
@@ -380,8 +377,8 @@ func validateTags(issues *[]ValidationIssue, eventPath string, tags []EventTagIn
 	seen := make(map[string]struct{}, len(tags))
 	for index, tag := range tags {
 		path := fmt.Sprintf("%s.tags[%d]", eventPath, index)
-		if !lowerUUID.MatchString(tag.TagID) {
-			addIssue(issues, path+".tag_id", "INVALID_UUID", "tag_id must be a lowercase UUID")
+		if !coreid.Is(tag.TagID, coreid.EventTagDefinition) {
+			addIssue(issues, path+".tag_id", "INVALID_ID", "tag_id must be an Event Tag Definition ID")
 		}
 		addRequired(issues, path+".tag_code", tag.TagCode)
 		switch tag.TagKind {
@@ -783,9 +780,9 @@ func (e *ConflictError) Error() string {
 }
 
 type UseCase struct {
-	store   Store
-	now     func() time.Time
-	newUUID func() (string, error)
+	store Store
+	now   func() time.Time
+	newID func() (string, error)
 }
 
 func NewUseCase(store Store) (*UseCase, error) {
@@ -793,9 +790,9 @@ func NewUseCase(store Store) (*UseCase, error) {
 		return nil, errors.New("Event store is required")
 	}
 	return &UseCase{
-		store:   store,
-		now:     func() time.Time { return time.Now().UTC() },
-		newUUID: randomUUID,
+		store: store,
+		now:   func() time.Time { return time.Now().UTC() },
+		newID: func() (string, error) { return coreid.New(coreid.EventPublicationReceipt) },
 	}, nil
 }
 
@@ -861,7 +858,7 @@ func (s *UseCase) Import(ctx context.Context, callerSubject string, publication 
 		if err := writePublication(ctx, tx, rawPlans, eventPlans); err != nil {
 			return err
 		}
-		receiptID, err := s.newUUID()
+		receiptID, err := s.newID()
 		if err != nil {
 			return fmt.Errorf("generate Event Publication receipt ID: %w", err)
 		}
@@ -888,7 +885,7 @@ func planPublication(publication PublicationBatch) ([]*rawPlan, []*eventPlan, []
 		plan := &rawPlan{
 			input: input,
 			record: StoredEventEvidenceRecord{
-				ID:         identity.NormalizeUUID("raw_document_artifact", input.ArtifactID),
+				ID:         deriveID(coreid.EventEvidenceRecord, "event-evidence-record", input.ArtifactID),
 				ArtifactID: input.ArtifactID, ContentSHA256: input.ContentSHA256,
 				SourceRef: input.SourceRef, SourceName: input.SourceName, SourceType: input.SourceType,
 				SourceURL: input.SourceURL, Title: input.Title, PublishedAt: input.PublishedAt,
@@ -907,7 +904,7 @@ func planPublication(publication PublicationBatch) ([]*rawPlan, []*eventPlan, []
 		plan := &eventPlan{
 			input: input,
 			record: StoredEvent{
-				ID:        identity.NormalizeUUID("event", input.DedupeKey),
+				ID:        deriveID(coreid.Event, "event", input.DedupeKey),
 				DedupeKey: input.DedupeKey, Title: input.Title, FactualSummary: input.FactualSummary,
 				OccurredAt: input.OccurredAt, FactPayload: FactPayload(input.FactPayload),
 				FirstSeenAt: firstSeenAt, KnowableAt: knowableAt,
@@ -987,7 +984,7 @@ func inspectExisting(
 		for evidenceIndex, evidence := range plan.input.Evidence {
 			rawPlan := rawByArtifact[evidence.ArtifactID]
 			record := StoredEventEvidenceLink{
-				ID:      identity.NormalizeUUID("event_source_v2", plan.record.ID, rawPlan.record.ID),
+				ID:      deriveID(coreid.EventEvidenceLink, "event-evidence-link", plan.record.ID, rawPlan.record.ID),
 				EventID: plan.record.ID, RawDocumentID: rawPlan.record.ID,
 				SourceLevel: evidence.SourceLevel, EvidenceStatement: evidence.EvidenceStatement,
 				EvidenceHash:     hashEvidenceStatement(evidence.EvidenceStatement),
@@ -1034,7 +1031,7 @@ func inspectExisting(
 			}
 
 			record := StoredEventTagAssignment{
-				ID:      identity.NormalizeUUID("event_tag_map", plan.record.ID, input.TagID),
+				ID:      deriveID(coreid.EventTagAssignment, "event-tag-assignment", plan.record.ID, input.TagID),
 				EventID: plan.record.ID, TagID: input.TagID, AssignSource: input.AssignSource,
 				ReviewStatus: ReviewStatusApproved, Confidence: string(input.Confidence),
 				AssignmentReason: input.AssignmentReason,
@@ -1276,16 +1273,12 @@ func hashEvidenceStatement(value string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func randomUUID() (string, error) {
-	var value [16]byte
-	if _, err := rand.Read(value[:]); err != nil {
-		return "", err
+func deriveID(kind coreid.Kind, namespace string, parts ...string) string {
+	value, err := coreid.Derive(kind, namespace, parts...)
+	if err != nil {
+		panic(fmt.Sprintf("invalid reviewed identity contract %s/%s: %v", coreid.Prefix(kind), namespace, err))
 	}
-	value[6] = (value[6] & 0x0f) | 0x40
-	value[8] = (value[8] & 0x3f) | 0x80
-	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
-		value[0:4], value[4:6], value[6:8], value[8:10], value[10:16],
-	), nil
+	return value
 }
 
 type EventTagCatalog struct {
@@ -1377,7 +1370,7 @@ func (s *UseCase) ActiveTags(ctx context.Context) (EventTagCatalog, error) {
 }
 
 func validateEventTag(tag EventTag) error {
-	if _, err := uuid.Parse(tag.ID); err != nil {
+	if !coreid.Is(tag.ID, coreid.EventTagDefinition) {
 		return errors.New("Tag ID is invalid")
 	}
 	if tag.Kind != EventTagKindNewsCategory && tag.Kind != EventTagKindIndexCategory {

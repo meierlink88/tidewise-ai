@@ -8,7 +8,6 @@
   "replace_mode": "region-domain",
   "regions": [
     {
-      "id": "REG7306e1ec-d56e-5381-aabc-103d702af12b",
       "code": "M49_015",
       "m49_code": "015",
       "name": "北非",
@@ -16,7 +15,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REGc2570e28-7682-5278-8004-844691d9f1eb",
       "code": "M49_014",
       "m49_code": "014",
       "name": "东非",
@@ -24,7 +22,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG363d6412-9f07-5a29-9873-d200cd228e97",
       "code": "M49_017",
       "m49_code": "017",
       "name": "中非",
@@ -32,7 +29,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG8578021c-0cd8-547f-98c2-1c5494272060",
       "code": "M49_018",
       "m49_code": "018",
       "name": "南部非洲",
@@ -40,7 +36,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REGe5c186e1-d532-5257-a083-9766e6fa7cfb",
       "code": "M49_011",
       "m49_code": "011",
       "name": "西非",
@@ -48,7 +43,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG53086397-9148-5889-9835-5641d211fade",
       "code": "M49_021",
       "m49_code": "021",
       "name": "北美",
@@ -56,7 +50,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG583f9aa8-b1b8-5d8d-8daa-510a9b6944b5",
       "code": "M49_013",
       "m49_code": "013",
       "name": "中美洲",
@@ -64,7 +57,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REGb774d839-660a-5d1d-8515-7a19a8c9e086",
       "code": "M49_029",
       "m49_code": "029",
       "name": "加勒比",
@@ -72,7 +64,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG537e1ff4-c477-5612-b85a-1c51908ecd1d",
       "code": "M49_005",
       "m49_code": "005",
       "name": "南美洲",
@@ -80,7 +71,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG7987e9f8-3a0f-571a-a684-00664f3c6a38",
       "code": "M49_143",
       "m49_code": "143",
       "name": "中亚",
@@ -88,7 +78,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REGaf95f369-3d85-586d-82c4-bf655fffcefd",
       "code": "M49_030",
       "m49_code": "030",
       "name": "东亚",
@@ -96,7 +85,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REGfb023dae-2e94-55aa-935f-b7c5ecf80d91",
       "code": "M49_035",
       "m49_code": "035",
       "name": "东南亚",
@@ -104,7 +92,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG69947b22-2f19-5305-838a-8a3846095eff",
       "code": "M49_034",
       "m49_code": "034",
       "name": "南亚",
@@ -112,7 +99,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG4ad06be5-379f-542d-9ac5-c8e7d083a758",
       "code": "M49_145",
       "m49_code": "145",
       "name": "西亚",
@@ -120,7 +106,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG466b5afc-a459-5d79-900c-1a68e66035a7",
       "code": "M49_151",
       "m49_code": "151",
       "name": "东欧",
@@ -128,7 +113,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REGd2cf3341-6b18-5781-adba-9b5689672056",
       "code": "M49_154",
       "m49_code": "154",
       "name": "北欧",
@@ -136,7 +120,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REGe1cdc9d8-c469-545d-a6f0-1126092c9204",
       "code": "M49_039",
       "m49_code": "039",
       "name": "南欧",
@@ -144,7 +127,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG1d6aa179-66e5-5053-951c-03217327773b",
       "code": "M49_155",
       "m49_code": "155",
       "name": "西欧",
@@ -152,7 +134,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG4efc45a7-a9c5-5515-96ab-e2b5c26a2f46",
       "code": "M49_053",
       "m49_code": "053",
       "name": "澳大利亚和新西兰",
@@ -160,7 +141,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REGdbb7e3b0-a570-5495-8767-42220da03571",
       "code": "M49_054",
       "m49_code": "054",
       "name": "美拉尼西亚",
@@ -168,7 +148,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REGb99b19cd-af83-575f-8a9b-0dc26791255c",
       "code": "M49_057",
       "m49_code": "057",
       "name": "密克罗尼西亚",
@@ -176,7 +155,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG3d7379ab-ee37-5c52-be5b-dc1d6c0eeff5",
       "code": "M49_061",
       "m49_code": "061",
       "name": "波利尼西亚",

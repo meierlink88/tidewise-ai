@@ -27,9 +27,12 @@ func (*countryStoreStub) List(context.Context, string) ([]Country, error) { retu
 func (*countryStoreStub) Update(context.Context, string, Update) (Country, error) {
 	return Country{}, nil
 }
-func (s *countryStoreStub) ReplaceRegions(_ context.Context, id string, regionIDs []string) (Country, error) {
+func (s *countryStoreStub) ReplaceRegions(_ context.Context, id string, links []RegionLink) (Country, error) {
 	s.replacedID = id
-	s.replacedLinks = append([]string(nil), regionIDs...)
+	s.replacedLinks = make([]string, len(links))
+	for index, link := range links {
+		s.replacedLinks[index] = link.RegionID
+	}
 	return Country{ID: id}, nil
 }
 

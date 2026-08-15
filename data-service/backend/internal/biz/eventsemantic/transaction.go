@@ -79,6 +79,7 @@ type SubmissionLeaseState struct {
 type SubmissionWrite struct {
 	SubmissionID   string
 	SnapshotID     string
+	CandidateIDs   SemanticCandidateIDs
 	Submission     Submission
 	Payload        json.RawMessage
 	PayloadHash    string
@@ -86,6 +87,12 @@ type SubmissionWrite struct {
 	Status         ReviewStatus
 	ConsumeLease   bool
 	TransitionedAt time.Time
+}
+
+type SemanticCandidateIDs struct {
+	EntityLinks     map[string]string
+	VariableSignals map[string]string
+	Measurements    map[string][]string
 }
 
 type ReviewTransactionState struct {

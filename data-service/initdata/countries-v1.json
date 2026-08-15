@@ -9,7 +9,6 @@
   "regions": [],
   "countries": [
     {
-      "id": "COU2c66e242-5f6b-5b85-bd6a-93cb45da5eae",
       "code": "MC",
       "name": "摩纳哥",
       "name_en": "Monaco",
@@ -17,7 +16,6 @@
       "key_resources": "旅游、博彩、金融"
     },
     {
-      "id": "COUa5c2101e-c7d4-59a7-8436-6d39146448a0",
       "code": "LI",
       "name": "列支敦士登",
       "name_en": "Liechtenstein",
@@ -25,7 +23,6 @@
       "key_resources": "金融、精密制造"
     },
     {
-      "id": "COU8a229f6a-3888-5ff0-bd73-ab457ee0c1bd",
       "code": "LU",
       "name": "卢森堡",
       "name_en": "Luxembourg",
@@ -33,7 +30,6 @@
       "key_resources": "金融、钢铁、物流"
     },
     {
-      "id": "COU86e12fb4-d3ad-5c51-a754-bdaff6e40158",
       "code": "IE",
       "name": "爱尔兰",
       "name_en": "Ireland",
@@ -41,7 +37,6 @@
       "key_resources": "制药、IT、金融"
     },
     {
-      "id": "COU56f482d9-cee6-50de-aa8b-0b6e4ba9239e",
       "code": "CH",
       "name": "瑞士",
       "name_en": "Switzerland",
@@ -49,7 +44,6 @@
       "key_resources": "金融、制药、精密制造"
     },
     {
-      "id": "COUe0e82908-fb0f-5f9a-b875-ab161fb651e3",
       "code": "NO",
       "name": "挪威",
       "name_en": "Norway",
@@ -57,7 +51,6 @@
       "key_resources": "石油、天然气、渔业"
     },
     {
-      "id": "COU3e05bca5-5a74-5271-a0e8-51bfaae0a46f",
       "code": "MO",
       "name": "中国澳门",
       "name_en": "Macao",
@@ -65,7 +58,6 @@
       "key_resources": "旅游休闲、博彩、中葡商贸合作平台"
     },
     {
-      "id": "COUb7e8c768-79c4-5b2e-a7ff-2e12531f6b88",
       "code": "US",
       "name": "美国",
       "name_en": "United States of America",
@@ -73,7 +65,6 @@
       "key_resources": "科技、金融、能源、军工"
     },
     {
-      "id": "COUf1ec31f6-db98-596b-9298-55fb97f38ad8",
       "code": "SG",
       "name": "新加坡",
       "name_en": "Singapore",
@@ -81,7 +72,6 @@
       "key_resources": "航运、金融、电子"
     },
     {
-      "id": "COU1bd48947-0f8b-50e5-ad90-37854490c8af",
       "code": "IS",
       "name": "冰岛",
       "name_en": "Iceland",
@@ -89,7 +79,6 @@
       "key_resources": "地热、渔业、旅游"
     },
     {
-      "id": "COU7854c1f6-4af9-5be9-a0d1-11984b876d95",
       "code": "QA",
       "name": "卡塔尔",
       "name_en": "Qatar",
@@ -97,7 +86,6 @@
       "key_resources": "液化天然气、金融、航空"
     },
     {
-      "id": "COU0038f500-bcae-557c-b0bd-9acd00a3ba84",
       "code": "DK",
       "name": "丹麦",
       "name_en": "Denmark",
@@ -105,7 +93,6 @@
       "key_resources": "风电、制药、农业"
     },
     {
-      "id": "COU1e225989-795e-5689-984a-ce041166df28",
       "code": "AU",
       "name": "澳大利亚",
       "name_en": "Australia",
@@ -113,7 +100,6 @@
       "key_resources": "铁矿、煤炭、天然气、锂"
     },
     {
-      "id": "COU4e8efc1e-3718-5c1c-9ff1-a969b17d9f4e",
       "code": "SE",
       "name": "瑞典",
       "name_en": "Sweden",
@@ -121,7 +107,6 @@
       "key_resources": "汽车、制药、林业"
     },
     {
-      "id": "COU4cbf8aa0-d5dd-5c85-b322-d794f458ca82",
       "code": "NL",
       "name": "荷兰",
       "name_en": "Netherlands, Kingdom of the",
@@ -129,7 +114,6 @@
       "key_resources": "农业、物流、化工"
     },
     {
-      "id": "COU05ae3358-dd1c-5bbf-a4ed-1510e7e679d1",
       "code": "SM",
       "name": "圣马力诺",
       "name_en": "San Marino",
@@ -137,7 +121,6 @@
       "key_resources": "旅游、邮票、陶瓷"
     },
     {
-      "id": "COU7dc66803-7cfb-56e1-80b2-f7605d7f5a40",
       "code": "AT",
       "name": "奥地利",
       "name_en": "Austria",
@@ -145,7 +128,6 @@
       "key_resources": "机械制造、旅游、水电"
     },
     {
-      "id": "COU46185fe4-bfbb-5b2b-a77e-9eb3fd5c42e1",
       "code": "IL",
       "name": "以色列",
       "name_en": "Israel",
@@ -153,7 +135,6 @@
       "key_resources": "高科技、军工、农业技术"
     },
     {
-      "id": "COU488b68eb-db66-5765-a175-1afcc6e29c52",
       "code": "DE",
       "name": "德国",
       "name_en": "Germany",
@@ -161,7 +142,6 @@
       "key_resources": "汽车、机械、化工"
     },
     {
-      "id": "COU9fb2a684-8766-5c62-94e8-c9c2c62ec103",
       "code": "FI",
       "name": "芬兰",
       "name_en": "Finland",
@@ -169,7 +149,6 @@
       "key_resources": "林业、5G、教育"
     },
     {
-      "id": "COUbdf64d51-c19d-51c2-af42-316090685162",
       "code": "CA",
       "name": "加拿大",
       "name_en": "Canada",
@@ -177,7 +156,6 @@
       "key_resources": "石油、矿产、林业、农业"
     },
     {
-      "id": "COU11847ade-f0f0-5700-8ccd-8edea6561a03",
       "code": "BE",
       "name": "比利时",
       "name_en": "Belgium",
@@ -185,7 +163,6 @@
       "key_resources": "化工、钻石、物流"
     },
     {
-      "id": "COU7405f869-edf8-5a14-9c9a-ec30694a79ee",
       "code": "HK",
       "name": "中国香港",
       "name_en": "Hong Kong",
@@ -193,7 +170,6 @@
       "key_resources": "国际金融、贸易、航运、专业服务"
     },
     {
-      "id": "COUf3c57674-faea-5060-9a79-91d45055de0b",
       "code": "NZ",
       "name": "新西兰",
       "name_en": "New Zealand",
@@ -201,7 +177,6 @@
       "key_resources": "乳业、林业、旅游"
     },
     {
-      "id": "COU77f4abe2-d51c-5b9f-9604-901d1157361d",
       "code": "AE",
       "name": "阿联酋",
       "name_en": "United Arab Emirates",
@@ -209,7 +184,6 @@
       "key_resources": "石油、金融、航空"
     },
     {
-      "id": "COU2ff84953-20d5-5a23-8d64-bafba0e4fbdf",
       "code": "GB",
       "name": "英国",
       "name_en": "United Kingdom of Great Britain and Northern Ireland",
@@ -217,7 +191,6 @@
       "key_resources": "金融、能源、创意产业"
     },
     {
-      "id": "COU88809a5e-1538-5d55-808b-8c86debab685",
       "code": "FR",
       "name": "法国",
       "name_en": "France",
@@ -225,7 +198,6 @@
       "key_resources": "核能、航空、农业"
     },
     {
-      "id": "COU6f9702fd-e6b3-5bc0-9e30-6069834dc7cf",
       "code": "AD",
       "name": "安道尔",
       "name_en": "Andorra",
@@ -233,7 +205,6 @@
       "key_resources": "旅游、金融、免税"
     },
     {
-      "id": "COU9870865e-2c24-5a18-9f79-c05f8df82b30",
       "code": "MT",
       "name": "马耳他",
       "name_en": "Malta",
@@ -241,7 +212,6 @@
       "key_resources": "金融、旅游、航运"
     },
     {
-      "id": "COUaf254699-d1e2-5adb-b493-d418a4713a24",
       "code": "IT",
       "name": "意大利",
       "name_en": "Italy",
@@ -249,7 +219,6 @@
       "key_resources": "时尚、机械、旅游"
     },
     {
-      "id": "COU0fa6e047-5346-535a-b1ad-d1a7560367a3",
       "code": "CY",
       "name": "塞浦路斯",
       "name_en": "Cyprus",
@@ -257,7 +226,6 @@
       "key_resources": "航运、旅游、金融服务"
     },
     {
-      "id": "COU0db14ab6-fa86-5c2e-8445-ea4803583180",
       "code": "BS",
       "name": "巴哈马",
       "name_en": "Bahamas",
@@ -265,7 +233,6 @@
       "key_resources": "旅游、金融、渔业"
     },
     {
-      "id": "COU14ef5ca1-8e54-5421-992f-1b5c39de39ed",
       "code": "KR",
       "name": "韩国",
       "name_en": "Korea, Republic of",
@@ -273,7 +240,6 @@
       "key_resources": "半导体、汽车、造船"
     },
     {
-      "id": "COU385fa02b-900e-5c40-a48f-c1404d0934ed",
       "code": "BN",
       "name": "文莱",
       "name_en": "Brunei Darussalam",
@@ -281,7 +247,6 @@
       "key_resources": "石油、天然气、液化天然气"
     },
     {
-      "id": "COU0b86cfc9-da69-5903-8b82-96391262b719",
       "code": "JP",
       "name": "日本",
       "name_en": "Japan",
@@ -289,7 +254,6 @@
       "key_resources": "汽车、电子、机器人"
     },
     {
-      "id": "COU3b3124e6-7c40-582a-a347-80f5249eba39",
       "code": "TW",
       "name": "中国台湾",
       "name_en": "Taiwan, Province of China",
@@ -297,7 +261,6 @@
       "key_resources": "半导体、电子制造、精密机械、农业"
     },
     {
-      "id": "COU803c9831-701b-5a29-a89c-74b1e7bf6af8",
       "code": "ES",
       "name": "西班牙",
       "name_en": "Spain",
@@ -305,7 +268,6 @@
       "key_resources": "旅游、农业、可再生能源"
     },
     {
-      "id": "COU6a9e60e7-1b1c-5e66-900c-df6b10936669",
       "code": "KW",
       "name": "科威特",
       "name_en": "Kuwait",
@@ -313,7 +275,6 @@
       "key_resources": "石油、天然气、金融"
     },
     {
-      "id": "COUfbbdbf71-5fb9-5663-9b21-aa8e2d9927c5",
       "code": "SI",
       "name": "斯洛文尼亚",
       "name_en": "Slovenia",
@@ -321,7 +282,6 @@
       "key_resources": "制药、电子、旅游"
     },
     {
-      "id": "COUf550f3f9-486a-545e-a7c6-2d710d08054f",
       "code": "SA",
       "name": "沙特阿拉伯",
       "name_en": "Saudi Arabia",
@@ -329,7 +289,6 @@
       "key_resources": "石油、天然气、石化"
     },
     {
-      "id": "COU15bdbc21-2297-5ce0-bcd5-2724f422df59",
       "code": "CZ",
       "name": "捷克",
       "name_en": "Czechia",
@@ -337,7 +296,6 @@
       "key_resources": "汽车、机械、啤酒"
     },
     {
-      "id": "COUcb5f1936-fff8-59f9-9b20-1ce42de374c3",
       "code": "EE",
       "name": "爱沙尼亚",
       "name_en": "Estonia",
@@ -345,7 +303,6 @@
       "key_resources": "IT、电子、木材"
     },
     {
-      "id": "COU5b46bccf-e2aa-5a17-ad9b-bcceb5a4b6a0",
       "code": "PT",
       "name": "葡萄牙",
       "name_en": "Portugal",
@@ -353,7 +310,6 @@
       "key_resources": "旅游、软木、农业"
     },
     {
-      "id": "COU99468cb0-ff32-56c0-9e44-9b82ffb3360b",
       "code": "BH",
       "name": "巴林",
       "name_en": "Bahrain",
@@ -361,7 +317,6 @@
       "key_resources": "石油、天然气、铝业"
     },
     {
-      "id": "COU11ba40f5-4bc3-5dd8-816b-5b1183354f11",
       "code": "LT",
       "name": "立陶宛",
       "name_en": "Lithuania",
@@ -369,7 +324,6 @@
       "key_resources": "激光、电子、农业"
     },
     {
-      "id": "COU248c3f72-8164-5277-90cf-4b77d2002fcb",
       "code": "LV",
       "name": "拉脱维亚",
       "name_en": "Latvia",
@@ -377,7 +331,6 @@
       "key_resources": "木材、电子、物流"
     },
     {
-      "id": "COU9115e7aa-0651-597c-9725-6f7496659305",
       "code": "GR",
       "name": "希腊",
       "name_en": "Greece",
@@ -385,7 +338,6 @@
       "key_resources": "航运、旅游、橄榄油"
     },
     {
-      "id": "COU795f1f45-9d51-572a-adf3-e12ec5cf62f5",
       "code": "BB",
       "name": "巴巴多斯",
       "name_en": "Barbados",
@@ -393,7 +345,6 @@
       "key_resources": "旅游、金融、朗姆酒"
     },
     {
-      "id": "COUacf817f8-9918-540f-a87a-bce4bc648b96",
       "code": "SK",
       "name": "斯洛伐克",
       "name_en": "Slovakia",
@@ -401,7 +352,6 @@
       "key_resources": "汽车、电子、农业"
     },
     {
-      "id": "COUbe9f9f49-6fa3-5cf5-a656-84f571c1b947",
       "code": "HU",
       "name": "匈牙利",
       "name_en": "Hungary",
@@ -409,7 +359,6 @@
       "key_resources": "汽车、电子、农业"
     },
     {
-      "id": "COUaf81f04f-9fc1-52ed-bdec-0b143d6f5983",
       "code": "KN",
       "name": "圣基茨和尼维斯",
       "name_en": "Saint Kitts and Nevis",
@@ -417,7 +366,6 @@
       "key_resources": "旅游、金融、糖"
     },
     {
-      "id": "COU90870736-6135-5b8f-a11f-db5ea6b5f3b4",
       "code": "PL",
       "name": "波兰",
       "name_en": "Poland",
@@ -425,7 +373,6 @@
       "key_resources": "煤炭、农业、制造业"
     },
     {
-      "id": "COUc3b30713-e340-5ffe-aba8-3751a4c7f90e",
       "code": "HR",
       "name": "克罗地亚",
       "name_en": "Croatia",
@@ -433,7 +380,6 @@
       "key_resources": "旅游、造船、农业"
     },
     {
-      "id": "COU46dd6931-d6aa-54ce-8c2b-2a720ce707b7",
       "code": "UY",
       "name": "乌拉圭",
       "name_en": "Uruguay",
@@ -441,7 +387,6 @@
       "key_resources": "农业、牛肉、可再生能源"
     },
     {
-      "id": "COUc4082bb4-651e-59e3-9212-c874b54d8265",
       "code": "AG",
       "name": "安提瓜和巴布达",
       "name_en": "Antigua and Barbuda",
@@ -449,7 +394,6 @@
       "key_resources": "旅游、金融、渔业"
     },
     {
-      "id": "COU37f2da78-71b1-5ec5-a3dd-e2cfa871b244",
       "code": "TT",
       "name": "特立尼达和多巴哥",
       "name_en": "Trinidad and Tobago",
@@ -457,7 +401,6 @@
       "key_resources": "石油、天然气、化工"
     },
     {
-      "id": "COUcf2541f1-c6e7-57bd-ae07-7b5f80372cee",
       "code": "OM",
       "name": "阿曼",
       "name_en": "Oman",
@@ -465,7 +408,6 @@
       "key_resources": "石油、天然气、港口"
     },
     {
-      "id": "COU7f8c60e0-39d3-50bc-8481-77726e9f2ff4",
       "code": "CK",
       "name": "库克群岛",
       "name_en": "Cook Islands",
@@ -473,7 +415,6 @@
       "key_resources": "渔业、黑珍珠、旅游、离岸金融"
     },
     {
-      "id": "COU50da4ba0-004e-531b-9980-c75c5f805625",
       "code": "RO",
       "name": "罗马尼亚",
       "name_en": "Romania",
@@ -481,7 +422,6 @@
       "key_resources": "农业、IT、能源"
     },
     {
-      "id": "COU87d45564-1855-5ba7-9d20-b6814d716061",
       "code": "GY",
       "name": "圭亚那",
       "name_en": "Guyana",
@@ -489,7 +429,6 @@
       "key_resources": "石油、黄金、林业"
     },
     {
-      "id": "COU58f151b1-3c0d-5ecc-9aee-6c77f99a4e30",
       "code": "SC",
       "name": "塞舌尔",
       "name_en": "Seychelles",
@@ -497,7 +436,6 @@
       "key_resources": "旅游、渔业、金融"
     },
     {
-      "id": "COUf52f76b4-1376-5e5a-907b-dd0f5ef32269",
       "code": "PA",
       "name": "巴拿马",
       "name_en": "Panama",
@@ -505,7 +443,6 @@
       "key_resources": "运河、金融、物流"
     },
     {
-      "id": "COU2735dde6-65b9-526a-a7a1-867c5aa40997",
       "code": "CL",
       "name": "智利",
       "name_en": "Chile",
@@ -513,7 +450,6 @@
       "key_resources": "铜矿、锂矿、农业"
     },
     {
-      "id": "COUf41d86f7-fd32-545e-bc9d-1aafb589d7ae",
       "code": "PW",
       "name": "帕劳",
       "name_en": "Palau",
@@ -521,7 +457,6 @@
       "key_resources": "旅游、渔业、美国援助"
     },
     {
-      "id": "COUcd07caa8-89ae-53d1-bf0d-d86f0045e649",
       "code": "NU",
       "name": "纽埃",
       "name_en": "Niue",
@@ -529,7 +464,6 @@
       "key_resources": "渔业、旅游、离岸金融、蜂蜜"
     },
     {
-      "id": "COU5562dd22-defc-5562-ae2c-5b5e056c808a",
       "code": "CR",
       "name": "哥斯达黎加",
       "name_en": "Costa Rica",
@@ -537,7 +471,6 @@
       "key_resources": "旅游、医疗、电子"
     },
     {
-      "id": "COUd5ab05e1-b60e-5a98-97e3-da8f6cfbabef",
       "code": "MX",
       "name": "墨西哥",
       "name_en": "Mexico",
@@ -545,7 +478,6 @@
       "key_resources": "制造业、石油、农业"
     },
     {
-      "id": "COUf98656b8-7edc-55c5-973b-0f80d09ba292",
       "code": "BG",
       "name": "保加利亚",
       "name_en": "Bulgaria",
@@ -553,7 +485,6 @@
       "key_resources": "玫瑰油、铜矿、农业"
     },
     {
-      "id": "COU3809b1b0-f680-5df8-b511-ca9f0e36a1db",
       "code": "GD",
       "name": "格林纳达",
       "name_en": "Grenada",
@@ -561,7 +492,6 @@
       "key_resources": "香料、旅游、农业"
     },
     {
-      "id": "COU21f9b215-6b12-5536-8fed-349e1bb7fc3a",
       "code": "AR",
       "name": "阿根廷",
       "name_en": "Argentina",
@@ -569,7 +499,6 @@
       "key_resources": "农业、锂矿、页岩气"
     },
     {
-      "id": "COU1a0a4ffd-a952-5f9e-ae54-ca761e02dd70",
       "code": "KZ",
       "name": "哈萨克斯坦",
       "name_en": "Kazakhstan",
@@ -577,7 +506,6 @@
       "key_resources": "石油、天然气、铀矿"
     },
     {
-      "id": "COU4e58f424-f51a-58e8-b883-c54c9fafcda3",
       "code": "CN",
       "name": "中国",
       "name_en": "China",
@@ -585,7 +513,6 @@
       "key_resources": "稀土、制造业、新能源"
     },
     {
-      "id": "COU19a209fc-4dfb-567f-b111-886f38e51243",
       "code": "TR",
       "name": "土耳其",
       "name_en": "Türkiye",
@@ -593,7 +520,6 @@
       "key_resources": "制造业、农业、地缘位置"
     },
     {
-      "id": "COUf55fea81-73fb-5b4f-8ea7-821cdf1d5072",
       "code": "MY",
       "name": "马来西亚",
       "name_en": "Malaysia",
@@ -601,7 +527,6 @@
       "key_resources": "电子、棕榈油、天然气"
     },
     {
-      "id": "COU8fee36c1-1a9f-50f9-9be7-60dc3cfb5a1e",
       "code": "LC",
       "name": "圣卢西亚",
       "name_en": "Saint Lucia",
@@ -609,7 +534,6 @@
       "key_resources": "旅游、香蕉、渔业"
     },
     {
-      "id": "COUe9e5ff0a-9405-518a-a882-d4e07f6d74cb",
       "code": "MU",
       "name": "毛里求斯",
       "name_en": "Mauritius",
@@ -617,7 +541,6 @@
       "key_resources": "金融、旅游、纺织"
     },
     {
-      "id": "COU14fddf80-8a99-58d4-b7ff-4dae678bf0a3",
       "code": "RU",
       "name": "俄罗斯",
       "name_en": "Russian Federation",
@@ -625,7 +548,6 @@
       "key_resources": "石油、天然气、核能"
     },
     {
-      "id": "COU9634d88a-b23a-5ad3-b44a-702737873067",
       "code": "MV",
       "name": "马尔代夫",
       "name_en": "Maldives",
@@ -633,7 +555,6 @@
       "key_resources": "旅游业、渔业"
     },
     {
-      "id": "COU97525aa0-f4f1-587b-8d0f-cd79b004728b",
       "code": "DO",
       "name": "多米尼加",
       "name_en": "Dominican Republic",
@@ -641,7 +562,6 @@
       "key_resources": "旅游、矿业、农业"
     },
     {
-      "id": "COU702c3e13-3b0c-55d0-a398-4f26196062a8",
       "code": "ME",
       "name": "黑山",
       "name_en": "Montenegro",
@@ -649,7 +569,6 @@
       "key_resources": "旅游、铝、水电"
     },
     {
-      "id": "COU8f5e7181-529b-5894-b632-8032f3cf6300",
       "code": "BR",
       "name": "巴西",
       "name_en": "Brazil",
@@ -657,7 +576,6 @@
       "key_resources": "农业、矿产、生物燃料"
     },
     {
-      "id": "COUebf0d9c0-5545-56d9-9fcc-2ac116e5f159",
       "code": "RS",
       "name": "塞尔维亚",
       "name_en": "Serbia",
@@ -665,7 +583,6 @@
       "key_resources": "农业、矿业、汽车"
     },
     {
-      "id": "COU18912fcf-bbd7-54b4-8e15-8fe3c9090232",
       "code": "CU",
       "name": "古巴",
       "name_en": "Cuba",
@@ -673,7 +590,6 @@
       "key_resources": "医疗、旅游、镍矿"
     },
     {
-      "id": "COU4dbeedda-e4b8-56de-8bb5-1d81079f731f",
       "code": "DM",
       "name": "多米尼克",
       "name_en": "Dominica",
@@ -681,7 +597,6 @@
       "key_resources": "旅游、农业、地热"
     },
     {
-      "id": "COUca828fa1-54b8-52ee-bbb2-5774727f3076",
       "code": "GE",
       "name": "格鲁吉亚",
       "name_en": "Georgia",
@@ -689,7 +604,6 @@
       "key_resources": "铜矿、葡萄酒、物流"
     },
     {
-      "id": "COU2e6694ef-f193-59f7-82b4-38653eec9611",
       "code": "VC",
       "name": "圣文森特和格林纳丁斯",
       "name_en": "Saint Vincent and the Grenadines",
@@ -697,7 +611,6 @@
       "key_resources": "旅游、农业、渔业"
     },
     {
-      "id": "COU8e4b17b6-7090-5584-a965-8c315478aa93",
       "code": "BW",
       "name": "博茨瓦纳",
       "name_en": "Botswana",
@@ -705,7 +618,6 @@
       "key_resources": "钻石、铜、旅游"
     },
     {
-      "id": "COUb57ca355-658e-5511-afb2-4565e726019e",
       "code": "NR",
       "name": "瑙鲁",
       "name_en": "Nauru",
@@ -713,7 +625,6 @@
       "key_resources": "磷酸盐、渔业、侨汇"
     },
     {
-      "id": "COUfd7159b1-8eab-50d4-af88-ccba0c13d7f6",
       "code": "AM",
       "name": "亚美尼亚",
       "name_en": "Armenia",
@@ -721,7 +632,6 @@
       "key_resources": "铜矿、黄金、IT外包"
     },
     {
-      "id": "COU065bbfb3-19f4-53f6-b240-89a97b82cdaa",
       "code": "TM",
       "name": "土库曼斯坦",
       "name_en": "Turkmenistan",
@@ -729,7 +639,6 @@
       "key_resources": "天然气、棉花、石油"
     },
     {
-      "id": "COUd23922a3-fe47-51cd-ba2f-4fc6d9e37bd9",
       "code": "GA",
       "name": "加蓬",
       "name_en": "Gabon",
@@ -737,7 +646,6 @@
       "key_resources": "石油、木材、锰矿"
     },
     {
-      "id": "COU70c5ab97-0f5a-541e-b96f-2b3ec023d554",
       "code": "TH",
       "name": "泰国",
       "name_en": "Thailand",
@@ -745,7 +653,6 @@
       "key_resources": "汽车、电子、旅游"
     },
     {
-      "id": "COUf4a33dbb-3428-5b04-a867-f66901390346",
       "code": "PE",
       "name": "秘鲁",
       "name_en": "Peru",
@@ -753,7 +660,6 @@
       "key_resources": "铜矿、黄金、渔业"
     },
     {
-      "id": "COUdb6c88f7-cc0b-5a1c-a5ae-e78654916bd2",
       "code": "AL",
       "name": "阿尔巴尼亚",
       "name_en": "Albania",
@@ -761,7 +667,6 @@
       "key_resources": "铬矿、水电、旅游"
     },
     {
-      "id": "COU78bb74c1-5a2d-5161-8717-e473ac6b8cf8",
       "code": "BY",
       "name": "白俄罗斯",
       "name_en": "Belarus",
@@ -769,7 +674,6 @@
       "key_resources": "钾肥、机械制造、农业"
     },
     {
-      "id": "COU1955d07c-1395-5588-8baa-7cdc444ae39f",
       "code": "BA",
       "name": "波黑",
       "name_en": "Bosnia and Herzegovina",
@@ -777,7 +681,6 @@
       "key_resources": "煤炭、铝、木材"
     },
     {
-      "id": "COUedb8d79f-b7e4-5c32-b85b-4ead73a44ab8",
       "code": "BZ",
       "name": "伯利兹",
       "name_en": "Belize",
@@ -785,7 +688,6 @@
       "key_resources": "旅游、农业、渔业"
     },
     {
-      "id": "COU1233a1c5-1093-5723-abbf-2786d0fe4e7b",
       "code": "CO",
       "name": "哥伦比亚",
       "name_en": "Colombia",
@@ -793,7 +695,6 @@
       "key_resources": "石油、煤炭、咖啡"
     },
     {
-      "id": "COU116dcce4-1833-5de8-85da-419f2ac7d399",
       "code": "MK",
       "name": "北马其顿",
       "name_en": "North Macedonia",
@@ -801,7 +702,6 @@
       "key_resources": "农业、矿业、旅游"
     },
     {
-      "id": "COUf7a04bb5-2f5f-52aa-842a-b2e20b06a0f3",
       "code": "EC",
       "name": "厄瓜多尔",
       "name_en": "Ecuador",
@@ -809,7 +709,6 @@
       "key_resources": "石油、香蕉、可可"
     },
     {
-      "id": "COUfc92511b-d31d-575d-b577-9b5ea56c174d",
       "code": "FJ",
       "name": "斐济",
       "name_en": "Fiji",
@@ -817,7 +716,6 @@
       "key_resources": "旅游、糖、渔业"
     },
     {
-      "id": "COU472d021b-00a4-5ef8-9a7c-39964dfa1287",
       "code": "SR",
       "name": "苏里南",
       "name_en": "Suriname",
@@ -825,7 +723,6 @@
       "key_resources": "黄金、铝土矿、林业"
     },
     {
-      "id": "COU7639e99f-6545-501f-bc7b-c9b6307772ba",
       "code": "AZ",
       "name": "阿塞拜疆",
       "name_en": "Azerbaijan",
@@ -833,7 +730,6 @@
       "key_resources": "石油、天然气、棉花"
     },
     {
-      "id": "COU60739c3c-e3a2-5d73-bd59-e996d0888dc2",
       "code": "PY",
       "name": "巴拉圭",
       "name_en": "Paraguay",
@@ -841,7 +737,6 @@
       "key_resources": "大豆、水电、牛肉"
     },
     {
-      "id": "COUffe6edf2-04b9-5758-a429-d9950e7062bc",
       "code": "LY",
       "name": "利比亚",
       "name_en": "Libya",
@@ -849,7 +744,6 @@
       "key_resources": "石油、天然气"
     },
     {
-      "id": "COU48faa32f-d4e4-58d4-b102-31cb0b7b8171",
       "code": "JM",
       "name": "牙买加",
       "name_en": "Jamaica",
@@ -857,7 +751,6 @@
       "key_resources": "旅游、铝土矿、文化"
     },
     {
-      "id": "COU5c91b902-a772-5f96-8483-9b30df8779cf",
       "code": "ZA",
       "name": "南非",
       "name_en": "South Africa",
@@ -865,7 +758,6 @@
       "key_resources": "矿业、金融、制造业"
     },
     {
-      "id": "COUdbd97229-c161-5c26-affc-ea3c5aeab01f",
       "code": "IQ",
       "name": "伊拉克",
       "name_en": "Iraq",
@@ -873,7 +765,6 @@
       "key_resources": "石油、天然气、农业"
     },
     {
-      "id": "COUd1daed80-e8e1-5e4d-8c12-f6d3e2522bf9",
       "code": "DZ",
       "name": "阿尔及利亚",
       "name_en": "Algeria",
@@ -881,7 +772,6 @@
       "key_resources": "天然气、石油、矿产"
     },
     {
-      "id": "COU885bdeb4-f292-51e8-8d24-0ed68c8bd46c",
       "code": "MD",
       "name": "摩尔多瓦",
       "name_en": "Moldova, Republic of",
@@ -889,7 +779,6 @@
       "key_resources": "葡萄酒、农业、侨汇"
     },
     {
-      "id": "COUd30b8e90-c8f0-5171-9f94-abb8c5894aab",
       "code": "GT",
       "name": "危地马拉",
       "name_en": "Guatemala",
@@ -897,7 +786,6 @@
       "key_resources": "农业、纺织、侨汇"
     },
     {
-      "id": "COU09f522e4-d5f8-5ebc-bbf8-2162caade3ea",
       "code": "SV",
       "name": "萨尔瓦多",
       "name_en": "El Salvador",
@@ -905,7 +793,6 @@
       "key_resources": "侨汇、纺织、农业"
     },
     {
-      "id": "COUa6b28ee5-191d-555c-b170-8b0478aa9da1",
       "code": "MN",
       "name": "蒙古",
       "name_en": "Mongolia",
@@ -913,7 +800,6 @@
       "key_resources": "铜矿、煤炭、黄金"
     },
     {
-      "id": "COUb944fd66-ae2a-50b6-92c0-7d299b8c4662",
       "code": "GQ",
       "name": "赤道几内亚",
       "name_en": "Equatorial Guinea",
@@ -921,7 +807,6 @@
       "key_resources": "石油、天然气、木材"
     },
     {
-      "id": "COUb5403dcd-3ae6-5f39-9ea1-2f0cc8fd3049",
       "code": "ID",
       "name": "印度尼西亚",
       "name_en": "Indonesia",
@@ -929,7 +814,6 @@
       "key_resources": "镍矿、棕榈油、煤炭"
     },
     {
-      "id": "COU9aba243e-1b59-5d4e-9387-41ee3dac8c98",
       "code": "JO",
       "name": "约旦",
       "name_en": "Jordan",
@@ -937,7 +821,6 @@
       "key_resources": "磷酸盐、钾盐、旅游业"
     },
     {
-      "id": "COU667d4349-f08b-5601-bbde-8ce9eaf6eeed",
       "code": "MH",
       "name": "马绍尔群岛",
       "name_en": "Marshall Islands",
@@ -945,7 +828,6 @@
       "key_resources": "渔业、侨汇、美国援助"
     },
     {
-      "id": "COUe7ff3832-fdee-5009-944b-a1b32b16b0f3",
       "code": "TV",
       "name": "图瓦卢",
       "name_en": "Tuvalu",
@@ -953,7 +835,6 @@
       "key_resources": "渔业、侨汇、域名"
     },
     {
-      "id": "COU0e98f6e6-74bb-5e1b-a645-32e219dfe1b3",
       "code": "TO",
       "name": "汤加",
       "name_en": "Tonga",
@@ -961,7 +842,6 @@
       "key_resources": "农业、渔业、侨汇"
     },
     {
-      "id": "COUb0f2d837-8eab-5ce2-8382-b9dcc68bfe0c",
       "code": "CV",
       "name": "佛得角",
       "name_en": "Cabo Verde",
@@ -969,7 +849,6 @@
       "key_resources": "旅游、渔业、侨汇"
     },
     {
-      "id": "COUe643b57b-9225-5bbb-983d-c9d191bed4d1",
       "code": "NA",
       "name": "纳米比亚",
       "name_en": "Namibia",
@@ -977,7 +856,6 @@
       "key_resources": "钻石、铀矿、渔业"
     },
     {
-      "id": "COUdc563e49-4985-548e-b2c5-706764800415",
       "code": "VN",
       "name": "越南",
       "name_en": "Viet Nam",
@@ -985,7 +863,6 @@
       "key_resources": "电子、纺织、农业"
     },
     {
-      "id": "COU2229ade1-834f-5422-a438-49dc3630a37c",
       "code": "WS",
       "name": "萨摩亚",
       "name_en": "Samoa",
@@ -993,7 +870,6 @@
       "key_resources": "旅游、农业、侨汇"
     },
     {
-      "id": "COUa74e5b42-812f-5fed-8b1a-205f1c457332",
       "code": "TN",
       "name": "突尼斯",
       "name_en": "Tunisia",
@@ -1001,7 +877,6 @@
       "key_resources": "旅游、磷酸盐、农业"
     },
     {
-      "id": "COU82d406cb-0903-51a5-9a3c-7a6254cf2ba0",
       "code": "IR",
       "name": "伊朗",
       "name_en": "Iran, Islamic Republic of",
@@ -1009,7 +884,6 @@
       "key_resources": "石油、天然气、矿产"
     },
     {
-      "id": "COUe7af1fab-7ef1-5411-9e73-b451a4fcadb7",
       "code": "SZ",
       "name": "斯威士兰",
       "name_en": "Eswatini",
@@ -1017,7 +891,6 @@
       "key_resources": "糖、纺织、旅游"
     },
     {
-      "id": "COU2833e1b3-b704-5d07-8d6f-6fdd297cf8cf",
       "code": "UA",
       "name": "乌克兰",
       "name_en": "Ukraine",
@@ -1025,7 +898,6 @@
       "key_resources": "粮食、钢铁、稀土"
     },
     {
-      "id": "COUf9fd968a-f571-5df8-af58-a13c155c7987",
       "code": "LK",
       "name": "斯里兰卡",
       "name_en": "Sri Lanka",
@@ -1033,7 +905,6 @@
       "key_resources": "茶叶、旅游、港口"
     },
     {
-      "id": "COU86ab5faf-c045-57b0-a83b-3fb230310543",
       "code": "PS",
       "name": "巴勒斯坦",
       "name_en": "Palestine, State of",
@@ -1041,7 +912,6 @@
       "key_resources": "农业、服务业、侨汇"
     },
     {
-      "id": "COUddecbbea-3d8c-5648-9f6e-f6ad2aa4dff8",
       "code": "DJ",
       "name": "吉布提",
       "name_en": "Djibouti",
@@ -1049,7 +919,6 @@
       "key_resources": "港口、物流、军事基地"
     },
     {
-      "id": "COU539d877a-65cd-51fe-ad23-02e493caf917",
       "code": "PH",
       "name": "菲律宾",
       "name_en": "Philippines",
@@ -1057,7 +926,6 @@
       "key_resources": "电子、农业、劳务输出"
     },
     {
-      "id": "COUeaeaec47-487f-5372-889a-8dd5691c022e",
       "code": "BT",
       "name": "不丹",
       "name_en": "Bhutan",
@@ -1065,7 +933,6 @@
       "key_resources": "水电、林业、旅游业"
     },
     {
-      "id": "COU94c3d629-fd66-5f90-8750-53f437948cfb",
       "code": "BO",
       "name": "玻利维亚",
       "name_en": "Bolivia, Plurinational State of",
@@ -1073,7 +940,6 @@
       "key_resources": "锂矿、天然气、矿产"
     },
     {
-      "id": "COU1ca6866d-1540-5f03-8ff2-a546b4c242d0",
       "code": "MA",
       "name": "摩洛哥",
       "name_en": "Morocco",
@@ -1081,7 +947,6 @@
       "key_resources": "磷酸盐、旅游、汽车"
     },
     {
-      "id": "COU363c9f3e-7f9d-5e8b-865a-ad289155d1c5",
       "code": "HN",
       "name": "洪都拉斯",
       "name_en": "Honduras",
@@ -1089,7 +954,6 @@
       "key_resources": "咖啡、香蕉、纺织"
     },
     {
-      "id": "COUe2b7bd76-0728-5890-879f-a8114caeadcf",
       "code": "FM",
       "name": "密克罗尼西亚",
       "name_en": "Micronesia, Federated States of",
@@ -1097,7 +961,6 @@
       "key_resources": "渔业、侨汇、美国援助"
     },
     {
-      "id": "COU41f2b57e-2e1a-5a30-8a34-525391700042",
       "code": "VU",
       "name": "瓦努阿图",
       "name_en": "Vanuatu",
@@ -1105,7 +968,6 @@
       "key_resources": "旅游、渔业、离岸金融"
     },
     {
-      "id": "COUea62de8b-557a-5c11-b168-6c16d1a8643b",
       "code": "VE",
       "name": "委内瑞拉",
       "name_en": "Venezuela, Bolivarian Republic of",
@@ -1113,7 +975,6 @@
       "key_resources": "石油、天然气、矿产"
     },
     {
-      "id": "COUa1d010cb-e756-5aa9-bd19-293d5171f239",
       "code": "ZW",
       "name": "津巴布韦",
       "name_en": "Zimbabwe",
@@ -1121,7 +982,6 @@
       "key_resources": "烟草、黄金、锂矿"
     },
     {
-      "id": "COUaffb17f6-f2b3-5968-873b-e766955b88ce",
       "code": "PG",
       "name": "巴布亚新几内亚",
       "name_en": "Papua New Guinea",
@@ -1129,7 +989,6 @@
       "key_resources": "金矿、铜矿、天然气"
     },
     {
-      "id": "COUc08f3842-0df6-505a-be97-24e9d4e545aa",
       "code": "EG",
       "name": "埃及",
       "name_en": "Egypt",
@@ -1137,7 +996,6 @@
       "key_resources": "运河、旅游、天然气"
     },
     {
-      "id": "COU5966bdb6-1d02-5035-8115-dc968fa33816",
       "code": "IN",
       "name": "印度",
       "name_en": "India",
@@ -1145,7 +1003,6 @@
       "key_resources": "IT服务、制药、农业"
     },
     {
-      "id": "COUa13e26d1-6bbe-568c-b76c-bf02616439ef",
       "code": "LB",
       "name": "黎巴嫩",
       "name_en": "Lebanon",
@@ -1153,7 +1010,6 @@
       "key_resources": "银行业、旅游业、侨汇"
     },
     {
-      "id": "COUcc08b490-5f0d-5c20-a356-15fbae737d2a",
       "code": "CI",
       "name": "科特迪瓦",
       "name_en": "Côte d'Ivoire",
@@ -1161,7 +1017,6 @@
       "key_resources": "可可、咖啡、石油"
     },
     {
-      "id": "COU0450beed-991a-56ed-99e8-421b1e6f959c",
       "code": "BD",
       "name": "孟加拉国",
       "name_en": "Bangladesh",
@@ -1169,7 +1024,6 @@
       "key_resources": "成衣制造、黄麻、天然气"
     },
     {
-      "id": "COUed43bb98-a330-51ea-884a-50089e850186",
       "code": "NI",
       "name": "尼加拉瓜",
       "name_en": "Nicaragua",
@@ -1177,7 +1031,6 @@
       "key_resources": "农业、矿业、旅游"
     },
     {
-      "id": "COUb69bf8c9-ac34-551c-bff6-c8bd998bcd7f",
       "code": "UZ",
       "name": "乌兹别克斯坦",
       "name_en": "Uzbekistan",
@@ -1185,7 +1038,6 @@
       "key_resources": "黄金、棉花、天然气"
     },
     {
-      "id": "COUa34a87c7-8230-5f1e-bef4-9b98fdc7699b",
       "code": "AO",
       "name": "安哥拉",
       "name_en": "Angola",
@@ -1193,7 +1045,6 @@
       "key_resources": "石油、钻石、天然气"
     },
     {
-      "id": "COU5d1a817e-67a9-5392-b1f8-56b9afecfb1e",
       "code": "LA",
       "name": "老挝",
       "name_en": "Lao People's Democratic Republic",
@@ -1201,7 +1052,6 @@
       "key_resources": "水电、铜矿、木材"
     },
     {
-      "id": "COUf759ff51-c496-5b21-bc5c-09d16600ff64",
       "code": "CG",
       "name": "刚果（布）",
       "name_en": "Congo",
@@ -1209,7 +1059,6 @@
       "key_resources": "石油、木材、钾盐"
     },
     {
-      "id": "COUb4d2b6fc-fc90-58e0-889c-6c12b17b4722",
       "code": "GH",
       "name": "加纳",
       "name_en": "Ghana",
@@ -1217,7 +1066,6 @@
       "key_resources": "黄金、可可、石油"
     },
     {
-      "id": "COU873a1249-aea9-5f7f-a68b-472ce233334f",
       "code": "SB",
       "name": "所罗门群岛",
       "name_en": "Solomon Islands",
@@ -1225,7 +1073,6 @@
       "key_resources": "木材、渔业、矿产"
     },
     {
-      "id": "COUdb79ead5-518b-5202-ab76-830fbeb0997c",
       "code": "MR",
       "name": "毛里塔尼亚",
       "name_en": "Mauritania",
@@ -1233,7 +1080,6 @@
       "key_resources": "铁矿、渔业、黄金"
     },
     {
-      "id": "COU83258d82-acf5-58b8-be58-9d1ccf18c268",
       "code": "KE",
       "name": "肯尼亚",
       "name_en": "Kenya",
@@ -1241,7 +1087,6 @@
       "key_resources": "农业、旅游、IT"
     },
     {
-      "id": "COUbc21d1fc-6004-5fc5-8dd2-2c2c7b046bf0",
       "code": "KH",
       "name": "柬埔寨",
       "name_en": "Cambodia",
@@ -1249,7 +1094,6 @@
       "key_resources": "成衣、旅游、农业"
     },
     {
-      "id": "COUfad1f2ec-18e7-5f39-a448-9ab96e906660",
       "code": "CM",
       "name": "喀麦隆",
       "name_en": "Cameroon",
@@ -1257,7 +1101,6 @@
       "key_resources": "农业、石油、木材"
     },
     {
-      "id": "COU474e1ed0-4d93-5c35-9de6-999a605bf444",
       "code": "KG",
       "name": "吉尔吉斯斯坦",
       "name_en": "Kyrgyzstan",
@@ -1265,7 +1108,6 @@
       "key_resources": "黄金、水电、农业"
     },
     {
-      "id": "COU880465b5-a330-583e-bfac-9bc766fa63a3",
       "code": "KM",
       "name": "科摩罗",
       "name_en": "Comoros",
@@ -1273,7 +1115,6 @@
       "key_resources": "香料、渔业、旅游"
     },
     {
-      "id": "COUfebc4812-58bf-574e-ad0a-61453ec3cfb4",
       "code": "GN",
       "name": "几内亚",
       "name_en": "Guinea",
@@ -1281,7 +1122,6 @@
       "key_resources": "铝土矿、黄金、铁矿"
     },
     {
-      "id": "COU76abe4f5-582e-5095-812f-d6d37fae0360",
       "code": "HT",
       "name": "海地",
       "name_en": "Haiti",
@@ -1289,7 +1129,6 @@
       "key_resources": "农业、侨汇、纺织"
     },
     {
-      "id": "COUc1b43844-987e-5289-b6c5-10ba955a7d6a",
       "code": "KI",
       "name": "基里巴斯",
       "name_en": "Kiribati",
@@ -1297,7 +1136,6 @@
       "key_resources": "渔业、磷酸盐、侨汇"
     },
     {
-      "id": "COUea13480f-dca3-5906-acbb-bc8c04a01ab3",
       "code": "ET",
       "name": "埃塞俄比亚",
       "name_en": "Ethiopia",
@@ -1305,7 +1143,6 @@
       "key_resources": "咖啡、农业、水电"
     },
     {
-      "id": "COUae52f4c7-b750-53c0-9107-b00c4ae0333c",
       "code": "TZ",
       "name": "坦桑尼亚",
       "name_en": "Tanzania, United Republic of",
@@ -1313,7 +1150,6 @@
       "key_resources": "旅游、矿产、农业"
     },
     {
-      "id": "COUd072e829-1730-58e4-87dc-060302159961",
       "code": "BJ",
       "name": "贝宁",
       "name_en": "Benin",
@@ -1321,7 +1157,6 @@
       "key_resources": "棉花、港口、农业"
     },
     {
-      "id": "COUfb2342fd-7773-5d20-907c-094b360f848d",
       "code": "PK",
       "name": "巴基斯坦",
       "name_en": "Pakistan",
@@ -1329,7 +1164,6 @@
       "key_resources": "纺织、农业、战略位置"
     },
     {
-      "id": "COU97f917f7-e47a-5a1d-b472-1bcd238a4bcf",
       "code": "TL",
       "name": "东帝汶",
       "name_en": "Timor-Leste",
@@ -1337,7 +1171,6 @@
       "key_resources": "石油、天然气、咖啡"
     },
     {
-      "id": "COU55128de6-1303-5643-a6ac-16261c6eb64a",
       "code": "ZM",
       "name": "赞比亚",
       "name_en": "Zambia",
@@ -1345,7 +1178,6 @@
       "key_resources": "铜、钴、水电、祖母绿"
     },
     {
-      "id": "COUc3329548-cccf-5ec1-816d-c176616b2bf9",
       "code": "UG",
       "name": "乌干达",
       "name_en": "Uganda",
@@ -1353,7 +1185,6 @@
       "key_resources": "农业、旅游、石油"
     },
     {
-      "id": "COU2fa1e758-3e2b-5622-bbe4-7f590cdb6e5b",
       "code": "NP",
       "name": "尼泊尔",
       "name_en": "Nepal",
@@ -1361,7 +1192,6 @@
       "key_resources": "水电、旅游、农业"
     },
     {
-      "id": "COUb364fc19-ac18-5234-beea-02e3302aac73",
       "code": "LS",
       "name": "莱索托",
       "name_en": "Lesotho",
@@ -1369,7 +1199,6 @@
       "key_resources": "水电、纺织、农业"
     },
     {
-      "id": "COU171bc1b3-ffed-57cd-8afe-fa10e16d1ff4",
       "code": "SN",
       "name": "塞内加尔",
       "name_en": "Senegal",
@@ -1377,7 +1206,6 @@
       "key_resources": "渔业、磷酸盐、旅游"
     },
     {
-      "id": "COUe2f73701-345c-542f-984d-e42e47ddac3c",
       "code": "MM",
       "name": "缅甸",
       "name_en": "Myanmar",
@@ -1385,7 +1213,6 @@
       "key_resources": "天然气、玉石、木材"
     },
     {
-      "id": "COUc3d82f4d-5fb8-5dd6-9742-d927b31b1a77",
       "code": "KP",
       "name": "朝鲜",
       "name_en": "Korea, Democratic People's Republic of",
@@ -1393,7 +1220,6 @@
       "key_resources": "矿产、农业、军工"
     },
     {
-      "id": "COUa6f19fe2-478f-584a-bb30-b90364bb005c",
       "code": "TJ",
       "name": "塔吉克斯坦",
       "name_en": "Tajikistan",
@@ -1401,7 +1227,6 @@
       "key_resources": "水电、铝、棉花"
     },
     {
-      "id": "COUa6ceddd2-51b7-549c-957b-52d391a5ee89",
       "code": "NG",
       "name": "尼日利亚",
       "name_en": "Nigeria",
@@ -1409,7 +1234,6 @@
       "key_resources": "石油、天然气、农业"
     },
     {
-      "id": "COUa1918dfa-4d53-5e9b-84f7-4a7310dc3de4",
       "code": "BF",
       "name": "布基纳法索",
       "name_en": "Burkina Faso",
@@ -1417,7 +1241,6 @@
       "key_resources": "黄金、棉花、农业"
     },
     {
-      "id": "COUf612b792-fe2a-5c9c-a524-29ba95329093",
       "code": "RW",
       "name": "卢旺达",
       "name_en": "Rwanda",
@@ -1425,7 +1248,6 @@
       "key_resources": "旅游、咖啡、矿业"
     },
     {
-      "id": "COU53683bfc-bec0-5e40-977c-c6f20e177798",
       "code": "TG",
       "name": "多哥",
       "name_en": "Togo",
@@ -1433,7 +1255,6 @@
       "key_resources": "磷酸盐、棉花、港口"
     },
     {
-      "id": "COU0e0099f4-aa04-5d76-be7c-67a72c9abaed",
       "code": "ML",
       "name": "马里",
       "name_en": "Mali",
@@ -1441,7 +1262,6 @@
       "key_resources": "黄金、棉花、铀矿"
     },
     {
-      "id": "COU6e451038-028b-5388-8ff6-d491a90b2d24",
       "code": "GW",
       "name": "几内亚比绍",
       "name_en": "Guinea-Bissau",
@@ -1449,7 +1269,6 @@
       "key_resources": "腰果、渔业、农业"
     },
     {
-      "id": "COUd2648879-f482-5655-b4e9-8992f242f0ff",
       "code": "TD",
       "name": "乍得",
       "name_en": "Chad",
@@ -1457,7 +1276,6 @@
       "key_resources": "石油、棉花、黄金"
     },
     {
-      "id": "COU4bab5106-9cc0-5659-bbc2-f4ef0c733b05",
       "code": "NE",
       "name": "尼日尔",
       "name_en": "Niger",
@@ -1465,7 +1283,6 @@
       "key_resources": "铀矿、黄金、农业"
     },
     {
-      "id": "COU46a1d7c9-1eb1-5c01-9959-10f8293edd58",
       "code": "LR",
       "name": "利比里亚",
       "name_en": "Liberia",
@@ -1473,7 +1290,6 @@
       "key_resources": "橡胶、铁矿、农业"
     },
     {
-      "id": "COUb850ba96-9171-5438-92b2-5c00b720c745",
       "code": "MZ",
       "name": "莫桑比克",
       "name_en": "Mozambique",
@@ -1481,7 +1297,6 @@
       "key_resources": "天然气、煤炭、农业"
     },
     {
-      "id": "COU29becd93-68c8-59fb-a223-24dafc5ada3b",
       "code": "GM",
       "name": "冈比亚",
       "name_en": "Gambia",
@@ -1489,7 +1304,6 @@
       "key_resources": "旅游、农业、渔业"
     },
     {
-      "id": "COUec2f81fb-8b3f-5f31-a943-09ed022a1bf5",
       "code": "CD",
       "name": "刚果（金）",
       "name_en": "Congo, Democratic Republic of the",
@@ -1497,7 +1311,6 @@
       "key_resources": "钴、铜、森林"
     },
     {
-      "id": "COU75634b22-587c-5f65-b5c8-36df7b3e3623",
       "code": "SD",
       "name": "苏丹",
       "name_en": "Sudan",
@@ -1505,7 +1318,6 @@
       "key_resources": "农业、黄金、石油"
     },
     {
-      "id": "COU2928f6ab-4ef4-5a13-b9ed-ec52cebda298",
       "code": "ER",
       "name": "厄立特里亚",
       "name_en": "Eritrea",
@@ -1513,7 +1325,6 @@
       "key_resources": "矿产、农业、港口"
     },
     {
-      "id": "COU1a1b4634-e4d4-54c7-affd-9d830cfa8c4d",
       "code": "MG",
       "name": "马达加斯加",
       "name_en": "Madagascar",
@@ -1521,7 +1332,6 @@
       "key_resources": "农业、矿产、旅游"
     },
     {
-      "id": "COUbb886ae3-e3c0-58c8-bdcf-a519ab2b59b3",
       "code": "MW",
       "name": "马拉维",
       "name_en": "Malawi",
@@ -1529,7 +1339,6 @@
       "key_resources": "农业、烟草、旅游"
     },
     {
-      "id": "COU1b2233d0-4f84-5b1f-b3be-f02487707ddd",
       "code": "SY",
       "name": "叙利亚",
       "name_en": "Syrian Arab Republic",
@@ -1537,7 +1346,6 @@
       "key_resources": "石油、农业、战略位置"
     },
     {
-      "id": "COUe991363b-6fb5-583a-98b8-d4ca2872352a",
       "code": "SL",
       "name": "塞拉利昂",
       "name_en": "Sierra Leone",
@@ -1545,7 +1353,6 @@
       "key_resources": "钻石、铁矿、农业"
     },
     {
-      "id": "COU41465b51-c219-5c85-a272-e450fb2e0b5a",
       "code": "CF",
       "name": "中非",
       "name_en": "Central African Republic",
@@ -1553,7 +1360,6 @@
       "key_resources": "钻石、黄金、木材"
     },
     {
-      "id": "COU6abfb094-5598-50f9-8037-c8defdfb7bf9",
       "code": "SO",
       "name": "索马里",
       "name_en": "Somalia",
@@ -1561,7 +1367,6 @@
       "key_resources": "渔业、畜牧、港口"
     },
     {
-      "id": "COU20207a71-dfa5-5a6d-804b-d63c0d8b7ca6",
       "code": "AF",
       "name": "阿富汗",
       "name_en": "Afghanistan",
@@ -1569,7 +1374,6 @@
       "key_resources": "锂矿、稀土、天然气"
     },
     {
-      "id": "COU4253c417-de66-5cf0-a2ac-56050305a19e",
       "code": "YE",
       "name": "也门",
       "name_en": "Yemen",
@@ -1577,7 +1381,6 @@
       "key_resources": "石油、渔业、战略位置"
     },
     {
-      "id": "COUefe7597d-7e06-5ae0-8ad7-7eadbd125bf4",
       "code": "SS",
       "name": "南苏丹",
       "name_en": "South Sudan",
@@ -1585,7 +1388,6 @@
       "key_resources": "石油、农业、矿产"
     },
     {
-      "id": "COU559ba028-3838-5474-9bfc-f283416887d7",
       "code": "ST",
       "name": "圣多美和普林西比",
       "name_en": "Sao Tome and Principe",
@@ -1593,7 +1395,6 @@
       "key_resources": "可可、渔业、旅游"
     },
     {
-      "id": "COU6df50bdb-55fc-5280-87d4-ded7e37ffe51",
       "code": "BI",
       "name": "布隆迪",
       "name_en": "Burundi",
@@ -1601,7 +1402,6 @@
       "key_resources": "咖啡、茶叶、农业"
     },
     {
-      "id": "COU8e0b1c41-4ba9-5df9-99c9-bd7a7a8bfb51",
       "code": "VA",
       "name": "梵蒂冈",
       "name_en": "Holy See",
@@ -1609,7 +1409,6 @@
       "key_resources": "宗教、文化、旅游"
     },
     {
-      "id": "COU70b1d97a-ff0f-58b3-b5b6-4a8ef8d8ef04",
       "code": "EH",
       "name": "西撒哈拉",
       "name_en": "Western Sahara",

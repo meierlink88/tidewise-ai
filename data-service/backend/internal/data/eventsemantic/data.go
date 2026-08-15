@@ -1,6 +1,7 @@
 package eventsemantic
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -11,11 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"bytes"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	entitybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
 	eventbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/eventsemantic"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 const (
@@ -92,11 +92,6 @@ func invalidPersistedEventSemantic(resource string) error {
 	return fmt.Errorf("persisted Event Semantic %s is invalid", resource)
 }
 
-func validPersistedUUID(value string) bool {
-	_, err := uuid.Parse(value)
-	return err == nil
-}
-
 func validPersistedObjectID(value string) bool {
 	return entitybiz.IsEntityID(value) || entitybiz.IsCountryID(value) || entitybiz.IsRegionID(value) || entitybiz.IsOrganizationID(value)
 }
@@ -129,8 +124,8 @@ func validPersistedContextLeaseStatus(status string) bool {
 }
 
 func validatePersistedStoredContextLease(lease eventbiz.StoredContextLease) error {
-	if !validPersistedUUID(lease.ID) || !validPersistedUUID(lease.EventID) ||
-		(lease.SupersedesSubmissionID != "" && !validPersistedUUID(lease.SupersedesSubmissionID)) ||
+	if !coreid.Is(lease.ID, coreid.EventSemanticContextLease) || !coreid.Is(lease.EventID, coreid.Event) ||
+		(lease.SupersedesSubmissionID != "" && !coreid.Is(lease.SupersedesSubmissionID, coreid.EventSemanticSubmission)) ||
 		strings.TrimSpace(lease.AgentExecutionID) == "" || strings.TrimSpace(lease.WorkerID) == "" ||
 		!validPersistedContextLeaseStatus(lease.Status) || lease.LeaseExpiresAt.IsZero() ||
 		(lease.SubmissionStatus != "" && !validPersistedReviewStatus(lease.SubmissionStatus)) {
@@ -142,24 +137,24 @@ func validatePersistedStoredContextLease(lease eventbiz.StoredContextLease) erro
 func validatePersistedLeaseEventState(state eventbiz.LeaseEventState) error {
 	validEventStatus := state.EventStatus == "candidate" || state.EventStatus == "confirmed" || state.EventStatus == "rejected"
 	validFactStatus := state.FactStatus == "unverified" || state.FactStatus == "verified" || state.FactStatus == "disputed"
-	if !validPersistedUUID(state.EventID) || !validEventStatus || !validFactStatus {
+	if !coreid.Is(state.EventID, coreid.Event) || !validEventStatus || !validFactStatus {
 		return invalidPersistedEventSemantic("Event state")
 	}
 	return nil
 }
 
 func validatePersistedSubmissionLeaseState(state eventbiz.SubmissionLeaseState) error {
-	if !validPersistedUUID(state.EventID) || strings.TrimSpace(state.AgentExecutionID) == "" ||
+	if !coreid.Is(state.EventID, coreid.Event) || strings.TrimSpace(state.AgentExecutionID) == "" ||
 		!validPersistedContextLeaseStatus(state.Status) || state.LeaseExpiresAt.IsZero() ||
-		(state.SupersedesSubmissionID != "" && !validPersistedUUID(state.SupersedesSubmissionID)) {
+		(state.SupersedesSubmissionID != "" && !coreid.Is(state.SupersedesSubmissionID, coreid.EventSemanticSubmission)) {
 		return invalidPersistedEventSemantic("Submission Context Lease")
 	}
 	return nil
 }
 
 func validatePersistedSubmissionReference(reference eventbiz.SubmissionReference) error {
-	if !validPersistedUUID(reference.SubmissionID) || !validPersistedUUID(reference.EventID) ||
-		!validPersistedUUID(reference.ContextLeaseID) || !validPersistedReviewStatus(reference.Status) {
+	if !coreid.Is(reference.SubmissionID, coreid.EventSemanticSubmission) || !coreid.Is(reference.EventID, coreid.Event) ||
+		!coreid.Is(reference.ContextLeaseID, coreid.EventSemanticContextLease) || !validPersistedReviewStatus(reference.Status) {
 		return invalidPersistedEventSemantic("Submission reference")
 	}
 	return nil
@@ -193,12 +188,12 @@ func validPersistedStringSet(values []string, required bool) bool {
 	return true
 }
 
-func validPersistedUUIDSet(values []string, required bool) bool {
+func validPersistedEvidenceIDSet(values []string, required bool) bool {
 	if !validPersistedStringSet(values, required) {
 		return false
 	}
 	for _, value := range values {
-		if !validPersistedUUID(value) {
+		if !coreid.Is(value, coreid.EventEvidenceLink) {
 			return false
 		}
 	}
@@ -218,7 +213,7 @@ func validPersistedEntityIDSet(values []string, required bool) bool {
 }
 
 func validatePersistedEvent(item eventbiz.Event) error {
-	if !validPersistedUUID(item.ID) || strings.TrimSpace(item.Title) == "" ||
+	if !coreid.Is(item.ID, coreid.Event) || strings.TrimSpace(item.Title) == "" ||
 		strings.TrimSpace(item.Summary) == "" || item.Status != "confirmed" || item.FactStatus != "verified" {
 		return invalidPersistedEventSemantic("Event")
 	}
@@ -230,7 +225,7 @@ func validatePersistedEvidence(item eventbiz.Evidence) error {
 		"title": {}, "factual_summary": {}, "occurred_at": {}, "fact_payload": {},
 	}
 	expectedHash := fmt.Sprintf("%x", sha256.Sum256([]byte(item.Statement)))
-	if !validPersistedUUID(item.ID) || !validPersistedUUID(item.RawDocumentID) ||
+	if !coreid.Is(item.ID, coreid.EventEvidenceLink) || !coreid.Is(item.RawDocumentID, coreid.EventEvidenceRecord) ||
 		!validPersistedSHA256(item.Hash) || strings.TrimSpace(item.Statement) == "" ||
 		item.Hash != expectedHash ||
 		(item.SourceLevel != "primary" && item.SourceLevel != "secondary") ||
@@ -329,7 +324,7 @@ func (r Store) ListEligibleEvents(
 		  )
 		  AND (
 		      $1::timestamptz IS NULL
-		      OR (e.first_seen_at, e.id) > ($1::timestamptz, $2::uuid)
+		      OR (e.first_seen_at, e.id) > ($1::timestamptz, $2::text)
 		  )
 		ORDER BY e.first_seen_at, e.id
 		LIMIT $3
@@ -344,7 +339,7 @@ func (r Store) ListEligibleEvents(
 		if err := rows.Scan(&item.EventID, &item.FirstSeenAt); err != nil {
 			return nil, err
 		}
-		if !validPersistedUUID(item.EventID) || item.FirstSeenAt.IsZero() {
+		if !coreid.Is(item.EventID, coreid.Event) || item.FirstSeenAt.IsZero() {
 			return nil, invalidPersistedEventSemantic("eligible Event")
 		}
 		result = append(result, item)
@@ -673,7 +668,7 @@ func validateEventSemanticManifestFingerprint(manifest eventbiz.ContextManifest)
 }
 
 func validatePersistedEventSemanticManifest(manifest eventbiz.ContextManifest) error {
-	if !validPersistedUUID(manifest.ContextLeaseID) || !validPersistedUUID(manifest.EventID) ||
+	if !coreid.Is(manifest.ContextLeaseID, coreid.EventSemanticContextLease) || !coreid.Is(manifest.EventID, coreid.Event) ||
 		strings.TrimSpace(manifest.AgentExecutionID) == "" || strings.TrimSpace(manifest.WorkerID) == "" ||
 		manifest.LeaseStatus != "active" || manifest.LeaseExpiresAt.IsZero() ||
 		manifest.ManifestContractVersion != eventSemanticsManifestVersion ||
@@ -690,7 +685,7 @@ func validatePersistedEventSemanticManifest(manifest eventbiz.ContextManifest) e
 		}
 		evidenceIDs = append(evidenceIDs, reference.EvidenceID)
 	}
-	if !validPersistedUUIDSet(evidenceIDs, true) ||
+	if !validPersistedEvidenceIDSet(evidenceIDs, true) ||
 		!validPersistedVersionReferences(manifest.Variables, true) ||
 		!validPersistedVersionReferences(manifest.Rules, false) {
 		return invalidPersistedEventSemantic("Context Manifest reference")
@@ -761,7 +756,7 @@ func eventSemanticEvidence(
 		FROM event_sources es
 		JOIN raw_documents rd ON rd.id = es.raw_document_id
 		JOIN events event ON event.id = es.event_id
-		WHERE es.event_id = $1 AND ($2 OR es.id = ANY($3::uuid[]))
+		WHERE es.event_id = $1 AND ($2 OR es.id = ANY($3::text[]))
 		ORDER BY es.created_at, es.id
 	`, eventID, includeAll, evidenceIDs)
 	if err != nil {
@@ -1084,7 +1079,7 @@ func (r Store) eventSemanticIndustryPartitions(ctx context.Context) ([]string, m
 		if err := rows.Scan(&partition, &label); err != nil {
 			return nil, nil, err
 		}
-		if !validPersistedUUID(partition) || strings.TrimSpace(label) == "" {
+		if !entitybiz.IsEntityID(partition) || strings.TrimSpace(label) == "" {
 			return nil, nil, invalidPersistedEventSemantic("Industry partition")
 		}
 		result = append(result, partition)
@@ -1572,6 +1567,7 @@ func insertReviewableSemanticCandidates(
 	submissionID string,
 	submission eventbiz.Submission,
 	precheck eventbiz.PrecheckResult,
+	identities eventbiz.SemanticCandidateIDs,
 ) error {
 	linkDecisions := decisionsByKey(precheck.EntityLinks)
 	linkIDs := make(map[string]string)
@@ -1580,7 +1576,10 @@ func insertReviewableSemanticCandidates(
 		if decision.Status == eventbiz.StatusRejected {
 			continue
 		}
-		id := uuid.NewString()
+		id := identities.EntityLinks[candidate.Key]
+		if id == "" {
+			return invalidPersistedEventSemantic("Event Entity Link identity command")
+		}
 		linkIDs[candidate.Key] = id
 		entityID, countryID, organizationID := any(candidate.EntityID), any(nil), any(nil)
 		if candidate.ProjectedEntityType == entitybiz.ObjectTypeCountry {
@@ -1608,7 +1607,10 @@ func insertReviewableSemanticCandidates(
 		if decision.Status == eventbiz.StatusRejected || linkID == "" {
 			continue
 		}
-		id := uuid.NewString()
+		id := identities.VariableSignals[candidate.Key]
+		if id == "" {
+			return invalidPersistedEventSemantic("Variable Signal identity command")
+		}
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO variable_signals(
 			    id,semantic_submission_id,candidate_key,source_event_id,subject_event_entity_link_id,
@@ -1624,15 +1626,19 @@ func insertReviewableSemanticCandidates(
 		); err != nil {
 			return err
 		}
-		for _, measurement := range candidate.Measurements {
+		for measurementIndex, measurement := range candidate.Measurements {
 			primaryEvidenceID := measurement.EvidenceIDs[0]
+			measurementIDs := identities.Measurements[candidate.Key]
+			if measurementIndex >= len(measurementIDs) || measurementIDs[measurementIndex] == "" {
+				return invalidPersistedEventSemantic("Variable Signal Measurement identity command")
+			}
 			if _, err := tx.ExecContext(ctx, `
 				INSERT INTO variable_signal_measurements(
 				    id,variable_signal_id,measurement_role,value_shape,raw_value,raw_lower,raw_upper,
 				    raw_unit,canonical_value,canonical_lower,canonical_upper,canonical_unit,currency,
 				    scale,comparison_basis,comparison_period,raw_text,is_approximate,evidence_id,evidence_ids
 				) VALUES ($1,$2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,$3,false,$4,$5)
-			`, uuid.NewString(), id, measurement.Text, primaryEvidenceID, measurement.EvidenceIDs,
+			`, measurementIDs[measurementIndex], id, measurement.Text, primaryEvidenceID, measurement.EvidenceIDs,
 			); err != nil {
 				return err
 			}
@@ -1660,7 +1666,7 @@ func validatePersistedEntityLinkCandidate(item eventbiz.EntityLinkCandidate) err
 	if strings.TrimSpace(item.Key) == "" || strings.TrimSpace(item.Mention) == "" ||
 		!validPersistedObjectID(item.EntityID) || strings.TrimSpace(item.ProjectedEntityType) == "" ||
 		strings.TrimSpace(item.EntityRole) == "" || strings.TrimSpace(item.ResolutionMethod) == "" ||
-		!validPersistedUUIDSet(item.EvidenceIDs, true) {
+		!validPersistedEvidenceIDSet(item.EvidenceIDs, true) {
 		return invalidPersistedEventSemantic("Entity Link candidate")
 	}
 	return nil
@@ -1675,7 +1681,7 @@ func validatePersistedVariableSignalCandidate(item eventbiz.VariableSignalCandid
 	}
 	if strings.TrimSpace(item.Key) == "" || strings.TrimSpace(item.SubjectLinkKey) == "" ||
 		strings.TrimSpace(item.VariableKey) == "" || item.VariableVersion <= 0 ||
-		!validPersistedUUIDSet(item.EvidenceIDs, true) {
+		!validPersistedEvidenceIDSet(item.EvidenceIDs, true) {
 		return invalidPersistedEventSemantic("Variable Signal candidate")
 	}
 	if _, ok := allowedDirections[item.Direction]; !ok {
@@ -1691,7 +1697,7 @@ func validatePersistedVariableSignalCandidate(item eventbiz.VariableSignalCandid
 		return invalidPersistedEventSemantic("Variable Signal forecast range")
 	}
 	for _, measurement := range item.Measurements {
-		if strings.TrimSpace(measurement.Text) == "" || !validPersistedUUIDSet(measurement.EvidenceIDs, true) {
+		if strings.TrimSpace(measurement.Text) == "" || !validPersistedEvidenceIDSet(measurement.EvidenceIDs, true) {
 			return invalidPersistedEventSemantic("Variable Signal measurement")
 		}
 	}
@@ -1705,7 +1711,7 @@ func validatePersistedDirectImpactCandidate(item eventbiz.DirectImpactCandidate)
 		strings.TrimSpace(item.AffectedVariableKey) == "" ||
 		item.AffectedVariableVersion <= 0 || strings.TrimSpace(item.AffectedDirection) == "" ||
 		(item.DerivationType != "event_explicit" && item.DerivationType != "rule_inferred") ||
-		!validPersistedUUIDSet(item.EvidenceIDs, true) {
+		!validPersistedEvidenceIDSet(item.EvidenceIDs, true) {
 		return invalidPersistedEventSemantic("Direct Impact candidate")
 	}
 	return nil
@@ -1754,7 +1760,7 @@ func validatePersistedPrecheck(precheck eventbiz.PrecheckResult) error {
 }
 
 func validatePersistedSubmissionSummary(result eventbiz.SubmissionResult) error {
-	if !validPersistedUUID(result.SubmissionID) || !validPersistedUUID(result.EventID) ||
+	if !coreid.Is(result.SubmissionID, coreid.EventSemanticSubmission) || !coreid.Is(result.EventID, coreid.Event) ||
 		!validPersistedSHA256(result.CanonicalPayloadHash) || !validPersistedReviewStatus(result.Status) {
 		return invalidPersistedEventSemantic("Submission")
 	}
@@ -1771,14 +1777,14 @@ func validatePersistedSubmissionIdentity(result eventbiz.SubmissionResult) error
 	if err := validatePersistedSubmissionSummary(result); err != nil {
 		return err
 	}
-	if !validPersistedUUID(result.ContextLeaseID) || strings.TrimSpace(result.AgentExecutionID) == "" ||
+	if !coreid.Is(result.ContextLeaseID, coreid.EventSemanticContextLease) || strings.TrimSpace(result.AgentExecutionID) == "" ||
 		strings.TrimSpace(result.AgentKey) == "" || strings.TrimSpace(result.AgentVersion) == "" ||
 		!validPersistedSHA256(result.GeneratorPromptHash) || strings.TrimSpace(result.GeneratorModel) == "" ||
 		!validPersistedSHA256(result.ReviewerPromptHash) || strings.TrimSpace(result.ReviewerModel) == "" ||
 		(result.AdjudicatorPromptHash != "" && !validPersistedSHA256(result.AdjudicatorPromptHash)) ||
 		(result.AdjudicatorPromptHash == "") != (result.AdjudicatorModel == "") ||
 		strings.TrimSpace(result.OntologyVersion) == "" || strings.TrimSpace(result.AcceptancePolicyVersion) == "" ||
-		result.CreatedAt.IsZero() || (result.SupersedesSubmissionID != "" && !validPersistedUUID(result.SupersedesSubmissionID)) {
+		result.CreatedAt.IsZero() || (result.SupersedesSubmissionID != "" && !coreid.Is(result.SupersedesSubmissionID, coreid.EventSemanticSubmission)) {
 		return invalidPersistedEventSemantic("Submission identity")
 	}
 	requiresFinalization := result.Status == eventbiz.StatusAccepted ||
@@ -2109,7 +2115,7 @@ func validatePersistedReviewSnapshot(
 		if !ok || strings.TrimSpace(reviewItem.CandidateKey) == "" ||
 			(reviewItem.Decision != eventbiz.ReviewDecisionPass && reviewItem.Decision != eventbiz.ReviewDecisionFail &&
 				reviewItem.Decision != eventbiz.ReviewDecisionIndeterminate) ||
-			!validPersistedUUIDSet(reviewItem.EvidenceIDs, true) {
+			!validPersistedEvidenceIDSet(reviewItem.EvidenceIDs, true) {
 			return invalidPersistedEventSemantic("Review Snapshot item")
 		}
 		if _, ok := candidates[reviewItem.CandidateKey]; !ok {
@@ -2143,13 +2149,14 @@ func validatePersistedCandidateRecords(
 ) error {
 	groups := []struct {
 		table            string
+		kind             coreid.Kind
 		items            *[]eventbiz.CandidateDecision
 		expectedKeys     map[string]struct{}
 		expectedEvidence map[string][]string
 	}{
-		{table: "event_entity_links", items: &precheck.EntityLinks, expectedKeys: entityLinkCandidateKeys(precheck.ReviewerWorkPackage.EntityLinks), expectedEvidence: entityLinkCandidateEvidence(precheck.ReviewerWorkPackage.EntityLinks)},
-		{table: "variable_signals", items: &precheck.VariableSignals, expectedKeys: variableSignalCandidateKeys(precheck.ReviewerWorkPackage.VariableSignals), expectedEvidence: variableSignalCandidateEvidence(precheck.ReviewerWorkPackage.VariableSignals)},
-		{table: "direct_impact_assertions", items: &precheck.DirectImpacts, expectedKeys: directImpactCandidateKeys(precheck.ReviewerWorkPackage.DirectImpacts), expectedEvidence: directImpactCandidateEvidence(precheck.ReviewerWorkPackage.DirectImpacts)},
+		{table: "event_entity_links", kind: coreid.EventEntityLink, items: &precheck.EntityLinks, expectedKeys: entityLinkCandidateKeys(precheck.ReviewerWorkPackage.EntityLinks), expectedEvidence: entityLinkCandidateEvidence(precheck.ReviewerWorkPackage.EntityLinks)},
+		{table: "variable_signals", kind: coreid.VariableSignal, items: &precheck.VariableSignals, expectedKeys: variableSignalCandidateKeys(precheck.ReviewerWorkPackage.VariableSignals), expectedEvidence: variableSignalCandidateEvidence(precheck.ReviewerWorkPackage.VariableSignals)},
+		{table: "direct_impact_assertions", kind: coreid.DirectImpactAssertion, items: &precheck.DirectImpacts, expectedKeys: directImpactCandidateKeys(precheck.ReviewerWorkPackage.DirectImpacts), expectedEvidence: directImpactCandidateEvidence(precheck.ReviewerWorkPackage.DirectImpacts)},
 	}
 	for _, group := range groups {
 		decisionKeys, err := validatePersistedCandidateDecisions(*group.items)
@@ -2175,7 +2182,7 @@ func validatePersistedCandidateRecords(
 				rows.Close()
 				return err
 			}
-			if strings.TrimSpace(key) == "" || !validPersistedUUID(id) {
+			if strings.TrimSpace(key) == "" || !coreid.Is(id, group.kind) {
 				rows.Close()
 				return invalidPersistedEventSemantic("candidate record reference")
 			}
@@ -2226,7 +2233,7 @@ func validatePersistedCandidateRecords(
 }
 
 func samePersistedStringSet(left, right []string) bool {
-	if !validPersistedUUIDSet(left, true) || !validPersistedUUIDSet(right, true) || len(left) != len(right) {
+	if !validPersistedEvidenceIDSet(left, true) || !validPersistedEvidenceIDSet(right, true) || len(left) != len(right) {
 		return false
 	}
 	values := make(map[string]struct{}, len(left))
@@ -2429,7 +2436,7 @@ func AuditHistoricalEventSemantics(
 				"scan historical Event Semantic input: %w", err,
 			)
 		}
-		if !validPersistedUUID(eventID) {
+		if !coreid.Is(eventID, coreid.Event) {
 			return HistoricalEventSemanticManifest{}, invalidPersistedEventSemantic("historical Event reference")
 		}
 		if valid {
@@ -2450,7 +2457,7 @@ const researchSemanticClosureCTE = `
 WITH
 requested_variables(variable_key, version) AS (SELECT * FROM unnest($2::text[], $3::integer[])),
 requested_rules(rule_key, version) AS (SELECT * FROM unnest($4::text[], $5::integer[])),
-requested_submissions(id) AS (SELECT unnest($6::uuid[])),
+requested_submissions(id) AS (SELECT unnest($6::text[])),
 selected_rules AS MATERIALIZED (
     SELECT rule.* FROM direct_transmission_rules rule
     JOIN requested_rules requested ON requested.rule_key = rule.rule_key AND requested.version = rule.version
@@ -2591,7 +2598,7 @@ func (s *Store) researchSemanticRecord(
 		        FROM event_entity_links link
 		        JOIN event_semantic_submissions submission
 		          ON submission.id = link.semantic_submission_id
-		        WHERE link.event_id = $1::uuid
+		        WHERE link.event_id = $1::text
 		          AND link.review_status = 'accepted'
 		          AND submission.status = 'accepted'
 		          AND link.updated_at <= $2
@@ -2678,7 +2685,7 @@ func (s *Store) researchSemanticRecord(
 		          ON subject.id = signal.subject_event_entity_link_id
 		        JOIN event_semantic_submissions submission
 		          ON submission.id = signal.semantic_submission_id
-		        WHERE signal.source_event_id = $1::uuid
+		        WHERE signal.source_event_id = $1::text
 		          AND signal.review_status = 'accepted'
 		          AND submission.status = 'accepted'
 		          AND signal.updated_at <= $2
@@ -2701,14 +2708,14 @@ func (s *Store) researchSemanticRecord(
 }
 
 func validateResearchSemanticRecord(record eventbiz.ResearchSemanticRecord) error {
-	if _, err := uuid.Parse(record.EventID); err != nil {
+	if !coreid.Is(record.EventID, coreid.Event) {
 		return errors.New("persisted Research semantic Event reference is invalid")
 	}
 	links := make(map[string]struct{}, len(record.EntityLinks))
 	for _, link := range record.EntityLinks {
-		if !researchUUID(link.EventEntityLinkID) || !researchUUID(link.SemanticSubmissionID) ||
+		if !coreid.Is(link.EventEntityLinkID, coreid.EventEntityLink) || !coreid.Is(link.SemanticSubmissionID, coreid.EventSemanticSubmission) ||
 			!researchObjectID(link.EntityID) || strings.TrimSpace(link.EntityRole) == "" ||
-			link.ReviewStatus != "accepted" || !validResearchUUIDSet(link.EvidenceIDs) {
+			link.ReviewStatus != "accepted" || !validResearchEvidenceIDSet(link.EvidenceIDs) {
 			return errors.New("persisted Research Entity Link violates invariants")
 		}
 		if _, duplicate := links[link.EventEntityLinkID]; duplicate {
@@ -2718,12 +2725,12 @@ func validateResearchSemanticRecord(record eventbiz.ResearchSemanticRecord) erro
 	}
 	signals := make(map[string]struct{}, len(record.VariableSignals))
 	for _, signal := range record.VariableSignals {
-		if !researchUUID(signal.VariableSignalID) || !researchUUID(signal.SemanticSubmissionID) ||
+		if !coreid.Is(signal.VariableSignalID, coreid.VariableSignal) || !coreid.Is(signal.SemanticSubmissionID, coreid.EventSemanticSubmission) ||
 			signal.SourceEventID != record.EventID || !researchObjectID(signal.SubjectEntityID) ||
 			signal.VariableVersion < 1 || strings.TrimSpace(signal.VariableKey) == "" ||
 			!researchOneOf(signal.Direction, "increase", "decrease", "unchanged", "mixed", "uncertain") ||
 			!researchOneOf(signal.AssertionModality, "actual", "stated_intent", "source_forecast") ||
-			signal.ReviewStatus != "accepted" || !validResearchUUIDSet(signal.EvidenceIDs) {
+			signal.ReviewStatus != "accepted" || !validResearchEvidenceIDSet(signal.EvidenceIDs) {
 			return errors.New("persisted Research Variable Signal violates invariants")
 		}
 		if _, ok := links[signal.SubjectEventEntityLinkID]; !ok {
@@ -2734,8 +2741,8 @@ func validateResearchSemanticRecord(record eventbiz.ResearchSemanticRecord) erro
 		}
 		signals[signal.VariableSignalID] = struct{}{}
 		for _, measurement := range signal.Measurements {
-			if !researchUUID(measurement.MeasurementID) || measurement.EvidenceID == "" ||
-				!researchUUID(measurement.EvidenceID) || strings.TrimSpace(measurement.RawText) == "" {
+			if !coreid.Is(measurement.MeasurementID, coreid.VariableSignalMeasurement) ||
+				!coreid.Is(measurement.EvidenceID, coreid.EventEvidenceLink) || strings.TrimSpace(measurement.RawText) == "" {
 				return errors.New("persisted Research measurement violates invariants")
 			}
 			if measurement.MeasurementRole != "" && !researchOneOf(measurement.MeasurementRole, "absolute_level", "absolute_change", "relative_change", "percentage_point_change") {
@@ -2746,13 +2753,13 @@ func validateResearchSemanticRecord(record eventbiz.ResearchSemanticRecord) erro
 			}
 		}
 		for _, impact := range signal.DirectImpacts {
-			if !researchUUID(impact.DirectImpactAssertionID) || !researchUUID(impact.SemanticSubmissionID) ||
+			if !coreid.Is(impact.DirectImpactAssertionID, coreid.DirectImpactAssertion) || !coreid.Is(impact.SemanticSubmissionID, coreid.EventSemanticSubmission) ||
 				impact.SourceVariableSignalID != signal.VariableSignalID || !researchObjectID(impact.TargetEntityID) ||
 				impact.AffectedVariableVersion < 1 || strings.TrimSpace(impact.AffectedVariableKey) == "" ||
 				!researchOneOf(impact.AffectedDirection, "increase", "decrease", "unchanged", "mixed", "uncertain") ||
 				!researchOneOf(impact.DerivationType, "event_explicit", "rule_inferred") ||
 				strings.TrimSpace(impact.MechanismSummary) == "" || impact.ReviewStatus != "accepted" ||
-				!validResearchUUIDSet(impact.EvidenceIDs) {
+				!validResearchEvidenceIDSet(impact.EvidenceIDs) {
 				return errors.New("persisted Research Direct Impact violates invariants")
 			}
 		}
@@ -2760,20 +2767,15 @@ func validateResearchSemanticRecord(record eventbiz.ResearchSemanticRecord) erro
 	return nil
 }
 
-func researchUUID(value string) bool {
-	_, err := uuid.Parse(value)
-	return err == nil
-}
-
 func researchObjectID(value string) bool {
 	return entitybiz.IsEntityID(value) || entitybiz.IsCountryID(value) ||
 		entitybiz.IsRegionID(value) || entitybiz.IsOrganizationID(value)
 }
 
-func validResearchUUIDSet(values []string) bool {
+func validResearchEvidenceIDSet(values []string) bool {
 	seen := make(map[string]struct{}, len(values))
 	for _, value := range values {
-		if !researchUUID(value) {
+		if !coreid.Is(value, coreid.EventEvidenceLink) {
 			return false
 		}
 		if _, duplicate := seen[value]; duplicate {
@@ -2891,7 +2893,7 @@ func (s *Store) referenceClosurePoliciesResolve(
 	var resolves bool
 	err := s.db.QueryRowContext(ctx, `
 		WITH requested_submissions(id) AS (
-		    SELECT unnest($2::uuid[])
+		    SELECT unnest($2::text[])
 		)
 		SELECT NOT EXISTS (
 		    SELECT 1

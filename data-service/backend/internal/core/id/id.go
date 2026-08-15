@@ -14,23 +14,66 @@ const (
 	maxPrefixLength = 8
 )
 
+// Kind identifies one reviewed Data Application object identity contract.
+type Kind string
+
+const (
+	Entity                            Kind = "ENT"
+	EntityRelation                    Kind = "ERL"
+	Country                           Kind = "COU"
+	Region                            Kind = "REG"
+	Organization                      Kind = "ORG"
+	RawEvidence                       Kind = "RAW"
+	Evidence                          Kind = "EVD"
+	EvidenceCategory                  Kind = "EVC"
+	ChainNodePhysicalConstraint       Kind = "CPC"
+	ChainNodeRelation                 Kind = "CNR"
+	CountryRegionLink                 Kind = "CRL"
+	DirectImpactAssertion             Kind = "DIA"
+	EntityExternalIdentifier          Kind = "EEI"
+	EventEntityLink                   Kind = "ENL"
+	EventPublicationReceipt           Kind = "EPR"
+	EventSemanticCandidateSnapshot    Kind = "ECS"
+	EventSemanticContextLease         Kind = "SCL"
+	EventSemanticResolutionBinding    Kind = "ERB"
+	EventSemanticReviewSnapshot       Kind = "ERS"
+	EventSemanticSubmission           Kind = "ESS"
+	EventEvidenceLink                 Kind = "EEL"
+	EventTagDefinition                Kind = "ETD"
+	EventTagAssignment                Kind = "ETA"
+	Event                             Kind = "EVT"
+	IndustryChainGraphEdge            Kind = "IGE"
+	IndustryRelationshipImportReceipt Kind = "IRI"
+	OrganizationMembership            Kind = "OMB"
+	EventEvidenceRecord               Kind = "EER"
+	ResearchReasoningTreeReceipt      Kind = "RRI"
+	ResearchReasoningTreeNode         Kind = "RRN"
+	ResearchReasoningTree             Kind = "RRT"
+	ResearchThemeReceipt              Kind = "RTI"
+	ResearchTheme                     Kind = "RTH"
+	VariableSignalMeasurement         Kind = "VSM"
+	VariableSignal                    Kind = "VSG"
+)
+
 var (
 	ErrInvalidPrefix   = errors.New("ID prefix must contain 2 to 8 uppercase ASCII letters")
 	ErrInvalidIdentity = errors.New("ID must equal its prefix immediately followed by a canonical lowercase UUID")
 	ErrInvalidSeed     = errors.New("deterministic ID seed must contain a nonblank namespace and part")
 )
 
-// New creates a random identity for a domain-owned prefix.
-func New(prefix string) (string, error) {
-	if err := validatePrefix(prefix); err != nil {
+// New creates a random identity for a reviewed object kind.
+func New(kind Kind) (string, error) {
+	prefix, err := prefix(kind)
+	if err != nil {
 		return "", err
 	}
 	return prefix + uuid.NewString(), nil
 }
 
 // Derive creates a stable identity for portable catalogs and deterministic imports.
-func Derive(prefix, namespace string, parts ...string) (string, error) {
-	if err := validatePrefix(prefix); err != nil {
+func Derive(kind Kind, namespace string, parts ...string) (string, error) {
+	prefix, err := prefix(kind)
+	if err != nil {
 		return "", err
 	}
 	if strings.TrimSpace(namespace) == "" || len(parts) == 0 {
@@ -50,8 +93,9 @@ func Derive(prefix, namespace string, parts ...string) (string, error) {
 }
 
 // FromUUID preserves an existing UUID as the suffix of a domain identity.
-func FromUUID(prefix string, suffix uuid.UUID) (string, error) {
-	if err := validatePrefix(prefix); err != nil {
+func FromUUID(kind Kind, suffix uuid.UUID) (string, error) {
+	prefix, err := prefix(kind)
+	if err != nil {
 		return "", err
 	}
 	if suffix == uuid.Nil {
@@ -61,8 +105,9 @@ func FromUUID(prefix string, suffix uuid.UUID) (string, error) {
 }
 
 // Parse validates a canonical identity for the expected domain prefix.
-func Parse(value, expectedPrefix string) (uuid.UUID, error) {
-	if err := validatePrefix(expectedPrefix); err != nil {
+func Parse(value string, kind Kind) (uuid.UUID, error) {
+	expectedPrefix, err := prefix(kind)
+	if err != nil {
 		return uuid.Nil, err
 	}
 	if !strings.HasPrefix(value, expectedPrefix) {
@@ -77,19 +122,45 @@ func Parse(value, expectedPrefix string) (uuid.UUID, error) {
 }
 
 // Is reports whether value is canonical for the expected domain prefix.
-func Is(value, expectedPrefix string) bool {
-	_, err := Parse(value, expectedPrefix)
+func Is(value string, kind Kind) bool {
+	_, err := Parse(value, kind)
 	return err == nil
 }
 
-func validatePrefix(prefix string) error {
+// Prefix returns the registered wire prefix for kind.
+func Prefix(kind Kind) string {
+	prefix, _ := prefix(kind)
+	return prefix
+}
+
+func prefix(kind Kind) (string, error) {
+	prefix := string(kind)
+	if !registered(kind) {
+		return "", ErrInvalidPrefix
+	}
 	if len(prefix) < minPrefixLength || len(prefix) > maxPrefixLength {
-		return ErrInvalidPrefix
+		return "", ErrInvalidPrefix
 	}
 	for _, character := range prefix {
 		if character < 'A' || character > 'Z' {
-			return ErrInvalidPrefix
+			return "", ErrInvalidPrefix
 		}
 	}
-	return nil
+	return prefix, nil
+}
+
+func registered(kind Kind) bool {
+	switch kind {
+	case Entity, EntityRelation, Country, Region, Organization, RawEvidence, Evidence, EvidenceCategory,
+		ChainNodePhysicalConstraint, ChainNodeRelation, CountryRegionLink, DirectImpactAssertion,
+		EntityExternalIdentifier, EventEntityLink, EventPublicationReceipt, EventSemanticCandidateSnapshot,
+		EventSemanticContextLease, EventSemanticResolutionBinding, EventSemanticReviewSnapshot,
+		EventSemanticSubmission, EventEvidenceLink, EventTagDefinition, EventTagAssignment, Event,
+		IndustryChainGraphEdge, IndustryRelationshipImportReceipt, OrganizationMembership,
+		EventEvidenceRecord, ResearchReasoningTreeReceipt, ResearchReasoningTreeNode, ResearchReasoningTree,
+		ResearchThemeReceipt, ResearchTheme, VariableSignalMeasurement, VariableSignal:
+		return true
+	default:
+		return false
+	}
 }

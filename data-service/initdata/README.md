@@ -9,8 +9,9 @@ schema migrations and UAT deployment must not publish them automatically.
 `联盟国家组织.xlsx`.
 
 It contains 201 records, including Hong Kong (`HK`), Macao (`MO`), Taiwan
-(`TW`), and Western Sahara (`EH`). `code` uses ISO 3166-1 alpha-2. `id` is a
-deterministic `COU` plus canonical lowercase UUID generated from that code;
+(`TW`), and Western Sahara (`EH`). `code` uses ISO 3166-1 alpha-2. The package
+does not contain primary keys; publication generates each deterministic `COU`
+identity from `code`.
 `name` comes from the worksheet short name, `name_en` uses the ISO country
 name, and the two optional text fields come directly from the worksheet. The
 package intentionally has no Region records or Country-Region links.
@@ -27,9 +28,9 @@ zero Country-Region links. The same package is the UAT publication input.
 ## Region catalog
 
 `regions-v1.json` contains the 22 geographic sub-regions from the United
-Nations M49 standard. Each Region uses a deterministic `REG` plus canonical
-lowercase UUID generated from its `M49_NNN` code, the official M49 Chinese and
-English names, and `GEOGRAPHIC` as its Region type. Country membership is
+Nations M49 standard. The package does not contain primary keys; publication
+generates each deterministic `REG` identity from its `M49_NNN` code. It contains
+the official M49 Chinese and English names and `GEOGRAPHIC` as its Region type. Country membership is
 intentionally outside this package.
 
 Publish the Region package with the Data image's offline command:

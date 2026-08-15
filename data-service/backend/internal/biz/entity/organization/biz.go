@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	entitybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 var (
@@ -103,7 +104,7 @@ type DomainTag struct {
 }
 
 type Member struct {
-	ID             int64
+	ID             string
 	OrganizationID string
 	CountryID      string
 	MembershipType string
@@ -122,8 +123,8 @@ type Repository interface {
 	Catalog(context.Context) (Catalog, error)
 	ListMembers(context.Context, string, *time.Time) ([]Member, error)
 	CreateMember(context.Context, Member) (Member, error)
-	UpdateMember(context.Context, string, int64, Member) (Member, error)
-	DeleteMember(context.Context, string, int64) error
+	UpdateMember(context.Context, string, string, Member) (Member, error)
+	DeleteMember(context.Context, string, string) error
 }
 
 type UseCase struct{ repository Repository }
@@ -136,9 +137,17 @@ func NewUseCase(repository Repository) (*UseCase, error) {
 }
 
 func (s *UseCase) Create(ctx context.Context, input Organization) (Organization, error) {
+	if strings.TrimSpace(input.ID) != "" {
+		return Organization{}, &ValidationError{Field: "id", Message: "must be omitted because Data generates Organization IDs"}
+	}
 	if err := validateOrganization(input); err != nil {
 		return Organization{}, err
 	}
+	id, err := coreid.New(coreid.Organization)
+	if err != nil {
+		return Organization{}, fmt.Errorf("generate Organization ID: %w", err)
+	}
+	input.ID = id
 	return s.repository.Create(ctx, cloneOrganization(input))
 }
 
@@ -221,16 +230,24 @@ func (s *UseCase) ListMembers(ctx context.Context, id string, asOf *time.Time) (
 }
 
 func (s *UseCase) CreateMember(ctx context.Context, input Member) (Member, error) {
+	if strings.TrimSpace(input.ID) != "" {
+		return Member{}, &ValidationError{Field: "member_id", Message: "must be omitted because Data generates Organization Membership IDs"}
+	}
 	if err := validateMember(input); err != nil {
 		return Member{}, err
 	}
+	id, err := coreid.New(coreid.OrganizationMembership)
+	if err != nil {
+		return Member{}, fmt.Errorf("generate Organization Membership ID: %w", err)
+	}
+	input.ID = id
 	return s.repository.CreateMember(ctx, input)
 }
 
-func (s *UseCase) UpdateMember(ctx context.Context, organizationID string, id int64, input Member) (Member, error) {
+func (s *UseCase) UpdateMember(ctx context.Context, organizationID, id string, input Member) (Member, error) {
 	input.OrganizationID = organizationID
-	if id <= 0 {
-		return Member{}, &ValidationError{Field: "member_id", Message: "must be positive"}
+	if !coreid.Is(id, coreid.OrganizationMembership) {
+		return Member{}, &ValidationError{Field: "member_id", Message: "must be a stable Organization Membership ID"}
 	}
 	if err := validateMember(input); err != nil {
 		return Member{}, err
@@ -238,8 +255,8 @@ func (s *UseCase) UpdateMember(ctx context.Context, organizationID string, id in
 	return s.repository.UpdateMember(ctx, organizationID, id, input)
 }
 
-func (s *UseCase) DeleteMember(ctx context.Context, organizationID string, id int64) error {
-	if !entitybiz.IsOrganizationID(organizationID) || id <= 0 {
+func (s *UseCase) DeleteMember(ctx context.Context, organizationID, id string) error {
+	if !entitybiz.IsOrganizationID(organizationID) || !coreid.Is(id, coreid.OrganizationMembership) {
 		return &ValidationError{Field: "member", Message: "must identify an Organization member"}
 	}
 	return s.repository.DeleteMember(ctx, organizationID, id)
@@ -262,7 +279,7 @@ func validateMember(input Member) error {
 }
 
 func validateOrganization(input Organization) error {
-	if !entitybiz.IsOrganizationID(input.ID) {
+	if input.ID != "" && !entitybiz.IsOrganizationID(input.ID) {
 		return &ValidationError{Field: "id", Message: "must equal ORG immediately followed by a canonical lowercase UUID"}
 	}
 	if !validCode(input.Code, 30) {

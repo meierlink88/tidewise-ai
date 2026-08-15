@@ -45,10 +45,11 @@ AgentRun 运行时下架、旧 `tidewise_ai_server` 数据搬迁和历史 8/19 �
 
 **Domain Object ID**:
 技术组件生成的与数据库无关身份，格式为“领域对象缩写前缀 + canonical lowercase
-UUID”，中间不使用分隔符。当前 Data 合同前缀为 `ENT`、`ERL`、`COU`、`REG`、
-`ORG`、`RAW`、`EVD` 和 `EVC`；可移植目录基于业务自然键确定性生成 UUID，普通领域
-对象可随机生成。
-_Avoid_: 裸 UUID、`PREFIX_...`、`PREFIX-...`、以数据库序列作为领域身份
+UUID”，中间不使用分隔符。Data Application 的受控注册表拥有全部对象前缀；普通写入由
+owning Biz 生成，初始化发布调用同一生成器。请求不接收主键，Data 只持久化且数据库不生成。
+可移植目录和可重放事实基于受控自然键确定性生成 UUID，普通领域对象随机生成；自然码
+目录和纯复合关联键不增加人工主键。
+_Avoid_: 裸 UUID、任意字符串前缀、`PREFIX_...`、`PREFIX-...`、调用方提交主键、数据库序列
 
 **Organization**:
 以 `ORG + canonical lowercase UUID` 为稳定身份的独立多边组织事实，覆盖联盟、协会、国际机制、贸易集团和

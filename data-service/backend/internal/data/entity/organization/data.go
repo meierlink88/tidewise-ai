@@ -340,14 +340,14 @@ ORDER BY country_id, effective_date NULLS FIRST, id`, organizationID, asOf)
 
 func (s *Store) CreateMember(ctx context.Context, input organizationbiz.Member) (organizationbiz.Member, error) {
 	row := s.db.QueryRowContext(ctx, `
-INSERT INTO organization_members (organization_id,country_id,membership_type,effective_date,expiry_date)
-VALUES ($1,$2,$3,$4,$5)
+INSERT INTO organization_members (id,organization_id,country_id,membership_type,effective_date,expiry_date)
+VALUES ($1,$2,$3,$4,$5,$6)
 RETURNING id,organization_id,country_id,membership_type::text,effective_date,expiry_date,created_at,updated_at`,
-		input.OrganizationID, input.CountryID, input.MembershipType, input.EffectiveDate, input.ExpiryDate)
+		input.ID, input.OrganizationID, input.CountryID, input.MembershipType, input.EffectiveDate, input.ExpiryDate)
 	return scanMember(row, classifyWriteError)
 }
 
-func (s *Store) UpdateMember(ctx context.Context, organizationID string, id int64, input organizationbiz.Member) (organizationbiz.Member, error) {
+func (s *Store) UpdateMember(ctx context.Context, organizationID, id string, input organizationbiz.Member) (organizationbiz.Member, error) {
 	row := s.db.QueryRowContext(ctx, `
 UPDATE organization_members SET country_id=$3,membership_type=$4,effective_date=$5,expiry_date=$6,updated_at=now()
 WHERE organization_id=$1 AND id=$2
@@ -356,7 +356,7 @@ RETURNING id,organization_id,country_id,membership_type::text,effective_date,exp
 	return scanMember(row, classifyMutationRowError)
 }
 
-func (s *Store) DeleteMember(ctx context.Context, organizationID string, id int64) error {
+func (s *Store) DeleteMember(ctx context.Context, organizationID, id string) error {
 	result, err := s.db.ExecContext(ctx, `DELETE FROM organization_members WHERE organization_id=$1 AND id=$2`, organizationID, id)
 	if err != nil {
 		return classifyWriteError(err)

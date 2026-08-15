@@ -41,7 +41,7 @@ func TestPersistedEventSemanticReferencesUseDomainObjectIdentities(t *testing.T)
 		AffectedVariableKey: "market_supply", AffectedVariableVersion: 1,
 		AffectedDirection: "increase", DerivationType: "event_explicit",
 		EntityRelationID: relation.ID,
-		EvidenceIDs:      []string{"44444444-4444-4444-8444-444444444444"},
+		EvidenceIDs:      []string{"EEL44444444-4444-4444-8444-444444444444"},
 	}
 	if err := validatePersistedDirectImpactCandidate(impact); err != nil {
 		t.Fatalf("canonical Direct Impact references rejected: %v", err)
@@ -72,7 +72,7 @@ func TestEventSemanticRoutePartitionsApplyStableDatabaseBudget(t *testing.T) {
 	mock.ExpectQuery("(?s)SELECT profile.entity_id::text, entity.name.*LIMIT \\$1").
 		WithArgs(eventSemanticsRoutePartitionLimit).
 		WillReturnRows(sqlmock.NewRows([]string{"entity_id", "name"}).
-			AddRow("11111111-1111-4111-8111-111111111111", "Industry"))
+			AddRow("ENT11111111-1111-4111-8111-111111111111", "Industry"))
 	if partitions, _, err := repository.eventSemanticIndustryPartitions(context.Background()); err != nil || len(partitions) != 1 {
 		t.Fatalf("industry partitions = %v err = %v", partitions, err)
 	}

@@ -49,10 +49,10 @@ func (s *useCaseStub) CreateMember(_ context.Context, input organizationbiz.Memb
 	s.createdMember = input
 	return input, s.err
 }
-func (s *useCaseStub) UpdateMember(context.Context, string, int64, organizationbiz.Member) (organizationbiz.Member, error) {
+func (s *useCaseStub) UpdateMember(context.Context, string, string, organizationbiz.Member) (organizationbiz.Member, error) {
 	return organizationbiz.Member{}, s.err
 }
-func (s *useCaseStub) DeleteMember(context.Context, string, int64) error { return s.err }
+func (s *useCaseStub) DeleteMember(context.Context, string, string) error { return s.err }
 
 func TestNewServiceRejectsMissingUseCase(t *testing.T) {
 	if _, err := NewService(nil); err == nil {
@@ -100,7 +100,7 @@ func TestServiceMapsMemberDatesAndNullableValues(t *testing.T) {
 	expiry := time.Date(2020, 12, 31, 0, 0, 0, 0, time.UTC)
 	created := time.Date(2026, 8, 15, 1, 2, 3, 0, time.UTC)
 	stub := &useCaseStub{members: []organizationbiz.Member{{
-		ID: 7, OrganizationID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", CountryID: "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b", MembershipType: "FULL_MEMBER",
+		ID: "OMB77777777-7777-4777-8777-777777777777", OrganizationID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", CountryID: "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b", MembershipType: "FULL_MEMBER",
 		EffectiveDate: &effective, ExpiryDate: &expiry, CreatedAt: created, UpdatedAt: created,
 	}}}
 	service, err := NewService(stub)

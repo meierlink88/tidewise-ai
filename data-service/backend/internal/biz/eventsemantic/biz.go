@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 type Store interface {
@@ -56,9 +56,10 @@ type InputInvalidError struct{ Reason string }
 func (e *InputInvalidError) Error() string { return e.Reason }
 
 type UseCase struct {
-	store   Store
-	now     func() time.Time
-	newUUID func() string
+	store    Store
+	now      func() time.Time
+	newID    func(coreid.Kind) string
+	deriveID func(coreid.Kind, string, ...string) string
 }
 
 func NewUseCase(store Store) (*UseCase, error) {
@@ -66,9 +67,22 @@ func NewUseCase(store Store) (*UseCase, error) {
 		return nil, errors.New("Event Semantic store is required")
 	}
 	return &UseCase{
-		store:   store,
-		now:     func() time.Time { return time.Now().UTC() },
-		newUUID: uuid.NewString,
+		store: store,
+		now:   func() time.Time { return time.Now().UTC() },
+		newID: func(kind coreid.Kind) string {
+			value, err := coreid.New(kind)
+			if err != nil {
+				panic(err)
+			}
+			return value
+		},
+		deriveID: func(kind coreid.Kind, namespace string, parts ...string) string {
+			value, err := coreid.Derive(kind, namespace, parts...)
+			if err != nil {
+				panic(err)
+			}
+			return value
+		},
 	}, nil
 }
 
@@ -290,7 +304,7 @@ func encodeEligibleEventCursor(item EligibleEvent) (string, error) {
 	if item.FirstSeenAt.IsZero() {
 		return "", errors.New("eligible Event cursor time is required")
 	}
-	if _, err := uuid.Parse(item.EventID); err != nil {
+	if !coreid.Is(item.EventID, coreid.Event) {
 		return "", errors.New("eligible Event cursor ID is invalid")
 	}
 	payload, err := json.Marshal(eligibleEventCursorPayload{
@@ -326,7 +340,7 @@ func decodeEligibleEventCursor(value string) (*EligibleEventCursor, error) {
 	if decoded.Version != 1 || decoded.FirstSeenAt.IsZero() {
 		return nil, errors.New("eligible Event cursor version is invalid")
 	}
-	if _, err := uuid.Parse(decoded.EventID); err != nil {
+	if !coreid.Is(decoded.EventID, coreid.Event) {
 		return nil, errors.New("eligible Event cursor ID is invalid")
 	}
 	return &EligibleEventCursor{
@@ -411,7 +425,7 @@ func (s *UseCase) CreateContextLease(ctx context.Context, request ContextLeaseRe
 			}
 		}
 		result = ContextLease{
-			ID: s.newUUID(), EventID: request.EventID,
+			ID: s.newID(coreid.EventSemanticContextLease), EventID: request.EventID,
 			SupersedesSubmissionID: request.SupersedesSubmissionID,
 			Status:                 "active", LeaseExpiresAt: now.Add(request.Lease),
 		}
@@ -495,12 +509,13 @@ func (s *UseCase) CreateSubmission(ctx context.Context, submission Submission) (
 		status := SummarizeSubmission(precheck)
 		transitionedAt := observedAt
 		result = SubmissionResult{
-			SubmissionID: s.newUUID(), EventID: submission.EventID, Status: status,
+			SubmissionID: s.newID(coreid.EventSemanticSubmission), EventID: submission.EventID, Status: status,
 			CanonicalPayloadHash: hash, Precheck: precheck,
 		}
 		return tx.SaveSubmission(ctx, SubmissionWrite{
-			SubmissionID: result.SubmissionID, SnapshotID: s.newUUID(), Submission: submission,
-			Payload: append(json.RawMessage(nil), payload...), PayloadHash: hash,
+			SubmissionID: result.SubmissionID, SnapshotID: s.newID(coreid.EventSemanticCandidateSnapshot), Submission: submission,
+			CandidateIDs: s.candidateIDs(result.SubmissionID, submission),
+			Payload:      append(json.RawMessage(nil), payload...), PayloadHash: hash,
 			Precheck: precheck, Status: status,
 			ConsumeLease:   status != StatusPendingReview && status != StatusNeedsReanalysis,
 			TransitionedAt: transitionedAt,
@@ -569,7 +584,7 @@ func (s *UseCase) SubmitReview(ctx context.Context, submission ReviewSubmission)
 			finalizedAt = &transitionedAt
 		}
 		return tx.SaveReview(ctx, ReviewWrite{
-			SnapshotID: s.newUUID(), Submission: submission,
+			SnapshotID: s.newID(coreid.EventSemanticReviewSnapshot), Submission: submission,
 			Payload: append(json.RawMessage(nil), payload...), PayloadHash: hash,
 			Precheck: result.Precheck, Status: status,
 			SupersedePrior: status == StatusAccepted, ConsumeLease: terminal,
@@ -580,6 +595,26 @@ func (s *UseCase) SubmitReview(ctx context.Context, submission ReviewSubmission)
 		return SubmissionResult{}, err
 	}
 	return result, nil
+}
+
+func (s *UseCase) candidateIDs(submissionID string, submission Submission) SemanticCandidateIDs {
+	result := SemanticCandidateIDs{
+		EntityLinks:     make(map[string]string, len(submission.EntityLinks)),
+		VariableSignals: make(map[string]string, len(submission.VariableSignals)),
+		Measurements:    make(map[string][]string, len(submission.VariableSignals)),
+	}
+	for _, candidate := range submission.EntityLinks {
+		result.EntityLinks[candidate.Key] = s.deriveID(coreid.EventEntityLink, "event-entity-link", submissionID, candidate.Key)
+	}
+	for _, candidate := range submission.VariableSignals {
+		result.VariableSignals[candidate.Key] = s.deriveID(coreid.VariableSignal, "variable-signal", submissionID, candidate.Key)
+		ids := make([]string, len(candidate.Measurements))
+		for index := range candidate.Measurements {
+			ids[index] = s.deriveID(coreid.VariableSignalMeasurement, "variable-signal-measurement", submissionID, candidate.Key, strconv.Itoa(index))
+		}
+		result.Measurements[candidate.Key] = ids
+	}
+	return result
 }
 
 func (s *UseCase) Get(ctx context.Context, eventID string) (EventSemanticsResult, error) {

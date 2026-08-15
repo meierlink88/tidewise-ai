@@ -3,8 +3,11 @@ package evidence
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
+
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 func TestNewUseCaseRejectsMissingStore(t *testing.T) {
@@ -22,14 +25,14 @@ func TestPublishRawEvidenceReturnsFormalIdentityAndPreservesKeywordsAcrossRetry(
 	if err != nil {
 		t.Fatalf("publish Raw Evidence: %v", err)
 	}
-	if created.RawEvidenceID != input.RawEvidenceID {
-		t.Fatalf("Raw Evidence ID = %q, want %q", created.RawEvidenceID, input.RawEvidenceID)
+	if !strings.HasPrefix(created.RawEvidenceID, "RAW") {
+		t.Fatalf("Raw Evidence ID = %q", created.RawEvidenceID)
 	}
-	if got, want := store.raw[input.RawEvidenceID].Keywords, []string{" AI芯片 ", "供应链", "AI芯片"}; !equalStrings(got, want) {
+	if got, want := store.raw[created.RawEvidenceID].Keywords, []string{" AI芯片 ", "供应链", "AI芯片"}; !equalStrings(got, want) {
 		t.Fatalf("keywords = %#v, want exact publisher order %#v", got, want)
 	}
-	if store.raw[input.RawEvidenceID].ContentHash != "1b46f625a140463536b92ffb1718d101bbcdfe09a76ef63089af6a0d99b8aa33" {
-		t.Fatalf("content hash = %q", store.raw[input.RawEvidenceID].ContentHash)
+	if store.raw[created.RawEvidenceID].ContentHash != "1b46f625a140463536b92ffb1718d101bbcdfe09a76ef63089af6a0d99b8aa33" {
+		t.Fatalf("content hash = %q", store.raw[created.RawEvidenceID].ContentHash)
 	}
 
 	reused, err := service.PublishRawEvidence(context.Background(), input)
@@ -66,7 +69,7 @@ func TestPublishRawEvidenceRejectsIdentityDriftAndInvalidOrigin(t *testing.T) {
 
 func TestPublishEvidenceCreatesCompleteSplitSetThenReusesIt(t *testing.T) {
 	store := newMemoryStore()
-	raw := validRawEvidence()
+	raw := publishedRawEvidence(t)
 	store.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
 	service := mustNewUseCase(t, store)
 	evidences := []Evidence{validEvidence("EVD888d6be0-6378-5f06-bfa1-6e6294f43dca", 1), validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0)}
@@ -74,8 +77,8 @@ func TestPublishEvidenceCreatesCompleteSplitSetThenReusesIt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("publish Evidence: %v", err)
 	}
-	if got, want := created.EvidenceIDs, []string{"EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", "EVD888d6be0-6378-5f06-bfa1-6e6294f43dca"}; !equalStrings(got, want) {
-		t.Fatalf("Evidence IDs = %#v, want canonical split order %#v", got, want)
+	if len(created.EvidenceIDs) != 2 || !strings.HasPrefix(created.EvidenceIDs[0], "EVD") || !strings.HasPrefix(created.EvidenceIDs[1], "EVD") {
+		t.Fatalf("Evidence IDs = %#v", created.EvidenceIDs)
 	}
 
 	reused, err := service.PublishEvidence(context.Background(), raw.RawEvidenceID, evidences)
@@ -97,7 +100,7 @@ func TestPublishEvidenceCreatesCompleteSplitSetThenReusesIt(t *testing.T) {
 
 func TestPublishEvidenceSingleIsNotSplitAndRejectsNonContinuousOrder(t *testing.T) {
 	store := newMemoryStore()
-	raw := validRawEvidence()
+	raw := publishedRawEvidence(t)
 	store.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
 	service := mustNewUseCase(t, store)
 
@@ -106,7 +109,7 @@ func TestPublishEvidenceSingleIsNotSplitAndRejectsNonContinuousOrder(t *testing.
 	if err != nil {
 		t.Fatalf("publish single Evidence: %v", err)
 	}
-	if len(result.EvidenceIDs) != 1 || result.EvidenceIDs[0] != single.EvidenceID {
+	if len(result.EvidenceIDs) != 1 || !strings.HasPrefix(result.EvidenceIDs[0], "EVD") {
 		t.Fatalf("single result = %#v", result.EvidenceIDs)
 	}
 
@@ -121,7 +124,7 @@ func TestPublishEvidenceSingleIsNotSplitAndRejectsNonContinuousOrder(t *testing.
 }
 
 func TestPublishEvidenceRejectsCollectionReferenceLayerAndExpressionFailures(t *testing.T) {
-	raw := validRawEvidence()
+	raw := publishedRawEvidence(t)
 	store := newMemoryStore()
 	store.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
 	service := mustNewUseCase(t, store)
@@ -132,10 +135,6 @@ func TestPublishEvidenceRejectsCollectionReferenceLayerAndExpressionFailures(t *
 		code  IssueCode
 	}{
 		{name: "zero", items: nil, code: IssueRequired},
-		{name: "duplicate identity", items: []Evidence{
-			validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0),
-			validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 1),
-		}, code: IssueDuplicate},
 		{name: "duplicate split order", items: []Evidence{
 			validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0),
 			validEvidence("EVD888d6be0-6378-5f06-bfa1-6e6294f43dca", 0),
@@ -177,7 +176,6 @@ func TestPublishEvidenceRejectsCollectionReferenceLayerAndExpressionFailures(t *
 
 func validEvidence(id string, splitOrder int) Evidence {
 	return Evidence{
-		EvidenceID:            id,
 		SplitOrder:            splitOrder,
 		LayerType:             "SINGLE",
 		SourceWhat:            "Example Corp expanded production.",
@@ -190,18 +188,29 @@ func validEvidence(id string, splitOrder int) Evidence {
 func validRawEvidence() RawEvidence {
 	publishedAt := time.Date(2026, 8, 11, 1, 0, 0, 0, time.UTC)
 	return RawEvidence{
-		RawEvidenceID: "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf",
-		SourceID:      "SRC_example_00000000000000000000",
-		SourceName:    "Example Wire",
-		SourceLevel:   "L2_WIRE",
-		SourceURL:     "https://example.test/article/1",
-		IsOriginal:    true,
-		Title:         stringPointer("Example title"),
-		RawText:       "Complete original article.",
-		PublishedAt:   &publishedAt,
-		CollectedAt:   time.Date(2026, 8, 11, 1, 5, 0, 0, time.UTC),
-		Keywords:      []string{" AI芯片 ", "供应链", "AI芯片"},
+		PublicationKey: "example-publication-1",
+		SourceID:       "SRC_example_00000000000000000000",
+		SourceName:     "Example Wire",
+		SourceLevel:    "L2_WIRE",
+		SourceURL:      "https://example.test/article/1",
+		IsOriginal:     true,
+		Title:          stringPointer("Example title"),
+		RawText:        "Complete original article.",
+		PublishedAt:    &publishedAt,
+		CollectedAt:    time.Date(2026, 8, 11, 1, 5, 0, 0, time.UTC),
+		Keywords:       []string{" AI芯片 ", "供应链", "AI芯片"},
 	}
+}
+
+func publishedRawEvidence(t *testing.T) RawEvidence {
+	t.Helper()
+	raw := validRawEvidence()
+	id, err := coreid.Derive(coreid.RawEvidence, "raw-evidence-publication", raw.PublicationKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw.RawEvidenceID = id
+	return raw
 }
 
 func stringPointer(value string) *string { return &value }

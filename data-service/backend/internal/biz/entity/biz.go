@@ -16,11 +16,11 @@ const (
 	ObjectTypeCountry      = "country"
 	ObjectTypeRegion       = "region"
 	ObjectTypeOrganization = "organization"
-	EntityIDPrefix         = "ENT"
-	EntityRelationIDPrefix = "ERL"
-	CountryIDPrefix        = "COU"
-	RegionIDPrefix         = "REG"
-	OrganizationIDPrefix   = "ORG"
+	EntityIDPrefix         = coreid.Entity
+	EntityRelationIDPrefix = coreid.EntityRelation
+	CountryIDPrefix        = coreid.Country
+	RegionIDPrefix         = coreid.Region
+	OrganizationIDPrefix   = coreid.Organization
 )
 
 func IsEntityID(value string) bool         { return coreid.Is(value, EntityIDPrefix) }

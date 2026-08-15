@@ -201,7 +201,7 @@ func TestServerEnforcesDedicatedCountryReadAndWriteScopes(t *testing.T) {
 		{method: http.MethodGet, path: dataapi.APIPrefix + "/entities/countries", want: http.StatusUnauthorized},
 	} {
 		response := httptest.NewRecorder()
-		request := httptest.NewRequest(test.method, test.path, strings.NewReader(`{"id":"COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b","code":"CN","name":"中国","name_en":"China","strategic_positioning":null,"key_resources":null}`))
+		request := httptest.NewRequest(test.method, test.path, strings.NewReader(`{"code":"CN","name":"中国","name_en":"China","strategic_positioning":null,"key_resources":null}`))
 		request.Header.Set("Content-Type", "application/json")
 		if test.token != "" {
 			request.Header.Set("Authorization", "Bearer "+test.token)

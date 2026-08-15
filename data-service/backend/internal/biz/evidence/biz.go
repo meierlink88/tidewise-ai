@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -20,9 +21,9 @@ type IssueCode string
 type CategoryID string
 
 const (
-	RawEvidenceIDPrefix = "RAW"
-	EvidenceIDPrefix    = "EVD"
-	CategoryIDPrefix    = "EVC"
+	RawEvidenceIDPrefix = coreid.RawEvidence
+	EvidenceIDPrefix    = coreid.Evidence
+	CategoryIDPrefix    = coreid.EvidenceCategory
 )
 
 const (
@@ -54,6 +55,7 @@ const (
 
 type RawEvidence struct {
 	RawEvidenceID    string
+	PublicationKey   string
 	SourceID         string
 	SourceName       string
 	SourceLevel      SourceLevel
@@ -182,13 +184,24 @@ func (s *UseCase) PublishRawEvidence(ctx context.Context, input RawEvidence) (Ra
 	if s == nil || s.store == nil {
 		return RawEvidenceResult{}, errors.New("Evidence Publication store is required")
 	}
+	if strings.TrimSpace(input.RawEvidenceID) != "" {
+		return RawEvidenceResult{}, &ValidationError{Issues: []Issue{{Path: "raw_evidence.raw_evidence_id", Code: IssueInvalidFormat, Message: "must be omitted because Data generates Raw Evidence IDs"}}}
+	}
+	if strings.TrimSpace(input.PublicationKey) == "" {
+		return RawEvidenceResult{}, &ValidationError{Issues: []Issue{{Path: "raw_evidence.publication_key", Code: IssueRequired, Message: "value is required"}}}
+	}
+	rawEvidenceID, err := coreid.Derive(coreid.RawEvidence, "raw-evidence-publication", input.PublicationKey)
+	if err != nil {
+		return RawEvidenceResult{}, fmt.Errorf("generate Raw Evidence ID: %w", err)
+	}
+	input.RawEvidenceID = rawEvidenceID
 	if err := validateRawEvidence(input); err != nil {
 		return RawEvidenceResult{}, err
 	}
 
 	record := StoredRawEvidence{RawEvidence: cloneRawEvidence(input), ContentHash: contentHash(input.RawText)}
 	var result RawEvidenceResult
-	err := s.store.InTransaction(ctx, func(tx Transaction) error {
+	err = s.store.InTransaction(ctx, func(tx Transaction) error {
 		if err := tx.LockIdentities(ctx, []string{"raw-evidence:" + input.RawEvidenceID}); err != nil {
 			return err
 		}
@@ -258,6 +271,17 @@ func (s *UseCase) GetRawEvidence(ctx context.Context, rawEvidenceID string) (Sto
 func (s *UseCase) PublishEvidence(ctx context.Context, rawEvidenceID string, input []Evidence) (EvidenceResult, error) {
 	if s == nil || s.store == nil {
 		return EvidenceResult{}, errors.New("Evidence Publication store is required")
+	}
+	input = append([]Evidence(nil), input...)
+	for index := range input {
+		if strings.TrimSpace(input[index].EvidenceID) != "" {
+			return EvidenceResult{}, &ValidationError{Issues: []Issue{{Path: fmt.Sprintf("evidences[%d].evidence_id", index), Code: IssueInvalidFormat, Message: "must be omitted because Data generates Evidence IDs"}}}
+		}
+		id, err := coreid.Derive(coreid.Evidence, "atomic-evidence", rawEvidenceID, strconv.Itoa(input[index].SplitOrder))
+		if err != nil {
+			return EvidenceResult{}, fmt.Errorf("generate Evidence ID: %w", err)
+		}
+		input[index].EvidenceID = id
 	}
 	if err := validateEvidencePublication(rawEvidenceID, input); err != nil {
 		return EvidenceResult{}, err
@@ -463,7 +487,7 @@ func required(issues *[]Issue, path, value string, max int) {
 	}
 }
 
-func requiredDomainID(issues *[]Issue, path, value, prefix string) {
+func requiredDomainID(issues *[]Issue, path, value string, prefix coreid.Kind) {
 	if strings.TrimSpace(value) == "" {
 		*issues = append(*issues, Issue{Path: path, Code: IssueRequired, Message: "value is required"})
 		return
@@ -471,7 +495,7 @@ func requiredDomainID(issues *[]Issue, path, value, prefix string) {
 	if !coreid.Is(value, prefix) {
 		*issues = append(*issues, Issue{
 			Path: path, Code: IssueInvalidFormat,
-			Message: prefix + " must be immediately followed by a canonical lowercase UUID",
+			Message: coreid.Prefix(prefix) + " must be immediately followed by a canonical lowercase UUID",
 		})
 	}
 }

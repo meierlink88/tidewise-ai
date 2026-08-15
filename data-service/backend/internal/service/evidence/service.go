@@ -128,7 +128,7 @@ func evidenceValidationStatus(issues []evidencebiz.Issue) int {
 
 func rawEvidenceInput(input evidenceapi.RawEvidence) evidencebiz.RawEvidence {
 	return evidencebiz.RawEvidence{
-		RawEvidenceID: input.RawEvidenceID, SourceID: input.SourceID, SourceName: input.SourceName,
+		PublicationKey: input.PublicationKey, SourceID: input.SourceID, SourceName: input.SourceName,
 		SourceLevel: evidencebiz.SourceLevel(input.SourceLevel), SourceURL: input.SourceURL, IsOriginal: input.IsOriginal,
 		QuotedSourceID: input.QuotedSourceID, QuotedSourceName: input.QuotedSourceName,
 		Title: input.Title, RawText: input.RawText, PublishedAt: input.PublishedAt,
@@ -163,7 +163,7 @@ func rawEvidenceReadDTO(input evidencebiz.StoredRawEvidence) evidenceapi.RawEvid
 
 func evidenceInput(input evidenceapi.AtomicEvidence) evidencebiz.Evidence {
 	return evidencebiz.Evidence{
-		EvidenceID: input.EvidenceID, SplitOrder: input.SplitOrder, LayerType: evidencebiz.LayerType(input.LayerType),
+		SplitOrder: input.SplitOrder, LayerType: evidencebiz.LayerType(input.LayerType),
 		SourceWho: input.SourceWho, SourceWhat: input.SourceWhat, SourceWhen: input.SourceWhen,
 		SourceWhenRaw: input.SourceWhenRaw, SourceWhere: input.SourceWhere, SourceWhy: input.SourceWhy,
 		SourceHow: input.SourceHow, SourceWhoCore: input.SourceWhoCore, SourceWhatCore: input.SourceWhatCore,

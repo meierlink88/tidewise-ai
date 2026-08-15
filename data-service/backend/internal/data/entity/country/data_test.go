@@ -22,7 +22,6 @@ func TestCountryInitializationCatalogUsesCanonicalIdentityAndAlpha2Codes(t *test
 	}
 	var catalog struct {
 		Countries []struct {
-			ID     string `json:"id"`
 			Code   string `json:"code"`
 			Name   string `json:"name"`
 			NameEn string `json:"name_en"`
@@ -36,18 +35,14 @@ func TestCountryInitializationCatalogUsesCanonicalIdentityAndAlpha2Codes(t *test
 	}
 	required := map[string]bool{"CN": false, "US": false, "HK": false, "MO": false, "TW": false, "EH": false}
 	seenCodes := make(map[string]struct{}, len(catalog.Countries))
-	seenIDs := make(map[string]struct{}, len(catalog.Countries))
 	for _, country := range catalog.Countries {
 		if len(country.Code) != 2 || country.Code[0] < 'A' || country.Code[0] > 'Z' ||
 			country.Code[1] < 'A' || country.Code[1] > 'Z' {
 			t.Fatalf("Country code %q is not ISO 3166-1 alpha-2 shaped", country.Code)
 		}
-		wantID, err := coreid.Derive("COU", "country", country.Code)
+		_, err := coreid.Derive(coreid.Country, "country", country.Code)
 		if err != nil {
 			t.Fatal(err)
-		}
-		if country.ID != wantID {
-			t.Fatalf("Country %s ID = %q, want %q", country.Code, country.ID, wantID)
 		}
 		if country.Name == "" || country.NameEn == "" {
 			t.Fatalf("Country %s has a blank name", country.Code)
@@ -55,11 +50,7 @@ func TestCountryInitializationCatalogUsesCanonicalIdentityAndAlpha2Codes(t *test
 		if _, exists := seenCodes[country.Code]; exists {
 			t.Fatalf("duplicate Country code %s", country.Code)
 		}
-		if _, exists := seenIDs[country.ID]; exists {
-			t.Fatalf("duplicate Country ID %s", country.ID)
-		}
 		seenCodes[country.Code] = struct{}{}
-		seenIDs[country.ID] = struct{}{}
 		if _, exists := required[country.Code]; exists {
 			required[country.Code] = true
 		}

@@ -61,7 +61,7 @@ func openEntityTestDatabase(t *testing.T) *sql.DB {
 func TestResearchGraphResolvesIndependentOrganizationMembership(t *testing.T) {
 	db := openEntityTestDatabase(t)
 	ctx := context.Background()
-	if _, err := db.ExecContext(ctx, `INSERT INTO organization_categories(code,name_zh) VALUES('INTERGOVERNMENTAL','政府间国际组织'); INSERT INTO organization_functions(code,name_zh) VALUES('GOVERNANCE','治理与协调'); INSERT INTO organizations(id,code,name,name_en,category_code,function_code) VALUES('ORG3fb9e7ff-2222-57fa-b306-c223ce3af549','UN','联合国','United Nations','INTERGOVERNMENTAL','GOVERNANCE'); INSERT INTO countries(id,code,name,name_en) VALUES('COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b','CN','中国','China'); INSERT INTO organization_members(organization_id,country_id,membership_type,effective_date) VALUES('ORG3fb9e7ff-2222-57fa-b306-c223ce3af549','COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b','FULL_MEMBER','1945-10-24')`); err != nil {
+	if _, err := db.ExecContext(ctx, `INSERT INTO organization_categories(code,name_zh) VALUES('INTERGOVERNMENTAL','政府间国际组织'); INSERT INTO organization_functions(code,name_zh) VALUES('GOVERNANCE','治理与协调'); INSERT INTO organizations(id,code,name,name_en,category_code,function_code) VALUES('ORG3fb9e7ff-2222-57fa-b306-c223ce3af549','UN','联合国','United Nations','INTERGOVERNMENTAL','GOVERNANCE'); INSERT INTO countries(id,code,name,name_en) VALUES('COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b','CN','中国','China'); INSERT INTO organization_members(id,organization_id,country_id,membership_type,effective_date) VALUES('OMB11111111-1111-4111-8111-111111111111','ORG3fb9e7ff-2222-57fa-b306-c223ce3af549','COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b','FULL_MEMBER','1945-10-24')`); err != nil {
 		t.Fatal(err)
 	}
 	store, err := NewStore(db)
@@ -74,6 +74,9 @@ func TestResearchGraphResolvesIndependentOrganizationMembership(t *testing.T) {
 	}
 	if len(graph.Entities) != 2 || len(graph.EntityRelations) != 1 || graph.Entities[1].EntityID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" && graph.Entities[0].EntityID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" {
 		t.Fatalf("Organization Research Graph = %#v", graph)
+	}
+	if !domain.IsEntityRelationID(graph.EntityRelations[0].EntityRelationID) {
+		t.Fatalf("Organization membership relation ID = %q", graph.EntityRelations[0].EntityRelationID)
 	}
 }
 func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
@@ -119,10 +122,10 @@ func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 		    relation_type, mechanism, segment_kind, review_status, status,
 		    evidence_ids, source_name, source_url, verified_at
 		) VALUES
-		    ('20000000-0000-4000-8000-000000000006', '` + chainA + `', '` + nodeA + `', '` + nodeB + `',
+		    ('IGE20000000-0000-4000-8000-000000000006', '` + chainA + `', '` + nodeA + `', '` + nodeB + `',
 		     'input_to', 'A feeds B', 'direct_candidate', 'approved', 'active',
 		     ARRAY['evidence:e'], 'integration', 'artifact://graph-a', now()),
-		    ('20000000-0000-4000-8000-000000000008', '` + chainB + `', '` + nodeA + `', '` + nodeC + `',
+		    ('IGE20000000-0000-4000-8000-000000000008', '` + chainB + `', '` + nodeA + `', '` + nodeC + `',
 		     'input_to', 'A feeds C in another chain', 'direct_candidate', 'approved', 'active',
 		     ARRAY['evidence:g'], 'integration', 'artifact://graph-b', now())`,
 		`INSERT INTO entity_edges (

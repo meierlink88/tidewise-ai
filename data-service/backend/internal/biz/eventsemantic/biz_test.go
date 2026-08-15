@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 type fakeStore struct {
@@ -71,9 +73,9 @@ func (f fakeStore) SaveReview(ctx context.Context, write ReviewWrite) error {
 func TestUseCaseEligibilityCursorPreservesStableKeyset(t *testing.T) {
 	firstSeen := time.Date(2026, 8, 11, 1, 2, 3, 0, time.UTC)
 	items := []EligibleEvent{
-		{EventID: "10000000-0000-4000-8000-000000000001", FirstSeenAt: firstSeen},
-		{EventID: "10000000-0000-4000-8000-000000000002", FirstSeenAt: firstSeen.Add(time.Second)},
-		{EventID: "10000000-0000-4000-8000-000000000003", FirstSeenAt: firstSeen.Add(2 * time.Second)},
+		{EventID: "EVT10000000-0000-4000-8000-000000000001", FirstSeenAt: firstSeen},
+		{EventID: "EVT10000000-0000-4000-8000-000000000002", FirstSeenAt: firstSeen.Add(time.Second)},
+		{EventID: "EVT10000000-0000-4000-8000-000000000003", FirstSeenAt: firstSeen.Add(2 * time.Second)},
 	}
 	var receivedCursor *EligibleEventCursor
 	store := fakeStore{listEligibleEvents: func(_ context.Context, limit int, cursor *EligibleEventCursor) ([]EligibleEvent, error) {
@@ -241,12 +243,14 @@ func TestUseCaseContextLeaseOwnsTransactionDecision(t *testing.T) {
 		t.Fatal(err)
 	}
 	useCase.now = func() time.Time { return fixedNow }
-	useCase.newUUID = func() string { return "20000000-0000-4000-8000-000000000001" }
+	useCase.newID = func(kind coreid.Kind) string {
+		return coreid.Prefix(kind) + "20000000-0000-4000-8000-000000000001"
+	}
 	result, err := useCase.CreateContextLease(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.ID != "20000000-0000-4000-8000-000000000001" ||
+	if result.ID != "SCL20000000-0000-4000-8000-000000000001" ||
 		result.Status != "active" || !result.LeaseExpiresAt.Equal(fixedNow.Add(request.Lease)) {
 		t.Fatalf("Context Lease result = %#v", result)
 	}
@@ -407,7 +411,9 @@ func TestUseCaseReviewOwnsStatusAndSupersessionDecision(t *testing.T) {
 		t.Fatal(err)
 	}
 	useCase.now = func() time.Time { return fixedNow }
-	useCase.newUUID = func() string { return "40000000-0000-4000-8000-000000000001" }
+	useCase.newID = func(kind coreid.Kind) string {
+		return coreid.Prefix(kind) + "40000000-0000-4000-8000-000000000001"
+	}
 	result, err := useCase.SubmitReview(context.Background(), ReviewSubmission{
 		SubmissionID:         "20000000-0000-4000-8000-000000000001",
 		ReviewerExecutionKey: "execution:reviewer", PromptHash: strings.Repeat("a", 64), Model: "reviewer",

@@ -93,6 +93,7 @@ func TestStoreEnforcesMembershipHistoryAndClassifiesReferences(t *testing.T) {
 	}
 	effective2020 := date(2020, 1, 1)
 	first, err := store.CreateMember(ctx, organizationbiz.Member{
+		ID:             "OMB11111111-1111-4111-8111-111111111111",
 		OrganizationID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", CountryID: "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b", MembershipType: "FULL_MEMBER", EffectiveDate: &effective2020,
 	})
 	if err != nil {
@@ -100,6 +101,7 @@ func TestStoreEnforcesMembershipHistoryAndClassifiesReferences(t *testing.T) {
 	}
 	effective2021 := date(2021, 1, 1)
 	if _, err := store.CreateMember(ctx, organizationbiz.Member{
+		ID:             "OMB22222222-2222-4222-8222-222222222222",
 		OrganizationID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", CountryID: "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b", MembershipType: "OBSERVER", EffectiveDate: &effective2021,
 	}); !errors.Is(err, organizationbiz.ErrConflict) {
 		t.Fatalf("overlapping membership error = %v, want conflict", err)
@@ -110,13 +112,14 @@ func TestStoreEnforcesMembershipHistoryAndClassifiesReferences(t *testing.T) {
 		t.Fatal(err)
 	}
 	second, err := store.CreateMember(ctx, organizationbiz.Member{
+		ID:             "OMB33333333-3333-4333-8333-333333333333",
 		OrganizationID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", CountryID: "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b", MembershipType: "OBSERVER", EffectiveDate: &effective2021,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if second.ID == first.ID {
-		t.Fatalf("membership IDs did not advance: first=%d second=%d", first.ID, second.ID)
+		t.Fatalf("membership IDs are equal: first=%s second=%s", first.ID, second.ID)
 	}
 	asOf2020 := date(2020, 6, 1)
 	members, err := store.ListMembers(ctx, "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", &asOf2020)
@@ -134,6 +137,7 @@ func TestStoreEnforcesMembershipHistoryAndClassifiesReferences(t *testing.T) {
 		t.Fatalf("Country membership filter = %#v", organizations)
 	}
 	if _, err := store.CreateMember(ctx, organizationbiz.Member{
+		ID:             "OMB44444444-4444-4444-8444-444444444444",
 		OrganizationID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", CountryID: "COU9975a356-4385-5e0f-822c-22463a8a1ad2", MembershipType: "OBSERVER",
 	}); err == nil {
 		t.Fatal("missing Country reference error = nil")

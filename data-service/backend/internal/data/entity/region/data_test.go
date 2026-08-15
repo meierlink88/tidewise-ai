@@ -27,7 +27,6 @@ func TestStorePersistsCanonicalRegions(t *testing.T) {
 	description := "地理上相邻的亚太区域"
 
 	apac, err := store.Create(ctx, Region{
-		ID:          "REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4",
 		Code:        "APAC",
 		Name:        "亚太地区",
 		NameEn:      "Asia Pacific",
@@ -45,7 +44,6 @@ func TestStorePersistsCanonicalRegions(t *testing.T) {
 	}
 
 	emea, err := store.Create(ctx, Region{
-		ID:         "REG49cf7638-ed97-557a-8833-39c7dd5b24fc",
 		Code:       "EMEA",
 		Name:       "欧洲中东与非洲",
 		NameEn:     "Europe, Middle East and Africa",
@@ -90,7 +88,6 @@ func TestStoreClassifiesRegionFailures(t *testing.T) {
 	}
 	ctx := context.Background()
 	valid := Region{
-		ID:         "REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4",
 		Code:       "APAC",
 		Name:       "亚太地区",
 		NameEn:     "Asia Pacific",
@@ -137,7 +134,7 @@ func TestStorePreservesContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	valid := Region{
-		ID: "REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4", Code: "APAC", Name: "亚太地区", NameEn: "Asia Pacific",
+		Code: "APAC", Name: "亚太地区", NameEn: "Asia Pacific",
 		RegionType: RegionTypeGeographic,
 	}
 	if _, err := store.Create(ctx, valid); !errors.Is(err, context.Canceled) {
@@ -168,8 +165,8 @@ func TestLoadCatalogAcceptsUNM49Package(t *testing.T) {
 	}
 	seen := make(map[string]struct{}, len(catalog.Regions))
 	for _, item := range catalog.Regions {
-		expectedID, err := coreid.Derive(entitybiz.RegionIDPrefix, "region", item.Code)
-		if err != nil || item.ID != expectedID || item.Code != "M49_"+item.M49Code {
+		_, err := coreid.Derive(entitybiz.RegionIDPrefix, "region", item.Code)
+		if err != nil || item.Code != "M49_"+item.M49Code {
 			t.Fatalf("catalog Region identity = %#v", item)
 		}
 		if item.RegionType != RegionTypeGeographic {
@@ -217,7 +214,6 @@ func TestLoadCatalogRejectsNoncanonicalUNM49Package(t *testing.T) {
 	catalog := loadRegionCatalog(t)
 	catalog.Regions[0].M49Code = "999"
 	catalog.Regions[0].Code = "M49_999"
-	catalog.Regions[0].ID = "REG_M49_999"
 	if _, err := LoadCatalog(context.Background(), writeRegionCatalog(t, catalog)); !errors.Is(err, ErrInvalidRegion) {
 		t.Fatalf("LoadCatalog(noncanonical code) error = %v, want ErrInvalidRegion", err)
 	}
@@ -239,8 +235,8 @@ INSERT INTO regions (id, code, name, name_en, region_type)
 VALUES ('REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC');
 INSERT INTO countries (id, code, name, name_en)
 VALUES ('COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b', 'CN', '中国', 'China');
-INSERT INTO country_region_links (country_id, region_id)
-VALUES ('COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b', 'REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4')`); err != nil {
+INSERT INTO country_region_links (id, country_id, region_id)
+VALUES ('CRL11111111-1111-4111-8111-111111111111', 'COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b', 'REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4')`); err != nil {
 		t.Fatal(err)
 	}
 

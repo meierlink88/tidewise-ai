@@ -10,6 +10,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 func TestEvidencePublicationTransactionRollsBackOnPanic(t *testing.T) {
@@ -90,6 +91,7 @@ func TestPostgresEvidencePublicationTransactions(t *testing.T) {
 func assertConcurrentRawEvidenceConflict(t *testing.T, publication *evidencebiz.UseCase, db *sql.DB) {
 	t.Helper()
 	left := postgresEvidenceRaw("RAWb47847ee-e053-5012-b313-1dc77c9c4f15")
+	rawID := postgresRawEvidenceID(left)
 	right := left
 	right.RawText = "A different concurrent article."
 	start := make(chan struct{})
@@ -117,7 +119,7 @@ func assertConcurrentRawEvidenceConflict(t *testing.T, publication *evidencebiz.
 		t.Fatalf("concurrent Raw drift error = %v", err)
 	}
 	var rows int
-	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE raw_evidence_id = $1`, left.RawEvidenceID).Scan(&rows); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE raw_evidence_id = $1`, rawID).Scan(&rows); err != nil {
 		t.Fatal(err)
 	}
 	if succeeded != 1 || conflicted != 1 || rows != 1 {
@@ -138,9 +140,12 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 		{rawID: "RAW18c5ad2d-579d-5b0d-9c38-790dfd021100", evidenceID: "EVD67e8689b-cb97-509d-bdfe-4747c96caf9d", drift: true, wantSucceeded: 1, wantConflicts: 1},
 	} {
 		raw := postgresEvidenceRaw(test.rawID)
-		if _, err := publication.PublishRawEvidence(context.Background(), raw); err != nil {
+		rawResult, err := publication.PublishRawEvidence(context.Background(), raw)
+		if err != nil {
 			t.Fatal(err)
 		}
+		rawID := rawResult.RawEvidenceID
+		expectedEvidenceID, _ := coreid.Derive(coreid.Evidence, "atomic-evidence", rawID, "0")
 		left := []evidencebiz.Evidence{postgresEvidence(test.evidenceID, 0)}
 		right := []evidencebiz.Evidence{postgresEvidence(test.evidenceID, 0)}
 		if test.drift {
@@ -155,7 +160,7 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 		for _, input := range [][]evidencebiz.Evidence{left, right} {
 			go func(items []evidencebiz.Evidence) {
 				<-start
-				result, err := publication.PublishEvidence(context.Background(), raw.RawEvidenceID, items)
+				result, err := publication.PublishEvidence(context.Background(), rawID, items)
 				outcomes <- outcome{result: result, err: err}
 			}(input)
 		}
@@ -164,7 +169,7 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 		for count := 0; count < 2; count++ {
 			completed := <-outcomes
 			if completed.err == nil {
-				if len(completed.result.EvidenceIDs) != 1 || completed.result.EvidenceIDs[0] != test.evidenceID {
+				if len(completed.result.EvidenceIDs) != 1 || completed.result.EvidenceIDs[0] != expectedEvidenceID {
 					t.Fatalf("concurrent Evidence result = %#v", completed.result)
 				}
 				succeeded++
@@ -178,7 +183,7 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 			t.Fatalf("concurrent Evidence error = %v", completed.err)
 		}
 		var rows int
-		if err := db.QueryRow(`SELECT count(*) FROM evidences WHERE raw_evidence_id = $1`, raw.RawEvidenceID).Scan(&rows); err != nil {
+		if err := db.QueryRow(`SELECT count(*) FROM evidences WHERE raw_evidence_id = $1`, rawID).Scan(&rows); err != nil {
 			t.Fatal(err)
 		}
 		if succeeded != test.wantSucceeded || conflicted != test.wantConflicts || rows != 1 {
@@ -190,6 +195,7 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 func assertConcurrentRawEvidenceConvergence(t *testing.T, publication *evidencebiz.UseCase, db *sql.DB) {
 	t.Helper()
 	raw := postgresEvidenceRaw("RAW6c7e6640-423e-5a22-834f-631e5a61a5b2")
+	rawID := postgresRawEvidenceID(raw)
 	start := make(chan struct{})
 	results := make(chan evidencebiz.RawEvidenceResult, 2)
 	errorsChannel := make(chan error, 2)
@@ -214,12 +220,12 @@ func assertConcurrentRawEvidenceConvergence(t *testing.T, publication *evidenceb
 		}
 	}
 	for result := range results {
-		if result.RawEvidenceID != raw.RawEvidenceID {
+		if result.RawEvidenceID != rawID {
 			t.Fatalf("concurrent publication result = %#v", result)
 		}
 	}
 	var rows int
-	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE raw_evidence_id = $1`, raw.RawEvidenceID).Scan(&rows); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE raw_evidence_id = $1`, rawID).Scan(&rows); err != nil {
 		t.Fatal(err)
 	}
 	if rows != 1 {
@@ -231,6 +237,7 @@ func assertEvidenceTransactionRollback(t *testing.T, publication *evidencebiz.Us
 	t.Helper()
 	forcedFailure := errors.New("force transaction rollback")
 	raw := postgresEvidenceRaw("RAWb24ba990-71e7-522d-b192-3e5c82790aa6")
+	raw.RawEvidenceID = postgresRawEvidenceID(raw)
 	err := store.InTransaction(context.Background(), func(tx evidencebiz.Transaction) error {
 		if err := tx.InsertRawEvidence(context.Background(), evidencebiz.StoredRawEvidence{
 			RawEvidence: raw, ContentHash: "unused-generated-column-value",
@@ -251,10 +258,13 @@ func assertEvidenceTransactionRollback(t *testing.T, publication *evidencebiz.Us
 	}
 
 	evidenceRaw := postgresEvidenceRaw("RAWe87e4f45-47e8-54f8-9dea-7b54348f0963")
-	if _, err := publication.PublishRawEvidence(context.Background(), evidenceRaw); err != nil {
+	evidenceRawResult, err := publication.PublishRawEvidence(context.Background(), evidenceRaw)
+	if err != nil {
 		t.Fatal(err)
 	}
+	evidenceRaw.RawEvidenceID = evidenceRawResult.RawEvidenceID
 	evidence := postgresEvidence("EVD5a8f667a-cbca-5cb1-9bcd-e2d9072d4fda", 0)
+	evidence.EvidenceID, _ = coreid.Derive(coreid.Evidence, "atomic-evidence", evidenceRaw.RawEvidenceID, "0")
 	err = store.InTransaction(context.Background(), func(tx evidencebiz.Transaction) error {
 		if err := tx.InsertEvidence(context.Background(), evidencebiz.StoredEvidence{
 			Evidence: evidence, RawEvidenceID: evidenceRaw.RawEvidenceID, IsSplit: false,
@@ -291,6 +301,7 @@ func assertEvidenceDeadlineCancelsQueryAndRollsBack(t *testing.T, store Store, d
 	}
 
 	raw := postgresEvidenceRaw("RAW939071e3-a016-5296-8008-377876cbb972")
+	raw.RawEvidenceID = postgresRawEvidenceID(raw)
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	err = store.InTransaction(ctx, func(tx evidencebiz.Transaction) error {

@@ -84,8 +84,8 @@ func TestHTTPRoutesBindOrganizationOperationsAndRequests(t *testing.T) {
 			}
 		}},
 		{name: "create member", method: http.MethodPost, path: "/entities/organizations/ORG3fb9e7ff-2222-57fa-b306-c223ce3af549/members", body: `{}`, operation: organizationapi.OperationCreateMember, assertRequest: assertOrganizationID},
-		{name: "update member", method: http.MethodPut, path: "/entities/organizations/ORG3fb9e7ff-2222-57fa-b306-c223ce3af549/members/12", body: `{}`, operation: organizationapi.OperationUpdateMember, assertRequest: assertOrganizationMemberID},
-		{name: "delete member", method: http.MethodDelete, path: "/entities/organizations/ORG3fb9e7ff-2222-57fa-b306-c223ce3af549/members/12", operation: organizationapi.OperationDeleteMember, assertRequest: assertOrganizationMemberID},
+		{name: "update member", method: http.MethodPut, path: "/entities/organizations/ORG3fb9e7ff-2222-57fa-b306-c223ce3af549/members/OMB77777777-7777-4777-8777-777777777777", body: `{}`, operation: organizationapi.OperationUpdateMember, assertRequest: assertOrganizationMemberID},
+		{name: "delete member", method: http.MethodDelete, path: "/entities/organizations/ORG3fb9e7ff-2222-57fa-b306-c223ce3af549/members/OMB77777777-7777-4777-8777-777777777777", operation: organizationapi.OperationDeleteMember, assertRequest: assertOrganizationMemberID},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			stub := &httpServiceStub{}
@@ -115,15 +115,13 @@ func TestHTTPRoutesBindOrganizationOperationsAndRequests(t *testing.T) {
 	}
 }
 
-func TestHTTPRejectsUnknownFieldsAndInvalidMemberIDs(t *testing.T) {
+func TestHTTPRejectsUnknownFields(t *testing.T) {
 	server := newOrganizationHTTPServer(&httpServiceStub{}, nil)
 	for _, test := range []struct {
 		name, method, path, body string
 		wantStatus               int
 	}{
 		{name: "unknown create field", method: http.MethodPost, path: "/entities/organizations", body: `{"unknown":true}`, wantStatus: http.StatusBadRequest},
-		{name: "invalid update member ID", method: http.MethodPut, path: "/entities/organizations/ORG3fb9e7ff-2222-57fa-b306-c223ce3af549/members/not-a-number", body: `{}`, wantStatus: http.StatusUnprocessableEntity},
-		{name: "invalid delete member ID", method: http.MethodDelete, path: "/entities/organizations/ORG3fb9e7ff-2222-57fa-b306-c223ce3af549/members/not-a-number", wantStatus: http.StatusUnprocessableEntity},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
@@ -180,7 +178,7 @@ func assertOrganizationID(t *testing.T, input any) {
 func assertOrganizationMemberID(t *testing.T, input any) {
 	t.Helper()
 	var organizationID string
-	var memberID int64
+	var memberID string
 	switch request := input.(type) {
 	case *organizationapi.UpdateMemberRequest:
 		organizationID, memberID = request.OrganizationID, request.MemberID
@@ -189,7 +187,7 @@ func assertOrganizationMemberID(t *testing.T, input any) {
 	default:
 		t.Fatalf("request type = %T", input)
 	}
-	if organizationID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" || memberID != 12 {
-		t.Fatalf("member identity = %q/%d", organizationID, memberID)
+	if organizationID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" || memberID != "OMB77777777-7777-4777-8777-777777777777" {
+		t.Fatalf("member identity = %q/%s", organizationID, memberID)
 	}
 }

@@ -12,7 +12,6 @@ import (
 	"time"
 
 	biz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
-	bizidentity "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/identity"
 	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
@@ -500,13 +499,13 @@ func (s *Store) searchOrganizationResearchGraph(ctx context.Context, query biz.R
 		defer memberRows.Close()
 		countries := map[string]biz.ResearchGraphEntity{}
 		for memberRows.Next() {
-			var memberID int64
+			var memberID string
 			var organizationID, countryID, name, nameEn string
 			if err := memberRows.Scan(&memberID, &organizationID, &countryID, &name, &nameEn); err != nil {
 				return graph, err
 			}
 			countries[countryID] = biz.ResearchGraphEntity{EntityID: countryID, EntityType: biz.ObjectTypeCountry, Name: name, CanonicalName: name, Aliases: []string{nameEn}, Status: "active"}
-			relationID, err := coreid.Derive(biz.EntityRelationIDPrefix, "organization-member", fmt.Sprintf("%d", memberID))
+			relationID, err := coreid.Derive(biz.EntityRelationIDPrefix, "organization-member", memberID)
 			if err != nil {
 				return graph, err
 			}
@@ -621,7 +620,7 @@ func (s *Store) searchCountryResearchGraph(
 		defer linkRows.Close()
 		regions := map[string]biz.ResearchGraphEntity{}
 		for linkRows.Next() {
-			var linkID int64
+			var linkID string
 			var countryID, regionID, name, nameEn string
 			if err := linkRows.Scan(&linkID, &countryID, &regionID, &name, &nameEn); err != nil {
 				return biz.ResearchGraphSubgraph{}, err
@@ -630,7 +629,7 @@ func (s *Store) searchCountryResearchGraph(
 				EntityID: regionID, EntityType: "region", Name: name, CanonicalName: name,
 				Aliases: []string{nameEn}, Status: "active",
 			}
-			relationID, err := coreid.Derive(biz.EntityRelationIDPrefix, "country-region", fmt.Sprintf("%d", linkID))
+			relationID, err := coreid.Derive(biz.EntityRelationIDPrefix, "country-region", linkID)
 			if err != nil {
 				return biz.ResearchGraphSubgraph{}, err
 			}
@@ -753,7 +752,7 @@ func validatePersistedResearchGraph(graph biz.ResearchGraphSubgraph, maxDepth in
 	}
 	edgeIDs := make(map[string]struct{}, len(graph.IndustryChainGraphEdges))
 	for _, edge := range graph.IndustryChainGraphEdges {
-		if !bizidentity.IsUUID(edge.IndustryChainGraphEdgeID) || strings.TrimSpace(edge.Mechanism) == "" ||
+		if !coreid.Is(edge.IndustryChainGraphEdgeID, coreid.IndustryChainGraphEdge) || strings.TrimSpace(edge.Mechanism) == "" ||
 			!oneOfResearchGraph(edge.SegmentKind, "direct_candidate", "compressed_candidate") ||
 			edge.ReviewStatus != "approved" || edge.Status != "active" || edge.FromChainNodeEntityID == edge.ToChainNodeEntityID {
 			return errors.New("persisted Research Graph Industry Chain edge violates invariants")
@@ -1136,10 +1135,3 @@ func NewStore(db *sql.DB) (*Store, error) {
 }
 
 type scanner interface{ Scan(...any) error }
-
-func optionalUUID(value string) any {
-	if value == "" {
-		return nil
-	}
-	return bizidentity.NormalizeUUID(value)
-}

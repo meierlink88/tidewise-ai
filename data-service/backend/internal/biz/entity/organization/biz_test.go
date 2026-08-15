@@ -15,10 +15,10 @@ type repositoryStub struct {
 	replacedCodes      []string
 	createdMember      Member
 	updatedMemberOrgID string
-	updatedMemberID    int64
+	updatedMemberID    string
 	updatedMember      Member
 	deletedMemberOrgID string
-	deletedMemberID    int64
+	deletedMemberID    string
 }
 
 func (s *repositoryStub) Create(_ context.Context, input Organization) (Organization, error) {
@@ -46,11 +46,11 @@ func (s *repositoryStub) CreateMember(_ context.Context, input Member) (Member, 
 	s.createdMember = input
 	return input, nil
 }
-func (s *repositoryStub) UpdateMember(_ context.Context, organizationID string, id int64, input Member) (Member, error) {
+func (s *repositoryStub) UpdateMember(_ context.Context, organizationID, id string, input Member) (Member, error) {
 	s.updatedMemberOrgID, s.updatedMemberID, s.updatedMember = organizationID, id, input
 	return input, nil
 }
-func (s *repositoryStub) DeleteMember(_ context.Context, organizationID string, id int64) error {
+func (s *repositoryStub) DeleteMember(_ context.Context, organizationID, id string) error {
 	s.deletedMemberOrgID, s.deletedMemberID = organizationID, id
 	return nil
 }
@@ -161,20 +161,20 @@ func TestUseCaseValidatesFiltersAndMembershipBeforePersistence(t *testing.T) {
 		t.Fatalf("invalid member reached persistence: %#v", repository.createdMember)
 	}
 	valid := Member{CountryID: "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b", MembershipType: "OBSERVER"}
-	if _, err := useCase.UpdateMember(context.Background(), "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", 7, valid); err != nil {
+	if _, err := useCase.UpdateMember(context.Background(), "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", "OMB77777777-7777-4777-8777-777777777777", valid); err != nil {
 		t.Fatal(err)
 	}
-	if repository.updatedMemberOrgID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" || repository.updatedMemberID != 7 || repository.updatedMember.OrganizationID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" {
+	if repository.updatedMemberOrgID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" || repository.updatedMemberID != "OMB77777777-7777-4777-8777-777777777777" || repository.updatedMember.OrganizationID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" {
 		t.Fatalf("UpdateMember persistence input = %#v", repository.updatedMember)
 	}
-	if err := useCase.DeleteMember(context.Background(), "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", 0); err == nil {
+	if err := useCase.DeleteMember(context.Background(), "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", "bad"); err == nil {
 		t.Fatal("DeleteMember() accepted non-positive member ID")
 	}
 }
 
 func validOrganization() Organization {
 	return Organization{
-		ID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", Code: "UN", Name: "联合国", NameEn: "United Nations",
+		Code: "UN", Name: "联合国", NameEn: "United Nations",
 		Category: CatalogTerm{Code: "INTERGOVERNMENTAL"}, Function: CatalogTerm{Code: "SECURITY"},
 	}
 }

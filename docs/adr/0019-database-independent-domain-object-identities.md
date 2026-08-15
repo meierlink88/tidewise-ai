@@ -21,16 +21,30 @@ Data 各领域曾并存裸 UUID、`PREFIX_ + code`、固定短码和非 UUID 自
   确定性生成、旧 UUID 保留和解析校验原语。这是对固定 Kratos 布局的经审查
   技术机制例外，owner 为 Data Application，不是新业务 layer。
 - `core/id` 只能依赖 Go 标准库和 UUID 库；不得依赖 Biz、Data Adapter、Service、
-  Server、Conf 或数据库。Biz 领域可依赖这些原语定义自己的前缀与业务
-  生成时机；其他 layer 不得绕过 Biz 决定业务身份。
-- 前缀参数保持技术上通用，以便新领域经审查后复用同一格式；当前受控
-  领域前缀仅为 `ENT`、`ERL`、`COU`、`REG`、`ORG`、`RAW`、`EVD`、`EVC`。
-  通用接口不授权任意业务自行创建新前缀。
+  Server、Conf 或数据库。它拥有关闭的 typed object-kind 注册表；任意字符串前缀不是
+  公开 interface。普通写入由 Biz 决定生成时机；受控初始化发布也必须调用同一原语。
+- 正常创建合同不接收系统主键。可重放发布接收调用方自然键，由 Biz 确定性生成正式
+  主键；Data Adapter 只持久化 Biz command。自然码目录和纯复合关联键不增加人工主键。
 - 可移植目录以受控自然键确定性生成 UUID；旧 Entity/Entity Relation 在切换时
   保留原 UUID 作为后缀，避免无意义的身份重排。
 
+## 受控对象前缀
+
+`ENT` Entity、`ERL` Entity Relation、`COU` Country、`REG` Region、`ORG` Organization、
+`RAW` Raw Evidence、`EVD` Evidence、`EVC` Evidence Category、`CPC` Chain Node Physical
+Constraint、`CNR` Chain Node Relation、`CRL` Country Region Link、`DIA` Direct Impact
+Assertion、`EEI` Entity External Identifier、`ENL` Event Entity Link、`EPR` Event
+Publication Receipt、`ECS` Event Semantic Candidate Snapshot、`SCL` Event Semantic Context
+Lease、`ERB` Event Semantic Resolution Binding、`ERS` Event Semantic Review Snapshot、`ESS`
+Event Semantic Submission、`EEL` Event Evidence Link、`ETD` Event Tag Definition、`ETA`
+Event Tag Assignment、`EVT` Event、`IGE` Industry Chain Graph Edge、`IRI` Industry Relationship
+Import Receipt、`OMB` Organization Membership、`EER` Event Evidence Record、`RRI` Research
+Reasoning Tree Import Receipt、`RRN` Research Reasoning Tree Node、`RRT` Research Reasoning Tree、
+`RTI` Research Theme Import Receipt、`RTH` Research Theme、`VSM` Variable Signal Measurement、
+`VSG` Variable Signal。
+
 ## 切换与回滚
 
-Migration `000050` 在 stop-write 窗口内改写所有主键与传递外键，并将 Country
-code 收敛为 ISO 3166-1 alpha-2。旧应用不兼容新身份，回滚必须同时恢复
+Migration `000050`–`000052` 在 stop-write 窗口内改写所有独立业务主键、传递外键，以及
+ID 数组和研究回执 map，并将 Country code 收敛为 ISO 3166-1 alpha-2。旧应用不兼容新身份，回滚必须同时恢复
 迁移前 PostgreSQL 快照与上一版应用，不运行 down migration。

@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewUsesPrefixAndCanonicalUUIDWithoutSeparator(t *testing.T) {
-	value, err := New("COU")
+	value, err := New(Country)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
@@ -18,21 +18,21 @@ func TestNewUsesPrefixAndCanonicalUUIDWithoutSeparator(t *testing.T) {
 	if strings.HasPrefix(value, "COU_") || strings.HasPrefix(value, "COU-") {
 		t.Fatalf("New() = %q, must not separate prefix and UUID", value)
 	}
-	if _, err := Parse(value, "COU"); err != nil {
+	if _, err := Parse(value, Country); err != nil {
 		t.Fatalf("Parse(New()) error = %v", err)
 	}
 }
 
 func TestDeriveIsStableAndPrefixIsolated(t *testing.T) {
-	first, err := Derive("COU", "country", "CN")
+	first, err := Derive(Country, "country", "CN")
 	if err != nil {
 		t.Fatalf("Derive() error = %v", err)
 	}
-	second, err := Derive("COU", "country", "CN")
+	second, err := Derive(Country, "country", "CN")
 	if err != nil {
 		t.Fatalf("Derive() replay error = %v", err)
 	}
-	otherPrefix, err := Derive("REG", "country", "CN")
+	otherPrefix, err := Derive(Region, "country", "CN")
 	if err != nil {
 		t.Fatalf("Derive() other prefix error = %v", err)
 	}
@@ -46,14 +46,14 @@ func TestDeriveIsStableAndPrefixIsolated(t *testing.T) {
 
 func TestFromUUIDPreservesSuffix(t *testing.T) {
 	suffix := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
-	value, err := FromUUID("ENT", suffix)
+	value, err := FromUUID(Entity, suffix)
 	if err != nil {
 		t.Fatalf("FromUUID() error = %v", err)
 	}
 	if value != "ENT550e8400-e29b-41d4-a716-446655440000" {
 		t.Fatalf("FromUUID() = %q", value)
 	}
-	parsed, err := Parse(value, "ENT")
+	parsed, err := Parse(value, Entity)
 	if err != nil || parsed != suffix {
 		t.Fatalf("Parse() = %v, %v", parsed, err)
 	}
@@ -62,30 +62,28 @@ func TestFromUUIDPreservesSuffix(t *testing.T) {
 func TestParseRejectsNonCanonicalIdentities(t *testing.T) {
 	valid := "COU550e8400-e29b-41d4-a716-446655440000"
 	tests := []struct {
-		name   string
-		value  string
-		prefix string
+		name  string
+		value string
+		kind  Kind
 	}{
-		{name: "bare UUID", value: strings.TrimPrefix(valid, "COU"), prefix: "COU"},
-		{name: "separator", value: "COU_550e8400-e29b-41d4-a716-446655440000", prefix: "COU"},
-		{name: "wrong prefix", value: valid, prefix: "REG"},
-		{name: "uppercase UUID", value: "COU550E8400-E29B-41D4-A716-446655440000", prefix: "COU"},
-		{name: "surrounding whitespace", value: " " + valid, prefix: "COU"},
-		{name: "invalid UUID", value: "COUnot-a-uuid", prefix: "COU"},
+		{name: "bare UUID", value: strings.TrimPrefix(valid, "COU"), kind: Country},
+		{name: "separator", value: "COU_550e8400-e29b-41d4-a716-446655440000", kind: Country},
+		{name: "wrong prefix", value: valid, kind: Region},
+		{name: "uppercase UUID", value: "COU550E8400-E29B-41D4-A716-446655440000", kind: Country},
+		{name: "surrounding whitespace", value: " " + valid, kind: Country},
+		{name: "invalid UUID", value: "COUnot-a-uuid", kind: Country},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := Parse(test.value, test.prefix); err == nil {
-				t.Fatalf("Parse(%q, %q) succeeded", test.value, test.prefix)
+			if _, err := Parse(test.value, test.kind); err == nil {
+				t.Fatalf("Parse(%q, %q) succeeded", test.value, test.kind)
 			}
 		})
 	}
 }
 
-func TestPrefixValidation(t *testing.T) {
-	for _, prefix := range []string{"", "C", "country", "COU_", "TOO_LONG_PREFIX"} {
-		if _, err := New(prefix); err == nil {
-			t.Fatalf("New(%q) succeeded", prefix)
-		}
+func TestRegistryRejectsUnreviewedKind(t *testing.T) {
+	if _, err := New(Kind("ABC")); err == nil {
+		t.Fatal("New(unreviewed kind) succeeded")
 	}
 }

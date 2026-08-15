@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 	"github.com/pressly/goose/v3"
 )
 
@@ -37,15 +38,16 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 	if err != nil {
 		t.Fatalf("publish Raw Evidence: %v", err)
 	}
-	rawCreatedAt := storedCreationTime(t, db, "raw_evidences", "raw_evidence_id", raw.RawEvidenceID)
+	rawID := created.RawEvidenceID
+	rawCreatedAt := storedCreationTime(t, db, "raw_evidences", "raw_evidence_id", rawID)
 	replayed, err := publication.PublishRawEvidence(ctx, raw)
 	if err != nil {
 		t.Fatalf("replay Raw Evidence: %v", err)
 	}
-	if replayedCreatedAt := storedCreationTime(t, db, "raw_evidences", "raw_evidence_id", raw.RawEvidenceID); !replayedCreatedAt.Equal(rawCreatedAt) {
+	if replayedCreatedAt := storedCreationTime(t, db, "raw_evidences", "raw_evidence_id", rawID); !replayedCreatedAt.Equal(rawCreatedAt) {
 		t.Fatalf("replayed Raw Evidence created_at = %s, want %s", replayedCreatedAt, rawCreatedAt)
 	}
-	if created.RawEvidenceID != raw.RawEvidenceID || replayed != created {
+	if created.RawEvidenceID != postgresRawEvidenceID(raw) || replayed != created {
 		t.Fatalf("Raw Evidence results created=%#v replayed=%#v", created, replayed)
 	}
 
@@ -54,31 +56,31 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 		postgresEvidence("EVD8fea9496-3764-53c2-ab57-5b1ff87b7581", 1),
 	}
 	items[1].SourceWhat = "A second source statement supports the same normalized fact."
-	published, err := publication.PublishEvidence(ctx, raw.RawEvidenceID, items)
+	published, err := publication.PublishEvidence(ctx, rawID, items)
 	if err != nil {
 		t.Fatalf("publish Evidence set: %v", err)
 	}
 	evidenceCreatedAt := make(map[string]time.Time, len(items))
-	for _, item := range items {
-		evidenceCreatedAt[item.EvidenceID] = storedCreationTime(t, db, "evidences", "evidence_id", item.EvidenceID)
+	for _, evidenceID := range published.EvidenceIDs {
+		evidenceCreatedAt[evidenceID] = storedCreationTime(t, db, "evidences", "evidence_id", evidenceID)
 	}
-	reused, err := publication.PublishEvidence(ctx, raw.RawEvidenceID, items)
+	reused, err := publication.PublishEvidence(ctx, rawID, items)
 	if err != nil {
 		t.Fatalf("replay Evidence set: %v", err)
 	}
-	for _, item := range items {
-		if replayedCreatedAt := storedCreationTime(t, db, "evidences", "evidence_id", item.EvidenceID); !replayedCreatedAt.Equal(evidenceCreatedAt[item.EvidenceID]) {
-			t.Fatalf("replayed Evidence %q created_at = %s, want %s", item.EvidenceID, replayedCreatedAt, evidenceCreatedAt[item.EvidenceID])
+	for _, evidenceID := range published.EvidenceIDs {
+		if replayedCreatedAt := storedCreationTime(t, db, "evidences", "evidence_id", evidenceID); !replayedCreatedAt.Equal(evidenceCreatedAt[evidenceID]) {
+			t.Fatalf("replayed Evidence %q created_at = %s, want %s", evidenceID, replayedCreatedAt, evidenceCreatedAt[evidenceID])
 		}
 	}
-	if published.RawEvidenceID != raw.RawEvidenceID || !sameTestStrings(published.EvidenceIDs, reused.EvidenceIDs) || len(published.EvidenceIDs) != 2 {
+	if published.RawEvidenceID != rawID || !sameTestStrings(published.EvidenceIDs, reused.EvidenceIDs) || len(published.EvidenceIDs) != 2 {
 		t.Fatalf("Evidence results published=%#v reused=%#v", published, reused)
 	}
 
 	var keywords []string
 	var keywordsJSON []byte
 	var evidenceCount int
-	if err := db.QueryRowContext(ctx, `SELECT array_to_json(keywords) FROM raw_evidences WHERE raw_evidence_id = $1`, raw.RawEvidenceID).Scan(&keywordsJSON); err != nil {
+	if err := db.QueryRowContext(ctx, `SELECT array_to_json(keywords) FROM raw_evidences WHERE raw_evidence_id = $1`, rawID).Scan(&keywordsJSON); err != nil {
 		t.Fatal(err)
 	}
 	if err := json.Unmarshal(keywordsJSON, &keywords); err != nil {
@@ -96,7 +98,7 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 
 	drift := append([]evidencebiz.Evidence(nil), items...)
 	drift[0].SourceWhat = "drifted"
-	_, err = publication.PublishEvidence(ctx, raw.RawEvidenceID, drift)
+	_, err = publication.PublishEvidence(ctx, rawID, drift)
 	var conflict *evidencebiz.ConflictError
 	if !errors.As(err, &conflict) {
 		t.Fatalf("drift error = %v, want ConflictError", err)
@@ -214,10 +216,10 @@ func persistedEvidenceRow(id, rawEvidenceID string, splitOrder int, sourceWhat s
 	}
 }
 
-func postgresEvidenceRaw(id string) evidencebiz.RawEvidence {
+func postgresEvidenceRaw(publicationKey string) evidencebiz.RawEvidence {
 	publishedAt := time.Date(2026, 8, 11, 1, 0, 0, 123456789, time.UTC)
 	return evidencebiz.RawEvidence{
-		RawEvidenceID: id, SourceID: "SRC_postgres_0000000000000000000", SourceName: "Example Wire",
+		PublicationKey: publicationKey, SourceID: "SRC_postgres_0000000000000000000", SourceName: "Example Wire",
 		SourceLevel: "L2_WIRE", SourceURL: "https://example.test/evidence", IsOriginal: true,
 		RawText: "Complete PostgreSQL Evidence Publication article.", PublishedAt: &publishedAt,
 		CollectedAt: time.Date(2026, 8, 11, 1, 5, 0, 987654321, time.UTC),
@@ -225,9 +227,14 @@ func postgresEvidenceRaw(id string) evidencebiz.RawEvidence {
 	}
 }
 
-func postgresEvidence(id string, order int) evidencebiz.Evidence {
+func postgresRawEvidenceID(raw evidencebiz.RawEvidence) string {
+	value, _ := coreid.Derive(coreid.RawEvidence, "raw-evidence-publication", raw.PublicationKey)
+	return value
+}
+
+func postgresEvidence(_ string, order int) evidencebiz.Evidence {
 	return evidencebiz.Evidence{
-		EvidenceID: id, SplitOrder: order, LayerType: "SINGLE",
+		SplitOrder: order, LayerType: "SINGLE",
 		SourceWhat:            "Example Corp expanded production.",
 		ExpressionFingerprint: "Example Corp expands production",
 		ExpressionKey:         "shared-expression-key-v1", FingerprintVersion: "evidence-expression.v1",

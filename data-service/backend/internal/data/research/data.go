@@ -12,8 +12,8 @@ import (
 	"time"
 
 	entitybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
-	bizidentity "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/identity"
 	researchbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/research"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 var (
@@ -222,7 +222,7 @@ func validatePersistedResearchThemeSummary(item ResearchThemeSummary) error {
 	invalid := func(reason string) error {
 		return fmt.Errorf("persisted Research Theme %q violates invariants: %s", item.ID, reason)
 	}
-	if !bizidentity.IsUUID(item.ID) || strings.TrimSpace(item.AnalysisBatchID) == "" ||
+	if !coreid.Is(item.ID, coreid.ResearchTheme) || strings.TrimSpace(item.AnalysisBatchID) == "" ||
 		strings.TrimSpace(item.Title) == "" || strings.TrimSpace(item.OneLineConclusion) == "" ||
 		strings.TrimSpace(item.InvestmentGuidanceSummary) == "" {
 		return invalid("required identity or text is missing")
@@ -274,7 +274,7 @@ func validatePersistedResearchThemeDetail(item ResearchThemeDetail) error {
 	}
 	seen := make(map[string]struct{}, len(item.Events))
 	for _, event := range item.Events {
-		if !bizidentity.IsUUID(event.EventID) || strings.TrimSpace(event.Title) == "" ||
+		if !coreid.Is(event.EventID, coreid.Event) || strings.TrimSpace(event.Title) == "" ||
 			!oneOf(event.EvidenceRole, "driver", "supporting", "contradicting", "context") {
 			return fmt.Errorf("persisted Research Theme %q has a malformed Event reference", item.ID)
 		}
@@ -283,7 +283,7 @@ func validatePersistedResearchThemeDetail(item ResearchThemeDetail) error {
 		}
 		seen[event.EventID] = struct{}{}
 		for _, evidenceID := range event.EvidenceIDs {
-			if !bizidentity.IsUUID(evidenceID) {
+			if !coreid.Is(evidenceID, coreid.EventEvidenceLink) {
 				return fmt.Errorf("persisted Research Theme %q has a malformed Evidence reference", item.ID)
 			}
 		}
@@ -570,7 +570,7 @@ func (r Store) readResearchReasoningTreePublication(ctx context.Context, themeID
 }
 
 func validReasoningTreePublication(publication researchReasoningTreePublication, nodeCount, eventCount, signalCount int) bool {
-	if !bizidentity.IsUUID(publication.ReceiptID) || len(publication.Mapping) == 0 || len(publication.Trees) == 0 ||
+	if !coreid.Is(publication.ReceiptID, coreid.ResearchReasoningTreeReceipt) || len(publication.Mapping) == 0 || len(publication.Trees) == 0 ||
 		nodeCount < 1 || eventCount < 0 || signalCount < 1 {
 		return false
 	}
@@ -583,7 +583,7 @@ func validReasoningTreePublication(publication researchReasoningTreePublication,
 	actual := make(map[string]string, len(publication.Trees))
 	seenTreeIDs := make(map[string]struct{}, len(publication.Trees))
 	for index, tree := range publication.Trees {
-		if !bizidentity.IsUUID(tree.ReasoningTreeID) ||
+		if !coreid.Is(tree.ReasoningTreeID, coreid.ResearchReasoningTree) ||
 			(!entitybiz.IsEntityID(tree.TreeKey) && !researchKeyPattern.MatchString(tree.TreeKey)) ||
 			(tree.IndustryChainEntityID != "" && !entitybiz.IsEntityID(tree.IndustryChainEntityID)) ||
 			tree.DisplayOrder != index+1 || tree.EventCount < 0 || tree.PublishedAt.IsZero() ||
@@ -601,7 +601,7 @@ func validReasoningTreePublication(publication researchReasoningTreePublication,
 		seenTreeIDs[tree.ReasoningTreeID] = struct{}{}
 	}
 	for key, id := range publication.Mapping {
-		if (!entitybiz.IsEntityID(key) && !researchKeyPattern.MatchString(key)) || !bizidentity.IsUUID(id) {
+		if (!entitybiz.IsEntityID(key) && !researchKeyPattern.MatchString(key)) || !coreid.Is(id, coreid.ResearchReasoningTree) {
 			return false
 		}
 	}
@@ -621,7 +621,7 @@ func validReasoningTreeDetail(detail ResearchReasoningTreeDetail, tree ResearchR
 	formal := detail.PublicationMode == "formal" && detail.PublicationContractVersion == 2
 	snapshot := detail.PublicationMode == researchbiz.SnapshotPublicationMode && detail.PublicationContractVersion == 3
 	if (!formal && !snapshot) || !researchKeyPattern.MatchString(detail.ThemeKey) ||
-		!bizidentity.IsUUID(tree.ReasoningTreeID) || !bizidentity.IsUUID(tree.ThemeID) ||
+		!coreid.Is(tree.ReasoningTreeID, coreid.ResearchReasoningTree) || !coreid.Is(tree.ThemeID, coreid.ResearchTheme) ||
 		(!entitybiz.IsEntityID(tree.TreeKey) && !researchKeyPattern.MatchString(tree.TreeKey)) ||
 		strings.TrimSpace(tree.DisplayName) == "" || strings.TrimSpace(tree.IndustryChainName) == "" ||
 		strings.TrimSpace(tree.Title) == "" || strings.TrimSpace(tree.OneLineConclusion) == "" ||
@@ -644,7 +644,7 @@ func validReasoningTreeDetail(detail ResearchReasoningTreeDetail, tree ResearchR
 	}
 	seenEvents := make(map[string]struct{}, len(tree.Events))
 	for index, event := range tree.Events {
-		if !bizidentity.IsUUID(event.EventID) || event.DisplayOrder != index+1 ||
+		if !coreid.Is(event.EventID, coreid.Event) || event.DisplayOrder != index+1 ||
 			strings.TrimSpace(event.Title) == "" ||
 			!oneOf(event.EvidenceRole, "driver", "supporting", "contradicting", "context") {
 			return false
@@ -655,7 +655,7 @@ func validReasoningTreeDetail(detail ResearchReasoningTreeDetail, tree ResearchR
 		seenEvents[event.EventID] = struct{}{}
 		evidenceIDs := make(map[string]struct{}, len(event.EvidenceIDs))
 		for _, evidenceID := range event.EvidenceIDs {
-			if !bizidentity.IsUUID(evidenceID) {
+			if !coreid.Is(evidenceID, coreid.EventEvidenceLink) {
 				return false
 			}
 			if _, duplicate := evidenceIDs[evidenceID]; duplicate {
@@ -678,7 +678,7 @@ func validReasoningTreeDetail(detail ResearchReasoningTreeDetail, tree ResearchR
 	seenNodes := make(map[string]struct{}, len(tree.Nodes))
 	seenNodeIDs := make(map[string]struct{}, len(tree.Nodes))
 	for index, node := range tree.Nodes {
-		if !bizidentity.IsUUID(node.ID) || strings.TrimSpace(node.NodeKey) == "" ||
+		if !coreid.Is(node.ID, coreid.ResearchReasoningTreeNode) || strings.TrimSpace(node.NodeKey) == "" ||
 			strings.TrimSpace(node.DisplayName) == "" || node.Position != index+1 ||
 			!oneOf(node.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") ||
 			!oneOf(node.ImpactStrength, "strong", "medium", "weak", "unknown") ||
@@ -738,7 +738,7 @@ func validReasoningTreeDetail(detail ResearchReasoningTreeDetail, tree ResearchR
 				return false
 			}
 		}
-		if node.IncomingGraphEdge != nil && (!bizidentity.IsUUID(node.IncomingGraphEdge.ID) ||
+		if node.IncomingGraphEdge != nil && (!coreid.Is(node.IncomingGraphEdge.ID, coreid.IndustryChainGraphEdge) ||
 			strings.TrimSpace(node.IncomingGraphEdge.RelationType) == "" ||
 			node.IncomingGraphEdge.ReviewStatus != "approved" || node.IncomingGraphEdge.Status != "active") {
 			return false

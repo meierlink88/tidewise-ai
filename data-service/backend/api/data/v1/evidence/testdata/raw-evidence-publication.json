@@ -1,6 +1,6 @@
 {
   "raw_evidence": {
-    "raw_evidence_id": "RAWec95a292-d513-5aa6-a54c-a9e3926add1a",
+    "publication_key": "fixture-publication-1",
     "source_id": "SRC_fixture_00000000000000000000",
     "source_name": "Example Wire",
     "source_level": "L2_WIRE",

@@ -143,8 +143,8 @@ func TestSemanticJSONEqualPreservesNumberPrecision(t *testing.T) {
 
 func TestActiveTagsSortsStableCurrentCollection(t *testing.T) {
 	tags := []EventTag{
-		{ID: "b1a5438f-6e81-55e7-8ecb-33230b9ae965", Kind: "news_category", Code: "macroeconomy", Name: "宏观经济", Active: true},
-		{ID: "22a5afc5-20ed-55ce-bf77-54c26bbcc6ea", Kind: "news_category", Code: "technology_industry", Name: "科技产业", Active: true},
+		{ID: "ETDb1a5438f-6e81-55e7-8ecb-33230b9ae965", Kind: "news_category", Code: "macroeconomy", Name: "宏观经济", Active: true},
+		{ID: "ETD22a5afc5-20ed-55ce-bf77-54c26bbcc6ea", Kind: "news_category", Code: "technology_industry", Name: "科技产业", Active: true},
 	}
 	first, err := NewUseCase(fakeStore{tags: tags})
 	if err != nil {
@@ -270,7 +270,7 @@ func validPublication() PublicationBatch {
 				SourceLevel: "primary",
 			}},
 			Tags: []EventTagInput{{
-				TagID:   "22a5afc5-20ed-55ce-bf77-54c26bbcc6ea",
+				TagID:   "ETD22a5afc5-20ed-55ce-bf77-54c26bbcc6ea",
 				TagKind: "news_category", TagCode: "technology_industry",
 				Confidence: json.Number("0.9"), AssignmentReason: "Technology event",
 				AssignSource: "ai",
