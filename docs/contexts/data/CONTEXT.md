@@ -6,7 +6,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 
 ## Owns
 
-- Entity 事实、独立 Object 事实、Object Schema、产业链节点及关系、Benchmark、Benchmark Observation、
+- Entity 事实、独立 Object 事实、Object Schema、产业链节点及关系、
   Index 等正式事实。
 - 完整 Raw Evidence、阅读辅助 Keywords、原子 Evidence 及其确定性去重身份。
 - 正式 Event、被 Event 引用的轻量 Evidence Record 及其证据关联。
@@ -362,8 +362,8 @@ _Avoid_: 实现状态、审核状态、Agent 预测置信度
 
 **Variable Definition**:
 对一个可用于 Event 语义的变量所作的受控 TBox 定义，明确其业务含义、值语义、允许
-方向和适用 Entity Type。它不是一次观测、一个 Metric Entity 或自由 Prompt 词汇。
-_Avoid_: Observation、Event-native Variable Signal、Metric Entity、模型自由变量名
+方向和适用 Entity Type。它不是一次观测或自由 Prompt 词汇。
+_Avoid_: Observation、Event-native Variable Signal、模型自由变量名
 
 **Object Schema**:
 Data Service 工程 `doctype/` 中每个 Object Type 独立维护的 OpenSPG Schema Mark
@@ -400,12 +400,6 @@ Tidewise AI 1.0 用于混合表达国家、全球范围、区域和跨国对象�
 活动代码、API、Schema 和最终数据库状态不得把 Country 表达为 `economy`，也不得为新
 Country 创建兼容 UUID、双读或双写入口；历史 migration 和合法宏观经济词汇不受影响。
 _Avoid_: Economy alias、Country/Economy fallback、从混合旧行猜测 Country
-
-**Benchmark Observation**:
-挂在一个正式 Benchmark Entity 下、带观测时间、数值、单位、来源与质量状态的时序事实。
-它属于 Entity 领域事实，但不是 Entity identity、Benchmark Profile、Event Measurement 或
-Entity projection node；相同 Benchmark、观测时间和来源按既有自然身份收敛。
-_Avoid_: Benchmark Entity、Metric Entity、Event-native Measurement、Neo4j/Qdrant projection
 
 **Measurement Value**:
 Variable Signal 或未来 Observation 复用的结构化数值对象。它以受控角色区分绝对水平、

@@ -47,3 +47,4 @@
 000046	high	mixed	replace Economy with independent Country facts and Country-to-Region relationships in a coordinated Tidewise AI 2.0 cutover
 000047	normal	mixed	add Raw Evidence category schema and publish the fixed 11-category contract catalog
 000048	high	mixed	replace legacy Alliance facts with independent Organization schema and retire dependent immutable aggregates in a coordinated cutover
+000049	high	mixed	retire benchmark and metric Entity facts and the graph projection ledger in a snapshot-protected cutover

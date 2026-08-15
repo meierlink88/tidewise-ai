@@ -276,73 +276,12 @@ func TestProductEntityAndProfileValidate(t *testing.T) {
 	}
 }
 
-func TestBenchmarkEntityTypeAndProfileValidate(t *testing.T) {
-	node := Entity{
-		ID:            "benchmark-1",
-		EntityType:    EntityTypeBenchmark,
-		LayerCode:     "benchmark",
-		Name:          "美国10年期国债收益率",
-		CanonicalName: "美国10年期国债收益率",
-		Status:        StatusActive,
-	}
-	if err := node.Validate(); err != nil {
-		t.Fatalf("benchmark Entity.Validate() error = %v", err)
-	}
-
-	profile := BenchmarkProfile{
-		EntityID:           "benchmark-1",
-		BenchmarkType:      BenchmarkTypeGovernmentBondYield,
-		OfficialSeriesCode: "",
-		Provider:           "us_treasury",
-		Tenor:              "10Y",
-		CurrencyCode:       "USD",
-		Unit:               "percent",
-		Frequency:          "daily",
-		SourceURL:          "https://home.treasury.gov/",
-	}
-	if err := profile.Validate(); err != nil {
-		t.Fatalf("BenchmarkProfile.Validate() error = %v", err)
-	}
-
-	profile.BenchmarkType = "index"
-	if err := profile.Validate(); err == nil {
-		t.Fatal("BenchmarkProfile.Validate() error = nil, want invalid benchmark type error")
-	}
-}
-
-func TestBenchmarkObservationQualityStatusValidate(t *testing.T) {
-	validStatuses := []BenchmarkObservationQualityStatus{
-		BenchmarkObservationQualityRaw,
-		BenchmarkObservationQualityValidated,
-		BenchmarkObservationQualitySuspect,
-		BenchmarkObservationQualityRejected,
-	}
-	for _, status := range validStatuses {
-		observation := BenchmarkObservation{
-			ID:                "observation-1",
-			BenchmarkEntityID: "benchmark-1",
-			ObservedAt:        time.Now(),
-			Value:             "4.25",
-			Unit:              "percent",
-			SourceName:        "US Treasury",
-			QualityStatus:     status,
+func TestEntityValidateRejectsRetiredEntityTypes(t *testing.T) {
+	for _, entityType := range []EntityType{"benchmark", "metric"} {
+		node := Entity{ID: "retired-" + string(entityType), EntityType: entityType, LayerCode: string(entityType), Name: "retired", CanonicalName: "retired", Status: StatusActive}
+		if err := node.Validate(); err == nil {
+			t.Fatalf("Entity.Validate() type %q error = nil, want rejection", entityType)
 		}
-		if err := observation.Validate(); err != nil {
-			t.Fatalf("BenchmarkObservation.Validate() status %q error = %v", status, err)
-		}
-	}
-
-	observation := BenchmarkObservation{
-		ID:                "observation-1",
-		BenchmarkEntityID: "benchmark-1",
-		ObservedAt:        time.Now(),
-		Value:             "4.25",
-		Unit:              "percent",
-		SourceName:        "US Treasury",
-		QualityStatus:     "estimated",
-	}
-	if err := observation.Validate(); err == nil {
-		t.Fatal("BenchmarkObservation.Validate() error = nil, want invalid quality status error")
 	}
 }
 
