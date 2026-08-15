@@ -292,12 +292,13 @@ func TestLocalComposeOwnsOnlyApplicationServices(t *testing.T) {
 	}
 	text := string(contents)
 	for _, required := range []string{
+		"name: tidewise-app",
 		"  data:", "  data-migrate:", "  miniapp:",
 		"  adminportal:", "  admin:", "  agentrun:", "  agentrun-migrate:", "  agentrun-agent-version:",
 		"context: ../..",
 		"data-service/backend/Dockerfile", "miniapp/backend/Dockerfile",
 		"admin-portal/backend/Dockerfile", "admin-portal/frontend/Dockerfile", "agent-run/backend/Dockerfile",
-		"tidewise-local", "/healthz", "/readyz",
+		"tidewise-local", "external: true", "/healthz", "/readyz",
 	} {
 		if !strings.Contains(text, required) {
 			t.Fatalf("local compose missing %q", required)
@@ -336,11 +337,11 @@ func TestLocalComposeOwnsOnlyApplicationServices(t *testing.T) {
 	dataComposeConfig := readContractFile(t, filepath.Join(repoRoot, "data-service", "backend", "configs", "config.local.yaml"))
 	agentRunComposeConfig := readContractFile(t, filepath.Join(repoRoot, "agent-run", "backend", "configs", "config.dev.yaml"))
 	for service, config := range map[string]string{"Data": dataComposeConfig, "AgentRun": agentRunComposeConfig} {
-		if !strings.Contains(config, "host: host.docker.internal") {
-			t.Fatalf("%s local config must use a container-reachable external infrastructure host", service)
+		if !strings.Contains(config, "host: postgres") {
+			t.Fatalf("%s local config must use shared infrastructure DNS", service)
 		}
 	}
-	for _, required := range []string{"base_url: http://data:9011", "qdrant_url: http://host.docker.internal:6333"} {
+	for _, required := range []string{"base_url: http://data:9011", "qdrant_url: http://qdrant:6333"} {
 		if !strings.Contains(agentRunComposeConfig, required) {
 			t.Fatalf("AgentRun local config missing %q", required)
 		}
@@ -382,6 +383,7 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		"Test AgentRun Biz, API and Eino seams",
 		"Test AgentRun Data, migration and provider boundaries",
 		"docker compose --env-file infra/local/.env.example -f infra/local/docker-compose.yaml config --quiet",
+		"docker compose --env-file infra/local/.env.example -f infra/local/docker-compose.infra.yaml config --quiet",
 		"docker compose --env-file infra/uat/.env.example -f infra/uat/docker-compose.yaml config --quiet",
 		"bash scripts/ci/smoke-miniapp-data-compose.sh",
 		"cache-dependency-path: package-lock.json",

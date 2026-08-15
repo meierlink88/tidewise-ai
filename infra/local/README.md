@@ -5,11 +5,11 @@ service-owned operational commands. Host-native `go run` and Vite service hostin
 entrypoints. Miniapp Frontend is not a service; its repository-pinned Taro build/watch commands run
 directly and hand platform output to the native developer tools.
 
-The application stack contains Data, AgentRun, Miniapp Backend, Admin Backend and Admin Web.
-PostgreSQL and Qdrant are externally provisioned infrastructure: this Compose file does not
-create, upgrade or persist them. Data and AgentRun keep independent externally provisioned
-databases; AgentRun keeps only its service-owned Artifact volume. Miniapp Frontend is not included
-in this Compose application stack.
+The `tidewise-app` stack contains Data, AgentRun, Miniapp Backend, Admin Backend and Admin Web.
+Reason Server and Agent OS join the same Docker Desktop project only when started from their own
+repositories. The independently operated `tidewise-infra` stack contains PostgreSQL, MySQL, Neo4j,
+MinIO and Qdrant. Both projects use the `tidewise-local` network. Data, AgentRun and Agent OS keep
+independent PostgreSQL databases and roles; sharing the engine does not share data ownership.
 
 ## Start and stop
 
@@ -19,23 +19,30 @@ Create the ignored runtime environment file and replace every placeholder:
 cp infra/local/.env.example infra/local/.env.local
 ```
 
-Resolve the complete Compose contract without starting containers:
+Resolve both Compose contracts without starting containers:
 
 ```bash
 npm run runtime:config
 ```
 
-Before application startup, provision the required PostgreSQL databases/users and the AgentRun
-Qdrant endpoint outside the Tidewise application deployment. Their container-reachable addresses
-are configured in `.env.local`; the defaults use `host.docker.internal`.
+Provision the service-owned PostgreSQL databases and roles before first application startup. The
+infrastructure lifecycle creates missing named volumes, then creates the engine containers and
+network; application migrations still own their schemas. Start or intentionally reconcile middleware only when first bootstrapping,
+recovering Docker state or changing infrastructure configuration:
+
+```bash
+npm run infra:up
+npm run infra:status
+```
 
 Required application inputs are explicit: Data uses `TIDEWISE_DB_HOST` and
 `TIDEWISW_DB_PASSWORD`; AgentRun uses `AGENTRUN_DB_HOST`, `AGENTRUN_DB_PASSWORD`,
 `AGENTRUN_QDRANT_URL`, `QDRANT_API_KEY` and `EMBEDDING_API_KEY`. Service identities use
 `DATA_SERVICE_TOKEN`, `AGENTRUN_SERVICE_TOKEN` and `ADMIN_SERVICE_TOKEN`. The AgentRun image is
-built from `agent-run/backend`; none of these inputs cause Compose to provision the middleware.
+built from `agent-run/backend`.
 
-Build and start the application stack:
+Build and start the five Tidewise AI application services. This first ensures existing middleware
+containers are running with `--no-recreate`, so unchanged infrastructure is not redeployed:
 
 ```bash
 npm run runtime:up
@@ -44,7 +51,10 @@ npm run runtime:up
 Data and AgentRun migrations run as one-shot dependency services before their servers. AgentRun
 then publishes the code-owned current Agent Versions through a separate one-shot data operation.
 A failed migration or Agent Version publication prevents the dependent service from starting. Normal shutdown preserves the
-service-owned Artifact volume and never manages infrastructure data:
+service-owned Artifact volume and never stops infrastructure, Reason Server or Agent OS:
+
+`data-migrate` is expected to exit successfully after applying the Data migration ledger;
+`data-service` is the long-running Data API container.
 
 ```bash
 npm run runtime:down
@@ -52,6 +62,12 @@ npm run runtime:down
 
 Do not add `-v` to the normal shutdown command. Volume deletion is destructive and is not a normal
 reset or rollback mechanism.
+
+Infrastructure has a separate, explicit shutdown command and should normally remain running:
+
+```bash
+npm run infra:down
+```
 
 Follow logs with:
 
@@ -71,8 +87,12 @@ npm run runtime:logs
 | Miniapp H5 profile | `http://127.0.0.1:10086` |
 
 Application-to-application traffic uses Compose DNS (`data`, `agentrun`, `miniapp`,
-`adminportal`). Infrastructure endpoints are external inputs; `host.docker.internal` is only the
-default bridge to developer-owned local infrastructure and can be replaced in `.env.local`.
+`adminportal`). Applications reach local infrastructure through `postgres`, `qdrant`, `mysql`,
+`neo4j` and `minio` on the shared network.
+
+Docker Desktop shows the long-running application containers as `admin-portal-web`,
+`admin-portal-service`, `miniapp-service`, `data-service`, and `agentrun-service`. One-shot
+containers use `data-migrate`, `agentrun-migrate`, and `agentrun-agent-version`.
 
 ## Backend services
 

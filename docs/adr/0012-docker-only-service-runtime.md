@@ -10,8 +10,10 @@ Host-native `go run`, Vite service hosting, migration, seed, projector, configur
 processes are not supported runtime entrypoints.
 
 The deployable services are Data, AgentRun, Miniapp Backend, Admin Portal Backend and Admin Portal
-Frontend. PostgreSQL, Neo4j and Qdrant are always independently operated infrastructure and are
-excluded from Tidewise application Compose/release artifacts. Miniapp Frontend is not a deployable
+Frontend. PostgreSQL, MySQL, Neo4j, MinIO and Qdrant are independently operated infrastructure and
+are excluded from Tidewise application Compose/release artifacts. The local developer bootstrap
+declares them in the separate `tidewise-infra` project described by ADR-0020; this does not make
+them application services or UAT/release infrastructure. Miniapp Frontend is not a deployable
 service and is therefore not part of the Docker runtime contract: repository-pinned Node/Taro runs
 directly for development and CI, writes `dist/weapp` or `dist/tt`, and hands those outputs to the
 WeChat or Douyin developer tools and existing platform publishing flow.
