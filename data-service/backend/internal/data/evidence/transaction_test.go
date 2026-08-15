@@ -89,7 +89,7 @@ func TestPostgresEvidencePublicationTransactions(t *testing.T) {
 
 func assertConcurrentRawEvidenceConflict(t *testing.T, publication *evidencebiz.UseCase, db *sql.DB) {
 	t.Helper()
-	left := postgresEvidenceRaw("RAW_race_drift_00000000000000000")
+	left := postgresEvidenceRaw("RAWb47847ee-e053-5012-b313-1dc77c9c4f15")
 	right := left
 	right.RawText = "A different concurrent article."
 	start := make(chan struct{})
@@ -134,8 +134,8 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 		wantSucceeded int
 		wantConflicts int
 	}{
-		{rawID: "RAW_evrace_ok_000000000000000000", evidenceID: "EVD_evrace_ok_000000000000000000", wantSucceeded: 2},
-		{rawID: "RAW_evrace_no_000000000000000000", evidenceID: "EVD_evrace_no_000000000000000000", drift: true, wantSucceeded: 1, wantConflicts: 1},
+		{rawID: "RAW31761f37-d5ea-5df4-849e-a2e0871cca83", evidenceID: "EVD2d4ad568-4eb5-536a-ba7c-13d6cb8e018f", wantSucceeded: 2},
+		{rawID: "RAW18c5ad2d-579d-5b0d-9c38-790dfd021100", evidenceID: "EVD67e8689b-cb97-509d-bdfe-4747c96caf9d", drift: true, wantSucceeded: 1, wantConflicts: 1},
 	} {
 		raw := postgresEvidenceRaw(test.rawID)
 		if _, err := publication.PublishRawEvidence(context.Background(), raw); err != nil {
@@ -189,7 +189,7 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 
 func assertConcurrentRawEvidenceConvergence(t *testing.T, publication *evidencebiz.UseCase, db *sql.DB) {
 	t.Helper()
-	raw := postgresEvidenceRaw("RAW_concurrent_00000000000000000")
+	raw := postgresEvidenceRaw("RAW6c7e6640-423e-5a22-834f-631e5a61a5b2")
 	start := make(chan struct{})
 	results := make(chan evidencebiz.RawEvidenceResult, 2)
 	errorsChannel := make(chan error, 2)
@@ -230,7 +230,7 @@ func assertConcurrentRawEvidenceConvergence(t *testing.T, publication *evidenceb
 func assertEvidenceTransactionRollback(t *testing.T, publication *evidencebiz.UseCase, store evidencebiz.Store, db *sql.DB) {
 	t.Helper()
 	forcedFailure := errors.New("force transaction rollback")
-	raw := postgresEvidenceRaw("RAW_rollback_0000000000000000000")
+	raw := postgresEvidenceRaw("RAWb24ba990-71e7-522d-b192-3e5c82790aa6")
 	err := store.InTransaction(context.Background(), func(tx evidencebiz.Transaction) error {
 		if err := tx.InsertRawEvidence(context.Background(), evidencebiz.StoredRawEvidence{
 			RawEvidence: raw, ContentHash: "unused-generated-column-value",
@@ -250,11 +250,11 @@ func assertEvidenceTransactionRollback(t *testing.T, publication *evidencebiz.Us
 		t.Fatalf("rolled-back Raw Evidence count = %d", count)
 	}
 
-	evidenceRaw := postgresEvidenceRaw("RAW_evrollback_00000000000000000")
+	evidenceRaw := postgresEvidenceRaw("RAWe87e4f45-47e8-54f8-9dea-7b54348f0963")
 	if _, err := publication.PublishRawEvidence(context.Background(), evidenceRaw); err != nil {
 		t.Fatal(err)
 	}
-	evidence := postgresEvidence("EVD_evrollback_00000000000000000", 0)
+	evidence := postgresEvidence("EVD5a8f667a-cbca-5cb1-9bcd-e2d9072d4fda", 0)
 	err = store.InTransaction(context.Background(), func(tx evidencebiz.Transaction) error {
 		if err := tx.InsertEvidence(context.Background(), evidencebiz.StoredEvidence{
 			Evidence: evidence, RawEvidenceID: evidenceRaw.RawEvidenceID, IsSplit: false,
@@ -290,7 +290,7 @@ func assertEvidenceDeadlineCancelsQueryAndRollsBack(t *testing.T, store Store, d
 		t.Fatal(err)
 	}
 
-	raw := postgresEvidenceRaw("RAW_deadline_0000000000000000000")
+	raw := postgresEvidenceRaw("RAW939071e3-a016-5296-8008-377876cbb972")
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	err = store.InTransaction(ctx, func(tx evidencebiz.Transaction) error {

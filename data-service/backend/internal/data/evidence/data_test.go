@@ -32,7 +32,7 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 	}
 	ctx := context.Background()
 
-	raw := postgresEvidenceRaw("RAW_postgres_0000000000000000000")
+	raw := postgresEvidenceRaw("RAW6d88a7c8-da68-5dbc-b6ed-ca4b1a6cf175")
 	created, err := publication.PublishRawEvidence(ctx, raw)
 	if err != nil {
 		t.Fatalf("publish Raw Evidence: %v", err)
@@ -50,8 +50,8 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 	}
 
 	items := []evidencebiz.Evidence{
-		postgresEvidence("EVD_postgres_0000000000000000000", 0),
-		postgresEvidence("EVD_postgres_0000000000000000001", 1),
+		postgresEvidence("EVDe29312f1-33fb-5d44-8cfb-2b455b50533b", 0),
+		postgresEvidence("EVD8fea9496-3764-53c2-ab57-5b1ff87b7581", 1),
 	}
 	items[1].SourceWhat = "A second source statement supports the same normalized fact."
 	published, err := publication.PublishEvidence(ctx, raw.RawEvidenceID, items)
@@ -118,7 +118,7 @@ func storedCreationTime(t *testing.T, db *sql.DB, table, identityColumn, identit
 }
 
 func TestEvidenceTransactionRejectsInvalidPersistedRawEvidence(t *testing.T) {
-	const rawEvidenceID = "RAW_persisted_000000000000000"
+	const rawEvidenceID = "RAW5b6ecd34-8a1a-56e4-8a7c-79efd7843473"
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatal(err)
@@ -162,7 +162,7 @@ func TestEvidenceTransactionRejectsInvalidPersistedRawEvidence(t *testing.T) {
 }
 
 func TestEvidenceTransactionRejectsInvalidPersistedEvidenceSet(t *testing.T) {
-	const rawEvidenceID = "RAW_persisted_000000000000000"
+	const rawEvidenceID = "RAW5b6ecd34-8a1a-56e4-8a7c-79efd7843473"
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatal(err)
@@ -176,8 +176,8 @@ func TestEvidenceTransactionRejectsInvalidPersistedEvidenceSet(t *testing.T) {
 		"source_where_core", "source_why_core", "source_how_core",
 		"expression_fingerprint", "expression_key", "fingerprint_version",
 	})
-	rows.AddRow(persistedEvidenceRow("EVD_persisted_000000000000000", rawEvidenceID, 0, "first fact")...)
-	rows.AddRow(persistedEvidenceRow("EVD_persisted_000000000000002", rawEvidenceID, 2, "second fact")...)
+	rows.AddRow(persistedEvidenceRow("EVDc8222fc3-a24f-5d44-b204-09dfb2b8960f", rawEvidenceID, 0, "first fact")...)
+	rows.AddRow(persistedEvidenceRow("EVD0f10cab3-e6ca-5bbc-ac33-5b09d3ff1602", rawEvidenceID, 2, "second fact")...)
 	mock.ExpectQuery("FROM evidences").
 		WithArgs(rawEvidenceID).
 		WillReturnRows(rows)

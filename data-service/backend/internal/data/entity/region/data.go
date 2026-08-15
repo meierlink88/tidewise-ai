@@ -13,6 +13,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	entitybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 type RegionType string
@@ -161,7 +163,8 @@ func validateCatalog(publication CatalogPublication) error {
 	seenCodes := make(map[string]struct{}, len(publication.Regions))
 	seenM49Codes := make(map[string]struct{}, len(publication.Regions))
 	for index, item := range publication.Regions {
-		if !isM49Code(item.M49Code) || item.Code != "M49_"+item.M49Code || item.ID != "REG_"+item.Code {
+		expectedID, err := coreid.Derive(entitybiz.RegionIDPrefix, "region", item.Code)
+		if err != nil || !isM49Code(item.M49Code) || item.Code != "M49_"+item.M49Code || item.ID != expectedID {
 			return fmt.Errorf("%w: Region catalog item %d has inconsistent M49 identity", ErrInvalidRegion, index)
 		}
 		if item.RegionType != RegionTypeGeographic {
@@ -356,7 +359,7 @@ func validateRegion(region Region) error {
 	if region.Code == "" || len(region.Code) > 20 || !isStableCode(region.Code) {
 		return ErrInvalidRegion
 	}
-	if region.ID != "REG_"+region.Code || len(region.ID) > 32 {
+	if !entitybiz.IsRegionID(region.ID) {
 		return ErrInvalidRegion
 	}
 	if strings.TrimSpace(region.Name) == "" || utf8.RuneCountInString(region.Name) > 50 {

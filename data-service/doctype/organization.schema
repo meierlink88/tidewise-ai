@@ -4,8 +4,8 @@ Organization(组织): EntityType
     desc: 表示联盟、协会、国际机制、贸易集团、安全联盟等跨国多边行为主体的独立权威对象，不使用通用 Entity 或旧 alliance_org 身份
     properties:
         id(组织标识): Text
-            desc: 组织稳定主标识，由 ORG_ 与 code 拼接而成
-            constraint: NotNull, Regular="^ORG_[A-Z][A-Z0-9_]*$"
+            desc: 组织稳定主标识，由 ORG 前缀直接连接 canonical lowercase UUID
+            constraint: NotNull, Regular="^ORG[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
         code(组织代码): Text
             desc: 全大写稳定唯一机器码
             constraint: NotNull, Regular="^[A-Z][A-Z0-9_]*$"

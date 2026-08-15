@@ -69,12 +69,12 @@ func TestPublishEvidenceCreatesCompleteSplitSetThenReusesIt(t *testing.T) {
 	raw := validRawEvidence()
 	store.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
 	service := mustNewUseCase(t, store)
-	evidences := []Evidence{validEvidence("EVD_example_00000000000000000001", 1), validEvidence("EVD_example_00000000000000000000", 0)}
+	evidences := []Evidence{validEvidence("EVD888d6be0-6378-5f06-bfa1-6e6294f43dca", 1), validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0)}
 	created, err := service.PublishEvidence(context.Background(), raw.RawEvidenceID, evidences)
 	if err != nil {
 		t.Fatalf("publish Evidence: %v", err)
 	}
-	if got, want := created.EvidenceIDs, []string{"EVD_example_00000000000000000000", "EVD_example_00000000000000000001"}; !equalStrings(got, want) {
+	if got, want := created.EvidenceIDs, []string{"EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", "EVD888d6be0-6378-5f06-bfa1-6e6294f43dca"}; !equalStrings(got, want) {
 		t.Fatalf("Evidence IDs = %#v, want canonical split order %#v", got, want)
 	}
 
@@ -101,7 +101,7 @@ func TestPublishEvidenceSingleIsNotSplitAndRejectsNonContinuousOrder(t *testing.
 	store.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
 	service := mustNewUseCase(t, store)
 
-	single := validEvidence("EVD_example_00000000000000000000", 0)
+	single := validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0)
 	result, err := service.PublishEvidence(context.Background(), raw.RawEvidenceID, []Evidence{single})
 	if err != nil {
 		t.Fatalf("publish single Evidence: %v", err)
@@ -112,7 +112,7 @@ func TestPublishEvidenceSingleIsNotSplitAndRejectsNonContinuousOrder(t *testing.
 
 	otherStore := newMemoryStore()
 	otherStore.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
-	nonContinuous := []Evidence{validEvidence("EVD_example_00000000000000000001", 0), validEvidence("EVD_example_00000000000000000002", 2)}
+	nonContinuous := []Evidence{validEvidence("EVD888d6be0-6378-5f06-bfa1-6e6294f43dca", 0), validEvidence("EVDe81576cf-65e5-5790-9e39-854386939e72", 2)}
 	_, err = mustNewUseCase(t, otherStore).PublishEvidence(context.Background(), raw.RawEvidenceID, nonContinuous)
 	var validation *ValidationError
 	if !errors.As(err, &validation) {
@@ -133,25 +133,25 @@ func TestPublishEvidenceRejectsCollectionReferenceLayerAndExpressionFailures(t *
 	}{
 		{name: "zero", items: nil, code: IssueRequired},
 		{name: "duplicate identity", items: []Evidence{
-			validEvidence("EVD_example_00000000000000000000", 0),
-			validEvidence("EVD_example_00000000000000000000", 1),
+			validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0),
+			validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 1),
 		}, code: IssueDuplicate},
 		{name: "duplicate split order", items: []Evidence{
-			validEvidence("EVD_example_00000000000000000000", 0),
-			validEvidence("EVD_example_00000000000000000001", 0),
+			validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0),
+			validEvidence("EVD888d6be0-6378-5f06-bfa1-6e6294f43dca", 0),
 		}, code: IssueDuplicate},
 		{name: "single with core", items: func() []Evidence {
-			item := validEvidence("EVD_example_00000000000000000000", 0)
+			item := validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0)
 			item.SourceWhatCore = stringPointer("core fact")
 			return []Evidence{item}
 		}(), code: IssueInvalidLayer},
 		{name: "double without core what", items: func() []Evidence {
-			item := validEvidence("EVD_example_00000000000000000000", 0)
+			item := validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0)
 			item.LayerType = LayerTypeDouble
 			return []Evidence{item}
 		}(), code: IssueRequired},
 		{name: "missing expression identity", items: func() []Evidence {
-			item := validEvidence("EVD_example_00000000000000000000", 0)
+			item := validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0)
 			item.ExpressionKey = ""
 			return []Evidence{item}
 		}(), code: IssueRequired},
@@ -166,8 +166,8 @@ func TestPublishEvidenceRejectsCollectionReferenceLayerAndExpressionFailures(t *
 		})
 	}
 
-	_, err := service.PublishEvidence(context.Background(), "RAW_missing_00000000000000000000", []Evidence{
-		validEvidence("EVD_example_00000000000000000000", 0),
+	_, err := service.PublishEvidence(context.Background(), "RAW6a2f6777-6aa6-5f07-9b95-ced31a3d8e59", []Evidence{
+		validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0),
 	})
 	var reference *ReferenceError
 	if !errors.As(err, &reference) || !hasIssueCode(reference.Issues, IssueRawEvidenceNotFound) {
@@ -190,7 +190,7 @@ func validEvidence(id string, splitOrder int) Evidence {
 func validRawEvidence() RawEvidence {
 	publishedAt := time.Date(2026, 8, 11, 1, 0, 0, 0, time.UTC)
 	return RawEvidence{
-		RawEvidenceID: "RAW_example_00000000000000000000",
+		RawEvidenceID: "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf",
 		SourceID:      "SRC_example_00000000000000000000",
 		SourceName:    "Example Wire",
 		SourceLevel:   "L2_WIRE",

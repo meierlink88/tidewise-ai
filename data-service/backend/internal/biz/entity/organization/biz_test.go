@@ -68,7 +68,7 @@ func TestUseCaseRejectsInvalidOrganizationBeforePersistence(t *testing.T) {
 		name   string
 		mutate func(*Organization)
 	}{
-		{name: "ID differs from code", mutate: func(input *Organization) { input.ID = "ORG_OTHER" }},
+		{name: "legacy ID", mutate: func(input *Organization) { input.ID = "ORG_OTHER" }},
 		{name: "lowercase code", mutate: func(input *Organization) { input.ID, input.Code = "ORG_un", "un" }},
 		{name: "blank Chinese name", mutate: func(input *Organization) { input.Name = " " }},
 		{name: "invalid category", mutate: func(input *Organization) { input.Category.Code = "trade" }},
@@ -98,7 +98,7 @@ func TestUseCaseRejectsInvalidOrganizationBeforePersistence(t *testing.T) {
 }
 
 func TestUseCaseCopiesAcceptedOrganizationAndDomainTags(t *testing.T) {
-	regionID := "REG_GLOBAL"
+	regionID := "REG13802abf-d1ef-5dec-95ec-a47d35813827"
 	input := validOrganization()
 	input.RegionID = &regionID
 	input.DomainTags = []DomainTag{{Code: "REGIONAL_SECURITY_DIALOGUE", FunctionCode: "SECURITY", NameZh: "区域安全对话"}}
@@ -112,19 +112,19 @@ func TestUseCaseCopiesAcceptedOrganizationAndDomainTags(t *testing.T) {
 	}
 	regionID = "REG_CHANGED"
 	input.DomainTags[0].Code = "CHANGED"
-	if *repository.created.RegionID != "REG_GLOBAL" || repository.created.DomainTags[0].Code != "REGIONAL_SECURITY_DIALOGUE" {
+	if *repository.created.RegionID != "REG13802abf-d1ef-5dec-95ec-a47d35813827" || repository.created.DomainTags[0].Code != "REGIONAL_SECURITY_DIALOGUE" {
 		t.Fatalf("persisted Organization aliases caller input: %#v", repository.created)
 	}
 
 	codes := []string{"REGIONAL_SECURITY_DIALOGUE"}
-	if _, err := useCase.ReplaceDomainTags(context.Background(), "ORG_UN", codes); err != nil {
+	if _, err := useCase.ReplaceDomainTags(context.Background(), "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", codes); err != nil {
 		t.Fatal(err)
 	}
 	codes[0] = "CHANGED"
 	if repository.replacedCodes[0] != "REGIONAL_SECURITY_DIALOGUE" {
 		t.Fatalf("persisted Domain Tags alias caller input: %#v", repository.replacedCodes)
 	}
-	if _, err := useCase.ReplaceDomainTags(context.Background(), "ORG_UN", []string{"REGIONAL_SECURITY_DIALOGUE", "REGIONAL_SECURITY_DIALOGUE"}); err == nil {
+	if _, err := useCase.ReplaceDomainTags(context.Background(), "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", []string{"REGIONAL_SECURITY_DIALOGUE", "REGIONAL_SECURITY_DIALOGUE"}); err == nil {
 		t.Fatal("duplicate Domain Tags error = nil")
 	}
 }
@@ -148,10 +148,10 @@ func TestUseCaseValidatesFiltersAndMembershipBeforePersistence(t *testing.T) {
 	effective := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
 	expiry := time.Date(2020, 12, 31, 0, 0, 0, 0, time.UTC)
 	for _, member := range []Member{
-		{OrganizationID: "UN", CountryID: "COU_CHN", MembershipType: "FULL_MEMBER"},
-		{OrganizationID: "ORG_UN", CountryID: "CHN", MembershipType: "FULL_MEMBER"},
-		{OrganizationID: "ORG_UN", CountryID: "COU_CHN", MembershipType: "MEMBER"},
-		{OrganizationID: "ORG_UN", CountryID: "COU_CHN", MembershipType: "FULL_MEMBER", EffectiveDate: &effective, ExpiryDate: &expiry},
+		{OrganizationID: "UN", CountryID: "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b", MembershipType: "FULL_MEMBER"},
+		{OrganizationID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", CountryID: "CHN", MembershipType: "FULL_MEMBER"},
+		{OrganizationID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", CountryID: "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b", MembershipType: "MEMBER"},
+		{OrganizationID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", CountryID: "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b", MembershipType: "FULL_MEMBER", EffectiveDate: &effective, ExpiryDate: &expiry},
 	} {
 		if _, err := useCase.CreateMember(context.Background(), member); err == nil {
 			t.Fatalf("CreateMember(%#v) error = nil", member)
@@ -160,21 +160,21 @@ func TestUseCaseValidatesFiltersAndMembershipBeforePersistence(t *testing.T) {
 	if repository.createdMember.OrganizationID != "" {
 		t.Fatalf("invalid member reached persistence: %#v", repository.createdMember)
 	}
-	valid := Member{CountryID: "COU_CHN", MembershipType: "OBSERVER"}
-	if _, err := useCase.UpdateMember(context.Background(), "ORG_UN", 7, valid); err != nil {
+	valid := Member{CountryID: "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b", MembershipType: "OBSERVER"}
+	if _, err := useCase.UpdateMember(context.Background(), "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", 7, valid); err != nil {
 		t.Fatal(err)
 	}
-	if repository.updatedMemberOrgID != "ORG_UN" || repository.updatedMemberID != 7 || repository.updatedMember.OrganizationID != "ORG_UN" {
+	if repository.updatedMemberOrgID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" || repository.updatedMemberID != 7 || repository.updatedMember.OrganizationID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" {
 		t.Fatalf("UpdateMember persistence input = %#v", repository.updatedMember)
 	}
-	if err := useCase.DeleteMember(context.Background(), "ORG_UN", 0); err == nil {
+	if err := useCase.DeleteMember(context.Background(), "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", 0); err == nil {
 		t.Fatal("DeleteMember() accepted non-positive member ID")
 	}
 }
 
 func validOrganization() Organization {
 	return Organization{
-		ID: "ORG_UN", Code: "UN", Name: "联合国", NameEn: "United Nations",
+		ID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", Code: "UN", Name: "联合国", NameEn: "United Nations",
 		Category: CatalogTerm{Code: "INTERGOVERNMENTAL"}, Function: CatalogTerm{Code: "SECURITY"},
 	}
 }

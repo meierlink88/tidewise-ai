@@ -11,15 +11,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
 	biz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
 	bizidentity "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/identity"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 const researchGraphCTE = `
 	WITH RECURSIVE
 	requested_seeds(entity_id) AS (
-	    SELECT unnest($2::uuid[])
+	    SELECT unnest($2::text[])
 	),
 	requested_filters(relation_type, direction) AS (
 	    SELECT *
@@ -29,7 +29,7 @@ const researchGraphCTE = `
 	    SELECT
 	        'entity_relation'::text edge_kind,
 	        relation.id edge_id,
-	        NULL::uuid industry_chain_entity_id,
+	        NULL::text industry_chain_entity_id,
 	        relation.from_entity_id,
 	        relation.to_entity_id,
 	        relation.relation_type,
@@ -56,7 +56,7 @@ const researchGraphCTE = `
 	    UNION
 	    SELECT
 	        'industry_chain_graph_edge'::text,
-	        edge.id,
+	        edge.id::text,
 	        edge.industry_chain_entity_id,
 	        edge.from_chain_node_entity_id,
 	        edge.to_chain_node_entity_id,
@@ -101,7 +101,7 @@ const researchGraphCTE = `
 	      AND edge.review_status = $14
 	      AND edge.created_at <= $1
 	      AND edge.updated_at <= $1
-	      AND ($6::uuid IS NULL OR edge.industry_chain_entity_id = $6::uuid)
+	      AND ($6::text IS NULL OR edge.industry_chain_entity_id = $6::text)
 	),
 	traversal_options AS NOT MATERIALIZED (
 	    SELECT
@@ -144,7 +144,7 @@ const researchGraphCTE = `
 	    CROSS JOIN LATERAL (
 	        SELECT COALESCE(
 	            array_agg(candidate.entity_id ORDER BY candidate.entity_id),
-	            '{}'::uuid[]
+	            '{}'::text[]
 	        ) new_entities
 	        FROM (
 	            SELECT DISTINCT option.traversal_to entity_id
@@ -192,14 +192,14 @@ const researchGraphCTE = `
 	    FROM industry_chain_graph_edges edge
 	    JOIN used_edges used
 	      ON used.edge_kind = 'industry_chain_graph_edge'
-	     AND used.edge_id = edge.id
+	     AND used.edge_id = edge.id::text
 	),
 	selected_chain_ids(industry_chain_entity_id) AS MATERIALIZED (
 	    SELECT DISTINCT industry_chain_entity_id
 	    FROM selected_graph_edges
 	    UNION
-	    SELECT $6::uuid
-	    WHERE $6::uuid IS NOT NULL
+	    SELECT $6::text
+	    WHERE $6::text IS NOT NULL
 	),
 	selected_entity_ids(entity_id) AS MATERIALIZED (
 	    SELECT entity_id FROM reached_entities
@@ -434,20 +434,11 @@ func validIndependentObjectID(id string) bool {
 	if biz.IsOrganizationID(id) {
 		return true
 	}
-	if !strings.HasPrefix(id, "REG_") || len(id) <= 4 || len(id) > 32 {
-		return false
-	}
-	for _, character := range id[4:] {
-		if (character >= 'A' && character <= 'Z') || (character >= '0' && character <= '9') || character == '_' {
-			continue
-		}
-		return false
-	}
-	return true
+	return biz.IsRegionID(id)
 }
 
 func validResearchGraphIdentity(id, objectType string) bool {
-	if bizidentity.IsUUID(id) {
+	if biz.IsEntityID(id) {
 		return objectType != biz.ObjectTypeCountry && objectType != biz.ObjectTypeOrganization && objectType != "region"
 	}
 	if biz.IsCountryID(id) {
@@ -515,7 +506,11 @@ func (s *Store) searchOrganizationResearchGraph(ctx context.Context, query biz.R
 				return graph, err
 			}
 			countries[countryID] = biz.ResearchGraphEntity{EntityID: countryID, EntityType: biz.ObjectTypeCountry, Name: name, CanonicalName: name, Aliases: []string{nameEn}, Status: "active"}
-			graph.EntityRelations = append(graph.EntityRelations, biz.ResearchGraphEntityRelation{EntityRelationID: uuid.NewSHA1(uuid.NameSpaceOID, []byte(fmt.Sprintf("organization-member:%d", memberID))).String(), FromEntityID: organizationID, ToEntityID: countryID, RelationType: organizationMemberRelationType, Status: "active"})
+			relationID, err := coreid.Derive(biz.EntityRelationIDPrefix, "organization-member", fmt.Sprintf("%d", memberID))
+			if err != nil {
+				return graph, err
+			}
+			graph.EntityRelations = append(graph.EntityRelations, biz.ResearchGraphEntityRelation{EntityRelationID: relationID, FromEntityID: organizationID, ToEntityID: countryID, RelationType: organizationMemberRelationType, Status: "active"})
 		}
 		if err := memberRows.Err(); err != nil {
 			return graph, err
@@ -635,8 +630,12 @@ func (s *Store) searchCountryResearchGraph(
 				EntityID: regionID, EntityType: "region", Name: name, CanonicalName: name,
 				Aliases: []string{nameEn}, Status: "active",
 			}
+			relationID, err := coreid.Derive(biz.EntityRelationIDPrefix, "country-region", fmt.Sprintf("%d", linkID))
+			if err != nil {
+				return biz.ResearchGraphSubgraph{}, err
+			}
 			graph.EntityRelations = append(graph.EntityRelations, biz.ResearchGraphEntityRelation{
-				EntityRelationID: uuid.NewSHA1(uuid.NameSpaceOID, []byte(fmt.Sprintf("country-region:%d", linkID))).String(),
+				EntityRelationID: relationID,
 				FromEntityID:     countryID, ToEntityID: regionID,
 				RelationType: countryRegionRelationType, Status: "active",
 			})
@@ -709,7 +708,7 @@ func validatePersistedResearchGraph(graph biz.ResearchGraphSubgraph, maxDepth in
 	}
 	relationIDs := make(map[string]struct{}, len(graph.EntityRelations))
 	for _, relation := range graph.EntityRelations {
-		if !bizidentity.IsUUID(relation.EntityRelationID) || relation.Status != "active" {
+		if !biz.IsEntityRelationID(relation.EntityRelationID) || relation.Status != "active" {
 			return errors.New("persisted Research Graph Entity relation violates invariants")
 		}
 		if _, ok := entities[relation.FromEntityID]; !ok {
@@ -728,7 +727,7 @@ func validatePersistedResearchGraph(graph biz.ResearchGraphSubgraph, maxDepth in
 	}
 	chains := make(map[string]struct{}, len(graph.IndustryChains))
 	for _, chain := range graph.IndustryChains {
-		if !bizidentity.IsUUID(chain.IndustryChainEntityID) || chain.ReviewStatus != "approved" ||
+		if !biz.IsEntityID(chain.IndustryChainEntityID) || chain.ReviewStatus != "approved" ||
 			strings.TrimSpace(chain.Scope) == "" || strings.TrimSpace(chain.TargetOutput) == "" ||
 			strings.TrimSpace(chain.EndUse) == "" || strings.TrimSpace(chain.Geography) == "" ||
 			strings.TrimSpace(chain.AsOfDate) == "" ||
@@ -806,8 +805,8 @@ func (s *Store) ResearchReferenceClosure(
 	}
 	var historicalGap bool
 	if err := s.db.QueryRowContext(ctx, `WITH
-requested_entities(id) AS (SELECT unnest($2::uuid[])),
-requested_relations(id) AS (SELECT unnest($3::uuid[]))
+requested_entities(id) AS (SELECT unnest($2::text[])),
+requested_relations(id) AS (SELECT unnest($3::text[]))
 SELECT EXISTS (
     SELECT 1 FROM entity_nodes entity JOIN requested_entities requested ON requested.id = entity.id
     WHERE entity.created_at <= $1 AND entity.updated_at > $1
@@ -825,8 +824,8 @@ SELECT EXISTS (
 	}
 	var payload []byte
 	err := s.db.QueryRowContext(ctx, `WITH
-requested_entities(id) AS (SELECT unnest($2::uuid[])),
-requested_relations(id) AS (SELECT unnest($3::uuid[])),
+requested_entities(id) AS (SELECT unnest($2::text[])),
+requested_relations(id) AS (SELECT unnest($3::text[])),
 requested_relation_types(relation_type) AS (SELECT unnest($4::text[])),
 selected_relations AS MATERIALIZED (
     SELECT relation.* FROM entity_edges relation
@@ -977,7 +976,7 @@ func validateResearchReferenceDictionaries(value biz.ResearchReferenceDictionari
 		relationTypes[definition.RelationType] = struct{}{}
 	}
 	for _, relation := range value.EntityRelations {
-		if !bizidentity.IsUUID(relation.EntityRelationID) || relation.Status != "active" {
+		if !biz.IsEntityRelationID(relation.EntityRelationID) || relation.Status != "active" {
 			return errors.New("persisted Research Entity relation violates invariants")
 		}
 		if _, ok := entities[relation.FromEntityID]; !ok {
@@ -1012,7 +1011,7 @@ func (s *Store) validateResearchGraphReferences(
 		    (
 		        SELECT count(*)
 		        FROM entity_nodes entity
-		        WHERE entity.id = ANY($2::uuid[])
+		        WHERE entity.id = ANY($2::text[])
 		          AND entity.status = $5
 		          AND entity.created_at <= $1
 		          AND entity.updated_at <= $1
@@ -1074,15 +1073,15 @@ func (s *Store) validateResearchGraphReferences(
 		              AND edge.review_status = $10
 		              AND edge.created_at <= $1
 		              AND edge.updated_at <= $1
-		              AND ($4::uuid IS NULL OR edge.industry_chain_entity_id = $4::uuid)
+		              AND ($4::text IS NULL OR edge.industry_chain_entity_id = $4::text)
 		        )
 		    ),
 		    CASE
-		        WHEN $4::uuid IS NULL THEN 1
+		        WHEN $4::text IS NULL THEN 1
 		        ELSE (
 		            SELECT count(*)
 		            FROM industry_chain_definitions definition
-		            WHERE definition.entity_id = $4::uuid
+		            WHERE definition.entity_id = $4::text
 		              AND definition.review_status = $7
 		              AND definition.created_at <= $1
 		              AND definition.updated_at <= $1

@@ -16,13 +16,13 @@ func TestResearchGraphIdentityRejectsLegacyUUIDAsOrganization(t *testing.T) {
 	if validResearchGraphIdentity(legacyUUID, domain.ObjectTypeOrganization) {
 		t.Fatal("legacy UUID must not be accepted as an independent Organization")
 	}
-	if !validResearchGraphIdentity("ORG_UN", domain.ObjectTypeOrganization) {
+	if !validResearchGraphIdentity("ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", domain.ObjectTypeOrganization) {
 		t.Fatal("stable ORG_ identity must be accepted as an independent Organization")
 	}
 }
 
 func TestResearchGraphAdapterRejectsMalformedPersistedSubgraph(t *testing.T) {
-	entityID := "11111111-1111-4111-8111-111111111111"
+	entityID := "ENT11111111-1111-4111-8111-111111111111"
 	valid := domain.ResearchGraphSubgraph{
 		Entities: []domain.ResearchGraphEntity{{
 			EntityID: entityID, EntityType: "company", Name: "Company", CanonicalName: "Company", Status: "active",
@@ -39,8 +39,8 @@ func TestResearchGraphAdapterRejectsMalformedPersistedSubgraph(t *testing.T) {
 	}
 	invalid = valid
 	invalid.EntityRelations = []domain.ResearchGraphEntityRelation{{
-		EntityRelationID: "22222222-2222-4222-8222-222222222222",
-		FromEntityID:     entityID, ToEntityID: "33333333-3333-4333-8333-333333333333",
+		EntityRelationID: "ERL22222222-2222-4222-8222-222222222222",
+		FromEntityID:     entityID, ToEntityID: "ENT33333333-3333-4333-8333-333333333333",
 		RelationType: "supplies", Status: "active",
 	}}
 	invalid.RelationDefinitions = []domain.ResearchGraphRelation{{RelationType: "supplies", Direction: "directed"}}
@@ -61,18 +61,18 @@ func openEntityTestDatabase(t *testing.T) *sql.DB {
 func TestResearchGraphResolvesIndependentOrganizationMembership(t *testing.T) {
 	db := openEntityTestDatabase(t)
 	ctx := context.Background()
-	if _, err := db.ExecContext(ctx, `INSERT INTO organization_categories(code,name_zh) VALUES('INTERGOVERNMENTAL','政府间国际组织'); INSERT INTO organization_functions(code,name_zh) VALUES('GOVERNANCE','治理与协调'); INSERT INTO organizations(id,code,name,name_en,category_code,function_code) VALUES('ORG_UN','UN','联合国','United Nations','INTERGOVERNMENTAL','GOVERNANCE'); INSERT INTO countries(id,code,name,name_en) VALUES('COU_CHN','CHN','中国','China'); INSERT INTO organization_members(organization_id,country_id,membership_type,effective_date) VALUES('ORG_UN','COU_CHN','FULL_MEMBER','1945-10-24')`); err != nil {
+	if _, err := db.ExecContext(ctx, `INSERT INTO organization_categories(code,name_zh) VALUES('INTERGOVERNMENTAL','政府间国际组织'); INSERT INTO organization_functions(code,name_zh) VALUES('GOVERNANCE','治理与协调'); INSERT INTO organizations(id,code,name,name_en,category_code,function_code) VALUES('ORG3fb9e7ff-2222-57fa-b306-c223ce3af549','UN','联合国','United Nations','INTERGOVERNMENTAL','GOVERNANCE'); INSERT INTO countries(id,code,name,name_en) VALUES('COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b','CN','中国','China'); INSERT INTO organization_members(organization_id,country_id,membership_type,effective_date) VALUES('ORG3fb9e7ff-2222-57fa-b306-c223ce3af549','COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b','FULL_MEMBER','1945-10-24')`); err != nil {
 		t.Fatal(err)
 	}
 	store, err := NewStore(db)
 	if err != nil {
 		t.Fatal(err)
 	}
-	graph, err := store.SearchResearchGraph(ctx, domain.ResearchGraphQuery{AnalysisAsOf: time.Now().UTC().Add(time.Minute), SeedEntityIDs: []string{"ORG_UN"}, RelationFilters: []domain.ResearchGraphRelationFilter{{RelationType: "has_member", Direction: domain.ResearchGraphDirectionOutgoing}}, MaxDepth: 1, NodeBudget: 10, EdgeBudget: 10, FactPolicy: domain.ApprovedActiveResearchGraphFactPolicy()})
+	graph, err := store.SearchResearchGraph(ctx, domain.ResearchGraphQuery{AnalysisAsOf: time.Now().UTC().Add(time.Minute), SeedEntityIDs: []string{"ORG3fb9e7ff-2222-57fa-b306-c223ce3af549"}, RelationFilters: []domain.ResearchGraphRelationFilter{{RelationType: "has_member", Direction: domain.ResearchGraphDirectionOutgoing}}, MaxDepth: 1, NodeBudget: 10, EdgeBudget: 10, FactPolicy: domain.ApprovedActiveResearchGraphFactPolicy()})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(graph.Entities) != 2 || len(graph.EntityRelations) != 1 || graph.Entities[1].EntityID != "ORG_UN" && graph.Entities[0].EntityID != "ORG_UN" {
+	if len(graph.Entities) != 2 || len(graph.EntityRelations) != 1 || graph.Entities[1].EntityID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" && graph.Entities[0].EntityID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" {
 		t.Fatalf("Organization Research Graph = %#v", graph)
 	}
 }
@@ -81,11 +81,11 @@ func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	const (
-		chainA = "20000000-0000-4000-8000-000000000001"
-		chainB = "20000000-0000-4000-8000-000000000002"
-		nodeA  = "20000000-0000-4000-8000-000000000003"
-		nodeB  = "20000000-0000-4000-8000-000000000004"
-		nodeC  = "20000000-0000-4000-8000-000000000005"
+		chainA = "ENT20000000-0000-4000-8000-000000000001"
+		chainB = "ENT20000000-0000-4000-8000-000000000002"
+		nodeA  = "ENT20000000-0000-4000-8000-000000000003"
+		nodeB  = "ENT20000000-0000-4000-8000-000000000004"
+		nodeC  = "ENT20000000-0000-4000-8000-000000000005"
 	)
 	for _, statement := range []string{
 		`INSERT INTO entity_nodes (
@@ -128,7 +128,7 @@ func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 		`INSERT INTO entity_edges (
 		    id, from_entity_id, to_entity_id, relation_type, evidence_note, status
 		) VALUES (
-		    '20000000-0000-4000-8000-000000000007', '` + nodeB + `', '` + nodeA + `',
+		    'ERL20000000-0000-4000-8000-000000000007', '` + nodeB + `', '` + nodeA + `',
 		    'depends_on', 'Cycle fixture outside the chain topology table', 'active'
 		)`,
 	} {

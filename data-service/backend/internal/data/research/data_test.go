@@ -55,7 +55,7 @@ func TestResearchThemeAdapterRejectsMalformedPersistedRows(t *testing.T) {
 func TestResearchReasoningTreeAdapterRejectsMalformedPersistedRows(t *testing.T) {
 	now := time.Date(2026, 8, 12, 8, 0, 0, 0, time.UTC)
 	treeID := "11111111-1111-4111-8111-111111111111"
-	chainID := "22222222-2222-4222-8222-222222222222"
+	chainID := "ENT22222222-2222-4222-8222-222222222222"
 	publication := researchReasoningTreePublication{
 		ReceiptID: "33333333-3333-4333-8333-333333333333",
 		Mapping:   map[string]string{chainID: treeID},
@@ -115,7 +115,7 @@ func TestResearchReasoningTreeAdapterRejectsMalformedPersistedRows(t *testing.T)
 	secondNode.ID = "77777777-7777-4777-8777-777777777777"
 	secondNode.NodeKey = "node:second"
 	secondNode.DisplayName = "Second node"
-	secondNode.ChainNodeEntityID = "88888888-8888-4888-8888-888888888888"
+	secondNode.ChainNodeEntityID = "ENT88888888-8888-4888-8888-888888888888"
 	secondNode.Position = 2
 	secondNode.IncomingIndustryChainGraphEdgeID = &incomingID
 	secondNode.IncomingGraphEdge = &researchbiz.GraphEdgeRecord{
@@ -269,7 +269,7 @@ INSERT INTO variable_definitions (
 	}
 	if _, err := db.ExecContext(
 		ctx,
-		`UPDATE entity_nodes SET updated_at = $2 WHERE id = $1::uuid`,
+		`UPDATE entity_nodes SET updated_at = $2 WHERE id = $1::text`,
 		testTypedNodeID,
 		now.Add(time.Hour),
 	); err != nil {
@@ -283,7 +283,7 @@ INSERT INTO variable_definitions (
 	}
 	if _, err := db.ExecContext(
 		ctx,
-		`UPDATE entity_nodes SET updated_at = $2 WHERE id = $1::uuid`,
+		`UPDATE entity_nodes SET updated_at = $2 WHERE id = $1::text`,
 		testTypedNodeID,
 		now.Add(-time.Hour),
 	); err != nil {
@@ -501,7 +501,7 @@ INSERT INTO variable_definitions (
 	seedBCIReverseGraph(t, ctx, db)
 	if _, err := db.ExecContext(
 		ctx,
-		`UPDATE event_entity_links SET entity_id = $1::uuid WHERE id = '11000000-0000-4000-8000-000000000005'`,
+		`UPDATE event_entity_links SET entity_id = $1::text WHERE id = '11000000-0000-4000-8000-000000000005'`,
 		testBCISystemNodeID,
 	); err != nil {
 		t.Fatalf("move accepted root Signal to BCI system node: %v", err)
@@ -705,8 +705,8 @@ func seedPostAsOfSupersession(
 }
 
 const (
-	testTypedChainID             = "10000000-0000-4000-8000-000000000001"
-	testTypedNodeID              = "10000000-0000-4000-8000-000000000002"
+	testTypedChainID             = "ENT10000000-0000-4000-8000-000000000001"
+	testTypedNodeID              = "ENT10000000-0000-4000-8000-000000000002"
 	testTypedEventID             = "10000000-0000-4000-8000-000000000003"
 	testTypedEvidenceID          = "11000000-0000-4000-8000-000000000002"
 	testTypedSubmissionID        = "11000000-0000-4000-8000-000000000004"
@@ -715,10 +715,10 @@ const (
 	testTypedForwardEvidenceID   = "12000000-0000-4000-8000-000000000002"
 	testTypedForwardSubmissionID = "12000000-0000-4000-8000-000000000004"
 	testTypedForwardSignalID     = "12000000-0000-4000-8000-000000000006"
-	testBCIChainID               = "822a8ddc-5ebc-5f03-8ef8-ba9bfba192d9"
-	testBCISystemNodeID          = "c38d2f7b-9900-5e81-af06-76393bcc2617"
-	testBCITerminalNodeID        = "96336148-76c0-504e-b82e-ac395f8fe268"
-	testBCIElectrodeNodeID       = "d3882237-d639-5660-b7d8-aa3563706113"
+	testBCIChainID               = "ENT822a8ddc-5ebc-5f03-8ef8-ba9bfba192d9"
+	testBCISystemNodeID          = "ENTc38d2f7b-9900-5e81-af06-76393bcc2617"
+	testBCITerminalNodeID        = "ENT96336148-76c0-504e-b82e-ac395f8fe268"
+	testBCIElectrodeNodeID       = "ENTd3882237-d639-5660-b7d8-aa3563706113"
 	testBCITerminalEdgeID        = "300188b0-d01c-5987-ad8a-646067edc7cd"
 	testBCIElectrodeEdgeID       = "dc00a16e-0d8e-5db9-9a5d-fbc1fd9a84cf"
 )
@@ -738,22 +738,22 @@ func seedBCIReverseGraph(t *testing.T, ctx context.Context, db *sql.DB) {
 			`INSERT INTO entity_nodes (
     id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
 ) VALUES
-    ($1::uuid, 'industry-chain:bci-system', 'industry_chain', 'industry_chain',
+    ($1::text, 'industry-chain:bci-system', 'industry_chain', 'industry_chain',
      '脑机接口系统产业链', '脑机接口系统产业链', '{}', 'active'),
-    ($2::uuid, 'chain-node:bci-system', 'chain_node', 'chain_node',
+    ($2::text, 'chain-node:bci-system', 'chain_node', 'chain_node',
      '非侵入式脑机接口系统', '非侵入式脑机接口系统', '{}', 'active'),
-    ($3::uuid, 'chain-node:bci-terminal', 'chain_node', 'chain_node',
+    ($3::text, 'chain-node:bci-terminal', 'chain_node', 'chain_node',
      '脑机接口采集终端', '脑机接口采集终端', '{}', 'active'),
-    ($4::uuid, 'chain-node:bci-electrode', 'chain_node', 'chain_node',
+    ($4::text, 'chain-node:bci-electrode', 'chain_node', 'chain_node',
      '脑机接口采集电极', '脑机接口采集电极', '{}', 'active')`,
 			[]any{testBCIChainID, testBCISystemNodeID, testBCITerminalNodeID, testBCIElectrodeNodeID},
 		},
 		{
 			`INSERT INTO chain_node_profiles (entity_id, definition, boundary_note, review_status)
 VALUES
-    ($1::uuid, '非侵入式脑机接口系统节点', '系统边界', 'approved'),
-    ($2::uuid, '脑机接口采集终端节点', '终端边界', 'approved'),
-    ($3::uuid, '脑机接口采集电极节点', '电极边界', 'approved')`,
+    ($1::text, '非侵入式脑机接口系统节点', '系统边界', 'approved'),
+    ($2::text, '脑机接口采集终端节点', '终端边界', 'approved'),
+    ($3::text, '脑机接口采集电极节点', '电极边界', 'approved')`,
 			[]any{testBCISystemNodeID, testBCITerminalNodeID, testBCIElectrodeNodeID},
 		},
 		{
@@ -761,7 +761,7 @@ VALUES
     entity_id, scope, target_output, end_use, technology_route_qualifier,
     observable_variables, geography, as_of_date, review_status, review_note
 ) VALUES (
-    $1::uuid, '非侵入式脑机接口系统与采集硬件', '脑机接口系统', '康复与人机交互', NULL,
+    $1::text, '非侵入式脑机接口系统与采集硬件', '脑机接口系统', '康复与人机交互', NULL,
     ARRAY['市场需求'], '中国', CURRENT_DATE, 'approved', NULL
 )`,
 			[]any{testBCIChainID},
@@ -771,11 +771,11 @@ VALUES
     industry_chain_entity_id, chain_node_entity_id, position, contextual_stage,
     review_status, status, inclusion_reason, evidence_ids, source_name, source_url, verified_at
 ) VALUES
-    ($1::uuid, $2::uuid, 1, 'downstream', 'approved', 'active',
+    ($1::text, $2::text, 1, 'downstream', 'approved', 'active',
      '系统节点', ARRAY['evidence:bci-system'], 'integration fixture', 'artifact://bci-system', now()),
-    ($1::uuid, $3::uuid, 2, 'midstream', 'approved', 'active',
+    ($1::text, $3::text, 2, 'midstream', 'approved', 'active',
      '终端组成节点', ARRAY['evidence:bci-terminal'], 'integration fixture', 'artifact://bci-terminal', now()),
-    ($1::uuid, $4::uuid, 3, 'upstream', 'approved', 'active',
+    ($1::text, $4::text, 3, 'upstream', 'approved', 'active',
      '电极组成节点', ARRAY['evidence:bci-electrode'], 'integration fixture', 'artifact://bci-electrode', now())`,
 			[]any{testBCIChainID, testBCISystemNodeID, testBCITerminalNodeID, testBCIElectrodeNodeID},
 		},
@@ -785,11 +785,11 @@ VALUES
     relation_type, mechanism, condition_note, segment_kind, omitted_step_note,
     review_status, status, evidence_ids, source_name, source_url, verified_at
 ) VALUES
-    ($1::uuid, $2::uuid, $3::uuid, $4::uuid, 'is_component_of',
+    ($1::uuid, $2::text, $3::text, $4::text, 'is_component_of',
      '采集终端是系统组成部分', NULL, 'direct_candidate', NULL,
      'approved', 'active', ARRAY['evidence:bci-terminal-system'],
      'integration fixture', 'artifact://bci-terminal-system', now()),
-    ($5::uuid, $2::uuid, $6::uuid, $3::uuid, 'is_component_of',
+    ($5::uuid, $2::text, $6::text, $3::text, 'is_component_of',
      '采集电极是采集终端组成部分', NULL, 'direct_candidate', NULL,
      'approved', 'active', ARRAY['evidence:bci-electrode-terminal'],
      'integration fixture', 'artifact://bci-electrode-terminal', now())`,
@@ -1349,8 +1349,8 @@ func openResearchV1TestDatabase(t *testing.T) *sql.DB {
 func seedResearchV1MasterData(t *testing.T, db *sql.DB) {
 	t.Helper()
 	const (
-		chainID      = "10000000-0000-4000-8000-000000000001"
-		nodeID       = "10000000-0000-4000-8000-000000000002"
+		chainID      = "ENT10000000-0000-4000-8000-000000000001"
+		nodeID       = "ENT10000000-0000-4000-8000-000000000002"
 		eventID      = "10000000-0000-4000-8000-000000000003"
 		draftEventID = "10000000-0000-4000-8000-000000000004"
 	)

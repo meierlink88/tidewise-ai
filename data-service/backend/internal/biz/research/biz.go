@@ -340,8 +340,8 @@ func (t ThemeInput) validate(path string) error {
 		if impact.DisplayOrder != index+1 {
 			return invalidTheme(t.ThemeKey, impactPath+".display_order", fmt.Sprint(impact.DisplayOrder), "must be contiguous from 1")
 		}
-		if !lowercaseUUIDPattern.MatchString(impact.ChainNodeEntityID) {
-			return invalidTheme(t.ThemeKey, impactPath+".chain_node_entity_id", impact.ChainNodeEntityID, "must be a standard lowercase UUID")
+		if !entitybiz.IsEntityID(impact.ChainNodeEntityID) {
+			return invalidTheme(t.ThemeKey, impactPath+".chain_node_entity_id", impact.ChainNodeEntityID, "must be an Entity ID")
 		}
 		if _, duplicate := seenImpacts[impact.ChainNodeEntityID]; duplicate {
 			return invalidTheme(t.ThemeKey, impactPath+".chain_node_entity_id", impact.ChainNodeEntityID, "must be unique within the ThemeInput")
@@ -516,8 +516,8 @@ func (p ReasonTreePublication) Validate() error {
 		if tree.DisplayOrder != index+1 {
 			return invalidReasonTree(tree.IndustryChainEntityID, path+".display_order", fmt.Sprint(tree.DisplayOrder), "must be contiguous from 1")
 		}
-		if !lowercaseUUIDPattern.MatchString(tree.IndustryChainEntityID) {
-			return invalidReasonTree(tree.IndustryChainEntityID, path+".industry_chain_entity_id", tree.IndustryChainEntityID, "must be a standard lowercase UUID")
+		if !entitybiz.IsEntityID(tree.IndustryChainEntityID) {
+			return invalidReasonTree(tree.IndustryChainEntityID, path+".industry_chain_entity_id", tree.IndustryChainEntityID, "must be an Entity ID")
 		}
 		if _, duplicate := seenChains[tree.IndustryChainEntityID]; duplicate {
 			return invalidReasonTree(tree.IndustryChainEntityID, path+".industry_chain_entity_id", tree.IndustryChainEntityID, "must be unique within the Theme")
@@ -599,8 +599,8 @@ func (t ReasonTreeInput) validate(path string, snapshots map[string]ReasonTreeSi
 		if node.Position != index+1 {
 			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".position", fmt.Sprint(node.Position), "must be contiguous from 1")
 		}
-		if !lowercaseUUIDPattern.MatchString(node.ChainNodeEntityID) {
-			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".chain_node_entity_id", node.ChainNodeEntityID, "must be a standard lowercase UUID")
+		if !entitybiz.IsEntityID(node.ChainNodeEntityID) {
+			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".chain_node_entity_id", node.ChainNodeEntityID, "must be an Entity ID")
 		}
 		if _, duplicate := seenNodes[node.ChainNodeEntityID]; duplicate {
 			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".chain_node_entity_id", node.ChainNodeEntityID, "must be unique within the Tree")
@@ -3095,7 +3095,7 @@ func (l SignalLineage) validate(path string) error {
 			return invalid(path, l.SourceKind, "analyst_inference cannot claim a formal Signal or Evidence")
 		}
 		if !oneUUID(l.UpstreamVariableSignalID, l.UpstreamDirectImpactAssertionID) ||
-			!oneUUID(l.EntityRelationID, l.IndustryChainGraphEdgeID) {
+			!oneFormalRelation(l.EntityRelationID, l.IndustryChainGraphEdgeID) {
 			return invalid(path, l.SourceKind, "analyst_inference requires one formal upstream fact and one formal relation")
 		}
 	default:
@@ -3121,7 +3121,7 @@ func (l IncomingLineage) validate(path string, graphEdgeID *string) error {
 			return invalid(path, l.SourceKind, "analyst_inference cannot claim a formal Direct Impact")
 		}
 		if !oneUUID(l.UpstreamVariableSignalID, l.UpstreamDirectImpactAssertionID) ||
-			!(validUUID(l.EntityRelationID) || validUUID(graphEdgeID)) {
+			!oneFormalRelation(l.EntityRelationID, graphEdgeID) {
 			return invalid(path, l.SourceKind, "analyst_inference requires one formal upstream fact and one formal incoming relation")
 		}
 	default:
@@ -3137,6 +3137,17 @@ func allUUID(values ...*string) bool {
 		}
 	}
 	return true
+}
+
+func oneFormalRelation(entityRelationID, industryChainGraphEdgeID *string) bool {
+	count := 0
+	if entityRelationID != nil && entitybiz.IsEntityRelationID(*entityRelationID) {
+		count++
+	}
+	if validUUID(industryChainGraphEdgeID) {
+		count++
+	}
+	return count == 1
 }
 
 func oneUUID(values ...*string) bool {
@@ -4081,7 +4092,7 @@ func validateGraphSearchRequest(request GraphSearchRequest) (GraphQuery, normali
 	}
 	seedSet := map[string]struct{}{}
 	for _, id := range request.SeedEntityIDs {
-		if !identity.IsUUID(id) && !entitybiz.IsCountryID(id) && !entitybiz.IsOrganizationID(id) {
+		if !entitybiz.IsEntityID(id) && !entitybiz.IsCountryID(id) && !entitybiz.IsRegionID(id) && !entitybiz.IsOrganizationID(id) {
 			return GraphQuery{}, normalizedGraphSearchRequest{}, &GraphValidationError{Reason: "seed_entity_ids contains an invalid Object ID"}
 		}
 		if _, exists := seedSet[id]; exists {
@@ -4134,9 +4145,9 @@ func validateGraphSearchRequest(request GraphSearchRequest) (GraphQuery, normali
 		}
 	}
 	if request.IndustryChainEntityID != nil &&
-		!identity.IsUUID(*request.IndustryChainEntityID) {
+		!entitybiz.IsEntityID(*request.IndustryChainEntityID) {
 		return GraphQuery{}, normalizedGraphSearchRequest{}, &GraphValidationError{
-			Reason: "industry_chain_entity_id must be a UUID",
+			Reason: "industry_chain_entity_id must be an Entity ID",
 		}
 	}
 	asOf = asOf.UTC()

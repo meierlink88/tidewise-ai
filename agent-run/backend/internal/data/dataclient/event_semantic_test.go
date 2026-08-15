@@ -72,7 +72,7 @@ func TestEventSemanticSubmissionWireContainsNoDirectImpact(t *testing.T) {
 	payload, err := json.Marshal(eventsemantic.SubmissionRequest{
 		AgentKey: eventsemantic.AgentKey, AgentVersion: eventsemantic.AgentVersion,
 		EntityLinks: []eventsemantic.EntityLinkCandidate{{
-			CandidateKey: "company", EntityID: "33333333-3333-4333-8333-333333333333",
+			CandidateKey: "company", EntityID: "ENT33333333-3333-4333-8333-333333333333",
 			ProjectedEntityType: "company",
 		}}, VariableSignals: []eventsemantic.VariableSignalCandidate{},
 	})
@@ -95,7 +95,7 @@ func TestEventSemanticSubmissionWireContainsNoDirectImpact(t *testing.T) {
 
 func TestHistoricalAuditWorkPackageMayLackResolvedEntitiesButResumableReviewMayNot(t *testing.T) {
 	work := &eventsemantic.ReviewerWorkPackage{EntityLinks: []eventsemantic.EntityLinkCandidate{{
-		CandidateKey: "company", Mention: "公司", EntityID: "33333333-3333-4333-8333-333333333333",
+		CandidateKey: "company", Mention: "公司", EntityID: "ENT33333333-3333-4333-8333-333333333333",
 		EvidenceIDs: []string{"22222222-2222-4222-8222-222222222222"},
 	}}}
 	base := eventsemantic.SubmissionResult{

@@ -30,12 +30,12 @@ func TestEvidencePublicationHTTPRunsMiddlewareWithStableOperation(t *testing.T) 
 	}{
 		{
 			path:      v1.APIPrefix + "/raw-evidence-publications",
-			body:      `{"raw_evidence":{"raw_evidence_id":"RAW_example_00000000000000000000","source_id":"SRC_example_00000000000000000000","source_name":"Example Wire","source_level":"L2_WIRE","source_url":"https://example.test/article/1","is_original":true,"raw_text":"article","collected_at":"2026-08-11T01:05:00Z","keywords":[]}}`,
+			body:      `{"raw_evidence":{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","source_id":"SRC_example_00000000000000000000","source_name":"Example Wire","source_level":"L2_WIRE","source_url":"https://example.test/article/1","is_original":true,"raw_text":"article","collected_at":"2026-08-11T01:05:00Z","keywords":[]}}`,
 			operation: OperationPublishRawEvidence,
 		},
 		{
 			path:      v1.APIPrefix + "/evidence-publications",
-			body:      `{"raw_evidence_id":"RAW_example_00000000000000000000","evidences":[{"evidence_id":"EVD_example_00000000000000000000","split_order":0,"layer_type":"SINGLE","source_what":"fact","expression_fingerprint":"fact","expression_key":"fact-v1","fingerprint_version":"v1"}]}`,
+			body:      `{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"evidence_id":"EVD5cb71bef-5b1d-5995-add0-7408eaa2be15","split_order":0,"layer_type":"SINGLE","source_what":"fact","expression_fingerprint":"fact","expression_key":"fact-v1","fingerprint_version":"v1"}]}`,
 			operation: OperationPublishEvidence,
 		},
 	} {
@@ -98,7 +98,7 @@ func TestRawEvidencePublicationHTTPPreservesPublisherKeywords(t *testing.T) {
 	stub := &evidencePublicationHTTPStub{}
 	server := kratoshttp.NewServer()
 	RegisterHTTPServer(server, stub)
-	body := `{"raw_evidence":{"raw_evidence_id":"RAW_example_00000000000000000000","source_id":"SRC_example_00000000000000000000","source_name":"Example Wire","source_level":"L2_WIRE","source_url":"https://example.test/article/1","is_original":true,"raw_text":"Complete original article.","collected_at":"2026-08-11T01:05:00Z","keywords":[" AI芯片 ","供应链","AI芯片"]}}`
+	body := `{"raw_evidence":{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","source_id":"SRC_example_00000000000000000000","source_name":"Example Wire","source_level":"L2_WIRE","source_url":"https://example.test/article/1","is_original":true,"raw_text":"Complete original article.","collected_at":"2026-08-11T01:05:00Z","keywords":[" AI芯片 ","供应链","AI芯片"]}}`
 	response := httptest.NewRecorder()
 	server.ServeHTTP(response, httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/raw-evidence-publications", strings.NewReader(body)))
 
@@ -112,16 +112,16 @@ func TestRawEvidencePublicationHTTPPreservesPublisherKeywords(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if result.RawEvidenceID != "RAW_example_00000000000000000000" {
+	if result.RawEvidenceID != "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf" {
 		t.Fatalf("response Raw Evidence ID = %q", result.RawEvidenceID)
 	}
 }
 
 func TestEvidencePublicationHTTPRejectsDuplicateAndUnknownFields(t *testing.T) {
 	for _, body := range []string{
-		`{"raw_evidence_id":"RAW_example_00000000000000000000","raw_evidence_id":"RAW_example_00000000000000000000","evidences":[]}`,
-		`{"raw_evidence_id":"RAW_example_00000000000000000000","evidences":[],"group_id":"not-a-resource"}`,
-		`{"raw_evidence_id":"RAW_example_00000000000000000000","evidences":[{"evidence_id":"EVD_example_00000000000000000000","split_order":null,"layer_type":"SINGLE","source_what":"fact","expression_fingerprint":"fact","expression_key":"fact-v1","fingerprint_version":"v1"}]}`,
+		`{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[]}`,
+		`{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[],"group_id":"not-a-resource"}`,
+		`{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"evidence_id":"EVD5cb71bef-5b1d-5995-add0-7408eaa2be15","split_order":null,"layer_type":"SINGLE","source_what":"fact","expression_fingerprint":"fact","expression_key":"fact-v1","fingerprint_version":"v1"}]}`,
 	} {
 		server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(func(response http.ResponseWriter, _ *http.Request, err error) {
 			public, ok := err.(*v1.PublicError)
@@ -148,12 +148,12 @@ func TestEvidencePublicationHTTPAppliesInternalExecutionBudget(t *testing.T) {
 		{
 			name: "Raw Evidence",
 			path: v1.APIPrefix + "/raw-evidence-publications",
-			body: `{"raw_evidence":{"raw_evidence_id":"RAW_example_00000000000000000000","source_id":"SRC_example_00000000000000000000","source_name":"Example Wire","source_level":"L2_WIRE","source_url":"https://example.test/article/1","is_original":true,"raw_text":"article","collected_at":"2026-08-11T01:05:00Z","keywords":[]}}`,
+			body: `{"raw_evidence":{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","source_id":"SRC_example_00000000000000000000","source_name":"Example Wire","source_level":"L2_WIRE","source_url":"https://example.test/article/1","is_original":true,"raw_text":"article","collected_at":"2026-08-11T01:05:00Z","keywords":[]}}`,
 		},
 		{
 			name: "Evidence",
 			path: v1.APIPrefix + "/evidence-publications",
-			body: `{"raw_evidence_id":"RAW_example_00000000000000000000","evidences":[{"evidence_id":"EVD_example_00000000000000000000","split_order":0,"layer_type":"SINGLE","source_what":"fact","expression_fingerprint":"fact","expression_key":"fact-v1","fingerprint_version":"v1"}]}`,
+			body: `{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"evidence_id":"EVD5cb71bef-5b1d-5995-add0-7408eaa2be15","split_order":0,"layer_type":"SINGLE","source_what":"fact","expression_fingerprint":"fact","expression_key":"fact-v1","fingerprint_version":"v1"}]}`,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -180,11 +180,11 @@ func TestEvidencePublicationHTTPReturnsSafe503WhenInternalBudgetExpires(t *testi
 	}{
 		{
 			path: v1.APIPrefix + "/raw-evidence-publications",
-			body: `{"raw_evidence":{"raw_evidence_id":"RAW_example_00000000000000000000","source_id":"SRC_example_00000000000000000000","source_name":"Example Wire","source_level":"L2_WIRE","source_url":"https://example.test/article/1","is_original":true,"raw_text":"article","collected_at":"2026-08-11T01:05:00Z","keywords":[]}}`,
+			body: `{"raw_evidence":{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","source_id":"SRC_example_00000000000000000000","source_name":"Example Wire","source_level":"L2_WIRE","source_url":"https://example.test/article/1","is_original":true,"raw_text":"article","collected_at":"2026-08-11T01:05:00Z","keywords":[]}}`,
 		},
 		{
 			path: v1.APIPrefix + "/evidence-publications",
-			body: `{"raw_evidence_id":"RAW_example_00000000000000000000","evidences":[{"evidence_id":"EVD_example_00000000000000000000","split_order":0,"layer_type":"SINGLE","source_what":"fact","expression_fingerprint":"fact","expression_key":"fact-v1","fingerprint_version":"v1"}]}`,
+			body: `{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"evidence_id":"EVD5cb71bef-5b1d-5995-add0-7408eaa2be15","split_order":0,"layer_type":"SINGLE","source_what":"fact","expression_fingerprint":"fact","expression_key":"fact-v1","fingerprint_version":"v1"}]}`,
 		},
 	} {
 		server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(func(response http.ResponseWriter, request *http.Request, err error) {

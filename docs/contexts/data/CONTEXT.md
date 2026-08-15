@@ -17,6 +17,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 - AgentRun 使用的既有 Event Publication API、自然身份收敛、receipt 和事务规则。
 - 面向 Miniapp/Admin Application Backend Service 的版本化 REST API。
 - Data Service 自身的只读运行健康状态。
+- Data Application 内数据库无关的 Domain Object ID 技术原语与格式合同。
 
 ## Does Not Own
 
@@ -42,8 +43,15 @@ AgentRun 运行时下架、旧 `tidewise_ai_server` 数据搬迁和历史 8/19 �
 
 ## Language
 
+**Domain Object ID**:
+技术组件生成的与数据库无关身份，格式为“领域对象缩写前缀 + canonical lowercase
+UUID”，中间不使用分隔符。当前 Data 合同前缀为 `ENT`、`ERL`、`COU`、`REG`、
+`ORG`、`RAW`、`EVD` 和 `EVC`；可移植目录基于业务自然键确定性生成 UUID，普通领域
+对象可随机生成。
+_Avoid_: 裸 UUID、`PREFIX_...`、`PREFIX-...`、以数据库序列作为领域身份
+
 **Organization**:
-以 `ORG_ + code` 为稳定身份的独立多边组织事实，覆盖联盟、协会、国际机制、贸易集团和
+以 `ORG + canonical lowercase UUID` 为稳定身份的独立多边组织事实，覆盖联盟、协会、国际机制、贸易集团和
 安全联盟。Organization 不使用通用 Entity、Profile 或旧 `alliance_org` UUID；Category、
 Function 与 Domain Tag 通过 Data 目录连接稳定英文机器码和中文语义。
 _Avoid_: Alliance Org、Organization Profile、通用 Entity 的组织别名、member_count
@@ -373,14 +381,15 @@ Language 文件，定义对象语义、属性和 OpenSPG 可表达的约束。�
 _Avoid_: JSON Schema、数据库通用类型定义表、未经项目规范批准的 OpenSPG 语法
 
 **Region**:
-一个独立区域事实，由稳定 `REG_ + code` 标识、中英文名称、形成或使用类型、
+一个独立区域事实，由稳定 `REG + canonical lowercase UUID` 标识、中英文名称、形成或使用类型、
 可选说明和数据库生成创建时间构成。`region_type` 只取 `CONTINENT | GEOGRAPHIC |
 MULTILATERAL | INVESTMENT`，由 PostgreSQL 原生 enum 保证。Region 不使用 `entity_nodes`
 主表或 profile 表。
 _Avoid_: `region_profiles`、`region_types` 字典表、把 Region 写回旧 Entity 聚合模式
 
 **Country**:
-一个拥有 ISO 3166-1 alpha-3 代码的主权国家独立事实，由稳定 `COU_ + code` 标识、中英文
+一个拥有 ISO 3166-1 alpha-2 代码的国家或地区独立事实，由稳定
+`COU + canonical lowercase UUID` 标识、中英文
 简称、可选战略定位、可选关键资源和数据库生成时间构成。Country 通过显式多对多关系属于
 零个或多个 Region；它不使用 `entity_nodes` 或 profile 表，语义消费者将其类型识别为
 `country`。

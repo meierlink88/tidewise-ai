@@ -70,7 +70,7 @@ func validateStoredRawEvidenceBase(record *evidencebiz.StoredRawEvidence, expect
 		value string
 		max   int
 	}{
-		{name: "raw_evidence_id", value: record.RawEvidenceID, max: 32},
+		{name: "raw_evidence_id", value: record.RawEvidenceID, max: 39},
 		{name: "source_id", value: record.SourceID, max: 32},
 		{name: "source_name", value: record.SourceName, max: 100},
 		{name: "source_url", value: record.SourceURL},
@@ -130,7 +130,7 @@ func validateStoredCategory(record *evidencebiz.Category) error {
 		value string
 		max   int
 	}{
-		{name: "id", value: string(record.ID), max: 32},
+		{name: "id", value: string(record.ID), max: 39},
 		{name: "code", value: record.Code, max: 50},
 		{name: "name", value: record.Name, max: 50},
 		{name: "description", value: record.Description},
@@ -159,8 +159,8 @@ func validateStoredEvidence(record *evidencebiz.StoredEvidence) error {
 		value string
 		max   int
 	}{
-		{name: "evidence_id", value: record.EvidenceID, max: 32},
-		{name: "raw_evidence_id", value: record.RawEvidenceID, max: 32},
+		{name: "evidence_id", value: record.EvidenceID, max: 39},
+		{name: "raw_evidence_id", value: record.RawEvidenceID, max: 39},
 		{name: "source_what", value: record.SourceWhat},
 		{name: "expression_fingerprint", value: record.ExpressionFingerprint, max: 200},
 		{name: "expression_key", value: record.ExpressionKey, max: 64},

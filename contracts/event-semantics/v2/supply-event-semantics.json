@@ -46,7 +46,7 @@
           "statement_source": "英伟达"
         }],
         "resolved_entities": [{
-          "entity_id": "33333333-3333-4333-8333-333333333333",
+          "entity_id": "ENT33333333-3333-4333-8333-333333333333",
           "entity_type": "company",
           "name": "英伟达",
           "canonical_name": "英伟达",
@@ -56,7 +56,7 @@
         "entity_links": [{
           "candidate_key": "nvidia",
           "mention": "英伟达",
-          "entity_id": "33333333-3333-4333-8333-333333333333",
+          "entity_id": "ENT33333333-3333-4333-8333-333333333333",
           "entity_role": "actor",
           "evidence_ids": ["22222222-2222-4222-8222-222222222222"],
           "resolution_method": "qdrant_exact"

@@ -5,13 +5,14 @@ import (
 	"time"
 )
 
-func TestOrganizationIdentityRequiresStableORGCode(t *testing.T) {
+const testEntityID = "ENT550e8400-e29b-41d4-a716-446655440000"
+
+func TestDomainObjectIdentityRequiresPrefixAndUUID(t *testing.T) {
 	for value, want := range map[string]bool{
-		"ORG_UN":                               true,
-		"ORG_G7_2026":                          true,
-		"ORG_1UN":                              false,
-		"ORG_un":                               false,
-		"6f845f9f-10e2-44dd-b08a-e482e32d3558": false,
+		"ORG550e8400-e29b-41d4-a716-446655440000":  true,
+		"ORG_550e8400-e29b-41d4-a716-446655440000": false,
+		"ORG550E8400-E29B-41D4-A716-446655440000":  false,
+		"6f845f9f-10e2-44dd-b08a-e482e32d3558":     false,
 	} {
 		if got := IsOrganizationID(value); got != want {
 			t.Errorf("IsOrganizationID(%q) = %v, want %v", value, got, want)
@@ -43,7 +44,7 @@ func TestChainNodeAndThemeProfiles(t *testing.T) {
 }
 
 func TestEntityAcceptsTheme(t *testing.T) {
-	node := Entity{ID: "theme", EntityType: EntityTypeTheme, LayerCode: "theme", Name: "主题", CanonicalName: "主题", Status: StatusActive}
+	node := Entity{ID: testEntityID, EntityType: EntityTypeTheme, LayerCode: "theme", Name: "主题", CanonicalName: "主题", Status: StatusActive}
 	if err := node.Validate(); err != nil {
 		t.Fatalf("Entity.Validate() error = %v", err)
 	}
@@ -132,7 +133,7 @@ func TestTypedMasterDataProfilesValidateFrozenVocabulary(t *testing.T) {
 
 func TestEntityAcceptsIndustryAndConceptAsDistinctTypes(t *testing.T) {
 	for _, entityType := range []EntityType{EntityTypeIndustry, EntityTypeConcept} {
-		node := Entity{ID: "id", EntityType: entityType, LayerCode: string(entityType), Name: "人工智能", CanonicalName: "人工智能", Status: StatusActive}
+		node := Entity{ID: testEntityID, EntityType: entityType, LayerCode: string(entityType), Name: "人工智能", CanonicalName: "人工智能", Status: StatusActive}
 		if err := node.Validate(); err != nil {
 			t.Fatalf("Entity.Validate(%q) error = %v", entityType, err)
 		}
@@ -170,7 +171,7 @@ func TestIndustryChainMasterDataTypesValidateNewSchemaVocabulary(t *testing.T) {
 			name: "definition",
 			value: IndustryChainDefinition{
 				EntityID: "chain", Scope: "AI 算力主链", TargetOutput: "可用算力", EndUse: "AI 训练与推理",
-				Geography: "global_with_china_research_focus", PrimaryCountryID: "COU_CHN",
+				Geography: "global_with_china_research_focus", PrimaryCountryID: "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b",
 				AsOfDate: validDate, ReviewStatus: ReviewStatusCandidate,
 			},
 		},
@@ -228,7 +229,7 @@ func TestIndustryChainMasterDataTypesValidateNewSchemaVocabulary(t *testing.T) {
 
 func TestEntityValidate(t *testing.T) {
 	node := Entity{
-		ID:            "entity-1",
+		ID:            testEntityID,
 		EntityType:    EntityTypeCompany,
 		LayerCode:     "company",
 		Name:          "示例公司",
@@ -262,7 +263,7 @@ func TestEntityValidateRejectsUnsupportedEntityType(t *testing.T) {
 }
 
 func TestProductEntityAndProfileValidate(t *testing.T) {
-	entity := Entity{ID: "product-id", EntityType: EntityTypeProduct, LayerCode: "product", Name: "AI芯片", CanonicalName: "AI芯片", Status: StatusActive}
+	entity := Entity{ID: testEntityID, EntityType: EntityTypeProduct, LayerCode: "product", Name: "AI芯片", CanonicalName: "AI芯片", Status: StatusActive}
 	if err := entity.Validate(); err != nil {
 		t.Fatalf("product Entity.Validate() error = %v", err)
 	}
@@ -278,7 +279,7 @@ func TestProductEntityAndProfileValidate(t *testing.T) {
 
 func TestEntityValidateRejectsRetiredEntityTypes(t *testing.T) {
 	for _, entityType := range []EntityType{"benchmark", "metric"} {
-		node := Entity{ID: "retired-" + string(entityType), EntityType: entityType, LayerCode: string(entityType), Name: "retired", CanonicalName: "retired", Status: StatusActive}
+		node := Entity{ID: testEntityID, EntityType: entityType, LayerCode: string(entityType), Name: "retired", CanonicalName: "retired", Status: StatusActive}
 		if err := node.Validate(); err == nil {
 			t.Fatalf("Entity.Validate() type %q error = nil, want rejection", entityType)
 		}

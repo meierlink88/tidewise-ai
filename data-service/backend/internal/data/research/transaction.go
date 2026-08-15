@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	entitybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
 	bizidentity "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/identity"
 	researchbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/research"
 )
@@ -124,7 +125,7 @@ func validatePersistedResearchReceipt(receipt researchbiz.Receipt) error {
 		if receipt.PublicationMode == researchbiz.SnapshotPublicationMode && !researchKeyPattern.MatchString(key) {
 			return invalid("a snapshot Reason Tree key is malformed")
 		}
-		if receipt.PublicationMode == "formal" && !bizidentity.IsUUID(key) {
+		if receipt.PublicationMode == "formal" && !entitybiz.IsEntityID(key) {
 			return invalid("a formal Industry Chain identity is malformed")
 		}
 	}
@@ -141,7 +142,7 @@ func (t *publicationTransaction) ReferenceFacts(
        node.created_at, node.updated_at
 FROM chain_node_profiles profile
 JOIN entity_nodes node ON node.id = profile.entity_id
-WHERE profile.entity_id = ANY($1::uuid[])
+WHERE profile.entity_id = ANY($1::text[])
   AND node.status = 'active'
   AND profile.review_status = 'approved'`, query.ChainNodeIDs)
 	if err != nil {
@@ -156,7 +157,7 @@ WHERE profile.entity_id = ANY($1::uuid[])
        GREATEST(node.updated_at, definition.updated_at)
 FROM industry_chain_definitions definition
 JOIN entity_nodes node ON node.id = definition.entity_id
-WHERE definition.entity_id = ANY($1::uuid[])
+WHERE definition.entity_id = ANY($1::text[])
   AND definition.review_status = 'approved'
   AND node.status = 'active'`, query.IndustryChainIDs)
 	if err != nil {
@@ -251,7 +252,7 @@ func (t *publicationTransaction) entityRelations(
 FROM entity_edges edge
 JOIN entity_nodes source ON source.id = edge.from_entity_id AND source.status = 'active'
 JOIN entity_nodes target ON target.id = edge.to_entity_id AND target.status = 'active'
-WHERE edge.id = ANY($1::uuid[]) AND edge.status = 'active'`, ids)
+WHERE edge.id = ANY($1::text[]) AND edge.status = 'active'`, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -281,7 +282,7 @@ func (t *publicationTransaction) memberships(
 FROM industry_chain_node_memberships membership
 JOIN entity_nodes node ON node.id = membership.chain_node_entity_id
 JOIN chain_node_profiles profile ON profile.entity_id = membership.chain_node_entity_id
-WHERE membership.industry_chain_entity_id = ANY($1::uuid[])
+WHERE membership.industry_chain_entity_id = ANY($1::text[])
   AND membership.status = 'active' AND membership.review_status = 'approved'
   AND node.status = 'active' AND profile.review_status = 'approved'`, chainIDs)
 	if err != nil {

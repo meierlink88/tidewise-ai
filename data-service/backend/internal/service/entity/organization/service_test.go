@@ -64,7 +64,7 @@ func TestServiceParsesFiltersAndMapsOrganizationDTO(t *testing.T) {
 	established := time.Date(1945, 10, 24, 0, 0, 0, 0, time.UTC)
 	created := time.Date(2026, 8, 15, 1, 2, 3, 4, time.FixedZone("test", 8*60*60))
 	stub := &useCaseStub{organizations: []organizationbiz.Organization{{
-		ID: "ORG_UN", Code: "UN", Name: "联合国", NameEn: "United Nations",
+		ID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", Code: "UN", Name: "联合国", NameEn: "United Nations",
 		Category:        organizationbiz.CatalogTerm{Code: "INTERGOVERNMENTAL", NameZh: "政府间国际组织"},
 		Function:        organizationbiz.CatalogTerm{Code: "SECURITY", NameZh: "安全与防务"},
 		EstablishedDate: &established,
@@ -76,8 +76,8 @@ func TestServiceParsesFiltersAndMapsOrganizationDTO(t *testing.T) {
 		t.Fatal(err)
 	}
 	response, err := service.List(context.Background(), &organizationapi.ListRequest{
-		CategoryCode: "INTERGOVERNMENTAL", FunctionCode: "SECURITY", RegionID: "REG_GLOBAL",
-		CountryID: "COU_CHN", AsOf: "2026-08-15",
+		CategoryCode: "INTERGOVERNMENTAL", FunctionCode: "SECURITY", RegionID: "REG13802abf-d1ef-5dec-95ec-a47d35813827",
+		CountryID: "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b", AsOf: "2026-08-15",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -100,14 +100,14 @@ func TestServiceMapsMemberDatesAndNullableValues(t *testing.T) {
 	expiry := time.Date(2020, 12, 31, 0, 0, 0, 0, time.UTC)
 	created := time.Date(2026, 8, 15, 1, 2, 3, 0, time.UTC)
 	stub := &useCaseStub{members: []organizationbiz.Member{{
-		ID: 7, OrganizationID: "ORG_UN", CountryID: "COU_CHN", MembershipType: "FULL_MEMBER",
+		ID: 7, OrganizationID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", CountryID: "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b", MembershipType: "FULL_MEMBER",
 		EffectiveDate: &effective, ExpiryDate: &expiry, CreatedAt: created, UpdatedAt: created,
 	}}}
 	service, err := NewService(stub)
 	if err != nil {
 		t.Fatal(err)
 	}
-	response, err := service.ListMembers(context.Background(), &organizationapi.ListMembersRequest{OrganizationID: "ORG_UN", AsOf: "2020-06-01"})
+	response, err := service.ListMembers(context.Background(), &organizationapi.ListMembersRequest{OrganizationID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", AsOf: "2020-06-01"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestServiceMapsMemberDatesAndNullableValues(t *testing.T) {
 	}
 	date := organizationapi.Date{Time: effective}
 	if _, err := service.CreateMember(context.Background(), &organizationapi.CreateMemberRequest{
-		OrganizationID: "ORG_UN", CountryID: "COU_CHN", MembershipType: "OBSERVER", EffectiveDate: &date,
+		OrganizationID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", CountryID: "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b", MembershipType: "OBSERVER", EffectiveDate: &date,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ func TestServiceMapsStableOrganizationErrors(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, err = service.Get(context.Background(), &organizationapi.GetRequest{OrganizationID: "ORG_UN"})
+			_, err = service.Get(context.Background(), &organizationapi.GetRequest{OrganizationID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549"})
 			if test.wantError != nil {
 				if !errors.Is(err, test.wantError) {
 					t.Fatalf("Get() error = %v, want %v", err, test.wantError)

@@ -7,16 +7,23 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
+
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 type SourceLevel string
 type LayerType string
 type IssueCode string
 type CategoryID string
+
+const (
+	RawEvidenceIDPrefix = "RAW"
+	EvidenceIDPrefix    = "EVD"
+	CategoryIDPrefix    = "EVC"
+)
 
 const (
 	SourceLevelOfficial SourceLevel = "L1_OFFICIAL"
@@ -156,10 +163,8 @@ var allowedSourceLevels = map[SourceLevel]struct{}{
 	SourceLevelSocial:   {},
 }
 
-var categoryIDPattern = regexp.MustCompile(`^EVC_[0-9]{3}$`)
-
 func (id CategoryID) IsValid() bool {
-	return categoryIDPattern.MatchString(string(id))
+	return coreid.Is(string(id), CategoryIDPrefix)
 }
 
 type UseCase struct {
@@ -228,7 +233,7 @@ func (s *UseCase) GetRawEvidence(ctx context.Context, rawEvidenceID string) (Sto
 		return StoredRawEvidence{}, errors.New("Evidence store is required")
 	}
 	var issues []Issue
-	required(&issues, "raw_evidence_id", rawEvidenceID, 32)
+	requiredDomainID(&issues, "raw_evidence_id", rawEvidenceID, RawEvidenceIDPrefix)
 	if len(issues) > 0 {
 		return StoredRawEvidence{}, &ValidationError{Issues: issues}
 	}
@@ -328,7 +333,7 @@ func (s *UseCase) PublishEvidence(ctx context.Context, rawEvidenceID string, inp
 
 func validateEvidencePublication(rawEvidenceID string, input []Evidence) error {
 	var issues []Issue
-	required(&issues, "raw_evidence_id", rawEvidenceID, 32)
+	requiredDomainID(&issues, "raw_evidence_id", rawEvidenceID, RawEvidenceIDPrefix)
 	if len(input) == 0 {
 		issues = append(issues, Issue{Path: "evidences", Code: IssueRequired, Message: "at least one Evidence is required"})
 	}
@@ -336,7 +341,7 @@ func validateEvidencePublication(rawEvidenceID string, input []Evidence) error {
 	seenOrders := make(map[int]struct{}, len(input))
 	for index, item := range input {
 		prefix := fmt.Sprintf("evidences[%d]", index)
-		required(&issues, prefix+".evidence_id", item.EvidenceID, 32)
+		requiredDomainID(&issues, prefix+".evidence_id", item.EvidenceID, EvidenceIDPrefix)
 		if _, ok := seenIDs[item.EvidenceID]; ok {
 			issues = append(issues, Issue{Path: prefix + ".evidence_id", Code: IssueDuplicate, Message: "evidence_id must be unique within the publication"})
 		}
@@ -402,7 +407,7 @@ func evidenceSetConflict() error {
 
 func validateRawEvidence(input RawEvidence) error {
 	var issues []Issue
-	required(&issues, "raw_evidence.raw_evidence_id", input.RawEvidenceID, 32)
+	requiredDomainID(&issues, "raw_evidence.raw_evidence_id", input.RawEvidenceID, RawEvidenceIDPrefix)
 	required(&issues, "raw_evidence.source_id", input.SourceID, 32)
 	required(&issues, "raw_evidence.source_name", input.SourceName, 100)
 	required(&issues, "raw_evidence.source_url", input.SourceURL, 0)
@@ -431,9 +436,9 @@ func validateRawEvidence(input RawEvidence) error {
 	seenCategories := make(map[CategoryID]struct{}, len(input.CategoryIDs))
 	for index, categoryID := range input.CategoryIDs {
 		path := fmt.Sprintf("raw_evidence.category_ids[%d]", index)
-		required(&issues, path, string(categoryID), 32)
+		requiredDomainID(&issues, path, string(categoryID), CategoryIDPrefix)
 		if categoryID != "" && !categoryID.IsValid() {
-			issues = append(issues, Issue{Path: path, Code: IssueInvalidFormat, Message: "category_id must use EVC_ followed by three digits"})
+			issues = append(issues, Issue{Path: path, Code: IssueInvalidFormat, Message: "category_id must use EVC immediately followed by a canonical lowercase UUID"})
 		}
 		if _, exists := seenCategories[categoryID]; exists {
 			issues = append(issues, Issue{Path: path, Code: IssueDuplicate, Message: "category_id must be unique within the Raw Evidence"})
@@ -455,6 +460,19 @@ func required(issues *[]Issue, path, value string, max int) {
 	}
 	if max > 0 && length > max {
 		*issues = append(*issues, Issue{Path: path, Code: IssueTooLong, Message: fmt.Sprintf("value must contain at most %d characters", max)})
+	}
+}
+
+func requiredDomainID(issues *[]Issue, path, value, prefix string) {
+	if strings.TrimSpace(value) == "" {
+		*issues = append(*issues, Issue{Path: path, Code: IssueRequired, Message: "value is required"})
+		return
+	}
+	if !coreid.Is(value, prefix) {
+		*issues = append(*issues, Issue{
+			Path: path, Code: IssueInvalidFormat,
+			Message: prefix + " must be immediately followed by a canonical lowercase UUID",
+		})
 	}
 }
 

@@ -158,7 +158,7 @@ func (s *UseCase) List(ctx context.Context, filter Filter) ([]Organization, erro
 			return nil, &ValidationError{Field: item.field, Message: "must be an uppercase stable code"}
 		}
 	}
-	if filter.RegionID != "" && !validObjectID(filter.RegionID, "REG_") {
+	if filter.RegionID != "" && !entitybiz.IsRegionID(filter.RegionID) {
 		return nil, &ValidationError{Field: "region_id", Message: "must be a stable Region ID"}
 	}
 	if filter.CountryID != "" && !entitybiz.IsCountryID(filter.CountryID) {
@@ -169,7 +169,7 @@ func (s *UseCase) List(ctx context.Context, filter Filter) ([]Organization, erro
 
 func (s *UseCase) Update(ctx context.Context, id string, input Update) (Organization, error) {
 	probe := Organization{
-		ID: id, Code: strings.TrimPrefix(id, entitybiz.OrganizationIDPrefix), Name: input.Name, NameEn: input.NameEn,
+		ID: id, Code: "UNCHANGED", Name: input.Name, NameEn: input.NameEn,
 		RegionID: input.RegionID, Category: CatalogTerm{Code: input.CategoryCode}, Function: CatalogTerm{Code: input.FunctionCode},
 		LegalEntityCode: input.LegalEntityCode, DominantPartyID: input.DominantPartyID, BindingPowerLevel: input.BindingPowerLevel,
 		InfluenceRating: input.InfluenceRating, StrategicPositioning: input.StrategicPositioning, CoreImpactScope: input.CoreImpactScope,
@@ -262,8 +262,8 @@ func validateMember(input Member) error {
 }
 
 func validateOrganization(input Organization) error {
-	if !entitybiz.IsOrganizationID(input.ID) || input.ID != entitybiz.OrganizationIDPrefix+input.Code {
-		return &ValidationError{Field: "id", Message: "must equal ORG_ plus code"}
+	if !entitybiz.IsOrganizationID(input.ID) {
+		return &ValidationError{Field: "id", Message: "must equal ORG immediately followed by a canonical lowercase UUID"}
 	}
 	if !validCode(input.Code, 30) {
 		return &ValidationError{Field: "code", Message: "must be an uppercase stable code with at most 30 characters"}
@@ -280,7 +280,7 @@ func validateOrganization(input Organization) error {
 	if !validCode(input.Function.Code, 30) {
 		return &ValidationError{Field: "function_code", Message: "must be an uppercase stable code"}
 	}
-	if input.RegionID != nil && !validObjectID(*input.RegionID, "REG_") {
+	if input.RegionID != nil && !entitybiz.IsRegionID(*input.RegionID) {
 		return &ValidationError{Field: "region_id", Message: "must be a stable Region ID"}
 	}
 	for _, country := range []struct {
@@ -333,10 +333,6 @@ func validCode(value string, maximum int) bool {
 		return false
 	}
 	return true
-}
-
-func validObjectID(value, prefix string) bool {
-	return strings.HasPrefix(value, prefix) && len(value) > len(prefix) && len(value) <= 32 && validCode(value[len(prefix):], 32-len(prefix))
 }
 
 func lettersAndDigits(value string) bool {

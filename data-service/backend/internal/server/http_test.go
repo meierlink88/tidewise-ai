@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"sort"
 	"testing"
 	"time"
 
@@ -55,7 +56,7 @@ func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *te
 
 	payload := `{
 		"raw_evidence": {
-			"raw_evidence_id":"RAW_category_000000000000000000",
+			"raw_evidence_id":"RAW1647820c-234a-57be-90f3-ff5117101351",
 			"source_id":"SRC_category_000000000000000000",
 			"source_name":"Example Wire",
 			"source_level":"L2_WIRE",
@@ -64,86 +65,86 @@ func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *te
 			"raw_text":"Powell expects another rate increase this year.",
 			"collected_at":"2026-08-14T01:05:00Z",
 			"keywords":["美联储","加息"],
-			"category_ids":["EVC_009","EVC_005"]
+			"category_ids":["EVC083b086f-c9ee-504c-85e9-639fa8d39e8f","EVC097bf77a-fb8a-5756-ae47-e122c4367985"]
 		}
 	}`
 	created := productionEvidenceRequest(t, server, http.MethodPost, dataapi.APIPrefix+"/raw-evidence-publications", "raw-evidence-write-token", payload, http.StatusCreated)
-	if created["result"].(map[string]any)["raw_evidence_id"] != "RAW_category_000000000000000000" {
+	if created["result"].(map[string]any)["raw_evidence_id"] != "RAW1647820c-234a-57be-90f3-ff5117101351" {
 		t.Fatalf("created Raw Evidence envelope = %#v", created)
 	}
 
-	detail := productionEvidenceRequest(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/RAW_category_000000000000000000", "raw-evidence-read-token", "", http.StatusOK)
+	detail := productionEvidenceRequest(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/RAW1647820c-234a-57be-90f3-ff5117101351", "raw-evidence-read-token", "", http.StatusOK)
 	raw := detail["result"].(map[string]any)["raw_evidence"].(map[string]any)
 	categories := raw["categories"].([]any)
-	if len(categories) != 2 || categories[0].(map[string]any)["id"] != "EVC_005" || categories[1].(map[string]any)["id"] != "EVC_009" {
+	if len(categories) != 2 || categories[0].(map[string]any)["id"] != "EVC083b086f-c9ee-504c-85e9-639fa8d39e8f" || categories[1].(map[string]any)["id"] != "EVC097bf77a-fb8a-5756-ae47-e122c4367985" {
 		t.Fatalf("Raw Evidence categories = %#v", categories)
 	}
-	if categories[0].(map[string]any)["code"] != "FORECAST_PLAN_OUTLOOK" || categories[0].(map[string]any)["description"] == "" {
+	if categories[0].(map[string]any)["code"] != "INTERVIEW_OR_STATEMENT" || categories[0].(map[string]any)["description"] == "" {
 		t.Fatalf("resolved Evidence Category = %#v", categories[0])
 	}
 
-	reversed := bytes.Replace([]byte(payload), []byte(`"category_ids":["EVC_009","EVC_005"]`), []byte(`"category_ids":["EVC_005","EVC_009"]`), 1)
+	reversed := bytes.Replace([]byte(payload), []byte(`"category_ids":["EVC083b086f-c9ee-504c-85e9-639fa8d39e8f","EVC097bf77a-fb8a-5756-ae47-e122c4367985"]`), []byte(`"category_ids":["EVC097bf77a-fb8a-5756-ae47-e122c4367985","EVC083b086f-c9ee-504c-85e9-639fa8d39e8f"]`), 1)
 	productionEvidenceRequest(t, server, http.MethodPost, dataapi.APIPrefix+"/raw-evidence-publications", "raw-evidence-write-token", string(reversed), http.StatusCreated)
 	var linkCount int
-	if err := db.QueryRow(`SELECT count(*) FROM raw_evidence_category_links WHERE raw_evidence_id = 'RAW_category_000000000000000000'`).Scan(&linkCount); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM raw_evidence_category_links WHERE raw_evidence_id = 'RAW1647820c-234a-57be-90f3-ff5117101351'`).Scan(&linkCount); err != nil {
 		t.Fatal(err)
 	}
 	if linkCount != 2 {
 		t.Fatalf("Raw Evidence Category link count = %d, want 2", linkCount)
 	}
 	var earliestLink time.Time
-	if err := db.QueryRow(`SELECT min(created_at) FROM raw_evidence_category_links WHERE raw_evidence_id = 'RAW_category_000000000000000000'`).Scan(&earliestLink); err != nil {
+	if err := db.QueryRow(`SELECT min(created_at) FROM raw_evidence_category_links WHERE raw_evidence_id = 'RAW1647820c-234a-57be-90f3-ff5117101351'`).Scan(&earliestLink); err != nil {
 		t.Fatal(err)
 	}
 	if earliestLink.IsZero() {
 		t.Fatal("Raw Evidence Category link has zero created_at")
 	}
 
-	drift := bytes.Replace([]byte(payload), []byte(`"category_ids":["EVC_009","EVC_005"]`), []byte(`"category_ids":["EVC_009"]`), 1)
+	drift := bytes.Replace([]byte(payload), []byte(`"category_ids":["EVC083b086f-c9ee-504c-85e9-639fa8d39e8f","EVC097bf77a-fb8a-5756-ae47-e122c4367985"]`), []byte(`"category_ids":["EVC083b086f-c9ee-504c-85e9-639fa8d39e8f"]`), 1)
 	productionEvidenceError(t, server, http.MethodPost, dataapi.APIPrefix+"/raw-evidence-publications", "raw-evidence-write-token", string(drift), http.StatusConflict, "EVIDENCE_PUBLICATION_CONFLICT")
-	unknown := bytes.Replace([]byte(payload), []byte("RAW_category_000000000000000000"), []byte("RAW_unknown_0000000000000000000"), 1)
-	unknown = bytes.Replace(unknown, []byte(`"EVC_009","EVC_005"`), []byte(`"EVC_999"`), 1)
+	unknown := bytes.Replace([]byte(payload), []byte("RAW1647820c-234a-57be-90f3-ff5117101351"), []byte("RAW989eaa68-4d95-5b41-81a8-4baed5e227e5"), 1)
+	unknown = bytes.Replace(unknown, []byte(`"EVC083b086f-c9ee-504c-85e9-639fa8d39e8f","EVC097bf77a-fb8a-5756-ae47-e122c4367985"`), []byte(`"EVCca2c5f7c-b52a-5c5b-ba14-b38252e4f738"`), 1)
 	productionEvidenceError(t, server, http.MethodPost, dataapi.APIPrefix+"/raw-evidence-publications", "raw-evidence-write-token", string(unknown), http.StatusUnprocessableEntity, "EVIDENCE_PUBLICATION_REFERENCE_INVALID")
-	duplicate := bytes.Replace([]byte(payload), []byte("RAW_category_000000000000000000"), []byte("RAW_duplicate_00000000000000000"), 1)
-	duplicate = bytes.Replace(duplicate, []byte(`"EVC_009","EVC_005"`), []byte(`"EVC_005","EVC_005"`), 1)
+	duplicate := bytes.Replace([]byte(payload), []byte("RAW1647820c-234a-57be-90f3-ff5117101351"), []byte("RAW5eb7922a-b6c4-5026-85dd-9b347ed8b7ac"), 1)
+	duplicate = bytes.Replace(duplicate, []byte(`"EVC083b086f-c9ee-504c-85e9-639fa8d39e8f","EVC097bf77a-fb8a-5756-ae47-e122c4367985"`), []byte(`"EVC097bf77a-fb8a-5756-ae47-e122c4367985","EVC097bf77a-fb8a-5756-ae47-e122c4367985"`), 1)
 	productionEvidenceError(t, server, http.MethodPost, dataapi.APIPrefix+"/raw-evidence-publications", "raw-evidence-write-token", string(duplicate), http.StatusBadRequest, "INVALID_REQUEST")
-	malformed := bytes.Replace([]byte(payload), []byte("RAW_category_000000000000000000"), []byte("RAW_badcategory_000000000000000"), 1)
-	malformed = bytes.Replace(malformed, []byte(`"EVC_009","EVC_005"`), []byte(`"BAD_ID"`), 1)
+	malformed := bytes.Replace([]byte(payload), []byte("RAW1647820c-234a-57be-90f3-ff5117101351"), []byte("RAW100486da-d8f6-5665-b4d1-770ab6bd90b1"), 1)
+	malformed = bytes.Replace(malformed, []byte(`"EVC083b086f-c9ee-504c-85e9-639fa8d39e8f","EVC097bf77a-fb8a-5756-ae47-e122c4367985"`), []byte(`"BAD_ID"`), 1)
 	malformedError := productionEvidenceError(t, server, http.MethodPost, dataapi.APIPrefix+"/raw-evidence-publications", "raw-evidence-write-token", string(malformed), http.StatusBadRequest, "INVALID_REQUEST")
 	malformedIssues := malformedError["error"].(map[string]any)["details"].(map[string]any)["issues"].([]any)
 	if malformedIssues[0].(map[string]any)["path"] != "raw_evidence.category_ids[0]" {
 		t.Fatalf("malformed category issue = %#v", malformedIssues[0])
 	}
 	var failedWriteCount int
-	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE raw_evidence_id IN ('RAW_unknown_0000000000000000000', 'RAW_duplicate_00000000000000000', 'RAW_badcategory_000000000000000')`).Scan(&failedWriteCount); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE raw_evidence_id IN ('RAW989eaa68-4d95-5b41-81a8-4baed5e227e5', 'RAW5eb7922a-b6c4-5026-85dd-9b347ed8b7ac', 'RAW100486da-d8f6-5665-b4d1-770ab6bd90b1')`).Scan(&failedWriteCount); err != nil {
 		t.Fatal(err)
 	}
 	if failedWriteCount != 0 {
 		t.Fatalf("failed category publications left %d Raw Evidence rows", failedWriteCount)
 	}
 
-	productionEvidenceError(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/RAW_missing_0000000000000000000", "raw-evidence-read-token", "", http.StatusNotFound, "RAW_EVIDENCE_NOT_FOUND")
+	productionEvidenceError(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/RAW6dcc2dc9-8595-5e56-a521-a8967abd8bb9", "raw-evidence-read-token", "", http.StatusNotFound, "RAW_EVIDENCE_NOT_FOUND")
 	productionEvidenceError(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/"+string(bytes.Repeat([]byte("X"), 33)), "raw-evidence-read-token", "", http.StatusBadRequest, "INVALID_REQUEST")
-	productionEvidenceError(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/RAW_category_000000000000000000", "raw-evidence-write-token", "", http.StatusForbidden, "FORBIDDEN")
-	productionEvidenceError(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/RAW_category_000000000000000000", "", "", http.StatusUnauthorized, "UNAUTHENTICATED")
+	productionEvidenceError(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/RAW1647820c-234a-57be-90f3-ff5117101351", "raw-evidence-write-token", "", http.StatusForbidden, "FORBIDDEN")
+	productionEvidenceError(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/RAW1647820c-234a-57be-90f3-ff5117101351", "", "", http.StatusUnauthorized, "UNAUTHENTICATED")
 
-	legacy := bytes.Replace([]byte(payload), []byte("RAW_category_000000000000000000"), []byte("RAW_uncategorized_00000000000000"), 1)
+	legacy := bytes.Replace([]byte(payload), []byte("RAW1647820c-234a-57be-90f3-ff5117101351"), []byte("RAWa732ef55-c08c-5988-a01e-aa5f04028d1d"), 1)
 	legacy = bytes.Replace(legacy, []byte(`,
-			"category_ids":["EVC_009","EVC_005"]`), nil, 1)
+			"category_ids":["EVC083b086f-c9ee-504c-85e9-639fa8d39e8f","EVC097bf77a-fb8a-5756-ae47-e122c4367985"]`), nil, 1)
 	productionEvidenceRequest(t, server, http.MethodPost, dataapi.APIPrefix+"/raw-evidence-publications", "raw-evidence-write-token", string(legacy), http.StatusCreated)
-	legacyDetail := productionEvidenceRequest(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/RAW_uncategorized_00000000000000", "raw-evidence-read-token", "", http.StatusOK)
+	legacyDetail := productionEvidenceRequest(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/RAWa732ef55-c08c-5988-a01e-aa5f04028d1d", "raw-evidence-read-token", "", http.StatusOK)
 	legacyCategories := legacyDetail["result"].(map[string]any)["raw_evidence"].(map[string]any)["categories"].([]any)
 	if len(legacyCategories) != 0 {
 		t.Fatalf("uncategorized Raw Evidence categories = %#v", legacyCategories)
 	}
 
-	if _, err := db.Exec(`INSERT INTO raw_evidence_category_links (raw_evidence_id, category_id) VALUES ('RAW_category_000000000000000000', 'EVC_005')`); err == nil {
+	if _, err := db.Exec(`INSERT INTO raw_evidence_category_links (raw_evidence_id, category_id) VALUES ('RAW1647820c-234a-57be-90f3-ff5117101351', 'EVC097bf77a-fb8a-5756-ae47-e122c4367985')`); err == nil {
 		t.Fatal("database accepted a duplicate Raw Evidence Category link")
 	}
-	if _, err := db.Exec(`INSERT INTO raw_evidence_category_links (raw_evidence_id, category_id) VALUES ('RAW_missing_0000000000000000000', 'EVC_001')`); err == nil {
+	if _, err := db.Exec(`INSERT INTO raw_evidence_category_links (raw_evidence_id, category_id) VALUES ('RAW6dcc2dc9-8595-5e56-a521-a8967abd8bb9', 'EVCc18ddddb-14bc-5496-99ea-963ee2c25597')`); err == nil {
 		t.Fatal("database accepted a Raw Evidence Category link with a missing Raw Evidence")
 	}
-	if _, err := db.Exec(`DELETE FROM evidence_categories WHERE id = 'EVC_005'`); err == nil {
+	if _, err := db.Exec(`DELETE FROM evidence_categories WHERE id = 'EVC097bf77a-fb8a-5756-ae47-e122c4367985'`); err == nil {
 		t.Fatal("database deleted a referenced Evidence Category")
 	}
 }
@@ -153,18 +154,19 @@ func assertEvidenceCategoryCatalog(t *testing.T, db interface {
 }) {
 	t.Helper()
 	want := [][3]string{
-		{"EVC_001", "EVENT_BRIEF", "事件快讯"},
-		{"EVC_002", "FINANCIAL_REPORT_DATA_SUMMARY", "财报数据摘要"},
-		{"EVC_003", "MARKET_MOVEMENT_BRIEF", "行情异动简讯"},
-		{"EVC_004", "MARKET_MOVEMENT_ANALYSIS", "市场异动分析"},
-		{"EVC_005", "FORECAST_PLAN_OUTLOOK", "预测/计划/展望"},
-		{"EVC_006", "INDUSTRY_THEME_ANALYSIS", "行业/主题分析"},
-		{"EVC_007", "IN_DEPTH_REPORT", "专题/深度报道"},
-		{"EVC_008", "POLICY_DOCUMENT_SUMMARY", "政策文件摘要"},
-		{"EVC_009", "INTERVIEW_OR_STATEMENT", "人物访谈/表态"},
-		{"EVC_010", "SOCIAL_MEDIA_BRIEF", "社交媒体快讯"},
-		{"EVC_011", "COMMENTARY_EDITORIAL_OPINION", "评论/社论/观点"},
+		{"EVCc18ddddb-14bc-5496-99ea-963ee2c25597", "EVENT_BRIEF", "事件快讯"},
+		{"EVC3a321d2c-1a58-5fde-bc69-fcdbb6d5180c", "FINANCIAL_REPORT_DATA_SUMMARY", "财报数据摘要"},
+		{"EVC02a34cd9-b141-5a77-a628-c4458b77dd4e", "MARKET_MOVEMENT_BRIEF", "行情异动简讯"},
+		{"EVC22332f49-2236-5cc4-aa2c-c53c29f09906", "MARKET_MOVEMENT_ANALYSIS", "市场异动分析"},
+		{"EVC097bf77a-fb8a-5756-ae47-e122c4367985", "FORECAST_PLAN_OUTLOOK", "预测/计划/展望"},
+		{"EVCed6e9380-8b20-53d5-b748-fa45c774fa67", "INDUSTRY_THEME_ANALYSIS", "行业/主题分析"},
+		{"EVC5b12ffce-178d-56ed-a54f-c01696c486f4", "IN_DEPTH_REPORT", "专题/深度报道"},
+		{"EVC5965b67d-1578-54a6-9b81-900a61a47a3f", "POLICY_DOCUMENT_SUMMARY", "政策文件摘要"},
+		{"EVC083b086f-c9ee-504c-85e9-639fa8d39e8f", "INTERVIEW_OR_STATEMENT", "人物访谈/表态"},
+		{"EVCb7505968-f65e-55a5-9294-b8a7be829a4a", "SOCIAL_MEDIA_BRIEF", "社交媒体快讯"},
+		{"EVC7af2e623-fb5d-5145-91c8-dc308f2a1dce", "COMMENTARY_EDITORIAL_OPINION", "评论/社论/观点"},
 	}
+	sort.Slice(want, func(left, right int) bool { return want[left][0] < want[right][0] })
 	rows, err := db.Query(`SELECT id, code, name, description, created_at FROM evidence_categories ORDER BY id`)
 	if err != nil {
 		t.Fatal(err)

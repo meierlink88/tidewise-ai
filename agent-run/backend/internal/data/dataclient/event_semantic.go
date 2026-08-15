@@ -307,7 +307,7 @@ func validReviewerWorkPackage(work *eventsemantic.ReviewerWorkPackage, requireRe
 	}
 	entities := make(map[string]struct{}, len(work.ResolvedEntities))
 	for _, entity := range work.ResolvedEntities {
-		if !validUUID(entity.EntityID) || strings.TrimSpace(entity.EntityType) == "" ||
+		if !validEntityID(entity.EntityID) || strings.TrimSpace(entity.EntityType) == "" ||
 			strings.TrimSpace(entity.CanonicalName) == "" || entity.Status != "active" {
 			return false
 		}
@@ -316,7 +316,7 @@ func validReviewerWorkPackage(work *eventsemantic.ReviewerWorkPackage, requireRe
 	links := make(map[string]struct{}, len(work.EntityLinks))
 	for _, link := range work.EntityLinks {
 		if strings.TrimSpace(link.CandidateKey) == "" || strings.TrimSpace(link.Mention) == "" ||
-			!validUUID(link.EntityID) || !validUUIDSet(link.EvidenceIDs) {
+			!validEntityID(link.EntityID) || !validUUIDSet(link.EvidenceIDs) {
 			return false
 		}
 		if requireResolvedEntities {
@@ -425,4 +425,14 @@ func semanticStatus(value string) bool {
 func validUUID(value string) bool {
 	_, err := uuid.Parse(value)
 	return err == nil
+}
+
+func validEntityID(value string) bool {
+	const prefix = "ENT"
+	if !strings.HasPrefix(value, prefix) {
+		return false
+	}
+	suffix := strings.TrimPrefix(value, prefix)
+	parsed, err := uuid.Parse(suffix)
+	return err == nil && parsed != uuid.Nil && parsed.String() == suffix
 }

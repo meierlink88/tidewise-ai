@@ -1,8 +1,8 @@
 {
-  "raw_evidence_id": "RAW_fixture_00000000000000000000",
+  "raw_evidence_id": "RAWec95a292-d513-5aa6-a54c-a9e3926add1a",
   "evidences": [
     {
-      "evidence_id": "EVD_fixture_00000000000000000000",
+      "evidence_id": "EVDe78b7fc1-e7e8-58e3-bdef-8e1a52a9de0a",
       "split_order": 0,
       "layer_type": "SINGLE",
       "source_who": "Example Corp",
@@ -24,7 +24,7 @@
       "fingerprint_version": "evidence-expression.v1"
     },
     {
-      "evidence_id": "EVD_fixture_00000000000000000001",
+      "evidence_id": "EVD453df2fa-b78e-542c-a1d4-141bdc110b09",
       "split_order": 1,
       "layer_type": "SINGLE",
       "source_who": "Example Corp",
