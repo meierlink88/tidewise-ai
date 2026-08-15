@@ -3,6 +3,7 @@ package region
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -148,6 +149,134 @@ func TestStorePreservesContextCancellation(t *testing.T) {
 	}
 }
 
+func TestLoadCatalogAcceptsUNM49Package(t *testing.T) {
+	catalogPath, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "..", "initdata", "regions-v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := LoadCatalog(context.Background(), catalogPath)
+	if err != nil {
+		t.Fatalf("LoadCatalog() error = %v", err)
+	}
+	if catalog.SchemaVersion != 1 || catalog.Source.Standard != "UN M49" || catalog.ReplaceMode != "region-domain" {
+		t.Fatalf("catalog metadata = %#v", catalog)
+	}
+	if len(catalog.Regions) != 22 {
+		t.Fatalf("catalog Regions length = %d, want 22", len(catalog.Regions))
+	}
+	seen := make(map[string]struct{}, len(catalog.Regions))
+	for _, item := range catalog.Regions {
+		if item.ID != "REG_M49_"+item.M49Code || item.Code != "M49_"+item.M49Code {
+			t.Fatalf("catalog Region identity = %#v", item)
+		}
+		if item.RegionType != RegionTypeGeographic {
+			t.Fatalf("catalog Region type = %q, want GEOGRAPHIC", item.RegionType)
+		}
+		if _, duplicate := seen[item.M49Code]; duplicate {
+			t.Fatalf("duplicate M49 code %q", item.M49Code)
+		}
+		seen[item.M49Code] = struct{}{}
+	}
+}
+
+func TestPublishCatalogReplacesRegionFacts(t *testing.T) {
+	db := openRegionTestDatabase(t)
+	ctx := context.Background()
+	catalog := loadRegionCatalog(t)
+
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO regions (id, code, name, name_en, region_type)
+VALUES ('REG_APAC', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC')`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := PublishCatalog(ctx, db, catalog); err != nil {
+		t.Fatalf("PublishCatalog() error = %v", err)
+	}
+	if err := PublishCatalog(ctx, db, catalog); err != nil {
+		t.Fatalf("PublishCatalog(repeat) error = %v", err)
+	}
+
+	assertCatalogState(t, db, 22, 0)
+	var name, nameEn, regionType string
+	if err := db.QueryRowContext(ctx, `
+SELECT name, name_en, region_type::text
+FROM regions
+WHERE id = 'REG_M49_030'`).Scan(&name, &nameEn, &regionType); err != nil {
+		t.Fatal(err)
+	}
+	if name != "东亚" || nameEn != "Eastern Asia" || regionType != "GEOGRAPHIC" {
+		t.Fatalf("REG_M49_030 = %q, %q, %q", name, nameEn, regionType)
+	}
+}
+
+func TestLoadCatalogRejectsNoncanonicalUNM49Package(t *testing.T) {
+	catalog := loadRegionCatalog(t)
+	catalog.Regions[0].M49Code = "999"
+	catalog.Regions[0].Code = "M49_999"
+	catalog.Regions[0].ID = "REG_M49_999"
+	if _, err := LoadCatalog(context.Background(), writeRegionCatalog(t, catalog)); !errors.Is(err, ErrInvalidRegion) {
+		t.Fatalf("LoadCatalog(noncanonical code) error = %v, want ErrInvalidRegion", err)
+	}
+
+	catalog = loadRegionCatalog(t)
+	catalog.Regions[0].NameEn = "Fabricated Region"
+	if _, err := LoadCatalog(context.Background(), writeRegionCatalog(t, catalog)); !errors.Is(err, ErrInvalidRegion) {
+		t.Fatalf("LoadCatalog(noncanonical name) error = %v, want ErrInvalidRegion", err)
+	}
+}
+
+func TestPublishCatalogRollsBackWhenCountryReferencesRegion(t *testing.T) {
+	db := openRegionTestDatabase(t)
+	ctx := context.Background()
+	catalog := loadRegionCatalog(t)
+
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO regions (id, code, name, name_en, region_type)
+VALUES ('REG_APAC', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC');
+INSERT INTO countries (id, code, name, name_en)
+VALUES ('COU_CHN', 'CHN', '中国', 'China');
+INSERT INTO country_region_links (country_id, region_id)
+VALUES ('COU_CHN', 'REG_APAC')`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := PublishCatalog(ctx, db, catalog); err == nil {
+		t.Fatal("PublishCatalog() error = nil, want Country reference failure")
+	}
+	assertCatalogState(t, db, 1, 1)
+}
+
+func TestPublishCatalogRollsBackWhenOrganizationReferencesRegion(t *testing.T) {
+	db := openRegionTestDatabase(t)
+	ctx := context.Background()
+	catalog := loadRegionCatalog(t)
+
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO regions (id, code, name, name_en, region_type)
+VALUES ('REG_APAC', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC');
+INSERT INTO organization_categories (code, name_zh)
+VALUES ('INTERGOVERNMENTAL', '政府间国际组织');
+INSERT INTO organization_functions (code, name_zh)
+VALUES ('GOVERNANCE', '治理与协调');
+INSERT INTO organizations (id, code, name, name_en, region_id, category_code, function_code)
+VALUES ('ORG_TEST', 'TEST', '测试组织', 'Test Organization', 'REG_APAC', 'INTERGOVERNMENTAL', 'GOVERNANCE')`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := PublishCatalog(ctx, db, catalog); err == nil {
+		t.Fatal("PublishCatalog() error = nil, want Organization reference failure")
+	}
+	assertCatalogState(t, db, 1, 0)
+	var regionID string
+	if err := db.QueryRowContext(ctx, `SELECT region_id FROM organizations WHERE id = 'ORG_TEST'`).Scan(&regionID); err != nil {
+		t.Fatal(err)
+	}
+	if regionID != "REG_APAC" {
+		t.Fatalf("Organization Region = %q, want REG_APAC", regionID)
+	}
+}
+
 func TestRegionDatabaseRejectsInvalidFacts(t *testing.T) {
 	db := openRegionTestDatabase(t)
 	statements := map[string]string{
@@ -285,4 +414,45 @@ func openRegionTestDatabase(t *testing.T) *sql.DB {
 		t.Fatal(err)
 	}
 	return postgresfixture.OpenIsolated(t, "tw_region", migrationDir, 0)
+}
+
+func loadRegionCatalog(t *testing.T) CatalogPublication {
+	t.Helper()
+	catalogPath, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "..", "initdata", "regions-v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := LoadCatalog(context.Background(), catalogPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return catalog
+}
+
+func assertCatalogState(t *testing.T, db *sql.DB, wantRegions, wantLinks int) {
+	t.Helper()
+	ctx := context.Background()
+	var regionCount, linkCount int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM regions`).Scan(&regionCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM country_region_links`).Scan(&linkCount); err != nil {
+		t.Fatal(err)
+	}
+	if regionCount != wantRegions || linkCount != wantLinks {
+		t.Fatalf("catalog state = %d Regions, %d Country-Region Links; want %d, %d", regionCount, linkCount, wantRegions, wantLinks)
+	}
+}
+
+func writeRegionCatalog(t *testing.T, catalog CatalogPublication) string {
+	t.Helper()
+	content, err := json.Marshal(catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "regions.json")
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
