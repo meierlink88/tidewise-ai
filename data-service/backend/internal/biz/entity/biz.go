@@ -235,7 +235,6 @@ const (
 	EntityTypePolicyBody    EntityType = "policy_body"
 	EntityTypeMarket        EntityType = "market"
 	EntityTypeIndex         EntityType = "index"
-	EntityTypeBenchmark     EntityType = "benchmark"
 	EntityTypeSector        EntityType = "sector"
 	EntityTypeIndustry      EntityType = "industry"
 	EntityTypeConcept       EntityType = "concept"
@@ -245,7 +244,6 @@ const (
 	EntityTypeCompany       EntityType = "company"
 	EntityTypeSecurity      EntityType = "security"
 	EntityTypeInstrument    EntityType = "instrument"
-	EntityTypeMetric        EntityType = "metric"
 	EntityTypeCommodity     EntityType = "commodity"
 	EntityTypeProduct       EntityType = "product"
 	EntityTypePerson        EntityType = "person"
@@ -570,121 +568,6 @@ type IndexProfile struct {
 	ListDate       *time.Time
 }
 
-type BenchmarkType string
-
-const (
-	BenchmarkTypeGovernmentBondYield BenchmarkType = "government_bond_yield"
-	BenchmarkTypeFuturesPrice        BenchmarkType = "futures_price"
-	BenchmarkTypeSpotPrice           BenchmarkType = "spot_price"
-	BenchmarkTypeReferenceRate       BenchmarkType = "reference_rate"
-)
-
-type BenchmarkProfile struct {
-	EntityID           string
-	BenchmarkType      BenchmarkType
-	OfficialSeriesCode string
-	Provider           string
-	Tenor              string
-	UnderlyingSymbol   string
-	CurrencyCode       string
-	Unit               string
-	Frequency          string
-	SourceURL          string
-}
-
-func (p BenchmarkProfile) Validate() error {
-	if p.EntityID == "" {
-		return fmt.Errorf("entity id is required")
-	}
-	if !validStatus(
-		p.BenchmarkType,
-		BenchmarkTypeGovernmentBondYield,
-		BenchmarkTypeFuturesPrice,
-		BenchmarkTypeSpotPrice,
-		BenchmarkTypeReferenceRate,
-	) {
-		return fmt.Errorf("unsupported benchmark type %q", p.BenchmarkType)
-	}
-	if p.Provider == "" {
-		return fmt.Errorf("provider is required")
-	}
-	if p.CurrencyCode == "" {
-		return fmt.Errorf("currency code is required")
-	}
-	if p.Unit == "" {
-		return fmt.Errorf("unit is required")
-	}
-	if p.Frequency == "" {
-		return fmt.Errorf("frequency is required")
-	}
-	if p.SourceURL == "" {
-		return fmt.Errorf("source url is required")
-	}
-	return nil
-}
-
-type BenchmarkObservationQualityStatus string
-
-const (
-	BenchmarkObservationQualityRaw       BenchmarkObservationQualityStatus = "raw"
-	BenchmarkObservationQualityValidated BenchmarkObservationQualityStatus = "validated"
-	BenchmarkObservationQualitySuspect   BenchmarkObservationQualityStatus = "suspect"
-	BenchmarkObservationQualityRejected  BenchmarkObservationQualityStatus = "rejected"
-)
-
-type BenchmarkObservation struct {
-	ID                 string
-	BenchmarkEntityID  string
-	ObservedAt         time.Time
-	Value              string
-	Unit               string
-	SourceName         string
-	SourceURL          string
-	ExternalSeriesCode string
-	QualityStatus      BenchmarkObservationQualityStatus
-}
-
-func (o BenchmarkObservation) Validate() error {
-	if o.ID == "" {
-		return fmt.Errorf("observation id is required")
-	}
-	if o.BenchmarkEntityID == "" {
-		return fmt.Errorf("benchmark entity id is required")
-	}
-	if o.ObservedAt.IsZero() {
-		return fmt.Errorf("observed at is required")
-	}
-	if o.Value == "" {
-		return fmt.Errorf("value is required")
-	}
-	if o.Unit == "" {
-		return fmt.Errorf("unit is required")
-	}
-	if o.SourceName == "" {
-		return fmt.Errorf("source name is required")
-	}
-	if !validStatus(
-		o.QualityStatus,
-		BenchmarkObservationQualityRaw,
-		BenchmarkObservationQualityValidated,
-		BenchmarkObservationQualitySuspect,
-		BenchmarkObservationQualityRejected,
-	) {
-		return fmt.Errorf("unsupported benchmark observation quality status %q", o.QualityStatus)
-	}
-	return nil
-}
-
-type BenchmarkObservationFilter struct {
-	BenchmarkEntityID string
-	Limit             int
-}
-
-type BenchmarkObservationWriteResult struct {
-	Observation BenchmarkObservation
-	Created     bool
-}
-
 type SectorProfile struct {
 	EntityID              string
 	SectorSystem          string
@@ -849,13 +732,6 @@ type InstrumentProfile struct {
 	CurrencyCode       string
 }
 
-type MetricProfile struct {
-	EntityID   string
-	MetricType string
-	Unit       string
-	Frequency  string
-}
-
 type CommodityProfile struct {
 	EntityID      string
 	CommodityType string
@@ -910,7 +786,6 @@ func validEntityType(value EntityType) bool {
 		EntityTypePolicyBody,
 		EntityTypeMarket,
 		EntityTypeIndex,
-		EntityTypeBenchmark,
 		EntityTypeSector,
 		EntityTypeIndustry,
 		EntityTypeConcept,
@@ -920,7 +795,6 @@ func validEntityType(value EntityType) bool {
 		EntityTypeCompany,
 		EntityTypeSecurity,
 		EntityTypeInstrument,
-		EntityTypeMetric,
 		EntityTypeCommodity,
 		EntityTypeProduct,
 		EntityTypePerson,

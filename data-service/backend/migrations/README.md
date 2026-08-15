@@ -39,6 +39,7 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000046_replace_economy_with_countries.sql`：Tidewise AI 2.0 一次性破坏性切换，创建独立 `countries` 与 `country_region_links`，把活动 Country 引用改为稳定 Country ID，清除指向旧 Economy 身份的 Entity/Event 关系，并删除 `economy_profiles` 与 Economy Entity 行。该版本经 ADR-0017 明确豁免兼容窗口；发布前停止写入并取得 PostgreSQL 快照，回滚时必须同时恢复快照和上一版应用。
 - `000047_add_raw_evidence_categories.sql`：新增受控 Evidence Category 目录与 Raw Evidence 多标签关系，并初始化 11 个稳定内容分类。
 - `000048_replace_alliance_with_organizations.sql`：协调式破坏性切换，创建独立 Organization、三类可维护目录、Domain Tag 与 Country 成员历史关系，扩展正式 Event Object 引用，并完整退役旧 `alliance_org` 身份及其依赖聚合。目录数据不在 migration 中 seed，需在迁移后运行 `organization-catalog-publish`；回滚必须恢复切换前 PostgreSQL 快照与上一版应用。
+- `000049_retire_benchmark_metric_and_graph_projection.sql`：协调式破坏性切换，删除 Benchmark、Metric Entity 及其依赖的语义和研究聚合，移除其 profile/observation 表与遗留图投影账本。发布前必须停止写入并取得 PostgreSQL 快照；回滚必须恢复快照与上一版应用。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -59,6 +60,13 @@ reviewed forward repair 处理，不在原 migration 上就地修改。
 Entity seed、关系包及其导入/投影执行能力已按
 `docs/adr/0013-data-entity-domain-and-projection-retirement.md` 从 Data 退役；历史 PostgreSQL
 schema migration 继续保留，但本目录不再声明 repo seed 或图投影验收合同。
+
+`000049` 是零兼容窗口的协调式破坏性发布，已由 Issue #237 授权。操作员必须先停止所有
+Data 写入者、确认 PostgreSQL 恢复点并以候选 Data 镜像执行正式 `dbmigrate` 的 check-only。
+确认 `000049` 是唯一 pending migration 后才可执行 `-apply`；随后确认 ledger 为 `49`、五张
+退役表均不存在且 `entity_nodes` 不含 `benchmark` 或 `metric`。只有这些确认完成后才可部署
+不再识别两个 Entity Type 的应用版本。应用回退不得运行 down migration，必须将数据库快照与
+上一版应用一同恢复，或执行经过审阅的前向修复。
 
 Data 不再提供 `source-seed` 或维护 `source_catalogs`，既有 Event Publication 仍只通过
 `POST /api/data/v1/reviewed-event-imports` 连同轻量 Event 证据原子接纳；历史
