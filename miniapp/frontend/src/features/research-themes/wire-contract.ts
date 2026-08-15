@@ -12,7 +12,8 @@ import type {
 import { formatResearchThemeEventTime, formatResearchUpdateLabel } from './presentation';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const entityIDPattern = /^ENT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const entityIDPattern =
+  /^ENT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const directionValues = ['positive', 'negative', 'mixed', 'neutral', 'uncertain'] as const;
 const strengthValues = ['strong', 'medium', 'weak', 'unknown'] as const;
 const attentionValues = ['high', 'medium', 'low'] as const;
