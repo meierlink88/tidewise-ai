@@ -148,6 +148,133 @@ func TestStorePreservesContextCancellation(t *testing.T) {
 	}
 }
 
+func TestLoadCatalogAcceptsUNM49Package(t *testing.T) {
+	catalogPath, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "..", "initdata", "regions-v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := LoadCatalog(catalogPath)
+	if err != nil {
+		t.Fatalf("LoadCatalog() error = %v", err)
+	}
+	if catalog.SchemaVersion != 1 || catalog.Source.Standard != "UN M49" || catalog.ReplaceMode != "region-domain" {
+		t.Fatalf("catalog metadata = %#v", catalog)
+	}
+	if len(catalog.Regions) != 22 {
+		t.Fatalf("catalog Regions length = %d, want 22", len(catalog.Regions))
+	}
+	want := map[string][2]string{
+		"005": {"南美洲", "South America"},
+		"011": {"西非", "Western Africa"},
+		"013": {"中美洲", "Central America"},
+		"014": {"东非", "Eastern Africa"},
+		"015": {"北非", "Northern Africa"},
+		"017": {"中非", "Middle Africa"},
+		"018": {"南部非洲", "Southern Africa"},
+		"021": {"北美", "Northern America"},
+		"029": {"加勒比", "Caribbean"},
+		"030": {"东亚", "Eastern Asia"},
+		"034": {"南亚", "Southern Asia"},
+		"035": {"东南亚", "South-eastern Asia"},
+		"039": {"南欧", "Southern Europe"},
+		"053": {"澳大利亚和新西兰", "Australia and New Zealand"},
+		"054": {"美拉尼西亚", "Melanesia"},
+		"057": {"密克罗尼西亚", "Micronesia"},
+		"061": {"波利尼西亚", "Polynesia"},
+		"143": {"中亚", "Central Asia"},
+		"145": {"西亚", "Western Asia"},
+		"151": {"东欧", "Eastern Europe"},
+		"154": {"北欧", "Northern Europe"},
+		"155": {"西欧", "Western Europe"},
+	}
+	seen := make(map[string]struct{}, len(catalog.Regions))
+	for _, item := range catalog.Regions {
+		if item.ID != "REG_M49_"+item.M49Code || item.Code != "M49_"+item.M49Code {
+			t.Fatalf("catalog Region identity = %#v", item)
+		}
+		if item.RegionType != RegionTypeGeographic {
+			t.Fatalf("catalog Region type = %q, want GEOGRAPHIC", item.RegionType)
+		}
+		if _, duplicate := seen[item.M49Code]; duplicate {
+			t.Fatalf("duplicate M49 code %q", item.M49Code)
+		}
+		names, exists := want[item.M49Code]
+		if !exists || item.Name != names[0] || item.NameEn != names[1] {
+			t.Fatalf("unexpected UN M49 sub-region %#v", item)
+		}
+		seen[item.M49Code] = struct{}{}
+	}
+}
+
+func TestPublishCatalogReplacesRegionFacts(t *testing.T) {
+	db := openRegionTestDatabase(t)
+	ctx := context.Background()
+	catalog := loadRegionCatalog(t)
+
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO regions (id, code, name, name_en, region_type)
+VALUES ('REG_APAC', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC');
+INSERT INTO countries (id, code, name, name_en)
+VALUES ('COU_CHN', 'CHN', '中国', 'China');
+INSERT INTO country_region_links (country_id, region_id)
+VALUES ('COU_CHN', 'REG_APAC')`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := PublishCatalog(ctx, db, catalog); err != nil {
+		t.Fatalf("PublishCatalog() error = %v", err)
+	}
+	if err := PublishCatalog(ctx, db, catalog); err != nil {
+		t.Fatalf("PublishCatalog(repeat) error = %v", err)
+	}
+
+	assertCatalogState(t, db, 22, 0)
+	var name, nameEn, regionType string
+	if err := db.QueryRowContext(ctx, `
+SELECT name, name_en, region_type::text
+FROM regions
+WHERE id = 'REG_M49_030'`).Scan(&name, &nameEn, &regionType); err != nil {
+		t.Fatal(err)
+	}
+	if name != "东亚" || nameEn != "Eastern Asia" || regionType != "GEOGRAPHIC" {
+		t.Fatalf("REG_M49_030 = %q, %q, %q", name, nameEn, regionType)
+	}
+}
+
+func TestPublishCatalogRollsBackWhenAnotherDomainReferencesRegion(t *testing.T) {
+	db := openRegionTestDatabase(t)
+	ctx := context.Background()
+	catalog := loadRegionCatalog(t)
+
+	if _, err := db.ExecContext(ctx, `
+INSERT INTO regions (id, code, name, name_en, region_type)
+VALUES ('REG_APAC', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC');
+INSERT INTO countries (id, code, name, name_en)
+VALUES ('COU_CHN', 'CHN', '中国', 'China');
+INSERT INTO country_region_links (country_id, region_id)
+VALUES ('COU_CHN', 'REG_APAC');
+INSERT INTO organization_categories (code, name_zh)
+VALUES ('INTERGOVERNMENTAL', '政府间国际组织');
+INSERT INTO organization_functions (code, name_zh)
+VALUES ('GOVERNANCE', '治理与协调');
+INSERT INTO organizations (id, code, name, name_en, region_id, category_code, function_code)
+VALUES ('ORG_TEST', 'TEST', '测试组织', 'Test Organization', 'REG_APAC', 'INTERGOVERNMENTAL', 'GOVERNANCE')`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := PublishCatalog(ctx, db, catalog); err == nil {
+		t.Fatal("PublishCatalog() error = nil, want cross-domain reference failure")
+	}
+	assertCatalogState(t, db, 1, 1)
+	var regionID string
+	if err := db.QueryRowContext(ctx, `SELECT region_id FROM organizations WHERE id = 'ORG_TEST'`).Scan(&regionID); err != nil {
+		t.Fatal(err)
+	}
+	if regionID != "REG_APAC" {
+		t.Fatalf("Organization Region = %q, want REG_APAC", regionID)
+	}
+}
+
 func TestRegionDatabaseRejectsInvalidFacts(t *testing.T) {
 	db := openRegionTestDatabase(t)
 	statements := map[string]string{
@@ -285,4 +412,32 @@ func openRegionTestDatabase(t *testing.T) *sql.DB {
 		t.Fatal(err)
 	}
 	return postgresfixture.OpenIsolated(t, "tw_region", migrationDir, 0)
+}
+
+func loadRegionCatalog(t *testing.T) CatalogPublication {
+	t.Helper()
+	catalogPath, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "..", "initdata", "regions-v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalog, err := LoadCatalog(catalogPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return catalog
+}
+
+func assertCatalogState(t *testing.T, db *sql.DB, wantRegions, wantLinks int) {
+	t.Helper()
+	ctx := context.Background()
+	var regionCount, linkCount int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM regions`).Scan(&regionCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM country_region_links`).Scan(&linkCount); err != nil {
+		t.Fatal(err)
+	}
+	if regionCount != wantRegions || linkCount != wantLinks {
+		t.Fatalf("catalog state = %d Regions, %d Country-Region Links; want %d, %d", regionCount, linkCount, wantRegions, wantLinks)
+	}
 }
