@@ -91,7 +91,7 @@ def verify_region(parser):
             assert phrase in region_type.desc, f"{enum_value} requires meaning {phrase}"
 
 
-def verify_country(parser, country_migration):
+def verify_country(parser, country_migration, identity_migration):
     country = parser.types.get("Tidewise.Country")
     assert country is not None, "country.schema must define Tidewise.Country"
     assert country.spg_type_enum.value == "ENTITY_TYPE"
@@ -121,8 +121,11 @@ def verify_country(parser, country_migration):
         )
     for name in {"strategicPositioning", "keyResources"}:
         assert "NOT_NULL" not in constraint_values(country.properties[name])
-    assert constraint_values(country.properties["id"])["REGULAR"] == "^COU_[A-Z]{3}$"
-    assert constraint_values(country.properties["code"])["REGULAR"] == "^[A-Z]{3}$"
+    assert constraint_values(country.properties["id"])["REGULAR"] == (
+        "^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-"
+        "[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    )
+    assert constraint_values(country.properties["code"])["REGULAR"] == "^[A-Z]{2}$"
 
     regions = next(
         (relation for relation in country.relations.values() if relation.name == "regions"),
@@ -149,8 +152,11 @@ def verify_country(parser, country_migration):
         assert re.search(pattern, migration, re.IGNORECASE), (
             f"Country.{property_name} has no matching PostgreSQL persistence column"
         )
-    assert "CONSTRAINT chk_countries_code CHECK (code ~ '^[A-Z]{3}$')" in migration
-    assert "CONSTRAINT chk_countries_identity CHECK (id = 'COU_' || code)" in migration
+    identity_rewrite = identity_migration.read_text(encoding="utf-8")
+    assert "ALTER COLUMN code TYPE CHAR(2)" in identity_rewrite
+    assert "ADD CONSTRAINT chk_countries_code CHECK (code ~ '^[A-Z]{2}$')" in identity_rewrite
+    assert "id ~ '^COU[0-9a-f]{8}-" in identity_rewrite
+    assert "ALTER COLUMN %I TYPE VARCHAR(39)" in identity_rewrite
     assert re.search(
         r"CREATE TABLE country_region_links\s*\(.*?country_id VARCHAR\(32\) NOT NULL REFERENCES countries\(id\) ON DELETE RESTRICT.*?region_id VARCHAR\(32\) NOT NULL REFERENCES regions\(id\) ON DELETE RESTRICT.*?UNIQUE \(country_id, region_id\)",
         migration,
@@ -191,7 +197,14 @@ def main():
         / "000046_replace_economy_with_countries.sql"
     )
     assert country_migration.is_file(), f"Country migration is missing: {country_migration}"
-    verify_country(parsed, country_migration)
+    identity_migration = (
+        args.schema_root.parent
+        / "backend"
+        / "migrations"
+        / "000050_unify_domain_object_ids.sql"
+    )
+    assert identity_migration.is_file(), f"Identity migration is missing: {identity_migration}"
+    verify_country(parsed, country_migration, identity_migration)
     print(
         f"verified {len(schema_files)} OpenSPG schema(s) with KAG {args.expected_revision}"
     )

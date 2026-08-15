@@ -7,16 +7,24 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
+
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 type SourceLevel string
 type LayerType string
 type IssueCode string
 type CategoryID string
+
+const (
+	RawEvidenceIDPrefix = coreid.RawEvidence
+	EvidenceIDPrefix    = coreid.Evidence
+	CategoryIDPrefix    = coreid.EvidenceCategory
+)
 
 const (
 	SourceLevelOfficial SourceLevel = "L1_OFFICIAL"
@@ -47,6 +55,7 @@ const (
 
 type RawEvidence struct {
 	RawEvidenceID    string
+	PublicationKey   string
 	SourceID         string
 	SourceName       string
 	SourceLevel      SourceLevel
@@ -156,10 +165,8 @@ var allowedSourceLevels = map[SourceLevel]struct{}{
 	SourceLevelSocial:   {},
 }
 
-var categoryIDPattern = regexp.MustCompile(`^EVC_[0-9]{3}$`)
-
 func (id CategoryID) IsValid() bool {
-	return categoryIDPattern.MatchString(string(id))
+	return coreid.Is(string(id), CategoryIDPrefix)
 }
 
 type UseCase struct {
@@ -177,13 +184,24 @@ func (s *UseCase) PublishRawEvidence(ctx context.Context, input RawEvidence) (Ra
 	if s == nil || s.store == nil {
 		return RawEvidenceResult{}, errors.New("Evidence Publication store is required")
 	}
+	if strings.TrimSpace(input.RawEvidenceID) != "" {
+		return RawEvidenceResult{}, &ValidationError{Issues: []Issue{{Path: "raw_evidence.raw_evidence_id", Code: IssueInvalidFormat, Message: "must be omitted because Data generates Raw Evidence IDs"}}}
+	}
+	if strings.TrimSpace(input.PublicationKey) == "" {
+		return RawEvidenceResult{}, &ValidationError{Issues: []Issue{{Path: "raw_evidence.publication_key", Code: IssueRequired, Message: "value is required"}}}
+	}
+	rawEvidenceID, err := coreid.Derive(coreid.RawEvidence, "raw-evidence-publication", input.PublicationKey)
+	if err != nil {
+		return RawEvidenceResult{}, fmt.Errorf("generate Raw Evidence ID: %w", err)
+	}
+	input.RawEvidenceID = rawEvidenceID
 	if err := validateRawEvidence(input); err != nil {
 		return RawEvidenceResult{}, err
 	}
 
 	record := StoredRawEvidence{RawEvidence: cloneRawEvidence(input), ContentHash: contentHash(input.RawText)}
 	var result RawEvidenceResult
-	err := s.store.InTransaction(ctx, func(tx Transaction) error {
+	err = s.store.InTransaction(ctx, func(tx Transaction) error {
 		if err := tx.LockIdentities(ctx, []string{"raw-evidence:" + input.RawEvidenceID}); err != nil {
 			return err
 		}
@@ -228,7 +246,7 @@ func (s *UseCase) GetRawEvidence(ctx context.Context, rawEvidenceID string) (Sto
 		return StoredRawEvidence{}, errors.New("Evidence store is required")
 	}
 	var issues []Issue
-	required(&issues, "raw_evidence_id", rawEvidenceID, 32)
+	requiredDomainID(&issues, "raw_evidence_id", rawEvidenceID, RawEvidenceIDPrefix)
 	if len(issues) > 0 {
 		return StoredRawEvidence{}, &ValidationError{Issues: issues}
 	}
@@ -253,6 +271,17 @@ func (s *UseCase) GetRawEvidence(ctx context.Context, rawEvidenceID string) (Sto
 func (s *UseCase) PublishEvidence(ctx context.Context, rawEvidenceID string, input []Evidence) (EvidenceResult, error) {
 	if s == nil || s.store == nil {
 		return EvidenceResult{}, errors.New("Evidence Publication store is required")
+	}
+	input = append([]Evidence(nil), input...)
+	for index := range input {
+		if strings.TrimSpace(input[index].EvidenceID) != "" {
+			return EvidenceResult{}, &ValidationError{Issues: []Issue{{Path: fmt.Sprintf("evidences[%d].evidence_id", index), Code: IssueInvalidFormat, Message: "must be omitted because Data generates Evidence IDs"}}}
+		}
+		id, err := coreid.Derive(coreid.Evidence, "atomic-evidence", rawEvidenceID, strconv.Itoa(input[index].SplitOrder))
+		if err != nil {
+			return EvidenceResult{}, fmt.Errorf("generate Evidence ID: %w", err)
+		}
+		input[index].EvidenceID = id
 	}
 	if err := validateEvidencePublication(rawEvidenceID, input); err != nil {
 		return EvidenceResult{}, err
@@ -328,7 +357,7 @@ func (s *UseCase) PublishEvidence(ctx context.Context, rawEvidenceID string, inp
 
 func validateEvidencePublication(rawEvidenceID string, input []Evidence) error {
 	var issues []Issue
-	required(&issues, "raw_evidence_id", rawEvidenceID, 32)
+	requiredDomainID(&issues, "raw_evidence_id", rawEvidenceID, RawEvidenceIDPrefix)
 	if len(input) == 0 {
 		issues = append(issues, Issue{Path: "evidences", Code: IssueRequired, Message: "at least one Evidence is required"})
 	}
@@ -336,7 +365,7 @@ func validateEvidencePublication(rawEvidenceID string, input []Evidence) error {
 	seenOrders := make(map[int]struct{}, len(input))
 	for index, item := range input {
 		prefix := fmt.Sprintf("evidences[%d]", index)
-		required(&issues, prefix+".evidence_id", item.EvidenceID, 32)
+		requiredDomainID(&issues, prefix+".evidence_id", item.EvidenceID, EvidenceIDPrefix)
 		if _, ok := seenIDs[item.EvidenceID]; ok {
 			issues = append(issues, Issue{Path: prefix + ".evidence_id", Code: IssueDuplicate, Message: "evidence_id must be unique within the publication"})
 		}
@@ -402,7 +431,7 @@ func evidenceSetConflict() error {
 
 func validateRawEvidence(input RawEvidence) error {
 	var issues []Issue
-	required(&issues, "raw_evidence.raw_evidence_id", input.RawEvidenceID, 32)
+	requiredDomainID(&issues, "raw_evidence.raw_evidence_id", input.RawEvidenceID, RawEvidenceIDPrefix)
 	required(&issues, "raw_evidence.source_id", input.SourceID, 32)
 	required(&issues, "raw_evidence.source_name", input.SourceName, 100)
 	required(&issues, "raw_evidence.source_url", input.SourceURL, 0)
@@ -431,9 +460,9 @@ func validateRawEvidence(input RawEvidence) error {
 	seenCategories := make(map[CategoryID]struct{}, len(input.CategoryIDs))
 	for index, categoryID := range input.CategoryIDs {
 		path := fmt.Sprintf("raw_evidence.category_ids[%d]", index)
-		required(&issues, path, string(categoryID), 32)
+		requiredDomainID(&issues, path, string(categoryID), CategoryIDPrefix)
 		if categoryID != "" && !categoryID.IsValid() {
-			issues = append(issues, Issue{Path: path, Code: IssueInvalidFormat, Message: "category_id must use EVC_ followed by three digits"})
+			issues = append(issues, Issue{Path: path, Code: IssueInvalidFormat, Message: "category_id must use EVC immediately followed by a canonical lowercase UUID"})
 		}
 		if _, exists := seenCategories[categoryID]; exists {
 			issues = append(issues, Issue{Path: path, Code: IssueDuplicate, Message: "category_id must be unique within the Raw Evidence"})
@@ -455,6 +484,19 @@ func required(issues *[]Issue, path, value string, max int) {
 	}
 	if max > 0 && length > max {
 		*issues = append(*issues, Issue{Path: path, Code: IssueTooLong, Message: fmt.Sprintf("value must contain at most %d characters", max)})
+	}
+}
+
+func requiredDomainID(issues *[]Issue, path, value string, prefix coreid.Kind) {
+	if strings.TrimSpace(value) == "" {
+		*issues = append(*issues, Issue{Path: path, Code: IssueRequired, Message: "value is required"})
+		return
+	}
+	if !coreid.Is(value, prefix) {
+		*issues = append(*issues, Issue{
+			Path: path, Code: IssueInvalidFormat,
+			Message: coreid.Prefix(prefix) + " must be immediately followed by a canonical lowercase UUID",
+		})
 	}
 }
 

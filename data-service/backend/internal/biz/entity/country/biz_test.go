@@ -5,6 +5,12 @@ import (
 	"testing"
 )
 
+const (
+	testCountryID  = "COU11111111-1111-4111-8111-111111111111"
+	testRegionAPAC = "REGaaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	testRegionEM   = "REGbbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+)
+
 type countryStoreStub struct {
 	created       Country
 	replacedID    string
@@ -21,9 +27,12 @@ func (*countryStoreStub) List(context.Context, string) ([]Country, error) { retu
 func (*countryStoreStub) Update(context.Context, string, Update) (Country, error) {
 	return Country{}, nil
 }
-func (s *countryStoreStub) ReplaceRegions(_ context.Context, id string, regionIDs []string) (Country, error) {
+func (s *countryStoreStub) ReplaceRegions(_ context.Context, id string, links []RegionLink) (Country, error) {
 	s.replacedID = id
-	s.replacedLinks = append([]string(nil), regionIDs...)
+	s.replacedLinks = make([]string, len(links))
+	for index, link := range links {
+		s.replacedLinks[index] = link.RegionID
+	}
 	return Country{ID: id}, nil
 }
 
@@ -32,10 +41,11 @@ func TestUseCaseEnforcesCountryIdentityAndValueRulesBeforePersistence(t *testing
 		name  string
 		input Country
 	}{
-		{name: "ID and code differ", input: Country{ID: "COU_USA", Code: "CHN", Name: "中国", NameEn: "China"}},
-		{name: "lowercase code", input: Country{ID: "COU_chn", Code: "chn", Name: "中国", NameEn: "China"}},
-		{name: "blank name", input: Country{ID: "COU_CHN", Code: "CHN", Name: " ", NameEn: "China"}},
-		{name: "blank optional fact", input: Country{ID: "COU_CHN", Code: "CHN", Name: "中国", NameEn: "China", KeyResources: stringPointer(" ")}},
+		{name: "legacy ID", input: Country{ID: "COU_CHN", Code: "CN", Name: "中国", NameEn: "China"}},
+		{name: "lowercase code", input: Country{ID: testCountryID, Code: "cn", Name: "中国", NameEn: "China"}},
+		{name: "alpha-3 code", input: Country{ID: testCountryID, Code: "CHN", Name: "中国", NameEn: "China"}},
+		{name: "blank name", input: Country{ID: testCountryID, Code: "CN", Name: " ", NameEn: "China"}},
+		{name: "blank optional fact", input: Country{ID: testCountryID, Code: "CN", Name: "中国", NameEn: "China", KeyResources: stringPointer(" ")}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			store := &countryStoreStub{}
@@ -59,15 +69,15 @@ func TestReplaceRegionsRejectsDuplicatesAndCopiesTheAcceptedSet(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := useCase.ReplaceRegions(context.Background(), "COU_CHN", []string{"REG_APAC", "REG_APAC"}); err == nil {
+	if _, err := useCase.ReplaceRegions(context.Background(), testCountryID, []string{testRegionAPAC, testRegionAPAC}); err == nil {
 		t.Fatal("duplicate Region set error = nil")
 	}
-	input := []string{"REG_APAC", "REG_EM"}
-	if _, err := useCase.ReplaceRegions(context.Background(), "COU_CHN", input); err != nil {
+	input := []string{testRegionAPAC, testRegionEM}
+	if _, err := useCase.ReplaceRegions(context.Background(), testCountryID, input); err != nil {
 		t.Fatal(err)
 	}
-	input[0] = "REG_CHANGED"
-	if store.replacedID != "COU_CHN" || store.replacedLinks[0] != "REG_APAC" {
+	input[0] = "REGcccccccc-cccc-4ccc-8ccc-cccccccccccc"
+	if store.replacedID != testCountryID || store.replacedLinks[0] != testRegionAPAC {
 		t.Fatalf("persisted Region replacement = %s %#v", store.replacedID, store.replacedLinks)
 	}
 }

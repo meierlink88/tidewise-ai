@@ -99,8 +99,13 @@ WHERE id = $1
 	return s.Get(ctx, id)
 }
 
-func (s *Store) ReplaceRegions(ctx context.Context, id string, regionIDs []string) (countrybiz.Country, error) {
-	regionIDs = append([]string{}, regionIDs...)
+func (s *Store) ReplaceRegions(ctx context.Context, id string, links []countrybiz.RegionLink) (countrybiz.Country, error) {
+	regionIDs := make([]string, len(links))
+	linkIDs := make([]string, len(links))
+	for index, link := range links {
+		linkIDs[index] = link.ID
+		regionIDs[index] = link.RegionID
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return countrybiz.Country{}, classifyWriteError(err)
@@ -122,9 +127,10 @@ func (s *Store) ReplaceRegions(ctx context.Context, id string, regionIDs []strin
 		return countrybiz.Country{}, classifyWriteError(err)
 	}
 	if _, err := tx.ExecContext(ctx, `
-INSERT INTO country_region_links (country_id, region_id)
-SELECT $1, region_id FROM unnest($2::text[]) AS region_id
-ON CONFLICT (country_id, region_id) DO NOTHING`, id, regionIDs); err != nil {
+INSERT INTO country_region_links (id, country_id, region_id)
+SELECT link_id, $1, region_id
+FROM unnest($2::text[], $3::text[]) AS link(link_id, region_id)
+ON CONFLICT (country_id, region_id) DO NOTHING`, id, linkIDs, regionIDs); err != nil {
 		return countrybiz.Country{}, classifyWriteError(err)
 	}
 	if err := tx.Commit(); err != nil {

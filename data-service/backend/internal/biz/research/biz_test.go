@@ -15,24 +15,24 @@ import (
 )
 
 const (
-	testEventID              = "11111111-1111-4111-8111-111111111111"
-	testChainID              = "22222222-2222-4222-8222-222222222222"
-	testNodeID               = "33333333-3333-4333-8333-333333333333"
-	testSignalID             = "44444444-4444-4444-8444-444444444444"
-	testSubmissionID         = "55555555-5555-4555-8555-555555555555"
-	testEvidenceID           = "66666666-6666-4666-8666-666666666666"
-	testTargetNodeID         = "77777777-7777-4777-8777-777777777777"
-	testImpactID             = "88888888-8888-4888-8888-888888888888"
-	testImpactEventID        = "99999999-9999-4999-8999-999999999999"
-	testImpactEvidenceID     = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-	testTargetSignalID       = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
-	testImpactSourceSignalID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
-	testBCIChainID           = "822a8ddc-5ebc-5f03-8ef8-ba9bfba192d9"
-	testBCISystemNodeID      = "c38d2f7b-9900-5e81-af06-76393bcc2617"
-	testBCITerminalNodeID    = "96336148-76c0-504e-b82e-ac395f8fe268"
-	testBCIElectrodeNodeID   = "d3882237-d639-5660-b7d8-aa3563706113"
-	testBCITerminalEdgeID    = "300188b0-d01c-5987-ad8a-646067edc7cd"
-	testBCIElectrodeEdgeID   = "dc00a16e-0d8e-5db9-9a5d-fbc1fd9a84cf"
+	testEventID              = "EVT11111111-1111-4111-8111-111111111111"
+	testChainID              = "ENT22222222-2222-4222-8222-222222222222"
+	testNodeID               = "ENT33333333-3333-4333-8333-333333333333"
+	testSignalID             = "VSG44444444-4444-4444-8444-444444444444"
+	testSubmissionID         = "ESS55555555-5555-4555-8555-555555555555"
+	testEvidenceID           = "EEL66666666-6666-4666-8666-666666666666"
+	testTargetNodeID         = "ENT77777777-7777-4777-8777-777777777777"
+	testImpactID             = "DIA88888888-8888-4888-8888-888888888888"
+	testImpactEventID        = "EVT99999999-9999-4999-8999-999999999999"
+	testImpactEvidenceID     = "EELaaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	testTargetSignalID       = "VSGbbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+	testImpactSourceSignalID = "VSGcccccccc-cccc-4ccc-8ccc-cccccccccccc"
+	testBCIChainID           = "ENT822a8ddc-5ebc-5f03-8ef8-ba9bfba192d9"
+	testBCISystemNodeID      = "ENTc38d2f7b-9900-5e81-af06-76393bcc2617"
+	testBCITerminalNodeID    = "ENT96336148-76c0-504e-b82e-ac395f8fe268"
+	testBCIElectrodeNodeID   = "ENTd3882237-d639-5660-b7d8-aa3563706113"
+	testBCITerminalEdgeID    = "IGE300188b0-d01c-5987-ad8a-646067edc7cd"
+	testBCIElectrodeEdgeID   = "IGEdc00a16e-0d8e-5db9-9a5d-fbc1fd9a84cf"
 )
 
 func TestPublicationAggregateRequiresFormalLineageAndOneAtomicTheme(t *testing.T) {
@@ -59,7 +59,7 @@ func TestPublicationAggregateRejectsAnalystInferenceMasqueradingAsFormalFact(t *
 	lineage := &aggregate.ReasoningTrees[0].Nodes[0].Signals[0].Lineage
 	lineage.SourceKind = "analyst_inference"
 	upstream := testSignalID
-	relation := "77777777-7777-4777-8777-777777777777"
+	relation := "ERL77777777-7777-4777-8777-777777777777"
 	lineage.UpstreamVariableSignalID = &upstream
 	lineage.EntityRelationID = &relation
 	if _, _, err := aggregate.Validate(); err == nil {
@@ -71,7 +71,7 @@ func TestPublishRejectsReferenceMismatchBeforeAnyWrite(t *testing.T) {
 	aggregate := validAggregate()
 	tx := &publicationTransactionStub{facts: validFacts()}
 	signal := tx.facts.Signals[testSignalID]
-	signal.SubjectEntityID = "77777777-7777-4777-8777-777777777777"
+	signal.SubjectEntityID = "ENT77777777-7777-4777-8777-777777777777"
 	tx.facts.Signals[testSignalID] = signal
 	service := (&UseCase{publicationStore: publicationStoreStub{tx: tx}, now: time.Now})
 
@@ -208,7 +208,7 @@ func TestPublishRejectsExistingReceiptIdentityConflictsBeforeAnyWrite(t *testing
 
 func TestPublishAcceptsReverseEntityRelationBetweenAdjacentNodes(t *testing.T) {
 	aggregate, facts := validBCIAnalystInferenceAggregate(true, 2)
-	relationID := "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
+	relationID := "ERLeeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"
 	node := &aggregate.ReasoningTrees[0].Nodes[1]
 	node.IncomingIndustryChainGraphEdgeID = nil
 	node.IncomingLineage.EntityRelationID = &relationID
@@ -345,11 +345,11 @@ func TestPublishRejectsInferenceWithUnrelatedRelation(t *testing.T) {
 	lineage.EvidenceID = nil
 	lineage.EvidenceHash = nil
 	lineage.UpstreamVariableSignalID = stringPointer(testSignalID)
-	relationID := "77777777-7777-4777-8777-777777777777"
+	relationID := "ERL77777777-7777-4777-8777-777777777777"
 	lineage.EntityRelationID = &relationID
 	tx := &publicationTransactionStub{facts: validFacts()}
 	tx.facts.EntityRelations[relationID] = EntityRelationFact{
-		ID: relationID, FromEntityID: "88888888-8888-4888-8888-888888888888",
+		ID: relationID, FromEntityID: "ENT88888888-8888-4888-8888-888888888888",
 		ToEntityID:   testNodeID,
 		TemporalFact: testTemporalFact(),
 	}
@@ -369,7 +369,7 @@ func TestPublishRejectsDirectImpactWhoseSourceIsNotThePreviousNode(t *testing.T)
 	aggregate := validAggregateWithDirectImpact()
 	tx := &publicationTransactionStub{facts: validFactsWithDirectImpact()}
 	impact := tx.facts.Impacts[testImpactID]
-	impact.SourceEntityID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd"
+	impact.SourceEntityID = "ENTdddddddd-dddd-4ddd-8ddd-dddddddddddd"
 	tx.facts.Impacts[testImpactID] = impact
 	service := (&UseCase{publicationStore: publicationStoreStub{tx: tx}, now: time.Now})
 
@@ -422,17 +422,17 @@ func TestPublishRequiresEachTreeToCoverItsFormalFactEvents(t *testing.T) {
 				lineage.EvidenceID = nil
 				lineage.EvidenceHash = nil
 				lineage.UpstreamVariableSignalID = stringPointer(testSignalID)
-				lineage.EntityRelationID = stringPointer("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee")
+				lineage.EntityRelationID = stringPointer("ERLeeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee")
 				return aggregate
 			}(),
 			facts: func() ReferenceFacts {
 				facts := validFacts()
 				signal := facts.Signals[testSignalID]
-				signal.SubjectEntityID = "ffffffff-ffff-4fff-8fff-ffffffffffff"
+				signal.SubjectEntityID = "ENTffffffff-ffff-4fff-8fff-ffffffffffff"
 				facts.Signals[testSignalID] = signal
-				facts.EntityRelations["eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"] = EntityRelationFact{
-					ID:           "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
-					FromEntityID: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+				facts.EntityRelations["ERLeeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"] = EntityRelationFact{
+					ID:           "ERLeeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+					FromEntityID: "ENTffffffff-ffff-4fff-8fff-ffffffffffff",
 					ToEntityID:   testNodeID,
 					TemporalFact: testTemporalFact(),
 				}
@@ -455,13 +455,13 @@ func TestPublishRequiresEachTreeToCoverItsFormalFactEvents(t *testing.T) {
 				lineage.EvidenceID = nil
 				lineage.EvidenceHash = nil
 				lineage.UpstreamDirectImpactAssertionID = stringPointer(testImpactID)
-				lineage.EntityRelationID = stringPointer("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee")
+				lineage.EntityRelationID = stringPointer("ERLeeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee")
 				return aggregate
 			}(),
 			facts: func() ReferenceFacts {
 				facts := validFactsWithDirectImpact()
-				facts.EntityRelations["eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"] = EntityRelationFact{
-					ID:           "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+				facts.EntityRelations["ERLeeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"] = EntityRelationFact{
+					ID:           "ERLeeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
 					FromEntityID: testTargetNodeID,
 					ToEntityID:   testNodeID,
 					TemporalFact: testTemporalFact(),
@@ -888,9 +888,9 @@ func TestPublishSnapshotUsesOnlyEventReferencesAndReplays(t *testing.T) {
 func TestPublishSnapshotCanonicalizesUnorderedThemeEventSetForReplay(t *testing.T) {
 	aggregate := snapshotAggregateWithThreeEvents()
 	tx := &publicationTransactionStub{facts: ReferenceFacts{Events: map[string]EventFact{
-		"71000000-0000-5000-8000-000000000001": {ID: "71000000-0000-5000-8000-000000000001"},
-		"71000000-0000-5000-8000-000000000002": {ID: "71000000-0000-5000-8000-000000000002"},
-		"71000000-0000-5000-8000-000000000003": {ID: "71000000-0000-5000-8000-000000000003"},
+		"EVT71000000-0000-5000-8000-000000000001": {ID: "EVT71000000-0000-5000-8000-000000000001"},
+		"EVT71000000-0000-5000-8000-000000000002": {ID: "EVT71000000-0000-5000-8000-000000000002"},
+		"EVT71000000-0000-5000-8000-000000000003": {ID: "EVT71000000-0000-5000-8000-000000000003"},
 	}}}
 	service := (&UseCase{publicationStore: publicationStoreStub{tx: tx}, now: time.Now})
 
@@ -920,14 +920,14 @@ func TestPublishSnapshotCanonicalizesUnorderedThemeEventSetForReplay(t *testing.
 func TestPublishSnapshotRejectsMissingThirdEventWithoutWrites(t *testing.T) {
 	aggregate := snapshotAggregateWithThreeEvents()
 	tx := &publicationTransactionStub{facts: ReferenceFacts{Events: map[string]EventFact{
-		"71000000-0000-5000-8000-000000000001": {ID: "71000000-0000-5000-8000-000000000001"},
-		"71000000-0000-5000-8000-000000000003": {ID: "71000000-0000-5000-8000-000000000003"},
+		"EVT71000000-0000-5000-8000-000000000001": {ID: "EVT71000000-0000-5000-8000-000000000001"},
+		"EVT71000000-0000-5000-8000-000000000003": {ID: "EVT71000000-0000-5000-8000-000000000003"},
 	}}}
 
 	_, err := (&UseCase{publicationStore: publicationStoreStub{tx: tx}, now: time.Now}).PublishSnapshot(context.Background(), "theme-analyst", aggregate)
 	var reference *ReferenceError
 	if !errors.As(err, &reference) || reference.Path != "theme.events[2].event_id" ||
-		reference.Reference != "71000000-0000-5000-8000-000000000002" {
+		reference.Reference != "EVT71000000-0000-5000-8000-000000000002" {
 		t.Fatalf("PublishSnapshot() error = %T %v, want missing third Event ReferenceError", err, err)
 	}
 	if tx.writes != 0 {
@@ -1003,7 +1003,7 @@ func validSnapshotAggregate() SnapshotAggregate {
 				RelationRole: "beneficiary", ImpactDirection: "uncertain", DisplayOrder: 1,
 			}},
 			Events: []SnapshotEvent{{
-				EventID: "11111111-1111-4111-8111-111111111111", EvidenceRole: "driver",
+				EventID: testEventID, EvidenceRole: "driver",
 			}},
 		},
 		ReasoningTrees: []SnapshotReasoningTree{{
@@ -1012,7 +1012,7 @@ func validSnapshotAggregate() SnapshotAggregate {
 			OneLineConclusion: "完成流片不等于商业兑现。",
 			ImpactDirection:   "uncertain", ImpactStrength: "unknown",
 			Events: []SnapshotTreeEvent{{
-				EventID:      "11111111-1111-4111-8111-111111111111",
+				EventID:      testEventID,
 				EvidenceRole: "driver", DisplayOrder: 1,
 			}},
 			Nodes: []SnapshotNode{{
@@ -1031,14 +1031,14 @@ func snapshotAggregateWithThreeEvents() SnapshotAggregate {
 	aggregate := validSnapshotAggregate()
 	aggregate.AnalysisBatchID = "uat-analyst-snapshot-three-events"
 	aggregate.Theme.Events = []SnapshotEvent{
-		{EventID: "71000000-0000-5000-8000-000000000001", EvidenceRole: "driver"},
-		{EventID: "71000000-0000-5000-8000-000000000003", EvidenceRole: "supporting"},
-		{EventID: "71000000-0000-5000-8000-000000000002", EvidenceRole: "context"},
+		{EventID: "EVT71000000-0000-5000-8000-000000000001", EvidenceRole: "driver"},
+		{EventID: "EVT71000000-0000-5000-8000-000000000003", EvidenceRole: "supporting"},
+		{EventID: "EVT71000000-0000-5000-8000-000000000002", EvidenceRole: "context"},
 	}
 	aggregate.ReasoningTrees[0].Events = []SnapshotTreeEvent{
-		{EventID: "71000000-0000-5000-8000-000000000001", EvidenceRole: "driver", DisplayOrder: 1},
-		{EventID: "71000000-0000-5000-8000-000000000003", EvidenceRole: "supporting", DisplayOrder: 2},
-		{EventID: "71000000-0000-5000-8000-000000000002", EvidenceRole: "context", DisplayOrder: 3},
+		{EventID: "EVT71000000-0000-5000-8000-000000000001", EvidenceRole: "driver", DisplayOrder: 1},
+		{EventID: "EVT71000000-0000-5000-8000-000000000003", EvidenceRole: "supporting", DisplayOrder: 2},
+		{EventID: "EVT71000000-0000-5000-8000-000000000002", EvidenceRole: "context", DisplayOrder: 3},
 	}
 	return aggregate
 }
@@ -1109,16 +1109,16 @@ func TestAnalysisContextReturnsStableCursorBoundToTheResearchWindow(t *testing.T
 		Bundles: []BundleRecord{
 			{
 				KnowledgeAvailableAt: time.Date(2026, 7, 28, 8, 0, 0, 0, time.UTC),
-				EventID:              "11111111-1111-4111-8111-111111111111",
+				EventID:              "EVT11111111-1111-4111-8111-111111111111",
 				Bundle: EventSemanticBundle{Event: Event{
-					ID: "11111111-1111-4111-8111-111111111111",
+					ID: "EVT11111111-1111-4111-8111-111111111111",
 				}},
 			},
 			{
 				KnowledgeAvailableAt: time.Date(2026, 7, 28, 9, 0, 0, 0, time.UTC),
-				EventID:              "22222222-2222-4222-8222-222222222222",
+				EventID:              "EVT22222222-2222-4222-8222-222222222222",
 				Bundle: EventSemanticBundle{Event: Event{
-					ID: "22222222-2222-4222-8222-222222222222",
+					ID: "EVT22222222-2222-4222-8222-222222222222",
 				}},
 			},
 		},
@@ -1146,7 +1146,7 @@ func TestAnalysisContextReturnsStableCursorBoundToTheResearchWindow(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	if store.query.AfterEventID != "22222222-2222-4222-8222-222222222222" ||
+	if store.query.AfterEventID != "EVT22222222-2222-4222-8222-222222222222" ||
 		store.query.AfterKnowledgeAvailableAt == nil ||
 		!store.query.AfterKnowledgeAvailableAt.Equal(time.Date(2026, 7, 28, 9, 0, 0, 0, time.UTC)) {
 		t.Fatalf("continuation query = %#v", store.query)
@@ -1157,9 +1157,9 @@ func TestAnalysisContextReturnsStableCursorBoundToTheResearchWindow(t *testing.T
 }
 
 func TestAnalysisContextFiltersSemanticsWhenLegacyEvidenceIsUnavailable(t *testing.T) {
-	eventID := "11111111-1111-4111-8111-111111111111"
-	evidenceID := "22222222-2222-4222-8222-222222222222"
-	linkID := "33333333-3333-4333-8333-333333333333"
+	eventID := "EVT11111111-1111-4111-8111-111111111111"
+	evidenceID := "EEL22222222-2222-4222-8222-222222222222"
+	linkID := "ENL33333333-3333-4333-8333-333333333333"
 	store := &contextStoreStub{page: AnalysisContextStorePage{Bundles: []BundleRecord{{
 		KnowledgeAvailableAt: time.Date(2026, 7, 28, 8, 0, 0, 0, time.UTC),
 		EventID:              eventID,
@@ -1170,7 +1170,7 @@ func TestAnalysisContextFiltersSemanticsWhenLegacyEvidenceIsUnavailable(t *testi
 				EvidenceIDs:       []string{evidenceID},
 			}},
 			VariableSignals: []VariableSignal{{
-				VariableSignalID:         "44444444-4444-4444-8444-444444444444",
+				VariableSignalID:         "VSG44444444-4444-4444-8444-444444444444",
 				SubjectEventEntityLinkID: linkID,
 				EvidenceIDs:              []string{evidenceID},
 			}},
@@ -1266,9 +1266,9 @@ func TestAnalysisContextRejectsInvalidResearchTimeBoundariesAndCursorMismatch(t 
 
 	store := &contextStoreStub{page: AnalysisContextStorePage{Bundles: []BundleRecord{{
 		KnowledgeAvailableAt: time.Date(2026, 7, 28, 9, 0, 0, 0, time.UTC),
-		EventID:              "11111111-1111-4111-8111-111111111111",
+		EventID:              "EVT11111111-1111-4111-8111-111111111111",
 		Bundle: EventSemanticBundle{Event: Event{
-			ID: "11111111-1111-4111-8111-111111111111",
+			ID: "EVT11111111-1111-4111-8111-111111111111",
 		}},
 	}}, HasMore: true}}
 	service = newAnalysisContextTestUseCase(store)
@@ -1287,9 +1287,9 @@ func TestAnalysisContextKeepsCursorValidAfterUnrelatedDictionaryChanges(t *testi
 	store := &contextStoreStub{page: AnalysisContextStorePage{
 		Bundles: []BundleRecord{{
 			KnowledgeAvailableAt: time.Date(2026, 7, 28, 9, 0, 0, 0, time.UTC),
-			EventID:              "11111111-1111-4111-8111-111111111111",
+			EventID:              "EVT11111111-1111-4111-8111-111111111111",
 			Bundle: EventSemanticBundle{Event: Event{
-				ID: "11111111-1111-4111-8111-111111111111",
+				ID: "EVT11111111-1111-4111-8111-111111111111",
 			}},
 		}},
 		HasMore: true,
@@ -1308,7 +1308,7 @@ func TestAnalysisContextKeepsCursorValidAfterUnrelatedDictionaryChanges(t *testi
 	request.Cursor = first.NextCursor
 	store.page = AnalysisContextStorePage{}
 	store.dictionaries = Dictionaries{Entities: []Entity{{
-		EntityID:   "33333333-3333-4333-8333-333333333333",
+		EntityID:   "ENT33333333-3333-4333-8333-333333333333",
 		EntityType: "company",
 	}}}
 	if _, err := service.List(context.Background(), request); err != nil {
@@ -1344,7 +1344,7 @@ func TestAnalysisContextRejectsCursorWithInvalidTerminalEventID(t *testing.T) {
 }
 
 func TestAnalysisContextRequiresRestartWhenPageReferenceClosureIsInconsistent(t *testing.T) {
-	eventID := "11111111-1111-4111-8111-111111111111"
+	eventID := "EVT11111111-1111-4111-8111-111111111111"
 	store := &contextStoreStub{page: AnalysisContextStorePage{
 		Bundles: []BundleRecord{{
 			KnowledgeAvailableAt: time.Date(2026, 7, 28, 9, 0, 0, 0, time.UTC),
@@ -1352,8 +1352,8 @@ func TestAnalysisContextRequiresRestartWhenPageReferenceClosureIsInconsistent(t 
 			Bundle: EventSemanticBundle{
 				Event: Event{ID: eventID},
 				EntityLinks: []EntityLink{{
-					EventEntityLinkID: "22222222-2222-4222-8222-222222222222",
-					EntityID:          "33333333-3333-4333-8333-333333333333",
+					EventEntityLinkID: "ENL22222222-2222-4222-8222-222222222222",
+					EntityID:          "ENT33333333-3333-4333-8333-333333333333",
 				}},
 			},
 		}},
@@ -1388,9 +1388,9 @@ func TestAnalysisContextFailsClosedForBundleClosureAndPageBudgets(t *testing.T) 
 			name: "complete Event Bundle",
 			store: &contextStoreStub{page: AnalysisContextStorePage{Bundles: []BundleRecord{{
 				KnowledgeAvailableAt: time.Date(2026, 7, 28, 9, 0, 0, 0, time.UTC),
-				EventID:              "11111111-1111-4111-8111-111111111111",
+				EventID:              "EVT11111111-1111-4111-8111-111111111111",
 				Bundle: EventSemanticBundle{Event: Event{
-					ID:      "11111111-1111-4111-8111-111111111111",
+					ID:      "EVT11111111-1111-4111-8111-111111111111",
 					Summary: strings.Repeat("x", MaxEventSemanticBundleBytes),
 				}},
 			}}}},
@@ -1405,7 +1405,7 @@ func TestAnalysisContextFailsClosedForBundleClosureAndPageBudgets(t *testing.T) 
 			name: "page reference closure",
 			store: &contextStoreStub{dictionaries: Dictionaries{
 				Entities: []Entity{{
-					EntityID:   "33333333-3333-4333-8333-333333333333",
+					EntityID:   "ENT33333333-3333-4333-8333-333333333333",
 					EntityType: "company",
 					Name:       strings.Repeat("x", MaxDictionaryBytes),
 				}},
@@ -1463,9 +1463,9 @@ func TestAnalysisContextDictionaryBudgetCountsApplicableEntityTypeMappings(t *te
 func bundleRowBudgetStore() *contextStoreStub {
 	evidence := make([]Evidence, 0, MaxEventSemanticBundleRows+1)
 	for index := 1; index <= MaxEventSemanticBundleRows+1; index++ {
-		evidence = append(evidence, Evidence{EvidenceID: fmt.Sprintf("50000000-0000-4000-8000-%012d", index)})
+		evidence = append(evidence, Evidence{EvidenceID: fmt.Sprintf("EEL50000000-0000-4000-8000-%012d", index)})
 	}
-	eventID := "51111111-1111-4111-8111-111111111111"
+	eventID := "EVT51111111-1111-4111-8111-111111111111"
 	return &contextStoreStub{page: AnalysisContextStorePage{Bundles: []BundleRecord{{
 		KnowledgeAvailableAt: time.Date(2026, 7, 28, 9, 0, 0, 0, time.UTC), EventID: eventID,
 		Bundle: EventSemanticBundle{Event: Event{ID: eventID}, Evidence: evidence},
@@ -1483,7 +1483,7 @@ func dictionaryRowBudgetStore() *contextStoreStub {
 func pageBudgetStore() *contextStoreStub {
 	bundles := make([]BundleRecord, 0, 10)
 	for index := 1; index <= 10; index++ {
-		eventID := fmt.Sprintf("40000000-0000-4000-8000-%012d", index)
+		eventID := fmt.Sprintf("EVT40000000-0000-4000-8000-%012d", index)
 		bundles = append(bundles, BundleRecord{
 			KnowledgeAvailableAt: time.Date(2026, 7, 28, index, 0, 0, 0, time.UTC),
 			EventID:              eventID,
@@ -1496,7 +1496,7 @@ func pageBudgetStore() *contextStoreStub {
 		page: AnalysisContextStorePage{Bundles: bundles},
 		dictionaries: Dictionaries{
 			Entities: []Entity{{
-				EntityID:   "33333333-3333-4333-8333-333333333333",
+				EntityID:   "ENT33333333-3333-4333-8333-333333333333",
 				EntityType: "company",
 				Name:       strings.Repeat("x", 3900*1024),
 			}},
@@ -1532,12 +1532,12 @@ func TestGraphReturnsDeterministicReferenceCompleteGraph(t *testing.T) {
 		ActualDepth: 1,
 		Entities: []GraphEntity{
 			{
-				EntityID:   "11111111-1111-4111-8111-111111111111",
+				EntityID:   "ENT11111111-1111-4111-8111-111111111111",
 				EntityType: "company",
 				Name:       "Producer", CanonicalName: "producer", Status: "active",
 			},
 			{
-				EntityID:   "22222222-2222-4222-8222-222222222222",
+				EntityID:   "ENT22222222-2222-4222-8222-222222222222",
 				EntityType: "product",
 				Name:       "Product", CanonicalName: "product", Status: "active",
 			},
@@ -1546,9 +1546,9 @@ func TestGraphReturnsDeterministicReferenceCompleteGraph(t *testing.T) {
 			RelationType: "produces", Direction: "directed",
 		}},
 		EntityRelations: []GraphEntityRelation{{
-			EntityRelationID: "33333333-3333-4333-8333-333333333333",
-			FromEntityID:     "11111111-1111-4111-8111-111111111111",
-			ToEntityID:       "22222222-2222-4222-8222-222222222222",
+			EntityRelationID: "ERL33333333-3333-4333-8333-333333333333",
+			FromEntityID:     "ENT11111111-1111-4111-8111-111111111111",
+			ToEntityID:       "ENT22222222-2222-4222-8222-222222222222",
 			RelationType:     "produces",
 			Status:           "active",
 		}},
@@ -1558,7 +1558,7 @@ func TestGraphReturnsDeterministicReferenceCompleteGraph(t *testing.T) {
 	}}
 	result, err := (&UseCase{graphStore: store}).Search(context.Background(), GraphSearchRequest{
 		AnalysisAsOf:  "2026-07-30T00:00:00Z",
-		SeedEntityIDs: []string{"11111111-1111-4111-8111-111111111111"},
+		SeedEntityIDs: []string{"ENT11111111-1111-4111-8111-111111111111"},
 		RelationFilters: []RelationFilter{{
 			RelationType: "produces",
 			Direction:    DirectionOutgoing,
@@ -1600,25 +1600,25 @@ func TestGraphAcceptsIndependentCountryAndRegionObjects(t *testing.T) {
 	store := &graphStoreStub{graph: GraphSubgraph{
 		ActualDepth: 1,
 		Entities: []GraphEntity{
-			{EntityID: "COU_CHN", EntityType: "country", Name: "中国", CanonicalName: "中国", Status: "active"},
-			{EntityID: "REG_APAC", EntityType: "region", Name: "亚太地区", CanonicalName: "亚太地区", Status: "active"},
+			{EntityID: "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b", EntityType: "country", Name: "中国", CanonicalName: "中国", Status: "active"},
+			{EntityID: "REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4", EntityType: "region", Name: "亚太地区", CanonicalName: "亚太地区", Status: "active"},
 		},
 		RelationDefinitions: []GraphRelationDefinition{{RelationType: "belongs_to_region", Direction: "directed"}},
 		EntityRelations: []GraphEntityRelation{{
-			EntityRelationID: "33333333-3333-4333-8333-333333333333",
-			FromEntityID:     "COU_CHN", ToEntityID: "REG_APAC", RelationType: "belongs_to_region", Status: "active",
+			EntityRelationID: "ERL33333333-3333-4333-8333-333333333333",
+			FromEntityID:     "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b", ToEntityID: "REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4", RelationType: "belongs_to_region", Status: "active",
 		}},
 		IndustryChains: []GraphIndustryChain{}, IndustryChainMemberships: []GraphIndustryChainMembership{}, IndustryChainGraphEdges: []GraphIndustryChainEdge{},
 	}}
 	result, err := (&UseCase{graphStore: store}).Search(context.Background(), GraphSearchRequest{
-		AnalysisAsOf: "2026-08-14T00:00:00Z", SeedEntityIDs: []string{"COU_CHN"},
+		AnalysisAsOf: "2026-08-14T00:00:00Z", SeedEntityIDs: []string{"COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b"},
 		RelationFilters: []RelationFilter{{RelationType: "belongs_to_region", Direction: DirectionOutgoing}},
 		MaxDepth:        1, NodeBudget: 10, EdgeBudget: 10,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(result.Entities) != 2 || result.Entities[0].EntityID != "COU_CHN" || store.query.SeedEntityIDs[0] != "COU_CHN" {
+	if len(result.Entities) != 2 || result.Entities[0].EntityID != "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b" || store.query.SeedEntityIDs[0] != "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b" {
 		t.Fatalf("Country graph result=%#v query=%#v", result, store.query)
 	}
 }
@@ -1626,7 +1626,7 @@ func TestGraphAcceptsIndependentCountryAndRegionObjects(t *testing.T) {
 func TestGraphRejectsInvalidOrOrphanedGraphRequests(t *testing.T) {
 	valid := GraphSearchRequest{
 		AnalysisAsOf:  "2026-07-30T00:00:00Z",
-		SeedEntityIDs: []string{"11111111-1111-4111-8111-111111111111"},
+		SeedEntityIDs: []string{"ENT11111111-1111-4111-8111-111111111111"},
 		RelationFilters: []RelationFilter{{
 			RelationType: "produces",
 			Direction:    DirectionOutgoing,
@@ -1667,16 +1667,16 @@ func TestGraphRejectsInvalidOrOrphanedGraphRequests(t *testing.T) {
 
 	store := &graphStoreStub{graph: GraphSubgraph{
 		Entities: []GraphEntity{{
-			EntityID:   "11111111-1111-4111-8111-111111111111",
+			EntityID:   "ENT11111111-1111-4111-8111-111111111111",
 			EntityType: "company",
 		}},
 		RelationDefinitions: []GraphRelationDefinition{{
 			RelationType: "produces", Direction: "directed",
 		}},
 		EntityRelations: []GraphEntityRelation{{
-			EntityRelationID: "33333333-3333-4333-8333-333333333333",
-			FromEntityID:     "11111111-1111-4111-8111-111111111111",
-			ToEntityID:       "22222222-2222-4222-8222-222222222222",
+			EntityRelationID: "ERL33333333-3333-4333-8333-333333333333",
+			FromEntityID:     "ENT11111111-1111-4111-8111-111111111111",
+			ToEntityID:       "ENT22222222-2222-4222-8222-222222222222",
 			RelationType:     "produces",
 		}},
 	}}
@@ -1688,7 +1688,7 @@ func TestGraphRejectsInvalidOrOrphanedGraphRequests(t *testing.T) {
 func TestGraphReportsTheExceededGraphBudgetDimension(t *testing.T) {
 	valid := GraphSearchRequest{
 		AnalysisAsOf:  "2026-07-30T00:00:00Z",
-		SeedEntityIDs: []string{"11111111-1111-4111-8111-111111111111"},
+		SeedEntityIDs: []string{"ENT11111111-1111-4111-8111-111111111111"},
 		RelationFilters: []RelationFilter{{
 			RelationType: "produces",
 			Direction:    DirectionOutgoing,
@@ -1696,18 +1696,18 @@ func TestGraphReportsTheExceededGraphBudgetDimension(t *testing.T) {
 		MaxDepth: 1, NodeBudget: 10, EdgeBudget: 1,
 	}
 	entities := []GraphEntity{
-		{EntityID: "11111111-1111-4111-8111-111111111111"},
-		{EntityID: "22222222-2222-4222-8222-222222222222"},
+		{EntityID: "ENT11111111-1111-4111-8111-111111111111"},
+		{EntityID: "ENT22222222-2222-4222-8222-222222222222"},
 	}
 	relations := []GraphEntityRelation{
 		{
-			EntityRelationID: "33333333-3333-4333-8333-333333333333",
+			EntityRelationID: "ERL33333333-3333-4333-8333-333333333333",
 			FromEntityID:     entities[0].EntityID,
 			ToEntityID:       entities[1].EntityID,
 			RelationType:     "produces",
 		},
 		{
-			EntityRelationID: "44444444-4444-4444-8444-444444444444",
+			EntityRelationID: "ERL44444444-4444-4444-8444-444444444444",
 			FromEntityID:     entities[0].EntityID,
 			ToEntityID:       entities[1].EntityID,
 			RelationType:     "produces",
@@ -1731,7 +1731,7 @@ func TestGraphReportsTheExceededGraphBudgetDimension(t *testing.T) {
 	valid.EdgeBudget = 10
 	_, err = (&UseCase{graphStore: &graphStoreStub{graph: GraphSubgraph{
 		Entities: []GraphEntity{{
-			EntityID: "11111111-1111-4111-8111-111111111111",
+			EntityID: "ENT11111111-1111-4111-8111-111111111111",
 			Name:     strings.Repeat("x", GraphMaxResultBytes),
 		}},
 	}}}).Search(context.Background(), valid)
@@ -1872,7 +1872,7 @@ func TestServiceRejectsExplicitRangeCursorWithDifferentBounds(t *testing.T) {
 }
 
 func TestServiceReadsHistoricalThemeDetailWithoutListWindowMembership(t *testing.T) {
-	themeID := "11111111-1111-4111-8111-111111111111"
+	themeID := "RTH11111111-1111-4111-8111-111111111111"
 	oldPublication := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	repository := &fakeRepository{themeDetail: ThemeDetailRecord{ThemeSummaryRecord: ThemeSummaryRecord{
 		ID: themeID, PublishedAt: oldPublication,
@@ -1891,15 +1891,15 @@ func TestServiceReadsHistoricalThemeDetailWithoutListWindowMembership(t *testing
 }
 
 func TestServiceMapsReasoningTreeSignalsWithoutChoosingImpactPriority(t *testing.T) {
-	themeID := "11111111-1111-4111-8111-111111111111"
-	treeID := "22222222-2222-4222-8222-222222222222"
-	nodeID := "33333333-3333-4333-8333-333333333333"
+	themeID := "RTH11111111-1111-4111-8111-111111111111"
+	treeID := "RRT22222222-2222-4222-8222-222222222222"
+	nodeID := "RRN33333333-3333-4333-8333-333333333333"
 	repository := &fakeRepository{reasoningTree: ReasoningTreeDetailRecord{
 		ThemeID:       themeID,
 		ImpactNodeIDs: []string{nodeID},
 		ReasoningTree: ReasoningTreeRecord{
 			ReasoningTreeID: treeID, ThemeID: themeID,
-			IndustryChainEntityID: "44444444-4444-4444-8444-444444444444",
+			IndustryChainEntityID: "ENT44444444-4444-4444-8444-444444444444",
 			IndustryChainName:     "产业链", Title: "Tree", DisplayOrder: 1,
 			OneLineConclusion: "结论", ImpactDirection: "positive", ImpactStrength: "medium",
 			PublishedAt: time.Date(2026, 7, 28, 9, 0, 0, 0, time.UTC),
@@ -1929,8 +1929,8 @@ func TestServiceMapsReasoningTreeSignalsWithoutChoosingImpactPriority(t *testing
 }
 
 func TestServiceKeepsStableReasoningTreeErrors(t *testing.T) {
-	themeID := "11111111-1111-4111-8111-111111111111"
-	treeID := "22222222-2222-4222-8222-222222222222"
+	themeID := "RTH11111111-1111-4111-8111-111111111111"
+	treeID := "RRT22222222-2222-4222-8222-222222222222"
 	for _, test := range []struct {
 		repositoryError error
 		want            error

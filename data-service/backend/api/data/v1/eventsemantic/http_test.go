@@ -108,11 +108,11 @@ func TestEventSemanticRuntimeRoutesPreserveOperations(t *testing.T) {
 		wantStatus int
 	}{
 		{name: "eligible", method: http.MethodGet, path: "/event-semantics/eligible-events?limit=20", operation: eventsemanticapi.OperationListEligibleEvents, wantStatus: http.StatusOK},
-		{name: "lease", method: http.MethodPost, path: "/event-semantics/context-leases", body: `{"event_id":"22222222-2222-4222-8222-222222222222","agent_execution_id":"semantic-execution-1","worker_id":"semantic-worker","lease_seconds":300}`, operation: eventsemanticapi.OperationCreateContextLease, wantStatus: http.StatusCreated},
-		{name: "context", method: http.MethodGet, path: "/event-semantics/context-leases/11111111-1111-4111-8111-111111111111/context", operation: eventsemanticapi.OperationGetContext, wantStatus: http.StatusOK},
+		{name: "lease", method: http.MethodPost, path: "/event-semantics/context-leases", body: `{"event_id":"EVT22222222-2222-4222-8222-222222222222","agent_execution_id":"semantic-execution-1","worker_id":"semantic-worker","lease_seconds":300}`, operation: eventsemanticapi.OperationCreateContextLease, wantStatus: http.StatusCreated},
+		{name: "context", method: http.MethodGet, path: "/event-semantics/context-leases/SCL11111111-1111-4111-8111-111111111111/context", operation: eventsemanticapi.OperationGetContext, wantStatus: http.StatusOK},
 		{name: "submission", method: http.MethodPost, path: "/event-semantics/submissions", body: `{}`, operation: eventsemanticapi.OperationCreateSubmission, wantStatus: http.StatusCreated},
-		{name: "review", method: http.MethodPost, path: "/event-semantics/submissions/11111111-1111-4111-8111-111111111111/reviews", body: `{}`, operation: eventsemanticapi.OperationSubmitReview, wantStatus: http.StatusOK},
-		{name: "result", method: http.MethodGet, path: "/events/22222222-2222-4222-8222-222222222222/semantics", operation: eventsemanticapi.OperationGetSemantics, wantStatus: http.StatusOK},
+		{name: "review", method: http.MethodPost, path: "/event-semantics/submissions/ESS11111111-1111-4111-8111-111111111111/reviews", body: `{}`, operation: eventsemanticapi.OperationSubmitReview, wantStatus: http.StatusOK},
+		{name: "result", method: http.MethodGet, path: "/events/EVT22222222-2222-4222-8222-222222222222/semantics", operation: eventsemanticapi.OperationGetSemantics, wantStatus: http.StatusOK},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			var operation string
@@ -166,8 +166,8 @@ func (s *eventSemanticsHTTPStub) ListEligibleEventSemanticEvents(
 func (s *eventSemanticsHTTPStub) CreateEventSemanticContextLease(_ context.Context, request *eventsemanticapi.EventSemanticContextLeaseRequest) (*v1.Response[eventsemanticapi.EventSemanticContextLease], error) {
 	s.contextLeaseRequest = request
 	return &v1.Response[eventsemanticapi.EventSemanticContextLease]{Status: v1.StatusCreated, Result: eventsemanticapi.EventSemanticContextLease{
-		ContextLeaseID: "11111111-1111-4111-8111-111111111111",
-		EventID:        "22222222-2222-4222-8222-222222222222",
+		ContextLeaseID: "SCL11111111-1111-4111-8111-111111111111",
+		EventID:        "EVT22222222-2222-4222-8222-222222222222",
 		Status:         "active", LeaseExpiresAt: "2026-07-29T10:05:00Z",
 	}}, nil
 }
@@ -177,7 +177,7 @@ func TestEventSemanticContextLeaseUsesStrictTypedContract(t *testing.T) {
 	server := kratoshttp.NewServer()
 	eventsemanticapi.RegisterHTTPServer(server, stub)
 	request := httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/event-semantics/context-leases",
-		bytes.NewBufferString(`{"event_id":"22222222-2222-4222-8222-222222222222","agent_execution_id":"semantic-execution-1","worker_id":"semantic-worker","lease_seconds":300}`))
+		bytes.NewBufferString(`{"event_id":"EVT22222222-2222-4222-8222-222222222222","agent_execution_id":"semantic-execution-1","worker_id":"semantic-worker","lease_seconds":300}`))
 	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
 
@@ -187,7 +187,7 @@ func TestEventSemanticContextLeaseUsesStrictTypedContract(t *testing.T) {
 		t.Fatalf("status = %d body = %s", recorder.Code, recorder.Body.String())
 	}
 	if stub.contextLeaseRequest == nil ||
-		stub.contextLeaseRequest.EventID != "22222222-2222-4222-8222-222222222222" ||
+		stub.contextLeaseRequest.EventID != "EVT22222222-2222-4222-8222-222222222222" ||
 		stub.contextLeaseRequest.WorkerID != "semantic-worker" ||
 		stub.contextLeaseRequest.LeaseSeconds != 300 {
 		t.Fatalf("context lease request = %#v", stub.contextLeaseRequest)
@@ -214,7 +214,7 @@ func TestEventSemanticContextLeaseRejectsUnknownWireFieldsBeforeCallingService(t
 	)
 	eventsemanticapi.RegisterHTTPServer(server, stub)
 	request := httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/event-semantics/context-leases",
-		bytes.NewBufferString(`{"event_id":"22222222-2222-4222-8222-222222222222","agent_execution_id":"semantic-execution-1","worker_id":"semantic-worker","lease_seconds":300,"invented":true}`))
+		bytes.NewBufferString(`{"event_id":"EVT22222222-2222-4222-8222-222222222222","agent_execution_id":"semantic-execution-1","worker_id":"semantic-worker","lease_seconds":300,"invented":true}`))
 	recorder := httptest.NewRecorder()
 
 	server.ServeHTTP(recorder, request)
@@ -325,7 +325,7 @@ func TestEventSemanticV2DoesNotRegisterLegacyResolutionRoutes(t *testing.T) {
 	request := httptest.NewRequest(
 		http.MethodPost,
 		v1.APIPrefix+"/event-semantics/resolution-routes:list",
-		bytes.NewBufferString(`{"context_lease_id":"11111111-1111-4111-8111-111111111111","target_entity_type":"chain_node"}`),
+		bytes.NewBufferString(`{"context_lease_id":"SCL11111111-1111-4111-8111-111111111111","target_entity_type":"chain_node"}`),
 	)
 	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()

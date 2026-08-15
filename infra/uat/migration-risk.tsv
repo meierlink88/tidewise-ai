@@ -48,3 +48,6 @@
 000047	normal	mixed	add Raw Evidence category schema and publish the fixed 11-category contract catalog
 000048	high	mixed	replace legacy Alliance facts with independent Organization schema and retire dependent immutable aggregates in a coordinated cutover
 000049	high	mixed	retire benchmark and metric Entity facts and the graph projection ledger in a snapshot-protected cutover
+000050	high	mixed	rewrite domain object identities and Country codes in a snapshot-protected stop-write cutover
+000051	high	mixed	rewrite all remaining independent business primary keys and foreign keys to registered prefixed identities
+000052	high	data	rewrite embedded business identity arrays and research receipt maps to registered prefixed identities

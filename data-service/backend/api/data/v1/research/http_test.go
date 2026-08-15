@@ -255,7 +255,7 @@ func TestResearchThemeBindingAcceptsIsolatedAnalystSnapshotAndRejectsFormalIDs(t
 		t.Fatalf("decode analyst_snapshot = %#v, %v", decoded, err)
 	}
 
-	formalID := `,"chain_node_entity_id":"33333333-3333-4333-8333-333333333333"`
+	formalID := `,"chain_node_entity_id":"ENT33333333-3333-4333-8333-333333333333"`
 	mixed := strings.Replace(string(payload), `"node_key":"node:a"`, `"node_key":"node:a"`+formalID, 1)
 	if _, err := decodeResearchThemeImport([]byte(mixed)); err == nil {
 		t.Fatal("analyst_snapshot carrying formal ontology ID was accepted")
@@ -263,7 +263,7 @@ func TestResearchThemeBindingAcceptsIsolatedAnalystSnapshotAndRejectsFormalIDs(t
 }
 
 func TestResearchThemeBindingRequiresAtomicTreeAndLineageShape(t *testing.T) {
-	payload := `{"analysis_batch_id":"batch","analysis_as_of":"2026-07-29T00:00:00Z","discovery_window_start":"2026-07-28T00:00:00Z","discovery_window_end":"2026-07-29T00:00:00Z","theme":{},"reasoning_trees":[{"industry_chain_entity_id":"22222222-2222-4222-8222-222222222222"}]}`
+	payload := `{"analysis_batch_id":"batch","analysis_as_of":"2026-07-29T00:00:00Z","discovery_window_start":"2026-07-28T00:00:00Z","discovery_window_end":"2026-07-29T00:00:00Z","theme":{},"reasoning_trees":[{"industry_chain_entity_id":"ENT22222222-2222-4222-8222-222222222222"}]}`
 	_, err := decodeResearchThemeImport([]byte(payload))
 	publicError, ok := err.(*v1.PublicError)
 	if !ok {
@@ -280,13 +280,13 @@ func TestResearchThemeBindingAcceptsAtomicAggregateShape(t *testing.T) {
 		"analysis_batch_id":"batch","analysis_as_of":"2026-07-02T00:00:00Z",
 		"discovery_window_start":"2026-07-01T00:00:00Z","discovery_window_end":"2026-07-02T00:00:00Z",
 		"theme":{},"reasoning_trees":[{
-			"industry_chain_entity_id":"22222222-2222-4222-8222-222222222222",
+			"industry_chain_entity_id":"ENT22222222-2222-4222-8222-222222222222",
 			"title":"tree","display_order":1,"one_line_conclusion":"conclusion",
 			"fact_summary":null,"transmission_summary":null,"impact_direction":"positive",
 			"impact_strength":"medium","impact_summary":null,"conclusion_boundary_summary":null,
 			"support_summary":null,"counter_summary":null,"invalidation_conditions":[],
 			"checkpoints":[],"events":[],"nodes":[{
-				"position":1,"chain_node_entity_id":"33333333-3333-4333-8333-333333333333",
+				"position":1,"chain_node_entity_id":"ENT33333333-3333-4333-8333-333333333333",
 				"state_summary":null,"impact_direction":"positive","impact_strength":"medium",
 				"impact_summary":null,"reasoning_basis_summary":null,"evidence_gap_summary":null,
 				"incoming_industry_chain_graph_edge_id":null,"incoming_transmission_title":null,

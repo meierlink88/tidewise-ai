@@ -89,8 +89,8 @@ func TestEventSemanticV3SubmissionRequiresProjectedEntityType(t *testing.T) {
 	}
 	valid := map[string]any{
 		"candidate_key": "company", "mention": "某公司",
-		"entity_id": "33333333-3333-4333-8333-333333333333", "projected_entity_type": "company",
-		"entity_role": "event_subject", "evidence_ids": []any{"22222222-2222-4222-8222-222222222222"},
+		"entity_id": "ENT33333333-3333-4333-8333-333333333333", "projected_entity_type": "company",
+		"entity_role": "event_subject", "evidence_ids": []any{"EEL22222222-2222-4222-8222-222222222222"},
 		"resolution_method": "qdrant_exact",
 	}
 	if err := schema.Value.VisitJSON(valid); err != nil {

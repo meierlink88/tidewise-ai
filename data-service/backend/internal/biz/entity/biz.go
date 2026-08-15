@@ -6,45 +6,28 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 var ErrResearchHistoricalReferencesUnavailable = errors.New("strict historical Entity references are unavailable because selected facts changed after analysis_as_of")
 
 const (
 	ObjectTypeCountry      = "country"
+	ObjectTypeRegion       = "region"
 	ObjectTypeOrganization = "organization"
-	CountryIDPrefix        = "COU_"
-	OrganizationIDPrefix   = "ORG_"
+	EntityIDPrefix         = coreid.Entity
+	EntityRelationIDPrefix = coreid.EntityRelation
+	CountryIDPrefix        = coreid.Country
+	RegionIDPrefix         = coreid.Region
+	OrganizationIDPrefix   = coreid.Organization
 )
 
-func IsCountryID(value string) bool {
-	if len(value) != len(CountryIDPrefix)+3 || !strings.HasPrefix(value, CountryIDPrefix) {
-		return false
-	}
-	for _, character := range value[len(CountryIDPrefix):] {
-		if character < 'A' || character > 'Z' {
-			return false
-		}
-	}
-	return true
-}
-
-func IsOrganizationID(value string) bool {
-	if len(value) <= len(OrganizationIDPrefix) || len(value) > 32 || !strings.HasPrefix(value, OrganizationIDPrefix) {
-		return false
-	}
-	code := value[len(OrganizationIDPrefix):]
-	if code[0] < 'A' || code[0] > 'Z' {
-		return false
-	}
-	for _, character := range code {
-		if (character >= 'A' && character <= 'Z') || (character >= '0' && character <= '9') || character == '_' {
-			continue
-		}
-		return false
-	}
-	return true
-}
+func IsEntityID(value string) bool         { return coreid.Is(value, EntityIDPrefix) }
+func IsEntityRelationID(value string) bool { return coreid.Is(value, EntityRelationIDPrefix) }
+func IsCountryID(value string) bool        { return coreid.Is(value, CountryIDPrefix) }
+func IsRegionID(value string) bool         { return coreid.Is(value, RegionIDPrefix) }
+func IsOrganizationID(value string) bool   { return coreid.Is(value, OrganizationIDPrefix) }
 
 // ResearchGraphRepository exposes persisted Entity graph facts to the Entity domain.
 type ResearchGraphRepository interface {
@@ -260,8 +243,8 @@ type Entity struct {
 }
 
 func (e Entity) Validate() error {
-	if e.ID == "" {
-		return fmt.Errorf("entity id is required")
+	if !IsEntityID(e.ID) {
+		return fmt.Errorf("entity id must equal %s immediately followed by a canonical lowercase UUID", EntityIDPrefix)
 	}
 	if e.EntityType == "" {
 		return fmt.Errorf("entity type is required")
@@ -291,6 +274,22 @@ type EntityRelation struct {
 	RelationType string
 	EvidenceNote string
 	Status       Status
+}
+
+func (r EntityRelation) Validate() error {
+	if !IsEntityRelationID(r.ID) {
+		return fmt.Errorf("entity relation id must equal %s immediately followed by a canonical lowercase UUID", EntityRelationIDPrefix)
+	}
+	if !IsEntityID(r.FromEntityID) || !IsEntityID(r.ToEntityID) || r.FromEntityID == r.ToEntityID {
+		return fmt.Errorf("entity relation endpoints must be distinct Entity IDs")
+	}
+	if strings.TrimSpace(r.RelationType) == "" {
+		return fmt.Errorf("entity relation type is required")
+	}
+	if !validStatus(r.Status, StatusActive, StatusInactive) {
+		return fmt.Errorf("unsupported entity relation status %q", r.Status)
+	}
+	return nil
 }
 
 type EntityExternalIdentifier struct {

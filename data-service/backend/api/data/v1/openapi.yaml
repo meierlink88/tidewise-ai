@@ -505,7 +505,7 @@ paths:
           in: path
           required: true
           schema:
-            $ref: '#/components/schemas/UUID'
+            $ref: '#/components/schemas/EventSemanticContextLeaseID'
       responses:
         '200':
           description: Event Semantic Context
@@ -592,7 +592,7 @@ paths:
           in: path
           required: true
           schema:
-            $ref: '#/components/schemas/UUID'
+            $ref: '#/components/schemas/EventSemanticSubmissionID'
       requestBody:
         required: true
         content:
@@ -640,7 +640,7 @@ paths:
           in: path
           required: true
           schema:
-            $ref: '#/components/schemas/UUID'
+            $ref: '#/components/schemas/EventID'
       responses:
         '200':
           description: Event Semantics 结果
@@ -795,7 +795,8 @@ paths:
           schema:
             type: string
             minLength: 1
-            maxLength: 32
+            maxLength: 39
+            pattern: '^RAW[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
       responses:
         '200':
           description: 返回完整 Raw Evidence 及其内容分类
@@ -832,8 +833,8 @@ paths:
       summary: 发布一份完整 Raw Evidence
       description: >-
         采集完成后同步发布完整 Raw Evidence 及有序 Keywords。接口不使用
-        Idempotency-Key；相同 raw_evidence_id 仅在全部业务字段一致时安全重试。成功响应
-        只返回正式 Raw Evidence ID。
+        Idempotency-Key；相同 publication_key 仅在全部业务字段一致时安全重试。Data
+        由该自然键确定性生成正式 Raw Evidence ID，成功响应只返回该系统身份。
       parameters:
         - $ref: '#/components/parameters/RequestID'
       requestBody:
@@ -1052,7 +1053,7 @@ paths:
       x-retry-policy: safe-get
       x-timeout-budget-ms: 5000
       summary: 获取国家目录
-      description: 按 ISO 3166-1 alpha-3 code 升序返回全部 Country；region_id 可筛选属于指定 Region 的 Country。
+      description: 按 ISO 3166-1 alpha-2 code 升序返回全部 Country；region_id 可筛选属于指定 Region 的 Country。
       parameters:
         - $ref: '#/components/parameters/RequestID'
         - $ref: '#/components/parameters/RegionIDQuery'
@@ -1074,7 +1075,7 @@ paths:
       operationId: createCountry
       x-client-drift-anchor: data.v1.createCountry
       x-required-service-scope: data.countries.write
-      x-retry-policy: caller-resolves-country-identity
+      x-retry-policy: caller-resolves-country-code-conflict
       x-timeout-budget-ms: 5000
       summary: 创建国家
       parameters:
@@ -1206,8 +1207,8 @@ paths:
         - $ref: '#/components/parameters/RequestID'
         - {name: category_code, in: query, schema: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}}
         - {name: function_code, in: query, schema: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}}
-        - {name: region_id, in: query, schema: {type: string, pattern: '^REG_[A-Z][A-Z0-9_]*$', maxLength: 32}}
-        - {name: country_id, in: query, schema: {type: string, pattern: '^COU_[A-Z]{3}$'}}
+        - {name: region_id, in: query, schema: {type: string, pattern: '^REG[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', maxLength: 39}}
+        - {name: country_id, in: query, schema: {type: string, pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'}}
         - {name: as_of, in: query, schema: {type: string, format: date}}
       responses:
         '200':
@@ -1224,7 +1225,7 @@ paths:
       operationId: createOrganization
       x-client-drift-anchor: data.v1.createOrganization
       x-required-service-scope: data.organizations.write
-      x-retry-policy: caller-resolves-organization-identity
+      x-retry-policy: caller-resolves-organization-code-conflict
       x-timeout-budget-ms: 5000
       summary: 创建 Organization
       parameters:
@@ -1386,7 +1387,7 @@ paths:
   /api/data/v1/entities/organizations/{organization_id}/members/{member_id}:
     parameters:
       - {$ref: '#/components/parameters/OrganizationID'}
-      - {name: member_id, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+      - {name: member_id, in: path, required: true, schema: {type: string, pattern: '^OMB[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'}}
     put:
       tags: [Organization]
       operationId: updateOrganizationMember
@@ -1517,32 +1518,32 @@ components:
       in: path
       required: true
       schema:
-        $ref: '#/components/schemas/UUID'
+        $ref: '#/components/schemas/ResearchThemeID'
     ReasoningTreeID:
       name: reasoning_tree_id
       in: path
       required: true
       schema:
-        $ref: '#/components/schemas/UUID'
+        $ref: '#/components/schemas/ResearchReasoningTreeID'
     CountryID:
       name: country_id
       in: path
       required: true
       schema:
         type: string
-        pattern: '^COU_[A-Z]{3}$'
+        pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
     RegionIDQuery:
       name: region_id
       in: query
       required: false
       schema:
         type: string
-        pattern: '^REG_[A-Z0-9_]+$'
+        pattern: '^REG[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
     OrganizationID:
       name: organization_id
       in: path
       required: true
-      schema: {type: string, pattern: '^ORG_[A-Z][A-Z0-9_]*$', maxLength: 32}
+      schema: {type: string, pattern: '^ORG[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', maxLength: 39}
 
   headers:
     RequestID:
@@ -1691,17 +1692,16 @@ components:
     OrganizationCreateRequest:
       type: object
       additionalProperties: false
-      required: [id, code, name, name_en, category_code, function_code]
+      required: [code, name, name_en, category_code, function_code]
       properties:
-        id: {type: string, pattern: '^ORG_[A-Z][A-Z0-9_]*$', maxLength: 32}
         code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}
         name: {type: string, minLength: 1, maxLength: 100}
         name_en: {type: string, minLength: 1, maxLength: 100}
-        region_id: {type: string, pattern: '^REG_[A-Z][A-Z0-9_]*$', maxLength: 32, nullable: true}
+        region_id: {type: string, pattern: '^REG[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', maxLength: 39, nullable: true}
         category_code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}
         function_code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}
         legal_entity_code: {type: string, pattern: '^[A-Z0-9]{20}$', nullable: true}
-        dominant_party_id: {type: string, pattern: '^COU_[A-Z]{3}$', nullable: true}
+        dominant_party_id: {type: string, pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', nullable: true}
         binding_power_level: {type: string, enum: [HIGH, MEDIUM, LOW], nullable: true, description: 'HIGH=强制条约约束；MEDIUM=框架或经济契约约束；LOW=无强制力共识倡议'}
         influence_rating: {type: string, enum: [S, A, B], nullable: true, description: 'S=全球治理影响；A=区域或领域权威；B=专业或局部影响'}
         strategic_positioning: {type: string, nullable: true}
@@ -1709,7 +1709,7 @@ components:
         founding_document: {type: string, maxLength: 200, nullable: true}
         established_date: {type: string, format: date, nullable: true}
         headquarters_city: {type: string, maxLength: 100, nullable: true}
-        headquarters_country_id: {type: string, pattern: '^COU_[A-Z]{3}$', nullable: true}
+        headquarters_country_id: {type: string, pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', nullable: true}
         headquarters_subdivision_id: {type: string, maxLength: 32, nullable: true}
         description: {type: string, nullable: true}
     OrganizationUpdateRequest:
@@ -1719,11 +1719,11 @@ components:
       properties:
         name: {type: string, minLength: 1, maxLength: 100}
         name_en: {type: string, minLength: 1, maxLength: 100}
-        region_id: {type: string, pattern: '^REG_[A-Z][A-Z0-9_]*$', maxLength: 32, nullable: true}
+        region_id: {type: string, pattern: '^REG[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', maxLength: 39, nullable: true}
         category_code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}
         function_code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}
         legal_entity_code: {type: string, pattern: '^[A-Z0-9]{20}$', nullable: true}
-        dominant_party_id: {type: string, pattern: '^COU_[A-Z]{3}$', nullable: true}
+        dominant_party_id: {type: string, pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', nullable: true}
         binding_power_level: {type: string, enum: [HIGH, MEDIUM, LOW], nullable: true, description: 'HIGH=强制条约约束；MEDIUM=框架或经济契约约束；LOW=无强制力共识倡议'}
         influence_rating: {type: string, enum: [S, A, B], nullable: true, description: 'S=全球治理影响；A=区域或领域权威；B=专业或局部影响'}
         strategic_positioning: {type: string, nullable: true}
@@ -1731,7 +1731,7 @@ components:
         founding_document: {type: string, maxLength: 200, nullable: true}
         established_date: {type: string, format: date, nullable: true}
         headquarters_city: {type: string, maxLength: 100, nullable: true}
-        headquarters_country_id: {type: string, pattern: '^COU_[A-Z]{3}$', nullable: true}
+        headquarters_country_id: {type: string, pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', nullable: true}
         headquarters_subdivision_id: {type: string, maxLength: 32, nullable: true}
         description: {type: string, nullable: true}
         domain_tag_codes: {type: array, uniqueItems: true, items: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 50}}
@@ -1745,15 +1745,15 @@ components:
       additionalProperties: false
       required: [id, code, name, name_en, region_id, category, function, legal_entity_code, dominant_party_id, binding_power_level, influence_rating, strategic_positioning, core_impact_scope, founding_document, established_date, headquarters_city, headquarters_country_id, headquarters_subdivision_id, description, domain_tags, created_at, updated_at]
       properties:
-        id: {type: string, pattern: '^ORG_[A-Z][A-Z0-9_]*$', maxLength: 32}
+        id: {type: string, pattern: '^ORG[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', maxLength: 39}
         code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}
         name: {type: string, minLength: 1, maxLength: 100}
         name_en: {type: string, minLength: 1, maxLength: 100}
-        region_id: {type: string, pattern: '^REG_[A-Z][A-Z0-9_]*$', maxLength: 32, nullable: true}
+        region_id: {type: string, pattern: '^REG[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', maxLength: 39, nullable: true}
         category: {$ref: '#/components/schemas/OrganizationCatalogTerm'}
         function: {$ref: '#/components/schemas/OrganizationCatalogTerm'}
         legal_entity_code: {type: string, pattern: '^[A-Z0-9]{20}$', nullable: true}
-        dominant_party_id: {type: string, pattern: '^COU_[A-Z]{3}$', nullable: true}
+        dominant_party_id: {type: string, pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', nullable: true}
         binding_power_level: {type: string, enum: [HIGH, MEDIUM, LOW], nullable: true, description: 'HIGH=强制条约约束；MEDIUM=框架或经济契约约束；LOW=无强制力共识倡议'}
         influence_rating: {type: string, enum: [S, A, B], nullable: true, description: 'S=全球治理影响；A=区域或领域权威；B=专业或局部影响'}
         strategic_positioning: {type: string, nullable: true}
@@ -1761,7 +1761,7 @@ components:
         founding_document: {type: string, minLength: 1, maxLength: 200, nullable: true}
         established_date: {type: string, format: date, nullable: true}
         headquarters_city: {type: string, minLength: 1, maxLength: 100, nullable: true}
-        headquarters_country_id: {type: string, pattern: '^COU_[A-Z]{3}$', nullable: true}
+        headquarters_country_id: {type: string, pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', nullable: true}
         headquarters_subdivision_id: {type: string, minLength: 1, maxLength: 32, nullable: true}
         description: {type: string, nullable: true}
         domain_tags: {type: array, items: {$ref: '#/components/schemas/OrganizationDomainTag'}}
@@ -1797,7 +1797,7 @@ components:
       additionalProperties: false
       required: [country_id, membership_type]
       properties:
-        country_id: {type: string, pattern: '^COU_[A-Z]{3}$'}
+        country_id: {type: string, pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'}
         membership_type: {type: string, enum: [FULL_MEMBER, OBSERVER, ASSOCIATE, PARTNER, CANDIDATE]}
         effective_date: {type: string, format: date, nullable: true}
         expiry_date: {type: string, format: date, nullable: true}
@@ -1806,9 +1806,9 @@ components:
       additionalProperties: false
       required: [id, organization_id, country_id, membership_type, effective_date, expiry_date, created_at, updated_at]
       properties:
-        id: {type: integer, format: int64}
-        organization_id: {type: string, pattern: '^ORG_[A-Z][A-Z0-9_]*$', maxLength: 32}
-        country_id: {type: string, pattern: '^COU_[A-Z]{3}$'}
+        id: {type: string, pattern: '^OMB[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'}
+        organization_id: {type: string, pattern: '^ORG[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', maxLength: 39}
+        country_id: {type: string, pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'}
         membership_type: {type: string, enum: [FULL_MEMBER, OBSERVER, ASSOCIATE, PARTNER, CANDIDATE]}
         effective_date: {type: string, format: date, nullable: true}
         expiry_date: {type: string, format: date, nullable: true}
@@ -1840,10 +1840,9 @@ components:
     CountryCreateRequest:
       type: object
       additionalProperties: false
-      required: [id, code, name, name_en]
+      required: [code, name, name_en]
       properties:
-        id: {type: string, pattern: '^COU_[A-Z]{3}$'}
-        code: {type: string, pattern: '^[A-Z]{3}$'}
+        code: {type: string, pattern: '^[A-Z]{2}$'}
         name: {type: string, minLength: 1, maxLength: 100}
         name_en: {type: string, minLength: 1, maxLength: 100}
         strategic_positioning: {type: string, minLength: 1, nullable: true}
@@ -1865,13 +1864,13 @@ components:
         region_ids:
           type: array
           uniqueItems: true
-          items: {type: string, pattern: '^REG_[A-Z0-9_]+$'}
+          items: {type: string, pattern: '^REG[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'}
     CountryRegion:
       type: object
       additionalProperties: false
       required: [id, code, name, name_en, region_type]
       properties:
-        id: {type: string, pattern: '^REG_[A-Z0-9_]+$'}
+        id: {type: string, pattern: '^REG[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'}
         code: {type: string, minLength: 1, maxLength: 20}
         name: {type: string, minLength: 1, maxLength: 50}
         name_en: {type: string, minLength: 1, maxLength: 100}
@@ -1881,8 +1880,8 @@ components:
       additionalProperties: false
       required: [id, code, name, name_en, strategic_positioning, key_resources, created_at, updated_at, regions]
       properties:
-        id: {type: string, pattern: '^COU_[A-Z]{3}$'}
-        code: {type: string, pattern: '^[A-Z]{3}$'}
+        id: {type: string, pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'}
+        code: {type: string, pattern: '^[A-Z]{2}$'}
         name: {type: string, minLength: 1, maxLength: 100}
         name_en: {type: string, minLength: 1, maxLength: 100}
         strategic_positioning: {type: string, nullable: true}
@@ -1923,14 +1922,81 @@ components:
       format: uuid
       pattern: '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
       description: V1 publication contract 使用的标准小写 RFC 4122 UUID string。
-    ObjectID:
-      description: 旧通用 Entity UUID 或 Tidewise AI 2.0 独立 Country/Region 稳定 ID。
+    EntityID:
+      type: string
+      pattern: '^ENT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      description: Entity 领域前缀直接连接 canonical lowercase UUID。
+    EntityRelationID:
+      type: string
+      pattern: '^ERL[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      description: Entity Relation 领域前缀直接连接 canonical lowercase UUID。
+    EventID:
+      type: string
+      pattern: '^EVT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    EventEvidenceRecordID:
+      type: string
+      pattern: '^EER[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    EventEvidenceLinkID:
+      type: string
+      pattern: '^EEL[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    EventTagDefinitionID:
+      type: string
+      pattern: '^ETD[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    EventTagAssignmentID:
+      type: string
+      pattern: '^ETA[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    EventPublicationReceiptID:
+      type: string
+      pattern: '^EPR[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    EventSemanticContextLeaseID:
+      type: string
+      pattern: '^SCL[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    EventSemanticSubmissionID:
+      type: string
+      pattern: '^ESS[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    EventEntityLinkID:
+      type: string
+      pattern: '^ENL[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    VariableSignalID:
+      type: string
+      pattern: '^VSG[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    VariableSignalMeasurementID:
+      type: string
+      pattern: '^VSM[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    DirectImpactAssertionID:
+      type: string
+      pattern: '^DIA[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    IndustryChainGraphEdgeID:
+      type: string
+      pattern: '^IGE[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    ResearchThemeID:
+      type: string
+      pattern: '^RTH[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    ResearchThemeReceiptID:
+      type: string
+      pattern: '^RTI[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    ResearchReasoningTreeID:
+      type: string
+      pattern: '^RRT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    ResearchReasoningTreeNodeID:
+      type: string
+      pattern: '^RRN[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    CandidateRecordID:
       oneOf:
-        - $ref: '#/components/schemas/UUID'
+        - $ref: '#/components/schemas/EventEntityLinkID'
+        - $ref: '#/components/schemas/VariableSignalID'
+        - $ref: '#/components/schemas/DirectImpactAssertionID'
+    ObjectID:
+      description: 领域对象缩写前缀直接连接 canonical lowercase UUID。
+      oneOf:
         - type: string
-          pattern: '^COU_[A-Z]{3}$'
+          pattern: '^ENT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         - type: string
-          pattern: '^REG_[A-Z][A-Z0-9_]*$'
+          pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+        - type: string
+          pattern: '^REG[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+        - type: string
+          pattern: '^ORG[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
     UTCTimestamp:
       type: string
       format: date-time
@@ -1966,7 +2032,7 @@ components:
       required: [id, tag_kind, code, name, is_active]
       properties:
         id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventTagDefinitionID'
         tag_kind:
           $ref: '#/components/schemas/TagKind'
         code:
@@ -2102,8 +2168,8 @@ components:
       additionalProperties: false
       required: [event_id, evidence_role, supported_claim]
       properties:
-        event_id: {$ref: '#/components/schemas/LowercaseUUID'}
-        evidence_ids: {type: array, uniqueItems: true, items: {$ref: '#/components/schemas/LowercaseUUID'}}
+        event_id: {$ref: '#/components/schemas/EventID'}
+        evidence_ids: {type: array, uniqueItems: true, items: {$ref: '#/components/schemas/EventEvidenceLinkID'}}
         evidence_role: {type: string, enum: [driver, supporting, contradicting, context]}
         supported_claim: {type: string, nullable: true}
     ResearchThemeImportItem:
@@ -2138,7 +2204,7 @@ components:
       additionalProperties: false
       required: [chain_node_entity_id, relation_role, impact_direction, impact_summary, display_order]
       properties:
-        chain_node_entity_id: {$ref: '#/components/schemas/LowercaseUUID'}
+        chain_node_entity_id: {$ref: '#/components/schemas/EntityID'}
         relation_role: {type: string, enum: [driver, beneficiary, constraint, exposure]}
         impact_direction: {$ref: '#/components/schemas/ResearchDirection'}
         impact_summary: {type: string, nullable: true}
@@ -2148,7 +2214,7 @@ components:
       additionalProperties: false
       required: [event_id, evidence_role, supported_claim]
       properties:
-        event_id: {$ref: '#/components/schemas/LowercaseUUID'}
+        event_id: {$ref: '#/components/schemas/EventID'}
         evidence_role: {type: string, enum: [driver, supporting, contradicting, context]}
         supported_claim: {type: string, nullable: true}
     ResearchThemeImportCounts:
@@ -2170,17 +2236,17 @@ components:
       x-client-drift-anchor: data.v1.schema.ResearchThemeImportResult
       required: [receipt_id, analysis_batch_id, payload_hash, theme_id, publication_mode, reasoning_tree_ids_by_industry_chain_entity_id, reasoning_tree_ids_by_tree_key, counts, published_at, imported_at, replayed]
       properties:
-        receipt_id: {$ref: '#/components/schemas/LowercaseUUID'}
+        receipt_id: {$ref: '#/components/schemas/ResearchThemeReceiptID'}
         analysis_batch_id: {type: string}
         payload_hash: {$ref: '#/components/schemas/PayloadHash'}
-        theme_id: {$ref: '#/components/schemas/LowercaseUUID'}
+        theme_id: {$ref: '#/components/schemas/ResearchThemeID'}
         publication_mode: {type: string, enum: [formal, analyst_snapshot]}
         reasoning_tree_ids_by_industry_chain_entity_id:
           type: object
-          additionalProperties: {$ref: '#/components/schemas/LowercaseUUID'}
+          additionalProperties: {$ref: '#/components/schemas/ResearchReasoningTreeID'}
         reasoning_tree_ids_by_tree_key:
           type: object
-          additionalProperties: {$ref: '#/components/schemas/LowercaseUUID'}
+          additionalProperties: {$ref: '#/components/schemas/ResearchReasoningTreeID'}
         counts: {$ref: '#/components/schemas/ResearchThemeImportCounts'}
         published_at: {$ref: '#/components/schemas/UTCTimestamp'}
         imported_at: {$ref: '#/components/schemas/UTCTimestamp'}
@@ -2220,8 +2286,8 @@ components:
       additionalProperties: false
       required: [event_id, evidence_role, display_order]
       properties:
-        event_id: {$ref: '#/components/schemas/LowercaseUUID'}
-        evidence_ids: {type: array, uniqueItems: true, items: {$ref: '#/components/schemas/LowercaseUUID'}}
+        event_id: {$ref: '#/components/schemas/EventID'}
+        evidence_ids: {type: array, uniqueItems: true, items: {$ref: '#/components/schemas/EventEvidenceLinkID'}}
         evidence_role: {type: string, enum: [driver, supporting, contradicting, context]}
         display_order: {type: integer, minimum: 1}
     ResearchReasoningTreeSnapshotNode:
@@ -2267,7 +2333,7 @@ components:
       additionalProperties: false
       required: [industry_chain_entity_id, title, display_order, one_line_conclusion, fact_summary, transmission_summary, impact_direction, impact_strength, impact_summary, conclusion_boundary_summary, support_summary, counter_summary, invalidation_conditions, checkpoints, events, nodes]
       properties:
-        industry_chain_entity_id: {$ref: '#/components/schemas/LowercaseUUID'}
+        industry_chain_entity_id: {$ref: '#/components/schemas/EntityID'}
         title: {type: string, minLength: 1}
         display_order: {type: integer, minimum: 1}
         one_line_conclusion: {type: string, minLength: 1}
@@ -2303,7 +2369,7 @@ components:
       additionalProperties: false
       required: [event_id, evidence_role, display_order]
       properties:
-        event_id: {$ref: '#/components/schemas/LowercaseUUID'}
+        event_id: {$ref: '#/components/schemas/EventID'}
         evidence_role: {type: string, enum: [driver, supporting, contradicting, context]}
         display_order: {type: integer, minimum: 1}
     ResearchReasoningTreeImportNode:
@@ -2312,7 +2378,7 @@ components:
       required: [position, chain_node_entity_id, state_summary, impact_direction, impact_strength, impact_summary, reasoning_basis_summary, evidence_gap_summary, incoming_industry_chain_graph_edge_id, incoming_transmission_title, incoming_transmission_mechanism, incoming_condition_summary, incoming_lineage, signals]
       properties:
         position: {type: integer, minimum: 1}
-        chain_node_entity_id: {$ref: '#/components/schemas/LowercaseUUID'}
+        chain_node_entity_id: {$ref: '#/components/schemas/EntityID'}
         state_summary: {type: string, nullable: true}
         impact_direction: {$ref: '#/components/schemas/ResearchDirection'}
         impact_strength: {$ref: '#/components/schemas/ResearchImpactStrength'}
@@ -2324,7 +2390,7 @@ components:
             Optional active approved Graph Edge whose endpoints are the previous and current Tree
             Node in either stored direction. Tree order, not the stored predicate direction,
             records analyst-owned propagation.
-          allOf: [{$ref: '#/components/schemas/LowercaseUUID'}]
+          allOf: [{$ref: '#/components/schemas/IndustryChainGraphEdgeID'}]
           nullable: true
         incoming_transmission_title: {type: string, nullable: true}
         incoming_transmission_mechanism: {type: string, nullable: true}
@@ -2363,14 +2429,14 @@ components:
       required: [source_kind, variable_signal_id, semantic_submission_id, evidence_id, evidence_hash, upstream_variable_signal_id, upstream_direct_impact_assertion_id, entity_relation_id, industry_chain_graph_edge_id]
       properties:
         source_kind: {type: string, enum: [formal_signal, analyst_inference]}
-        variable_signal_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
-        semantic_submission_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
-        evidence_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
+        variable_signal_id: {allOf: [{$ref: '#/components/schemas/VariableSignalID'}], nullable: true}
+        semantic_submission_id: {allOf: [{$ref: '#/components/schemas/EventSemanticSubmissionID'}], nullable: true}
+        evidence_id: {allOf: [{$ref: '#/components/schemas/EventEvidenceLinkID'}], nullable: true}
         evidence_hash: {allOf: [{$ref: '#/components/schemas/PayloadHash'}], nullable: true}
-        upstream_variable_signal_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
-        upstream_direct_impact_assertion_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
-        entity_relation_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
-        industry_chain_graph_edge_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
+        upstream_variable_signal_id: {allOf: [{$ref: '#/components/schemas/VariableSignalID'}], nullable: true}
+        upstream_direct_impact_assertion_id: {allOf: [{$ref: '#/components/schemas/DirectImpactAssertionID'}], nullable: true}
+        entity_relation_id: {allOf: [{$ref: '#/components/schemas/EntityRelationID'}], nullable: true}
+        industry_chain_graph_edge_id: {allOf: [{$ref: '#/components/schemas/IndustryChainGraphEdgeID'}], nullable: true}
     ResearchReasoningTreeIncomingLineage:
       type: object
       additionalProperties: false
@@ -2381,15 +2447,15 @@ components:
       required: [source_kind, direct_impact_assertion_id, semantic_submission_id, evidence_id, evidence_hash, affected_variable_key, affected_direction, upstream_variable_signal_id, upstream_direct_impact_assertion_id, entity_relation_id]
       properties:
         source_kind: {type: string, enum: [formal_direct_impact, analyst_inference]}
-        direct_impact_assertion_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
-        semantic_submission_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
-        evidence_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
+        direct_impact_assertion_id: {allOf: [{$ref: '#/components/schemas/DirectImpactAssertionID'}], nullable: true}
+        semantic_submission_id: {allOf: [{$ref: '#/components/schemas/EventSemanticSubmissionID'}], nullable: true}
+        evidence_id: {allOf: [{$ref: '#/components/schemas/EventEvidenceLinkID'}], nullable: true}
         evidence_hash: {allOf: [{$ref: '#/components/schemas/PayloadHash'}], nullable: true}
         affected_variable_key: {type: string, nullable: true}
         affected_direction: {type: string, enum: [increase, decrease, mixed, unchanged, uncertain], nullable: true}
-        upstream_variable_signal_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
-        upstream_direct_impact_assertion_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
-        entity_relation_id: {allOf: [{$ref: '#/components/schemas/LowercaseUUID'}], nullable: true}
+        upstream_variable_signal_id: {allOf: [{$ref: '#/components/schemas/VariableSignalID'}], nullable: true}
+        upstream_direct_impact_assertion_id: {allOf: [{$ref: '#/components/schemas/DirectImpactAssertionID'}], nullable: true}
+        entity_relation_id: {allOf: [{$ref: '#/components/schemas/EntityRelationID'}], nullable: true}
     ResearchDirection:
       type: string
       enum: [positive, negative, mixed, neutral, uncertain]
@@ -2430,8 +2496,8 @@ components:
       additionalProperties: false
       required: [event_id, evidence_ids, title, summary, event_time, evidence_role, supported_claim, display_order]
       properties:
-        event_id: {$ref: '#/components/schemas/UUID'}
-        evidence_ids: {type: array, items: {$ref: '#/components/schemas/UUID'}}
+        event_id: {$ref: '#/components/schemas/EventID'}
+        evidence_ids: {type: array, items: {$ref: '#/components/schemas/EventEvidenceLinkID'}}
         title: {type: string}
         summary: {type: string}
         event_time:
@@ -2445,7 +2511,7 @@ components:
       additionalProperties: false
       required: [id, analysis_batch_id, title, one_line_conclusion, conclusion_direction, impact_strength, attention_level, conclusion_status, transmission_stage, investment_guidance_action, investment_guidance_summary, time_horizon_category, time_horizon_summary, transmission_summary, checkpoint_summary, risk_summary, analysis_as_of, window_start, window_end, published_at, impacts, evidence_event_count, reasoning_tree_count]
       properties:
-        id: {$ref: '#/components/schemas/UUID'}
+        id: {$ref: '#/components/schemas/ResearchThemeID'}
         analysis_batch_id: {type: string}
         title: {type: string}
         one_line_conclusion: {type: string}
@@ -2514,7 +2580,7 @@ components:
       properties:
         tree_key: {$ref: '#/components/schemas/ResearchLocalKey'}
         display_name: {type: string}
-        reasoning_tree_id: {$ref: '#/components/schemas/UUID'}
+        reasoning_tree_id: {$ref: '#/components/schemas/ResearchReasoningTreeID'}
         industry_chain_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
         industry_chain_name: {type: string}
         title: {type: string}
@@ -2541,7 +2607,7 @@ components:
       additionalProperties: false
       required: [id, relation_type, review_status, status]
       properties:
-        id: {$ref: '#/components/schemas/UUID'}
+        id: {$ref: '#/components/schemas/IndustryChainGraphEdgeID'}
         relation_type: {type: string}
         review_status: {type: string}
         status: {type: string}
@@ -2552,7 +2618,7 @@ components:
       properties:
         node_key: {$ref: '#/components/schemas/ResearchLocalKey'}
         display_name: {type: string}
-        id: {$ref: '#/components/schemas/UUID'}
+        id: {$ref: '#/components/schemas/ResearchReasoningTreeNodeID'}
         position: {type: integer, minimum: 1}
         chain_node_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
         name: {type: string}
@@ -2563,7 +2629,7 @@ components:
         reasoning_basis_summary: {type: string, nullable: true}
         evidence_gap_summary: {type: string, nullable: true}
         incoming_industry_chain_graph_edge_id:
-          allOf: [{$ref: '#/components/schemas/UUID'}]
+          allOf: [{$ref: '#/components/schemas/IndustryChainGraphEdgeID'}]
           nullable: true
         incoming_transmission_title: {type: string, nullable: true}
         incoming_transmission_mechanism: {type: string, nullable: true}
@@ -2581,8 +2647,8 @@ components:
       properties:
         tree_key: {$ref: '#/components/schemas/ResearchLocalKey'}
         display_name: {type: string}
-        reasoning_tree_id: {$ref: '#/components/schemas/UUID'}
-        theme_id: {$ref: '#/components/schemas/UUID'}
+        reasoning_tree_id: {$ref: '#/components/schemas/ResearchReasoningTreeID'}
+        theme_id: {$ref: '#/components/schemas/ResearchThemeID'}
         industry_chain_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
         industry_chain_name: {type: string}
         title: {type: string}
@@ -2608,7 +2674,7 @@ components:
       x-client-drift-anchor: data.v1.schema.ResearchReasoningTreeDetail
       required: [theme_id, theme_key, publication_mode, publication_contract_version, impact_node_ids, reasoning_tree]
       properties:
-        theme_id: {$ref: '#/components/schemas/UUID'}
+        theme_id: {$ref: '#/components/schemas/ResearchThemeID'}
         theme_key: {$ref: '#/components/schemas/ResearchLocalKey'}
         publication_mode: {type: string, enum: [formal, analyst_snapshot]}
         publication_contract_version: {type: integer, enum: [1, 2, 3]}
@@ -2650,7 +2716,7 @@ components:
         - content_sha256
       properties:
         id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventEvidenceRecordID'
         contract_version:
           type: integer
           minimum: 1
@@ -2728,7 +2794,7 @@ components:
       required: [id, title, summary, first_seen_at, event_status, fact_status, dedupe_key]
       properties:
         id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventID'
         title:
           type: string
         summary:
@@ -2837,7 +2903,7 @@ components:
       type: object
       additionalProperties: false
       required:
-        - raw_evidence_id
+        - publication_key
         - source_id
         - source_name
         - source_level
@@ -2847,10 +2913,10 @@ components:
         - collected_at
         - keywords
       properties:
-        raw_evidence_id:
+        publication_key:
           type: string
           minLength: 1
-          maxLength: 32
+          maxLength: 128
         source_id:
           type: string
           minLength: 1
@@ -2904,8 +2970,8 @@ components:
           items:
             type: string
             minLength: 1
-            maxLength: 32
-            pattern: '^EVC_[0-9]{3}$'
+            maxLength: 39
+            pattern: '^EVC[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
 
     EvidenceCategory:
       type: object
@@ -2915,7 +2981,8 @@ components:
         id:
           type: string
           minLength: 1
-          maxLength: 32
+          maxLength: 39
+          pattern: '^EVC[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         code:
           type: string
           minLength: 1
@@ -2946,7 +3013,8 @@ components:
         raw_evidence_id:
           type: string
           minLength: 1
-          maxLength: 32
+          maxLength: 39
+          pattern: '^RAW[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         source_id:
           type: string
           minLength: 1
@@ -3032,7 +3100,8 @@ components:
         raw_evidence_id:
           type: string
           minLength: 1
-          maxLength: 32
+          maxLength: 39
+          pattern: '^RAW[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
 
     RawEvidencePublicationEnvelope:
       type: object
@@ -3053,7 +3122,6 @@ components:
       type: object
       additionalProperties: false
       required:
-        - evidence_id
         - split_order
         - layer_type
         - source_what
@@ -3061,10 +3129,6 @@ components:
         - expression_key
         - fingerprint_version
       properties:
-        evidence_id:
-          type: string
-          minLength: 1
-          maxLength: 32
         split_order:
           type: integer
           minimum: 0
@@ -3136,7 +3200,8 @@ components:
         raw_evidence_id:
           type: string
           minLength: 1
-          maxLength: 32
+          maxLength: 39
+          pattern: '^RAW[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         evidences:
           type: array
           minItems: 1
@@ -3151,14 +3216,16 @@ components:
         raw_evidence_id:
           type: string
           minLength: 1
-          maxLength: 32
+          maxLength: 39
+          pattern: '^RAW[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         evidence_ids:
           type: array
           minItems: 1
           items:
             type: string
             minLength: 1
-            maxLength: 32
+            maxLength: 39
+            pattern: '^EVD[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
 
     EvidencePublicationEnvelope:
       type: object
@@ -3345,7 +3412,7 @@ components:
       required: [tag_id, tag_kind, tag_code, confidence, assignment_reason, assign_source]
       properties:
         tag_id:
-          $ref: '#/components/schemas/LowercaseUUID'
+          $ref: '#/components/schemas/EventTagDefinitionID'
         tag_kind:
           $ref: '#/components/schemas/TagKind'
         tag_code:
@@ -3391,7 +3458,7 @@ components:
         dedupe_key:
           type: string
         event_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventID'
         disposition:
           $ref: '#/components/schemas/EventPublicationDisposition'
 
@@ -3403,7 +3470,7 @@ components:
         artifact_id:
           type: string
         raw_document_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventEvidenceRecordID'
         disposition:
           $ref: '#/components/schemas/EventPublicationDisposition'
 
@@ -3452,7 +3519,7 @@ components:
       required: [receipt_id, package_id, imported_at, events, raw_documents, counts]
       properties:
         receipt_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventPublicationReceiptID'
         package_id:
           type: string
         imported_at:
@@ -3487,9 +3554,9 @@ components:
       required: [event_id, agent_execution_id, worker_id, lease_seconds]
       properties:
         event_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventID'
         supersedes_submission_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventSemanticSubmissionID'
         agent_execution_id:
           type: string
           minLength: 1
@@ -3509,11 +3576,11 @@ components:
       required: [context_lease_id, event_id, status, lease_expires_at]
       properties:
         context_lease_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventSemanticContextLeaseID'
         event_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventID'
         supersedes_submission_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventSemanticSubmissionID'
         status:
           type: string
           enum: [active]
@@ -3536,7 +3603,7 @@ components:
       required: [event_id]
       properties:
         event_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventID'
 
     EligibleEventSemanticEvents:
       type: object
@@ -3567,7 +3634,7 @@ components:
       required: [id, title, summary, occurred_at, event_status, fact_status]
       properties:
         id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventID'
         title:
           type: string
         summary:
@@ -3603,7 +3670,7 @@ components:
         - statement_source
       properties:
         evidence_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventEvidenceLinkID'
         evidence_hash:
           type: string
           pattern: '^[0-9a-f]{64}$'
@@ -3621,7 +3688,7 @@ components:
           items:
             type: string
         raw_document_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventEvidenceRecordID'
         source_name:
           type: string
           minLength: 1
@@ -3674,7 +3741,7 @@ components:
       required: [entity_relation_id, from_entity_id, to_entity_id, relation_type, status]
       properties:
         entity_relation_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EntityRelationID'
         from_entity_id:
           $ref: '#/components/schemas/ObjectID'
         to_entity_id:
@@ -3763,7 +3830,7 @@ components:
       required: [context_lease_id, agent_execution_id, worker_id, lease_expires_at, manifest_contract_version, context_fingerprint, event_fingerprint, evidence_fingerprint, ontology_version, acceptance_policy_version, event, evidence, variable_definitions, assertion_modalities, measurement_contract]
       properties:
         context_lease_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventSemanticContextLeaseID'
         agent_execution_id:
           type: string
         worker_id:
@@ -3820,7 +3887,7 @@ components:
       required: [id, title, summary, occurred_at, first_seen_at, knowledge_available_at, event_status, fact_status]
       properties:
         id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventID'
         title:
           type: string
         summary:
@@ -3846,9 +3913,9 @@ components:
       required: [event_entity_link_id, semantic_submission_id, entity_id, entity_role, resolved_mention, resolution_method, resolution_confidence, evidence_ids, review_status]
       properties:
         event_entity_link_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventEntityLinkID'
         semantic_submission_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventSemanticSubmissionID'
         entity_id:
           $ref: '#/components/schemas/ObjectID'
         entity_role:
@@ -3868,7 +3935,7 @@ components:
         evidence_ids:
           type: array
           items:
-            $ref: '#/components/schemas/UUID'
+            $ref: '#/components/schemas/EventEvidenceLinkID'
         review_status:
           type: string
           enum: [accepted]
@@ -3879,7 +3946,7 @@ components:
       required: [measurement_id, measurement_role, value_shape, raw_value, raw_lower, raw_upper, raw_unit, canonical_value, canonical_lower, canonical_upper, canonical_unit, currency, scale, comparison_basis, comparison_period, raw_text, is_approximate, evidence_id]
       properties:
         measurement_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/VariableSignalMeasurementID'
         measurement_role:
           type: string
           enum: [absolute_level, absolute_change, relative_change, percentage_point_change]
@@ -3903,7 +3970,7 @@ components:
         is_approximate:
           type: boolean
         evidence_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventEvidenceLinkID'
 
     ResearchAnalysisDirectImpact:
       type: object
@@ -3911,13 +3978,13 @@ components:
       required: [direct_impact_assertion_id, semantic_submission_id, source_variable_signal_id, target_entity_id, affected_variable_key, affected_variable_version, affected_direction, derivation_type, mechanism_summary, evidence_ids, entity_relation_id, rule_key, rule_version, assertion_confidence, effective_from, effective_to, review_status]
       properties:
         direct_impact_assertion_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/DirectImpactAssertionID'
         semantic_submission_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventSemanticSubmissionID'
         source_variable_signal_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/VariableSignalID'
         target_entity_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EntityID'
         affected_variable_key:
           type: string
         affected_variable_version:
@@ -3933,10 +4000,10 @@ components:
         evidence_ids:
           type: array
           items:
-            $ref: '#/components/schemas/UUID'
+            $ref: '#/components/schemas/EventEvidenceLinkID'
         entity_relation_id:
           allOf:
-            - $ref: '#/components/schemas/UUID'
+            - $ref: '#/components/schemas/EntityRelationID'
           nullable: true
         rule_key:
           type: string
@@ -3968,13 +4035,13 @@ components:
       required: [variable_signal_id, semantic_submission_id, source_event_id, subject_event_entity_link_id, subject_entity_id, variable_key, variable_version, direction, assertion_modality, evidence_ids, statement_at, valid_from, valid_until, forecast_period_start, forecast_period_end, extraction_confidence, review_status, measurements, direct_impacts]
       properties:
         variable_signal_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/VariableSignalID'
         semantic_submission_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventSemanticSubmissionID'
         source_event_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventID'
         subject_event_entity_link_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventEntityLinkID'
         subject_entity_id:
           $ref: '#/components/schemas/ObjectID'
         variable_key:
@@ -3990,7 +4057,7 @@ components:
         evidence_ids:
           type: array
           items:
-            $ref: '#/components/schemas/UUID'
+            $ref: '#/components/schemas/EventEvidenceLinkID'
         statement_at:
           allOf:
             - $ref: '#/components/schemas/UTCTimestamp'
@@ -4077,12 +4144,12 @@ components:
             additionalProperties: false
             required: [industry_chain_entity_id, scope, target_output, end_use, geography, as_of_date, review_status]
             properties:
-              industry_chain_entity_id: {$ref: '#/components/schemas/UUID'}
+              industry_chain_entity_id: {$ref: '#/components/schemas/EntityID'}
               scope: {type: string}
               target_output: {type: string}
               end_use: {type: string}
               geography: {type: string}
-              primary_country_id: {type: string, pattern: '^COU_[A-Z]{3}$'}
+              primary_country_id: {type: string, pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'}
               as_of_date: {type: string, format: date}
               review_status: {type: string, enum: [approved]}
         industry_chain_memberships:
@@ -4092,8 +4159,8 @@ components:
             additionalProperties: false
             required: [industry_chain_entity_id, chain_node_entity_id, position, contextual_stage, review_status, status]
             properties:
-              industry_chain_entity_id: {$ref: '#/components/schemas/UUID'}
-              chain_node_entity_id: {$ref: '#/components/schemas/UUID'}
+              industry_chain_entity_id: {$ref: '#/components/schemas/EntityID'}
+              chain_node_entity_id: {$ref: '#/components/schemas/EntityID'}
               position: {type: integer, minimum: 1}
               contextual_stage: {type: string}
               review_status: {type: string, enum: [approved]}
@@ -4105,10 +4172,10 @@ components:
             additionalProperties: false
             required: [industry_chain_graph_edge_id, industry_chain_entity_id, from_chain_node_entity_id, to_chain_node_entity_id, relation_type, mechanism, condition_note, segment_kind, omitted_step_note, review_status, status]
             properties:
-              industry_chain_graph_edge_id: {$ref: '#/components/schemas/UUID'}
-              industry_chain_entity_id: {$ref: '#/components/schemas/UUID'}
-              from_chain_node_entity_id: {$ref: '#/components/schemas/UUID'}
-              to_chain_node_entity_id: {$ref: '#/components/schemas/UUID'}
+              industry_chain_graph_edge_id: {$ref: '#/components/schemas/IndustryChainGraphEdgeID'}
+              industry_chain_entity_id: {$ref: '#/components/schemas/EntityID'}
+              from_chain_node_entity_id: {$ref: '#/components/schemas/EntityID'}
+              to_chain_node_entity_id: {$ref: '#/components/schemas/EntityID'}
               relation_type: {type: string}
               mechanism: {type: string}
               condition_note: {type: string, nullable: true}
@@ -4235,10 +4302,7 @@ components:
           maxItems: 20
           uniqueItems: true
           items:
-            oneOf:
-              - $ref: '#/components/schemas/UUID'
-              - type: string
-                pattern: '^COU_[A-Z]{3}$'
+            $ref: '#/components/schemas/ObjectID'
         relation_filters:
           type: array
           minItems: 1
@@ -4250,7 +4314,7 @@ components:
           minimum: 1
           maximum: 5
         industry_chain_entity_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EntityID'
         node_budget:
           type: integer
           minimum: 1
@@ -4302,12 +4366,12 @@ components:
             additionalProperties: false
             required: [industry_chain_entity_id, scope, target_output, end_use, geography, as_of_date, review_status]
             properties:
-              industry_chain_entity_id: {$ref: '#/components/schemas/UUID'}
+              industry_chain_entity_id: {$ref: '#/components/schemas/EntityID'}
               scope: {type: string}
               target_output: {type: string}
               end_use: {type: string}
               geography: {type: string}
-              primary_country_id: {type: string, pattern: '^COU_[A-Z]{3}$'}
+              primary_country_id: {type: string, pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'}
               as_of_date: {type: string, format: date}
               review_status: {type: string, enum: [approved]}
         industry_chain_memberships:
@@ -4317,8 +4381,8 @@ components:
             additionalProperties: false
             required: [industry_chain_entity_id, chain_node_entity_id, position, contextual_stage, review_status, status]
             properties:
-              industry_chain_entity_id: {$ref: '#/components/schemas/UUID'}
-              chain_node_entity_id: {$ref: '#/components/schemas/UUID'}
+              industry_chain_entity_id: {$ref: '#/components/schemas/EntityID'}
+              chain_node_entity_id: {$ref: '#/components/schemas/EntityID'}
               position: {type: integer, minimum: 1}
               contextual_stage: {type: string}
               review_status: {type: string, enum: [approved]}
@@ -4330,10 +4394,10 @@ components:
             additionalProperties: false
             required: [industry_chain_graph_edge_id, industry_chain_entity_id, from_chain_node_entity_id, to_chain_node_entity_id, relation_type, mechanism, condition_note, segment_kind, omitted_step_note, review_status, status]
             properties:
-              industry_chain_graph_edge_id: {$ref: '#/components/schemas/UUID'}
-              industry_chain_entity_id: {$ref: '#/components/schemas/UUID'}
-              from_chain_node_entity_id: {$ref: '#/components/schemas/UUID'}
-              to_chain_node_entity_id: {$ref: '#/components/schemas/UUID'}
+              industry_chain_graph_edge_id: {$ref: '#/components/schemas/IndustryChainGraphEdgeID'}
+              industry_chain_entity_id: {$ref: '#/components/schemas/EntityID'}
+              from_chain_node_entity_id: {$ref: '#/components/schemas/EntityID'}
+              to_chain_node_entity_id: {$ref: '#/components/schemas/EntityID'}
               relation_type: {type: string}
               mechanism: {type: string}
               condition_note: {type: string, nullable: true}
@@ -4495,7 +4559,7 @@ components:
           minItems: 1
           uniqueItems: true
           items:
-            $ref: '#/components/schemas/UUID'
+            $ref: '#/components/schemas/EventEvidenceLinkID'
 
     EventSemanticEntityLinkCandidate:
       type: object
@@ -4508,9 +4572,9 @@ components:
           type: string
         entity_id:
           oneOf:
-            - $ref: '#/components/schemas/UUID'
+            - $ref: '#/components/schemas/ObjectID'
             - type: string
-              pattern: '^COU_[A-Z]{3}$'
+              pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         projected_entity_type:
           type: string
           minLength: 1
@@ -4522,7 +4586,7 @@ components:
           minItems: 1
           uniqueItems: true
           items:
-            $ref: '#/components/schemas/UUID'
+            $ref: '#/components/schemas/EventEvidenceLinkID'
         resolution_method:
           type: string
           enum: [qdrant_exact, qdrant_vector]
@@ -4560,7 +4624,7 @@ components:
           minItems: 1
           uniqueItems: true
           items:
-            $ref: '#/components/schemas/UUID'
+            $ref: '#/components/schemas/EventEvidenceLinkID'
         measurements:
           type: array
           maxItems: 8
@@ -4586,9 +4650,9 @@ components:
       required: [context_lease_id, event_id, agent_execution_id, agent_key, agent_version, generator_prompt_hash, generator_model, reviewer_prompt_hash, reviewer_model, adjudicator_prompt_hash, adjudicator_model, ontology_version, acceptance_policy_version, entity_links, variable_signals]
       properties:
         context_lease_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventSemanticContextLeaseID'
         event_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventID'
         agent_execution_id:
           type: string
         agent_key:
@@ -4598,7 +4662,7 @@ components:
           type: string
           enum: [event-semantic-enricher.v4]
         supersedes_submission_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventSemanticSubmissionID'
         generator_prompt_hash:
           type: string
           pattern: '^[0-9a-f]{64}$'
@@ -4640,7 +4704,7 @@ components:
         reason_code:
           type: string
         record_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/CandidateRecordID'
 
     EventSemanticReviewSnapshot:
       type: object
@@ -4689,9 +4753,9 @@ components:
       required: [submission_id, event_id, status, canonical_payload_hash, replayed, entity_links, variable_signals]
       properties:
         submission_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventSemanticSubmissionID'
         event_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventID'
         status:
           type: string
           enum: [pending_review, needs_reanalysis, quarantined, accepted, rejected, superseded]
@@ -4713,7 +4777,7 @@ components:
         audit_work_package:
           $ref: '#/components/schemas/EventSemanticReviewerWorkPackage'
         context_lease_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventSemanticContextLeaseID'
         agent_execution_id:
           type: string
         agent_key:
@@ -4723,7 +4787,7 @@ components:
           type: string
           enum: [event-semantic-enricher.v2, event-semantic-enricher.v3, event-semantic-enricher.v4]
         supersedes_submission_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventSemanticSubmissionID'
         generator_prompt_hash:
           type: string
           pattern: '^[0-9a-f]{64}$'
@@ -4787,7 +4851,7 @@ components:
         evidence_ids:
           type: array
           items:
-            $ref: '#/components/schemas/UUID'
+            $ref: '#/components/schemas/EventEvidenceLinkID'
 
     EventSemanticReviewRequest:
       type: object
@@ -4813,7 +4877,7 @@ components:
       required: [event_id, submissions]
       properties:
         event_id:
-          $ref: '#/components/schemas/UUID'
+          $ref: '#/components/schemas/EventID'
         submissions:
           type: array
           items:

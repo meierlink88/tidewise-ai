@@ -4,7 +4,7 @@
     "candidates": [
       {
         "entity": {
-          "entity_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          "entity_id": "ENTbbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
           "entity_type": "chain_node",
           "name": "Fixture Manufacturing Node",
           "canonical_name": "Fixture Manufacturing Node",
@@ -12,15 +12,15 @@
           "status": "active"
         },
         "description": "upstream manufacturing stage",
-        "matched_anchor_entity_ids": ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"],
+        "matched_anchor_entity_ids": ["ENTaaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"],
         "industry_chain_entity_name": "Fixture Industry Chain",
         "resolution_receipt": {
           "route_id": "chain-node-via-industry.v1",
           "route_contract_version": "event-semantic-anchor-routes.v1",
-          "anchor_entity_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-          "industry_chain_entity_id": "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
-          "mapping_relation_id": "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
-          "target_entity_id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          "anchor_entity_id": "ENTaaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "industry_chain_entity_id": "ENTcccccccc-cccc-4ccc-8ccc-cccccccccccc",
+          "mapping_relation_id": "ERLdddddddd-dddd-4ddd-8ddd-dddddddddddd",
+          "target_entity_id": "ENTbbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
           "membership_position": 2,
           "membership_updated_at": "2026-07-31T08:00:00Z",
           "path_fingerprint": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"

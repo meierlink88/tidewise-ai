@@ -12,6 +12,8 @@ import type {
 import { formatResearchThemeEventTime, formatResearchUpdateLabel } from './presentation';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const entityIDPattern =
+  /^ENT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const directionValues = ['positive', 'negative', 'mixed', 'neutral', 'uncertain'] as const;
 const strengthValues = ['strong', 'medium', 'weak', 'unknown'] as const;
 const attentionValues = ['high', 'medium', 'low'] as const;
@@ -111,11 +113,11 @@ export function parseResearchThemeWire(value: unknown, asOf?: string): HomeResea
       const displayOrder = positiveInteger(impact.display_order);
       if (displayOrder !== index + 1) invalid();
       return {
-        nodeKey: snapshot ? localKey(impact.node_key) : uuid(impact.chain_node_entity_id),
+        nodeKey: snapshot ? localKey(impact.node_key) : entityID(impact.chain_node_entity_id),
         displayName: text(snapshot ? impact.display_name : impact.name),
         chainNodeEntityId: snapshot
-          ? nullableUUIDString(impact.chain_node_entity_id)
-          : uuid(impact.chain_node_entity_id),
+          ? nullableEntityIDString(impact.chain_node_entity_id)
+          : entityID(impact.chain_node_entity_id),
         name: text(snapshot ? impact.display_name : impact.name),
         relationRole: enumValue(impact.relation_role, relationRoleValues),
         impactDirection: enumValue<ResearchDirection>(impact.impact_direction, directionValues),
@@ -225,13 +227,18 @@ function uuid(value: unknown): string {
   if (!uuidPattern.test(result)) invalid();
   return result;
 }
+function entityID(value: unknown): string {
+  const result = text(value);
+  if (!entityIDPattern.test(result)) invalid();
+  return result;
+}
 function localKey(value: unknown): string {
   const result = text(value);
   if (!/^[a-z0-9][a-z0-9._:-]{0,127}$/.test(result)) invalid();
   return result;
 }
-function nullableUUIDString(value: unknown): string | null {
-  return value === '' || value === null ? null : uuid(value);
+function nullableEntityIDString(value: unknown): string | null {
+  return value === '' || value === null ? null : entityID(value);
 }
 function timestamp(value: unknown): string {
   const result = text(value);

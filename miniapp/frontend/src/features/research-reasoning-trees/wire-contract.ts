@@ -14,6 +14,8 @@ import type { ResearchDirection, ResearchImpactStrength } from '../research-them
 import { parseResearchThemeWire } from '../research-themes/wire-contract';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const entityIDPattern =
+  /^ENT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const directionValues = ['positive', 'negative', 'mixed', 'neutral', 'uncertain'] as const;
 const strengthValues = ['strong', 'medium', 'weak', 'unknown'] as const;
 const evidenceRoleValues = ['driver', 'supporting', 'contradicting', 'context'] as const;
@@ -70,12 +72,12 @@ function mapSummary(value: RecordValue): ResearchReasoningTreeSummary {
     'published_at'
   ]);
   return {
-    treeKey: snapshot ? localKey(value.tree_key) : uuid(value.industry_chain_entity_id),
+    treeKey: snapshot ? localKey(value.tree_key) : entityID(value.industry_chain_entity_id),
     displayName: text(snapshot ? value.display_name : value.industry_chain_name),
     reasoningTreeId: uuid(value.reasoning_tree_id),
     industryChainEntityId: snapshot
-      ? nullableUUIDString(value.industry_chain_entity_id)
-      : uuid(value.industry_chain_entity_id),
+      ? nullableEntityIDString(value.industry_chain_entity_id)
+      : entityID(value.industry_chain_entity_id),
     industryChainName: text(snapshot ? value.display_name : value.industry_chain_name),
     title: text(value.title),
     displayOrder: positiveInteger(value.display_order),
@@ -114,13 +116,13 @@ function mapTree(value: RecordValue): ResearchReasoningTree {
   const nodes = array(value.nodes).map((item, index) => mapNode(record(item), index));
   if (nodes.length === 0 || nonNegativeInteger(value.event_count) !== events.length) invalid();
   return {
-    treeKey: snapshot ? localKey(value.tree_key) : uuid(value.industry_chain_entity_id),
+    treeKey: snapshot ? localKey(value.tree_key) : entityID(value.industry_chain_entity_id),
     displayName: text(snapshot ? value.display_name : value.industry_chain_name),
     reasoningTreeId: uuid(value.reasoning_tree_id),
     themeId: uuid(value.theme_id),
     industryChainEntityId: snapshot
-      ? nullableUUIDString(value.industry_chain_entity_id)
-      : uuid(value.industry_chain_entity_id),
+      ? nullableEntityIDString(value.industry_chain_entity_id)
+      : entityID(value.industry_chain_entity_id),
     industryChainName: text(snapshot ? value.display_name : value.industry_chain_name),
     title: text(value.title),
     displayOrder: positiveInteger(value.display_order),
@@ -220,13 +222,13 @@ function mapNode(value: RecordValue, index: number): ResearchReasoningTreeNode {
   const incomingGraphEdge =
     value.incoming_graph_edge === null ? null : mapGraphEdge(record(value.incoming_graph_edge));
   return {
-    nodeKey: snapshot ? localKey(value.node_key) : uuid(value.chain_node_entity_id),
+    nodeKey: snapshot ? localKey(value.node_key) : entityID(value.chain_node_entity_id),
     displayName: text(snapshot ? value.display_name : value.name),
     id: uuid(value.id),
     position,
     chainNodeEntityId: snapshot
-      ? nullableUUIDString(value.chain_node_entity_id)
-      : uuid(value.chain_node_entity_id),
+      ? nullableEntityIDString(value.chain_node_entity_id)
+      : entityID(value.chain_node_entity_id),
     name: text(snapshot ? value.display_name : value.name),
     stateSummary: nullableText(value.state_summary),
     impactDirection: enumValue<ResearchDirection>(value.impact_direction, directionValues),
@@ -301,8 +303,8 @@ function localKey(value: unknown): string {
   return result;
 }
 
-function nullableUUIDString(value: unknown): string | null {
-  return value === '' || value === null ? null : uuid(value);
+function nullableEntityIDString(value: unknown): string | null {
+  return value === '' || value === null ? null : entityID(value);
 }
 
 function nullableTextAllowEmpty(value: unknown): string | null {
@@ -354,6 +356,12 @@ function nullableText(value: unknown): string | null {
 function uuid(value: unknown): string {
   const parsed = text(value);
   if (!uuidPattern.test(parsed)) invalid();
+  return parsed;
+}
+
+function entityID(value: unknown): string {
+  const parsed = text(value);
+  if (!entityIDPattern.test(parsed)) invalid();
   return parsed;
 }
 

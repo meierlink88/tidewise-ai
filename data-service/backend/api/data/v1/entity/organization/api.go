@@ -38,7 +38,6 @@ type Service interface {
 }
 
 type CreateRequest struct {
-	ID                        string  `json:"id"`
 	Code                      string  `json:"code"`
 	Name                      string  `json:"name"`
 	NameEn                    string  `json:"name_en"`
@@ -122,7 +121,7 @@ type CreateMemberRequest struct {
 
 type UpdateMemberRequest struct {
 	OrganizationID string `json:"-"`
-	MemberID       int64  `json:"-"`
+	MemberID       string `json:"-"`
 	CountryID      string `json:"country_id"`
 	MembershipType string `json:"membership_type"`
 	EffectiveDate  *Date  `json:"effective_date"`
@@ -131,11 +130,11 @@ type UpdateMemberRequest struct {
 
 type DeleteMemberRequest struct {
 	OrganizationID string
-	MemberID       int64
+	MemberID       string
 }
 
 type Member struct {
-	ID             int64   `json:"id"`
+	ID             string  `json:"id"`
 	OrganizationID string  `json:"organization_id"`
 	CountryID      string  `json:"country_id"`
 	MembershipType string  `json:"membership_type"`

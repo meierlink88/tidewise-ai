@@ -1,6 +1,6 @@
 {
   "raw_evidence": {
-    "raw_evidence_id": "RAW_fixture_00000000000000000000",
+    "publication_key": "fixture-publication-1",
     "source_id": "SRC_fixture_00000000000000000000",
     "source_name": "Example Wire",
     "source_level": "L2_WIRE",
@@ -13,6 +13,6 @@
     "published_at": "2026-08-11T01:00:00Z",
     "collected_at": "2026-08-11T01:05:00Z",
     "keywords": [" AI芯片 ", "供应链", "AI芯片"],
-    "category_ids": ["EVC_006", "EVC_007"]
+    "category_ids": ["EVCed6e9380-8b20-53d5-b748-fa45c774fa67", "EVC5b12ffce-178d-56ed-a54f-c01696c486f4"]
   }
 }

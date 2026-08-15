@@ -3,7 +3,6 @@ package research
 import (
 	"bytes"
 	"context"
-	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -21,7 +20,7 @@ import (
 	entitybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
 	eventbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/event"
 	eventsemanticbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/eventsemantic"
-	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/identity"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 func canonicalPublicationHashValue(value any, label string) (string, error) {
@@ -126,48 +125,28 @@ func writePublicationCanonicalString(writer *bytes.Buffer, value string) error {
 	return nil
 }
 
-var (
-	publicationReasonTreeNamespace = [16]byte{
-		0x33, 0xf3, 0xa1, 0x72, 0x5c, 0x45, 0x55, 0x85,
-		0x8b, 0xcd, 0x19, 0x52, 0x7b, 0x34, 0x61, 0x93,
-	}
-	publicationReasonTreeNodeNamespace = [16]byte{
-		0x7e, 0x8c, 0xb1, 0x31, 0x70, 0x3b, 0x5c, 0xaf,
-		0x98, 0xaa, 0x1f, 0x4d, 0x8a, 0xa6, 0xcb, 0x1e,
-	}
-)
-
 func publicationReasonTreeID(themeID, industryChainEntityID string) string {
-	return publicationUUIDV5(publicationReasonTreeNamespace, themeID+"\x00"+industryChainEntityID)
+	return mustDeriveResearchID(coreid.ResearchReasoningTree, "research-reasoning-tree", themeID, industryChainEntityID)
 }
 
 func publicationReasonTreeNodeID(reasoningTreeID string, position int, chainNodeEntityID string) string {
-	return publicationUUIDV5(publicationReasonTreeNodeNamespace, reasoningTreeID+"\x00"+strconv.Itoa(position)+"\x00"+chainNodeEntityID)
-}
-
-func publicationUUIDV5(namespace [16]byte, name string) string {
-	hash := sha1.New()
-	_, _ = hash.Write(namespace[:])
-	_, _ = hash.Write([]byte(name))
-	identifier := hash.Sum(nil)[:16]
-	identifier[6] = (identifier[6] & 0x0f) | 0x50
-	identifier[8] = (identifier[8] & 0x3f) | 0x80
-	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
-		identifier[0:4], identifier[4:6], identifier[6:8], identifier[8:10], identifier[10:16])
-}
-
-var publicationThemeNamespace = [16]byte{
-	0x7b, 0x95, 0x0d, 0x74, 0x76, 0x8c, 0x57, 0xe0,
-	0x97, 0xb5, 0xea, 0x4f, 0x3d, 0xa1, 0xbc, 0x88,
+	return mustDeriveResearchID(coreid.ResearchReasoningTreeNode, "research-reasoning-tree-node", reasoningTreeID, strconv.Itoa(position), chainNodeEntityID)
 }
 
 func publicationThemeID(analysisBatchID, themeKey string) string {
-	return publicationUUIDV5(publicationThemeNamespace, analysisBatchID+"\x00"+themeKey)
+	return mustDeriveResearchID(coreid.ResearchTheme, "research-theme", analysisBatchID, themeKey)
+}
+
+func mustDeriveResearchID(kind coreid.Kind, namespace string, parts ...string) string {
+	value, err := coreid.Derive(kind, namespace, parts...)
+	if err != nil {
+		panic(fmt.Sprintf("derive reviewed Research ID contract: %v", err))
+	}
+	return value
 }
 
 var (
-	researchKeyPattern   = regexp.MustCompile(`^[a-z0-9][a-z0-9._:-]{0,127}$`)
-	lowercaseUUIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+	researchKeyPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._:-]{0,127}$`)
 )
 
 type ThemeBatch struct {
@@ -340,8 +319,8 @@ func (t ThemeInput) validate(path string) error {
 		if impact.DisplayOrder != index+1 {
 			return invalidTheme(t.ThemeKey, impactPath+".display_order", fmt.Sprint(impact.DisplayOrder), "must be contiguous from 1")
 		}
-		if !lowercaseUUIDPattern.MatchString(impact.ChainNodeEntityID) {
-			return invalidTheme(t.ThemeKey, impactPath+".chain_node_entity_id", impact.ChainNodeEntityID, "must be a standard lowercase UUID")
+		if !entitybiz.IsEntityID(impact.ChainNodeEntityID) {
+			return invalidTheme(t.ThemeKey, impactPath+".chain_node_entity_id", impact.ChainNodeEntityID, "must be an Entity ID")
 		}
 		if _, duplicate := seenImpacts[impact.ChainNodeEntityID]; duplicate {
 			return invalidTheme(t.ThemeKey, impactPath+".chain_node_entity_id", impact.ChainNodeEntityID, "must be unique within the ThemeInput")
@@ -359,8 +338,8 @@ func (t ThemeInput) validate(path string) error {
 	}
 	for index, event := range t.Events {
 		eventPath := fmt.Sprintf("%s.events[%d]", path, index)
-		if !lowercaseUUIDPattern.MatchString(event.EventID) {
-			return invalidTheme(t.ThemeKey, eventPath+".event_id", event.EventID, "must be a standard lowercase UUID")
+		if !coreid.Is(event.EventID, coreid.Event) {
+			return invalidTheme(t.ThemeKey, eventPath+".event_id", event.EventID, "must be an Event ID")
 		}
 		if index > 0 && event.EventID <= t.Events[index-1].EventID {
 			message := "must be sorted by event_id"
@@ -503,8 +482,8 @@ func (e *ReasonTreeValidationError) Error() string {
 }
 
 func (p ReasonTreePublication) Validate() error {
-	if !lowercaseUUIDPattern.MatchString(p.ThemeID) {
-		return invalidReasonTree("", "theme_id", p.ThemeID, "must be a standard lowercase UUID")
+	if !coreid.Is(p.ThemeID, coreid.ResearchTheme) {
+		return invalidReasonTree("", "theme_id", p.ThemeID, "must be a Research Theme ID")
 	}
 	if len(p.ReasoningTrees) == 0 {
 		return invalidReasonTree("", "reasoning_trees", "", "must contain at least one Reason Tree")
@@ -516,8 +495,8 @@ func (p ReasonTreePublication) Validate() error {
 		if tree.DisplayOrder != index+1 {
 			return invalidReasonTree(tree.IndustryChainEntityID, path+".display_order", fmt.Sprint(tree.DisplayOrder), "must be contiguous from 1")
 		}
-		if !lowercaseUUIDPattern.MatchString(tree.IndustryChainEntityID) {
-			return invalidReasonTree(tree.IndustryChainEntityID, path+".industry_chain_entity_id", tree.IndustryChainEntityID, "must be a standard lowercase UUID")
+		if !entitybiz.IsEntityID(tree.IndustryChainEntityID) {
+			return invalidReasonTree(tree.IndustryChainEntityID, path+".industry_chain_entity_id", tree.IndustryChainEntityID, "must be an Entity ID")
 		}
 		if _, duplicate := seenChains[tree.IndustryChainEntityID]; duplicate {
 			return invalidReasonTree(tree.IndustryChainEntityID, path+".industry_chain_entity_id", tree.IndustryChainEntityID, "must be unique within the Theme")
@@ -579,8 +558,8 @@ func (t ReasonTreeInput) validate(path string, snapshots map[string]ReasonTreeSi
 		if event.DisplayOrder != index+1 {
 			return invalidReasonTree(t.IndustryChainEntityID, eventPath+".display_order", fmt.Sprint(event.DisplayOrder), "must be contiguous from 1")
 		}
-		if !lowercaseUUIDPattern.MatchString(event.EventID) {
-			return invalidReasonTree(t.IndustryChainEntityID, eventPath+".event_id", event.EventID, "must be a standard lowercase UUID")
+		if !coreid.Is(event.EventID, coreid.Event) {
+			return invalidReasonTree(t.IndustryChainEntityID, eventPath+".event_id", event.EventID, "must be an Event ID")
 		}
 		if _, duplicate := seenEvents[event.EventID]; duplicate {
 			return invalidReasonTree(t.IndustryChainEntityID, eventPath+".event_id", event.EventID, "must be unique within the Tree")
@@ -599,8 +578,8 @@ func (t ReasonTreeInput) validate(path string, snapshots map[string]ReasonTreeSi
 		if node.Position != index+1 {
 			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".position", fmt.Sprint(node.Position), "must be contiguous from 1")
 		}
-		if !lowercaseUUIDPattern.MatchString(node.ChainNodeEntityID) {
-			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".chain_node_entity_id", node.ChainNodeEntityID, "must be a standard lowercase UUID")
+		if !entitybiz.IsEntityID(node.ChainNodeEntityID) {
+			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".chain_node_entity_id", node.ChainNodeEntityID, "must be an Entity ID")
 		}
 		if _, duplicate := seenNodes[node.ChainNodeEntityID]; duplicate {
 			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".chain_node_entity_id", node.ChainNodeEntityID, "must be unique within the Tree")
@@ -632,8 +611,8 @@ func (t ReasonTreeInput) validate(path string, snapshots map[string]ReasonTreeSi
 				return invalidReasonTree(t.IndustryChainEntityID, nodePath+".incoming_*", "", "must all be null for the first ReasonTreeNodeInput")
 			}
 		} else {
-			if node.IncomingIndustryChainGraphEdgeID != nil && !lowercaseUUIDPattern.MatchString(*node.IncomingIndustryChainGraphEdgeID) {
-				return invalidReasonTree(t.IndustryChainEntityID, nodePath+".incoming_industry_chain_graph_edge_id", *node.IncomingIndustryChainGraphEdgeID, "must be a standard lowercase UUID")
+			if node.IncomingIndustryChainGraphEdgeID != nil && !coreid.Is(*node.IncomingIndustryChainGraphEdgeID, coreid.IndustryChainGraphEdge) {
+				return invalidReasonTree(t.IndustryChainEntityID, nodePath+".incoming_industry_chain_graph_edge_id", *node.IncomingIndustryChainGraphEdgeID, "must be an Industry Chain Graph Edge ID")
 			}
 			for _, field := range []struct {
 				name  string
@@ -893,7 +872,7 @@ func (s *UseCase) List(ctx context.Context, request AnalysisContextRequest) (Ana
 			return AnalysisContextResult{}, &AnalysisContextValidationError{Reason: "cursor does not match the Analysis Context query"}
 		}
 		after, err := parseUTC("cursor.knowledge_available_at", decoded.KnowledgeAvailableAt)
-		if err != nil || !identity.IsUUID(decoded.EventID) {
+		if err != nil || !coreid.Is(decoded.EventID, coreid.Event) {
 			return AnalysisContextResult{}, &AnalysisContextValidationError{Reason: "cursor is invalid"}
 		}
 		query.AfterKnowledgeAvailableAt = &after
@@ -997,7 +976,7 @@ func (s *UseCase) List(ctx context.Context, request AnalysisContextRequest) (Ana
 	}
 	pageBytes := len(dictionaryPayload)
 	for _, bundle := range page.Bundles {
-		if bundle.KnowledgeAvailableAt.IsZero() || !identity.IsUUID(bundle.EventID) ||
+		if bundle.KnowledgeAvailableAt.IsZero() || !coreid.Is(bundle.EventID, coreid.Event) ||
 			bundle.Bundle.Event.ID != bundle.EventID {
 			return AnalysisContextResult{}, errors.New("research Analysis Context bundle is invalid")
 		}
@@ -1074,7 +1053,7 @@ func assembleAnalysisContextPage(
 ) (AnalysisContextStorePage, error) {
 	semantics := make(map[string]eventsemanticbiz.ResearchSemanticRecord, len(semanticRecords))
 	for _, record := range semanticRecords {
-		if !identity.IsUUID(record.EventID) {
+		if !coreid.Is(record.EventID, coreid.Event) {
 			return AnalysisContextStorePage{}, errors.New("Research semantic provider returned an invalid Event reference")
 		}
 		if _, duplicate := semantics[record.EventID]; duplicate {
@@ -1824,9 +1803,9 @@ type ResearchReasoningTreeDetail struct {
 }
 
 func (s *UseCase) ListReasoningTrees(ctx context.Context, themeID string) (ResearchReasoningTreeList, error) {
-	themeID = strings.ToLower(strings.TrimSpace(themeID))
-	if !researchUUIDPattern.MatchString(themeID) {
-		return ResearchReasoningTreeList{}, fmt.Errorf("%w: theme id must be a UUID", ErrInvalidRequest)
+	themeID = strings.TrimSpace(themeID)
+	if !coreid.Is(themeID, coreid.ResearchTheme) {
+		return ResearchReasoningTreeList{}, fmt.Errorf("%w: theme id must be a Research Theme ID", ErrInvalidRequest)
 	}
 	result, err := s.repository.ListResearchThemeReasoningTrees(ctx, themeID)
 	if err != nil {
@@ -1847,13 +1826,13 @@ func (s *UseCase) ListReasoningTrees(ctx context.Context, themeID string) (Resea
 }
 
 func (s *UseCase) GetReasoningTree(ctx context.Context, themeID, reasoningTreeID string) (ResearchReasoningTreeDetail, error) {
-	themeID = strings.ToLower(strings.TrimSpace(themeID))
-	reasoningTreeID = strings.ToLower(strings.TrimSpace(reasoningTreeID))
-	if !researchUUIDPattern.MatchString(themeID) {
-		return ResearchReasoningTreeDetail{}, fmt.Errorf("%w: theme id must be a UUID", ErrInvalidRequest)
+	themeID = strings.TrimSpace(themeID)
+	reasoningTreeID = strings.TrimSpace(reasoningTreeID)
+	if !coreid.Is(themeID, coreid.ResearchTheme) {
+		return ResearchReasoningTreeDetail{}, fmt.Errorf("%w: theme id must be a Research Theme ID", ErrInvalidRequest)
 	}
-	if !researchUUIDPattern.MatchString(reasoningTreeID) {
-		return ResearchReasoningTreeDetail{}, fmt.Errorf("%w: reasoning tree id must be a UUID", ErrInvalidRequest)
+	if !coreid.Is(reasoningTreeID, coreid.ResearchReasoningTree) {
+		return ResearchReasoningTreeDetail{}, fmt.Errorf("%w: reasoning tree id must be a Research Reasoning Tree ID", ErrInvalidRequest)
 	}
 	result, err := s.repository.GetResearchThemeReasoningTree(ctx, themeID, reasoningTreeID)
 	if err != nil {
@@ -1951,8 +1930,6 @@ var (
 	ErrRepository     = errors.New("research repository failure")
 	ErrNotFound       = errors.New("research aggregate not found")
 )
-
-var researchUUIDPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$`)
 
 type ResearchListRequest struct {
 	WindowHours   int
@@ -2113,8 +2090,8 @@ func (s *UseCase) GetTheme(ctx context.Context, id string, request ResearchDetai
 	if _, err := normalizeDetailRequest(request); err != nil {
 		return ResearchThemeDetail{}, err
 	}
-	if !researchUUIDPattern.MatchString(strings.TrimSpace(id)) {
-		return ResearchThemeDetail{}, fmt.Errorf("%w: theme id must be a UUID", ErrInvalidRequest)
+	if !coreid.Is(strings.TrimSpace(id), coreid.ResearchTheme) {
+		return ResearchThemeDetail{}, fmt.Errorf("%w: theme id must be a Research Theme ID", ErrInvalidRequest)
 	}
 	item, err := s.repository.GetResearchTheme(ctx, id)
 	if err != nil {
@@ -2399,7 +2376,7 @@ func (s *UseCase) Publish(ctx context.Context, publisher string, aggregate Aggre
 		}
 
 		treeReceipt := ReasonTreeReceipt{
-			ID:      identity.NormalizeUUID("research_reasoning_tree_import_receipt", themeID),
+			ID:      mustDeriveResearchID(coreid.ResearchReasoningTreeReceipt, "research-reasoning-tree-import-receipt", themeID),
 			ThemeID: themeID, PublisherSubject: publisher, PayloadHash: payloadHash,
 			ReasoningTreeIDsByIndustryChainEntityID: cloneMap(plan.ReasoningTreeIDsByIndustryChainEntityID),
 			Counts: ReasonTreeCounts{
@@ -2510,7 +2487,7 @@ func publicationPlan(a Aggregate, themeID, payloadHash string) Receipt {
 		}
 	}
 	return Receipt{
-		ID:              identity.NormalizeUUID("research_theme_import_receipt", a.AnalysisBatchID),
+		ID:              mustDeriveResearchID(coreid.ResearchThemeReceipt, "research-theme-import-receipt", a.AnalysisBatchID),
 		AnalysisBatchID: a.AnalysisBatchID, PayloadHash: payloadHash, ThemeID: themeID,
 		ThemeKey: a.Theme.ThemeKey, ContractVersion: 2, PublicationMode: "formal",
 		ReasoningTreeIDsByIndustryChainEntityID: treeIDs, Counts: counts,
@@ -3083,7 +3060,9 @@ func (a Aggregate) Validate() (time.Time, string, error) {
 func (l SignalLineage) validate(path string) error {
 	switch l.SourceKind {
 	case "formal_signal":
-		if !allUUID(l.VariableSignalID, l.SemanticSubmissionID, l.EvidenceID) ||
+		if !validTypedID(l.VariableSignalID, coreid.VariableSignal) ||
+			!validTypedID(l.SemanticSubmissionID, coreid.EventSemanticSubmission) ||
+			!validTypedID(l.EvidenceID, coreid.EventEvidenceLink) ||
 			l.EvidenceHash == nil || !hashPattern.MatchString(*l.EvidenceHash) {
 			return invalid(path, l.SourceKind, "formal_signal requires Signal, Submission, Evidence UUIDs and Evidence hash")
 		}
@@ -3094,8 +3073,8 @@ func (l SignalLineage) validate(path string) error {
 		if anySet(l.VariableSignalID, l.SemanticSubmissionID, l.EvidenceID, l.EvidenceHash) {
 			return invalid(path, l.SourceKind, "analyst_inference cannot claim a formal Signal or Evidence")
 		}
-		if !oneUUID(l.UpstreamVariableSignalID, l.UpstreamDirectImpactAssertionID) ||
-			!oneUUID(l.EntityRelationID, l.IndustryChainGraphEdgeID) {
+		if !oneUpstreamFact(l.UpstreamVariableSignalID, l.UpstreamDirectImpactAssertionID) ||
+			!oneFormalRelation(l.EntityRelationID, l.IndustryChainGraphEdgeID) {
 			return invalid(path, l.SourceKind, "analyst_inference requires one formal upstream fact and one formal relation")
 		}
 	default:
@@ -3107,7 +3086,9 @@ func (l SignalLineage) validate(path string) error {
 func (l IncomingLineage) validate(path string, graphEdgeID *string) error {
 	switch l.SourceKind {
 	case "formal_direct_impact":
-		if !allUUID(l.DirectImpactAssertionID, l.SemanticSubmissionID, l.EvidenceID) ||
+		if !validTypedID(l.DirectImpactAssertionID, coreid.DirectImpactAssertion) ||
+			!validTypedID(l.SemanticSubmissionID, coreid.EventSemanticSubmission) ||
+			!validTypedID(l.EvidenceID, coreid.EventEvidenceLink) ||
 			l.EvidenceHash == nil || !hashPattern.MatchString(*l.EvidenceHash) ||
 			l.AffectedVariableKey == nil || *l.AffectedVariableKey == "" ||
 			l.AffectedDirection == nil || *l.AffectedDirection == "" {
@@ -3120,8 +3101,8 @@ func (l IncomingLineage) validate(path string, graphEdgeID *string) error {
 		if anySet(l.DirectImpactAssertionID, l.SemanticSubmissionID, l.EvidenceID, l.EvidenceHash, l.AffectedVariableKey, l.AffectedDirection) {
 			return invalid(path, l.SourceKind, "analyst_inference cannot claim a formal Direct Impact")
 		}
-		if !oneUUID(l.UpstreamVariableSignalID, l.UpstreamDirectImpactAssertionID) ||
-			!(validUUID(l.EntityRelationID) || validUUID(graphEdgeID)) {
+		if !oneUpstreamFact(l.UpstreamVariableSignalID, l.UpstreamDirectImpactAssertionID) ||
+			!oneFormalRelation(l.EntityRelationID, graphEdgeID) {
 			return invalid(path, l.SourceKind, "analyst_inference requires one formal upstream fact and one formal incoming relation")
 		}
 	default:
@@ -3130,27 +3111,36 @@ func (l IncomingLineage) validate(path string, graphEdgeID *string) error {
 	return nil
 }
 
-func allUUID(values ...*string) bool {
-	for _, value := range values {
-		if !validUUID(value) {
-			return false
-		}
-	}
-	return true
-}
-
-func oneUUID(values ...*string) bool {
+func oneFormalRelation(entityRelationID, industryChainGraphEdgeID *string) bool {
 	count := 0
-	for _, value := range values {
-		if validUUID(value) {
-			count++
-		}
+	if entityRelationID != nil && entitybiz.IsEntityRelationID(*entityRelationID) {
+		count++
+	}
+	if validTypedID(industryChainGraphEdgeID, coreid.IndustryChainGraphEdge) {
+		count++
 	}
 	return count == 1
 }
 
-func validUUID(value *string) bool {
-	return value != nil && lowercaseUUIDPattern.MatchString(*value)
+func oneUpstreamFact(variableSignalID, directImpactID *string) bool {
+	return boolCount(
+		validTypedID(variableSignalID, coreid.VariableSignal),
+		validTypedID(directImpactID, coreid.DirectImpactAssertion),
+	) == 1
+}
+
+func validTypedID(value *string, kind coreid.Kind) bool {
+	return value != nil && coreid.Is(*value, kind)
+}
+
+func boolCount(values ...bool) int {
+	count := 0
+	for _, value := range values {
+		if value {
+			count++
+		}
+	}
+	return count
 }
 
 func anySet(values ...*string) bool {
@@ -3264,7 +3254,7 @@ func (s *UseCase) PublishSnapshot(ctx context.Context, publisher string, aggrega
 		}
 
 		treeReceipt := SnapshotTreeReceipt{
-			ID:      identity.NormalizeUUID("research_reasoning_tree_import_receipt", themeID),
+			ID:      mustDeriveResearchID(coreid.ResearchReasoningTreeReceipt, "research-reasoning-tree-import-receipt", themeID),
 			ThemeID: themeID, PublisherSubject: publisher, PayloadHash: payloadHash,
 			ReasoningTreeIDsByTreeKey: cloneMap(plan.ReasoningTreeIDsByTreeKey),
 			Counts: ReasonTreeCounts{
@@ -3354,7 +3344,7 @@ func snapshotPublicationPlan(a SnapshotAggregate, themeID, payloadHash string) R
 		}
 	}
 	return Receipt{
-		ID:              identity.NormalizeUUID("research_theme_import_receipt", a.AnalysisBatchID),
+		ID:              mustDeriveResearchID(coreid.ResearchThemeReceipt, "research-theme-import-receipt", a.AnalysisBatchID),
 		AnalysisBatchID: a.AnalysisBatchID, PayloadHash: payloadHash, ThemeID: themeID,
 		ThemeKey: a.Theme.ThemeKey, ContractVersion: 3, PublicationMode: SnapshotPublicationMode,
 		ReasoningTreeIDsByIndustryChainEntityID: map[string]string{},
@@ -3833,15 +3823,15 @@ func validateSnapshotSignals(nodePath string, signals []SnapshotSignal) error {
 }
 
 func validateSnapshotEvent(path, eventID string, evidenceIDs []string, role string) error {
-	if !lowercaseUUIDPattern.MatchString(eventID) {
-		return invalid(path+".event_id", eventID, "must be a standard lowercase UUID")
+	if !coreid.Is(eventID, coreid.Event) {
+		return invalid(path+".event_id", eventID, "must be an Event ID")
 	}
 	if !isAllowedValue(role, "driver", "supporting", "contradicting", "context") {
 		return invalid(path+".evidence_role", role, "has an unsupported value")
 	}
 	for index, evidenceID := range evidenceIDs {
-		if !lowercaseUUIDPattern.MatchString(evidenceID) {
-			return invalid(fmt.Sprintf("%s.evidence_ids[%d]", path, index), evidenceID, "must be a standard lowercase UUID")
+		if !coreid.Is(evidenceID, coreid.EventEvidenceLink) {
+			return invalid(fmt.Sprintf("%s.evidence_ids[%d]", path, index), evidenceID, "must be an Event Evidence Link ID")
 		}
 		if index > 0 && evidenceID <= evidenceIDs[index-1] {
 			return invalid(fmt.Sprintf("%s.evidence_ids[%d]", path, index), evidenceID, "must be unique and sorted")
@@ -3851,11 +3841,11 @@ func validateSnapshotEvent(path, eventID string, evidenceIDs []string, role stri
 }
 
 func SnapshotTreeID(themeID, treeKey string) string {
-	return identity.NormalizeUUID("research_reasoning_tree_snapshot", themeID, treeKey)
+	return mustDeriveResearchID(coreid.ResearchReasoningTree, "research-reasoning-tree-snapshot", themeID, treeKey)
 }
 
 func SnapshotNodeID(treeID, nodeKey string) string {
-	return identity.NormalizeUUID("research_reasoning_tree_node_snapshot", treeID, nodeKey)
+	return mustDeriveResearchID(coreid.ResearchReasoningTreeNode, "research-reasoning-tree-node-snapshot", treeID, nodeKey)
 }
 
 func CanonicalSnapshotHash(value SnapshotAggregate) (string, error) {
@@ -4081,7 +4071,7 @@ func validateGraphSearchRequest(request GraphSearchRequest) (GraphQuery, normali
 	}
 	seedSet := map[string]struct{}{}
 	for _, id := range request.SeedEntityIDs {
-		if !identity.IsUUID(id) && !entitybiz.IsCountryID(id) && !entitybiz.IsOrganizationID(id) {
+		if !entitybiz.IsEntityID(id) && !entitybiz.IsCountryID(id) && !entitybiz.IsRegionID(id) && !entitybiz.IsOrganizationID(id) {
 			return GraphQuery{}, normalizedGraphSearchRequest{}, &GraphValidationError{Reason: "seed_entity_ids contains an invalid Object ID"}
 		}
 		if _, exists := seedSet[id]; exists {
@@ -4134,9 +4124,9 @@ func validateGraphSearchRequest(request GraphSearchRequest) (GraphQuery, normali
 		}
 	}
 	if request.IndustryChainEntityID != nil &&
-		!identity.IsUUID(*request.IndustryChainEntityID) {
+		!entitybiz.IsEntityID(*request.IndustryChainEntityID) {
 		return GraphQuery{}, normalizedGraphSearchRequest{}, &GraphValidationError{
-			Reason: "industry_chain_entity_id must be a UUID",
+			Reason: "industry_chain_entity_id must be an Entity ID",
 		}
 	}
 	asOf = asOf.UTC()

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	eventbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/eventsemantic"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 func (r Store) InTransaction(
@@ -75,7 +76,7 @@ FOR UPDATE
 			expiredRows.Close()
 			return eventbiz.ContextLeaseTransactionState{}, err
 		}
-		if !validPersistedUUID(id) {
+		if !coreid.Is(id, coreid.EventSemanticContextLease) {
 			expiredRows.Close()
 			return eventbiz.ContextLeaseTransactionState{}, invalidPersistedEventSemantic("expired Context Lease reference")
 		}
@@ -170,7 +171,7 @@ FOR UPDATE
 		return eventbiz.ContextLeaseTransactionState{}, invalidPersistedEventSemantic("active Context Lease set")
 	}
 	if len(activeLeaseIDs) == 1 {
-		if !validPersistedUUID(activeLeaseIDs[0]) {
+		if !coreid.Is(activeLeaseIDs[0], coreid.EventSemanticContextLease) {
 			return eventbiz.ContextLeaseTransactionState{}, invalidPersistedEventSemantic("active Context Lease reference")
 		}
 		state.ActiveLeaseID = activeLeaseIDs[0]
@@ -193,7 +194,7 @@ FOR UPDATE
 			submissionRows.Close()
 			return eventbiz.ContextLeaseTransactionState{}, err
 		}
-		if !validPersistedUUID(id) || !validPersistedReviewStatus(status) {
+		if !coreid.Is(id, coreid.EventSemanticSubmission) || !validPersistedReviewStatus(status) {
 			submissionRows.Close()
 			return eventbiz.ContextLeaseTransactionState{}, invalidPersistedEventSemantic("Event Submission reference")
 		}
@@ -226,7 +227,7 @@ func (t *transaction) SaveContextLease(
 		result, err := t.tx.ExecContext(ctx, `
 UPDATE event_semantic_context_leases
 SET status = 'expired'
-WHERE id = ANY($1::uuid[]) AND status = 'active' AND lease_expires_at <= $2
+WHERE id = ANY($1::text[]) AND status = 'active' AND lease_expires_at <= $2
 `, write.ExpireLeaseIDs, write.TransitionedAt)
 		if err != nil {
 			return err
@@ -296,7 +297,7 @@ WHERE status = 'active'
 INSERT INTO event_semantic_context_leases(
     id, event_id, supersedes_submission_id, agent_execution_id, worker_id,
     status, lease_expires_at, context_snapshot, context_manifest, leased_at
-) VALUES ($1, $2, NULLIF($3, '')::uuid, $4, $5, $6, $7, NULL, $8, $9)
+) VALUES ($1, $2, NULLIF($3, ''), $4, $5, $6, $7, NULL, $8, $9)
 `, write.Lease.ID, write.Lease.EventID, write.Lease.SupersedesSubmissionID,
 		write.AgentExecutionID, write.WorkerID, write.Lease.Status,
 		write.Lease.LeaseExpiresAt, payload, write.TransitionedAt)
@@ -443,7 +444,7 @@ INSERT INTO event_semantic_candidate_snapshots(
 		return err
 	}
 	if err := insertReviewableSemanticCandidates(
-		ctx, t.tx, write.SubmissionID, write.Submission, write.Precheck,
+		ctx, t.tx, write.SubmissionID, write.Submission, write.Precheck, write.CandidateIDs,
 	); err != nil {
 		return err
 	}

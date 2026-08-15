@@ -34,10 +34,10 @@ func TestEvidencePublicationProviderFixturesAreContractNeutralAndTwoPhase(t *tes
 	if err != nil {
 		t.Fatalf("decode Evidence fixture: %v", err)
 	}
-	if rawRequest.RawEvidence.RawEvidenceID != evidenceRequest.RawEvidenceID {
-		t.Fatalf("fixture parent identity mismatch: %q != %q", rawRequest.RawEvidence.RawEvidenceID, evidenceRequest.RawEvidenceID)
+	if rawRequest.RawEvidence.PublicationKey == "" || !strings.HasPrefix(evidenceRequest.RawEvidenceID, "RAW") {
+		t.Fatalf("fixture identities = publication key %q, Raw Evidence %q", rawRequest.RawEvidence.PublicationKey, evidenceRequest.RawEvidenceID)
 	}
-	if len(rawRequest.RawEvidence.CategoryIDs) != 2 || rawRequest.RawEvidence.CategoryIDs[0] != "EVC_006" || rawRequest.RawEvidence.CategoryIDs[1] != "EVC_007" {
+	if len(rawRequest.RawEvidence.CategoryIDs) != 2 || rawRequest.RawEvidence.CategoryIDs[0] != "EVCed6e9380-8b20-53d5-b748-fa45c774fa67" || rawRequest.RawEvidence.CategoryIDs[1] != "EVC5b12ffce-178d-56ed-a54f-c01696c486f4" {
 		t.Fatalf("fixture Raw Evidence categories = %#v", rawRequest.RawEvidence.CategoryIDs)
 	}
 	if len(evidenceRequest.Evidences) != 2 ||

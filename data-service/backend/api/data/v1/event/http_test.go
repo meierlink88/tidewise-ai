@@ -239,7 +239,7 @@ func TestPostgresEventPublicationResponseLossReplayReusesFactsAndPreservesLineag
 	      ],
 	      "tags": [
 	        {
-	          "tag_id": "22a5afc5-20ed-55ce-bf77-54c26bbcc6ea",
+	          "tag_id": "ETD22a5afc5-20ed-55ce-bf77-54c26bbcc6ea",
 	          "tag_kind": "news_category",
 	          "tag_code": "technology_industry",
 	          "confidence": 0.94,

@@ -20,8 +20,8 @@ type UseCase interface {
 	Catalog(context.Context) (organizationbiz.Catalog, error)
 	ListMembers(context.Context, string, *time.Time) ([]organizationbiz.Member, error)
 	CreateMember(context.Context, organizationbiz.Member) (organizationbiz.Member, error)
-	UpdateMember(context.Context, string, int64, organizationbiz.Member) (organizationbiz.Member, error)
-	DeleteMember(context.Context, string, int64) error
+	UpdateMember(context.Context, string, string, organizationbiz.Member) (organizationbiz.Member, error)
+	DeleteMember(context.Context, string, string) error
 }
 
 type Service struct{ useCase UseCase }
@@ -39,7 +39,7 @@ func (s *Service) Create(ctx context.Context, request *organizationapi.CreateReq
 		establishedDate = &request.EstablishedDate.Time
 	}
 	result, err := s.useCase.Create(ctx, organizationbiz.Organization{
-		ID: request.ID, Code: request.Code, Name: request.Name, NameEn: request.NameEn,
+		Code: request.Code, Name: request.Name, NameEn: request.NameEn,
 		RegionID: request.RegionID, Category: organizationbiz.CatalogTerm{Code: request.CategoryCode},
 		Function: organizationbiz.CatalogTerm{Code: request.FunctionCode}, LegalEntityCode: request.LegalEntityCode,
 		DominantPartyID: request.DominantPartyID, BindingPowerLevel: request.BindingPowerLevel,

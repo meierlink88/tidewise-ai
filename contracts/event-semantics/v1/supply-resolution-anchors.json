@@ -4,7 +4,7 @@
     "anchors": [
       {
         "entity": {
-          "entity_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "entity_id": "ENTaaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
           "entity_type": "industry",
           "name": "Fixture Industry",
           "canonical_name": "Fixture Industry",

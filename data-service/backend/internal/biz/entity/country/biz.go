@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	entitybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 var (
@@ -80,9 +81,17 @@ func NewUseCase(store Store) (*UseCase, error) {
 }
 
 func (s *UseCase) Create(ctx context.Context, input Country) (Country, error) {
+	if strings.TrimSpace(input.ID) != "" {
+		return Country{}, &ValidationError{Field: "id", Message: "must be omitted because Data generates Country IDs"}
+	}
 	if err := validateCountry(input); err != nil {
 		return Country{}, err
 	}
+	id, err := coreid.New(coreid.Country)
+	if err != nil {
+		return Country{}, fmt.Errorf("generate Country ID: %w", err)
+	}
+	input.ID = id
 	return s.store.Create(ctx, cloneCountry(input))
 }
 
@@ -124,19 +133,24 @@ func (s *UseCase) ReplaceRegions(ctx context.Context, id string, regionIDs []str
 		}
 		seen[regionID] = struct{}{}
 	}
-	return s.store.ReplaceRegions(ctx, id, append([]string(nil), regionIDs...))
+	links := make([]RegionLink, 0, len(regionIDs))
+	for _, regionID := range regionIDs {
+		linkID, err := coreid.Derive(coreid.CountryRegionLink, "country-region-link", id, regionID)
+		if err != nil {
+			return Country{}, fmt.Errorf("generate Country Region Link ID: %w", err)
+		}
+		links = append(links, RegionLink{ID: linkID, RegionID: regionID})
+	}
+	return s.store.ReplaceRegions(ctx, id, links)
 }
 
 func validateCountry(input Country) error {
-	if err := validateID(input.ID); err != nil {
-		return err
-	}
-	if len(input.Code) != 3 || input.ID != entitybiz.CountryIDPrefix+input.Code {
-		return &ValidationError{Field: "code", Message: "must be uppercase ISO alpha-3 and match id"}
+	if len(input.Code) != 2 {
+		return &ValidationError{Field: "code", Message: "must be uppercase ISO 3166-1 alpha-2"}
 	}
 	for _, character := range input.Code {
 		if character < 'A' || character > 'Z' {
-			return &ValidationError{Field: "code", Message: "must be uppercase ISO alpha-3 and match id"}
+			return &ValidationError{Field: "code", Message: "must be uppercase ISO 3166-1 alpha-2"}
 		}
 	}
 	return validateNamesAndOptional(input.Name, input.NameEn, input.StrategicPositioning, input.KeyResources)
@@ -144,7 +158,7 @@ func validateCountry(input Country) error {
 
 func validateID(id string) error {
 	if !entitybiz.IsCountryID(id) {
-		return &ValidationError{Field: "country_id", Message: "must equal " + entitybiz.CountryIDPrefix + " plus an uppercase ISO alpha-3 code"}
+		return &ValidationError{Field: "country_id", Message: "must equal " + coreid.Prefix(entitybiz.CountryIDPrefix) + " immediately followed by a canonical lowercase UUID"}
 	}
 	return nil
 }
@@ -168,16 +182,7 @@ func validateNamesAndOptional(name, nameEn string, strategicPositioning, keyReso
 }
 
 func validRegionID(id string) bool {
-	if !strings.HasPrefix(id, "REG_") || len(id) > 32 || len(id) == 4 {
-		return false
-	}
-	for _, character := range id[4:] {
-		if (character >= 'A' && character <= 'Z') || (character >= '0' && character <= '9') || character == '_' {
-			continue
-		}
-		return false
-	}
-	return true
+	return entitybiz.IsRegionID(id)
 }
 
 func cloneCountry(input Country) Country {

@@ -8,7 +8,6 @@
   "replace_mode": "region-domain",
   "regions": [
     {
-      "id": "REG_M49_015",
       "code": "M49_015",
       "m49_code": "015",
       "name": "北非",
@@ -16,7 +15,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_014",
       "code": "M49_014",
       "m49_code": "014",
       "name": "东非",
@@ -24,7 +22,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_017",
       "code": "M49_017",
       "m49_code": "017",
       "name": "中非",
@@ -32,7 +29,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_018",
       "code": "M49_018",
       "m49_code": "018",
       "name": "南部非洲",
@@ -40,7 +36,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_011",
       "code": "M49_011",
       "m49_code": "011",
       "name": "西非",
@@ -48,7 +43,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_021",
       "code": "M49_021",
       "m49_code": "021",
       "name": "北美",
@@ -56,7 +50,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_013",
       "code": "M49_013",
       "m49_code": "013",
       "name": "中美洲",
@@ -64,7 +57,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_029",
       "code": "M49_029",
       "m49_code": "029",
       "name": "加勒比",
@@ -72,7 +64,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_005",
       "code": "M49_005",
       "m49_code": "005",
       "name": "南美洲",
@@ -80,7 +71,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_143",
       "code": "M49_143",
       "m49_code": "143",
       "name": "中亚",
@@ -88,7 +78,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_030",
       "code": "M49_030",
       "m49_code": "030",
       "name": "东亚",
@@ -96,7 +85,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_035",
       "code": "M49_035",
       "m49_code": "035",
       "name": "东南亚",
@@ -104,7 +92,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_034",
       "code": "M49_034",
       "m49_code": "034",
       "name": "南亚",
@@ -112,7 +99,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_145",
       "code": "M49_145",
       "m49_code": "145",
       "name": "西亚",
@@ -120,7 +106,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_151",
       "code": "M49_151",
       "m49_code": "151",
       "name": "东欧",
@@ -128,7 +113,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_154",
       "code": "M49_154",
       "m49_code": "154",
       "name": "北欧",
@@ -136,7 +120,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_039",
       "code": "M49_039",
       "m49_code": "039",
       "name": "南欧",
@@ -144,7 +127,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_155",
       "code": "M49_155",
       "m49_code": "155",
       "name": "西欧",
@@ -152,7 +134,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_053",
       "code": "M49_053",
       "m49_code": "053",
       "name": "澳大利亚和新西兰",
@@ -160,7 +141,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_054",
       "code": "M49_054",
       "m49_code": "054",
       "name": "美拉尼西亚",
@@ -168,7 +148,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_057",
       "code": "M49_057",
       "m49_code": "057",
       "name": "密克罗尼西亚",
@@ -176,7 +155,6 @@
       "region_type": "GEOGRAPHIC"
     },
     {
-      "id": "REG_M49_061",
       "code": "M49_061",
       "m49_code": "061",
       "name": "波利尼西亚",

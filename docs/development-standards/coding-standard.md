@@ -63,6 +63,11 @@
 ### Data And Transactions
 
 - Biz 定义 Port 和业务原子性，Data Adapter 拥有 SQL、driver、row 和 transaction 实现；
+- 普通业务写入的独立主键由 owning Biz 通过统一 ID 生成器创建；请求 wire 不得包含主键，
+  Service、Data Adapter 和数据库不得生成或改写，Data 只持久化 Biz command；
+- 受控初始化/目录发布也只能调用同一生成器后写入，初始化数据包不携带主键；
+- 独立业务、关系和回执主键统一使用“对象缩写前缀 + canonical lowercase UUID”，禁止
+  裸 UUID、数据库序列和自增长 ID；自然码目录与纯复合关联键不强制增加人工主键；
 - `sql.Tx`、pgx transaction 或数据库错误不得泄漏到 Biz/API；
 - 多步写入的 transaction 边界必须与业务原子性一致；
 - 查询必须定义稳定排序、分页、null 和时间语义；

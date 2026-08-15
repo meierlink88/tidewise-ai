@@ -41,7 +41,7 @@ func Publication(suffix string) eventbiz.PublicationBatch {
 				SourceLevel:       "primary",
 			}},
 			Tags: []eventbiz.EventTagInput{{
-				TagID:   "22a5afc5-20ed-55ce-bf77-54c26bbcc6ea",
+				TagID:   "ETD22a5afc5-20ed-55ce-bf77-54c26bbcc6ea",
 				TagKind: "news_category", TagCode: "technology_industry",
 				Confidence: json.Number("0.94"), AssignmentReason: "Technology event",
 				AssignSource: "ai",

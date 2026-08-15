@@ -15,7 +15,7 @@ import (
 	"time"
 
 	eventbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/event"
-	bizidentity "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/identity"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 type Store struct{ db *sql.DB }
@@ -64,10 +64,10 @@ WHERE event.event_status = 'confirmed'
   AND COALESCE(event.knowable_at, event.first_seen_at) >= $1
   AND COALESCE(event.knowable_at, event.first_seen_at) < $2
   AND COALESCE(event.knowable_at, event.first_seen_at) <= $3
-  AND ($4::timestamptz IS NULL OR (COALESCE(event.knowable_at, event.first_seen_at), event.id) > ($4::timestamptz, $5::uuid))
+  AND ($4::timestamptz IS NULL OR (COALESCE(event.knowable_at, event.first_seen_at), event.id) > ($4::timestamptz, $5::text))
 ORDER BY COALESCE(event.knowable_at, event.first_seen_at), event.id
 LIMIT $6`, query.DiscoveryWindowStart, query.DiscoveryWindowEnd, query.AnalysisAsOf,
-		query.AfterKnowledgeAvailableAt, nullResearchEventUUID(query.AfterEventID), query.PageSize+1)
+		query.AfterKnowledgeAvailableAt, nullResearchEventID(query.AfterEventID), query.PageSize+1)
 	if err != nil {
 		return eventbiz.ResearchEventPage{}, fmt.Errorf("query Research Events: %w", err)
 	}
@@ -113,7 +113,7 @@ func strictDecodeResearchEvent(payload []byte, target any) error {
 }
 
 func validateResearchEventRecord(record eventbiz.ResearchEventRecord) error {
-	if !bizidentity.IsUUID(record.Event.ID) || strings.TrimSpace(record.Event.Title) == "" || strings.TrimSpace(record.Event.Summary) == "" ||
+	if !coreid.Is(record.Event.ID, coreid.Event) || strings.TrimSpace(record.Event.Title) == "" || strings.TrimSpace(record.Event.Summary) == "" ||
 		record.Event.FirstSeenAt.IsZero() || record.Event.KnowledgeAvailableAt.IsZero() ||
 		record.KnowledgeAvailableAt.IsZero() || !record.Event.KnowledgeAvailableAt.Equal(record.KnowledgeAvailableAt) ||
 		record.Event.EventStatus != string(eventbiz.EventStatusConfirmed) ||
@@ -129,7 +129,7 @@ func validateResearchEventRecord(record eventbiz.ResearchEventRecord) error {
 			SupportsFields: evidence.SupportsFields,
 		}
 		if err := validateStoredEvidenceLink(stored, record.Event.ID, evidence.RawDocumentID); err != nil ||
-			!bizidentity.IsUUID(evidence.RawDocumentID) || strings.TrimSpace(evidence.SourceName) == "" ||
+			!coreid.Is(evidence.RawDocumentID, coreid.EventEvidenceRecord) || strings.TrimSpace(evidence.SourceName) == "" ||
 			strings.TrimSpace(evidence.SourceType) == "" || strings.TrimSpace(evidence.Title) == "" ||
 			evidence.FirstSeenAt.IsZero() || evidence.KnowledgeAvailableAt.IsZero() || evidence.AcceptedAt.IsZero() ||
 			evidence.KnowledgeAvailableAt.Before(record.KnowledgeAvailableAt) {
@@ -143,7 +143,7 @@ func validateResearchEventRecord(record eventbiz.ResearchEventRecord) error {
 	return nil
 }
 
-func nullResearchEventUUID(value string) any {
+func nullResearchEventID(value string) any {
 	if value == "" {
 		return nil
 	}
@@ -267,7 +267,7 @@ func scanEvent(scanner rowScanner) (eventbiz.EventListItem, error) {
 }
 
 func validateStoredEvent(item eventbiz.EventListItem) error {
-	if strings.TrimSpace(item.ID) == "" || strings.TrimSpace(item.Title) == "" ||
+	if !coreid.Is(item.ID, coreid.Event) || strings.TrimSpace(item.Title) == "" ||
 		strings.TrimSpace(item.DedupeKey) == "" || item.FirstSeenAt.IsZero() {
 		return errors.New("required identity, title, dedupe key or first-seen time is missing")
 	}
@@ -285,7 +285,7 @@ func validateStoredEvent(item eventbiz.EventListItem) error {
 }
 
 func validateStoredEventTag(tag eventbiz.EventTag, requireActive bool) error {
-	if strings.TrimSpace(tag.ID) == "" || strings.TrimSpace(tag.Code) == "" || strings.TrimSpace(tag.Name) == "" {
+	if !coreid.Is(tag.ID, coreid.EventTagDefinition) || strings.TrimSpace(tag.Code) == "" || strings.TrimSpace(tag.Name) == "" {
 		return errors.New("required Event Tag field is missing")
 	}
 	if tag.Kind != eventbiz.EventTagKindNewsCategory && tag.Kind != eventbiz.EventTagKindIndexCategory {
@@ -298,7 +298,7 @@ func validateStoredEventTag(tag eventbiz.EventTag, requireActive bool) error {
 }
 
 func validateStoredEvidenceRecord(record eventbiz.StoredEventEvidenceRecord, artifactID string) error {
-	if record.ArtifactID != artifactID || strings.TrimSpace(record.ID) == "" ||
+	if record.ArtifactID != artifactID || !coreid.Is(record.ID, coreid.EventEvidenceRecord) ||
 		!validSHA256(record.ContentSHA256) || strings.TrimSpace(record.SourceRef) == "" ||
 		strings.TrimSpace(record.SourceName) == "" || strings.TrimSpace(record.SourceType) == "" ||
 		strings.TrimSpace(record.Title) == "" || record.CollectedAt.IsZero() {
@@ -308,7 +308,7 @@ func validateStoredEvidenceRecord(record eventbiz.StoredEventEvidenceRecord, art
 }
 
 func validateStoredPublicationEvent(record eventbiz.StoredEvent, dedupeKey string) error {
-	if record.DedupeKey != dedupeKey || strings.TrimSpace(record.ID) == "" || strings.TrimSpace(record.Title) == "" ||
+	if record.DedupeKey != dedupeKey || !coreid.Is(record.ID, coreid.Event) || strings.TrimSpace(record.Title) == "" ||
 		strings.TrimSpace(record.FactualSummary) == "" || record.FirstSeenAt.IsZero() || record.KnowableAt.IsZero() {
 		return errors.New("Event violates persisted publication invariants")
 	}
@@ -322,7 +322,9 @@ func validateStoredPublicationEvent(record eventbiz.StoredEvent, dedupeKey strin
 }
 
 func validateStoredEvidenceLink(record eventbiz.StoredEventEvidenceLink, eventID, rawDocumentID string) error {
-	if record.EventID != eventID || record.RawDocumentID != rawDocumentID || strings.TrimSpace(record.ID) == "" ||
+	if record.EventID != eventID || record.RawDocumentID != rawDocumentID ||
+		!coreid.Is(record.ID, coreid.EventEvidenceLink) || !coreid.Is(eventID, coreid.Event) ||
+		!coreid.Is(rawDocumentID, coreid.EventEvidenceRecord) ||
 		strings.TrimSpace(record.SourceLevel) == "" || strings.TrimSpace(record.EvidenceStatement) == "" ||
 		!validSHA256(record.EvidenceHash) {
 		return errors.New("Event Evidence Link violates persisted invariants")
@@ -358,7 +360,8 @@ func validateStoredEvidenceLink(record eventbiz.StoredEventEvidenceLink, eventID
 }
 
 func validateStoredTagAssignment(record eventbiz.StoredEventTagAssignment, eventID, tagID string) error {
-	if record.EventID != eventID || record.TagID != tagID || strings.TrimSpace(record.ID) == "" ||
+	if record.EventID != eventID || record.TagID != tagID ||
+		!coreid.Is(record.ID, coreid.EventTagAssignment) ||
 		strings.TrimSpace(record.AssignSource) == "" || strings.TrimSpace(record.Confidence) == "" ||
 		strings.TrimSpace(record.AssignmentReason) == "" || record.ReviewStatus != eventbiz.ReviewStatusApproved {
 		return errors.New("Event Tag Assignment violates persisted invariants")

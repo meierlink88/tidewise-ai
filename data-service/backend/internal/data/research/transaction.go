@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"strings"
 
-	bizidentity "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/identity"
+	entitybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
 	researchbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/research"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 func (r Store) InResearchPublicationTransaction(
@@ -86,7 +87,7 @@ func validatePersistedResearchReceipt(receipt researchbiz.Receipt) error {
 	invalid := func(reason string) error {
 		return fmt.Errorf("persisted Research publication Receipt %q violates invariants: %s", receipt.ID, reason)
 	}
-	if !bizidentity.IsUUID(receipt.ID) || !bizidentity.IsUUID(receipt.ThemeID) ||
+	if !coreid.Is(receipt.ID, coreid.ResearchThemeReceipt) || !coreid.Is(receipt.ThemeID, coreid.ResearchTheme) ||
 		strings.TrimSpace(receipt.AnalysisBatchID) == "" || strings.TrimSpace(receipt.PublisherSubject) == "" ||
 		!researchHashPattern.MatchString(receipt.PayloadHash) || !researchKeyPattern.MatchString(receipt.ThemeKey) {
 		return invalid("required identity is malformed")
@@ -118,13 +119,13 @@ func validatePersistedResearchReceipt(receipt researchbiz.Receipt) error {
 		return invalid("Reason Tree identity count does not match write counts")
 	}
 	for key, id := range identities {
-		if key == "" || !bizidentity.IsUUID(id) {
+		if key == "" || !coreid.Is(id, coreid.ResearchReasoningTree) {
 			return invalid("a Reason Tree identity is malformed")
 		}
 		if receipt.PublicationMode == researchbiz.SnapshotPublicationMode && !researchKeyPattern.MatchString(key) {
 			return invalid("a snapshot Reason Tree key is malformed")
 		}
-		if receipt.PublicationMode == "formal" && !bizidentity.IsUUID(key) {
+		if receipt.PublicationMode == "formal" && !entitybiz.IsEntityID(key) {
 			return invalid("a formal Industry Chain identity is malformed")
 		}
 	}
@@ -141,7 +142,7 @@ func (t *publicationTransaction) ReferenceFacts(
        node.created_at, node.updated_at
 FROM chain_node_profiles profile
 JOIN entity_nodes node ON node.id = profile.entity_id
-WHERE profile.entity_id = ANY($1::uuid[])
+WHERE profile.entity_id = ANY($1::text[])
   AND node.status = 'active'
   AND profile.review_status = 'approved'`, query.ChainNodeIDs)
 	if err != nil {
@@ -156,7 +157,7 @@ WHERE profile.entity_id = ANY($1::uuid[])
        GREATEST(node.updated_at, definition.updated_at)
 FROM industry_chain_definitions definition
 JOIN entity_nodes node ON node.id = definition.entity_id
-WHERE definition.entity_id = ANY($1::uuid[])
+WHERE definition.entity_id = ANY($1::text[])
   AND definition.review_status = 'approved'
   AND node.status = 'active'`, query.IndustryChainIDs)
 	if err != nil {
@@ -217,12 +218,12 @@ func (t *publicationTransaction) events(
 	statement := `SELECT id::text,
        COALESCE(knowable_at, first_seen_at)
 FROM events
-WHERE id = ANY($1::uuid[])
+WHERE id = ANY($1::text[])
   AND event_status = 'confirmed'
 	  AND fact_status = 'verified'`
 	if existenceOnly {
 		statement = `SELECT id::text, COALESCE(knowable_at, first_seen_at)
-FROM events WHERE id = ANY($1::uuid[])`
+FROM events WHERE id = ANY($1::text[])`
 	}
 	rows, err := t.tx.QueryContext(ctx, statement, ids)
 	if err != nil {
@@ -251,7 +252,7 @@ func (t *publicationTransaction) entityRelations(
 FROM entity_edges edge
 JOIN entity_nodes source ON source.id = edge.from_entity_id AND source.status = 'active'
 JOIN entity_nodes target ON target.id = edge.to_entity_id AND target.status = 'active'
-WHERE edge.id = ANY($1::uuid[]) AND edge.status = 'active'`, ids)
+WHERE edge.id = ANY($1::text[]) AND edge.status = 'active'`, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -281,7 +282,7 @@ func (t *publicationTransaction) memberships(
 FROM industry_chain_node_memberships membership
 JOIN entity_nodes node ON node.id = membership.chain_node_entity_id
 JOIN chain_node_profiles profile ON profile.entity_id = membership.chain_node_entity_id
-WHERE membership.industry_chain_entity_id = ANY($1::uuid[])
+WHERE membership.industry_chain_entity_id = ANY($1::text[])
   AND membership.status = 'active' AND membership.review_status = 'approved'
   AND node.status = 'active' AND profile.review_status = 'approved'`, chainIDs)
 	if err != nil {
@@ -311,7 +312,7 @@ func (t *publicationTransaction) graphEdges(
        from_chain_node_entity_id::text, to_chain_node_entity_id::text,
        created_at, updated_at
 FROM industry_chain_graph_edges
-WHERE id = ANY($1::uuid[]) AND status = 'active' AND review_status = 'approved'`, ids)
+WHERE id = ANY($1::text[]) AND status = 'active' AND review_status = 'approved'`, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -342,7 +343,7 @@ JOIN event_entity_links link
   ON link.id = signal.subject_event_entity_link_id
  AND link.review_status = 'accepted'
  AND link.semantic_submission_id = signal.semantic_submission_id
-WHERE signal.id = ANY($1::uuid[]) AND signal.review_status = 'accepted'`, ids)
+WHERE signal.id = ANY($1::text[]) AND signal.review_status = 'accepted'`, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -385,7 +386,7 @@ JOIN event_entity_links source_link
 LEFT JOIN direct_transmission_rules rule
   ON rule.rule_key = impact.rule_key AND rule.version = impact.rule_version
 LEFT JOIN entity_edges relation ON relation.id = impact.entity_relation_id
-WHERE impact.id = ANY($1::uuid[])
+WHERE impact.id = ANY($1::text[])
   AND impact.review_status = 'accepted'
   AND (
       impact.derivation_type = 'event_explicit'
@@ -425,7 +426,7 @@ func (t *publicationTransaction) evidences(ctx context.Context, ids []string) (m
        GREATEST(COALESCE(document.published_at, document.collected_at), document.collected_at)
 FROM event_sources source
 JOIN raw_documents document ON document.id = source.raw_document_id
-WHERE source.id = ANY($1::uuid[])`, ids)
+WHERE source.id = ANY($1::text[])`, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -534,7 +535,7 @@ func (t *publicationTransaction) InsertSnapshotThemeImpact(ctx context.Context, 
 func (t *publicationTransaction) InsertThemeEvent(ctx context.Context, record researchbiz.PublicationThemeEventRecord) error {
 	_, err := t.tx.ExecContext(ctx, `INSERT INTO research_theme_events (
     theme_id, event_id, evidence_role, supported_claim, evidence_ids
-) VALUES ($1,$2,$3,$4,COALESCE($5::uuid[], '{}'::uuid[]))`, record.ThemeID, record.EventID,
+) VALUES ($1,$2,$3,$4,COALESCE($5::text[], '{}'::text[]))`, record.ThemeID, record.EventID,
 		record.EvidenceRole, record.SupportedClaim, record.EvidenceIDs)
 	return err
 }
@@ -625,7 +626,7 @@ func (t *publicationTransaction) InsertSnapshotTree(ctx context.Context, record 
 func (t *publicationTransaction) InsertTreeEvent(ctx context.Context, record researchbiz.ReasonTreeEventRecord) error {
 	_, err := t.tx.ExecContext(ctx, `INSERT INTO research_reasoning_tree_events (
     reasoning_tree_id, event_id, evidence_role, display_order, evidence_ids
-) VALUES ($1,$2,$3,$4,COALESCE($5::uuid[], '{}'::uuid[]))`, record.ReasoningTreeID,
+) VALUES ($1,$2,$3,$4,COALESCE($5::text[], '{}'::text[]))`, record.ReasoningTreeID,
 		record.EventID, record.EvidenceRole, record.DisplayOrder, record.EvidenceIDs)
 	return err
 }

@@ -67,25 +67,25 @@ func TestHTTPRoutesBindOrganizationOperationsAndRequests(t *testing.T) {
 		assertRequest                       func(*testing.T, any)
 	}{
 		{name: "create", method: http.MethodPost, path: "/entities/organizations", body: `{}`, operation: organizationapi.OperationCreate},
-		{name: "list", method: http.MethodGet, path: "/entities/organizations?category_code=TRADE_BLOC&function_code=TRADE&region_id=REG_APAC&country_id=COU_CHN&as_of=2026-08-15", operation: organizationapi.OperationList, assertRequest: func(t *testing.T, input any) {
+		{name: "list", method: http.MethodGet, path: "/entities/organizations?category_code=TRADE_BLOC&function_code=TRADE&region_id=REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4&country_id=COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b&as_of=2026-08-15", operation: organizationapi.OperationList, assertRequest: func(t *testing.T, input any) {
 			request := input.(*organizationapi.ListRequest)
-			if request.CategoryCode != "TRADE_BLOC" || request.FunctionCode != "TRADE" || request.RegionID != "REG_APAC" || request.CountryID != "COU_CHN" || request.AsOf != "2026-08-15" {
+			if request.CategoryCode != "TRADE_BLOC" || request.FunctionCode != "TRADE" || request.RegionID != "REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4" || request.CountryID != "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b" || request.AsOf != "2026-08-15" {
 				t.Fatalf("list request = %#v", request)
 			}
 		}},
-		{name: "get", method: http.MethodGet, path: "/entities/organizations/ORG_UN", operation: organizationapi.OperationGet, assertRequest: assertOrganizationID},
-		{name: "update", method: http.MethodPut, path: "/entities/organizations/ORG_UN", body: `{}`, operation: organizationapi.OperationUpdate, assertRequest: assertOrganizationID},
-		{name: "replace tags", method: http.MethodPut, path: "/entities/organizations/ORG_UN/domain-tags", body: `{"domain_tag_codes":["REGIONAL_SECURITY_DIALOGUE"]}`, operation: organizationapi.OperationReplaceDomainTags, assertRequest: assertOrganizationID},
+		{name: "get", method: http.MethodGet, path: "/entities/organizations/ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", operation: organizationapi.OperationGet, assertRequest: assertOrganizationID},
+		{name: "update", method: http.MethodPut, path: "/entities/organizations/ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", body: `{}`, operation: organizationapi.OperationUpdate, assertRequest: assertOrganizationID},
+		{name: "replace tags", method: http.MethodPut, path: "/entities/organizations/ORG3fb9e7ff-2222-57fa-b306-c223ce3af549/domain-tags", body: `{"domain_tag_codes":["REGIONAL_SECURITY_DIALOGUE"]}`, operation: organizationapi.OperationReplaceDomainTags, assertRequest: assertOrganizationID},
 		{name: "catalog", method: http.MethodGet, path: "/organization-catalog", operation: organizationapi.OperationGetCatalog},
-		{name: "list members", method: http.MethodGet, path: "/entities/organizations/ORG_UN/members?as_of=2020-06-01", operation: organizationapi.OperationListMembers, assertRequest: func(t *testing.T, input any) {
+		{name: "list members", method: http.MethodGet, path: "/entities/organizations/ORG3fb9e7ff-2222-57fa-b306-c223ce3af549/members?as_of=2020-06-01", operation: organizationapi.OperationListMembers, assertRequest: func(t *testing.T, input any) {
 			request := input.(*organizationapi.ListMembersRequest)
-			if request.OrganizationID != "ORG_UN" || request.AsOf != "2020-06-01" {
+			if request.OrganizationID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" || request.AsOf != "2020-06-01" {
 				t.Fatalf("list members request = %#v", request)
 			}
 		}},
-		{name: "create member", method: http.MethodPost, path: "/entities/organizations/ORG_UN/members", body: `{}`, operation: organizationapi.OperationCreateMember, assertRequest: assertOrganizationID},
-		{name: "update member", method: http.MethodPut, path: "/entities/organizations/ORG_UN/members/12", body: `{}`, operation: organizationapi.OperationUpdateMember, assertRequest: assertOrganizationMemberID},
-		{name: "delete member", method: http.MethodDelete, path: "/entities/organizations/ORG_UN/members/12", operation: organizationapi.OperationDeleteMember, assertRequest: assertOrganizationMemberID},
+		{name: "create member", method: http.MethodPost, path: "/entities/organizations/ORG3fb9e7ff-2222-57fa-b306-c223ce3af549/members", body: `{}`, operation: organizationapi.OperationCreateMember, assertRequest: assertOrganizationID},
+		{name: "update member", method: http.MethodPut, path: "/entities/organizations/ORG3fb9e7ff-2222-57fa-b306-c223ce3af549/members/OMB77777777-7777-4777-8777-777777777777", body: `{}`, operation: organizationapi.OperationUpdateMember, assertRequest: assertOrganizationMemberID},
+		{name: "delete member", method: http.MethodDelete, path: "/entities/organizations/ORG3fb9e7ff-2222-57fa-b306-c223ce3af549/members/OMB77777777-7777-4777-8777-777777777777", operation: organizationapi.OperationDeleteMember, assertRequest: assertOrganizationMemberID},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			stub := &httpServiceStub{}
@@ -115,15 +115,13 @@ func TestHTTPRoutesBindOrganizationOperationsAndRequests(t *testing.T) {
 	}
 }
 
-func TestHTTPRejectsUnknownFieldsAndInvalidMemberIDs(t *testing.T) {
+func TestHTTPRejectsUnknownFields(t *testing.T) {
 	server := newOrganizationHTTPServer(&httpServiceStub{}, nil)
 	for _, test := range []struct {
 		name, method, path, body string
 		wantStatus               int
 	}{
 		{name: "unknown create field", method: http.MethodPost, path: "/entities/organizations", body: `{"unknown":true}`, wantStatus: http.StatusBadRequest},
-		{name: "invalid update member ID", method: http.MethodPut, path: "/entities/organizations/ORG_UN/members/not-a-number", body: `{}`, wantStatus: http.StatusUnprocessableEntity},
-		{name: "invalid delete member ID", method: http.MethodDelete, path: "/entities/organizations/ORG_UN/members/not-a-number", wantStatus: http.StatusUnprocessableEntity},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
@@ -172,7 +170,7 @@ func assertOrganizationID(t *testing.T, input any) {
 	default:
 		t.Fatalf("request type = %T", input)
 	}
-	if id != "ORG_UN" {
+	if id != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" {
 		t.Fatalf("organization ID = %q", id)
 	}
 }
@@ -180,7 +178,7 @@ func assertOrganizationID(t *testing.T, input any) {
 func assertOrganizationMemberID(t *testing.T, input any) {
 	t.Helper()
 	var organizationID string
-	var memberID int64
+	var memberID string
 	switch request := input.(type) {
 	case *organizationapi.UpdateMemberRequest:
 		organizationID, memberID = request.OrganizationID, request.MemberID
@@ -189,7 +187,7 @@ func assertOrganizationMemberID(t *testing.T, input any) {
 	default:
 		t.Fatalf("request type = %T", input)
 	}
-	if organizationID != "ORG_UN" || memberID != 12 {
-		t.Fatalf("member identity = %q/%d", organizationID, memberID)
+	if organizationID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" || memberID != "OMB77777777-7777-4777-8777-777777777777" {
+		t.Fatalf("member identity = %q/%s", organizationID, memberID)
 	}
 }

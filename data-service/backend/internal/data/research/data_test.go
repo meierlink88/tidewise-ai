@@ -29,7 +29,7 @@ import (
 func TestResearchThemeAdapterRejectsMalformedPersistedRows(t *testing.T) {
 	now := time.Date(2026, 8, 12, 8, 0, 0, 0, time.UTC)
 	valid := ResearchThemeSummary{
-		ID: "11111111-1111-4111-8111-111111111111", AnalysisBatchID: "batch:one",
+		ID: "RTH11111111-1111-4111-8111-111111111111", AnalysisBatchID: "batch:one",
 		Title: "Theme", OneLineConclusion: "Conclusion", ConclusionDirection: "positive",
 		ImpactStrength: "medium", TransmissionStage: "validation", InvestmentGuidanceAction: "observe",
 		InvestmentGuidanceSummary: "Observe", TimeHorizonCategory: "medium_term",
@@ -54,10 +54,10 @@ func TestResearchThemeAdapterRejectsMalformedPersistedRows(t *testing.T) {
 
 func TestResearchReasoningTreeAdapterRejectsMalformedPersistedRows(t *testing.T) {
 	now := time.Date(2026, 8, 12, 8, 0, 0, 0, time.UTC)
-	treeID := "11111111-1111-4111-8111-111111111111"
-	chainID := "22222222-2222-4222-8222-222222222222"
+	treeID := "RRT11111111-1111-4111-8111-111111111111"
+	chainID := "ENT22222222-2222-4222-8222-222222222222"
 	publication := researchReasoningTreePublication{
-		ReceiptID: "33333333-3333-4333-8333-333333333333",
+		ReceiptID: "RRI33333333-3333-4333-8333-333333333333",
 		Mapping:   map[string]string{chainID: treeID},
 		Counts:    researchbiz.ReasonTreeCounts{ReasoningTrees: 1, Nodes: 1, SignalAssociations: 1, Receipts: 1},
 		Trees: []ResearchReasoningTreeSummary{{
@@ -78,12 +78,12 @@ func TestResearchReasoningTreeAdapterRejectsMalformedPersistedRows(t *testing.T)
 		ThemeKey: "theme:one", PublicationMode: "formal", PublicationContractVersion: 2,
 	}
 	tree := ResearchReasoningTree{
-		ReasoningTreeID: treeID, ThemeID: "44444444-4444-4444-8444-444444444444",
+		ReasoningTreeID: treeID, ThemeID: "RTH44444444-4444-4444-8444-444444444444",
 		TreeKey: chainID, DisplayName: "Chain", IndustryChainEntityID: chainID, IndustryChainName: "Chain",
 		Title: "Tree", OneLineConclusion: "Conclusion", ImpactDirection: "positive", ImpactStrength: "medium",
 		DisplayOrder: 1, PublishedAt: now,
 		Nodes: []researchbiz.ReasoningTreeNodeRecord{{
-			ID: "55555555-5555-4555-8555-555555555555", NodeKey: chainID, DisplayName: "Node",
+			ID: "RRN55555555-5555-4555-8555-555555555555", NodeKey: chainID, DisplayName: "Node",
 			ChainNodeEntityID: chainID, Name: "Node", Position: 1, ImpactDirection: "positive", ImpactStrength: "medium",
 			Signals: []researchbiz.SignalRecord{{
 				SignalKey: "signal:one", VariableSignalKey: "signal:one", SignalRole: "primary",
@@ -103,7 +103,7 @@ func TestResearchReasoningTreeAdapterRejectsMalformedPersistedRows(t *testing.T)
 	}
 	invalidTree = tree
 	invalidTree.Nodes = append([]researchbiz.ReasoningTreeNodeRecord(nil), tree.Nodes...)
-	incomingID := "66666666-6666-4666-8666-666666666666"
+	incomingID := "IGE66666666-6666-4666-8666-666666666666"
 	invalidTree.Nodes[0].IncomingIndustryChainGraphEdgeID = &incomingID
 	invalidTree.Nodes[0].IncomingGraphEdge = &researchbiz.GraphEdgeRecord{
 		ID: incomingID, RelationType: "input_to", ReviewStatus: "approved", Status: "active",
@@ -112,14 +112,14 @@ func TestResearchReasoningTreeAdapterRejectsMalformedPersistedRows(t *testing.T)
 		t.Fatal("persisted Reasoning Tree first node with an Incoming Graph Edge was accepted")
 	}
 	secondNode := tree.Nodes[0]
-	secondNode.ID = "77777777-7777-4777-8777-777777777777"
+	secondNode.ID = "RRN77777777-7777-4777-8777-777777777777"
 	secondNode.NodeKey = "node:second"
 	secondNode.DisplayName = "Second node"
-	secondNode.ChainNodeEntityID = "88888888-8888-4888-8888-888888888888"
+	secondNode.ChainNodeEntityID = "ENT88888888-8888-4888-8888-888888888888"
 	secondNode.Position = 2
 	secondNode.IncomingIndustryChainGraphEdgeID = &incomingID
 	secondNode.IncomingGraphEdge = &researchbiz.GraphEdgeRecord{
-		ID: "99999999-9999-4999-8999-999999999999", RelationType: "input_to", ReviewStatus: "approved", Status: "active",
+		ID: "IGE99999999-9999-4999-8999-999999999999", RelationType: "input_to", ReviewStatus: "approved", Status: "active",
 	}
 	invalidTree = tree
 	invalidTree.Nodes = append(append([]researchbiz.ReasoningTreeNodeRecord(nil), tree.Nodes...), secondNode)
@@ -269,7 +269,7 @@ INSERT INTO variable_definitions (
 	}
 	if _, err := db.ExecContext(
 		ctx,
-		`UPDATE entity_nodes SET updated_at = $2 WHERE id = $1::uuid`,
+		`UPDATE entity_nodes SET updated_at = $2 WHERE id = $1::text`,
 		testTypedNodeID,
 		now.Add(time.Hour),
 	); err != nil {
@@ -283,7 +283,7 @@ INSERT INTO variable_definitions (
 	}
 	if _, err := db.ExecContext(
 		ctx,
-		`UPDATE entity_nodes SET updated_at = $2 WHERE id = $1::uuid`,
+		`UPDATE entity_nodes SET updated_at = $2 WHERE id = $1::text`,
 		testTypedNodeID,
 		now.Add(-time.Hour),
 	); err != nil {
@@ -501,7 +501,7 @@ INSERT INTO variable_definitions (
 	seedBCIReverseGraph(t, ctx, db)
 	if _, err := db.ExecContext(
 		ctx,
-		`UPDATE event_entity_links SET entity_id = $1::uuid WHERE id = '11000000-0000-4000-8000-000000000005'`,
+		`UPDATE event_entity_links SET entity_id = $1::text WHERE id = 'ENL11000000-0000-4000-8000-000000000005'`,
 		testBCISystemNodeID,
 	); err != nil {
 		t.Fatalf("move accepted root Signal to BCI system node: %v", err)
@@ -542,15 +542,15 @@ INSERT INTO variable_definitions (
 	rollbackErr := errors.New("synthetic late failure")
 	err = store.InResearchPublicationTransaction(ctx, func(tx researchbiz.PublicationTransaction) error {
 		if err := tx.InsertThemeReceipt(ctx, researchbiz.Receipt{
-			ID:              "11000000-0000-4000-8000-000000000010",
+			ID:              "RTI11000000-0000-4000-8000-000000000010",
 			AnalysisBatchID: rollbackBatch, PublisherSubject: "integration-analyst",
 			PayloadHash:     strings.Repeat("d", 64),
-			ThemeID:         "11000000-0000-4000-8000-000000000011",
+			ThemeID:         "RTH11000000-0000-4000-8000-000000000011",
 			ThemeKey:        "rollback",
 			ContractVersion: 2,
 			PublicationMode: "formal",
 			ReasoningTreeIDsByIndustryChainEntityID: map[string]string{
-				testTypedChainID: "11000000-0000-4000-8000-000000000012",
+				testTypedChainID: "RRT11000000-0000-4000-8000-000000000012",
 			},
 			Counts: researchbiz.Counts{
 				Themes: 1, Impacts: 1, ThemeEventAssociations: 1,
@@ -592,7 +592,7 @@ func assertAnalystSnapshotSignalConstraintsDoNotRelaxFormalRows(
 	} {
 		if err := db.QueryRowContext(ctx, `SELECT id::text
 FROM research_reasoning_tree_nodes
-WHERE reasoning_tree_id = $1::uuid
+WHERE reasoning_tree_id = $1::text
 ORDER BY position
 LIMIT 1`, treeID).Scan(target); err != nil {
 			t.Fatalf("read Reason Tree node for signal constraint test: %v", err)
@@ -602,21 +602,21 @@ LIMIT 1`, treeID).Scan(target); err != nil {
 	if _, err := db.ExecContext(ctx, `INSERT INTO research_reasoning_tree_node_signals (
     reasoning_tree_node_id, signal_key, signal_role, signal_direction,
     display_summary, display_order, source_kind
-) VALUES ($1::uuid, 'signal:formal-bypass', 'supporting', 'increase',
+) VALUES ($1::text, 'signal:formal-bypass', 'supporting', 'increase',
     'must be rejected', 2, 'legacy_snapshot')`, formalNodeID); err == nil {
 		t.Fatal("formal/legacy signal row accepted analyst snapshot signal_key identity")
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO research_reasoning_tree_node_signals (
     reasoning_tree_node_id, variable_signal_key, signal_role, signal_direction,
     display_summary, display_order, source_kind
-) VALUES ($1::uuid, 'formal_direction_required', 'supporting', NULL,
+) VALUES ($1::text, 'formal_direction_required', 'supporting', NULL,
     'must be rejected', 2, 'legacy_snapshot')`, formalNodeID); err == nil {
 		t.Fatal("formal/legacy signal row accepted nullable signal_direction")
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO research_reasoning_tree_node_signals (
     reasoning_tree_node_id, variable_signal_key, signal_role, signal_direction,
     display_summary, display_order, source_kind
-) VALUES ($1::uuid, 'snapshot-formal-bypass', 'supporting', 'increase',
+) VALUES ($1::text, 'snapshot-formal-bypass', 'supporting', 'increase',
     'must be rejected', 2, 'analyst_snapshot')`, snapshotNodeID); err == nil {
 		t.Fatal("analyst snapshot signal row accepted formal variable_signal_key identity")
 	}
@@ -674,7 +674,7 @@ func seedPostAsOfSupersession(
     id, event_id, agent_execution_id, worker_id, status, lease_expires_at,
     context_snapshot, leased_at, consumed_at
 ) VALUES (
-    '13000000-0000-4000-8000-000000000003', $1,
+    'SCL13000000-0000-4000-8000-000000000003', $1,
     'post-as-of-supersession', 'integration-worker', 'consumed',
     $2, '{}'::jsonb, $3, $3
 )`, testTypedEventID, asOf.Add(time.Hour), asOf.Add(-time.Minute)); err != nil {
@@ -687,8 +687,8 @@ func seedPostAsOfSupersession(
     canonical_payload_hash, status, candidate_counts, decision_summary,
     created_at, finalized_at
 ) VALUES (
-    '13000000-0000-4000-8000-000000000004',
-    '13000000-0000-4000-8000-000000000003', $1,
+    'ESS13000000-0000-4000-8000-000000000004',
+    'SCL13000000-0000-4000-8000-000000000003', $1,
     'post-as-of-supersession', 'event-semantic', 'integration',
     $2, 'fake-generator', $3, 'fake-reviewer', 'integration-ontology',
     'event-semantics.phase-one', 1, $4, 'superseded',
@@ -705,22 +705,22 @@ func seedPostAsOfSupersession(
 }
 
 const (
-	testTypedChainID             = "10000000-0000-4000-8000-000000000001"
-	testTypedNodeID              = "10000000-0000-4000-8000-000000000002"
-	testTypedEventID             = "10000000-0000-4000-8000-000000000003"
-	testTypedEvidenceID          = "11000000-0000-4000-8000-000000000002"
-	testTypedSubmissionID        = "11000000-0000-4000-8000-000000000004"
-	testTypedSignalID            = "11000000-0000-4000-8000-000000000006"
-	testTypedForwardEventID      = "10000000-0000-4000-8000-000000000004"
-	testTypedForwardEvidenceID   = "12000000-0000-4000-8000-000000000002"
-	testTypedForwardSubmissionID = "12000000-0000-4000-8000-000000000004"
-	testTypedForwardSignalID     = "12000000-0000-4000-8000-000000000006"
-	testBCIChainID               = "822a8ddc-5ebc-5f03-8ef8-ba9bfba192d9"
-	testBCISystemNodeID          = "c38d2f7b-9900-5e81-af06-76393bcc2617"
-	testBCITerminalNodeID        = "96336148-76c0-504e-b82e-ac395f8fe268"
-	testBCIElectrodeNodeID       = "d3882237-d639-5660-b7d8-aa3563706113"
-	testBCITerminalEdgeID        = "300188b0-d01c-5987-ad8a-646067edc7cd"
-	testBCIElectrodeEdgeID       = "dc00a16e-0d8e-5db9-9a5d-fbc1fd9a84cf"
+	testTypedChainID             = "ENT10000000-0000-4000-8000-000000000001"
+	testTypedNodeID              = "ENT10000000-0000-4000-8000-000000000002"
+	testTypedEventID             = "EVT10000000-0000-4000-8000-000000000003"
+	testTypedEvidenceID          = "EEL11000000-0000-4000-8000-000000000002"
+	testTypedSubmissionID        = "ESS11000000-0000-4000-8000-000000000004"
+	testTypedSignalID            = "VSG11000000-0000-4000-8000-000000000006"
+	testTypedForwardEventID      = "EVT10000000-0000-4000-8000-000000000004"
+	testTypedForwardEvidenceID   = "EEL12000000-0000-4000-8000-000000000002"
+	testTypedForwardSubmissionID = "ESS12000000-0000-4000-8000-000000000004"
+	testTypedForwardSignalID     = "VSG12000000-0000-4000-8000-000000000006"
+	testBCIChainID               = "ENT822a8ddc-5ebc-5f03-8ef8-ba9bfba192d9"
+	testBCISystemNodeID          = "ENTc38d2f7b-9900-5e81-af06-76393bcc2617"
+	testBCITerminalNodeID        = "ENT96336148-76c0-504e-b82e-ac395f8fe268"
+	testBCIElectrodeNodeID       = "ENTd3882237-d639-5660-b7d8-aa3563706113"
+	testBCITerminalEdgeID        = "IGE300188b0-d01c-5987-ad8a-646067edc7cd"
+	testBCIElectrodeEdgeID       = "IGEdc00a16e-0d8e-5db9-9a5d-fbc1fd9a84cf"
 )
 
 func seedBCIReverseGraph(t *testing.T, ctx context.Context, db *sql.DB) {
@@ -738,22 +738,22 @@ func seedBCIReverseGraph(t *testing.T, ctx context.Context, db *sql.DB) {
 			`INSERT INTO entity_nodes (
     id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
 ) VALUES
-    ($1::uuid, 'industry-chain:bci-system', 'industry_chain', 'industry_chain',
+    ($1::text, 'industry-chain:bci-system', 'industry_chain', 'industry_chain',
      '脑机接口系统产业链', '脑机接口系统产业链', '{}', 'active'),
-    ($2::uuid, 'chain-node:bci-system', 'chain_node', 'chain_node',
+    ($2::text, 'chain-node:bci-system', 'chain_node', 'chain_node',
      '非侵入式脑机接口系统', '非侵入式脑机接口系统', '{}', 'active'),
-    ($3::uuid, 'chain-node:bci-terminal', 'chain_node', 'chain_node',
+    ($3::text, 'chain-node:bci-terminal', 'chain_node', 'chain_node',
      '脑机接口采集终端', '脑机接口采集终端', '{}', 'active'),
-    ($4::uuid, 'chain-node:bci-electrode', 'chain_node', 'chain_node',
+    ($4::text, 'chain-node:bci-electrode', 'chain_node', 'chain_node',
      '脑机接口采集电极', '脑机接口采集电极', '{}', 'active')`,
 			[]any{testBCIChainID, testBCISystemNodeID, testBCITerminalNodeID, testBCIElectrodeNodeID},
 		},
 		{
 			`INSERT INTO chain_node_profiles (entity_id, definition, boundary_note, review_status)
 VALUES
-    ($1::uuid, '非侵入式脑机接口系统节点', '系统边界', 'approved'),
-    ($2::uuid, '脑机接口采集终端节点', '终端边界', 'approved'),
-    ($3::uuid, '脑机接口采集电极节点', '电极边界', 'approved')`,
+    ($1::text, '非侵入式脑机接口系统节点', '系统边界', 'approved'),
+    ($2::text, '脑机接口采集终端节点', '终端边界', 'approved'),
+    ($3::text, '脑机接口采集电极节点', '电极边界', 'approved')`,
 			[]any{testBCISystemNodeID, testBCITerminalNodeID, testBCIElectrodeNodeID},
 		},
 		{
@@ -761,7 +761,7 @@ VALUES
     entity_id, scope, target_output, end_use, technology_route_qualifier,
     observable_variables, geography, as_of_date, review_status, review_note
 ) VALUES (
-    $1::uuid, '非侵入式脑机接口系统与采集硬件', '脑机接口系统', '康复与人机交互', NULL,
+    $1::text, '非侵入式脑机接口系统与采集硬件', '脑机接口系统', '康复与人机交互', NULL,
     ARRAY['市场需求'], '中国', CURRENT_DATE, 'approved', NULL
 )`,
 			[]any{testBCIChainID},
@@ -771,11 +771,11 @@ VALUES
     industry_chain_entity_id, chain_node_entity_id, position, contextual_stage,
     review_status, status, inclusion_reason, evidence_ids, source_name, source_url, verified_at
 ) VALUES
-    ($1::uuid, $2::uuid, 1, 'downstream', 'approved', 'active',
+    ($1::text, $2::text, 1, 'downstream', 'approved', 'active',
      '系统节点', ARRAY['evidence:bci-system'], 'integration fixture', 'artifact://bci-system', now()),
-    ($1::uuid, $3::uuid, 2, 'midstream', 'approved', 'active',
+    ($1::text, $3::text, 2, 'midstream', 'approved', 'active',
      '终端组成节点', ARRAY['evidence:bci-terminal'], 'integration fixture', 'artifact://bci-terminal', now()),
-    ($1::uuid, $4::uuid, 3, 'upstream', 'approved', 'active',
+    ($1::text, $4::text, 3, 'upstream', 'approved', 'active',
      '电极组成节点', ARRAY['evidence:bci-electrode'], 'integration fixture', 'artifact://bci-electrode', now())`,
 			[]any{testBCIChainID, testBCISystemNodeID, testBCITerminalNodeID, testBCIElectrodeNodeID},
 		},
@@ -785,11 +785,11 @@ VALUES
     relation_type, mechanism, condition_note, segment_kind, omitted_step_note,
     review_status, status, evidence_ids, source_name, source_url, verified_at
 ) VALUES
-    ($1::uuid, $2::uuid, $3::uuid, $4::uuid, 'is_component_of',
+    ($1::text, $2::text, $3::text, $4::text, 'is_component_of',
      '采集终端是系统组成部分', NULL, 'direct_candidate', NULL,
      'approved', 'active', ARRAY['evidence:bci-terminal-system'],
      'integration fixture', 'artifact://bci-terminal-system', now()),
-    ($5::uuid, $2::uuid, $6::uuid, $3::uuid, 'is_component_of',
+    ($5::text, $2::text, $6::text, $3::text, 'is_component_of',
      '采集电极是采集终端组成部分', NULL, 'direct_candidate', NULL,
      'approved', 'active', ARRAY['evidence:bci-electrode-terminal'],
      'integration fixture', 'artifact://bci-electrode-terminal', now())`,
@@ -820,7 +820,7 @@ func assertBCIPersistedLineage(t *testing.T, ctx context.Context, db *sql.DB, tr
 FROM research_reasoning_tree_nodes node
 JOIN research_reasoning_tree_node_signals signal
   ON signal.reasoning_tree_node_id = node.id AND signal.signal_role = 'primary'
-WHERE node.reasoning_tree_id = $1::uuid
+WHERE node.reasoning_tree_id = $1::text
 ORDER BY node.position`, treeID)
 	if err != nil {
 		t.Fatal(err)
@@ -906,7 +906,7 @@ func seedTypedResearchSemanticFact(
     id, ingest_channel, source_type, source_name, source_url, title, content_text,
     raw_mime_type, language, published_at, collected_at, content_hash, ingest_status
 ) VALUES (
-    '11000000-0000-4000-8000-000000000001', 'integration', 'filing',
+    'EER11000000-0000-4000-8000-000000000001', 'integration', 'filing',
     'Integration Source', 'https://integration.invalid/source', 'Supply disclosure',
     'Market supply decreased 10 percent.', 'text/plain', 'en',
     $1::timestamptz - interval '1 minute', $1, $2, 'collected'
@@ -918,7 +918,7 @@ func seedTypedResearchSemanticFact(
     id, event_id, raw_document_id, source_level, evidence_statement, evidence_hash,
     evidence_relation, supports_fields, contract_version, created_at
 ) VALUES (
-    $1, $2, '11000000-0000-4000-8000-000000000001', 'primary',
+    $1, $2, 'EER11000000-0000-4000-8000-000000000001', 'primary',
     'Market supply decreased 10 percent.', $3, 'supports',
     ARRAY['factual_summary','fact_payload'], 3, $4
 )`,
@@ -929,7 +929,7 @@ func seedTypedResearchSemanticFact(
     id, event_id, agent_execution_id, worker_id, status, lease_expires_at,
     context_snapshot, leased_at, consumed_at
 ) VALUES (
-    '11000000-0000-4000-8000-000000000003', $1,
+    'SCL11000000-0000-4000-8000-000000000003', $1,
     'typed-research-execution', 'integration-worker', 'consumed',
     $2, '{}'::jsonb, $3, $4
 )`,
@@ -943,7 +943,7 @@ func seedTypedResearchSemanticFact(
     canonical_payload_hash, status, candidate_counts, decision_summary,
     created_at, finalized_at
 ) VALUES (
-    $1, '11000000-0000-4000-8000-000000000003', $2,
+    $1, 'SCL11000000-0000-4000-8000-000000000003', $2,
     'typed-research-execution', 'event-semantic', 'integration',
     $3, 'fake-generator', $4, 'fake-reviewer', 'integration-ontology',
     'event-semantics.phase-one', 1, $5, 'accepted',
@@ -962,9 +962,9 @@ func seedTypedResearchSemanticFact(
     resolution_method, resolution_confidence, evidence_ids, provenance,
     created_at, updated_at
 ) VALUES (
-    '11000000-0000-4000-8000-000000000005', $1, $2,
+    'ENL11000000-0000-4000-8000-000000000005', $1, $2,
     'event_subject', 'ai', 'accepted', '', $3, 'supply-node',
-    '高速光模块', 'resolved', 0.99, ARRAY[$4::uuid], 'semantic', $5, $5
+    '高速光模块', 'resolved', 0.99, ARRAY[$4::text], 'semantic', $5, $5
 )`,
 			[]any{
 				testTypedEventID, testTypedNodeID, testTypedSubmissionID,
@@ -979,8 +979,8 @@ func seedTypedResearchSemanticFact(
     created_at, updated_at
 ) VALUES (
     $1, $2, 'market-supply', $3,
-    '11000000-0000-4000-8000-000000000005', 'market_supply', 1,
-    'decrease', 'actual', ARRAY[$4::uuid], 0.98, 'accepted', $5, $5
+    'ENL11000000-0000-4000-8000-000000000005', 'market_supply', 1,
+    'decrease', 'actual', ARRAY[$4::text], 0.98, 'accepted', $5, $5
 )`,
 			[]any{
 				testTypedSignalID, testTypedSubmissionID, testTypedEventID,
@@ -1029,7 +1029,7 @@ WHERE id = $2`,
     id, ingest_channel, source_type, source_name, source_url, title, content_text,
     raw_mime_type, language, published_at, collected_at, content_hash, ingest_status
 ) VALUES (
-    '12000000-0000-4000-8000-000000000001', 'integration', 'filing',
+    'EER12000000-0000-4000-8000-000000000001', 'integration', 'filing',
     'Integration Company', 'https://integration.invalid/forecast', 'Demand forecast',
     'The company forecasts demand growth of 15 percent.', 'text/plain', 'en',
     $1::timestamptz - interval '1 minute', $1, $2, 'collected'
@@ -1041,7 +1041,7 @@ WHERE id = $2`,
     id, event_id, raw_document_id, source_level, evidence_statement, evidence_hash,
     evidence_relation, supports_fields, contract_version, created_at
 ) VALUES (
-    $1, $2, '12000000-0000-4000-8000-000000000001', 'primary',
+    $1, $2, 'EER12000000-0000-4000-8000-000000000001', 'primary',
     'The company forecasts demand growth of 15 percent.', $3, 'supports',
     ARRAY['factual_summary','fact_payload'], 3, $4
 )`,
@@ -1055,7 +1055,7 @@ WHERE id = $2`,
     id, event_id, agent_execution_id, worker_id, status, lease_expires_at,
     context_snapshot, leased_at, consumed_at
 ) VALUES (
-    '12000000-0000-4000-8000-000000000003', $1,
+    'SCL12000000-0000-4000-8000-000000000003', $1,
     'typed-forward-execution', 'integration-worker', 'consumed',
     $2, '{}'::jsonb, $3, $4
 )`,
@@ -1069,7 +1069,7 @@ WHERE id = $2`,
     canonical_payload_hash, status, candidate_counts, decision_summary,
     created_at, finalized_at
 ) VALUES (
-    $1, '12000000-0000-4000-8000-000000000003', $2,
+    $1, 'SCL12000000-0000-4000-8000-000000000003', $2,
     'typed-forward-execution', 'event-semantic', 'integration',
     $3, 'fake-generator', $4, 'fake-reviewer', 'integration-ontology',
     'event-semantics.phase-one', 1, $5, 'accepted',
@@ -1089,9 +1089,9 @@ WHERE id = $2`,
     resolution_method, resolution_confidence, evidence_ids, provenance,
     created_at, updated_at
 ) VALUES (
-    '12000000-0000-4000-8000-000000000005', $1, $2,
+    'ENL12000000-0000-4000-8000-000000000005', $1, $2,
     'statement_source', 'ai', 'accepted', '', $3, 'forecast-source',
-    'Integration Company', 'resolved', 0.99, ARRAY[$4::uuid], 'semantic', $5, $5
+    'Integration Company', 'resolved', 0.99, ARRAY[$4::text], 'semantic', $5, $5
 )`,
 			[]any{
 				testTypedForwardEventID, testTypedNodeID, testTypedForwardSubmissionID,
@@ -1107,8 +1107,8 @@ WHERE id = $2`,
     review_status, created_at, updated_at
 ) VALUES (
     $1, $2, 'demand-forecast', $3,
-    '12000000-0000-4000-8000-000000000005', 'market_demand', 1,
-    'increase', 'source_forecast', ARRAY[$4::uuid], $5, $6, $7, $6, $7,
+    'ENL12000000-0000-4000-8000-000000000005', 'market_demand', 1,
+    'increase', 'source_forecast', ARRAY[$4::text], $5, $6, $7, $6, $7,
     0.97, 'accepted', $8, $8
 )`,
 			[]any{
@@ -1122,7 +1122,7 @@ WHERE id = $2`,
     id, variable_signal_id, measurement_role, value_shape, raw_value, raw_unit,
     canonical_value, canonical_unit, raw_text, is_approximate, evidence_id, created_at
 ) VALUES (
-    '12000000-0000-4000-8000-000000000007', $1, 'relative_change', 'exact',
+    'VSM12000000-0000-4000-8000-000000000007', $1, 'relative_change', 'exact',
     15, '%', 15, 'percent', 'demand growth of 15 percent', false, $2, $3
 )`,
 			[]any{testTypedForwardSignalID, testTypedForwardEvidenceID, acceptedAt},
@@ -1349,10 +1349,10 @@ func openResearchV1TestDatabase(t *testing.T) *sql.DB {
 func seedResearchV1MasterData(t *testing.T, db *sql.DB) {
 	t.Helper()
 	const (
-		chainID      = "10000000-0000-4000-8000-000000000001"
-		nodeID       = "10000000-0000-4000-8000-000000000002"
-		eventID      = "10000000-0000-4000-8000-000000000003"
-		draftEventID = "10000000-0000-4000-8000-000000000004"
+		chainID      = "ENT10000000-0000-4000-8000-000000000001"
+		nodeID       = "ENT10000000-0000-4000-8000-000000000002"
+		eventID      = "EVT10000000-0000-4000-8000-000000000003"
+		draftEventID = "EVT10000000-0000-4000-8000-000000000004"
 	)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

@@ -30,7 +30,7 @@ func NewService(useCase UseCase) (*Service, error) {
 
 func (s *Service) Create(ctx context.Context, request *countryapi.CreateRequest) (*v1.Response[countryapi.Country], error) {
 	result, err := s.useCase.Create(ctx, countrybiz.Country{
-		ID: request.ID, Code: request.Code, Name: request.Name, NameEn: request.NameEn,
+		Code: request.Code, Name: request.Name, NameEn: request.NameEn,
 		StrategicPositioning: request.StrategicPositioning, KeyResources: request.KeyResources,
 	})
 	return countryResponse(result, err, v1.StatusCreated)

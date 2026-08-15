@@ -40,6 +40,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000047_add_raw_evidence_categories.sql`：新增受控 Evidence Category 目录与 Raw Evidence 多标签关系，并初始化 11 个稳定内容分类。
 - `000048_replace_alliance_with_organizations.sql`：协调式破坏性切换，创建独立 Organization、三类可维护目录、Domain Tag 与 Country 成员历史关系，扩展正式 Event Object 引用，并完整退役旧 `alliance_org` 身份及其依赖聚合。目录数据不在 migration 中 seed，需在迁移后运行 `organization-catalog-publish`；回滚必须恢复切换前 PostgreSQL 快照与上一版应用。
 - `000049_retire_benchmark_metric_and_graph_projection.sql`：协调式破坏性切换，删除 Benchmark、Metric Entity 及其依赖的语义和研究聚合，移除其 profile/observation 表与遗留图投影账本。发布前必须停止写入并取得 PostgreSQL 快照；回滚必须恢复快照与上一版应用。
+- `000050_unify_domain_object_ids.sql`：零兼容窗口身份切换，将 Entity、Entity Relation、Country、Region、Organization 与 Evidence 领域对象统一为“领域前缀 + canonical lowercase UUID”，并将 Country code 收敛为 ISO 3166-1 alpha-2。发布前必须停止写入并取得 PostgreSQL 快照；回滚必须恢复快照与上一版应用。
+- `000051_enforce_business_primary_key_ids.sql`：把其余独立业务、关系和回执主键及传递外键统一为已注册前缀 ID，移除两个历史序列。
+- `000052_migrate_embedded_business_ids.sql`：同步改写数组及研究回执 JSON map 中保存的业务 ID。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -67,6 +70,18 @@ Data 写入者、确认 PostgreSQL 恢复点并以候选 Data 镜像执行正式
 退役表均不存在且 `entity_nodes` 不含 `benchmark` 或 `metric`。只有这些确认完成后才可部署
 不再识别两个 Entity Type 的应用版本。应用回退不得运行 down migration，必须将数据库快照与
 上一版应用一同恢复，或执行经过审阅的前向修复。
+
+`000050` 是 Issue #241 授权的零兼容窗口切换。操作员必须停止 Data 及所有
+上游写入者，确认 PostgreSQL 恢复点，并用候选 Data 镜像执行 `dbmigrate`
+check-only。只有在 `000050` 为唯一 pending migration 时才可人工确认并执行
+`-apply`。执行后必须确认 ledger 为 `50`，相关主键与外键均满足领域前缀
+UUID 合同，Country 为 201 条 ISO alpha-2 code，且无孤儿引用，才可发布新应用。
+旧应用不兼容新身份；回退不得运行 down migration，必须同时恢复数据库快照与
+上一版应用，或使用经审阅的前向修复 migration。
+
+`000051`、`000052` 是 Issue #244 对同一停写窗口的扩展。check-only 必须确认它们按序
+紧随 `000050`；执行后确认 ledger 为 `52`、独立业务主键均为注册前缀加 UUID、无默认值或
+序列且外键无孤儿。应用与数据库必须一起发布；回退恢复迁移前快照和上一版应用。
 
 Data 不再提供 `source-seed` 或维护 `source_catalogs`，既有 Event Publication 仍只通过
 `POST /api/data/v1/reviewed-event-imports` 连同轻量 Event 证据原子接纳；历史

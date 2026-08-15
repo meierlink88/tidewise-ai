@@ -129,7 +129,7 @@ func (*dataStub) GetEventSemantics(context.Context, string) (eventsemantic.Event
 func TestWorkflowUsesCrossTypeEventBatchAndGeneratesSignalsAfterResolution(t *testing.T) {
 	generator := &queuedModel{responses: []string{
 		`{"mentions":[{"candidate_key":"nvidia","mention":"英伟达","evidence_ids":["` + testEvidenceID + `"]},{"candidate_key":"packaging","mention":"第三方封测厂","evidence_ids":["` + testEvidenceID + `"]}]}`,
-		`{"selections":[{"candidate_key":"nvidia","entity_id":"33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false},{"candidate_key":"packaging","entity_id":"44444444-4444-4444-8444-444444444444","entity_role":"event_subject","no_match":false}]}`,
+		`{"selections":[{"candidate_key":"nvidia","entity_id":"ENT33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false},{"candidate_key":"packaging","entity_id":"ENT44444444-4444-4444-8444-444444444444","entity_role":"event_subject","no_match":false}]}`,
 		`{"variable_signals":[{"candidate_key":"nvidia-capacity","subject_link_key":"nvidia","variable_key":"capacity_commitment","variable_version":1,"direction":"increase","assertion_modality":"stated_intent","evidence_ids":["` + testEvidenceID + `"],"measurements":[{"measurement_text":"价值15亿美元","evidence_ids":["` + testEvidenceID + `"]}]}]}`,
 	}}
 	reviewer := &queuedModel{responses: []string{
@@ -141,7 +141,7 @@ func TestWorkflowUsesCrossTypeEventBatchAndGeneratesSignalsAfterResolution(t *te
 			{CandidateKey: "packaging"},
 		},
 		search: []eventsemantic.EntityCandidateSet{{CandidateKey: "packaging", Candidates: []eventsemantic.EntityCandidate{{
-			Entity: eventsemantic.Entity{EntityID: "44444444-4444-4444-8444-444444444444", EntityType: "chain_node", CanonicalName: "第三方封测", Status: "active"}, Score: 0.81,
+			Entity: eventsemantic.Entity{EntityID: "ENT44444444-4444-4444-8444-444444444444", EntityType: "chain_node", CanonicalName: "第三方封测", Status: "active"}, Score: 0.81,
 		}}}},
 	}
 	data := &dataStub{}
@@ -165,7 +165,7 @@ func TestWorkflowUsesCrossTypeEventBatchAndGeneratesSignalsAfterResolution(t *te
 func TestWorkflowIsolatesInvalidSelectionWithoutDeletingValidLink(t *testing.T) {
 	generator := &queuedModel{responses: []string{
 		`{"mentions":[{"candidate_key":"nvidia","mention":"英伟达","evidence_ids":["` + testEvidenceID + `"]},{"candidate_key":"amkor","mention":"安靠科技","evidence_ids":["` + testEvidenceID + `"]}]}`,
-		`{"selections":[{"candidate_key":"nvidia","entity_id":"33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false},{"candidate_key":"amkor","entity_id":"99999999-9999-4999-8999-999999999999","entity_role":"actor","no_match":false}]}`,
+		`{"selections":[{"candidate_key":"nvidia","entity_id":"ENT33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false},{"candidate_key":"amkor","entity_id":"ENT99999999-9999-4999-8999-999999999999","entity_role":"actor","no_match":false}]}`,
 		`{"variable_signals":[]}`,
 	}}
 	reviewer := &queuedModel{responses: []string{
@@ -174,7 +174,7 @@ func TestWorkflowIsolatesInvalidSelectionWithoutDeletingValidLink(t *testing.T) 
 	}}
 	retriever := &retrieverStub{exact: []eventsemantic.EntityCandidateSet{
 		{CandidateKey: "nvidia", Candidates: []eventsemantic.EntityCandidate{{Entity: companyEntity()}}},
-		{CandidateKey: "amkor", Candidates: []eventsemantic.EntityCandidate{{Entity: eventsemantic.Entity{EntityID: "55555555-5555-4555-8555-555555555555", EntityType: "company", CanonicalName: "安靠科技", Status: "active"}}}},
+		{CandidateKey: "amkor", Candidates: []eventsemantic.EntityCandidate{{Entity: eventsemantic.Entity{EntityID: "ENT55555555-5555-4555-8555-555555555555", EntityType: "company", CanonicalName: "安靠科技", Status: "active"}}}},
 	}}
 	data := &dataStub{}
 	input := testInput()
@@ -216,7 +216,7 @@ func TestWorkflowAcceptsEventOnlyMentionWithPrimarySupportingLineageAndNoSignal(
 	input.Context.Event.Summary += " 摘要专有词"
 	generator := &queuedModel{responses: []string{
 		`{"mentions":[{"candidate_key":"summary","mention":"摘要专有词","evidence_ids":["` + testEvidenceID + `"]}]}`,
-		`{"selections":[{"candidate_key":"summary","entity_id":"33333333-3333-4333-8333-333333333333","entity_role":"event_subject","no_match":false}]}`,
+		`{"selections":[{"candidate_key":"summary","entity_id":"ENT33333333-3333-4333-8333-333333333333","entity_role":"event_subject","no_match":false}]}`,
 		`{"variable_signals":[]}`,
 	}}
 	reviewer := &queuedModel{responses: []string{`{"items":[{"candidate_type":"entity_link","candidate_key":"summary","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`}}
@@ -231,18 +231,18 @@ func TestWorkflowVectorRecallsAndMergesNonUniqueExactCandidates(t *testing.T) {
 	input := testInput()
 	generator := &queuedModel{responses: []string{
 		`{"mentions":[{"candidate_key":"nvidia","mention":"英伟达","evidence_ids":["` + testEvidenceID + `"]}]}`,
-		`{"selections":[{"candidate_key":"nvidia","entity_id":"33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false}]}`,
+		`{"selections":[{"candidate_key":"nvidia","entity_id":"ENT33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false}]}`,
 		`{"variable_signals":[]}`,
 	}}
 	reviewer := &queuedModel{responses: []string{`{"items":[{"candidate_type":"entity_link","candidate_key":"nvidia","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`}}
 	retriever := &retrieverStub{
 		exact: []eventsemantic.EntityCandidateSet{{CandidateKey: "nvidia", Candidates: []eventsemantic.EntityCandidate{
 			{Entity: companyEntity()},
-			{Entity: eventsemantic.Entity{EntityID: "55555555-5555-4555-8555-555555555555", EntityType: "concept", CanonicalName: "英伟达生态", Status: "active"}},
+			{Entity: eventsemantic.Entity{EntityID: "ENT55555555-5555-4555-8555-555555555555", EntityType: "concept", CanonicalName: "英伟达生态", Status: "active"}},
 		}}},
 		search: []eventsemantic.EntityCandidateSet{{CandidateKey: "nvidia", Candidates: []eventsemantic.EntityCandidate{
 			{Entity: companyEntity(), Score: 0.93},
-			{Entity: eventsemantic.Entity{EntityID: "44444444-4444-4444-8444-444444444444", EntityType: "chain_node", CanonicalName: "GPU", Status: "active"}, Score: 0.72},
+			{Entity: eventsemantic.Entity{EntityID: "ENT44444444-4444-4444-8444-444444444444", EntityType: "chain_node", CanonicalName: "GPU", Status: "active"}, Score: 0.72},
 		}}},
 	}
 	data := &dataStub{}
@@ -266,7 +266,7 @@ func TestWorkflowRechecksUniqueExactCandidateRejectedByPrimarySelector(t *testin
 		`{"variable_signals":[]}`,
 	}}
 	reviewer := &queuedModel{responses: []string{
-		`{"selections":[{"candidate_key":"nvidia","entity_id":"33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false,"no_match_reason":""}]}`,
+		`{"selections":[{"candidate_key":"nvidia","entity_id":"ENT33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false,"no_match_reason":""}]}`,
 		`{"items":[{"candidate_type":"entity_link","candidate_key":"nvidia","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`,
 	}}
 	data := &dataStub{}
@@ -296,7 +296,7 @@ func TestWorkflowDoesNotRecheckVectorCandidateWithoutFormalAliasIdentity(t *test
 	retriever := &retrieverStub{
 		exact: []eventsemantic.EntityCandidateSet{{CandidateKey: "bci"}},
 		search: []eventsemantic.EntityCandidateSet{{CandidateKey: "bci", Candidates: []eventsemantic.EntityCandidate{{
-			Entity: eventsemantic.Entity{EntityID: "88888888-8888-4888-8888-888888888888", EntityType: "technology", Name: "非侵入式脑机接口系统", CanonicalName: "非侵入式脑机接口系统", Status: "active"}, Score: 0.91,
+			Entity: eventsemantic.Entity{EntityID: "ENT88888888-8888-4888-8888-888888888888", EntityType: "technology", Name: "非侵入式脑机接口系统", CanonicalName: "非侵入式脑机接口系统", Status: "active"}, Score: 0.91,
 		}}}},
 	}
 	data := &dataStub{}
@@ -338,7 +338,7 @@ func TestRoleProtocolsCoverActionTargetGoldenCases(t *testing.T) {
 func TestWorkflowIsolatesInvalidMentionItemWithoutRepairingWholeEnvelope(t *testing.T) {
 	generator := &queuedModel{responses: []string{
 		`{"mentions":[{"candidate_key":"nvidia","mention":"英伟达","evidence_ids":["` + testEvidenceID + `"]},{"candidate_key":"broken","mention":42,"evidence_ids":["` + testEvidenceID + `"]}]}`,
-		`{"selections":[{"candidate_key":"nvidia","entity_id":"33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false}]}`,
+		`{"selections":[{"candidate_key":"nvidia","entity_id":"ENT33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false}]}`,
 		`{"variable_signals":[]}`,
 	}}
 	reviewer := &queuedModel{responses: []string{`{"items":[{"candidate_type":"entity_link","candidate_key":"nvidia","decision":"pass","reason_codes":[],"evidence_ids":["` + testEvidenceID + `"]}]}`}}
@@ -389,7 +389,7 @@ func TestMissingReviewItemUsesThatCandidatesEvidence(t *testing.T) {
 func TestWorkflowRunsAdjudicatorAfterIndeterminateReview(t *testing.T) {
 	generator := &queuedModel{responses: []string{
 		`{"mentions":[{"candidate_key":"nvidia","mention":"英伟达","evidence_ids":["` + testEvidenceID + `"]}]}`,
-		`{"selections":[{"candidate_key":"nvidia","entity_id":"33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false}]}`,
+		`{"selections":[{"candidate_key":"nvidia","entity_id":"ENT33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false}]}`,
 		`{"variable_signals":[]}`,
 	}}
 	reviewer := &queuedModel{responses: []string{
@@ -532,7 +532,7 @@ func hasIsolation(audit eventsemantic.StageAudit, key, reason string) bool {
 }
 
 func companyEntity() eventsemantic.Entity {
-	return eventsemantic.Entity{EntityID: "33333333-3333-4333-8333-333333333333", EntityType: "company", CanonicalName: "英伟达", Status: "active"}
+	return eventsemantic.Entity{EntityID: "ENT33333333-3333-4333-8333-333333333333", EntityType: "company", CanonicalName: "英伟达", Status: "active"}
 }
 
 func testInput() *Input {

@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	entitybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 	postgresfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/postgres"
 )
 
@@ -25,7 +27,6 @@ func TestStorePersistsCanonicalRegions(t *testing.T) {
 	description := "地理上相邻的亚太区域"
 
 	apac, err := store.Create(ctx, Region{
-		ID:          "REG_APAC",
 		Code:        "APAC",
 		Name:        "亚太地区",
 		NameEn:      "Asia Pacific",
@@ -43,7 +44,6 @@ func TestStorePersistsCanonicalRegions(t *testing.T) {
 	}
 
 	emea, err := store.Create(ctx, Region{
-		ID:         "REG_EMEA",
 		Code:       "EMEA",
 		Name:       "欧洲中东与非洲",
 		NameEn:     "Europe, Middle East and Africa",
@@ -88,7 +88,6 @@ func TestStoreClassifiesRegionFailures(t *testing.T) {
 	}
 	ctx := context.Background()
 	valid := Region{
-		ID:         "REG_APAC",
 		Code:       "APAC",
 		Name:       "亚太地区",
 		NameEn:     "Asia Pacific",
@@ -118,7 +117,7 @@ func TestStoreClassifiesRegionFailures(t *testing.T) {
 		t.Fatalf("Create(duplicate identity) error = %v, want ErrConflict", err)
 	}
 
-	if _, err := store.GetByID(ctx, "REG_MISSING"); !errors.Is(err, ErrNotFound) {
+	if _, err := store.GetByID(ctx, "REGdb79be8f-39f9-56d7-9755-66900668e8ad"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("GetByID(missing) error = %v, want ErrNotFound", err)
 	}
 	if _, err := store.GetByCode(ctx, "MISSING"); !errors.Is(err, ErrNotFound) {
@@ -135,7 +134,7 @@ func TestStorePreservesContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	valid := Region{
-		ID: "REG_APAC", Code: "APAC", Name: "亚太地区", NameEn: "Asia Pacific",
+		Code: "APAC", Name: "亚太地区", NameEn: "Asia Pacific",
 		RegionType: RegionTypeGeographic,
 	}
 	if _, err := store.Create(ctx, valid); !errors.Is(err, context.Canceled) {
@@ -166,7 +165,8 @@ func TestLoadCatalogAcceptsUNM49Package(t *testing.T) {
 	}
 	seen := make(map[string]struct{}, len(catalog.Regions))
 	for _, item := range catalog.Regions {
-		if item.ID != "REG_M49_"+item.M49Code || item.Code != "M49_"+item.M49Code {
+		_, err := coreid.Derive(entitybiz.RegionIDPrefix, "region", item.Code)
+		if err != nil || item.Code != "M49_"+item.M49Code {
 			t.Fatalf("catalog Region identity = %#v", item)
 		}
 		if item.RegionType != RegionTypeGeographic {
@@ -186,7 +186,7 @@ func TestPublishCatalogReplacesRegionFacts(t *testing.T) {
 
 	if _, err := db.ExecContext(ctx, `
 INSERT INTO regions (id, code, name, name_en, region_type)
-VALUES ('REG_APAC', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC')`); err != nil {
+VALUES ('REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC')`); err != nil {
 		t.Fatal(err)
 	}
 
@@ -202,11 +202,11 @@ VALUES ('REG_APAC', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC')`); err
 	if err := db.QueryRowContext(ctx, `
 SELECT name, name_en, region_type::text
 FROM regions
-WHERE id = 'REG_M49_030'`).Scan(&name, &nameEn, &regionType); err != nil {
+WHERE id = 'REGaf95f369-3d85-586d-82c4-bf655fffcefd'`).Scan(&name, &nameEn, &regionType); err != nil {
 		t.Fatal(err)
 	}
 	if name != "东亚" || nameEn != "Eastern Asia" || regionType != "GEOGRAPHIC" {
-		t.Fatalf("REG_M49_030 = %q, %q, %q", name, nameEn, regionType)
+		t.Fatalf("REGaf95f369-3d85-586d-82c4-bf655fffcefd = %q, %q, %q", name, nameEn, regionType)
 	}
 }
 
@@ -214,7 +214,6 @@ func TestLoadCatalogRejectsNoncanonicalUNM49Package(t *testing.T) {
 	catalog := loadRegionCatalog(t)
 	catalog.Regions[0].M49Code = "999"
 	catalog.Regions[0].Code = "M49_999"
-	catalog.Regions[0].ID = "REG_M49_999"
 	if _, err := LoadCatalog(context.Background(), writeRegionCatalog(t, catalog)); !errors.Is(err, ErrInvalidRegion) {
 		t.Fatalf("LoadCatalog(noncanonical code) error = %v, want ErrInvalidRegion", err)
 	}
@@ -233,11 +232,11 @@ func TestPublishCatalogRollsBackWhenCountryReferencesRegion(t *testing.T) {
 
 	if _, err := db.ExecContext(ctx, `
 INSERT INTO regions (id, code, name, name_en, region_type)
-VALUES ('REG_APAC', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC');
+VALUES ('REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC');
 INSERT INTO countries (id, code, name, name_en)
-VALUES ('COU_CHN', 'CHN', '中国', 'China');
-INSERT INTO country_region_links (country_id, region_id)
-VALUES ('COU_CHN', 'REG_APAC')`); err != nil {
+VALUES ('COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b', 'CN', '中国', 'China');
+INSERT INTO country_region_links (id, country_id, region_id)
+VALUES ('CRL11111111-1111-4111-8111-111111111111', 'COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b', 'REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4')`); err != nil {
 		t.Fatal(err)
 	}
 
@@ -254,13 +253,13 @@ func TestPublishCatalogRollsBackWhenOrganizationReferencesRegion(t *testing.T) {
 
 	if _, err := db.ExecContext(ctx, `
 INSERT INTO regions (id, code, name, name_en, region_type)
-VALUES ('REG_APAC', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC');
+VALUES ('REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC');
 INSERT INTO organization_categories (code, name_zh)
 VALUES ('INTERGOVERNMENTAL', '政府间国际组织');
 INSERT INTO organization_functions (code, name_zh)
 VALUES ('GOVERNANCE', '治理与协调');
 INSERT INTO organizations (id, code, name, name_en, region_id, category_code, function_code)
-VALUES ('ORG_TEST', 'TEST', '测试组织', 'Test Organization', 'REG_APAC', 'INTERGOVERNMENTAL', 'GOVERNANCE')`); err != nil {
+VALUES ('ORG78c5d051-d89d-5968-be0a-a97b3b9fbc5d', 'TEST', '测试组织', 'Test Organization', 'REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4', 'INTERGOVERNMENTAL', 'GOVERNANCE')`); err != nil {
 		t.Fatal(err)
 	}
 
@@ -269,11 +268,11 @@ VALUES ('ORG_TEST', 'TEST', '测试组织', 'Test Organization', 'REG_APAC', 'IN
 	}
 	assertCatalogState(t, db, 1, 0)
 	var regionID string
-	if err := db.QueryRowContext(ctx, `SELECT region_id FROM organizations WHERE id = 'ORG_TEST'`).Scan(&regionID); err != nil {
+	if err := db.QueryRowContext(ctx, `SELECT region_id FROM organizations WHERE id = 'ORG78c5d051-d89d-5968-be0a-a97b3b9fbc5d'`).Scan(&regionID); err != nil {
 		t.Fatal(err)
 	}
-	if regionID != "REG_APAC" {
-		t.Fatalf("Organization Region = %q, want REG_APAC", regionID)
+	if regionID != "REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4" {
+		t.Fatalf("Organization Region = %q, want REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4", regionID)
 	}
 }
 
@@ -348,7 +347,7 @@ ORDER BY ordinal_position`)
 		t.Fatal(err)
 	}
 	wantColumns := []column{
-		{name: "id", nullable: "NO", dataType: "varchar", maxLength: sql.NullInt64{Int64: 32, Valid: true}},
+		{name: "id", nullable: "NO", dataType: "varchar", maxLength: sql.NullInt64{Int64: 39, Valid: true}},
 		{name: "code", nullable: "NO", dataType: "varchar", maxLength: sql.NullInt64{Int64: 20, Valid: true}},
 		{name: "name", nullable: "NO", dataType: "varchar", maxLength: sql.NullInt64{Int64: 50, Valid: true}},
 		{name: "name_en", nullable: "NO", dataType: "varchar", maxLength: sql.NullInt64{Int64: 100, Valid: true}},

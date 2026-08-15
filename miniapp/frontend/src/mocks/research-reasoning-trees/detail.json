@@ -10,7 +10,7 @@
     "reasoning_tree": {
       "reasoning_tree_id": "d7e19e24-5d6c-568e-9b1c-93e6d7956d5b",
       "theme_id": "c26337f2-a79f-5089-84f4-63d57bc32230",
-      "industry_chain_entity_id": "66666666-6666-4666-8666-666666666666",
+      "industry_chain_entity_id": "ENT66666666-6666-4666-8666-666666666666",
       "industry_chain_name": "高速光模块产业链",
       "title": "高速光模块",
       "display_order": 1,
@@ -55,7 +55,7 @@
         {
           "id": "c6c1ae0b-9bb3-56e4-8fe7-ebc05a22fa1e",
           "position": 1,
-          "chain_node_entity_id": "22222222-2222-4222-8222-222222222222",
+          "chain_node_entity_id": "ENT22222222-2222-4222-8222-222222222222",
           "name": "数据中心交换机",
           "state_summary": "计划需求上升，实际采购待确认",
           "impact_direction": "positive",
@@ -89,7 +89,7 @@
         {
           "id": "2d25ed5b-a27a-51c6-9b45-97178f179d64",
           "position": 2,
-          "chain_node_entity_id": "33333333-3333-4333-8333-333333333333",
+          "chain_node_entity_id": "ENT33333333-3333-4333-8333-333333333333",
           "name": "高速光模块",
           "state_summary": "需求方向上升，排产待确认",
           "impact_direction": "positive",
@@ -135,7 +135,7 @@
         {
           "id": "7c0270e3-a06f-58dc-a6e9-e90ae0ba0ec1",
           "position": 3,
-          "chain_node_entity_id": "44444444-4444-4444-8444-444444444444",
+          "chain_node_entity_id": "ENT44444444-4444-4444-8444-444444444444",
           "name": "高速光模块 DSP 芯片",
           "state_summary": "需求方向上升，数量待确认",
           "impact_direction": "positive",

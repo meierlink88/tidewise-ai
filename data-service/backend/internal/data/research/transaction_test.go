@@ -14,12 +14,12 @@ import (
 func TestResearchReceiptAdapterRejectsMalformedPersistedRows(t *testing.T) {
 	now := time.Date(2026, 8, 12, 8, 0, 0, 0, time.UTC)
 	valid := researchbiz.Receipt{
-		ID: "11111111-1111-4111-8111-111111111111", AnalysisBatchID: "batch:one",
+		ID: "RTI11111111-1111-4111-8111-111111111111", AnalysisBatchID: "batch:one",
 		PublisherSubject: "agentos", PayloadHash: strings.Repeat("a", 64),
-		ThemeID: "22222222-2222-4222-8222-222222222222", ThemeKey: "theme:one",
+		ThemeID: "RTH22222222-2222-4222-8222-222222222222", ThemeKey: "theme:one",
 		ContractVersion: 3, PublicationMode: researchbiz.SnapshotPublicationMode,
 		ReasoningTreeIDsByIndustryChainEntityID: map[string]string{},
-		ReasoningTreeIDsByTreeKey:               map[string]string{"tree:one": "33333333-3333-4333-8333-333333333333"},
+		ReasoningTreeIDsByTreeKey:               map[string]string{"tree:one": "RRT33333333-3333-4333-8333-333333333333"},
 		Counts:                                  researchbiz.Counts{Themes: 1, Impacts: 1, ReasoningTrees: 1, Nodes: 1, SignalAssociations: 1, Receipts: 2},
 		PublishedAt:                             now, ImportedAt: now,
 	}

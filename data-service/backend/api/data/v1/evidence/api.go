@@ -38,7 +38,7 @@ type RawEvidencePublicationRequest struct {
 }
 
 type RawEvidence struct {
-	RawEvidenceID    string     `json:"raw_evidence_id"`
+	PublicationKey   string     `json:"publication_key"`
 	SourceID         string     `json:"source_id"`
 	SourceName       string     `json:"source_name"`
 	SourceLevel      string     `json:"source_level"`
@@ -92,7 +92,6 @@ type EvidencePublicationRequest struct {
 }
 
 type AtomicEvidence struct {
-	EvidenceID            string     `json:"evidence_id"`
 	SplitOrder            int        `json:"split_order"`
 	LayerType             string     `json:"layer_type"`
 	SourceWho             *string    `json:"source_who"`

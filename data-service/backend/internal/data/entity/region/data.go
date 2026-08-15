@@ -13,6 +13,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	entitybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 type RegionType string
@@ -48,7 +50,6 @@ type CatalogSource struct {
 }
 
 type CatalogRegion struct {
-	ID         string     `json:"id"`
 	Code       string     `json:"code"`
 	M49Code    string     `json:"m49_code"`
 	Name       string     `json:"name"`
@@ -129,10 +130,14 @@ func PublishCatalog(ctx context.Context, db *sql.DB, publication CatalogPublicat
 		return fmt.Errorf("delete Region facts: %w", err)
 	}
 	for _, item := range publication.Regions {
+		id, err := coreid.Derive(coreid.Region, "region", item.Code)
+		if err != nil {
+			return fmt.Errorf("generate Region ID for %s: %w", item.Code, err)
+		}
 		if _, err := tx.ExecContext(ctx, `
 INSERT INTO regions (id, code, name, name_en, region_type)
-VALUES ($1, $2, $3, $4, $5)`, item.ID, item.Code, item.Name, item.NameEn, string(item.RegionType)); err != nil {
-			return fmt.Errorf("insert Region %s: %w", item.ID, err)
+VALUES ($1, $2, $3, $4, $5)`, id, item.Code, item.Name, item.NameEn, string(item.RegionType)); err != nil {
+			return fmt.Errorf("insert Region %s: %w", id, err)
 		}
 	}
 	if err := tx.Commit(); err != nil {
@@ -157,11 +162,11 @@ func validateCatalog(publication CatalogPublication) error {
 	if len(publication.Regions) != 22 {
 		return fmt.Errorf("%w: UN M49 Region catalog must contain 22 sub-regions", ErrInvalidRegion)
 	}
-	seenIDs := make(map[string]struct{}, len(publication.Regions))
 	seenCodes := make(map[string]struct{}, len(publication.Regions))
 	seenM49Codes := make(map[string]struct{}, len(publication.Regions))
 	for index, item := range publication.Regions {
-		if !isM49Code(item.M49Code) || item.Code != "M49_"+item.M49Code || item.ID != "REG_"+item.Code {
+		expectedID, err := coreid.Derive(entitybiz.RegionIDPrefix, "region", item.Code)
+		if err != nil || !isM49Code(item.M49Code) || item.Code != "M49_"+item.M49Code {
 			return fmt.Errorf("%w: Region catalog item %d has inconsistent M49 identity", ErrInvalidRegion, index)
 		}
 		if item.RegionType != RegionTypeGeographic {
@@ -172,12 +177,9 @@ func validateCatalog(publication CatalogPublication) error {
 			return fmt.Errorf("%w: Region catalog item %d is not a canonical UN M49 sub-region", ErrInvalidRegion, index)
 		}
 		if err := validateRegion(Region{
-			ID: item.ID, Code: item.Code, Name: item.Name, NameEn: item.NameEn, RegionType: item.RegionType,
+			ID: expectedID, Code: item.Code, Name: item.Name, NameEn: item.NameEn, RegionType: item.RegionType,
 		}); err != nil {
 			return fmt.Errorf("%w: Region catalog item %d", err, index)
-		}
-		if _, duplicate := seenIDs[item.ID]; duplicate {
-			return fmt.Errorf("%w: duplicate Region ID %s", ErrInvalidRegion, item.ID)
 		}
 		if _, duplicate := seenCodes[item.Code]; duplicate {
 			return fmt.Errorf("%w: duplicate Region code %s", ErrInvalidRegion, item.Code)
@@ -185,7 +187,6 @@ func validateCatalog(publication CatalogPublication) error {
 		if _, duplicate := seenM49Codes[item.M49Code]; duplicate {
 			return fmt.Errorf("%w: duplicate M49 code %s", ErrInvalidRegion, item.M49Code)
 		}
-		seenIDs[item.ID] = struct{}{}
 		seenCodes[item.Code] = struct{}{}
 		seenM49Codes[item.M49Code] = struct{}{}
 	}
@@ -256,6 +257,14 @@ func isM49Code(code string) bool {
 }
 
 func (s *Store) Create(ctx context.Context, region Region) (Region, error) {
+	if strings.TrimSpace(region.ID) != "" {
+		return Region{}, fmt.Errorf("%w: Region ID must be omitted because Data generates it", ErrInvalidRegion)
+	}
+	id, err := coreid.Derive(coreid.Region, "region", region.Code)
+	if err != nil {
+		return Region{}, fmt.Errorf("generate Region ID: %w", err)
+	}
+	region.ID = id
 	if err := validateRegion(region); err != nil {
 		return Region{}, err
 	}
@@ -356,7 +365,7 @@ func validateRegion(region Region) error {
 	if region.Code == "" || len(region.Code) > 20 || !isStableCode(region.Code) {
 		return ErrInvalidRegion
 	}
-	if region.ID != "REG_"+region.Code || len(region.ID) > 32 {
+	if !entitybiz.IsRegionID(region.ID) {
 		return ErrInvalidRegion
 	}
 	if strings.TrimSpace(region.Name) == "" || utf8.RuneCountInString(region.Name) > 50 {

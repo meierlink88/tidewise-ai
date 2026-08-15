@@ -2,7 +2,6 @@ package organization
 
 import (
 	"context"
-	"strconv"
 	"time"
 
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
@@ -89,10 +88,7 @@ func updateMemberHandler(application Service) kratoshttp.HandlerFunc {
 			return err
 		}
 		request.OrganizationID = ctx.Vars().Get("organization_id")
-		request.MemberID, err = strconv.ParseInt(ctx.Vars().Get("member_id"), 10, 64)
-		if err != nil {
-			return v1.NewPublicError(v1.StatusUnprocessableEntity, "ORGANIZATION_MEMBER_INVALID", "Organization member ID is invalid", nil)
-		}
+		request.MemberID = ctx.Vars().Get("member_id")
 		return call(ctx, OperationUpdateMember, request, func(callContext context.Context) (*v1.Response[Member], error) {
 			return application.UpdateMember(callContext, request)
 		})
@@ -101,11 +97,7 @@ func updateMemberHandler(application Service) kratoshttp.HandlerFunc {
 
 func deleteMemberHandler(application Service) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
-		memberID, err := strconv.ParseInt(ctx.Vars().Get("member_id"), 10, 64)
-		if err != nil {
-			return v1.NewPublicError(v1.StatusUnprocessableEntity, "ORGANIZATION_MEMBER_INVALID", "Organization member ID is invalid", nil)
-		}
-		request := &DeleteMemberRequest{OrganizationID: ctx.Vars().Get("organization_id"), MemberID: memberID}
+		request := &DeleteMemberRequest{OrganizationID: ctx.Vars().Get("organization_id"), MemberID: ctx.Vars().Get("member_id")}
 		return call(ctx, OperationDeleteMember, request, func(callContext context.Context) (*v1.Response[DeleteResult], error) {
 			return application.DeleteMember(callContext, request)
 		})
