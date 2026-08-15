@@ -1,0 +1,60 @@
+namespace Tidewise
+
+Organization(组织): EntityType
+    desc: 表示联盟、协会、国际机制、贸易集团、安全联盟等跨国多边行为主体的独立权威对象，不使用通用 Entity 或旧 alliance_org 身份
+    properties:
+        id(组织标识): Text
+            desc: 组织稳定主标识，由 ORG_ 与 code 拼接而成
+            constraint: NotNull, Regular="^ORG_[A-Z][A-Z0-9_]*$"
+        code(组织代码): Text
+            desc: 全大写稳定唯一机器码
+            constraint: NotNull, Regular="^[A-Z][A-Z0-9_]*$"
+        name(组织中文名称): Text
+            desc: 组织中文名称
+            constraint: NotNull
+        nameEn(组织英文名称): Text
+            desc: 组织英文名称
+            constraint: NotNull
+        legalEntityCode(法人机构识别码): Text
+            desc: 可选 ISO 17442 LEI；非独立法人实体为空
+        bindingPowerLevel(约束力级别): Text
+            desc: HIGH 表示条约具有强制约束力且违约有明确法律或军事后果；MEDIUM 表示基于多边框架章程或经济契约并存在违约成本；LOW 表示共识倡议且无强制约束力
+            constraint: Enum="HIGH,MEDIUM,LOW"
+        influenceRating(影响力评级): Text
+            desc: S 表示决议或行动能够影响全球的全球统治级；A 表示在特定大洲或专业领域具有话语权的区域强权级；B 表示专业或局部影响力
+            constraint: Enum="S,A,B"
+        strategicPositioning(战略定位): Text
+            desc: 组织的可选战略定位描述
+        coreImpactScope(核心影响范围): Text
+            desc: 组织核心影响范围的可选描述
+        foundingDocument(创立文件): Text
+            desc: 组织创立文件或条约名称
+        establishedDate(成立日期): Text
+            desc: 组织成立的公历日期，格式为 YYYY-MM-DD
+        headquartersCity(总部城市): Text
+            desc: 组织总部所在城市
+        headquartersSubdivisionId(总部行政区预留标识): Text
+            desc: 为未来 Subdivision Object 预留的可空文本；当前没有外键、校验、查询或关系语义
+        description(组织说明): Text
+            desc: 组织的可选补充说明
+        createdAt(创建时间): Text
+            desc: PostgreSQL 生成的组织事实创建时间
+            constraint: NotNull
+        updatedAt(更新时间): Text
+            desc: PostgreSQL 生成的组织事实最近变更时间
+            constraint: NotNull
+    relations:
+        region(归属区域): Region
+            desc: 区域性组织在没有国家归属时可关联的 Region
+        category(组织形态): OrganizationCategory
+            desc: 组织唯一的可维护形态分类
+        function(核心职能): OrganizationFunction
+            desc: 组织唯一的核心职能领域
+        domainTags(细化领域标签): OrganizationDomainTag
+            desc: 与核心职能一致的零个或多个可维护细化领域标签
+        dominantParty(核心主导方): Country
+            desc: 组织可选的核心主导国家
+        headquartersCountry(总部国家): Country
+            desc: 组织总部所在国家
+        members(成员国家): Country
+            desc: 通过 Organization Membership 关联的国家集合；关系事实含 FULL_MEMBER、OBSERVER、ASSOCIATE、PARTNER、CANDIDATE 类型和闭区间生效历史，同一组织与国家区间不得重叠

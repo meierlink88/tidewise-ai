@@ -13,6 +13,16 @@ import (
 	postgresfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/postgres"
 )
 
+func TestResearchGraphIdentityRejectsLegacyUUIDAsOrganization(t *testing.T) {
+	legacyUUID := "6f845f9f-10e2-44dd-b08a-e482e32d3558"
+	if validResearchGraphIdentity(legacyUUID, domain.ObjectTypeOrganization) {
+		t.Fatal("legacy UUID must not be accepted as an independent Organization")
+	}
+	if !validResearchGraphIdentity("ORG_UN", domain.ObjectTypeOrganization) {
+		t.Fatal("stable ORG_ identity must be accepted as an independent Organization")
+	}
+}
+
 func TestStorePersistsBenchmarkObservations(t *testing.T) {
 	db := openEntityTestDatabase(t)
 
@@ -210,6 +220,25 @@ func openEntityTestDatabase(t *testing.T) *sql.DB {
 		t.Fatal(err)
 	}
 	return postgresfixture.OpenIsolated(t, "tw_entity", migrationDir, 0)
+}
+
+func TestResearchGraphResolvesIndependentOrganizationMembership(t *testing.T) {
+	db := openEntityTestDatabase(t)
+	ctx := context.Background()
+	if _, err := db.ExecContext(ctx, `INSERT INTO organization_categories(code,name_zh) VALUES('INTERGOVERNMENTAL','政府间国际组织'); INSERT INTO organization_functions(code,name_zh) VALUES('GOVERNANCE','治理与协调'); INSERT INTO organizations(id,code,name,name_en,category_code,function_code) VALUES('ORG_UN','UN','联合国','United Nations','INTERGOVERNMENTAL','GOVERNANCE'); INSERT INTO countries(id,code,name,name_en) VALUES('COU_CHN','CHN','中国','China'); INSERT INTO organization_members(organization_id,country_id,membership_type,effective_date) VALUES('ORG_UN','COU_CHN','FULL_MEMBER','1945-10-24')`); err != nil {
+		t.Fatal(err)
+	}
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	graph, err := store.SearchResearchGraph(ctx, domain.ResearchGraphQuery{AnalysisAsOf: time.Now().UTC().Add(time.Minute), SeedEntityIDs: []string{"ORG_UN"}, RelationFilters: []domain.ResearchGraphRelationFilter{{RelationType: "has_member", Direction: domain.ResearchGraphDirectionOutgoing}}, MaxDepth: 1, NodeBudget: 10, EdgeBudget: 10, FactPolicy: domain.ApprovedActiveResearchGraphFactPolicy()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(graph.Entities) != 2 || len(graph.EntityRelations) != 1 || graph.Entities[1].EntityID != "ORG_UN" && graph.Entities[0].EntityID != "ORG_UN" {
+		t.Fatalf("Organization Research Graph = %#v", graph)
+	}
 }
 func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 	db := openEntityTestDatabase(t)

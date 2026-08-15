@@ -125,6 +125,44 @@ func TestHydrateSubmissionContextResolvesCountryWithoutShadowEntity(t *testing.T
 	}
 }
 
+func TestHydrateSubmissionContextResolvesOrganizationWithoutLegacyEntity(t *testing.T) {
+	db := openEventPublicationTestDatabase(t)
+	if _, err := db.ExecContext(context.Background(), `INSERT INTO organization_categories(code,name_zh) VALUES('INTERGOVERNMENTAL','政府间国际组织'); INSERT INTO organization_functions(code,name_zh) VALUES('SECURITY','安全与防务'); INSERT INTO organizations(id,code,name,name_en,category_code,function_code) VALUES('ORG_UN','UN','联合国','United Nations','INTERGOVERNMENTAL','SECURITY')`); err != nil {
+		t.Fatal(err)
+	}
+	result, err := hydrateEventSemanticSubmissionContext(context.Background(), db, eventbiz.Context{}, eventbiz.Submission{EntityLinks: []eventbiz.EntityLinkCandidate{{Key: "organization", Mention: "联合国", EntityID: "ORG_UN", ProjectedEntityType: "organization"}}}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Entities) != 1 || result.Entities[0].ID != "ORG_UN" || result.Entities[0].Type != "organization" || result.Entities[0].Aliases[0] != "United Nations" {
+		t.Fatalf("Organization entities = %#v", result.Entities)
+	}
+	var legacyRows int
+	if err := db.QueryRowContext(context.Background(), `SELECT count(*) FROM entity_nodes WHERE entity_type='alliance_org'`).Scan(&legacyRows); err != nil {
+		t.Fatal(err)
+	}
+	if legacyRows != 0 {
+		t.Fatalf("found %d legacy Alliance rows", legacyRows)
+	}
+}
+
+func TestPersistedOrganizationIdentityRejectsLegacyAllianceUUID(t *testing.T) {
+	valid := eventbiz.Entity{ID: "ORG_UN", Type: "organization", Name: "联合国", CanonicalName: "联合国", Aliases: []string{"United Nations"}, Status: "active"}
+	if err := validatePersistedEntity(valid); err != nil {
+		t.Fatalf("validatePersistedEntity(stable Organization) error = %v", err)
+	}
+	legacy := valid
+	legacy.ID = "6f845f9f-10e2-44dd-b08a-e482e32d3558"
+	if err := validatePersistedEntity(legacy); err == nil {
+		t.Fatal("legacy Alliance UUID was accepted as an independent Organization")
+	}
+	legacy.ID = "ORG_UN"
+	legacy.Type = "alliance_org"
+	if err := validatePersistedEntity(legacy); err == nil {
+		t.Fatal("retired alliance_org type was accepted")
+	}
+}
+
 func assertMeasurementEvidenceIDs(t *testing.T, db *sql.DB, measurementID, evidenceID string) {
 	t.Helper()
 	var evidenceIDs string

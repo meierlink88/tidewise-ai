@@ -12,6 +12,7 @@ import (
 
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	countryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/country"
+	organizationapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/organization"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
@@ -33,6 +34,8 @@ const (
 	ScopeEventSemanticsWrite = "data.event-semantics.write"
 	ScopeCountryRead         = "data.countries.read"
 	ScopeCountryWrite        = "data.countries.write"
+	ScopeOrganizationRead    = "data.organizations.read"
+	ScopeOrganizationWrite   = "data.organizations.write"
 	operationHealth          = "data.health"
 	operationReady           = "data.ready"
 )
@@ -140,6 +143,11 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeCountryRead, true
 	case countryapi.OperationCreate, countryapi.OperationUpdate, countryapi.OperationReplaceRegions:
 		return ScopeCountryWrite, true
+	case organizationapi.OperationList, organizationapi.OperationGet, organizationapi.OperationGetCatalog, organizationapi.OperationListMembers:
+		return ScopeOrganizationRead, true
+	case organizationapi.OperationCreate, organizationapi.OperationUpdate, organizationapi.OperationReplaceDomainTags,
+		organizationapi.OperationCreateMember, organizationapi.OperationUpdateMember, organizationapi.OperationDeleteMember:
+		return ScopeOrganizationWrite, true
 	default:
 		return "", false
 	}

@@ -4081,7 +4081,7 @@ func validateGraphSearchRequest(request GraphSearchRequest) (GraphQuery, normali
 	}
 	seedSet := map[string]struct{}{}
 	for _, id := range request.SeedEntityIDs {
-		if !identity.IsUUID(id) && !entitybiz.IsCountryID(id) {
+		if !identity.IsUUID(id) && !entitybiz.IsCountryID(id) && !entitybiz.IsOrganizationID(id) {
 			return GraphQuery{}, normalizedGraphSearchRequest{}, &GraphValidationError{Reason: "seed_entity_ids contains an invalid Object ID"}
 		}
 		if _, exists := seedSet[id]; exists {

@@ -23,6 +23,7 @@ tags:
   - name: Research Theme import
   - name: Research Reason Tree import
   - name: Country
+  - name: Organization
 
 paths:
   /healthz:
@@ -1191,6 +1192,247 @@ paths:
         '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/ServiceUnavailable'}
 
+  /api/data/v1/entities/organizations:
+    get:
+      tags: [Organization]
+      operationId: listOrganizations
+      x-client-drift-anchor: data.v1.listOrganizations
+      x-required-service-scope: data.organizations.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 查询 Organization
+      description: 按 code、id 稳定升序返回 Organization；可按 Category、Function、Region 和指定日期有效的成员 Country 筛选。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - {name: category_code, in: query, schema: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}}
+        - {name: function_code, in: query, schema: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}}
+        - {name: region_id, in: query, schema: {type: string, pattern: '^REG_[A-Z][A-Z0-9_]*$', maxLength: 32}}
+        - {name: country_id, in: query, schema: {type: string, pattern: '^COU_[A-Z]{3}$'}}
+        - {name: as_of, in: query, schema: {type: string, format: date}}
+      responses:
+        '200':
+          description: Organization 列表
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationListEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+    post:
+      tags: [Organization]
+      operationId: createOrganization
+      x-client-drift-anchor: data.v1.createOrganization
+      x-required-service-scope: data.organizations.write
+      x-retry-policy: caller-resolves-organization-identity
+      x-timeout-budget-ms: 5000
+      summary: 创建 Organization
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationCreateRequest'}}}}
+      responses:
+        '201':
+          description: Organization 已创建
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+  /api/data/v1/entities/organizations/{organization_id}:
+    parameters:
+      - {$ref: '#/components/parameters/OrganizationID'}
+    get:
+      tags: [Organization]
+      operationId: getOrganization
+      x-client-drift-anchor: data.v1.getOrganization
+      x-required-service-scope: data.organizations.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 获取 Organization 详情
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          description: Organization
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+    put:
+      tags: [Organization]
+      operationId: updateOrganization
+      x-client-drift-anchor: data.v1.updateOrganization
+      x-required-service-scope: data.organizations.write
+      x-retry-policy: idempotent-put
+      x-timeout-budget-ms: 5000
+      summary: 更新 Organization 可变事实
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationUpdateRequest'}}}}
+      responses:
+        '200':
+          description: Organization 已更新
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+  /api/data/v1/entities/organizations/{organization_id}/domain-tags:
+    parameters:
+      - {$ref: '#/components/parameters/OrganizationID'}
+    put:
+      tags: [Organization]
+      operationId: replaceOrganizationDomainTags
+      x-client-drift-anchor: data.v1.replaceOrganizationDomainTags
+      x-required-service-scope: data.organizations.write
+      x-retry-policy: idempotent-put
+      x-timeout-budget-ms: 5000
+      summary: 原子替换 Organization Domain Tags
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationDomainTagsReplaceRequest'}}}}
+      responses:
+        '200':
+          description: Domain Tags 已替换
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+  /api/data/v1/organization-catalog:
+    get:
+      tags: [Organization]
+      operationId: getOrganizationCatalog
+      x-client-drift-anchor: data.v1.getOrganizationCatalog
+      x-required-service-scope: data.organizations.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 获取 Organization 中文语义目录
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          description: Organization 目录
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationCatalogEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+  /api/data/v1/entities/organizations/{organization_id}/members:
+    parameters:
+      - {$ref: '#/components/parameters/OrganizationID'}
+    get:
+      tags: [Organization]
+      operationId: listOrganizationMembers
+      x-client-drift-anchor: data.v1.listOrganizationMembers
+      x-required-service-scope: data.organizations.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 查询 Organization 成员资格历史
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - {name: as_of, in: query, schema: {type: string, format: date}}
+      responses:
+        '200':
+          description: Organization 成员
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationMemberListEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+    post:
+      tags: [Organization]
+      operationId: createOrganizationMember
+      x-client-drift-anchor: data.v1.createOrganizationMember
+      x-required-service-scope: data.organizations.write
+      x-retry-policy: caller-resolves-membership-conflict
+      x-timeout-budget-ms: 5000
+      summary: 创建 Country 成员资格历史记录
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationMemberWriteRequest'}}}}
+      responses:
+        '201':
+          description: 成员关系已创建
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationMemberEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+  /api/data/v1/entities/organizations/{organization_id}/members/{member_id}:
+    parameters:
+      - {$ref: '#/components/parameters/OrganizationID'}
+      - {name: member_id, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
+    put:
+      tags: [Organization]
+      operationId: updateOrganizationMember
+      x-client-drift-anchor: data.v1.updateOrganizationMember
+      x-required-service-scope: data.organizations.write
+      x-retry-policy: idempotent-put
+      x-timeout-budget-ms: 5000
+      summary: 更新成员资格失效日期或其它可变事实
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationMemberWriteRequest'}}}}
+      responses:
+        '200':
+          description: 成员关系已更新
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationMemberEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+    delete:
+      tags: [Organization]
+      operationId: deleteOrganizationMember
+      x-client-drift-anchor: data.v1.deleteOrganizationMember
+      x-required-service-scope: data.organizations.write
+      x-retry-policy: caller-confirms-membership-exists
+      x-timeout-budget-ms: 5000
+      summary: 删除成员资格历史记录
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          description: 成员关系已删除
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/OrganizationMemberDeleteEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
 components:
   securitySchemes:
     ServiceBearer:
@@ -1296,6 +1538,11 @@ components:
       schema:
         type: string
         pattern: '^REG_[A-Z0-9_]+$'
+    OrganizationID:
+      name: organization_id
+      in: path
+      required: true
+      schema: {type: string, pattern: '^ORG_[A-Z][A-Z0-9_]*$', maxLength: 32}
 
   headers:
     RequestID:
@@ -1426,6 +1673,170 @@ components:
             $ref: '#/components/schemas/ErrorEnvelope'
 
   schemas:
+    OrganizationCatalogTerm:
+      type: object
+      additionalProperties: false
+      required: [code, name_zh]
+      properties:
+        code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$'}
+        name_zh: {type: string, minLength: 1, maxLength: 100}
+    OrganizationDomainTag:
+      type: object
+      additionalProperties: false
+      required: [code, function_code, name_zh]
+      properties:
+        code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 50}
+        function_code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}
+        name_zh: {type: string, minLength: 1, maxLength: 100}
+    OrganizationCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [id, code, name, name_en, category_code, function_code]
+      properties:
+        id: {type: string, pattern: '^ORG_[A-Z][A-Z0-9_]*$', maxLength: 32}
+        code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}
+        name: {type: string, minLength: 1, maxLength: 100}
+        name_en: {type: string, minLength: 1, maxLength: 100}
+        region_id: {type: string, pattern: '^REG_[A-Z][A-Z0-9_]*$', maxLength: 32, nullable: true}
+        category_code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}
+        function_code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}
+        legal_entity_code: {type: string, pattern: '^[A-Z0-9]{20}$', nullable: true}
+        dominant_party_id: {type: string, pattern: '^COU_[A-Z]{3}$', nullable: true}
+        binding_power_level: {type: string, enum: [HIGH, MEDIUM, LOW], nullable: true, description: 'HIGH=强制条约约束；MEDIUM=框架或经济契约约束；LOW=无强制力共识倡议'}
+        influence_rating: {type: string, enum: [S, A, B], nullable: true, description: 'S=全球治理影响；A=区域或领域权威；B=专业或局部影响'}
+        strategic_positioning: {type: string, nullable: true}
+        core_impact_scope: {type: string, nullable: true}
+        founding_document: {type: string, maxLength: 200, nullable: true}
+        established_date: {type: string, format: date, nullable: true}
+        headquarters_city: {type: string, maxLength: 100, nullable: true}
+        headquarters_country_id: {type: string, pattern: '^COU_[A-Z]{3}$', nullable: true}
+        headquarters_subdivision_id: {type: string, maxLength: 32, nullable: true}
+        description: {type: string, nullable: true}
+    OrganizationUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [name, name_en, category_code, function_code]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 100}
+        name_en: {type: string, minLength: 1, maxLength: 100}
+        region_id: {type: string, pattern: '^REG_[A-Z][A-Z0-9_]*$', maxLength: 32, nullable: true}
+        category_code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}
+        function_code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}
+        legal_entity_code: {type: string, pattern: '^[A-Z0-9]{20}$', nullable: true}
+        dominant_party_id: {type: string, pattern: '^COU_[A-Z]{3}$', nullable: true}
+        binding_power_level: {type: string, enum: [HIGH, MEDIUM, LOW], nullable: true, description: 'HIGH=强制条约约束；MEDIUM=框架或经济契约约束；LOW=无强制力共识倡议'}
+        influence_rating: {type: string, enum: [S, A, B], nullable: true, description: 'S=全球治理影响；A=区域或领域权威；B=专业或局部影响'}
+        strategic_positioning: {type: string, nullable: true}
+        core_impact_scope: {type: string, nullable: true}
+        founding_document: {type: string, maxLength: 200, nullable: true}
+        established_date: {type: string, format: date, nullable: true}
+        headquarters_city: {type: string, maxLength: 100, nullable: true}
+        headquarters_country_id: {type: string, pattern: '^COU_[A-Z]{3}$', nullable: true}
+        headquarters_subdivision_id: {type: string, maxLength: 32, nullable: true}
+        description: {type: string, nullable: true}
+        domain_tag_codes: {type: array, uniqueItems: true, items: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 50}}
+    OrganizationDomainTagsReplaceRequest:
+      type: object
+      additionalProperties: false
+      required: [domain_tag_codes]
+      properties: {domain_tag_codes: {type: array, uniqueItems: true, items: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 50}}}
+    Organization:
+      type: object
+      additionalProperties: false
+      required: [id, code, name, name_en, region_id, category, function, legal_entity_code, dominant_party_id, binding_power_level, influence_rating, strategic_positioning, core_impact_scope, founding_document, established_date, headquarters_city, headquarters_country_id, headquarters_subdivision_id, description, domain_tags, created_at, updated_at]
+      properties:
+        id: {type: string, pattern: '^ORG_[A-Z][A-Z0-9_]*$', maxLength: 32}
+        code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}
+        name: {type: string, minLength: 1, maxLength: 100}
+        name_en: {type: string, minLength: 1, maxLength: 100}
+        region_id: {type: string, pattern: '^REG_[A-Z][A-Z0-9_]*$', maxLength: 32, nullable: true}
+        category: {$ref: '#/components/schemas/OrganizationCatalogTerm'}
+        function: {$ref: '#/components/schemas/OrganizationCatalogTerm'}
+        legal_entity_code: {type: string, pattern: '^[A-Z0-9]{20}$', nullable: true}
+        dominant_party_id: {type: string, pattern: '^COU_[A-Z]{3}$', nullable: true}
+        binding_power_level: {type: string, enum: [HIGH, MEDIUM, LOW], nullable: true, description: 'HIGH=强制条约约束；MEDIUM=框架或经济契约约束；LOW=无强制力共识倡议'}
+        influence_rating: {type: string, enum: [S, A, B], nullable: true, description: 'S=全球治理影响；A=区域或领域权威；B=专业或局部影响'}
+        strategic_positioning: {type: string, nullable: true}
+        core_impact_scope: {type: string, nullable: true}
+        founding_document: {type: string, minLength: 1, maxLength: 200, nullable: true}
+        established_date: {type: string, format: date, nullable: true}
+        headquarters_city: {type: string, minLength: 1, maxLength: 100, nullable: true}
+        headquarters_country_id: {type: string, pattern: '^COU_[A-Z]{3}$', nullable: true}
+        headquarters_subdivision_id: {type: string, minLength: 1, maxLength: 32, nullable: true}
+        description: {type: string, nullable: true}
+        domain_tags: {type: array, items: {$ref: '#/components/schemas/OrganizationDomainTag'}}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    OrganizationEnvelope:
+      type: object
+      required: [request_id, result]
+      properties: {request_id: {type: string}, result: {$ref: '#/components/schemas/Organization'}}
+    OrganizationListEnvelope:
+      type: object
+      required: [request_id, result]
+      properties:
+        request_id: {type: string}
+        result:
+          type: object
+          required: [items]
+          properties: {items: {type: array, items: {$ref: '#/components/schemas/Organization'}}}
+    OrganizationCatalogEnvelope:
+      type: object
+      required: [request_id, result]
+      properties:
+        request_id: {type: string}
+        result:
+          type: object
+          required: [categories, functions, domain_tags]
+          properties:
+            categories: {type: array, items: {$ref: '#/components/schemas/OrganizationCatalogTerm'}}
+            functions: {type: array, items: {$ref: '#/components/schemas/OrganizationCatalogTerm'}}
+            domain_tags: {type: array, items: {$ref: '#/components/schemas/OrganizationDomainTag'}}
+    OrganizationMemberWriteRequest:
+      type: object
+      additionalProperties: false
+      required: [country_id, membership_type]
+      properties:
+        country_id: {type: string, pattern: '^COU_[A-Z]{3}$'}
+        membership_type: {type: string, enum: [FULL_MEMBER, OBSERVER, ASSOCIATE, PARTNER, CANDIDATE]}
+        effective_date: {type: string, format: date, nullable: true}
+        expiry_date: {type: string, format: date, nullable: true}
+    OrganizationMember:
+      type: object
+      additionalProperties: false
+      required: [id, organization_id, country_id, membership_type, effective_date, expiry_date, created_at, updated_at]
+      properties:
+        id: {type: integer, format: int64}
+        organization_id: {type: string, pattern: '^ORG_[A-Z][A-Z0-9_]*$', maxLength: 32}
+        country_id: {type: string, pattern: '^COU_[A-Z]{3}$'}
+        membership_type: {type: string, enum: [FULL_MEMBER, OBSERVER, ASSOCIATE, PARTNER, CANDIDATE]}
+        effective_date: {type: string, format: date, nullable: true}
+        expiry_date: {type: string, format: date, nullable: true}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    OrganizationMemberEnvelope:
+      type: object
+      required: [request_id, result]
+      properties: {request_id: {type: string}, result: {$ref: '#/components/schemas/OrganizationMember'}}
+    OrganizationMemberListEnvelope:
+      type: object
+      required: [request_id, result]
+      properties:
+        request_id: {type: string}
+        result:
+          type: object
+          required: [items]
+          properties: {items: {type: array, items: {$ref: '#/components/schemas/OrganizationMember'}}}
+    OrganizationMemberDeleteEnvelope:
+      type: object
+      required: [request_id, result]
+      properties:
+        request_id: {type: string}
+        result:
+          type: object
+          additionalProperties: false
+          required: [deleted]
+          properties: {deleted: {type: boolean, enum: [true]}}
     CountryCreateRequest:
       type: object
       additionalProperties: false

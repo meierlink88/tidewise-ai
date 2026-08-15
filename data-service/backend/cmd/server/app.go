@@ -13,6 +13,7 @@ import (
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	entitybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
 	countrybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/country"
+	organizationbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/organization"
 	eventbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/event"
 	eventsemanticbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/eventsemantic"
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
@@ -24,6 +25,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/dbmigration"
 	entitydata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity"
 	countrydata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/country"
+	organizationdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/organization"
 	eventdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/event"
 	eventsemanticdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/eventsemantic"
 	evidencedata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/evidence"
@@ -31,6 +33,7 @@ import (
 	researchdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/research"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/server"
 	countryservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/country"
+	organizationservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/organization"
 	eventservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/event"
 	eventsemanticservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/eventsemantic"
 	evidenceservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/evidence"
@@ -115,6 +118,14 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Country use case: %w", err))
 	}
+	organizationStore, err := organizationdata.NewStore(db)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Organization store: %w", err))
+	}
+	organizationUseCase, err := organizationbiz.NewUseCase(organizationStore)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Organization use case: %w", err))
+	}
 	researchStore, err := researchdata.NewStore(db)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Research store: %w", err))
@@ -159,7 +170,11 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Country API service: %w", err))
 	}
-	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, eventSemanticApplication, evidenceApplication, rawDocumentApplication, countryApplication, authenticator, logger)
+	organizationApplication, err := organizationservice.NewService(organizationUseCase)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Organization API service: %w", err))
+	}
+	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, eventSemanticApplication, evidenceApplication, rawDocumentApplication, countryApplication, organizationApplication, authenticator, logger)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure HTTP server: %w", err))
 	}
@@ -186,6 +201,8 @@ func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 				server.ScopeAdminRead,
 				server.ScopeCountryRead,
 				server.ScopeCountryWrite,
+				server.ScopeOrganizationRead,
+				server.ScopeOrganizationWrite,
 			}},
 		},
 	}

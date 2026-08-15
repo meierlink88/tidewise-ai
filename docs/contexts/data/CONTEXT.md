@@ -42,6 +42,31 @@ AgentRun 运行时下架、旧 `tidewise_ai_server` 数据搬迁和历史 8/19 �
 
 ## Language
 
+**Organization**:
+以 `ORG_ + code` 为稳定身份的独立多边组织事实，覆盖联盟、协会、国际机制、贸易集团和
+安全联盟。Organization 不使用通用 Entity、Profile 或旧 `alliance_org` UUID；Category、
+Function 与 Domain Tag 通过 Data 目录连接稳定英文机器码和中文语义。
+_Avoid_: Alliance Org、Organization Profile、通用 Entity 的组织别名、member_count
+
+**Organization Category**:
+Organization 唯一的可维护组织形态目录项，仅包含稳定 code、中文名称及数据库时间戳。
+_Avoid_: PostgreSQL enum、通用 Dictionary、带状态或展示顺序的分类
+
+**Organization Function**:
+Organization 唯一的可维护核心职能目录项；Domain Tag 必须归属于一个 Function。
+_Avoid_: 多选核心职能、自由文本职能、与 Domain Tag 混用
+
+**Organization Domain Tag**:
+在 Organization Function 下表达细化投资主题语义的可维护目录项。Organization 可以选择
+多个 Tag，但每个所选 Tag 的归属 Function 必须与 Organization 当前 Function 一致。
+_Avoid_: 文本数组、跨 Function 标签、无中文语义的代码
+
+**Organization Membership**:
+Country 与 Organization 之间带成员类型和生效历史的关系事实。有效期为闭区间，空起始
+表示未知且向过去无界，空失效表示当前有效且向未来无界；同一 Country 与 Organization
+的历史区间不得重叠，失效日期修正更新原行。
+_Avoid_: member_count、重叠历史、用追加行表达 expiry_date 修正
+
 **Raw Evidence**:
 Data 正式保存的一份完整原始采集材料，包含来源与转载快照、完整正文、文章发布时间、
 采集时间、正文哈希、有序 Keywords 和受控内容分类。它可以在清洗完成前暂时没有 Evidence，但不能以

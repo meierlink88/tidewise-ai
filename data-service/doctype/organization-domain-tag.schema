@@ -1,0 +1,20 @@
+namespace Tidewise
+
+OrganizationDomainTag(组织细化领域标签): EntityType
+    desc: Organization 的可维护细化领域目录项；每个标签只能归属一个核心职能
+    properties:
+        code(领域标签代码): Text
+            desc: 稳定英文机器码
+            constraint: NotNull, Regular="^[A-Z][A-Z0-9_]*$"
+        nameZh(中文名称): Text
+            desc: 供人工阅读与 AI 语义理解的中文名称
+            constraint: NotNull
+        createdAt(创建时间): Text
+            desc: PostgreSQL 生成的目录项创建时间
+            constraint: NotNull
+        updatedAt(更新时间): Text
+            desc: PostgreSQL 生成的目录项最近变更时间
+            constraint: NotNull
+    relations:
+        function(归属核心职能): OrganizationFunction
+            desc: 该标签唯一归属的核心职能

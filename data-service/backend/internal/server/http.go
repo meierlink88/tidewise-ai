@@ -17,6 +17,7 @@ import (
 
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	countryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/country"
+	organizationapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/organization"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
@@ -35,7 +36,7 @@ type healthResponse struct {
 	Checks      map[string]string `json:"checks,omitempty"`
 }
 
-func NewHTTPServer(config conf.Config, runtimeHealthApplication runtimehealthapi.Service, researchApplication researchapi.Service, eventApplication eventapi.Service, eventSemanticApplication eventsemanticapi.Service, evidenceApplication evidenceapi.Service, rawDocumentApplication rawdocumentapi.Service, countryApplication countryapi.Service, authenticator *Authenticator, logger *slog.Logger) (*kratoshttp.Server, error) {
+func NewHTTPServer(config conf.Config, runtimeHealthApplication runtimehealthapi.Service, researchApplication researchapi.Service, eventApplication eventapi.Service, eventSemanticApplication eventsemanticapi.Service, evidenceApplication evidenceapi.Service, rawDocumentApplication rawdocumentapi.Service, countryApplication countryapi.Service, organizationApplication organizationapi.Service, authenticator *Authenticator, logger *slog.Logger) (*kratoshttp.Server, error) {
 	if runtimeHealthApplication == nil {
 		return nil, errors.New("Runtime Health API service is required")
 	}
@@ -56,6 +57,9 @@ func NewHTTPServer(config conf.Config, runtimeHealthApplication runtimehealthapi
 	}
 	if countryApplication == nil {
 		return nil, errors.New("Country API service is required")
+	}
+	if organizationApplication == nil {
+		return nil, errors.New("Organization API service is required")
 	}
 	if authenticator == nil {
 		return nil, errors.New("Data API authenticator is required")
@@ -87,6 +91,7 @@ func NewHTTPServer(config conf.Config, runtimeHealthApplication runtimehealthapi
 	evidenceapi.RegisterHTTPServer(server, evidenceApplication)
 	rawdocumentapi.RegisterHTTPServer(server, rawDocumentApplication)
 	countryapi.RegisterHTTPServer(server, countryApplication)
+	organizationapi.RegisterHTTPServer(server, organizationApplication)
 
 	documented := wrapAPIDocs(config.App.Env, server.Server.Handler, apiDocsConfig{
 		Title:    "Tidewise Data Service API",
