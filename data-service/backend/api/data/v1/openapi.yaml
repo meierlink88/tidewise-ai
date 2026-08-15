@@ -833,8 +833,8 @@ paths:
       summary: 发布一份完整 Raw Evidence
       description: >-
         采集完成后同步发布完整 Raw Evidence 及有序 Keywords。接口不使用
-        Idempotency-Key；相同 raw_evidence_id 仅在全部业务字段一致时安全重试。成功响应
-        只返回正式 Raw Evidence ID。
+        Idempotency-Key；相同 publication_key 仅在全部业务字段一致时安全重试。Data
+        由该自然键确定性生成正式 Raw Evidence ID，成功响应只返回该系统身份。
       parameters:
         - $ref: '#/components/parameters/RequestID'
       requestBody:
@@ -1075,7 +1075,7 @@ paths:
       operationId: createCountry
       x-client-drift-anchor: data.v1.createCountry
       x-required-service-scope: data.countries.write
-      x-retry-policy: caller-resolves-country-identity
+      x-retry-policy: caller-resolves-country-code-conflict
       x-timeout-budget-ms: 5000
       summary: 创建国家
       parameters:
@@ -1225,7 +1225,7 @@ paths:
       operationId: createOrganization
       x-client-drift-anchor: data.v1.createOrganization
       x-required-service-scope: data.organizations.write
-      x-retry-policy: caller-resolves-organization-identity
+      x-retry-policy: caller-resolves-organization-code-conflict
       x-timeout-budget-ms: 5000
       summary: 创建 Organization
       parameters:

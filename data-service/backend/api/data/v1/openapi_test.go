@@ -108,6 +108,45 @@ func TestOpenAPIContractFreezesCountryWriteOperations(t *testing.T) {
 	}
 }
 
+func TestOpenAPICreateContractsDoNotAcceptSystemOwnedPrimaryKeys(t *testing.T) {
+	document := loadContract(t)
+	for schemaName, forbidden := range map[string][]string{
+		"CountryCreateRequest":                    {"id", "country_id"},
+		"CountryRegionsReplaceRequest":            {"id", "country_region_link_id"},
+		"OrganizationCreateRequest":               {"id", "organization_id"},
+		"OrganizationMemberWriteRequest":          {"id", "member_id"},
+		"RawEvidence":                             {"id", "raw_evidence_id"},
+		"AtomicEvidence":                          {"id", "evidence_id"},
+		"EventPublicationRequest":                 {"id", "receipt_id"},
+		"EventPublicationRawDocument":             {"id", "raw_document_id"},
+		"EventPublicationEvent":                   {"id", "event_id"},
+		"EventPublicationEvidence":                {"id", "event_evidence_link_id"},
+		"EventPublicationTag":                     {"id", "event_tag_assignment_id"},
+		"EventSemanticContextLeaseRequest":        {"id", "context_lease_id"},
+		"EventSemanticSubmissionRequest":          {"id", "submission_id", "candidate_snapshot_id"},
+		"EventSemanticEntityLinkCandidate":        {"id", "event_entity_link_id", "resolution_binding_id"},
+		"EventSemanticVariableSignalCandidate":    {"id", "variable_signal_id"},
+		"EventSemanticMeasurement":                {"id", "measurement_id"},
+		"EventSemanticReviewRequest":              {"id", "review_snapshot_id", "resolution_binding_id"},
+		"EventSemanticReviewItem":                 {"id", "record_id"},
+		"ResearchThemeImportRequest":              {"id", "receipt_id", "theme_id", "reasoning_tree_receipt_id"},
+		"ResearchThemeSnapshotImportRequest":      {"id", "receipt_id", "theme_id", "reasoning_tree_receipt_id"},
+		"ResearchThemeImportItem":                 {"id", "theme_id"},
+		"ResearchThemeSnapshotItem":               {"id", "theme_id"},
+		"ResearchReasoningTreeImportItem":         {"id", "reasoning_tree_id"},
+		"ResearchReasoningTreeSnapshotImportItem": {"id", "reasoning_tree_id"},
+		"ResearchReasoningTreeImportNode":         {"id", "node_id"},
+		"ResearchReasoningTreeSnapshotNode":       {"id", "node_id"},
+	} {
+		properties := object(t, schema(t, document, schemaName)["properties"], schemaName+" properties")
+		for _, property := range forbidden {
+			if _, exists := properties[property]; exists {
+				t.Errorf("%s exposes system-owned primary key %q", schemaName, property)
+			}
+		}
+	}
+}
+
 func TestOpenAPIContractFreezesOrganizationNullsErrorsAndRequestIDs(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
