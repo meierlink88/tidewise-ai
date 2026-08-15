@@ -1,0 +1,1619 @@
+{
+  "schema_version": 1,
+  "source": {
+    "workbook": "联盟国家组织.xlsx",
+    "sheet": "全球国家+地区"
+  },
+  "replace_mode": "country-domain",
+  "regions": [],
+  "countries": [
+    {
+      "id": "COU_MCO",
+      "code": "MCO",
+      "name": "摩纳哥",
+      "name_en": "Monaco",
+      "strategic_positioning": "微型奢华国/避税天堂",
+      "key_resources": "旅游、博彩、金融"
+    },
+    {
+      "id": "COU_LIE",
+      "code": "LIE",
+      "name": "列支敦士登",
+      "name_en": "Liechtenstein",
+      "strategic_positioning": "微型金融中心/避税国",
+      "key_resources": "金融、精密制造"
+    },
+    {
+      "id": "COU_LUX",
+      "code": "LUX",
+      "name": "卢森堡",
+      "name_en": "Luxembourg",
+      "strategic_positioning": "全球金融中心/欧盟创始国",
+      "key_resources": "金融、钢铁、物流"
+    },
+    {
+      "id": "COU_IRL",
+      "code": "IRL",
+      "name": "爱尔兰",
+      "name_en": "Ireland",
+      "strategic_positioning": "欧洲科技/制药中心",
+      "key_resources": "制药、IT、金融"
+    },
+    {
+      "id": "COU_CHE",
+      "code": "CHE",
+      "name": "瑞士",
+      "name_en": "Switzerland",
+      "strategic_positioning": "全球金融/科技中心/中立国",
+      "key_resources": "金融、制药、精密制造"
+    },
+    {
+      "id": "COU_NOR",
+      "code": "NOR",
+      "name": "挪威",
+      "name_en": "Norway",
+      "strategic_positioning": "北欧能源富国/主权基金国",
+      "key_resources": "石油、天然气、渔业"
+    },
+    {
+      "id": "COU_MAC",
+      "code": "MAC",
+      "name": "中国澳门",
+      "name_en": "Macao",
+      "strategic_positioning": "中国直辖特别行政区，“一国两制”下高度自治，非主权实体",
+      "key_resources": "旅游休闲、博彩、中葡商贸合作平台"
+    },
+    {
+      "id": "COU_USA",
+      "code": "USA",
+      "name": "美国",
+      "name_en": "United States of America",
+      "strategic_positioning": "全球超级大国/科技金融中心",
+      "key_resources": "科技、金融、能源、军工"
+    },
+    {
+      "id": "COU_SGP",
+      "code": "SGP",
+      "name": "新加坡",
+      "name_en": "Singapore",
+      "strategic_positioning": "全球航运/金融中心/城市国家",
+      "key_resources": "航运、金融、电子"
+    },
+    {
+      "id": "COU_ISL",
+      "code": "ISL",
+      "name": "冰岛",
+      "name_en": "Iceland",
+      "strategic_positioning": "北大西洋岛国/地热能源国",
+      "key_resources": "地热、渔业、旅游"
+    },
+    {
+      "id": "COU_QAT",
+      "code": "QAT",
+      "name": "卡塔尔",
+      "name_en": "Qatar",
+      "strategic_positioning": "全球最大LNG出口国/金融中心",
+      "key_resources": "液化天然气、金融、航空"
+    },
+    {
+      "id": "COU_DNK",
+      "code": "DNK",
+      "name": "丹麦",
+      "name_en": "Denmark",
+      "strategic_positioning": "北欧福利国家/绿色能源国",
+      "key_resources": "风电、制药、农业"
+    },
+    {
+      "id": "COU_AUS",
+      "code": "AUS",
+      "name": "澳大利亚",
+      "name_en": "Australia",
+      "strategic_positioning": "南半球资源大国/五眼联盟",
+      "key_resources": "铁矿、煤炭、天然气、锂"
+    },
+    {
+      "id": "COU_SWE",
+      "code": "SWE",
+      "name": "瑞典",
+      "name_en": "Sweden",
+      "strategic_positioning": "北欧科技强国/中立国",
+      "key_resources": "汽车、制药、林业"
+    },
+    {
+      "id": "COU_NLD",
+      "code": "NLD",
+      "name": "荷兰",
+      "name_en": "Netherlands, Kingdom of the",
+      "strategic_positioning": "欧洲物流枢纽/农业强国",
+      "key_resources": "农业、物流、化工"
+    },
+    {
+      "id": "COU_SMR",
+      "code": "SMR",
+      "name": "圣马力诺",
+      "name_en": "San Marino",
+      "strategic_positioning": "微型国/旅游国",
+      "key_resources": "旅游、邮票、陶瓷"
+    },
+    {
+      "id": "COU_AUT",
+      "code": "AUT",
+      "name": "奥地利",
+      "name_en": "Austria",
+      "strategic_positioning": "中欧枢纽/中立国",
+      "key_resources": "机械制造、旅游、水电"
+    },
+    {
+      "id": "COU_ISR",
+      "code": "ISR",
+      "name": "以色列",
+      "name_en": "Israel",
+      "strategic_positioning": "中东科技强国/美国盟友",
+      "key_resources": "高科技、军工、农业技术"
+    },
+    {
+      "id": "COU_DEU",
+      "code": "DEU",
+      "name": "德国",
+      "name_en": "Germany",
+      "strategic_positioning": "欧盟经济引擎/制造业强国",
+      "key_resources": "汽车、机械、化工"
+    },
+    {
+      "id": "COU_FIN",
+      "code": "FIN",
+      "name": "芬兰",
+      "name_en": "Finland",
+      "strategic_positioning": "北欧科技强国/俄罗斯邻国",
+      "key_resources": "林业、5G、教育"
+    },
+    {
+      "id": "COU_CAN",
+      "code": "CAN",
+      "name": "加拿大",
+      "name_en": "Canada",
+      "strategic_positioning": "北美资源大国/七国集团成员",
+      "key_resources": "石油、矿产、林业、农业"
+    },
+    {
+      "id": "COU_BEL",
+      "code": "BEL",
+      "name": "比利时",
+      "name_en": "Belgium",
+      "strategic_positioning": "欧盟/北约总部/物流枢纽",
+      "key_resources": "化工、钻石、物流"
+    },
+    {
+      "id": "COU_HKG",
+      "code": "HKG",
+      "name": "中国香港",
+      "name_en": "Hong Kong",
+      "strategic_positioning": "中国直辖特别行政区，“一国两制”下高度自治，非主权实体",
+      "key_resources": "国际金融、贸易、航运、专业服务"
+    },
+    {
+      "id": "COU_NZL",
+      "code": "NZL",
+      "name": "新西兰",
+      "name_en": "New Zealand",
+      "strategic_positioning": "南太平洋农业/旅游强国",
+      "key_resources": "乳业、林业、旅游"
+    },
+    {
+      "id": "COU_ARE",
+      "code": "ARE",
+      "name": "阿联酋",
+      "name_en": "United Arab Emirates",
+      "strategic_positioning": "海湾多元化经济体/航空枢纽",
+      "key_resources": "石油、金融、航空"
+    },
+    {
+      "id": "COU_GBR",
+      "code": "GBR",
+      "name": "英国",
+      "name_en": "United Kingdom of Great Britain and Northern Ireland",
+      "strategic_positioning": "全球金融中心/海洋强国",
+      "key_resources": "金融、能源、创意产业"
+    },
+    {
+      "id": "COU_FRA",
+      "code": "FRA",
+      "name": "法国",
+      "name_en": "France",
+      "strategic_positioning": "欧盟核心/全球大国",
+      "key_resources": "核能、航空、农业"
+    },
+    {
+      "id": "COU_AND",
+      "code": "AND",
+      "name": "安道尔",
+      "name_en": "Andorra",
+      "strategic_positioning": "高山避税天堂/旅游国",
+      "key_resources": "旅游、金融、免税"
+    },
+    {
+      "id": "COU_MLT",
+      "code": "MLT",
+      "name": "马耳他",
+      "name_en": "Malta",
+      "strategic_positioning": "地中海岛国/金融中心",
+      "key_resources": "金融、旅游、航运"
+    },
+    {
+      "id": "COU_ITA",
+      "code": "ITA",
+      "name": "意大利",
+      "name_en": "Italy",
+      "strategic_positioning": "南欧核心/制造业强国",
+      "key_resources": "时尚、机械、旅游"
+    },
+    {
+      "id": "COU_CYP",
+      "code": "CYP",
+      "name": "塞浦路斯",
+      "name_en": "Cyprus",
+      "strategic_positioning": "地中海航运枢纽/欧盟成员",
+      "key_resources": "航运、旅游、金融服务"
+    },
+    {
+      "id": "COU_BHS",
+      "code": "BHS",
+      "name": "巴哈马",
+      "name_en": "Bahamas",
+      "strategic_positioning": "加勒比旅游/离岸金融中心",
+      "key_resources": "旅游、金融、渔业"
+    },
+    {
+      "id": "COU_KOR",
+      "code": "KOR",
+      "name": "韩国",
+      "name_en": "Korea, Republic of",
+      "strategic_positioning": "全球科技/制造业强国",
+      "key_resources": "半导体、汽车、造船"
+    },
+    {
+      "id": "COU_BRN",
+      "code": "BRN",
+      "name": "文莱",
+      "name_en": "Brunei Darussalam",
+      "strategic_positioning": "东南亚石油富国/伊斯兰金融中心",
+      "key_resources": "石油、天然气、液化天然气"
+    },
+    {
+      "id": "COU_JPN",
+      "code": "JPN",
+      "name": "日本",
+      "name_en": "Japan",
+      "strategic_positioning": "全球第三大经济体/科技强国",
+      "key_resources": "汽车、电子、机器人"
+    },
+    {
+      "id": "COU_TWN",
+      "code": "TWN",
+      "name": "中国台湾",
+      "name_en": "Taiwan, Province of China",
+      "strategic_positioning": "中国省级行政区，两岸同属一个中国，非主权实体",
+      "key_resources": "半导体、电子制造、精密机械、农业"
+    },
+    {
+      "id": "COU_ESP",
+      "code": "ESP",
+      "name": "西班牙",
+      "name_en": "Spain",
+      "strategic_positioning": "南欧核心/旅游大国",
+      "key_resources": "旅游、农业、可再生能源"
+    },
+    {
+      "id": "COU_KWT",
+      "code": "KWT",
+      "name": "科威特",
+      "name_en": "Kuwait",
+      "strategic_positioning": "海湾石油富国/金融中心",
+      "key_resources": "石油、天然气、金融"
+    },
+    {
+      "id": "COU_SVN",
+      "code": "SVN",
+      "name": "斯洛文尼亚",
+      "name_en": "Slovenia",
+      "strategic_positioning": "阿尔卑斯门户/欧盟成员",
+      "key_resources": "制药、电子、旅游"
+    },
+    {
+      "id": "COU_SAU",
+      "code": "SAU",
+      "name": "沙特阿拉伯",
+      "name_en": "Saudi Arabia",
+      "strategic_positioning": "OPEC核心/中东主导国",
+      "key_resources": "石油、天然气、石化"
+    },
+    {
+      "id": "COU_CZE",
+      "code": "CZE",
+      "name": "捷克",
+      "name_en": "Czechia",
+      "strategic_positioning": "中欧制造业中心/欧盟成员",
+      "key_resources": "汽车、机械、啤酒"
+    },
+    {
+      "id": "COU_EST",
+      "code": "EST",
+      "name": "爱沙尼亚",
+      "name_en": "Estonia",
+      "strategic_positioning": "波罗的海数字国家/欧盟成员",
+      "key_resources": "IT、电子、木材"
+    },
+    {
+      "id": "COU_PRT",
+      "code": "PRT",
+      "name": "葡萄牙",
+      "name_en": "Portugal",
+      "strategic_positioning": "大西洋门户/旅游国",
+      "key_resources": "旅游、软木、农业"
+    },
+    {
+      "id": "COU_BHR",
+      "code": "BHR",
+      "name": "巴林",
+      "name_en": "Bahrain",
+      "strategic_positioning": "海湾金融中心/美国盟友",
+      "key_resources": "石油、天然气、铝业"
+    },
+    {
+      "id": "COU_LTU",
+      "code": "LTU",
+      "name": "立陶宛",
+      "name_en": "Lithuania",
+      "strategic_positioning": "波罗的海门户/欧盟成员",
+      "key_resources": "激光、电子、农业"
+    },
+    {
+      "id": "COU_LVA",
+      "code": "LVA",
+      "name": "拉脱维亚",
+      "name_en": "Latvia",
+      "strategic_positioning": "波罗的海门户/欧盟成员",
+      "key_resources": "木材、电子、物流"
+    },
+    {
+      "id": "COU_GRC",
+      "code": "GRC",
+      "name": "希腊",
+      "name_en": "Greece",
+      "strategic_positioning": "地中海门户/债务复苏国",
+      "key_resources": "航运、旅游、橄榄油"
+    },
+    {
+      "id": "COU_BRB",
+      "code": "BRB",
+      "name": "巴巴多斯",
+      "name_en": "Barbados",
+      "strategic_positioning": "加勒比稳定国/旅游国",
+      "key_resources": "旅游、金融、朗姆酒"
+    },
+    {
+      "id": "COU_SVK",
+      "code": "SVK",
+      "name": "斯洛伐克",
+      "name_en": "Slovakia",
+      "strategic_positioning": "中欧制造业枢纽/欧盟成员",
+      "key_resources": "汽车、电子、农业"
+    },
+    {
+      "id": "COU_HUN",
+      "code": "HUN",
+      "name": "匈牙利",
+      "name_en": "Hungary",
+      "strategic_positioning": "中欧制造业枢纽/欧盟成员",
+      "key_resources": "汽车、电子、农业"
+    },
+    {
+      "id": "COU_KNA",
+      "code": "KNA",
+      "name": "圣基茨和尼维斯",
+      "name_en": "Saint Kitts and Nevis",
+      "strategic_positioning": "加勒比微型国/投资移民国",
+      "key_resources": "旅游、金融、糖"
+    },
+    {
+      "id": "COU_POL",
+      "code": "POL",
+      "name": "波兰",
+      "name_en": "Poland",
+      "strategic_positioning": "中东欧最大经济体/欧盟成员",
+      "key_resources": "煤炭、农业、制造业"
+    },
+    {
+      "id": "COU_HRV",
+      "code": "HRV",
+      "name": "克罗地亚",
+      "name_en": "Croatia",
+      "strategic_positioning": "亚得里亚海门户/旅游国",
+      "key_resources": "旅游、造船、农业"
+    },
+    {
+      "id": "COU_URY",
+      "code": "URY",
+      "name": "乌拉圭",
+      "name_en": "Uruguay",
+      "strategic_positioning": "南美稳定国/农业强国",
+      "key_resources": "农业、牛肉、可再生能源"
+    },
+    {
+      "id": "COU_ATG",
+      "code": "ATG",
+      "name": "安提瓜和巴布达",
+      "name_en": "Antigua and Barbuda",
+      "strategic_positioning": "加勒比旅游/离岸金融国",
+      "key_resources": "旅游、金融、渔业"
+    },
+    {
+      "id": "COU_TTO",
+      "code": "TTO",
+      "name": "特立尼达和多巴哥",
+      "name_en": "Trinidad and Tobago",
+      "strategic_positioning": "加勒比能源富国",
+      "key_resources": "石油、天然气、化工"
+    },
+    {
+      "id": "COU_OMN",
+      "code": "OMN",
+      "name": "阿曼",
+      "name_en": "Oman",
+      "strategic_positioning": "海湾能源出口国/中立外交国",
+      "key_resources": "石油、天然气、港口"
+    },
+    {
+      "id": "COU_COK",
+      "code": "COK",
+      "name": "库克群岛",
+      "name_en": "Cook Islands",
+      "strategic_positioning": "新西兰自由联系国/中国建交非联合国主权实体",
+      "key_resources": "渔业、黑珍珠、旅游、离岸金融"
+    },
+    {
+      "id": "COU_ROU",
+      "code": "ROU",
+      "name": "罗马尼亚",
+      "name_en": "Romania",
+      "strategic_positioning": "黑海门户/欧盟成员",
+      "key_resources": "农业、IT、能源"
+    },
+    {
+      "id": "COU_GUY",
+      "code": "GUY",
+      "name": "圭亚那",
+      "name_en": "Guyana",
+      "strategic_positioning": "南美新兴石油国/转型中",
+      "key_resources": "石油、黄金、林业"
+    },
+    {
+      "id": "COU_SYC",
+      "code": "SYC",
+      "name": "塞舌尔",
+      "name_en": "Seychelles",
+      "strategic_positioning": "印度洋岛国/旅游国",
+      "key_resources": "旅游、渔业、金融"
+    },
+    {
+      "id": "COU_PAN",
+      "code": "PAN",
+      "name": "巴拿马",
+      "name_en": "Panama",
+      "strategic_positioning": "全球航运枢纽/金融中心",
+      "key_resources": "运河、金融、物流"
+    },
+    {
+      "id": "COU_CHL",
+      "code": "CHL",
+      "name": "智利",
+      "name_en": "Chile",
+      "strategic_positioning": "南美最稳定经济体/矿业强国",
+      "key_resources": "铜矿、锂矿、农业"
+    },
+    {
+      "id": "COU_PLW",
+      "code": "PLW",
+      "name": "帕劳",
+      "name_en": "Palau",
+      "strategic_positioning": "太平洋岛国/旅游国",
+      "key_resources": "旅游、渔业、美国援助"
+    },
+    {
+      "id": "COU_NIU",
+      "code": "NIU",
+      "name": "纽埃",
+      "name_en": "Niue",
+      "strategic_positioning": "新西兰自由联系国/中国建交非联合国主权实体",
+      "key_resources": "渔业、旅游、离岸金融、蜂蜜"
+    },
+    {
+      "id": "COU_CRI",
+      "code": "CRI",
+      "name": "哥斯达黎加",
+      "name_en": "Costa Rica",
+      "strategic_positioning": "中美洲稳定国/生态旅游国",
+      "key_resources": "旅游、医疗、电子"
+    },
+    {
+      "id": "COU_MEX",
+      "code": "MEX",
+      "name": "墨西哥",
+      "name_en": "Mexico",
+      "strategic_positioning": "北美制造业枢纽/拉美门户",
+      "key_resources": "制造业、石油、农业"
+    },
+    {
+      "id": "COU_BGR",
+      "code": "BGR",
+      "name": "保加利亚",
+      "name_en": "Bulgaria",
+      "strategic_positioning": "黑海门户/欧盟成员",
+      "key_resources": "玫瑰油、铜矿、农业"
+    },
+    {
+      "id": "COU_GRD",
+      "code": "GRD",
+      "name": "格林纳达",
+      "name_en": "Grenada",
+      "strategic_positioning": "加勒比岛国/香料国",
+      "key_resources": "香料、旅游、农业"
+    },
+    {
+      "id": "COU_ARG",
+      "code": "ARG",
+      "name": "阿根廷",
+      "name_en": "Argentina",
+      "strategic_positioning": "南美农业大国/转型经济体",
+      "key_resources": "农业、锂矿、页岩气"
+    },
+    {
+      "id": "COU_KAZ",
+      "code": "KAZ",
+      "name": "哈萨克斯坦",
+      "name_en": "Kazakhstan",
+      "strategic_positioning": "中亚最大经济体/能源出口国",
+      "key_resources": "石油、天然气、铀矿"
+    },
+    {
+      "id": "COU_CHN",
+      "code": "CHN",
+      "name": "中国",
+      "name_en": "China",
+      "strategic_positioning": "全球第二大经济体/制造业中心",
+      "key_resources": "稀土、制造业、新能源"
+    },
+    {
+      "id": "COU_TUR",
+      "code": "TUR",
+      "name": "土耳其",
+      "name_en": "Türkiye",
+      "strategic_positioning": "欧亚枢纽/区域强国",
+      "key_resources": "制造业、农业、地缘位置"
+    },
+    {
+      "id": "COU_MYS",
+      "code": "MYS",
+      "name": "马来西亚",
+      "name_en": "Malaysia",
+      "strategic_positioning": "东南亚制造业/资源出口国",
+      "key_resources": "电子、棕榈油、天然气"
+    },
+    {
+      "id": "COU_LCA",
+      "code": "LCA",
+      "name": "圣卢西亚",
+      "name_en": "Saint Lucia",
+      "strategic_positioning": "加勒比旅游岛国",
+      "key_resources": "旅游、香蕉、渔业"
+    },
+    {
+      "id": "COU_MUS",
+      "code": "MUS",
+      "name": "毛里求斯",
+      "name_en": "Mauritius",
+      "strategic_positioning": "印度洋金融中心/旅游国",
+      "key_resources": "金融、旅游、纺织"
+    },
+    {
+      "id": "COU_RUS",
+      "code": "RUS",
+      "name": "俄罗斯",
+      "name_en": "Russian Federation",
+      "strategic_positioning": "全球能源大国/区域强国",
+      "key_resources": "石油、天然气、核能"
+    },
+    {
+      "id": "COU_MDV",
+      "code": "MDV",
+      "name": "马尔代夫",
+      "name_en": "Maldives",
+      "strategic_positioning": "印度洋旅游岛国/战略要地",
+      "key_resources": "旅游业、渔业"
+    },
+    {
+      "id": "COU_DOM",
+      "code": "DOM",
+      "name": "多米尼加",
+      "name_en": "Dominican Republic",
+      "strategic_positioning": "加勒比旅游经济中心",
+      "key_resources": "旅游、矿业、农业"
+    },
+    {
+      "id": "COU_MNE",
+      "code": "MNE",
+      "name": "黑山",
+      "name_en": "Montenegro",
+      "strategic_positioning": "亚得里亚海旅游国/转型国",
+      "key_resources": "旅游、铝、水电"
+    },
+    {
+      "id": "COU_BRA",
+      "code": "BRA",
+      "name": "巴西",
+      "name_en": "Brazil",
+      "strategic_positioning": "南美最大经济体/金砖国家",
+      "key_resources": "农业、矿产、生物燃料"
+    },
+    {
+      "id": "COU_SRB",
+      "code": "SRB",
+      "name": "塞尔维亚",
+      "name_en": "Serbia",
+      "strategic_positioning": "巴尔干枢纽/转型国家",
+      "key_resources": "农业、矿业、汽车"
+    },
+    {
+      "id": "COU_CUB",
+      "code": "CUB",
+      "name": "古巴",
+      "name_en": "Cuba",
+      "strategic_positioning": "加勒比社会主义国家/医疗强国",
+      "key_resources": "医疗、旅游、镍矿"
+    },
+    {
+      "id": "COU_DMA",
+      "code": "DMA",
+      "name": "多米尼克",
+      "name_en": "Dominica",
+      "strategic_positioning": "加勒比生态岛国/旅游国",
+      "key_resources": "旅游、农业、地热"
+    },
+    {
+      "id": "COU_GEO",
+      "code": "GEO",
+      "name": "格鲁吉亚",
+      "name_en": "Georgia",
+      "strategic_positioning": "黑海-里海走廊/欧亚枢纽",
+      "key_resources": "铜矿、葡萄酒、物流"
+    },
+    {
+      "id": "COU_VCT",
+      "code": "VCT",
+      "name": "圣文森特和格林纳丁斯",
+      "name_en": "Saint Vincent and the Grenadines",
+      "strategic_positioning": "加勒比岛国/旅游国",
+      "key_resources": "旅游、农业、渔业"
+    },
+    {
+      "id": "COU_BWA",
+      "code": "BWA",
+      "name": "博茨瓦纳",
+      "name_en": "Botswana",
+      "strategic_positioning": "南部非洲稳定国/钻石国",
+      "key_resources": "钻石、铜、旅游"
+    },
+    {
+      "id": "COU_NRU",
+      "code": "NRU",
+      "name": "瑙鲁",
+      "name_en": "Nauru",
+      "strategic_positioning": "太平洋微型国/转型中",
+      "key_resources": "磷酸盐、渔业、侨汇"
+    },
+    {
+      "id": "COU_ARM",
+      "code": "ARM",
+      "name": "亚美尼亚",
+      "name_en": "Armenia",
+      "strategic_positioning": "高加索地缘枢纽/俄罗斯盟友",
+      "key_resources": "铜矿、黄金、IT外包"
+    },
+    {
+      "id": "COU_TKM",
+      "code": "TKM",
+      "name": "土库曼斯坦",
+      "name_en": "Turkmenistan",
+      "strategic_positioning": "中亚天然气出口国/封闭国家",
+      "key_resources": "天然气、棉花、石油"
+    },
+    {
+      "id": "COU_GAB",
+      "code": "GAB",
+      "name": "加蓬",
+      "name_en": "Gabon",
+      "strategic_positioning": "中非资源国/转型中",
+      "key_resources": "石油、木材、锰矿"
+    },
+    {
+      "id": "COU_THA",
+      "code": "THA",
+      "name": "泰国",
+      "name_en": "Thailand",
+      "strategic_positioning": "东南亚制造业/旅游中心",
+      "key_resources": "汽车、电子、旅游"
+    },
+    {
+      "id": "COU_PER",
+      "code": "PER",
+      "name": "秘鲁",
+      "name_en": "Peru",
+      "strategic_positioning": "安第斯矿业大国/农业国",
+      "key_resources": "铜矿、黄金、渔业"
+    },
+    {
+      "id": "COU_ALB",
+      "code": "ALB",
+      "name": "阿尔巴尼亚",
+      "name_en": "Albania",
+      "strategic_positioning": "巴尔干门户/北约成员",
+      "key_resources": "铬矿、水电、旅游"
+    },
+    {
+      "id": "COU_BLR",
+      "code": "BLR",
+      "name": "白俄罗斯",
+      "name_en": "Belarus",
+      "strategic_positioning": "俄罗斯战略盟友/内陆国",
+      "key_resources": "钾肥、机械制造、农业"
+    },
+    {
+      "id": "COU_BIH",
+      "code": "BIH",
+      "name": "波黑",
+      "name_en": "Bosnia and Herzegovina",
+      "strategic_positioning": "巴尔干转型国/多民族国家",
+      "key_resources": "煤炭、铝、木材"
+    },
+    {
+      "id": "COU_BLZ",
+      "code": "BLZ",
+      "name": "伯利兹",
+      "name_en": "Belize",
+      "strategic_positioning": "中美洲生态国/旅游国",
+      "key_resources": "旅游、农业、渔业"
+    },
+    {
+      "id": "COU_COL",
+      "code": "COL",
+      "name": "哥伦比亚",
+      "name_en": "Colombia",
+      "strategic_positioning": "南美太平洋门户/区域枢纽",
+      "key_resources": "石油、煤炭、咖啡"
+    },
+    {
+      "id": "COU_MKD",
+      "code": "MKD",
+      "name": "北马其顿",
+      "name_en": "North Macedonia",
+      "strategic_positioning": "巴尔干内陆国/转型国家",
+      "key_resources": "农业、矿业、旅游"
+    },
+    {
+      "id": "COU_ECU",
+      "code": "ECU",
+      "name": "厄瓜多尔",
+      "name_en": "Ecuador",
+      "strategic_positioning": "安第斯石油国/农业国",
+      "key_resources": "石油、香蕉、可可"
+    },
+    {
+      "id": "COU_FJI",
+      "code": "FJI",
+      "name": "斐济",
+      "name_en": "Fiji",
+      "strategic_positioning": "太平洋岛国枢纽/旅游国",
+      "key_resources": "旅游、糖、渔业"
+    },
+    {
+      "id": "COU_SUR",
+      "code": "SUR",
+      "name": "苏里南",
+      "name_en": "Suriname",
+      "strategic_positioning": "南美资源国/转型中",
+      "key_resources": "黄金、铝土矿、林业"
+    },
+    {
+      "id": "COU_AZE",
+      "code": "AZE",
+      "name": "阿塞拜疆",
+      "name_en": "Azerbaijan",
+      "strategic_positioning": "里海能源出口国/欧亚桥梁",
+      "key_resources": "石油、天然气、棉花"
+    },
+    {
+      "id": "COU_PRY",
+      "code": "PRY",
+      "name": "巴拉圭",
+      "name_en": "Paraguay",
+      "strategic_positioning": "南美农业国/水电出口国",
+      "key_resources": "大豆、水电、牛肉"
+    },
+    {
+      "id": "COU_LBY",
+      "code": "LBY",
+      "name": "利比亚",
+      "name_en": "Libya",
+      "strategic_positioning": "北非产油国/战后重建",
+      "key_resources": "石油、天然气"
+    },
+    {
+      "id": "COU_JAM",
+      "code": "JAM",
+      "name": "牙买加",
+      "name_en": "Jamaica",
+      "strategic_positioning": "加勒比旅游/文化输出国",
+      "key_resources": "旅游、铝土矿、文化"
+    },
+    {
+      "id": "COU_ZAF",
+      "code": "ZAF",
+      "name": "南非",
+      "name_en": "South Africa",
+      "strategic_positioning": "非洲工业中心/区域强国",
+      "key_resources": "矿业、金融、制造业"
+    },
+    {
+      "id": "COU_IRQ",
+      "code": "IRQ",
+      "name": "伊拉克",
+      "name_en": "Iraq",
+      "strategic_positioning": "OPEC核心产油国/战后重建国",
+      "key_resources": "石油、天然气、农业"
+    },
+    {
+      "id": "COU_DZA",
+      "code": "DZA",
+      "name": "阿尔及利亚",
+      "name_en": "Algeria",
+      "strategic_positioning": "北非能源大国/军事强国",
+      "key_resources": "天然气、石油、矿产"
+    },
+    {
+      "id": "COU_MDA",
+      "code": "MDA",
+      "name": "摩尔多瓦",
+      "name_en": "Moldova, Republic of",
+      "strategic_positioning": "东欧农业国/转型国家",
+      "key_resources": "葡萄酒、农业、侨汇"
+    },
+    {
+      "id": "COU_GTM",
+      "code": "GTM",
+      "name": "危地马拉",
+      "name_en": "Guatemala",
+      "strategic_positioning": "中美洲人口大国/农业国",
+      "key_resources": "农业、纺织、侨汇"
+    },
+    {
+      "id": "COU_SLV",
+      "code": "SLV",
+      "name": "萨尔瓦多",
+      "name_en": "El Salvador",
+      "strategic_positioning": "中美洲转型国/侨汇依赖国",
+      "key_resources": "侨汇、纺织、农业"
+    },
+    {
+      "id": "COU_MNG",
+      "code": "MNG",
+      "name": "蒙古",
+      "name_en": "Mongolia",
+      "strategic_positioning": "中俄之间矿产出口国",
+      "key_resources": "铜矿、煤炭、黄金"
+    },
+    {
+      "id": "COU_GNQ",
+      "code": "GNQ",
+      "name": "赤道几内亚",
+      "name_en": "Equatorial Guinea",
+      "strategic_positioning": "中非产油国/高收入国",
+      "key_resources": "石油、天然气、木材"
+    },
+    {
+      "id": "COU_IDN",
+      "code": "IDN",
+      "name": "印度尼西亚",
+      "name_en": "Indonesia",
+      "strategic_positioning": "东南亚最大经济体/群岛国家",
+      "key_resources": "镍矿、棕榈油、煤炭"
+    },
+    {
+      "id": "COU_JOR",
+      "code": "JOR",
+      "name": "约旦",
+      "name_en": "Jordan",
+      "strategic_positioning": "中东稳定锚/难民接收国",
+      "key_resources": "磷酸盐、钾盐、旅游业"
+    },
+    {
+      "id": "COU_MHL",
+      "code": "MHL",
+      "name": "马绍尔群岛",
+      "name_en": "Marshall Islands",
+      "strategic_positioning": "太平洋岛国/美国盟友",
+      "key_resources": "渔业、侨汇、美国援助"
+    },
+    {
+      "id": "COU_TUV",
+      "code": "TUV",
+      "name": "图瓦卢",
+      "name_en": "Tuvalu",
+      "strategic_positioning": "太平洋微型国/气候脆弱国",
+      "key_resources": "渔业、侨汇、域名"
+    },
+    {
+      "id": "COU_TON",
+      "code": "TON",
+      "name": "汤加",
+      "name_en": "Tonga",
+      "strategic_positioning": "太平洋岛国/君主国",
+      "key_resources": "农业、渔业、侨汇"
+    },
+    {
+      "id": "COU_CPV",
+      "code": "CPV",
+      "name": "佛得角",
+      "name_en": "Cabo Verde",
+      "strategic_positioning": "西非岛国/稳定国",
+      "key_resources": "旅游、渔业、侨汇"
+    },
+    {
+      "id": "COU_NAM",
+      "code": "NAM",
+      "name": "纳米比亚",
+      "name_en": "Namibia",
+      "strategic_positioning": "南部非洲资源国/转型中",
+      "key_resources": "钻石、铀矿、渔业"
+    },
+    {
+      "id": "COU_VNM",
+      "code": "VNM",
+      "name": "越南",
+      "name_en": "Viet Nam",
+      "strategic_positioning": "东南亚制造业中心/出口导向国",
+      "key_resources": "电子、纺织、农业"
+    },
+    {
+      "id": "COU_WSM",
+      "code": "WSM",
+      "name": "萨摩亚",
+      "name_en": "Samoa",
+      "strategic_positioning": "太平洋岛国/旅游国",
+      "key_resources": "旅游、农业、侨汇"
+    },
+    {
+      "id": "COU_TUN",
+      "code": "TUN",
+      "name": "突尼斯",
+      "name_en": "Tunisia",
+      "strategic_positioning": "北非转型国/旅游国",
+      "key_resources": "旅游、磷酸盐、农业"
+    },
+    {
+      "id": "COU_IRN",
+      "code": "IRN",
+      "name": "伊朗",
+      "name_en": "Iran, Islamic Republic of",
+      "strategic_positioning": "中东能源大国/区域强国",
+      "key_resources": "石油、天然气、矿产"
+    },
+    {
+      "id": "COU_SWZ",
+      "code": "SWZ",
+      "name": "斯威士兰",
+      "name_en": "Eswatini",
+      "strategic_positioning": "南部非洲君主国/转型中",
+      "key_resources": "糖、纺织、旅游"
+    },
+    {
+      "id": "COU_UKR",
+      "code": "UKR",
+      "name": "乌克兰",
+      "name_en": "Ukraine",
+      "strategic_positioning": "东欧农业大国/冲突国",
+      "key_resources": "粮食、钢铁、稀土"
+    },
+    {
+      "id": "COU_LKA",
+      "code": "LKA",
+      "name": "斯里兰卡",
+      "name_en": "Sri Lanka",
+      "strategic_positioning": "印度洋航运枢纽/债务危机国",
+      "key_resources": "茶叶、旅游、港口"
+    },
+    {
+      "id": "COU_PSE",
+      "code": "PSE",
+      "name": "巴勒斯坦",
+      "name_en": "Palestine, State of",
+      "strategic_positioning": "观察员国/争议领土",
+      "key_resources": "农业、服务业、侨汇"
+    },
+    {
+      "id": "COU_DJI",
+      "code": "DJI",
+      "name": "吉布提",
+      "name_en": "Djibouti",
+      "strategic_positioning": "东非港口国/战略枢纽",
+      "key_resources": "港口、物流、军事基地"
+    },
+    {
+      "id": "COU_PHL",
+      "code": "PHL",
+      "name": "菲律宾",
+      "name_en": "Philippines",
+      "strategic_positioning": "东南亚群岛国/制造业承接地",
+      "key_resources": "电子、农业、劳务输出"
+    },
+    {
+      "id": "COU_BTN",
+      "code": "BTN",
+      "name": "不丹",
+      "name_en": "Bhutan",
+      "strategic_positioning": "喜马拉雅生态王国/碳汇国",
+      "key_resources": "水电、林业、旅游业"
+    },
+    {
+      "id": "COU_BOL",
+      "code": "BOL",
+      "name": "玻利维亚",
+      "name_en": "Bolivia, Plurinational State of",
+      "strategic_positioning": "安第斯锂矿国/内陆国",
+      "key_resources": "锂矿、天然气、矿产"
+    },
+    {
+      "id": "COU_MAR",
+      "code": "MAR",
+      "name": "摩洛哥",
+      "name_en": "Morocco",
+      "strategic_positioning": "北非门户/磷酸盐王国",
+      "key_resources": "磷酸盐、旅游、汽车"
+    },
+    {
+      "id": "COU_HND",
+      "code": "HND",
+      "name": "洪都拉斯",
+      "name_en": "Honduras",
+      "strategic_positioning": "中美洲农业国/转型中",
+      "key_resources": "咖啡、香蕉、纺织"
+    },
+    {
+      "id": "COU_FSM",
+      "code": "FSM",
+      "name": "密克罗尼西亚",
+      "name_en": "Micronesia, Federated States of",
+      "strategic_positioning": "太平洋岛国/美国盟友",
+      "key_resources": "渔业、侨汇、美国援助"
+    },
+    {
+      "id": "COU_VUT",
+      "code": "VUT",
+      "name": "瓦努阿图",
+      "name_en": "Vanuatu",
+      "strategic_positioning": "太平洋岛国/离岸金融国",
+      "key_resources": "旅游、渔业、离岸金融"
+    },
+    {
+      "id": "COU_VEN",
+      "code": "VEN",
+      "name": "委内瑞拉",
+      "name_en": "Venezuela, Bolivarian Republic of",
+      "strategic_positioning": "南美最大石油储量国/危机国",
+      "key_resources": "石油、天然气、矿产"
+    },
+    {
+      "id": "COU_ZWE",
+      "code": "ZWE",
+      "name": "津巴布韦",
+      "name_en": "Zimbabwe",
+      "strategic_positioning": "南部非洲资源国/转型中",
+      "key_resources": "烟草、黄金、锂矿"
+    },
+    {
+      "id": "COU_PNG",
+      "code": "PNG",
+      "name": "巴布亚新几内亚",
+      "name_en": "Papua New Guinea",
+      "strategic_positioning": "太平洋最大岛国/资源国",
+      "key_resources": "金矿、铜矿、天然气"
+    },
+    {
+      "id": "COU_EGY",
+      "code": "EGY",
+      "name": "埃及",
+      "name_en": "Egypt",
+      "strategic_positioning": "北非枢纽/苏伊士运河控制国",
+      "key_resources": "运河、旅游、天然气"
+    },
+    {
+      "id": "COU_IND",
+      "code": "IND",
+      "name": "印度",
+      "name_en": "India",
+      "strategic_positioning": "南亚主导国/新兴制造业大国",
+      "key_resources": "IT服务、制药、农业"
+    },
+    {
+      "id": "COU_LBN",
+      "code": "LBN",
+      "name": "黎巴嫩",
+      "name_en": "Lebanon",
+      "strategic_positioning": "中东金融/文化中心/危机国",
+      "key_resources": "银行业、旅游业、侨汇"
+    },
+    {
+      "id": "COU_CIV",
+      "code": "CIV",
+      "name": "科特迪瓦",
+      "name_en": "Côte d'Ivoire",
+      "strategic_positioning": "西非经济引擎/可可王国",
+      "key_resources": "可可、咖啡、石油"
+    },
+    {
+      "id": "COU_BGD",
+      "code": "BGD",
+      "name": "孟加拉国",
+      "name_en": "Bangladesh",
+      "strategic_positioning": "南亚制造业中心/人口大国",
+      "key_resources": "成衣制造、黄麻、天然气"
+    },
+    {
+      "id": "COU_NIC",
+      "code": "NIC",
+      "name": "尼加拉瓜",
+      "name_en": "Nicaragua",
+      "strategic_positioning": "中美洲农业国/地缘缓冲带",
+      "key_resources": "农业、矿业、旅游"
+    },
+    {
+      "id": "COU_UZB",
+      "code": "UZB",
+      "name": "乌兹别克斯坦",
+      "name_en": "Uzbekistan",
+      "strategic_positioning": "中亚人口大国/改革中国家",
+      "key_resources": "黄金、棉花、天然气"
+    },
+    {
+      "id": "COU_AGO",
+      "code": "AGO",
+      "name": "安哥拉",
+      "name_en": "Angola",
+      "strategic_positioning": "南部非洲产油国/转型中",
+      "key_resources": "石油、钻石、天然气"
+    },
+    {
+      "id": "COU_LAO",
+      "code": "LAO",
+      "name": "老挝",
+      "name_en": "Lao People's Democratic Republic",
+      "strategic_positioning": "中南半岛内陆国/水电出口国",
+      "key_resources": "水电、铜矿、木材"
+    },
+    {
+      "id": "COU_COG",
+      "code": "COG",
+      "name": "刚果（布）",
+      "name_en": "Congo",
+      "strategic_positioning": "中非产油国/转型中",
+      "key_resources": "石油、木材、钾盐"
+    },
+    {
+      "id": "COU_GHA",
+      "code": "GHA",
+      "name": "加纳",
+      "name_en": "Ghana",
+      "strategic_positioning": "西非稳定国/黄金可可国",
+      "key_resources": "黄金、可可、石油"
+    },
+    {
+      "id": "COU_SLB",
+      "code": "SLB",
+      "name": "所罗门群岛",
+      "name_en": "Solomon Islands",
+      "strategic_positioning": "太平洋岛国/地缘博弈点",
+      "key_resources": "木材、渔业、矿产"
+    },
+    {
+      "id": "COU_MRT",
+      "code": "MRT",
+      "name": "毛里塔尼亚",
+      "name_en": "Mauritania",
+      "strategic_positioning": "西非资源国/转型中",
+      "key_resources": "铁矿、渔业、黄金"
+    },
+    {
+      "id": "COU_KEN",
+      "code": "KEN",
+      "name": "肯尼亚",
+      "name_en": "Kenya",
+      "strategic_positioning": "东非科技枢纽/区域中心",
+      "key_resources": "农业、旅游、IT"
+    },
+    {
+      "id": "COU_KHM",
+      "code": "KHM",
+      "name": "柬埔寨",
+      "name_en": "Cambodia",
+      "strategic_positioning": "东南亚制造业转移承接地",
+      "key_resources": "成衣、旅游、农业"
+    },
+    {
+      "id": "COU_CMR",
+      "code": "CMR",
+      "name": "喀麦隆",
+      "name_en": "Cameroon",
+      "strategic_positioning": "中非门户/农业国",
+      "key_resources": "农业、石油、木材"
+    },
+    {
+      "id": "COU_KGZ",
+      "code": "KGZ",
+      "name": "吉尔吉斯斯坦",
+      "name_en": "Kyrgyzstan",
+      "strategic_positioning": "中亚山地国/中俄枢纽",
+      "key_resources": "黄金、水电、农业"
+    },
+    {
+      "id": "COU_COM",
+      "code": "COM",
+      "name": "科摩罗",
+      "name_en": "Comoros",
+      "strategic_positioning": "印度洋岛国/脆弱国家",
+      "key_resources": "香料、渔业、旅游"
+    },
+    {
+      "id": "COU_GIN",
+      "code": "GIN",
+      "name": "几内亚",
+      "name_en": "Guinea",
+      "strategic_positioning": "西非铝土矿王国",
+      "key_resources": "铝土矿、黄金、铁矿"
+    },
+    {
+      "id": "COU_HTI",
+      "code": "HTI",
+      "name": "海地",
+      "name_en": "Haiti",
+      "strategic_positioning": "加勒比脆弱国家/人道危机国",
+      "key_resources": "农业、侨汇、纺织"
+    },
+    {
+      "id": "COU_KIR",
+      "code": "KIR",
+      "name": "基里巴斯",
+      "name_en": "Kiribati",
+      "strategic_positioning": "太平洋岛国/气候脆弱国",
+      "key_resources": "渔业、磷酸盐、侨汇"
+    },
+    {
+      "id": "COU_ETH",
+      "code": "ETH",
+      "name": "埃塞俄比亚",
+      "name_en": "Ethiopia",
+      "strategic_positioning": "东非增长极/农业大国",
+      "key_resources": "咖啡、农业、水电"
+    },
+    {
+      "id": "COU_TZA",
+      "code": "TZA",
+      "name": "坦桑尼亚",
+      "name_en": "Tanzania, United Republic of",
+      "strategic_positioning": "东非资源国/旅游大国",
+      "key_resources": "旅游、矿产、农业"
+    },
+    {
+      "id": "COU_BEN",
+      "code": "BEN",
+      "name": "贝宁",
+      "name_en": "Benin",
+      "strategic_positioning": "西非门户/棉花国",
+      "key_resources": "棉花、港口、农业"
+    },
+    {
+      "id": "COU_PAK",
+      "code": "PAK",
+      "name": "巴基斯坦",
+      "name_en": "Pakistan",
+      "strategic_positioning": "南亚核武国家/地缘枢纽",
+      "key_resources": "纺织、农业、战略位置"
+    },
+    {
+      "id": "COU_TLS",
+      "code": "TLS",
+      "name": "东帝汶",
+      "name_en": "Timor-Leste",
+      "strategic_positioning": "新兴石油出口国/脆弱国家",
+      "key_resources": "石油、天然气、咖啡"
+    },
+    {
+      "id": "COU_ZMB",
+      "code": "ZMB",
+      "name": "赞比亚",
+      "name_en": "Zambia",
+      "strategic_positioning": "铜矿依赖型/内陆发展中国家",
+      "key_resources": "铜、钴、水电、祖母绿"
+    },
+    {
+      "id": "COU_UGA",
+      "code": "UGA",
+      "name": "乌干达",
+      "name_en": "Uganda",
+      "strategic_positioning": "东非农业国/区域枢纽",
+      "key_resources": "农业、旅游、石油"
+    },
+    {
+      "id": "COU_NPL",
+      "code": "NPL",
+      "name": "尼泊尔",
+      "name_en": "Nepal",
+      "strategic_positioning": "喜马拉雅山地国/水电潜力国",
+      "key_resources": "水电、旅游、农业"
+    },
+    {
+      "id": "COU_LSO",
+      "code": "LSO",
+      "name": "莱索托",
+      "name_en": "Lesotho",
+      "strategic_positioning": "南部非洲山地国/转型中",
+      "key_resources": "水电、纺织、农业"
+    },
+    {
+      "id": "COU_SEN",
+      "code": "SEN",
+      "name": "塞内加尔",
+      "name_en": "Senegal",
+      "strategic_positioning": "西非门户/稳定国",
+      "key_resources": "渔业、磷酸盐、旅游"
+    },
+    {
+      "id": "COU_MMR",
+      "code": "MMR",
+      "name": "缅甸",
+      "name_en": "Myanmar",
+      "strategic_positioning": "东南亚资源国/地缘缓冲带",
+      "key_resources": "天然气、玉石、木材"
+    },
+    {
+      "id": "COU_PRK",
+      "code": "PRK",
+      "name": "朝鲜",
+      "name_en": "Korea, Democratic People's Republic of",
+      "strategic_positioning": "封闭计划经济体/核武国家",
+      "key_resources": "矿产、农业、军工"
+    },
+    {
+      "id": "COU_TJK",
+      "code": "TJK",
+      "name": "塔吉克斯坦",
+      "name_en": "Tajikistan",
+      "strategic_positioning": "中亚山地国/水电出口国",
+      "key_resources": "水电、铝、棉花"
+    },
+    {
+      "id": "COU_NGA",
+      "code": "NGA",
+      "name": "尼日利亚",
+      "name_en": "Nigeria",
+      "strategic_positioning": "西非经济引擎/人口大国",
+      "key_resources": "石油、天然气、农业"
+    },
+    {
+      "id": "COU_BFA",
+      "code": "BFA",
+      "name": "布基纳法索",
+      "name_en": "Burkina Faso",
+      "strategic_positioning": "西非内陆国/脆弱国家",
+      "key_resources": "黄金、棉花、农业"
+    },
+    {
+      "id": "COU_RWA",
+      "code": "RWA",
+      "name": "卢旺达",
+      "name_en": "Rwanda",
+      "strategic_positioning": "东非转型国/治理典范",
+      "key_resources": "旅游、咖啡、矿业"
+    },
+    {
+      "id": "COU_TGO",
+      "code": "TGO",
+      "name": "多哥",
+      "name_en": "Togo",
+      "strategic_positioning": "西非门户/转型中",
+      "key_resources": "磷酸盐、棉花、港口"
+    },
+    {
+      "id": "COU_MLI",
+      "code": "MLI",
+      "name": "马里",
+      "name_en": "Mali",
+      "strategic_positioning": "西非内陆国/脆弱国家",
+      "key_resources": "黄金、棉花、铀矿"
+    },
+    {
+      "id": "COU_GNB",
+      "code": "GNB",
+      "name": "几内亚比绍",
+      "name_en": "Guinea-Bissau",
+      "strategic_positioning": "西非脆弱国/转型中",
+      "key_resources": "腰果、渔业、农业"
+    },
+    {
+      "id": "COU_TCD",
+      "code": "TCD",
+      "name": "乍得",
+      "name_en": "Chad",
+      "strategic_positioning": "中非内陆国/脆弱国家",
+      "key_resources": "石油、棉花、黄金"
+    },
+    {
+      "id": "COU_NER",
+      "code": "NER",
+      "name": "尼日尔",
+      "name_en": "Niger",
+      "strategic_positioning": "西非内陆国/铀矿国",
+      "key_resources": "铀矿、黄金、农业"
+    },
+    {
+      "id": "COU_LBR",
+      "code": "LBR",
+      "name": "利比里亚",
+      "name_en": "Liberia",
+      "strategic_positioning": "西非脆弱国/转型中",
+      "key_resources": "橡胶、铁矿、农业"
+    },
+    {
+      "id": "COU_MOZ",
+      "code": "MOZ",
+      "name": "莫桑比克",
+      "name_en": "Mozambique",
+      "strategic_positioning": "南部非洲资源国/转型中",
+      "key_resources": "天然气、煤炭、农业"
+    },
+    {
+      "id": "COU_GMB",
+      "code": "GMB",
+      "name": "冈比亚",
+      "name_en": "Gambia",
+      "strategic_positioning": "西非门户/旅游国",
+      "key_resources": "旅游、农业、渔业"
+    },
+    {
+      "id": "COU_COD",
+      "code": "COD",
+      "name": "刚果（金）",
+      "name_en": "Congo, Democratic Republic of the",
+      "strategic_positioning": "中非资源心脏/脆弱国家",
+      "key_resources": "钴、铜、森林"
+    },
+    {
+      "id": "COU_SDN",
+      "code": "SDN",
+      "name": "苏丹",
+      "name_en": "Sudan",
+      "strategic_positioning": "北非农业国/脆弱国家",
+      "key_resources": "农业、黄金、石油"
+    },
+    {
+      "id": "COU_ERI",
+      "code": "ERI",
+      "name": "厄立特里亚",
+      "name_en": "Eritrea",
+      "strategic_positioning": "东非封闭国/战略要地",
+      "key_resources": "矿产、农业、港口"
+    },
+    {
+      "id": "COU_MDG",
+      "code": "MDG",
+      "name": "马达加斯加",
+      "name_en": "Madagascar",
+      "strategic_positioning": "印度洋岛国/生物多样性国",
+      "key_resources": "农业、矿产、旅游"
+    },
+    {
+      "id": "COU_MWI",
+      "code": "MWI",
+      "name": "马拉维",
+      "name_en": "Malawi",
+      "strategic_positioning": "东非农业国/脆弱国家",
+      "key_resources": "农业、烟草、旅游"
+    },
+    {
+      "id": "COU_SYR",
+      "code": "SYR",
+      "name": "叙利亚",
+      "name_en": "Syrian Arab Republic",
+      "strategic_positioning": "中东地缘枢纽/战后重建国",
+      "key_resources": "石油、农业、战略位置"
+    },
+    {
+      "id": "COU_SLE",
+      "code": "SLE",
+      "name": "塞拉利昂",
+      "name_en": "Sierra Leone",
+      "strategic_positioning": "西非资源国/脆弱国家",
+      "key_resources": "钻石、铁矿、农业"
+    },
+    {
+      "id": "COU_CAF",
+      "code": "CAF",
+      "name": "中非",
+      "name_en": "Central African Republic",
+      "strategic_positioning": "中非脆弱国/资源国",
+      "key_resources": "钻石、黄金、木材"
+    },
+    {
+      "id": "COU_SOM",
+      "code": "SOM",
+      "name": "索马里",
+      "name_en": "Somalia",
+      "strategic_positioning": "东非脆弱国/战略要地",
+      "key_resources": "渔业、畜牧、港口"
+    },
+    {
+      "id": "COU_AFG",
+      "code": "AFG",
+      "name": "阿富汗",
+      "name_en": "Afghanistan",
+      "strategic_positioning": "内陆脆弱国家/地缘缓冲带",
+      "key_resources": "锂矿、稀土、天然气"
+    },
+    {
+      "id": "COU_YEM",
+      "code": "YEM",
+      "name": "也门",
+      "name_en": "Yemen",
+      "strategic_positioning": "阿拉伯半岛脆弱国/人道危机国",
+      "key_resources": "石油、渔业、战略位置"
+    },
+    {
+      "id": "COU_SSD",
+      "code": "SSD",
+      "name": "南苏丹",
+      "name_en": "South Sudan",
+      "strategic_positioning": "东非脆弱国/新生国家",
+      "key_resources": "石油、农业、矿产"
+    },
+    {
+      "id": "COU_STP",
+      "code": "STP",
+      "name": "圣多美和普林西比",
+      "name_en": "Sao Tome and Principe",
+      "strategic_positioning": "中非岛国/转型中",
+      "key_resources": "可可、渔业、旅游"
+    },
+    {
+      "id": "COU_BDI",
+      "code": "BDI",
+      "name": "布隆迪",
+      "name_en": "Burundi",
+      "strategic_positioning": "东非农业国/脆弱国家",
+      "key_resources": "咖啡、茶叶、农业"
+    },
+    {
+      "id": "COU_VAT",
+      "code": "VAT",
+      "name": "梵蒂冈",
+      "name_en": "Holy See",
+      "strategic_positioning": "观察员国/宗教中心",
+      "key_resources": "宗教、文化、旅游"
+    },
+    {
+      "id": "COU_ESH",
+      "code": "ESH",
+      "name": "西撒哈拉",
+      "name_en": "Western Sahara",
+      "strategic_positioning": "联合国非自治领土；中国不承认其为国家，未建交",
+      "key_resources": "磷酸盐、渔业、潜在油气（开发受限）"
+    }
+  ]
+}
