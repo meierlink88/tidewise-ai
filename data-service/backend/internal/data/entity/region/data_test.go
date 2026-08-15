@@ -3,6 +3,7 @@ package region
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -163,30 +164,6 @@ func TestLoadCatalogAcceptsUNM49Package(t *testing.T) {
 	if len(catalog.Regions) != 22 {
 		t.Fatalf("catalog Regions length = %d, want 22", len(catalog.Regions))
 	}
-	want := map[string][2]string{
-		"005": {"南美洲", "South America"},
-		"011": {"西非", "Western Africa"},
-		"013": {"中美洲", "Central America"},
-		"014": {"东非", "Eastern Africa"},
-		"015": {"北非", "Northern Africa"},
-		"017": {"中非", "Middle Africa"},
-		"018": {"南部非洲", "Southern Africa"},
-		"021": {"北美", "Northern America"},
-		"029": {"加勒比", "Caribbean"},
-		"030": {"东亚", "Eastern Asia"},
-		"034": {"南亚", "Southern Asia"},
-		"035": {"东南亚", "South-eastern Asia"},
-		"039": {"南欧", "Southern Europe"},
-		"053": {"澳大利亚和新西兰", "Australia and New Zealand"},
-		"054": {"美拉尼西亚", "Melanesia"},
-		"057": {"密克罗尼西亚", "Micronesia"},
-		"061": {"波利尼西亚", "Polynesia"},
-		"143": {"中亚", "Central Asia"},
-		"145": {"西亚", "Western Asia"},
-		"151": {"东欧", "Eastern Europe"},
-		"154": {"北欧", "Northern Europe"},
-		"155": {"西欧", "Western Europe"},
-	}
 	seen := make(map[string]struct{}, len(catalog.Regions))
 	for _, item := range catalog.Regions {
 		if item.ID != "REG_M49_"+item.M49Code || item.Code != "M49_"+item.M49Code {
@@ -197,10 +174,6 @@ func TestLoadCatalogAcceptsUNM49Package(t *testing.T) {
 		}
 		if _, duplicate := seen[item.M49Code]; duplicate {
 			t.Fatalf("duplicate M49 code %q", item.M49Code)
-		}
-		names, exists := want[item.M49Code]
-		if !exists || item.Name != names[0] || item.NameEn != names[1] {
-			t.Fatalf("unexpected UN M49 sub-region %#v", item)
 		}
 		seen[item.M49Code] = struct{}{}
 	}
@@ -237,19 +210,19 @@ WHERE id = 'REG_M49_030'`).Scan(&name, &nameEn, &regionType); err != nil {
 	}
 }
 
-func TestPublishCatalogRejectsNoncanonicalUNM49Package(t *testing.T) {
+func TestLoadCatalogRejectsNoncanonicalUNM49Package(t *testing.T) {
 	catalog := loadRegionCatalog(t)
 	catalog.Regions[0].M49Code = "999"
 	catalog.Regions[0].Code = "M49_999"
 	catalog.Regions[0].ID = "REG_M49_999"
-	if err := validateCatalog(catalog); !errors.Is(err, ErrInvalidRegion) {
-		t.Fatalf("validateCatalog(noncanonical code) error = %v, want ErrInvalidRegion", err)
+	if _, err := LoadCatalog(context.Background(), writeRegionCatalog(t, catalog)); !errors.Is(err, ErrInvalidRegion) {
+		t.Fatalf("LoadCatalog(noncanonical code) error = %v, want ErrInvalidRegion", err)
 	}
 
 	catalog = loadRegionCatalog(t)
 	catalog.Regions[0].NameEn = "Fabricated Region"
-	if err := validateCatalog(catalog); !errors.Is(err, ErrInvalidRegion) {
-		t.Fatalf("validateCatalog(noncanonical name) error = %v, want ErrInvalidRegion", err)
+	if _, err := LoadCatalog(context.Background(), writeRegionCatalog(t, catalog)); !errors.Is(err, ErrInvalidRegion) {
+		t.Fatalf("LoadCatalog(noncanonical name) error = %v, want ErrInvalidRegion", err)
 	}
 }
 
@@ -469,4 +442,17 @@ func assertCatalogState(t *testing.T, db *sql.DB, wantRegions, wantLinks int) {
 	if regionCount != wantRegions || linkCount != wantLinks {
 		t.Fatalf("catalog state = %d Regions, %d Country-Region Links; want %d, %d", regionCount, linkCount, wantRegions, wantLinks)
 	}
+}
+
+func writeRegionCatalog(t *testing.T, catalog CatalogPublication) string {
+	t.Helper()
+	content, err := json.Marshal(catalog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "regions.json")
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
 }
