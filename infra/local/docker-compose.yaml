@@ -1,7 +1,8 @@
-name: tidewise-local
+name: tidewise-app
 
 services:
   data-migrate:
+    container_name: data-migrate
     build:
       context: ../..
       dockerfile: data-service/backend/Dockerfile
@@ -11,14 +12,15 @@ services:
     environment:
       APP_ENV: local
       TIDEWISE_CONFIG_DIR: /app/configs
-      TIDEWISE_DB_HOST: '${TIDEWISE_DB_HOST:-host.docker.internal}'
-      TIDEWISW_DB_PASSWORD: '${TIDEWISW_DB_PASSWORD:?set TIDEWISW_DB_PASSWORD in infra/local/.env.local}'
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
+      TIDEWISE_DB_HOST: '${TIDEWISE_DB_HOST:-postgres}'
+      TIDEWISW_DB_PASSWORD: '${TIDEWISW_DB_PASSWORD:-${POSTGRES_PASSWORD:?set TIDEWISW_DB_PASSWORD or POSTGRES_PASSWORD in infra/local/.env.local}}'
+    healthcheck:
+      disable: true
     restart: 'no'
     networks: [tidewise-local]
 
   data:
+    container_name: data-service
     build:
       context: ../..
       dockerfile: data-service/backend/Dockerfile
@@ -28,14 +30,12 @@ services:
     environment:
       APP_ENV: local
       TIDEWISE_CONFIG_DIR: /app/configs
-      TIDEWISE_DB_HOST: '${TIDEWISE_DB_HOST:-host.docker.internal}'
-      TIDEWISW_DB_PASSWORD: '${TIDEWISW_DB_PASSWORD:?set TIDEWISW_DB_PASSWORD in infra/local/.env.local}'
-      DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
+      TIDEWISE_DB_HOST: '${TIDEWISE_DB_HOST:-postgres}'
+      TIDEWISW_DB_PASSWORD: '${TIDEWISW_DB_PASSWORD:-${POSTGRES_PASSWORD:?set TIDEWISW_DB_PASSWORD or POSTGRES_PASSWORD in infra/local/.env.local}}'
+      DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:-${DATA_SERVICE_ADMIN_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}}'
     depends_on:
       data-migrate:
         condition: service_completed_successfully
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
     healthcheck:
       test:
         [
@@ -48,6 +48,7 @@ services:
     networks: [tidewise-local]
 
   agentrun:
+    container_name: agentrun-service
     build:
       context: ../..
       dockerfile: agent-run/backend/Dockerfile
@@ -57,12 +58,12 @@ services:
     environment:
       APP_ENV: dev
       AGENTRUN_CONFIG_DIR: /app/configs
-      AGENTRUN_DB_HOST: '${AGENTRUN_DB_HOST:-host.docker.internal}'
-      AGENTRUN_QDRANT_URL: '${AGENTRUN_QDRANT_URL:-http://host.docker.internal:6333}'
+      AGENTRUN_DB_HOST: '${AGENTRUN_DB_HOST:-postgres}'
+      AGENTRUN_QDRANT_URL: '${AGENTRUN_QDRANT_URL:-http://qdrant:6333}'
       TZ: Asia/Shanghai
-      AGENTRUN_DB_PASSWORD: '${AGENTRUN_DB_PASSWORD:?set AGENTRUN_DB_PASSWORD in infra/local/.env.local}'
+      AGENTRUN_DB_PASSWORD: '${AGENTRUN_DB_PASSWORD:-${AGENTRUN_DATABASE_PASSWORD:?set AGENTRUN_DB_PASSWORD in infra/local/.env.local}}'
       AGENTRUN_SERVICE_TOKEN: '${AGENTRUN_SERVICE_TOKEN:?set AGENTRUN_SERVICE_TOKEN in infra/local/.env.local}'
-      DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
+      DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:-${DATA_SERVICE_ADMIN_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}}'
       EMBEDDING_API_KEY: '${EMBEDDING_API_KEY:?set EMBEDDING_API_KEY in infra/local/.env.local}'
       QDRANT_API_KEY: '${QDRANT_API_KEY:-}'
     volumes:
@@ -72,8 +73,6 @@ services:
         condition: service_completed_successfully
       data:
         condition: service_healthy
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
     healthcheck:
       test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:9080/healthz']
       interval: 10s
@@ -82,6 +81,7 @@ services:
     networks: [tidewise-local]
 
   agentrun-migrate:
+    container_name: agentrun-migrate
     build:
       context: ../..
       dockerfile: agent-run/backend/Dockerfile
@@ -90,17 +90,18 @@ services:
     environment:
       APP_ENV: dev
       AGENTRUN_CONFIG_DIR: /app/configs
-      AGENTRUN_DB_HOST: '${AGENTRUN_DB_HOST:-host.docker.internal}'
+      AGENTRUN_DB_HOST: '${AGENTRUN_DB_HOST:-postgres}'
       TZ: Asia/Shanghai
-      AGENTRUN_DB_PASSWORD: '${AGENTRUN_DB_PASSWORD:?set AGENTRUN_DB_PASSWORD in infra/local/.env.local}'
+      AGENTRUN_DB_PASSWORD: '${AGENTRUN_DB_PASSWORD:-${AGENTRUN_DATABASE_PASSWORD:?set AGENTRUN_DB_PASSWORD in infra/local/.env.local}}'
       AGENTRUN_SERVICE_TOKEN: '${AGENTRUN_SERVICE_TOKEN:?set AGENTRUN_SERVICE_TOKEN in infra/local/.env.local}'
-      DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
+      DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:-${DATA_SERVICE_ADMIN_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}}'
+    healthcheck:
+      disable: true
     restart: 'no'
     networks: [tidewise-local]
 
   agentrun-agent-version:
+    container_name: agentrun-agent-version
     build:
       context: ../..
       dockerfile: agent-run/backend/Dockerfile
@@ -110,18 +111,19 @@ services:
     environment:
       APP_ENV: dev
       AGENTRUN_CONFIG_DIR: /app/configs
-      AGENTRUN_DB_HOST: '${AGENTRUN_DB_HOST:-host.docker.internal}'
+      AGENTRUN_DB_HOST: '${AGENTRUN_DB_HOST:-postgres}'
       TZ: Asia/Shanghai
-      AGENTRUN_DB_PASSWORD: '${AGENTRUN_DB_PASSWORD:?set AGENTRUN_DB_PASSWORD in infra/local/.env.local}'
+      AGENTRUN_DB_PASSWORD: '${AGENTRUN_DB_PASSWORD:-${AGENTRUN_DATABASE_PASSWORD:?set AGENTRUN_DB_PASSWORD in infra/local/.env.local}}'
     depends_on:
       agentrun-migrate:
         condition: service_completed_successfully
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
+    healthcheck:
+      disable: true
     restart: 'no'
     networks: [tidewise-local]
 
   miniapp:
+    container_name: miniapp-service
     build:
       context: ../..
       dockerfile: miniapp/backend/Dockerfile
@@ -132,7 +134,7 @@ services:
       APP_ENV: local
       TIDEWISE_CONFIG_DIR: /app/configs
       DATA_SERVICE_BASE_URL: http://data:9011
-      DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
+      DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:-${DATA_SERVICE_ADMIN_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}}'
     depends_on:
       data:
         condition: service_healthy
@@ -148,6 +150,7 @@ services:
     networks: [tidewise-local]
 
   adminportal:
+    container_name: admin-portal-service
     build:
       context: ../..
       dockerfile: admin-portal/backend/Dockerfile
@@ -157,10 +160,10 @@ services:
     environment:
       APP_ENV: local
       TIDEWISE_CONFIG_DIR: /app/configs
-      ADMIN_SERVICE_TOKEN: '${ADMIN_SERVICE_TOKEN:?set ADMIN_SERVICE_TOKEN in infra/local/.env.local}'
+      ADMIN_SERVICE_TOKEN: '${ADMIN_SERVICE_TOKEN:-${ADMIN_API_TOKEN:?set ADMIN_SERVICE_TOKEN in infra/local/.env.local}}'
       ADMIN_ALLOWED_ORIGIN: '${ADMIN_ALLOWED_ORIGIN:-http://127.0.0.1:9014}'
       DATA_SERVICE_BASE_URL: http://data:9011
-      DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
+      DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:-${DATA_SERVICE_ADMIN_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}}'
       AGENTRUN_BASE_URL: http://agentrun:9080
       AGENTRUN_SERVICE_TOKEN: '${AGENTRUN_SERVICE_TOKEN:?set AGENTRUN_SERVICE_TOKEN in infra/local/.env.local}'
     depends_on:
@@ -180,6 +183,7 @@ services:
     networks: [tidewise-local]
 
   admin:
+    container_name: admin-portal-web
     build:
       context: ../..
       dockerfile: admin-portal/frontend/Dockerfile
@@ -200,7 +204,9 @@ services:
 
 networks:
   tidewise-local:
+    external: true
     name: '${COMPOSE_NETWORK_NAME:-tidewise-local}'
 
 volumes:
   agentrun_artifacts:
+    name: tidewise-app-agentrun-artifacts

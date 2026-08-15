@@ -9,7 +9,7 @@ server:
 log:
   level: debug
 database:
-  host: host.docker.internal
+  host: postgres
   port: 5432
   name: tidewise_local
   user: tidewise

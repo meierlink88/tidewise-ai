@@ -67,14 +67,18 @@ Data Domain Service
 - `docs/adr/0013-data-entity-domain-and-projection-retirement.md`
 - `docs/adr/0014-agentrun-consumes-retained-qdrant-snapshot.md`
 - `docs/adr/0015-retire-root-shared-test-fixtures.md`
+- `docs/adr/0020-local-docker-application-and-infrastructure-projects.md`
 
 ## Runtime
 
 All deployable application services and service-owned operational processes run through their
 Docker images and Docker Compose. Backend services keep one YAML per application environment;
 local/development YAML uses container-reachable external infrastructure endpoints and no
-host-runtime configuration tree is maintained. PostgreSQL、Neo4j、Qdrant 不属于 Tidewise
-application Compose/release artifact。Tidewise 服务之间仍使用 Compose DNS。
+host-runtime configuration tree is maintained. The local developer environment declares its
+independently operated PostgreSQL, MySQL, Neo4j, MinIO and Qdrant containers in the
+`tidewise-infra` Compose project; they remain outside the `tidewise-app` application Compose and
+all UAT/release artifacts. Tidewise services and local middleware use the `tidewise-local` network
+and Compose DNS.
 Miniapp Frontend is not an HTTP service and is excluded from the Docker runtime contract;
 repository-pinned Node/Taro build/watch commands generate `dist` for the host platform developer
 tools. Admin Web is the browser's single Admin origin and proxies relative `/api/admin/*` requests
