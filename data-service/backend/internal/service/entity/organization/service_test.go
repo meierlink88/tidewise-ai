@@ -65,10 +65,10 @@ func TestServiceParsesFiltersAndMapsOrganizationDTO(t *testing.T) {
 	created := time.Date(2026, 8, 15, 1, 2, 3, 4, time.FixedZone("test", 8*60*60))
 	stub := &useCaseStub{organizations: []organizationbiz.Organization{{
 		ID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", Code: "UN", Name: "联合国", NameEn: "United Nations",
-		Category:        organizationbiz.CatalogTerm{Code: "INTERGOVERNMENTAL", NameZh: "政府间国际组织"},
-		Function:        organizationbiz.CatalogTerm{Code: "SECURITY", NameZh: "安全与防务"},
+		Category:        organizationbiz.Category{ID: "OCA7cf04802-4d04-5a8c-9a10-7d805cf29a4d", Code: "INTERGOVERNMENTAL", NameZh: "政府间国际组织"},
+		Function:        organizationbiz.Function{Code: "SECURITY", NameZh: "安全与防务"},
 		EstablishedDate: &established,
-		DomainTags:      []organizationbiz.DomainTag{{Code: "REGIONAL_SECURITY_DIALOGUE", FunctionCode: "SECURITY", NameZh: "区域安全对话"}},
+		DomainTags:      []organizationbiz.DomainTag{{ID: "ODT37166e5a-05da-5972-b5a8-ff2c85ddc76a", Code: "REGIONAL_SECURITY_DIALOGUE", FunctionCode: "SECURITY", NameZh: "区域安全对话"}},
 		CreatedAt:       created, UpdatedAt: created,
 	}}}
 	service, err := NewService(stub)
@@ -87,12 +87,32 @@ func TestServiceParsesFiltersAndMapsOrganizationDTO(t *testing.T) {
 	}
 	if len(response.Result.Items) != 1 || response.Result.Items[0].EstablishedDate == nil ||
 		*response.Result.Items[0].EstablishedDate != "1945-10-24" || response.Result.Items[0].CreatedAt != "2026-08-14T17:02:03.000000004Z" ||
-		len(response.Result.Items[0].DomainTags) != 1 {
+		response.Result.Items[0].Category.ID != "OCA7cf04802-4d04-5a8c-9a10-7d805cf29a4d" ||
+		len(response.Result.Items[0].DomainTags) != 1 || response.Result.Items[0].DomainTags[0].ID != "ODT37166e5a-05da-5972-b5a8-ff2c85ddc76a" {
 		t.Fatalf("Organization DTO = %#v", response.Result.Items)
 	}
 
 	_, err = service.List(context.Background(), &organizationapi.ListRequest{AsOf: "2026/08/15"})
 	assertPublicError(t, err, v1.StatusUnprocessableEntity, "ORGANIZATION_INVALID")
+}
+
+func TestServiceMapsCatalogIdentities(t *testing.T) {
+	stub := &useCaseStub{catalog: organizationbiz.Catalog{
+		Categories: []organizationbiz.Category{{ID: "OCA7cf04802-4d04-5a8c-9a10-7d805cf29a4d", Code: "INTERGOVERNMENTAL", NameZh: "政府间国际组织"}},
+		Functions:  []organizationbiz.Function{{Code: "SECURITY", NameZh: "安全与防务"}},
+		DomainTags: []organizationbiz.DomainTag{{ID: "ODT37166e5a-05da-5972-b5a8-ff2c85ddc76a", Code: "REGIONAL_SECURITY_DIALOGUE", FunctionCode: "SECURITY", NameZh: "区域安全对话"}},
+	}}
+	service, err := NewService(stub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := service.GetCatalog(context.Background(), &organizationapi.CatalogRequest{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Result.Categories[0].ID != stub.catalog.Categories[0].ID || response.Result.DomainTags[0].ID != stub.catalog.DomainTags[0].ID {
+		t.Fatalf("catalog identities = %#v", response.Result)
+	}
 }
 
 func TestServiceMapsMemberDatesAndNullableValues(t *testing.T) {

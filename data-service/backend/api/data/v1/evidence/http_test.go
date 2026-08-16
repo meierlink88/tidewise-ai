@@ -155,7 +155,7 @@ func (s *evidencePublicationHTTPStub) PublishRawEvidence(ctx context.Context, re
 		return nil, v1.NewPublicError(v1.StatusServiceUnavailable, ErrorEvidencePublicationTimeout, "Evidence Publication execution budget exceeded", nil)
 	}
 	return &v1.Response[RawEvidencePublicationResult]{Status: v1.StatusCreated, Result: RawEvidencePublicationResult{
-		RawEvidenceID: "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf",
+		ID: "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf",
 	}}, nil
 }
 
@@ -166,7 +166,7 @@ func (s *evidencePublicationHTTPStub) GetRawEvidence(ctx context.Context, reques
 		return nil, v1.NewPublicError(v1.StatusServiceUnavailable, ErrorRawEvidenceReadTimeout, "Raw Evidence read execution budget exceeded", nil)
 	}
 	return &v1.Response[RawEvidenceReadResult]{Status: v1.StatusOK, Result: RawEvidenceReadResult{
-		RawEvidence: RawEvidenceRead{RawEvidenceID: request.RawEvidenceID, Keywords: []string{}, Categories: []EvidenceCategory{}},
+		RawEvidence: RawEvidenceRead{ID: request.ID, Keywords: []string{}, Categories: []EvidenceCategory{}},
 	}}, nil
 }
 
@@ -179,7 +179,7 @@ func (s *evidencePublicationHTTPStub) PublishEvidence(ctx context.Context, reque
 	}
 	return &v1.Response[EvidencePublicationResult]{Status: v1.StatusCreated, Result: EvidencePublicationResult{
 		RawEvidenceID: request.RawEvidenceID,
-		EvidenceIDs:   []string{"EVD5cb71bef-5b1d-5995-add0-7408eaa2be15"},
+		IDs:           []string{"EVD5cb71bef-5b1d-5995-add0-7408eaa2be15"},
 	}}, nil
 }
 
@@ -201,8 +201,8 @@ func TestRawEvidencePublicationHTTPPreservesPublisherKeywords(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if result.RawEvidenceID != "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf" {
-		t.Fatalf("response Raw Evidence ID = %q", result.RawEvidenceID)
+	if result.ID != "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf" {
+		t.Fatalf("response ID = %q", result.ID)
 	}
 }
 

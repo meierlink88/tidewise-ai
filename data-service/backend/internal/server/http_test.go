@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 
 	dataapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 	evidencedata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/evidence"
 	evidenceservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/evidence"
 	postgresfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/postgres"
@@ -54,9 +56,14 @@ func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *te
 		t.Fatal(err)
 	}
 
-	payload := `{
+	publicationKey := "raw-evidence-category-contract"
+	rawEvidenceID, err := coreid.Derive(coreid.RawEvidence, "raw-evidence-publication", publicationKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := fmt.Sprintf(`{
 		"raw_evidence": {
-			"raw_evidence_id":"RAW1647820c-234a-57be-90f3-ff5117101351",
+			"publication_key":%q,
 			"source_id":"SRC_category_000000000000000000",
 			"source_name":"Example Wire",
 			"source_level":"L2_WIRE",
@@ -67,14 +74,17 @@ func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *te
 			"keywords":["美联储","加息"],
 			"category_ids":["EVC083b086f-c9ee-504c-85e9-639fa8d39e8f","EVC097bf77a-fb8a-5756-ae47-e122c4367985"]
 		}
-	}`
+	}`, publicationKey)
 	created := productionEvidenceRequest(t, server, http.MethodPost, dataapi.APIPrefix+"/raw-evidence-publications", "raw-evidence-write-token", payload, http.StatusCreated)
-	if created["result"].(map[string]any)["raw_evidence_id"] != "RAW1647820c-234a-57be-90f3-ff5117101351" {
+	if created["result"].(map[string]any)["id"] != rawEvidenceID {
 		t.Fatalf("created Raw Evidence envelope = %#v", created)
 	}
 
-	detail := productionEvidenceRequest(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/RAW1647820c-234a-57be-90f3-ff5117101351", "raw-evidence-read-token", "", http.StatusOK)
+	detail := productionEvidenceRequest(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/"+rawEvidenceID, "raw-evidence-read-token", "", http.StatusOK)
 	raw := detail["result"].(map[string]any)["raw_evidence"].(map[string]any)
+	if raw["id"] != rawEvidenceID {
+		t.Fatalf("Raw Evidence identity = %#v", raw["id"])
+	}
 	categories := raw["categories"].([]any)
 	if len(categories) != 2 || categories[0].(map[string]any)["id"] != "EVC083b086f-c9ee-504c-85e9-639fa8d39e8f" || categories[1].(map[string]any)["id"] != "EVC097bf77a-fb8a-5756-ae47-e122c4367985" {
 		t.Fatalf("Raw Evidence categories = %#v", categories)
@@ -86,14 +96,14 @@ func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *te
 	reversed := bytes.Replace([]byte(payload), []byte(`"category_ids":["EVC083b086f-c9ee-504c-85e9-639fa8d39e8f","EVC097bf77a-fb8a-5756-ae47-e122c4367985"]`), []byte(`"category_ids":["EVC097bf77a-fb8a-5756-ae47-e122c4367985","EVC083b086f-c9ee-504c-85e9-639fa8d39e8f"]`), 1)
 	productionEvidenceRequest(t, server, http.MethodPost, dataapi.APIPrefix+"/raw-evidence-publications", "raw-evidence-write-token", string(reversed), http.StatusCreated)
 	var linkCount int
-	if err := db.QueryRow(`SELECT count(*) FROM raw_evidence_category_links WHERE raw_evidence_id = 'RAW1647820c-234a-57be-90f3-ff5117101351'`).Scan(&linkCount); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM raw_evidence_category_links WHERE raw_evidence_id = $1`, rawEvidenceID).Scan(&linkCount); err != nil {
 		t.Fatal(err)
 	}
 	if linkCount != 2 {
 		t.Fatalf("Raw Evidence Category link count = %d, want 2", linkCount)
 	}
 	var earliestLink time.Time
-	if err := db.QueryRow(`SELECT min(created_at) FROM raw_evidence_category_links WHERE raw_evidence_id = 'RAW1647820c-234a-57be-90f3-ff5117101351'`).Scan(&earliestLink); err != nil {
+	if err := db.QueryRow(`SELECT min(created_at) FROM raw_evidence_category_links WHERE raw_evidence_id = $1`, rawEvidenceID).Scan(&earliestLink); err != nil {
 		t.Fatal(err)
 	}
 	if earliestLink.IsZero() {
@@ -102,13 +112,16 @@ func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *te
 
 	drift := bytes.Replace([]byte(payload), []byte(`"category_ids":["EVC083b086f-c9ee-504c-85e9-639fa8d39e8f","EVC097bf77a-fb8a-5756-ae47-e122c4367985"]`), []byte(`"category_ids":["EVC083b086f-c9ee-504c-85e9-639fa8d39e8f"]`), 1)
 	productionEvidenceError(t, server, http.MethodPost, dataapi.APIPrefix+"/raw-evidence-publications", "raw-evidence-write-token", string(drift), http.StatusConflict, "EVIDENCE_PUBLICATION_CONFLICT")
-	unknown := bytes.Replace([]byte(payload), []byte("RAW1647820c-234a-57be-90f3-ff5117101351"), []byte("RAW989eaa68-4d95-5b41-81a8-4baed5e227e5"), 1)
+	unknownKey := "raw-evidence-unknown-category"
+	unknown := bytes.Replace([]byte(payload), []byte(publicationKey), []byte(unknownKey), 1)
 	unknown = bytes.Replace(unknown, []byte(`"EVC083b086f-c9ee-504c-85e9-639fa8d39e8f","EVC097bf77a-fb8a-5756-ae47-e122c4367985"`), []byte(`"EVCca2c5f7c-b52a-5c5b-ba14-b38252e4f738"`), 1)
 	productionEvidenceError(t, server, http.MethodPost, dataapi.APIPrefix+"/raw-evidence-publications", "raw-evidence-write-token", string(unknown), http.StatusUnprocessableEntity, "EVIDENCE_PUBLICATION_REFERENCE_INVALID")
-	duplicate := bytes.Replace([]byte(payload), []byte("RAW1647820c-234a-57be-90f3-ff5117101351"), []byte("RAW5eb7922a-b6c4-5026-85dd-9b347ed8b7ac"), 1)
+	duplicateKey := "raw-evidence-duplicate-category"
+	duplicate := bytes.Replace([]byte(payload), []byte(publicationKey), []byte(duplicateKey), 1)
 	duplicate = bytes.Replace(duplicate, []byte(`"EVC083b086f-c9ee-504c-85e9-639fa8d39e8f","EVC097bf77a-fb8a-5756-ae47-e122c4367985"`), []byte(`"EVC097bf77a-fb8a-5756-ae47-e122c4367985","EVC097bf77a-fb8a-5756-ae47-e122c4367985"`), 1)
 	productionEvidenceError(t, server, http.MethodPost, dataapi.APIPrefix+"/raw-evidence-publications", "raw-evidence-write-token", string(duplicate), http.StatusBadRequest, "INVALID_REQUEST")
-	malformed := bytes.Replace([]byte(payload), []byte("RAW1647820c-234a-57be-90f3-ff5117101351"), []byte("RAW100486da-d8f6-5665-b4d1-770ab6bd90b1"), 1)
+	malformedKey := "raw-evidence-malformed-category"
+	malformed := bytes.Replace([]byte(payload), []byte(publicationKey), []byte(malformedKey), 1)
 	malformed = bytes.Replace(malformed, []byte(`"EVC083b086f-c9ee-504c-85e9-639fa8d39e8f","EVC097bf77a-fb8a-5756-ae47-e122c4367985"`), []byte(`"BAD_ID"`), 1)
 	malformedError := productionEvidenceError(t, server, http.MethodPost, dataapi.APIPrefix+"/raw-evidence-publications", "raw-evidence-write-token", string(malformed), http.StatusBadRequest, "INVALID_REQUEST")
 	malformedIssues := malformedError["error"].(map[string]any)["details"].(map[string]any)["issues"].([]any)
@@ -116,7 +129,15 @@ func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *te
 		t.Fatalf("malformed category issue = %#v", malformedIssues[0])
 	}
 	var failedWriteCount int
-	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE raw_evidence_id IN ('RAW989eaa68-4d95-5b41-81a8-4baed5e227e5', 'RAW5eb7922a-b6c4-5026-85dd-9b347ed8b7ac', 'RAW100486da-d8f6-5665-b4d1-770ab6bd90b1')`).Scan(&failedWriteCount); err != nil {
+	failedIDs := make([]string, 0, 3)
+	for _, key := range []string{unknownKey, duplicateKey, malformedKey} {
+		id, deriveErr := coreid.Derive(coreid.RawEvidence, "raw-evidence-publication", key)
+		if deriveErr != nil {
+			t.Fatal(deriveErr)
+		}
+		failedIDs = append(failedIDs, id)
+	}
+	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE id IN ($1, $2, $3)`, failedIDs[0], failedIDs[1], failedIDs[2]).Scan(&failedWriteCount); err != nil {
 		t.Fatal(err)
 	}
 	if failedWriteCount != 0 {
@@ -125,23 +146,28 @@ func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *te
 
 	productionEvidenceError(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/RAW6dcc2dc9-8595-5e56-a521-a8967abd8bb9", "raw-evidence-read-token", "", http.StatusNotFound, "RAW_EVIDENCE_NOT_FOUND")
 	productionEvidenceError(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/"+string(bytes.Repeat([]byte("X"), 33)), "raw-evidence-read-token", "", http.StatusBadRequest, "INVALID_REQUEST")
-	productionEvidenceError(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/RAW1647820c-234a-57be-90f3-ff5117101351", "raw-evidence-write-token", "", http.StatusForbidden, "FORBIDDEN")
-	productionEvidenceError(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/RAW1647820c-234a-57be-90f3-ff5117101351", "", "", http.StatusUnauthorized, "UNAUTHENTICATED")
+	productionEvidenceError(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/"+rawEvidenceID, "raw-evidence-write-token", "", http.StatusForbidden, "FORBIDDEN")
+	productionEvidenceError(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/"+rawEvidenceID, "", "", http.StatusUnauthorized, "UNAUTHENTICATED")
 
-	legacy := bytes.Replace([]byte(payload), []byte("RAW1647820c-234a-57be-90f3-ff5117101351"), []byte("RAWa732ef55-c08c-5988-a01e-aa5f04028d1d"), 1)
+	uncategorizedKey := "raw-evidence-uncategorized"
+	uncategorizedID, err := coreid.Derive(coreid.RawEvidence, "raw-evidence-publication", uncategorizedKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy := bytes.Replace([]byte(payload), []byte(publicationKey), []byte(uncategorizedKey), 1)
 	legacy = bytes.Replace(legacy, []byte(`,
 			"category_ids":["EVC083b086f-c9ee-504c-85e9-639fa8d39e8f","EVC097bf77a-fb8a-5756-ae47-e122c4367985"]`), nil, 1)
 	productionEvidenceRequest(t, server, http.MethodPost, dataapi.APIPrefix+"/raw-evidence-publications", "raw-evidence-write-token", string(legacy), http.StatusCreated)
-	legacyDetail := productionEvidenceRequest(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/RAWa732ef55-c08c-5988-a01e-aa5f04028d1d", "raw-evidence-read-token", "", http.StatusOK)
+	legacyDetail := productionEvidenceRequest(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/"+uncategorizedID, "raw-evidence-read-token", "", http.StatusOK)
 	legacyCategories := legacyDetail["result"].(map[string]any)["raw_evidence"].(map[string]any)["categories"].([]any)
 	if len(legacyCategories) != 0 {
 		t.Fatalf("uncategorized Raw Evidence categories = %#v", legacyCategories)
 	}
 
-	if _, err := db.Exec(`INSERT INTO raw_evidence_category_links (raw_evidence_id, category_id) VALUES ('RAW1647820c-234a-57be-90f3-ff5117101351', 'EVC097bf77a-fb8a-5756-ae47-e122c4367985')`); err == nil {
+	if _, err := db.Exec(`INSERT INTO raw_evidence_category_links (id, raw_evidence_id, category_id) VALUES ('RCL11111111-1111-4111-8111-111111111111', $1, 'EVC097bf77a-fb8a-5756-ae47-e122c4367985')`, rawEvidenceID); err == nil {
 		t.Fatal("database accepted a duplicate Raw Evidence Category link")
 	}
-	if _, err := db.Exec(`INSERT INTO raw_evidence_category_links (raw_evidence_id, category_id) VALUES ('RAW6dcc2dc9-8595-5e56-a521-a8967abd8bb9', 'EVCc18ddddb-14bc-5496-99ea-963ee2c25597')`); err == nil {
+	if _, err := db.Exec(`INSERT INTO raw_evidence_category_links (id, raw_evidence_id, category_id) VALUES ('RCL22222222-2222-4222-8222-222222222222', 'RAW6dcc2dc9-8595-5e56-a521-a8967abd8bb9', 'EVCc18ddddb-14bc-5496-99ea-963ee2c25597')`); err == nil {
 		t.Fatal("database accepted a Raw Evidence Category link with a missing Raw Evidence")
 	}
 	if _, err := db.Exec(`DELETE FROM evidence_categories WHERE id = 'EVC097bf77a-fb8a-5756-ae47-e122c4367985'`); err == nil {

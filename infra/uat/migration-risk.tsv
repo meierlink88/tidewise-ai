@@ -51,3 +51,4 @@
 000050	high	mixed	rewrite domain object identities and Country codes in a snapshot-protected stop-write cutover
 000051	high	mixed	rewrite all remaining independent business primary keys and foreign keys to registered prefixed identities
 000052	high	data	rewrite embedded business identity arrays and research receipt maps to registered prefixed identities
+000053	high	schema	forward-only zero-compatibility Organization and Evidence primary-key id unification without historical backfill

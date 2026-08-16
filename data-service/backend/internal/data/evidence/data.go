@@ -113,15 +113,15 @@ func validateStoredRawEvidence(record *evidencebiz.StoredRawEvidence, expectedID
 
 func validateStoredRawEvidenceBase(record *evidencebiz.StoredRawEvidence, expectedID string) error {
 	const resource = "Raw Evidence"
-	if record.RawEvidenceID != expectedID {
-		return persistedInvariant(resource, "raw_evidence_id", "query identity does not match the stored row")
+	if record.ID != expectedID {
+		return persistedInvariant(resource, "id", "query identity does not match the stored row")
 	}
 	for _, field := range []struct {
 		name  string
 		value string
 		max   int
 	}{
-		{name: "raw_evidence_id", value: record.RawEvidenceID, max: 39},
+		{name: "id", value: record.ID, max: 39},
 		{name: "source_id", value: record.SourceID, max: 32},
 		{name: "source_name", value: record.SourceName, max: 100},
 		{name: "source_url", value: record.SourceURL},
@@ -210,7 +210,7 @@ func validateStoredEvidence(record *evidencebiz.StoredEvidence) error {
 		value string
 		max   int
 	}{
-		{name: "evidence_id", value: record.EvidenceID, max: 39},
+		{name: "id", value: record.ID, max: 39},
 		{name: "raw_evidence_id", value: record.RawEvidenceID, max: 39},
 		{name: "source_what", value: record.SourceWhat},
 		{name: "expression_fingerprint", value: record.ExpressionFingerprint, max: 200},
@@ -273,13 +273,13 @@ func validateStoredEvidenceIdentities(expectedIDs []string, records []evidencebi
 	}
 	seen := make(map[string]struct{}, len(records))
 	for _, record := range records {
-		if _, ok := expected[record.EvidenceID]; !ok {
-			return persistedInvariant("Evidence", "evidence_id", "query returned an unrequested identity")
+		if _, ok := expected[record.ID]; !ok {
+			return persistedInvariant("Evidence", "id", "query returned an unrequested identity")
 		}
-		if _, ok := seen[record.EvidenceID]; ok {
-			return persistedInvariant("Evidence", "evidence_id", "query returned a duplicate identity")
+		if _, ok := seen[record.ID]; ok {
+			return persistedInvariant("Evidence", "id", "query returned a duplicate identity")
 		}
-		seen[record.EvidenceID] = struct{}{}
+		seen[record.ID] = struct{}{}
 	}
 	return nil
 }

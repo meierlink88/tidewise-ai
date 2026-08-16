@@ -254,8 +254,8 @@ func TestPublishCatalogRollsBackWhenOrganizationReferencesRegion(t *testing.T) {
 	if _, err := db.ExecContext(ctx, `
 INSERT INTO regions (id, code, name, name_en, region_type)
 VALUES ('REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC');
-INSERT INTO organization_categories (code, name_zh)
-VALUES ('INTERGOVERNMENTAL', '政府间国际组织');
+INSERT INTO organization_categories (id, code, name_zh)
+VALUES ('OCA7cf04802-4d04-5a8c-9a10-7d805cf29a4d', 'INTERGOVERNMENTAL', '政府间国际组织');
 INSERT INTO organization_functions (code, name_zh)
 VALUES ('GOVERNANCE', '治理与协调');
 INSERT INTO organizations (id, code, name, name_en, region_id, category_code, function_code)

@@ -64,12 +64,12 @@ func (t *transaction) RawEvidence(ctx context.Context, id string) (*evidencebiz.
 	var record evidencebiz.StoredRawEvidence
 	var keywordsJSON []byte
 	err := t.tx.QueryRowContext(ctx, `
-SELECT raw_evidence_id, source_id, source_name, source_level, source_url, is_original,
+SELECT id, source_id, source_name, source_level, source_url, is_original,
        quoted_source_id, quoted_source_name, title, raw_text, published_at, collected_at,
        content_hash, array_to_json(keywords)
 FROM raw_evidences
-WHERE raw_evidence_id = $1`, id).Scan(
-		&record.RawEvidenceID, &record.SourceID, &record.SourceName, &record.SourceLevel,
+WHERE id = $1`, id).Scan(
+		&record.ID, &record.SourceID, &record.SourceName, &record.SourceLevel,
 		&record.SourceURL, &record.IsOriginal, &record.QuotedSourceID, &record.QuotedSourceName,
 		&record.Title, &record.RawText, &record.PublishedAt, &record.CollectedAt,
 		&record.ContentHash, &keywordsJSON,
@@ -143,10 +143,10 @@ func (t *transaction) categories(ctx context.Context, query string, argument any
 func (t *transaction) InsertRawEvidence(ctx context.Context, record evidencebiz.StoredRawEvidence) error {
 	_, err := t.tx.ExecContext(ctx, `
 INSERT INTO raw_evidences (
-    raw_evidence_id, source_id, source_name, source_level, source_url, is_original,
+    id, source_id, source_name, source_level, source_url, is_original,
     quoted_source_id, quoted_source_name, title, raw_text, published_at, collected_at, keywords
 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-		record.RawEvidenceID, record.SourceID, record.SourceName, record.SourceLevel,
+		record.ID, record.SourceID, record.SourceName, record.SourceLevel,
 		record.SourceURL, record.IsOriginal, record.QuotedSourceID, record.QuotedSourceName,
 		record.Title, record.RawText, record.PublishedAt, record.CollectedAt, record.Keywords,
 	)
@@ -156,14 +156,20 @@ INSERT INTO raw_evidences (
 	return nil
 }
 
-func (t *transaction) InsertRawEvidenceCategoryLinks(ctx context.Context, rawEvidenceID string, categoryIDs []evidencebiz.CategoryID) error {
-	if len(categoryIDs) == 0 {
+func (t *transaction) InsertRawEvidenceCategoryLinks(ctx context.Context, rawEvidenceID string, links []evidencebiz.RawEvidenceCategoryLink) error {
+	if len(links) == 0 {
 		return nil
 	}
+	linkIDs := make([]string, len(links))
+	categoryIDs := make([]evidencebiz.CategoryID, len(links))
+	for index, link := range links {
+		linkIDs[index] = link.ID
+		categoryIDs[index] = link.CategoryID
+	}
 	_, err := t.tx.ExecContext(ctx, `
-INSERT INTO raw_evidence_category_links (raw_evidence_id, category_id)
-SELECT $1, category_id
-FROM unnest($2::varchar[]) AS category_id`, rawEvidenceID, categoryIDStrings(categoryIDs))
+INSERT INTO raw_evidence_category_links (id, raw_evidence_id, category_id)
+SELECT link_id, $1, category_id
+FROM unnest($2::text[], $3::text[]) AS link(link_id, category_id)`, rawEvidenceID, linkIDs, categoryIDStrings(categoryIDs))
 	if err != nil {
 		return fmt.Errorf("insert Raw Evidence Category links: %w", err)
 	}
@@ -195,7 +201,7 @@ func (t *transaction) EvidencesByRawEvidence(ctx context.Context, rawEvidenceID 
 }
 
 func (t *transaction) EvidencesByIDs(ctx context.Context, ids []string) ([]evidencebiz.StoredEvidence, error) {
-	rows, err := t.tx.QueryContext(ctx, evidenceSelect+` WHERE evidence_id = ANY($1) ORDER BY evidence_id`, ids)
+	rows, err := t.tx.QueryContext(ctx, evidenceSelect+` WHERE id = ANY($1) ORDER BY id`, ids)
 	if err != nil {
 		return nil, fmt.Errorf("read Evidence identities: %w", err)
 	}
@@ -211,7 +217,7 @@ func (t *transaction) EvidencesByIDs(ctx context.Context, ids []string) ([]evide
 }
 
 const evidenceSelect = `
-SELECT evidence_id, raw_evidence_id, split_order, is_split, layer_type,
+SELECT id, raw_evidence_id, split_order, is_split, layer_type,
        source_who, source_what, source_when, source_when_raw, source_where, source_why, source_how,
        source_who_core, source_what_core, source_when_core, source_when_raw_core,
        source_where_core, source_why_core, source_how_core,
@@ -229,7 +235,7 @@ func scanEvidences(rows evidenceRows) ([]evidencebiz.StoredEvidence, error) {
 	for rows.Next() {
 		var record evidencebiz.StoredEvidence
 		if err := rows.Scan(
-			&record.EvidenceID, &record.RawEvidenceID, &record.SplitOrder, &record.IsSplit, &record.LayerType,
+			&record.ID, &record.RawEvidenceID, &record.SplitOrder, &record.IsSplit, &record.LayerType,
 			&record.SourceWho, &record.SourceWhat, &record.SourceWhen, &record.SourceWhenRaw,
 			&record.SourceWhere, &record.SourceWhy, &record.SourceHow, &record.SourceWhoCore,
 			&record.SourceWhatCore, &record.SourceWhenCore, &record.SourceWhenRawCore,
@@ -252,13 +258,13 @@ func scanEvidences(rows evidenceRows) ([]evidencebiz.StoredEvidence, error) {
 func (t *transaction) InsertEvidence(ctx context.Context, record evidencebiz.StoredEvidence) error {
 	_, err := t.tx.ExecContext(ctx, `
 INSERT INTO evidences (
-    evidence_id, raw_evidence_id, split_order, is_split, layer_type,
+    id, raw_evidence_id, split_order, is_split, layer_type,
     source_who, source_what, source_when, source_when_raw, source_where, source_why, source_how,
     source_who_core, source_what_core, source_when_core, source_when_raw_core,
     source_where_core, source_why_core, source_how_core,
     expression_fingerprint, expression_key, fingerprint_version
 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
-		record.EvidenceID, record.RawEvidenceID, record.SplitOrder, record.IsSplit, record.LayerType,
+		record.ID, record.RawEvidenceID, record.SplitOrder, record.IsSplit, record.LayerType,
 		record.SourceWho, record.SourceWhat, record.SourceWhen, record.SourceWhenRaw,
 		record.SourceWhere, record.SourceWhy, record.SourceHow, record.SourceWhoCore,
 		record.SourceWhatCore, record.SourceWhenCore, record.SourceWhenRawCore,

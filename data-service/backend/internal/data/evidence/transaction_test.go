@@ -119,7 +119,7 @@ func assertConcurrentRawEvidenceConflict(t *testing.T, publication *evidencebiz.
 		t.Fatalf("concurrent Raw drift error = %v", err)
 	}
 	var rows int
-	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE raw_evidence_id = $1`, rawID).Scan(&rows); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE id = $1`, rawID).Scan(&rows); err != nil {
 		t.Fatal(err)
 	}
 	if succeeded != 1 || conflicted != 1 || rows != 1 {
@@ -144,7 +144,7 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 		if err != nil {
 			t.Fatal(err)
 		}
-		rawID := rawResult.RawEvidenceID
+		rawID := rawResult.ID
 		expectedEvidenceID, _ := coreid.Derive(coreid.Evidence, "atomic-evidence", rawID, "0")
 		left := []evidencebiz.Evidence{postgresEvidence(test.evidenceID, 0)}
 		right := []evidencebiz.Evidence{postgresEvidence(test.evidenceID, 0)}
@@ -169,7 +169,7 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 		for count := 0; count < 2; count++ {
 			completed := <-outcomes
 			if completed.err == nil {
-				if len(completed.result.EvidenceIDs) != 1 || completed.result.EvidenceIDs[0] != expectedEvidenceID {
+				if len(completed.result.IDs) != 1 || completed.result.IDs[0] != expectedEvidenceID {
 					t.Fatalf("concurrent Evidence result = %#v", completed.result)
 				}
 				succeeded++
@@ -220,12 +220,12 @@ func assertConcurrentRawEvidenceConvergence(t *testing.T, publication *evidenceb
 		}
 	}
 	for result := range results {
-		if result.RawEvidenceID != rawID {
+		if result.ID != rawID {
 			t.Fatalf("concurrent publication result = %#v", result)
 		}
 	}
 	var rows int
-	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE raw_evidence_id = $1`, rawID).Scan(&rows); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE id = $1`, rawID).Scan(&rows); err != nil {
 		t.Fatal(err)
 	}
 	if rows != 1 {
@@ -237,7 +237,7 @@ func assertEvidenceTransactionRollback(t *testing.T, publication *evidencebiz.Us
 	t.Helper()
 	forcedFailure := errors.New("force transaction rollback")
 	raw := postgresEvidenceRaw("RAWb24ba990-71e7-522d-b192-3e5c82790aa6")
-	raw.RawEvidenceID = postgresRawEvidenceID(raw)
+	raw.ID = postgresRawEvidenceID(raw)
 	err := store.InTransaction(context.Background(), func(tx evidencebiz.Transaction) error {
 		if err := tx.InsertRawEvidence(context.Background(), evidencebiz.StoredRawEvidence{
 			RawEvidence: raw, ContentHash: "unused-generated-column-value",
@@ -250,7 +250,7 @@ func assertEvidenceTransactionRollback(t *testing.T, publication *evidencebiz.Us
 		t.Fatalf("Raw Evidence forced rollback error = %v", err)
 	}
 	var count int
-	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE raw_evidence_id = $1`, raw.RawEvidenceID).Scan(&count); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE id = $1`, raw.ID).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	if count != 0 {
@@ -262,12 +262,12 @@ func assertEvidenceTransactionRollback(t *testing.T, publication *evidencebiz.Us
 	if err != nil {
 		t.Fatal(err)
 	}
-	evidenceRaw.RawEvidenceID = evidenceRawResult.RawEvidenceID
+	evidenceRaw.ID = evidenceRawResult.ID
 	evidence := postgresEvidence("EVD5a8f667a-cbca-5cb1-9bcd-e2d9072d4fda", 0)
-	evidence.EvidenceID, _ = coreid.Derive(coreid.Evidence, "atomic-evidence", evidenceRaw.RawEvidenceID, "0")
+	evidence.ID, _ = coreid.Derive(coreid.Evidence, "atomic-evidence", evidenceRaw.ID, "0")
 	err = store.InTransaction(context.Background(), func(tx evidencebiz.Transaction) error {
 		if err := tx.InsertEvidence(context.Background(), evidencebiz.StoredEvidence{
-			Evidence: evidence, RawEvidenceID: evidenceRaw.RawEvidenceID, IsSplit: false,
+			Evidence: evidence, RawEvidenceID: evidenceRaw.ID, IsSplit: false,
 		}); err != nil {
 			return err
 		}
@@ -276,7 +276,7 @@ func assertEvidenceTransactionRollback(t *testing.T, publication *evidencebiz.Us
 	if !errors.Is(err, forcedFailure) {
 		t.Fatalf("Evidence forced rollback error = %v", err)
 	}
-	if err := db.QueryRow(`SELECT count(*) FROM evidences WHERE raw_evidence_id = $1`, evidenceRaw.RawEvidenceID).Scan(&count); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM evidences WHERE raw_evidence_id = $1`, evidenceRaw.ID).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 	if count != 0 {
@@ -301,7 +301,7 @@ func assertEvidenceDeadlineCancelsQueryAndRollsBack(t *testing.T, store Store, d
 	}
 
 	raw := postgresEvidenceRaw("RAW939071e3-a016-5296-8008-377876cbb972")
-	raw.RawEvidenceID = postgresRawEvidenceID(raw)
+	raw.ID = postgresRawEvidenceID(raw)
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 	err = store.InTransaction(ctx, func(tx evidencebiz.Transaction) error {
@@ -314,7 +314,7 @@ func assertEvidenceDeadlineCancelsQueryAndRollsBack(t *testing.T, store Store, d
 		t.Fatalf("deadline transaction error=%v context=%v", err, ctx.Err())
 	}
 	var rawCount int
-	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE raw_evidence_id = $1`, raw.RawEvidenceID).Scan(&rawCount); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM raw_evidences WHERE id = $1`, raw.ID).Scan(&rawCount); err != nil {
 		t.Fatal(err)
 	}
 	if rawCount != 0 {

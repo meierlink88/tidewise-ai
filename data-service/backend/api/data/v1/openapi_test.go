@@ -44,7 +44,7 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/research-graph:search":                                          {method: "post", operationID: "searchResearchGraph", driftAnchor: "data.v1.searchResearchGraph", scope: "data.research.read"},
 		namespace + "/reviewed-event-imports":                                         {method: "post", operationID: "publishReviewedEvents", driftAnchor: "data.v1.publishReviewedEvents", scope: "data.reviewed-events.import"},
 		namespace + "/raw-evidence-publications":                                      {method: "post", operationID: "publishRawEvidence", driftAnchor: "data.v1.publishRawEvidence", scope: "data.raw-evidences.import"},
-		namespace + "/raw-evidences/{raw_evidence_id}":                                {method: "get", operationID: "getRawEvidence", driftAnchor: "data.v1.getRawEvidence", scope: "data.raw-evidences.read"},
+		namespace + "/raw-evidences/{id}":                                             {method: "get", operationID: "getRawEvidence", driftAnchor: "data.v1.getRawEvidence", scope: "data.raw-evidences.read"},
 		namespace + "/evidence-publications":                                          {method: "post", operationID: "publishEvidence", driftAnchor: "data.v1.publishEvidence", scope: "data.evidences.import"},
 		namespace + "/research-theme-imports":                                         {method: "post", operationID: "publishResearchTheme", driftAnchor: "data.v1.publishResearchTheme", scope: "data.research.import"},
 		namespace + "/entities/countries":                                             {method: "get", operationID: "listCountries", driftAnchor: "data.v1.listCountries", scope: "data.countries.read"},
@@ -192,6 +192,11 @@ func TestOpenAPIContractFreezesOrganizationNullsErrorsAndRequestIDs(t *testing.T
 		"id", "organization_id", "country_id", "membership_type", "effective_date", "expiry_date", "created_at", "updated_at",
 	)
 	assertRequired(t, schema(t, document, "OrganizationMemberDeleteEnvelope"), "request_id", "result")
+	assertRequired(t, schema(t, document, "OrganizationCategory"), "id", "code", "name_zh")
+	assertRequired(t, schema(t, document, "OrganizationDomainTag"), "id", "code", "function_code", "name_zh")
+	if _, exists := object(t, schema(t, document, "OrganizationFunction")["properties"], "OrganizationFunction properties")["id"]; exists {
+		t.Fatal("OrganizationFunction is out of scope and must remain code-only")
+	}
 }
 
 func TestEventSemanticManifestReadersDeclareRequestIDAndContextDrift(t *testing.T) {

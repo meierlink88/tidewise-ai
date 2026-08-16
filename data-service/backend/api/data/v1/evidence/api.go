@@ -60,7 +60,7 @@ type RawEvidence struct {
 }
 
 type GetRawEvidenceRequest struct {
-	RawEvidenceID string `json:"-"`
+	ID string `json:"-"`
 }
 
 type EvidenceCategory struct {
@@ -75,7 +75,7 @@ type EvidenceCategoryCatalog struct {
 }
 
 type RawEvidenceRead struct {
-	RawEvidenceID    string             `json:"raw_evidence_id"`
+	ID               string             `json:"id"`
 	SourceID         string             `json:"source_id"`
 	SourceName       string             `json:"source_name"`
 	SourceLevel      string             `json:"source_level"`
@@ -123,10 +123,10 @@ type AtomicEvidence struct {
 }
 
 type RawEvidencePublicationResult struct {
-	RawEvidenceID string `json:"raw_evidence_id"`
+	ID string `json:"id"`
 }
 
 type EvidencePublicationResult struct {
 	RawEvidenceID string   `json:"raw_evidence_id"`
-	EvidenceIDs   []string `json:"evidence_ids"`
+	IDs           []string `json:"ids"`
 }

@@ -32,7 +32,13 @@ type ReferenceError struct {
 
 func (e *ReferenceError) Error() string { return e.Field + ": " + e.Message }
 
-type CatalogTerm struct {
+type Category struct {
+	ID     string `json:"id"`
+	Code   string `json:"code"`
+	NameZh string `json:"name_zh"`
+}
+
+type Function struct {
 	Code   string `json:"code"`
 	NameZh string `json:"name_zh"`
 }
@@ -43,8 +49,8 @@ type Organization struct {
 	Name                      string
 	NameEn                    string
 	RegionID                  *string
-	Category                  CatalogTerm
-	Function                  CatalogTerm
+	Category                  Category
+	Function                  Function
 	LegalEntityCode           *string
 	DominantPartyID           *string
 	BindingPowerLevel         *string
@@ -91,16 +97,28 @@ type Update struct {
 	DomainTagCodes            *[]string
 }
 
+type UpdateCommand struct {
+	Update
+	DomainTagLinks *[]DomainTagLink
+}
+
 type Catalog struct {
-	Categories []CatalogTerm
-	Functions  []CatalogTerm
+	Categories []Category
+	Functions  []Function
 	DomainTags []DomainTag
 }
 
 type DomainTag struct {
+	ID           string `json:"id"`
 	Code         string `json:"code"`
 	FunctionCode string `json:"function_code"`
 	NameZh       string `json:"name_zh"`
+}
+
+type DomainTagLink struct {
+	ID            string
+	DomainTagID   string
+	DomainTagCode string
 }
 
 type Member struct {
@@ -118,8 +136,8 @@ type Repository interface {
 	Create(context.Context, Organization) (Organization, error)
 	Get(context.Context, string) (Organization, error)
 	List(context.Context, Filter) ([]Organization, error)
-	Update(context.Context, string, Update) (Organization, error)
-	ReplaceDomainTags(context.Context, string, []string) (Organization, error)
+	Update(context.Context, string, UpdateCommand) (Organization, error)
+	ReplaceDomainTags(context.Context, string, []DomainTagLink) (Organization, error)
 	Catalog(context.Context) (Catalog, error)
 	ListMembers(context.Context, string, *time.Time) ([]Member, error)
 	CreateMember(context.Context, Member) (Member, error)
@@ -179,7 +197,7 @@ func (s *UseCase) List(ctx context.Context, filter Filter) ([]Organization, erro
 func (s *UseCase) Update(ctx context.Context, id string, input Update) (Organization, error) {
 	probe := Organization{
 		ID: id, Code: "UNCHANGED", Name: input.Name, NameEn: input.NameEn,
-		RegionID: input.RegionID, Category: CatalogTerm{Code: input.CategoryCode}, Function: CatalogTerm{Code: input.FunctionCode},
+		RegionID: input.RegionID, Category: Category{Code: input.CategoryCode}, Function: Function{Code: input.FunctionCode},
 		LegalEntityCode: input.LegalEntityCode, DominantPartyID: input.DominantPartyID, BindingPowerLevel: input.BindingPowerLevel,
 		InfluenceRating: input.InfluenceRating, StrategicPositioning: input.StrategicPositioning, CoreImpactScope: input.CoreImpactScope,
 		FoundingDocument: input.FoundingDocument, EstablishedDate: input.EstablishedDate, HeadquartersCity: input.HeadquartersCity,
@@ -200,7 +218,15 @@ func (s *UseCase) Update(ctx context.Context, id string, input Update) (Organiza
 			seen[code] = struct{}{}
 		}
 	}
-	return s.repository.Update(ctx, id, input)
+	command := UpdateCommand{Update: input}
+	if input.DomainTagCodes != nil {
+		links, err := domainTagLinks(id, *input.DomainTagCodes)
+		if err != nil {
+			return Organization{}, err
+		}
+		command.DomainTagLinks = &links
+	}
+	return s.repository.Update(ctx, id, command)
 }
 
 func (s *UseCase) ReplaceDomainTags(ctx context.Context, id string, codes []string) (Organization, error) {
@@ -217,7 +243,50 @@ func (s *UseCase) ReplaceDomainTags(ctx context.Context, id string, codes []stri
 		}
 		seen[code] = struct{}{}
 	}
-	return s.repository.ReplaceDomainTags(ctx, id, append([]string{}, codes...))
+	links, err := domainTagLinks(id, codes)
+	if err != nil {
+		return Organization{}, err
+	}
+	return s.repository.ReplaceDomainTags(ctx, id, links)
+}
+
+func AssignCatalogIdentities(input Catalog) (Catalog, error) {
+	result := Catalog{
+		Categories: append([]Category(nil), input.Categories...),
+		Functions:  append([]Function(nil), input.Functions...),
+		DomainTags: append([]DomainTag(nil), input.DomainTags...),
+	}
+	for index := range result.Categories {
+		id, err := coreid.Derive(coreid.OrganizationCategory, "organization-category", result.Categories[index].Code)
+		if err != nil {
+			return Catalog{}, fmt.Errorf("generate Organization Category ID: %w", err)
+		}
+		result.Categories[index].ID = id
+	}
+	for index := range result.DomainTags {
+		id, err := coreid.Derive(coreid.OrganizationDomainTag, "organization-domain-tag", result.DomainTags[index].Code)
+		if err != nil {
+			return Catalog{}, fmt.Errorf("generate Organization Domain Tag ID: %w", err)
+		}
+		result.DomainTags[index].ID = id
+	}
+	return result, nil
+}
+
+func domainTagLinks(organizationID string, codes []string) ([]DomainTagLink, error) {
+	links := make([]DomainTagLink, len(codes))
+	for index, code := range codes {
+		tagID, err := coreid.Derive(coreid.OrganizationDomainTag, "organization-domain-tag", code)
+		if err != nil {
+			return nil, fmt.Errorf("generate Organization Domain Tag ID: %w", err)
+		}
+		linkID, err := coreid.Derive(coreid.OrganizationDomainTagLink, "organization-domain-tag-link", organizationID, tagID)
+		if err != nil {
+			return nil, fmt.Errorf("generate Organization Domain Tag Link ID: %w", err)
+		}
+		links[index] = DomainTagLink{ID: linkID, DomainTagID: tagID, DomainTagCode: code}
+	}
+	return links, nil
 }
 
 func (s *UseCase) Catalog(ctx context.Context) (Catalog, error) { return s.repository.Catalog(ctx) }

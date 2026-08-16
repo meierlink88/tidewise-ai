@@ -10,9 +10,9 @@ type repositoryStub struct {
 	created            Organization
 	listed             Filter
 	updatedID          string
-	updated            Update
+	updated            UpdateCommand
 	replacedID         string
-	replacedCodes      []string
+	replacedLinks      []DomainTagLink
 	createdMember      Member
 	updatedMemberOrgID string
 	updatedMemberID    string
@@ -30,12 +30,12 @@ func (s *repositoryStub) List(_ context.Context, input Filter) ([]Organization, 
 	s.listed = input
 	return nil, nil
 }
-func (s *repositoryStub) Update(_ context.Context, id string, input Update) (Organization, error) {
+func (s *repositoryStub) Update(_ context.Context, id string, input UpdateCommand) (Organization, error) {
 	s.updatedID, s.updated = id, input
 	return Organization{ID: id}, nil
 }
-func (s *repositoryStub) ReplaceDomainTags(_ context.Context, id string, codes []string) (Organization, error) {
-	s.replacedID, s.replacedCodes = id, codes
+func (s *repositoryStub) ReplaceDomainTags(_ context.Context, id string, links []DomainTagLink) (Organization, error) {
+	s.replacedID, s.replacedLinks = id, links
 	return Organization{ID: id}, nil
 }
 func (*repositoryStub) Catalog(context.Context) (Catalog, error) { return Catalog{}, nil }
@@ -59,6 +59,28 @@ func TestNewUseCaseRejectsMissingRepository(t *testing.T) {
 	if _, err := NewUseCase(nil); err == nil {
 		t.Fatal("NewUseCase(nil) error = nil")
 	}
+}
+
+func TestCurrentCatalogAssignsStableSystemOwnedIdentities(t *testing.T) {
+	catalog, err := AssignCatalogIdentities(Catalog{
+		Categories: []Category{{Code: "DIALOGUE_MECHANISM"}, {Code: "INTERGOVERNMENTAL"}},
+		DomainTags: []DomainTag{{Code: "REGIONAL_SECURITY_DIALOGUE", FunctionCode: "SECURITY"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if catalog.Categories[1].ID != "OCA7cf04802-4d04-5a8c-9a10-7d805cf29a4d" {
+		t.Fatalf("INTERGOVERNMENTAL Category ID = %q", catalog.Categories[1].ID)
+	}
+	for _, tag := range catalog.DomainTags {
+		if tag.Code == "REGIONAL_SECURITY_DIALOGUE" {
+			if tag.ID != "ODT37166e5a-05da-5972-b5a8-ff2c85ddc76a" {
+				t.Fatalf("REGIONAL_SECURITY_DIALOGUE Domain Tag ID = %q", tag.ID)
+			}
+			return
+		}
+	}
+	t.Fatal("REGIONAL_SECURITY_DIALOGUE Domain Tag is missing")
 }
 
 func TestUseCaseRejectsInvalidOrganizationBeforePersistence(t *testing.T) {
@@ -121,8 +143,11 @@ func TestUseCaseCopiesAcceptedOrganizationAndDomainTags(t *testing.T) {
 		t.Fatal(err)
 	}
 	codes[0] = "CHANGED"
-	if repository.replacedCodes[0] != "REGIONAL_SECURITY_DIALOGUE" {
-		t.Fatalf("persisted Domain Tags alias caller input: %#v", repository.replacedCodes)
+	if repository.replacedLinks[0].DomainTagCode != "REGIONAL_SECURITY_DIALOGUE" {
+		t.Fatalf("persisted Domain Tags alias caller input: %#v", repository.replacedLinks)
+	}
+	if repository.replacedLinks[0].ID != "ODL72d3c5ae-74ec-5d5e-9d3e-0d5ebbd189e8" {
+		t.Fatalf("Domain Tag Link ID = %q", repository.replacedLinks[0].ID)
 	}
 	if _, err := useCase.ReplaceDomainTags(context.Background(), "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", []string{"REGIONAL_SECURITY_DIALOGUE", "REGIONAL_SECURITY_DIALOGUE"}); err == nil {
 		t.Fatal("duplicate Domain Tags error = nil")
@@ -175,6 +200,6 @@ func TestUseCaseValidatesFiltersAndMembershipBeforePersistence(t *testing.T) {
 func validOrganization() Organization {
 	return Organization{
 		Code: "UN", Name: "联合国", NameEn: "United Nations",
-		Category: CatalogTerm{Code: "INTERGOVERNMENTAL"}, Function: CatalogTerm{Code: "SECURITY"},
+		Category: Category{Code: "INTERGOVERNMENTAL"}, Function: Function{Code: "SECURITY"},
 	}
 }

@@ -47,8 +47,8 @@ AgentRun 运行时下架、旧 `tidewise_ai_server` 数据搬迁和历史 8/19 �
 技术组件生成的与数据库无关身份，格式为“领域对象缩写前缀 + canonical lowercase
 UUID”，中间不使用分隔符。Data Application 的受控注册表拥有全部对象前缀；普通写入由
 owning Biz 生成，初始化发布调用同一生成器。请求不接收主键，Data 只持久化且数据库不生成。
-可移植目录和可重放事实基于受控自然键确定性生成 UUID，普通领域对象随机生成；自然码
-目录和纯复合关联键不增加人工主键。
+可移植目录、关系和可重放事实基于受控自然键确定性生成 UUID，普通领域对象随机生成。
+Data Service 管理的每张表都使用名为 `id` 的唯一主键；自然键或关系端点另作唯一约束。
 _Avoid_: 裸 UUID、任意字符串前缀、`PREFIX_...`、`PREFIX-...`、调用方提交主键、数据库序列
 
 **Organization**:
@@ -58,7 +58,8 @@ Function 与 Domain Tag 通过 Data 目录连接稳定英文机器码和中文�
 _Avoid_: Alliance Org、Organization Profile、通用 Entity 的组织别名、member_count
 
 **Organization Category**:
-Organization 唯一的可维护组织形态目录项，仅包含稳定 code、中文名称及数据库时间戳。
+Organization 唯一的可维护组织形态目录项，以 `OCA + canonical lowercase UUID`
+为稳定身份，code 作唯一自然键。
 _Avoid_: PostgreSQL enum、通用 Dictionary、带状态或展示顺序的分类
 
 **Organization Function**:
@@ -66,9 +67,14 @@ Organization 唯一的可维护核心职能目录项；Domain Tag 必须归属�
 _Avoid_: 多选核心职能、自由文本职能、与 Domain Tag 混用
 
 **Organization Domain Tag**:
-在 Organization Function 下表达细化投资主题语义的可维护目录项。Organization 可以选择
+以 `ODT + canonical lowercase UUID` 为稳定身份，在 Organization Function 下表达
+细化投资主题语义的可维护目录项。Organization 可以选择
 多个 Tag，但每个所选 Tag 的归属 Function 必须与 Organization 当前 Function 一致。
 _Avoid_: 文本数组、跨 Function 标签、无中文语义的代码
+
+**Organization Domain Tag Link**:
+以 `ODL + canonical lowercase UUID` 为稳定身份的 Organization 与 Domain Tag 关系；
+Organization 与 Domain Tag 端点组合另作唯一约束。
 
 **Organization Membership**:
 Country 与 Organization 之间带成员类型和生效历史的关系事实。有效期为闭区间，空起始
@@ -77,7 +83,8 @@ Country 与 Organization 之间带成员类型和生效历史的关系事实。�
 _Avoid_: member_count、重叠历史、用追加行表达 expiry_date 修正
 
 **Raw Evidence**:
-Data 正式保存的一份完整原始采集材料，包含来源与转载快照、完整正文、文章发布时间、
+Data 正式保存的一份完整原始采集材料，以 `RAW + canonical lowercase UUID` 为 `id`，
+包含来源与转载快照、完整正文、文章发布时间、
 采集时间、正文哈希、有序 Keywords 和受控内容分类。它可以在清洗完成前暂时没有 Evidence，但不能以
 零 Evidence 作为正式清洗结果。
 Data 还为新建 Raw Evidence 保存数据库生成的内部 `created_at`；发布方不提交，发布 API
@@ -104,12 +111,14 @@ Raw Evidence Category Link。目录读取原样返回当前名称和描述，不
 _Avoid_: AgentOS 自建或持久化 Catalog 副本、Prompt/YAML 中复制分类 ID、模糊名称映射、通过读取 API 修改或补写目录
 
 **Raw Evidence Category Link**:
-一份 Raw Evidence 与一个受控 Content Category 之间的无顺序事实关系；同一分类在一份材料中
+以 `RCL + canonical lowercase UUID` 为 `id` 的 Raw Evidence 与受控 Content Category 无顺序
+事实关系；同一分类在一份材料中
 只能出现一次。
 _Avoid_: Primary Category、分类置信度、Atomic Evidence Category
 
 **Atomic Evidence**:
-清洗流程从一个 Raw Evidence 得到的、可直接消费的一条原子 5W1H 事实表达。一个 Raw
+清洗流程从一个 Raw Evidence 得到的、可直接消费的一条原子 5W1H 事实表达，以
+`EVD + canonical lowercase UUID` 为 `id`。一个 Raw
 Evidence 正式清洗后必须拥有一至多条 Atomic Evidence；`1:1` 表示未拆分，`1:N` 表示
 各子项由拆分产生。
 Data 为新建 Atomic Evidence 保存数据库生成的内部 `created_at`；发布方不提交，发布 API
@@ -125,13 +134,13 @@ _Avoid_: Evidence Group 实体、唯一 expression_key、Data 语义召回、emb
 **Raw Evidence Publication**:
 采集完成后把一份完整 Raw Evidence、Keywords 及可选 Content Category 集合原子接纳为正式 Data 事实的同步发布。
 相同身份的全部内容及无序分类集合一致时允许安全重试，内容或分类漂移时冲突；成功响应只返回正式 Raw Evidence ID，
-不创建发布回执或返回创建/复用分类。
+不创建发布回执或返回创建/复用分类；响应以 `id` 字段返回该身份。
 _Avoid_: Evidence Publication、异步 Import Job、Idempotency-Key
 
 **Evidence Publication**:
 清洗完成后，为一个既有 Raw Evidence 一次提交完整 `1..N` Atomic Evidence 集合的同步
 发布。整包只能首次创建或以完全一致内容安全重试，不能覆盖、追加、删除或发布零项；成功
-响应只返回 Raw Evidence ID 和按 `split_order` 排序的 Evidence IDs，不创建发布回执或返回
+响应只返回外键 `raw_evidence_id` 和按 `split_order` 排序的 Evidence `ids`，不创建发布回执或返回
 创建/复用分类。
 _Avoid_: Raw Evidence Publication、Group Publication、部分成功、可变清洗结果
 

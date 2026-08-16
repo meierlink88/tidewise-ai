@@ -43,6 +43,8 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000050_unify_domain_object_ids.sql`：零兼容窗口身份切换，将 Entity、Entity Relation、Country、Region、Organization 与 Evidence 领域对象统一为“领域前缀 + canonical lowercase UUID”，并将 Country code 收敛为 ISO 3166-1 alpha-2。发布前必须停止写入并取得 PostgreSQL 快照；回滚必须恢复快照与上一版应用。
 - `000051_enforce_business_primary_key_ids.sql`：把其余独立业务、关系和回执主键及传递外键统一为已注册前缀 ID，移除两个历史序列。
 - `000052_migrate_embedded_business_ids.sql`：同步改写数组及研究回执 JSON map 中保存的业务 ID。
+- `000053_unify_organization_evidence_primary_keys.sql`：为四张 Organization/Evidence 目录与关系表增加
+  Data Service 生成的前缀 UUID `id` 主键，并将 Raw Evidence 与 Atomic Evidence 主键列改名为 `id`。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -82,6 +84,10 @@ UUID 合同，Country 为 201 条 ISO alpha-2 code，且无孤儿引用，才可
 `000051`、`000052` 是 Issue #244 对同一停写窗口的扩展。check-only 必须确认它们按序
 紧随 `000050`；执行后确认 ledger 为 `52`、独立业务主键均为注册前缀加 UUID、无默认值或
 序列且外键无孤儿。应用与数据库必须一起发布；回退恢复迁移前快照和上一版应用。
+
+`000053` 是 Issue #251 授权的零兼容窗口切换。本需求明确不迁移旧数据；迁移在需要
+新 ID 的四张表存在行时 fail closed，不回填、不删除。执行后确认 ledger 为 `53`、六张目标表
+的唯一主键列均为 `id`，且分别满足 `OCA`/`ODT`/`ODL`/`RAW`/`EVD`/`RCL` 前缀合同。
 
 Data 不再提供 `source-seed` 或维护 `source_catalogs`，既有 Event Publication 仍只通过
 `POST /api/data/v1/reviewed-event-imports` 连同轻量 Event 证据原子接纳；历史

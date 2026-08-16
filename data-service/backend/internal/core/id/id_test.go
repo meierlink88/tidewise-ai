@@ -87,3 +87,20 @@ func TestRegistryRejectsUnreviewedKind(t *testing.T) {
 		t.Fatal("New(unreviewed kind) succeeded")
 	}
 }
+
+func TestOrganizationAndEvidenceRelationshipKindsAreRegistered(t *testing.T) {
+	for kind, expectedPrefix := range map[Kind]string{
+		OrganizationCategory:      "OCA",
+		OrganizationDomainTag:     "ODT",
+		OrganizationDomainTagLink: "ODL",
+		RawEvidenceCategoryLink:   "RCL",
+	} {
+		value, err := New(kind)
+		if err != nil {
+			t.Fatalf("New(%q) error = %v", kind, err)
+		}
+		if !strings.HasPrefix(value, expectedPrefix) {
+			t.Fatalf("New(%q) = %q, want %q prefix", kind, value, expectedPrefix)
+		}
+	}
+}
