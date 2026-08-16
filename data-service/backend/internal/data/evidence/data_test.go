@@ -35,20 +35,21 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 	ctx := context.Background()
 
 	raw := postgresEvidenceRaw("RAW6d88a7c8-da68-5dbc-b6ed-ca4b1a6cf175")
+	raw.CategoryIDs = []evidencebiz.CategoryID{"EVCc18ddddb-14bc-5496-99ea-963ee2c25597"}
 	created, err := publication.PublishRawEvidence(ctx, raw)
 	if err != nil {
 		t.Fatalf("publish Raw Evidence: %v", err)
 	}
-	rawID := created.RawEvidenceID
-	rawCreatedAt := storedCreationTime(t, db, "raw_evidences", "raw_evidence_id", rawID)
+	rawID := created.ID
+	rawCreatedAt := storedCreationTime(t, db, "raw_evidences", "id", rawID)
 	replayed, err := publication.PublishRawEvidence(ctx, raw)
 	if err != nil {
 		t.Fatalf("replay Raw Evidence: %v", err)
 	}
-	if replayedCreatedAt := storedCreationTime(t, db, "raw_evidences", "raw_evidence_id", rawID); !replayedCreatedAt.Equal(rawCreatedAt) {
+	if replayedCreatedAt := storedCreationTime(t, db, "raw_evidences", "id", rawID); !replayedCreatedAt.Equal(rawCreatedAt) {
 		t.Fatalf("replayed Raw Evidence created_at = %s, want %s", replayedCreatedAt, rawCreatedAt)
 	}
-	if created.RawEvidenceID != postgresRawEvidenceID(raw) || replayed != created {
+	if created.ID != postgresRawEvidenceID(raw) || replayed != created {
 		t.Fatalf("Raw Evidence results created=%#v replayed=%#v", created, replayed)
 	}
 
@@ -62,26 +63,26 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 		t.Fatalf("publish Evidence set: %v", err)
 	}
 	evidenceCreatedAt := make(map[string]time.Time, len(items))
-	for _, evidenceID := range published.EvidenceIDs {
-		evidenceCreatedAt[evidenceID] = storedCreationTime(t, db, "evidences", "evidence_id", evidenceID)
+	for _, evidenceID := range published.IDs {
+		evidenceCreatedAt[evidenceID] = storedCreationTime(t, db, "evidences", "id", evidenceID)
 	}
 	reused, err := publication.PublishEvidence(ctx, rawID, items)
 	if err != nil {
 		t.Fatalf("replay Evidence set: %v", err)
 	}
-	for _, evidenceID := range published.EvidenceIDs {
-		if replayedCreatedAt := storedCreationTime(t, db, "evidences", "evidence_id", evidenceID); !replayedCreatedAt.Equal(evidenceCreatedAt[evidenceID]) {
+	for _, evidenceID := range published.IDs {
+		if replayedCreatedAt := storedCreationTime(t, db, "evidences", "id", evidenceID); !replayedCreatedAt.Equal(evidenceCreatedAt[evidenceID]) {
 			t.Fatalf("replayed Evidence %q created_at = %s, want %s", evidenceID, replayedCreatedAt, evidenceCreatedAt[evidenceID])
 		}
 	}
-	if published.RawEvidenceID != rawID || !sameTestStrings(published.EvidenceIDs, reused.EvidenceIDs) || len(published.EvidenceIDs) != 2 {
+	if published.RawEvidenceID != rawID || !sameTestStrings(published.IDs, reused.IDs) || len(published.IDs) != 2 {
 		t.Fatalf("Evidence results published=%#v reused=%#v", published, reused)
 	}
 
 	var keywords []string
 	var keywordsJSON []byte
 	var evidenceCount int
-	if err := db.QueryRowContext(ctx, `SELECT array_to_json(keywords) FROM raw_evidences WHERE raw_evidence_id = $1`, rawID).Scan(&keywordsJSON); err != nil {
+	if err := db.QueryRowContext(ctx, `SELECT array_to_json(keywords) FROM raw_evidences WHERE id = $1`, rawID).Scan(&keywordsJSON); err != nil {
 		t.Fatal(err)
 	}
 	if err := json.Unmarshal(keywordsJSON, &keywords); err != nil {
@@ -96,6 +97,17 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 	if evidenceCount != 2 {
 		t.Fatalf("Evidence rows sharing expression_key = %d, want 2", evidenceCount)
 	}
+	var categoryLinkID string
+	if err := db.QueryRowContext(ctx, `SELECT id FROM raw_evidence_category_links WHERE raw_evidence_id = $1`, rawID).Scan(&categoryLinkID); err != nil {
+		t.Fatal(err)
+	}
+	expectedCategoryLinkID, err := coreid.Derive(coreid.RawEvidenceCategoryLink, "raw-evidence-category-link", rawID, "EVCc18ddddb-14bc-5496-99ea-963ee2c25597")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if categoryLinkID != expectedCategoryLinkID {
+		t.Fatalf("Raw Evidence Category Link ID = %q", categoryLinkID)
+	}
 
 	drift := append([]evidencebiz.Evidence(nil), items...)
 	drift[0].SourceWhat = "drifted"
@@ -105,6 +117,48 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 		t.Fatalf("drift error = %v, want ConflictError", err)
 	}
 
+}
+
+func TestPostgresTargetTablesUseOnlyIDAsPrimaryKey(t *testing.T) {
+	db := openEvidencePublicationTestDatabase(t)
+	rows, err := db.Query(`
+SELECT tc.table_name, kcu.column_name
+FROM information_schema.table_constraints tc
+JOIN information_schema.key_column_usage kcu
+  ON kcu.constraint_catalog = tc.constraint_catalog
+ AND kcu.constraint_schema = tc.constraint_schema
+ AND kcu.constraint_name = tc.constraint_name
+WHERE tc.constraint_schema = current_schema()
+  AND tc.constraint_type = 'PRIMARY KEY'
+  AND tc.table_name IN (
+    'organization_categories', 'organization_domain_tags', 'organization_domain_tag_links',
+    'raw_evidences', 'evidences', 'raw_evidence_category_links'
+  )
+ORDER BY tc.table_name, kcu.ordinal_position`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	primaryKeys := make(map[string][]string)
+	for rows.Next() {
+		var table, column string
+		if err := rows.Scan(&table, &column); err != nil {
+			t.Fatal(err)
+		}
+		primaryKeys[table] = append(primaryKeys[table], column)
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range []string{
+		"organization_categories", "organization_domain_tags", "organization_domain_tag_links",
+		"raw_evidences", "evidences", "raw_evidence_category_links",
+	} {
+		columns := primaryKeys[table]
+		if len(columns) != 1 || columns[0] != "id" {
+			t.Errorf("%s primary key columns = %#v, want [id]", table, columns)
+		}
+	}
 }
 
 func TestPostgresEvidenceCategoryCatalogReturnsCurrentFixedCategories(t *testing.T) {
@@ -239,7 +293,7 @@ func TestEvidenceTransactionRejectsInvalidPersistedRawEvidence(t *testing.T) {
 	mock.ExpectQuery("FROM raw_evidences").
 		WithArgs(rawEvidenceID).
 		WillReturnRows(sqlmock.NewRows([]string{
-			"raw_evidence_id", "source_id", "source_name", "source_level", "source_url", "is_original",
+			"id", "source_id", "source_name", "source_level", "source_url", "is_original",
 			"quoted_source_id", "quoted_source_name", "title", "raw_text", "published_at", "collected_at",
 			"content_hash", "keywords",
 		}).AddRow(
@@ -281,7 +335,7 @@ func TestEvidenceTransactionRejectsInvalidPersistedEvidenceSet(t *testing.T) {
 	t.Cleanup(func() { _ = db.Close() })
 	mock.ExpectBegin()
 	rows := sqlmock.NewRows([]string{
-		"evidence_id", "raw_evidence_id", "split_order", "is_split", "layer_type",
+		"id", "raw_evidence_id", "split_order", "is_split", "layer_type",
 		"source_who", "source_what", "source_when", "source_when_raw", "source_where", "source_why", "source_how",
 		"source_who_core", "source_what_core", "source_when_core", "source_when_raw_core",
 		"source_where_core", "source_why_core", "source_how_core",

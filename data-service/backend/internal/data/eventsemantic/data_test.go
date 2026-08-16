@@ -183,7 +183,7 @@ func TestHydrateSubmissionContextResolvesRegionWithoutShadowEntity(t *testing.T)
 
 func TestHydrateSubmissionContextResolvesOrganizationWithoutLegacyEntity(t *testing.T) {
 	db := openEventPublicationTestDatabase(t)
-	if _, err := db.ExecContext(context.Background(), `INSERT INTO organization_categories(code,name_zh) VALUES('INTERGOVERNMENTAL','政府间国际组织'); INSERT INTO organization_functions(code,name_zh) VALUES('SECURITY','安全与防务'); INSERT INTO organizations(id,code,name,name_en,category_code,function_code) VALUES('ORG3fb9e7ff-2222-57fa-b306-c223ce3af549','UN','联合国','United Nations','INTERGOVERNMENTAL','SECURITY')`); err != nil {
+	if _, err := db.ExecContext(context.Background(), `INSERT INTO organization_categories(id,code,name_zh) VALUES('OCA7cf04802-4d04-5a8c-9a10-7d805cf29a4d','INTERGOVERNMENTAL','政府间国际组织'); INSERT INTO organization_functions(code,name_zh) VALUES('SECURITY','安全与防务'); INSERT INTO organizations(id,code,name,name_en,category_code,function_code) VALUES('ORG3fb9e7ff-2222-57fa-b306-c223ce3af549','UN','联合国','United Nations','INTERGOVERNMENTAL','SECURITY')`); err != nil {
 		t.Fatal(err)
 	}
 	result, err := hydrateEventSemanticSubmissionContext(context.Background(), db, eventbiz.Context{}, eventbiz.Submission{EntityLinks: []eventbiz.EntityLinkCandidate{{Key: "organization", Mention: "联合国", EntityID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", ProjectedEntityType: "organization"}}}, true)

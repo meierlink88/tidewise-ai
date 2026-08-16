@@ -16,7 +16,7 @@ import (
 func TestStorePublishesCatalogAndPersistsOrganizationFacts(t *testing.T) {
 	db := openOrganizationDatabase(t, "tw_organization_data")
 	ctx := context.Background()
-	publication := organizationdata.CurrentCatalog()
+	publication := currentCatalog(t)
 	publication.Categories[0].NameZh = "多边对话与合作机制"
 	publication.DomainTags = publication.DomainTags[:len(publication.DomainTags)-1]
 	if err := organizationdata.PublishCatalog(ctx, db, publication); err != nil {
@@ -30,10 +30,11 @@ func TestStorePublishesCatalogAndPersistsOrganizationFacts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(catalog.Categories) != 4 || len(catalog.Functions) != 7 || len(catalog.DomainTags) != 20 || catalog.Categories[0].NameZh != "多边对话与合作机制" {
+	if len(catalog.Categories) != 4 || len(catalog.Functions) != 7 || len(catalog.DomainTags) != 20 ||
+		catalog.Categories[0].ID == "" || catalog.DomainTags[0].ID == "" || catalog.Categories[0].NameZh != "多边对话与合作机制" {
 		t.Fatalf("published catalog = %#v", catalog)
 	}
-	current := organizationdata.CurrentCatalog()
+	current := currentCatalog(t)
 	if err := organizationdata.PublishCatalog(ctx, db, current); err != nil {
 		t.Fatal(err)
 	}
@@ -53,14 +54,21 @@ func TestStorePublishesCatalogAndPersistsOrganizationFacts(t *testing.T) {
 	if _, err := store.Create(ctx, input); !errors.Is(err, organizationbiz.ErrConflict) {
 		t.Fatalf("duplicate Create() error = %v, want conflict", err)
 	}
-	tagged, err := store.ReplaceDomainTags(ctx, "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", []string{"REGIONAL_SECURITY_DIALOGUE"})
+	tagged, err := store.ReplaceDomainTags(ctx, "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", []organizationbiz.DomainTagLink{{ID: "ODL72d3c5ae-74ec-5d5e-9d3e-0d5ebbd189e8", DomainTagID: "ODT37166e5a-05da-5972-b5a8-ff2c85ddc76a", DomainTagCode: "REGIONAL_SECURITY_DIALOGUE"}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(tagged.DomainTags) != 1 || tagged.DomainTags[0].FunctionCode != "SECURITY" {
 		t.Fatalf("tagged Organization = %#v", tagged)
 	}
-	if _, err := store.ReplaceDomainTags(ctx, "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", []string{"AI_TECHNOLOGY_AND_GOVERNANCE"}); err == nil {
+	var storedLinkID string
+	if err := db.QueryRowContext(ctx, `SELECT id FROM organization_domain_tag_links WHERE organization_id=$1`, tagged.ID).Scan(&storedLinkID); err != nil {
+		t.Fatal(err)
+	}
+	if storedLinkID != "ODL72d3c5ae-74ec-5d5e-9d3e-0d5ebbd189e8" {
+		t.Fatalf("Organization Domain Tag Link ID = %q", storedLinkID)
+	}
+	if _, err := store.ReplaceDomainTags(ctx, "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", []organizationbiz.DomainTagLink{{ID: "ODL876bcfd7-84cd-53b2-a2ac-e8bf42977183", DomainTagID: "ODT910b9189-86fa-5fcb-93c2-568212eb9d29", DomainTagCode: "AI_TECHNOLOGY_AND_GOVERNANCE"}}); err == nil {
 		t.Fatal("cross-Function Domain Tag error = nil")
 	} else {
 		var reference *organizationbiz.ReferenceError
@@ -80,7 +88,7 @@ func TestStorePublishesCatalogAndPersistsOrganizationFacts(t *testing.T) {
 func TestStoreEnforcesMembershipHistoryAndClassifiesReferences(t *testing.T) {
 	db := openOrganizationDatabase(t, "tw_organization_members")
 	ctx := context.Background()
-	if err := organizationdata.PublishCatalog(ctx, db, organizationdata.CurrentCatalog()); err != nil {
+	if err := organizationdata.PublishCatalog(ctx, db, currentCatalog(t)); err != nil {
 		t.Fatal(err)
 	}
 	seedOrganizationReferences(t, db)
@@ -163,10 +171,19 @@ func organizationFact() organizationbiz.Organization {
 	regionID, countryID := "REG13802abf-d1ef-5dec-95ec-a47d35813827", "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b"
 	return organizationbiz.Organization{
 		ID: "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", Code: "UN", Name: "联合国", NameEn: "United Nations", RegionID: &regionID,
-		Category: organizationbiz.CatalogTerm{Code: "INTERGOVERNMENTAL"}, Function: organizationbiz.CatalogTerm{Code: "SECURITY"},
+		Category: organizationbiz.Category{Code: "INTERGOVERNMENTAL"}, Function: organizationbiz.Function{Code: "SECURITY"},
 		DominantPartyID: &countryID, BindingPowerLevel: &binding, InfluenceRating: &influence,
 		HeadquartersCountryID: &countryID,
 	}
+}
+
+func currentCatalog(t *testing.T) organizationbiz.Catalog {
+	t.Helper()
+	catalog, err := organizationbiz.AssignCatalogIdentities(organizationdata.CurrentCatalog())
+	if err != nil {
+		t.Fatal(err)
+	}
+	return catalog
 }
 
 func seedOrganizationReferences(t *testing.T, db *sql.DB) {

@@ -58,7 +58,7 @@ func (s *Service) GetRawEvidence(ctx context.Context, request *evidenceapi.GetRa
 	if s == nil || s.useCase == nil {
 		return nil, publicError(v1.StatusInternalServerError, evidenceapi.ErrorDataServiceNotReady, "Evidence service is unavailable")
 	}
-	result, err := s.useCase.GetRawEvidence(ctx, request.RawEvidenceID)
+	result, err := s.useCase.GetRawEvidence(ctx, request.ID)
 	if err != nil {
 		return nil, rawEvidenceReadError(err)
 	}
@@ -183,7 +183,7 @@ func rawEvidenceReadDTO(input evidencebiz.StoredRawEvidence) evidenceapi.RawEvid
 		}
 	}
 	return evidenceapi.RawEvidenceRead{
-		RawEvidenceID: input.RawEvidenceID, SourceID: input.SourceID, SourceName: input.SourceName,
+		ID: input.ID, SourceID: input.SourceID, SourceName: input.SourceName,
 		SourceLevel: string(input.SourceLevel), SourceURL: input.SourceURL, IsOriginal: input.IsOriginal,
 		QuotedSourceID: input.QuotedSourceID, QuotedSourceName: input.QuotedSourceName,
 		Title: input.Title, RawText: input.RawText, PublishedAt: input.PublishedAt,
@@ -205,13 +205,13 @@ func evidenceInput(input evidenceapi.AtomicEvidence) evidencebiz.Evidence {
 }
 
 func rawEvidenceResultDTO(result evidencebiz.RawEvidenceResult) evidenceapi.RawEvidencePublicationResult {
-	return evidenceapi.RawEvidencePublicationResult{RawEvidenceID: result.RawEvidenceID}
+	return evidenceapi.RawEvidencePublicationResult{ID: result.ID}
 }
 
 func evidenceResultDTO(result evidencebiz.EvidenceResult) evidenceapi.EvidencePublicationResult {
 	return evidenceapi.EvidencePublicationResult{
 		RawEvidenceID: result.RawEvidenceID,
-		EvidenceIDs:   append([]string(nil), result.EvidenceIDs...),
+		IDs:           append([]string(nil), result.IDs...),
 	}
 }
 

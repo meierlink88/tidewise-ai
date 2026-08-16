@@ -47,8 +47,8 @@ AgentRun 运行时下架、旧 `tidewise_ai_server` 数据搬迁和历史 8/19 �
 技术组件生成的与数据库无关身份，格式为“领域对象缩写前缀 + canonical lowercase
 UUID”，中间不使用分隔符。Data Application 的受控注册表拥有全部对象前缀；普通写入由
 owning Biz 生成，初始化发布调用同一生成器。请求不接收主键，Data 只持久化且数据库不生成。
-可移植目录和可重放事实基于受控自然键确定性生成 UUID，普通领域对象随机生成；自然码
-目录和纯复合关联键不增加人工主键。
+可移植目录、关系和可重放事实基于受控自然键确定性生成 UUID，普通领域对象随机生成。
+Data Service 管理的每张表都使用名为 `id` 的唯一主键；自然键或关系端点另作唯一约束。
 _Avoid_: 裸 UUID、任意字符串前缀、`PREFIX_...`、`PREFIX-...`、调用方提交主键、数据库序列
 
 **Organization**:
@@ -58,7 +58,8 @@ Function 与 Domain Tag 通过 Data 目录连接稳定英文机器码和中文�
 _Avoid_: Alliance Org、Organization Profile、通用 Entity 的组织别名、member_count
 
 **Organization Category**:
-Organization 唯一的可维护组织形态目录项，仅包含稳定 code、中文名称及数据库时间戳。
+Organization 唯一的可维护组织形态目录项，以 `OCA + canonical lowercase UUID`
+为稳定身份，code 作唯一自然键。
 _Avoid_: PostgreSQL enum、通用 Dictionary、带状态或展示顺序的分类
 
 **Organization Function**:
@@ -66,9 +67,14 @@ Organization 唯一的可维护核心职能目录项；Domain Tag 必须归属�
 _Avoid_: 多选核心职能、自由文本职能、与 Domain Tag 混用
 
 **Organization Domain Tag**:
-在 Organization Function 下表达细化投资主题语义的可维护目录项。Organization 可以选择
+以 `ODT + canonical lowercase UUID` 为稳定身份，在 Organization Function 下表达
+细化投资主题语义的可维护目录项。Organization 可以选择
 多个 Tag，但每个所选 Tag 的归属 Function 必须与 Organization 当前 Function 一致。
 _Avoid_: 文本数组、跨 Function 标签、无中文语义的代码
+
+**Organization Domain Tag Link**:
+以 `ODL + canonical lowercase UUID` 为稳定身份的 Organization 与 Domain Tag 关系；
+Organization 与 Domain Tag 端点组合另作唯一约束。
 
 **Organization Membership**:
 Country 与 Organization 之间带成员类型和生效历史的关系事实。有效期为闭区间，空起始

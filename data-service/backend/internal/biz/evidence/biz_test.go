@@ -67,25 +67,29 @@ func TestPublishRawEvidenceReturnsFormalIdentityAndPreservesKeywordsAcrossRetry(
 	service := mustNewUseCase(t, store)
 
 	input := validRawEvidence()
+	input.CategoryIDs = []CategoryID{"EVCc18ddddb-14bc-5496-99ea-963ee2c25597"}
 	created, err := service.PublishRawEvidence(context.Background(), input)
 	if err != nil {
 		t.Fatalf("publish Raw Evidence: %v", err)
 	}
-	if !strings.HasPrefix(created.RawEvidenceID, "RAW") {
-		t.Fatalf("Raw Evidence ID = %q", created.RawEvidenceID)
+	if !strings.HasPrefix(created.ID, "RAW") {
+		t.Fatalf("Raw Evidence ID = %q", created.ID)
 	}
-	if got, want := store.raw[created.RawEvidenceID].Keywords, []string{" AI芯片 ", "供应链", "AI芯片"}; !equalStrings(got, want) {
+	if got, want := store.raw[created.ID].Keywords, []string{" AI芯片 ", "供应链", "AI芯片"}; !equalStrings(got, want) {
 		t.Fatalf("keywords = %#v, want exact publisher order %#v", got, want)
 	}
-	if store.raw[created.RawEvidenceID].ContentHash != "1b46f625a140463536b92ffb1718d101bbcdfe09a76ef63089af6a0d99b8aa33" {
-		t.Fatalf("content hash = %q", store.raw[created.RawEvidenceID].ContentHash)
+	if store.raw[created.ID].ContentHash != "1b46f625a140463536b92ffb1718d101bbcdfe09a76ef63089af6a0d99b8aa33" {
+		t.Fatalf("content hash = %q", store.raw[created.ID].ContentHash)
+	}
+	if len(store.links) != 1 || store.links[0].ID != "RCLa0c8d966-dbde-56e0-ab89-d0b67b1b7794" {
+		t.Fatalf("Raw Evidence Category Links = %#v", store.links)
 	}
 
 	reused, err := service.PublishRawEvidence(context.Background(), input)
 	if err != nil {
 		t.Fatalf("replay Raw Evidence: %v", err)
 	}
-	if reused.RawEvidenceID != created.RawEvidenceID || len(store.raw) != 1 {
+	if reused.ID != created.ID || len(store.raw) != 1 {
 		t.Fatalf("retry result = %#v, stored Raw Evidence = %d", reused, len(store.raw))
 	}
 }
@@ -116,28 +120,28 @@ func TestPublishRawEvidenceRejectsIdentityDriftAndInvalidOrigin(t *testing.T) {
 func TestPublishEvidenceCreatesCompleteSplitSetThenReusesIt(t *testing.T) {
 	store := newMemoryStore()
 	raw := publishedRawEvidence(t)
-	store.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
+	store.raw[raw.ID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
 	service := mustNewUseCase(t, store)
 	evidences := []Evidence{validEvidence("EVD888d6be0-6378-5f06-bfa1-6e6294f43dca", 1), validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0)}
-	created, err := service.PublishEvidence(context.Background(), raw.RawEvidenceID, evidences)
+	created, err := service.PublishEvidence(context.Background(), raw.ID, evidences)
 	if err != nil {
 		t.Fatalf("publish Evidence: %v", err)
 	}
-	if len(created.EvidenceIDs) != 2 || !strings.HasPrefix(created.EvidenceIDs[0], "EVD") || !strings.HasPrefix(created.EvidenceIDs[1], "EVD") {
-		t.Fatalf("Evidence IDs = %#v", created.EvidenceIDs)
+	if len(created.IDs) != 2 || !strings.HasPrefix(created.IDs[0], "EVD") || !strings.HasPrefix(created.IDs[1], "EVD") {
+		t.Fatalf("Evidence IDs = %#v", created.IDs)
 	}
 
-	reused, err := service.PublishEvidence(context.Background(), raw.RawEvidenceID, evidences)
+	reused, err := service.PublishEvidence(context.Background(), raw.ID, evidences)
 	if err != nil {
 		t.Fatalf("replay Evidence: %v", err)
 	}
-	if !equalStrings(reused.EvidenceIDs, created.EvidenceIDs) || len(store.evidences) != 2 {
+	if !equalStrings(reused.IDs, created.IDs) || len(store.evidences) != 2 {
 		t.Fatalf("retry result = %#v, stored Evidences = %d", reused, len(store.evidences))
 	}
 
 	drifted := append([]Evidence(nil), evidences...)
 	drifted[1].SourceWhat = "Changed fact"
-	_, err = service.PublishEvidence(context.Background(), raw.RawEvidenceID, drifted)
+	_, err = service.PublishEvidence(context.Background(), raw.ID, drifted)
 	var conflict *ConflictError
 	if !errors.As(err, &conflict) {
 		t.Fatalf("drift error = %v, want ConflictError", err)
@@ -147,22 +151,22 @@ func TestPublishEvidenceCreatesCompleteSplitSetThenReusesIt(t *testing.T) {
 func TestPublishEvidenceSingleIsNotSplitAndRejectsNonContinuousOrder(t *testing.T) {
 	store := newMemoryStore()
 	raw := publishedRawEvidence(t)
-	store.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
+	store.raw[raw.ID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
 	service := mustNewUseCase(t, store)
 
 	single := validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0)
-	result, err := service.PublishEvidence(context.Background(), raw.RawEvidenceID, []Evidence{single})
+	result, err := service.PublishEvidence(context.Background(), raw.ID, []Evidence{single})
 	if err != nil {
 		t.Fatalf("publish single Evidence: %v", err)
 	}
-	if len(result.EvidenceIDs) != 1 || !strings.HasPrefix(result.EvidenceIDs[0], "EVD") {
-		t.Fatalf("single result = %#v", result.EvidenceIDs)
+	if len(result.IDs) != 1 || !strings.HasPrefix(result.IDs[0], "EVD") {
+		t.Fatalf("single result = %#v", result.IDs)
 	}
 
 	otherStore := newMemoryStore()
-	otherStore.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
+	otherStore.raw[raw.ID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
 	nonContinuous := []Evidence{validEvidence("EVD888d6be0-6378-5f06-bfa1-6e6294f43dca", 0), validEvidence("EVDe81576cf-65e5-5790-9e39-854386939e72", 2)}
-	_, err = mustNewUseCase(t, otherStore).PublishEvidence(context.Background(), raw.RawEvidenceID, nonContinuous)
+	_, err = mustNewUseCase(t, otherStore).PublishEvidence(context.Background(), raw.ID, nonContinuous)
 	var validation *ValidationError
 	if !errors.As(err, &validation) {
 		t.Fatalf("non-continuous error = %v, want ValidationError", err)
@@ -172,7 +176,7 @@ func TestPublishEvidenceSingleIsNotSplitAndRejectsNonContinuousOrder(t *testing.
 func TestPublishEvidenceRejectsCollectionReferenceLayerAndExpressionFailures(t *testing.T) {
 	raw := publishedRawEvidence(t)
 	store := newMemoryStore()
-	store.raw[raw.RawEvidenceID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
+	store.raw[raw.ID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
 	service := mustNewUseCase(t, store)
 
 	tests := []struct {
@@ -203,7 +207,7 @@ func TestPublishEvidenceRejectsCollectionReferenceLayerAndExpressionFailures(t *
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err := service.PublishEvidence(context.Background(), raw.RawEvidenceID, test.items)
+			_, err := service.PublishEvidence(context.Background(), raw.ID, test.items)
 			var validation *ValidationError
 			if !errors.As(err, &validation) || !hasIssueCode(validation.Issues, test.code) {
 				t.Fatalf("error = %#v, issues = %#v", err, validation)
@@ -255,7 +259,7 @@ func publishedRawEvidence(t *testing.T) RawEvidence {
 	if err != nil {
 		t.Fatal(err)
 	}
-	raw.RawEvidenceID = id
+	raw.ID = id
 	return raw
 }
 
@@ -294,6 +298,7 @@ func hasIssueCode(issues []Issue, code IssueCode) bool {
 type memoryStore struct {
 	raw         map[string]StoredRawEvidence
 	evidences   map[string]StoredEvidence
+	links       []RawEvidenceCategoryLink
 	categories  []Category
 	categoryErr error
 }
@@ -331,11 +336,12 @@ func (*memoryTransaction) CategoriesByIDs(_ context.Context, ids []CategoryID) (
 }
 
 func (t *memoryTransaction) InsertRawEvidence(_ context.Context, record StoredRawEvidence) error {
-	t.raw[record.RawEvidenceID] = record
+	t.raw[record.ID] = record
 	return nil
 }
 
-func (*memoryTransaction) InsertRawEvidenceCategoryLinks(context.Context, string, []CategoryID) error {
+func (t *memoryTransaction) InsertRawEvidenceCategoryLinks(_ context.Context, _ string, links []RawEvidenceCategoryLink) error {
+	t.links = append([]RawEvidenceCategoryLink(nil), links...)
 	return nil
 }
 
@@ -360,6 +366,6 @@ func (t *memoryTransaction) EvidencesByIDs(_ context.Context, ids []string) ([]S
 }
 
 func (t *memoryTransaction) InsertEvidence(_ context.Context, record StoredEvidence) error {
-	t.evidences[record.EvidenceID] = record
+	t.evidences[record.ID] = record
 	return nil
 }

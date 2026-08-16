@@ -56,7 +56,7 @@ const (
 )
 
 type RawEvidence struct {
-	RawEvidenceID    string
+	ID               string
 	PublicationKey   string
 	SourceID         string
 	SourceName       string
@@ -97,7 +97,7 @@ type Store interface {
 }
 
 type Evidence struct {
-	EvidenceID            string
+	ID                    string
 	SplitOrder            int
 	LayerType             LayerType
 	SourceWho             *string
@@ -126,12 +126,17 @@ type StoredEvidence struct {
 }
 
 type RawEvidenceResult struct {
-	RawEvidenceID string
+	ID string
 }
 
 type EvidenceResult struct {
 	RawEvidenceID string
-	EvidenceIDs   []string
+	IDs           []string
+}
+
+type RawEvidenceCategoryLink struct {
+	ID         string
+	CategoryID CategoryID
 }
 
 type Issue struct {
@@ -239,8 +244,8 @@ func (s *UseCase) PublishRawEvidence(ctx context.Context, input RawEvidence) (Ra
 	if s == nil || s.store == nil {
 		return RawEvidenceResult{}, errors.New("Evidence Publication store is required")
 	}
-	if strings.TrimSpace(input.RawEvidenceID) != "" {
-		return RawEvidenceResult{}, &ValidationError{Issues: []Issue{{Path: "raw_evidence.raw_evidence_id", Code: IssueInvalidFormat, Message: "must be omitted because Data generates Raw Evidence IDs"}}}
+	if strings.TrimSpace(input.ID) != "" {
+		return RawEvidenceResult{}, &ValidationError{Issues: []Issue{{Path: "raw_evidence.id", Code: IssueInvalidFormat, Message: "must be omitted because Data generates Raw Evidence IDs"}}}
 	}
 	if strings.TrimSpace(input.PublicationKey) == "" {
 		return RawEvidenceResult{}, &ValidationError{Issues: []Issue{{Path: "raw_evidence.publication_key", Code: IssueRequired, Message: "value is required"}}}
@@ -249,7 +254,7 @@ func (s *UseCase) PublishRawEvidence(ctx context.Context, input RawEvidence) (Ra
 	if err != nil {
 		return RawEvidenceResult{}, fmt.Errorf("generate Raw Evidence ID: %w", err)
 	}
-	input.RawEvidenceID = rawEvidenceID
+	input.ID = rawEvidenceID
 	if err := validateRawEvidence(input); err != nil {
 		return RawEvidenceResult{}, err
 	}
@@ -257,7 +262,7 @@ func (s *UseCase) PublishRawEvidence(ctx context.Context, input RawEvidence) (Ra
 	record := StoredRawEvidence{RawEvidence: cloneRawEvidence(input), ContentHash: contentHash(input.RawText)}
 	var result RawEvidenceResult
 	err = s.store.InTransaction(ctx, func(tx Transaction) error {
-		if err := tx.LockIdentities(ctx, []string{"raw-evidence:" + input.RawEvidenceID}); err != nil {
+		if err := tx.LockIdentities(ctx, []string{"raw-evidence:" + input.ID}); err != nil {
 			return err
 		}
 		categories, err := tx.CategoriesByIDs(ctx, record.CategoryIDs)
@@ -268,26 +273,30 @@ func (s *UseCase) PublishRawEvidence(ctx context.Context, input RawEvidence) (Ra
 			return &ReferenceError{Issues: []Issue{*issue}}
 		}
 		record.Categories = cloneCategories(categories)
-		existing, err := tx.RawEvidence(ctx, input.RawEvidenceID)
+		existing, err := tx.RawEvidence(ctx, input.ID)
 		if err != nil {
 			return err
 		}
 		if existing != nil {
 			if !sameRawEvidence(*existing, record) {
 				return &ConflictError{Issues: []Issue{{
-					Path: "raw_evidence.raw_evidence_id", Code: IssueRawEvidenceConflict,
-					Message: "raw_evidence_id conflicts with stored content",
+					Path: "raw_evidence.id", Code: IssueRawEvidenceConflict,
+					Message: "id conflicts with stored content",
 				}}}
 			}
 		} else {
 			if err := tx.InsertRawEvidence(ctx, record); err != nil {
 				return err
 			}
-			if err := tx.InsertRawEvidenceCategoryLinks(ctx, record.RawEvidenceID, record.CategoryIDs); err != nil {
+			links, err := rawEvidenceCategoryLinks(record.ID, record.CategoryIDs)
+			if err != nil {
+				return err
+			}
+			if err := tx.InsertRawEvidenceCategoryLinks(ctx, record.ID, links); err != nil {
 				return err
 			}
 		}
-		result = RawEvidenceResult{RawEvidenceID: record.RawEvidenceID}
+		result = RawEvidenceResult{ID: record.ID}
 		return nil
 	})
 	if err != nil {
@@ -301,7 +310,7 @@ func (s *UseCase) GetRawEvidence(ctx context.Context, rawEvidenceID string) (Sto
 		return StoredRawEvidence{}, errors.New("Evidence store is required")
 	}
 	var issues []Issue
-	requiredDomainID(&issues, "raw_evidence_id", rawEvidenceID, RawEvidenceIDPrefix)
+	requiredDomainID(&issues, "id", rawEvidenceID, RawEvidenceIDPrefix)
 	if len(issues) > 0 {
 		return StoredRawEvidence{}, &ValidationError{Issues: issues}
 	}
@@ -323,20 +332,32 @@ func (s *UseCase) GetRawEvidence(ctx context.Context, rawEvidenceID string) (Sto
 	return result, nil
 }
 
+func rawEvidenceCategoryLinks(rawEvidenceID string, categoryIDs []CategoryID) ([]RawEvidenceCategoryLink, error) {
+	links := make([]RawEvidenceCategoryLink, len(categoryIDs))
+	for index, categoryID := range categoryIDs {
+		id, err := coreid.Derive(coreid.RawEvidenceCategoryLink, "raw-evidence-category-link", rawEvidenceID, string(categoryID))
+		if err != nil {
+			return nil, fmt.Errorf("generate Raw Evidence Category Link ID: %w", err)
+		}
+		links[index] = RawEvidenceCategoryLink{ID: id, CategoryID: categoryID}
+	}
+	return links, nil
+}
+
 func (s *UseCase) PublishEvidence(ctx context.Context, rawEvidenceID string, input []Evidence) (EvidenceResult, error) {
 	if s == nil || s.store == nil {
 		return EvidenceResult{}, errors.New("Evidence Publication store is required")
 	}
 	input = append([]Evidence(nil), input...)
 	for index := range input {
-		if strings.TrimSpace(input[index].EvidenceID) != "" {
-			return EvidenceResult{}, &ValidationError{Issues: []Issue{{Path: fmt.Sprintf("evidences[%d].evidence_id", index), Code: IssueInvalidFormat, Message: "must be omitted because Data generates Evidence IDs"}}}
+		if strings.TrimSpace(input[index].ID) != "" {
+			return EvidenceResult{}, &ValidationError{Issues: []Issue{{Path: fmt.Sprintf("evidences[%d].id", index), Code: IssueInvalidFormat, Message: "must be omitted because Data generates Evidence IDs"}}}
 		}
 		id, err := coreid.Derive(coreid.Evidence, "atomic-evidence", rawEvidenceID, strconv.Itoa(input[index].SplitOrder))
 		if err != nil {
 			return EvidenceResult{}, fmt.Errorf("generate Evidence ID: %w", err)
 		}
-		input[index].EvidenceID = id
+		input[index].ID = id
 	}
 	if err := validateEvidencePublication(rawEvidenceID, input); err != nil {
 		return EvidenceResult{}, err
@@ -350,7 +371,7 @@ func (s *UseCase) PublishEvidence(ctx context.Context, rawEvidenceID string, inp
 	sort.Slice(records, func(i, j int) bool { return records[i].SplitOrder < records[j].SplitOrder })
 	ids := make([]string, len(records))
 	for index, record := range records {
-		ids[index] = record.EvidenceID
+		ids[index] = record.ID
 	}
 	locks := make([]string, 0, len(ids)+1)
 	locks = append(locks, "raw-evidence:"+rawEvidenceID)
@@ -401,7 +422,7 @@ func (s *UseCase) PublishEvidence(ctx context.Context, rawEvidenceID string, inp
 			}
 		}
 
-		result = EvidenceResult{RawEvidenceID: rawEvidenceID, EvidenceIDs: append([]string(nil), ids...)}
+		result = EvidenceResult{RawEvidenceID: rawEvidenceID, IDs: append([]string(nil), ids...)}
 		return nil
 	})
 	if err != nil {
@@ -420,11 +441,11 @@ func validateEvidencePublication(rawEvidenceID string, input []Evidence) error {
 	seenOrders := make(map[int]struct{}, len(input))
 	for index, item := range input {
 		prefix := fmt.Sprintf("evidences[%d]", index)
-		requiredDomainID(&issues, prefix+".evidence_id", item.EvidenceID, EvidenceIDPrefix)
-		if _, ok := seenIDs[item.EvidenceID]; ok {
-			issues = append(issues, Issue{Path: prefix + ".evidence_id", Code: IssueDuplicate, Message: "evidence_id must be unique within the publication"})
+		requiredDomainID(&issues, prefix+".id", item.ID, EvidenceIDPrefix)
+		if _, ok := seenIDs[item.ID]; ok {
+			issues = append(issues, Issue{Path: prefix + ".id", Code: IssueDuplicate, Message: "id must be unique within the publication"})
 		}
-		seenIDs[item.EvidenceID] = struct{}{}
+		seenIDs[item.ID] = struct{}{}
 		if item.SplitOrder < 0 {
 			issues = append(issues, Issue{Path: prefix + ".split_order", Code: IssueOutOfRange, Message: "split_order must be non-negative"})
 		}
@@ -486,7 +507,7 @@ func evidenceSetConflict() error {
 
 func validateRawEvidence(input RawEvidence) error {
 	var issues []Issue
-	requiredDomainID(&issues, "raw_evidence.raw_evidence_id", input.RawEvidenceID, RawEvidenceIDPrefix)
+	requiredDomainID(&issues, "raw_evidence.id", input.ID, RawEvidenceIDPrefix)
 	required(&issues, "raw_evidence.source_id", input.SourceID, 32)
 	required(&issues, "raw_evidence.source_name", input.SourceName, 100)
 	required(&issues, "raw_evidence.source_url", input.SourceURL, 0)
@@ -668,7 +689,7 @@ func cloneTime(input *time.Time) *time.Time {
 }
 
 func sameRawEvidence(left, right StoredRawEvidence) bool {
-	return left.RawEvidenceID == right.RawEvidenceID && left.SourceID == right.SourceID &&
+	return left.ID == right.ID && left.SourceID == right.SourceID &&
 		left.SourceName == right.SourceName && left.SourceLevel == right.SourceLevel &&
 		left.SourceURL == right.SourceURL && left.IsOriginal == right.IsOriginal &&
 		sameString(left.QuotedSourceID, right.QuotedSourceID) &&
@@ -697,7 +718,7 @@ func sameEvidenceSet(left, right []StoredEvidence) bool {
 }
 
 func sameEvidence(left, right StoredEvidence) bool {
-	return left.EvidenceID == right.EvidenceID && left.RawEvidenceID == right.RawEvidenceID &&
+	return left.ID == right.ID && left.RawEvidenceID == right.RawEvidenceID &&
 		left.SplitOrder == right.SplitOrder && left.IsSplit == right.IsSplit && left.LayerType == right.LayerType &&
 		sameString(left.SourceWho, right.SourceWho) && left.SourceWhat == right.SourceWhat &&
 		sameTime(left.SourceWhen, right.SourceWhen) && sameString(left.SourceWhenRaw, right.SourceWhenRaw) &&

@@ -40,8 +40,8 @@ func (s *Service) Create(ctx context.Context, request *organizationapi.CreateReq
 	}
 	result, err := s.useCase.Create(ctx, organizationbiz.Organization{
 		Code: request.Code, Name: request.Name, NameEn: request.NameEn,
-		RegionID: request.RegionID, Category: organizationbiz.CatalogTerm{Code: request.CategoryCode},
-		Function: organizationbiz.CatalogTerm{Code: request.FunctionCode}, LegalEntityCode: request.LegalEntityCode,
+		RegionID: request.RegionID, Category: organizationbiz.Category{Code: request.CategoryCode},
+		Function: organizationbiz.Function{Code: request.FunctionCode}, LegalEntityCode: request.LegalEntityCode,
 		DominantPartyID: request.DominantPartyID, BindingPowerLevel: request.BindingPowerLevel,
 		InfluenceRating: request.InfluenceRating, StrategicPositioning: request.StrategicPositioning,
 		CoreImpactScope: request.CoreImpactScope, FoundingDocument: request.FoundingDocument,
@@ -113,17 +113,17 @@ func (s *Service) GetCatalog(ctx context.Context, _ *organizationapi.CatalogRequ
 	if err != nil {
 		return nil, organizationError(err)
 	}
-	categories := make([]organizationapi.CatalogTerm, len(result.Categories))
+	categories := make([]organizationapi.Category, len(result.Categories))
 	for i, item := range result.Categories {
-		categories[i] = organizationapi.CatalogTerm(item)
+		categories[i] = organizationapi.Category(item)
 	}
-	functions := make([]organizationapi.CatalogTerm, len(result.Functions))
+	functions := make([]organizationapi.Function, len(result.Functions))
 	for i, item := range result.Functions {
-		functions[i] = organizationapi.CatalogTerm(item)
+		functions[i] = organizationapi.Function(item)
 	}
 	tags := make([]organizationapi.DomainTag, len(result.DomainTags))
 	for i, item := range result.DomainTags {
-		tags[i] = organizationapi.DomainTag{Code: item.Code, FunctionCode: item.FunctionCode, NameZh: item.NameZh}
+		tags[i] = organizationapi.DomainTag{ID: item.ID, Code: item.Code, FunctionCode: item.FunctionCode, NameZh: item.NameZh}
 	}
 	return &v1.Response[organizationapi.Catalog]{Status: v1.StatusOK, Result: organizationapi.Catalog{Categories: categories, Functions: functions, DomainTags: tags}}, nil
 }
@@ -234,7 +234,7 @@ func organizationDTO(input organizationbiz.Organization) organizationapi.Organiz
 	}
 	return organizationapi.Organization{
 		ID: input.ID, Code: input.Code, Name: input.Name, NameEn: input.NameEn, RegionID: input.RegionID,
-		Category: organizationapi.CatalogTerm(input.Category), Function: organizationapi.CatalogTerm(input.Function),
+		Category: organizationapi.Category(input.Category), Function: organizationapi.Function(input.Function),
 		LegalEntityCode: input.LegalEntityCode, DominantPartyID: input.DominantPartyID,
 		BindingPowerLevel: input.BindingPowerLevel, InfluenceRating: input.InfluenceRating,
 		StrategicPositioning: input.StrategicPositioning, CoreImpactScope: input.CoreImpactScope,
@@ -249,7 +249,7 @@ func organizationDTO(input organizationbiz.Organization) organizationapi.Organiz
 func domainTagDTOs(input []organizationbiz.DomainTag) []organizationapi.DomainTag {
 	result := make([]organizationapi.DomainTag, len(input))
 	for i, item := range input {
-		result[i] = organizationapi.DomainTag{Code: item.Code, FunctionCode: item.FunctionCode, NameZh: item.NameZh}
+		result[i] = organizationapi.DomainTag{ID: item.ID, Code: item.Code, FunctionCode: item.FunctionCode, NameZh: item.NameZh}
 	}
 	return result
 }

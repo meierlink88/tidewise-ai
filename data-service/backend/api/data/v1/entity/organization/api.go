@@ -98,15 +98,16 @@ type ReplaceDomainTagsRequest struct {
 type CatalogRequest struct{}
 
 type DomainTag struct {
+	ID           string `json:"id"`
 	Code         string `json:"code"`
 	FunctionCode string `json:"function_code"`
 	NameZh       string `json:"name_zh"`
 }
 
 type Catalog struct {
-	Categories []CatalogTerm `json:"categories"`
-	Functions  []CatalogTerm `json:"functions"`
-	DomainTags []DomainTag   `json:"domain_tags"`
+	Categories []Category  `json:"categories"`
+	Functions  []Function  `json:"functions"`
+	DomainTags []DomainTag `json:"domain_tags"`
 }
 
 type ListMembersRequest struct{ OrganizationID, AsOf string }
@@ -151,7 +152,13 @@ type DeleteResult struct {
 	Deleted bool `json:"deleted"`
 }
 
-type CatalogTerm struct {
+type Category struct {
+	ID     string `json:"id"`
+	Code   string `json:"code"`
+	NameZh string `json:"name_zh"`
+}
+
+type Function struct {
 	Code   string `json:"code"`
 	NameZh string `json:"name_zh"`
 }
@@ -162,8 +169,8 @@ type Organization struct {
 	Name                      string      `json:"name"`
 	NameEn                    string      `json:"name_en"`
 	RegionID                  *string     `json:"region_id"`
-	Category                  CatalogTerm `json:"category"`
-	Function                  CatalogTerm `json:"function"`
+	Category                  Category    `json:"category"`
+	Function                  Function    `json:"function"`
 	LegalEntityCode           *string     `json:"legal_entity_code"`
 	DominantPartyID           *string     `json:"dominant_party_id"`
 	BindingPowerLevel         *string     `json:"binding_power_level"`

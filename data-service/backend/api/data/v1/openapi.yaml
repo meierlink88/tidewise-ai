@@ -776,7 +776,7 @@ paths:
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
 
-  /api/data/v1/raw-evidences/{raw_evidence_id}:
+  /api/data/v1/raw-evidences/{id}:
     get:
       tags: [Evidence publication]
       operationId: getRawEvidence
@@ -790,7 +790,7 @@ paths:
         Evidence Category 内容。历史未分类 Raw Evidence 返回空 categories。
       parameters:
         - $ref: '#/components/parameters/RequestID'
-        - name: raw_evidence_id
+        - name: id
           in: path
           required: true
           schema:
@@ -1729,7 +1729,15 @@ components:
             $ref: '#/components/schemas/ErrorEnvelope'
 
   schemas:
-    OrganizationCatalogTerm:
+    OrganizationCategory:
+      type: object
+      additionalProperties: false
+      required: [id, code, name_zh]
+      properties:
+        id: {type: string, pattern: '^OCA[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', maxLength: 39}
+        code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$'}
+        name_zh: {type: string, minLength: 1, maxLength: 100}
+    OrganizationFunction:
       type: object
       additionalProperties: false
       required: [code, name_zh]
@@ -1739,8 +1747,9 @@ components:
     OrganizationDomainTag:
       type: object
       additionalProperties: false
-      required: [code, function_code, name_zh]
+      required: [id, code, function_code, name_zh]
       properties:
+        id: {type: string, pattern: '^ODT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', maxLength: 39}
         code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 50}
         function_code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$', maxLength: 30}
         name_zh: {type: string, minLength: 1, maxLength: 100}
@@ -1805,8 +1814,8 @@ components:
         name: {type: string, minLength: 1, maxLength: 100}
         name_en: {type: string, minLength: 1, maxLength: 100}
         region_id: {type: string, pattern: '^REG[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', maxLength: 39, nullable: true}
-        category: {$ref: '#/components/schemas/OrganizationCatalogTerm'}
-        function: {$ref: '#/components/schemas/OrganizationCatalogTerm'}
+        category: {$ref: '#/components/schemas/OrganizationCategory'}
+        function: {$ref: '#/components/schemas/OrganizationFunction'}
         legal_entity_code: {type: string, pattern: '^[A-Z0-9]{20}$', nullable: true}
         dominant_party_id: {type: string, pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', nullable: true}
         binding_power_level: {type: string, enum: [HIGH, MEDIUM, LOW], nullable: true, description: 'HIGH=强制条约约束；MEDIUM=框架或经济契约约束；LOW=无强制力共识倡议'}
@@ -1844,8 +1853,8 @@ components:
           type: object
           required: [categories, functions, domain_tags]
           properties:
-            categories: {type: array, items: {$ref: '#/components/schemas/OrganizationCatalogTerm'}}
-            functions: {type: array, items: {$ref: '#/components/schemas/OrganizationCatalogTerm'}}
+            categories: {type: array, items: {$ref: '#/components/schemas/OrganizationCategory'}}
+            functions: {type: array, items: {$ref: '#/components/schemas/OrganizationFunction'}}
             domain_tags: {type: array, items: {$ref: '#/components/schemas/OrganizationDomainTag'}}
     OrganizationMemberWriteRequest:
       type: object
@@ -3134,7 +3143,7 @@ components:
       type: object
       additionalProperties: false
       required:
-        - raw_evidence_id
+        - id
         - source_id
         - source_name
         - source_level
@@ -3145,7 +3154,7 @@ components:
         - keywords
         - categories
       properties:
-        raw_evidence_id:
+        id:
           type: string
           minLength: 1
           maxLength: 39
@@ -3230,9 +3239,9 @@ components:
     RawEvidencePublicationResult:
       type: object
       additionalProperties: false
-      required: [raw_evidence_id]
+      required: [id]
       properties:
-        raw_evidence_id:
+        id:
           type: string
           minLength: 1
           maxLength: 39
@@ -3346,14 +3355,14 @@ components:
     EvidencePublicationResult:
       type: object
       additionalProperties: false
-      required: [raw_evidence_id, evidence_ids]
+      required: [raw_evidence_id, ids]
       properties:
         raw_evidence_id:
           type: string
           minLength: 1
           maxLength: 39
           pattern: '^RAW[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-        evidence_ids:
+        ids:
           type: array
           minItems: 1
           items:

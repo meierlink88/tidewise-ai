@@ -24,14 +24,16 @@ Data 各领域曾并存裸 UUID、`PREFIX_ + code`、固定短码和非 UUID 自
   Server、Conf 或数据库。它拥有关闭的 typed object-kind 注册表；任意字符串前缀不是
   公开 interface。普通写入由 Biz 决定生成时机；受控初始化发布也必须调用同一原语。
 - 正常创建合同不接收系统主键。可重放发布接收调用方自然键，由 Biz 确定性生成正式
-  主键；Data Adapter 只持久化 Biz command。自然码目录和纯复合关联键不增加人工主键。
+  主键；Data Adapter 只持久化 Biz command。Data Service 管理的业务表、目录表和关系表
+  都使用名为 `id` 的唯一主键，自然键和关系端点另作唯一约束。
 - 可移植目录以受控自然键确定性生成 UUID；旧 Entity/Entity Relation 在切换时
   保留原 UUID 作为后缀，避免无意义的身份重排。
 
 ## 受控对象前缀
 
 `ENT` Entity、`ERL` Entity Relation、`COU` Country、`REG` Region、`ORG` Organization、
-`RAW` Raw Evidence、`EVD` Evidence、`EVC` Evidence Category、`CPC` Chain Node Physical
+`OCA` Organization Category、`ODT` Organization Domain Tag、`ODL` Organization Domain Tag Link、
+`RAW` Raw Evidence、`EVD` Evidence、`EVC` Evidence Category、`RCL` Raw Evidence Category Link、`CPC` Chain Node Physical
 Constraint、`CNR` Chain Node Relation、`CRL` Country Region Link、`DIA` Direct Impact
 Assertion、`EEI` Entity External Identifier、`ENL` Event Entity Link、`EPR` Event
 Publication Receipt、`ECS` Event Semantic Candidate Snapshot、`SCL` Event Semantic Context
@@ -48,3 +50,8 @@ Reasoning Tree Import Receipt、`RRN` Research Reasoning Tree Node、`RRT` Resea
 Migration `000050`–`000052` 在 stop-write 窗口内改写所有独立业务主键、传递外键，以及
 ID 数组和研究回执 map，并将 Country code 收敛为 ISO 3166-1 alpha-2。旧应用不兼容新身份，回滚必须同时恢复
 迁移前 PostgreSQL 快照与上一版应用，不运行 down migration。
+
+Issue #251 通过 forward-only migration `000053` 将 Organization Category、Organization Domain Tag、
+Organization Domain Tag Link 和 Raw Evidence Category Link 补齐正式身份，并将 Raw Evidence
+与 Atomic Evidence 的主键列及所有 Data/Biz/Service/API 宣言统一为 `id`。该切换不提供
+旧数据回填或旧主键名兼容。

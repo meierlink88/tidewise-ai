@@ -14,15 +14,6 @@ import (
 
 type Store struct{ db *sql.DB }
 
-type CatalogPublication struct {
-	Categories []CatalogEntry
-	Functions  []CatalogEntry
-	DomainTags []DomainTagEntry
-}
-
-type CatalogEntry struct{ Code, NameZh string }
-type DomainTagEntry struct{ Code, FunctionCode, NameZh string }
-
 func NewStore(db *sql.DB) (*Store, error) {
 	if db == nil {
 		return nil, errors.New("Organization database is required")
@@ -30,24 +21,24 @@ func NewStore(db *sql.DB) (*Store, error) {
 	return &Store{db: db}, nil
 }
 
-func CurrentCatalog() CatalogPublication {
-	return CatalogPublication{
-		Categories: []CatalogEntry{{"DIALOGUE_MECHANISM", "多边对话或合作机制"}, {"INTERGOVERNMENTAL", "政府间国际组织"}, {"SECURITY_ALLIANCE", "军事或安全联盟"}, {"TRADE_BLOC", "区域经济或贸易集团"}},
-		Functions:  []CatalogEntry{{"FINANCE", "金融与资本"}, {"GOVERNANCE", "治理与协调"}, {"HEALTH", "卫生与生物安全"}, {"RESOURCE", "资源与供应链"}, {"SECURITY", "安全与防务"}, {"TECHNOLOGY", "技术与标准"}, {"TRADE", "贸易与市场"}},
-		DomainTags: []DomainTagEntry{
-			{"GLOBAL_FINANCIAL_STABILITY", "FINANCE", "全球金融稳定"}, {"GLOBAL_PAYMENT_SYSTEM", "FINANCE", "全球支付体系"}, {"MULTILATERAL_DEVELOPMENT_FINANCE", "FINANCE", "多边开发融资"},
-			{"CROSS_REGIONAL_INTEGRATION", "GOVERNANCE", "跨区域一体化"}, {"ECONOMIC_COOPERATION_DEVELOPMENT", "GOVERNANCE", "经济合作发展"}, {"GREAT_POWER_POLICY_COORDINATION", "GOVERNANCE", "大国政策协调"},
-			{"BIOSAFETY_AND_HEALTH", "HEALTH", "生物安全健康"},
-			{"CRITICAL_MINERALS_COORDINATION", "RESOURCE", "关键矿产协调"}, {"ENERGY_SECURITY_COORDINATION", "RESOURCE", "能源安全协调"}, {"FOOD_SECURITY_GOVERNANCE", "RESOURCE", "粮食安全治理"}, {"OIL_SUPPLY_COORDINATION", "RESOURCE", "石油供应协调"}, {"SEMICONDUCTOR_SUPPLY_CHAIN", "RESOURCE", "半导体供应链"},
-			{"GREAT_POWER_SECURITY_GAME", "SECURITY", "大国安全博弈"}, {"MARITIME_GOVERNANCE", "SECURITY", "航道海洋治理"}, {"REGIONAL_SECURITY_ARCHITECTURE", "SECURITY", "区域安全架构"}, {"REGIONAL_SECURITY_DIALOGUE", "SECURITY", "区域安全对话"}, {"SPACE_SECURITY_GOVERNANCE", "SECURITY", "太空安全治理"},
-			{"AI_TECHNOLOGY_AND_GOVERNANCE", "TECHNOLOGY", "AI 技术与治理"}, {"TECHNOLOGY_STANDARD_GOVERNANCE", "TECHNOLOGY", "技术标准治理"},
-			{"CROSS_REGIONAL_FTA", "TRADE", "跨区域自贸区"}, {"MULTILATERAL_TRADE_SYSTEM", "TRADE", "多边贸易体系"},
+func CurrentCatalog() organizationbiz.Catalog {
+	return organizationbiz.Catalog{
+		Categories: []organizationbiz.Category{{Code: "DIALOGUE_MECHANISM", NameZh: "多边对话或合作机制"}, {Code: "INTERGOVERNMENTAL", NameZh: "政府间国际组织"}, {Code: "SECURITY_ALLIANCE", NameZh: "军事或安全联盟"}, {Code: "TRADE_BLOC", NameZh: "区域经济或贸易集团"}},
+		Functions:  []organizationbiz.Function{{Code: "FINANCE", NameZh: "金融与资本"}, {Code: "GOVERNANCE", NameZh: "治理与协调"}, {Code: "HEALTH", NameZh: "卫生与生物安全"}, {Code: "RESOURCE", NameZh: "资源与供应链"}, {Code: "SECURITY", NameZh: "安全与防务"}, {Code: "TECHNOLOGY", NameZh: "技术与标准"}, {Code: "TRADE", NameZh: "贸易与市场"}},
+		DomainTags: []organizationbiz.DomainTag{
+			{Code: "GLOBAL_FINANCIAL_STABILITY", FunctionCode: "FINANCE", NameZh: "全球金融稳定"}, {Code: "GLOBAL_PAYMENT_SYSTEM", FunctionCode: "FINANCE", NameZh: "全球支付体系"}, {Code: "MULTILATERAL_DEVELOPMENT_FINANCE", FunctionCode: "FINANCE", NameZh: "多边开发融资"},
+			{Code: "CROSS_REGIONAL_INTEGRATION", FunctionCode: "GOVERNANCE", NameZh: "跨区域一体化"}, {Code: "ECONOMIC_COOPERATION_DEVELOPMENT", FunctionCode: "GOVERNANCE", NameZh: "经济合作发展"}, {Code: "GREAT_POWER_POLICY_COORDINATION", FunctionCode: "GOVERNANCE", NameZh: "大国政策协调"},
+			{Code: "BIOSAFETY_AND_HEALTH", FunctionCode: "HEALTH", NameZh: "生物安全健康"},
+			{Code: "CRITICAL_MINERALS_COORDINATION", FunctionCode: "RESOURCE", NameZh: "关键矿产协调"}, {Code: "ENERGY_SECURITY_COORDINATION", FunctionCode: "RESOURCE", NameZh: "能源安全协调"}, {Code: "FOOD_SECURITY_GOVERNANCE", FunctionCode: "RESOURCE", NameZh: "粮食安全治理"}, {Code: "OIL_SUPPLY_COORDINATION", FunctionCode: "RESOURCE", NameZh: "石油供应协调"}, {Code: "SEMICONDUCTOR_SUPPLY_CHAIN", FunctionCode: "RESOURCE", NameZh: "半导体供应链"},
+			{Code: "GREAT_POWER_SECURITY_GAME", FunctionCode: "SECURITY", NameZh: "大国安全博弈"}, {Code: "MARITIME_GOVERNANCE", FunctionCode: "SECURITY", NameZh: "航道海洋治理"}, {Code: "REGIONAL_SECURITY_ARCHITECTURE", FunctionCode: "SECURITY", NameZh: "区域安全架构"}, {Code: "REGIONAL_SECURITY_DIALOGUE", FunctionCode: "SECURITY", NameZh: "区域安全对话"}, {Code: "SPACE_SECURITY_GOVERNANCE", FunctionCode: "SECURITY", NameZh: "太空安全治理"},
+			{Code: "AI_TECHNOLOGY_AND_GOVERNANCE", FunctionCode: "TECHNOLOGY", NameZh: "AI 技术与治理"}, {Code: "TECHNOLOGY_STANDARD_GOVERNANCE", FunctionCode: "TECHNOLOGY", NameZh: "技术标准治理"},
+			{Code: "CROSS_REGIONAL_FTA", FunctionCode: "TRADE", NameZh: "跨区域自贸区"}, {Code: "MULTILATERAL_TRADE_SYSTEM", FunctionCode: "TRADE", NameZh: "多边贸易体系"},
 		},
 	}
 }
 
 // PublishCatalog atomically reconciles the operational catalog publication.
-func PublishCatalog(ctx context.Context, db *sql.DB, publication CatalogPublication) error {
+func PublishCatalog(ctx context.Context, db *sql.DB, publication organizationbiz.Catalog) error {
 	if db == nil {
 		return fmt.Errorf("Organization catalog database is required")
 	}
@@ -59,7 +50,7 @@ func PublishCatalog(ctx context.Context, db *sql.DB, publication CatalogPublicat
 	categoryCodes := make([]string, 0, len(publication.Categories))
 	for _, item := range publication.Categories {
 		categoryCodes = append(categoryCodes, item.Code)
-		if _, err := tx.ExecContext(ctx, `INSERT INTO organization_categories(code,name_zh) VALUES($1,$2) ON CONFLICT(code) DO UPDATE SET name_zh=excluded.name_zh,updated_at=now() WHERE organization_categories.name_zh IS DISTINCT FROM excluded.name_zh`, item.Code, item.NameZh); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO organization_categories(id,code,name_zh) VALUES($1,$2,$3) ON CONFLICT(code) DO UPDATE SET name_zh=excluded.name_zh,updated_at=now() WHERE organization_categories.id=excluded.id AND organization_categories.name_zh IS DISTINCT FROM excluded.name_zh`, item.ID, item.Code, item.NameZh); err != nil {
 			return err
 		}
 	}
@@ -73,7 +64,7 @@ func PublishCatalog(ctx context.Context, db *sql.DB, publication CatalogPublicat
 	tagCodes := make([]string, 0, len(publication.DomainTags))
 	for _, item := range publication.DomainTags {
 		tagCodes = append(tagCodes, item.Code)
-		if _, err := tx.ExecContext(ctx, `INSERT INTO organization_domain_tags(code,function_code,name_zh) VALUES($1,$2,$3) ON CONFLICT(code) DO UPDATE SET function_code=excluded.function_code,name_zh=excluded.name_zh,updated_at=now() WHERE (organization_domain_tags.function_code,organization_domain_tags.name_zh) IS DISTINCT FROM (excluded.function_code,excluded.name_zh)`, item.Code, item.FunctionCode, item.NameZh); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO organization_domain_tags(id,code,function_code,name_zh) VALUES($1,$2,$3,$4) ON CONFLICT(code) DO UPDATE SET function_code=excluded.function_code,name_zh=excluded.name_zh,updated_at=now() WHERE organization_domain_tags.id=excluded.id AND (organization_domain_tags.function_code,organization_domain_tags.name_zh) IS DISTINCT FROM (excluded.function_code,excluded.name_zh)`, item.ID, item.Code, item.FunctionCode, item.NameZh); err != nil {
 			return err
 		}
 	}
@@ -91,13 +82,13 @@ func PublishCatalog(ctx context.Context, db *sql.DB, publication CatalogPublicat
 
 const organizationColumns = `
 o.id, o.code, o.name, o.name_en, o.region_id,
-o.category_code, category.name_zh, o.function_code, function.name_zh,
+category.id, o.category_code, category.name_zh, o.function_code, function.name_zh,
 o.legal_entity_code, o.dominant_party_id, o.binding_power_level::text,
 o.influence_rating::text, o.strategic_positioning, o.core_impact_scope,
 o.founding_document, o.established_date, o.headquarters_city,
 o.headquarters_country_id, o.headquarters_subdivision_id, o.description,
 COALESCE((
-    SELECT jsonb_agg(jsonb_build_object('code', tag.code, 'function_code', tag.function_code, 'name_zh', tag.name_zh) ORDER BY tag.code)
+    SELECT jsonb_agg(jsonb_build_object('id', tag.id, 'code', tag.code, 'function_code', tag.function_code, 'name_zh', tag.name_zh) ORDER BY tag.code)
     FROM organization_domain_tag_links link
     JOIN organization_domain_tags tag ON tag.code = link.domain_tag_code
     WHERE link.organization_id = o.id
@@ -171,7 +162,7 @@ ORDER BY o.code, o.id`, filter.CategoryCode, filter.FunctionCode, filter.RegionI
 	return result, nil
 }
 
-func (s *Store) Update(ctx context.Context, id string, input organizationbiz.Update) (organizationbiz.Organization, error) {
+func (s *Store) Update(ctx context.Context, id string, input organizationbiz.UpdateCommand) (organizationbiz.Organization, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return organizationbiz.Organization{}, classifyWriteError(err)
@@ -199,10 +190,11 @@ WHERE id=$1`, id, input.Name, input.NameEn, input.RegionID, input.CategoryCode, 
 	if affected == 0 {
 		return organizationbiz.Organization{}, organizationbiz.ErrNotFound
 	}
-	if input.DomainTagCodes != nil {
-		codes := *input.DomainTagCodes
+	if input.DomainTagLinks != nil {
+		links := *input.DomainTagLinks
+		linkIDs, tagIDs, codes := domainTagLinkColumns(links)
 		var count int
-		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM organization_domain_tags WHERE code=ANY($1::text[]) AND function_code=$2`, codes, input.FunctionCode).Scan(&count); err != nil {
+		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM organization_domain_tags tag JOIN unnest($1::text[],$2::text[]) requested(id,code) ON requested.id=tag.id AND requested.code=tag.code WHERE tag.function_code=$3`, tagIDs, codes, input.FunctionCode).Scan(&count); err != nil {
 			return organizationbiz.Organization{}, classifyWriteError(err)
 		}
 		if count != len(codes) {
@@ -211,7 +203,7 @@ WHERE id=$1`, id, input.Name, input.NameEn, input.RegionID, input.CategoryCode, 
 		if _, err := tx.ExecContext(ctx, `DELETE FROM organization_domain_tag_links WHERE organization_id=$1`, id); err != nil {
 			return organizationbiz.Organization{}, classifyWriteError(err)
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO organization_domain_tag_links(organization_id,function_code,domain_tag_code) SELECT $1,$2,code FROM unnest($3::text[]) code`, id, input.FunctionCode, codes); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO organization_domain_tag_links(id,organization_id,function_code,domain_tag_code) SELECT link_id,$1,$2,code FROM unnest($3::text[],$4::text[]) requested(link_id,code)`, id, input.FunctionCode, linkIDs, codes); err != nil {
 			return organizationbiz.Organization{}, classifyWriteError(err)
 		}
 	}
@@ -221,7 +213,7 @@ WHERE id=$1`, id, input.Name, input.NameEn, input.RegionID, input.CategoryCode, 
 	return s.Get(ctx, id)
 }
 
-func (s *Store) ReplaceDomainTags(ctx context.Context, id string, codes []string) (organizationbiz.Organization, error) {
+func (s *Store) ReplaceDomainTags(ctx context.Context, id string, links []organizationbiz.DomainTagLink) (organizationbiz.Organization, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return organizationbiz.Organization{}, classifyWriteError(err)
@@ -231,8 +223,9 @@ func (s *Store) ReplaceDomainTags(ctx context.Context, id string, codes []string
 	if err := tx.QueryRowContext(ctx, `SELECT function_code FROM organizations WHERE id=$1 FOR UPDATE`, id).Scan(&functionCode); err != nil {
 		return organizationbiz.Organization{}, classifyMutationRowError(err)
 	}
+	linkIDs, tagIDs, codes := domainTagLinkColumns(links)
 	var count int
-	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM organization_domain_tags WHERE code=ANY($1::text[]) AND function_code=$2`, codes, functionCode).Scan(&count); err != nil {
+	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM organization_domain_tags tag JOIN unnest($1::text[],$2::text[]) requested(id,code) ON requested.id=tag.id AND requested.code=tag.code WHERE tag.function_code=$3`, tagIDs, codes, functionCode).Scan(&count); err != nil {
 		return organizationbiz.Organization{}, classifyWriteError(err)
 	}
 	if count != len(codes) {
@@ -242,8 +235,8 @@ func (s *Store) ReplaceDomainTags(ctx context.Context, id string, codes []string
 		return organizationbiz.Organization{}, classifyWriteError(err)
 	}
 	if _, err := tx.ExecContext(ctx, `
-INSERT INTO organization_domain_tag_links (organization_id, function_code, domain_tag_code)
-SELECT $1, $2, code FROM unnest($3::text[]) code`, id, functionCode, codes); err != nil {
+INSERT INTO organization_domain_tag_links (id, organization_id, function_code, domain_tag_code)
+SELECT link_id, $1, $2, code FROM unnest($3::text[], $4::text[]) requested(link_id, code)`, id, functionCode, linkIDs, codes); err != nil {
 		return organizationbiz.Organization{}, classifyWriteError(err)
 	}
 	if err := tx.Commit(); err != nil {
@@ -254,15 +247,32 @@ SELECT $1, $2, code FROM unnest($3::text[]) code`, id, functionCode, codes); err
 
 func (s *Store) Catalog(ctx context.Context) (organizationbiz.Catalog, error) {
 	var result organizationbiz.Catalog
-	readTerms := func(query string) ([]organizationbiz.CatalogTerm, error) {
+	readCategories := func() ([]organizationbiz.Category, error) {
+		rows, err := s.db.QueryContext(ctx, `SELECT id,code,name_zh FROM organization_categories ORDER BY code`)
+		if err != nil {
+			return nil, classifyReadError(err)
+		}
+		defer rows.Close()
+		items := make([]organizationbiz.Category, 0)
+		for rows.Next() {
+			var item organizationbiz.Category
+			if err := rows.Scan(&item.ID, &item.Code, &item.NameZh); err != nil {
+				return nil, classifyReadError(err)
+			}
+			items = append(items, item)
+		}
+		return items, classifyRowsError(rows.Err())
+	}
+	readFunctions := func() ([]organizationbiz.Function, error) {
+		query := `SELECT code,name_zh FROM organization_functions ORDER BY code`
 		rows, err := s.db.QueryContext(ctx, query)
 		if err != nil {
 			return nil, classifyReadError(err)
 		}
 		defer rows.Close()
-		items := make([]organizationbiz.CatalogTerm, 0)
+		items := make([]organizationbiz.Function, 0)
 		for rows.Next() {
-			var item organizationbiz.CatalogTerm
+			var item organizationbiz.Function
 			if err := rows.Scan(&item.Code, &item.NameZh); err != nil {
 				return nil, classifyReadError(err)
 			}
@@ -271,15 +281,15 @@ func (s *Store) Catalog(ctx context.Context) (organizationbiz.Catalog, error) {
 		return items, classifyRowsError(rows.Err())
 	}
 	var err error
-	result.Categories, err = readTerms(`SELECT code,name_zh FROM organization_categories ORDER BY code`)
+	result.Categories, err = readCategories()
 	if err != nil {
 		return organizationbiz.Catalog{}, err
 	}
-	result.Functions, err = readTerms(`SELECT code,name_zh FROM organization_functions ORDER BY code`)
+	result.Functions, err = readFunctions()
 	if err != nil {
 		return organizationbiz.Catalog{}, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT code,function_code,name_zh FROM organization_domain_tags ORDER BY function_code,code`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id,code,function_code,name_zh FROM organization_domain_tags ORDER BY function_code,code`)
 	if err != nil {
 		return organizationbiz.Catalog{}, classifyReadError(err)
 	}
@@ -287,7 +297,7 @@ func (s *Store) Catalog(ctx context.Context) (organizationbiz.Catalog, error) {
 	result.DomainTags = make([]organizationbiz.DomainTag, 0)
 	for rows.Next() {
 		var item organizationbiz.DomainTag
-		if err := rows.Scan(&item.Code, &item.FunctionCode, &item.NameZh); err != nil {
+		if err := rows.Scan(&item.ID, &item.Code, &item.FunctionCode, &item.NameZh); err != nil {
 			return organizationbiz.Catalog{}, classifyReadError(err)
 		}
 		result.DomainTags = append(result.DomainTags, item)
@@ -303,6 +313,18 @@ func classifyRowsError(err error) error {
 		return nil
 	}
 	return classifyReadError(err)
+}
+
+func domainTagLinkColumns(links []organizationbiz.DomainTagLink) ([]string, []string, []string) {
+	linkIDs := make([]string, len(links))
+	tagIDs := make([]string, len(links))
+	codes := make([]string, len(links))
+	for index, link := range links {
+		linkIDs[index] = link.ID
+		tagIDs[index] = link.DomainTagID
+		codes[index] = link.DomainTagCode
+	}
+	return linkIDs, tagIDs, codes
 }
 
 func (s *Store) ListMembers(ctx context.Context, organizationID string, asOf *time.Time) ([]organizationbiz.Member, error) {
@@ -398,7 +420,7 @@ func scanOrganization(row rowScanner, classify func(error) error) (organizationb
 	var domainTagsJSON []byte
 	if err := row.Scan(
 		&result.ID, &result.Code, &result.Name, &result.NameEn, &regionID,
-		&result.Category.Code, &result.Category.NameZh, &result.Function.Code, &result.Function.NameZh,
+		&result.Category.ID, &result.Category.Code, &result.Category.NameZh, &result.Function.Code, &result.Function.NameZh,
 		&legalEntityCode, &dominantPartyID, &bindingPowerLevel, &influenceRating,
 		&strategicPositioning, &coreImpactScope, &foundingDocument, &establishedDate,
 		&headquartersCity, &headquartersCountryID, &headquartersSubdivisionID, &description, &domainTagsJSON,

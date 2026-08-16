@@ -111,8 +111,8 @@ func TestEvidencePublicationOpenAPISuccessResultsContainOnlyFormalIdentities(t *
 	}
 	components := document["components"].(map[string]any)["schemas"].(map[string]any)
 	for name, expected := range map[string][]string{
-		"RawEvidencePublicationResult": {"raw_evidence_id"},
-		"EvidencePublicationResult":    {"raw_evidence_id", "evidence_ids"},
+		"RawEvidencePublicationResult": {"id"},
+		"EvidencePublicationResult":    {"raw_evidence_id", "ids"},
 	} {
 		schema := components[name].(map[string]any)
 		properties := schema["properties"].(map[string]any)

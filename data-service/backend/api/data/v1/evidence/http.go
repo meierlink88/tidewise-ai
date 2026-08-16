@@ -17,7 +17,7 @@ func RegisterHTTPServer(server *kratoshttp.Server, application Service) {
 func registerHTTPServer(server *kratoshttp.Server, application Service, executionBudget time.Duration) {
 	router := server.Route(v1.APIPrefix)
 	router.POST("/raw-evidence-publications", rawEvidenceHandler(application, executionBudget))
-	router.GET("/raw-evidences/{raw_evidence_id}", getRawEvidenceHandler(application, executionBudget))
+	router.GET("/raw-evidences/{id}", getRawEvidenceHandler(application, executionBudget))
 	router.POST("/evidence-publications", evidenceHandler(application, executionBudget))
 	router.GET("/evidence-categories", evidenceCategoryCatalogHandler(application, executionBudget))
 }
@@ -37,7 +37,7 @@ func evidenceCategoryCatalogHandler(application Service, executionBudget time.Du
 
 func getRawEvidenceHandler(application Service, executionBudget time.Duration) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
-		request := &GetRawEvidenceRequest{RawEvidenceID: ctx.Vars().Get("raw_evidence_id")}
+		request := &GetRawEvidenceRequest{ID: ctx.Vars().Get("id")}
 		return v1.Call(ctx, OperationGetRawEvidence, request, func(callContext context.Context) (*v1.Response[RawEvidenceReadResult], error) {
 			deadlineContext, cancel := context.WithTimeout(callContext, executionBudget)
 			defer cancel()
