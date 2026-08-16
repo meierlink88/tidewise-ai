@@ -47,6 +47,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
   Data Service 生成的前缀 UUID `id` 主键，并将 Raw Evidence 与 Atomic Evidence 主键列改名为 `id`。
 - `000054_add_organization_function_primary_id.sql`：为 Organization Function 目录补充 Data Service
   生成的 `OFN` 前缀 UUID `id` 主键，并将 `code` 保留为唯一业务键。
+- `000055_simplify_atomic_evidence_semantics.sql`：零兼容删除历史 Atomic Evidence，删除顺序、
+  双层 Source 与 Expression 身份列，并以独立 `summary` 和严格单层 5W1H `semantic JSONB`
+  建立当前 Evidence 合同；Raw Evidence 保留。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -101,6 +104,15 @@ Domain Tag Link 为空，再由经审阅的操作按外键依赖顺序清空 Dom
 `organization-catalog-publish`，确认 ledger 为 `54`、7 条 Function 均满足 `OFN` 前缀合同，
 且 Category、Function、Domain Tag 分别为 4、7、21 条，然后部署新应用。旧应用不兼容必填
 Function `id`；回滚必须同时恢复切换前快照和上一版应用，不运行 down migration。
+
+`000055` 是 Issue #255 授权的零兼容破坏性切换，也是“schema migration 不清理事实”的限域
+例外：旧双层 Evidence 无法无歧义转换为新的单层 5W1H 合同，需求明确要求全部删除且不保留。
+操作员必须先停止 Data Evidence 写入者、确认 PostgreSQL 恢复点，并以候选 Data 镜像执行
+`dbmigrate` check-only；只有确认 `000055` 是唯一 pending migration 后才执行 `-apply`。
+迁移后确认 ledger 为 `55`、`evidences` 为空、`raw_evidences` 保持原数量、Evidence 表只保留
+正式身份、Raw Evidence 外键、`is_split`、`summary`、`semantic` 和 `created_at`，随后一起发布
+新 Data Service 与新发布方。旧应用和旧 payload 不兼容；回滚必须同时恢复切换前快照与
+上一版应用，不运行 down migration。
 
 Data 不再提供 `source-seed` 或维护 `source_catalogs`，既有 Event Publication 仍只通过
 `POST /api/data/v1/reviewed-event-imports` 连同轻量 Event 证据原子接纳；历史

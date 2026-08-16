@@ -925,7 +925,7 @@ paths:
         清洗完成后一次提交一个既有 Raw Evidence 的完整 1..N Evidence 集合。Data 根据
         集合基数派生 is_split；零项、部分成功、追加、覆盖和删除均不允许。接口不使用
         Idempotency-Key；相同完整集合仅在内容一致时安全重试。成功响应只返回正式 Raw
-        Evidence ID 与按 split_order 排序的 Evidence IDs。
+        Evidence ID 与按正式 Evidence ID 确定性排序的 Evidence IDs；该顺序不表达业务语义。
       parameters:
         - $ref: '#/components/parameters/RequestID'
       requestBody:
@@ -3259,82 +3259,46 @@ components:
         result:
           $ref: '#/components/schemas/RawEvidencePublicationResult'
 
-    EvidenceLayerType:
-      type: string
-      enum: [SINGLE, DOUBLE]
-
     AtomicEvidence:
       type: object
       additionalProperties: false
-      required:
-        - split_order
-        - layer_type
-        - source_what
-        - expression_fingerprint
-        - expression_key
-        - fingerprint_version
+      required: [summary, semantic]
       properties:
-        split_order:
-          type: integer
-          minimum: 0
-        layer_type:
-          $ref: '#/components/schemas/EvidenceLayerType'
-        source_who:
-          type: string
-          nullable: true
-        source_what:
-          type: string
-          minLength: 1
-        source_when:
-          allOf:
-            - $ref: '#/components/schemas/UTCTimestamp'
-          nullable: true
-        source_when_raw:
-          type: string
-          nullable: true
-        source_where:
-          type: string
-          nullable: true
-        source_why:
-          type: string
-          nullable: true
-        source_how:
-          type: string
-          nullable: true
-        source_who_core:
-          type: string
-          nullable: true
-        source_what_core:
-          type: string
-          nullable: true
-        source_when_core:
-          allOf:
-            - $ref: '#/components/schemas/UTCTimestamp'
-          nullable: true
-        source_when_raw_core:
-          type: string
-          nullable: true
-        source_where_core:
-          type: string
-          nullable: true
-        source_why_core:
-          type: string
-          nullable: true
-        source_how_core:
-          type: string
-          nullable: true
-        expression_fingerprint:
+        summary:
           type: string
           minLength: 1
           maxLength: 200
-        expression_key:
+        semantic:
+          $ref: '#/components/schemas/EvidenceSemantic'
+
+    EvidenceSemantic:
+      type: object
+      additionalProperties: false
+      required: [who, what, when, where, why, how]
+      properties:
+        who:
           type: string
           minLength: 1
-          maxLength: 64
-        fingerprint_version:
+          nullable: true
+        what:
           type: string
           minLength: 1
-          maxLength: 64
+        when:
+          type: string
+          minLength: 1
+          nullable: true
+        where:
+          type: string
+          minLength: 1
+          nullable: true
+        why:
+          type: string
+          minLength: 1
+          nullable: true
+        how:
+          type: string
+          minLength: 1
+          nullable: true
 
     EvidencePublicationRequest:
       type: object

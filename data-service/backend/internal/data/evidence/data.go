@@ -212,37 +212,26 @@ func validateStoredEvidence(record *evidencebiz.StoredEvidence) error {
 	}{
 		{name: "id", value: record.ID, max: 39},
 		{name: "raw_evidence_id", value: record.RawEvidenceID, max: 39},
-		{name: "source_what", value: record.SourceWhat},
-		{name: "expression_fingerprint", value: record.ExpressionFingerprint, max: 200},
-		{name: "expression_key", value: record.ExpressionKey, max: 64},
-		{name: "fingerprint_version", value: record.FingerprintVersion, max: 64},
+		{name: "summary", value: record.Summary, max: 200},
+		{name: "semantic.what", value: record.Semantic.What},
 	} {
 		if err := validateStoredRequired(resource, field.name, field.value, field.max); err != nil {
 			return err
 		}
 	}
-	if record.SplitOrder < 0 {
-		return persistedInvariant(resource, "split_order", "value is negative")
-	}
-	switch record.LayerType {
-	case evidencebiz.LayerTypeSingle:
-		if hasStoredCoreFields(*record) {
-			return persistedInvariant(resource, "layer_type", "SINGLE row declares core fields")
+	for _, field := range []struct {
+		name  string
+		value *string
+	}{
+		{name: "semantic.who", value: record.Semantic.Who},
+		{name: "semantic.when", value: record.Semantic.When},
+		{name: "semantic.where", value: record.Semantic.Where},
+		{name: "semantic.why", value: record.Semantic.Why},
+		{name: "semantic.how", value: record.Semantic.How},
+	} {
+		if err := validateStoredOptional(resource, field.name, field.value, 0); err != nil {
+			return err
 		}
-	case evidencebiz.LayerTypeDouble:
-		if record.SourceWhatCore == nil || strings.TrimSpace(*record.SourceWhatCore) == "" {
-			return persistedInvariant(resource, "source_what_core", "DOUBLE row has no core fact")
-		}
-	default:
-		return persistedInvariant(resource, "layer_type", "value is not a supported layer type")
-	}
-	if record.SourceWhen != nil {
-		value := record.SourceWhen.UTC()
-		record.SourceWhen = &value
-	}
-	if record.SourceWhenCore != nil {
-		value := record.SourceWhenCore.UTC()
-		record.SourceWhenCore = &value
 	}
 	return nil
 }
@@ -256,8 +245,8 @@ func validateStoredEvidenceSet(expectedRawEvidenceID string, records []evidenceb
 		if record.RawEvidenceID != expectedRawEvidenceID {
 			return persistedInvariant("Evidence", "raw_evidence_id", "query identity does not match the stored row")
 		}
-		if record.SplitOrder != position {
-			return persistedInvariant("Evidence", "split_order", "stored set is not continuous from zero")
+		if position > 0 && records[position-1].ID >= record.ID {
+			return persistedInvariant("Evidence", "id", "stored set is not uniquely ordered by ID")
 		}
 		if record.IsSplit != expectedSplit {
 			return persistedInvariant("Evidence", "is_split", "value does not match the stored set cardinality")
@@ -299,12 +288,6 @@ func validateStoredOptional(resource, field string, value *string, max int) erro
 		return nil
 	}
 	return validateStoredRequired(resource, field, *value, max)
-}
-
-func hasStoredCoreFields(record evidencebiz.StoredEvidence) bool {
-	return record.SourceWhoCore != nil || record.SourceWhatCore != nil || record.SourceWhenCore != nil ||
-		record.SourceWhenRawCore != nil || record.SourceWhereCore != nil || record.SourceWhyCore != nil ||
-		record.SourceHowCore != nil
 }
 
 var _ evidencebiz.Store = Store{}

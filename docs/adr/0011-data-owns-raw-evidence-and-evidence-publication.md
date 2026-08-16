@@ -2,6 +2,7 @@
 status: accepted
 date: 2026-08-11
 supersedes_in_part: 0005-agentrun-owns-source-and-raw-artifacts.md
+superseded_in_part_by: 0021-simplify-atomic-evidence-semantics.md
 ---
 
 # Data 拥有 Raw Evidence 与原子 Evidence 发布
@@ -24,8 +25,8 @@ ADR-0005 将完整原始 Artifact 排他地交给 AgentRun，并禁止 Data 保�
   之间的等待状态，不是正式清洗终态。
 - Evidence 是原子事实。`1:1` 表示 Raw Evidence 未拆分，`1:N` 表示每条 Evidence 都由
   拆分产生；该血缘由 Data 根据整包基数派生并持久化。
-- 所谓 Evidence Group 只是共享 `expression_key` 的 Evidence 派生集合，不是领域实体；
-  不创建 Group 表、生命周期、合并机制或 API。
+- Evidence Group 不是领域实体；不创建 Group 表、生命周期、合并机制或 API。Atomic
+  Evidence 的当前语义与身份合同由 ADR-0021 收敛。
 - 新 `raw_evidences`、`evidences` 与既有 Event Publication 的 `raw_documents`、
   `event_sources` 完全隔离，不复用身份、外键或业务语义。
 

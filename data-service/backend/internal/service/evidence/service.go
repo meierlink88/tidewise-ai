@@ -193,14 +193,11 @@ func rawEvidenceReadDTO(input evidencebiz.StoredRawEvidence) evidenceapi.RawEvid
 
 func evidenceInput(input evidenceapi.AtomicEvidence) evidencebiz.Evidence {
 	return evidencebiz.Evidence{
-		SplitOrder: input.SplitOrder, LayerType: evidencebiz.LayerType(input.LayerType),
-		SourceWho: input.SourceWho, SourceWhat: input.SourceWhat, SourceWhen: input.SourceWhen,
-		SourceWhenRaw: input.SourceWhenRaw, SourceWhere: input.SourceWhere, SourceWhy: input.SourceWhy,
-		SourceHow: input.SourceHow, SourceWhoCore: input.SourceWhoCore, SourceWhatCore: input.SourceWhatCore,
-		SourceWhenCore: input.SourceWhenCore, SourceWhenRawCore: input.SourceWhenRawCore,
-		SourceWhereCore: input.SourceWhereCore, SourceWhyCore: input.SourceWhyCore, SourceHowCore: input.SourceHowCore,
-		ExpressionFingerprint: input.ExpressionFingerprint, ExpressionKey: input.ExpressionKey,
-		FingerprintVersion: input.FingerprintVersion,
+		Summary: input.Summary,
+		Semantic: evidencebiz.Semantic{
+			Who: input.Semantic.Who, What: input.Semantic.What, When: input.Semantic.When,
+			Where: input.Semantic.Where, Why: input.Semantic.Why, How: input.Semantic.How,
+		},
 	}
 }
 

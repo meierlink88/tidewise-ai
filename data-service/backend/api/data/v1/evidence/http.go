@@ -118,19 +118,14 @@ func rawEvidenceShape() *v1.StrictJSONShape {
 func evidenceShape() *v1.StrictJSONShape {
 	stringShape := v1.StrictJSONString()
 	nullableStringShape := v1.StrictJSONNullableString()
-	item := v1.StrictJSONRequiredObject([]string{
-		"split_order", "layer_type", "source_what",
-		"expression_fingerprint", "expression_key", "fingerprint_version",
+	semantic := v1.StrictJSONRequiredObject([]string{
+		"who", "what", "when", "where", "why", "how",
 	}, map[string]*v1.StrictJSONShape{
-		"split_order": v1.StrictJSONInteger(), "layer_type": stringShape,
-		"source_who": nullableStringShape, "source_what": stringShape, "source_when": nullableStringShape,
-		"source_when_raw": nullableStringShape, "source_where": nullableStringShape,
-		"source_why": nullableStringShape, "source_how": nullableStringShape,
-		"source_who_core": nullableStringShape, "source_what_core": nullableStringShape,
-		"source_when_core": nullableStringShape, "source_when_raw_core": nullableStringShape,
-		"source_where_core": nullableStringShape, "source_why_core": nullableStringShape,
-		"source_how_core": nullableStringShape, "expression_fingerprint": stringShape,
-		"expression_key": stringShape, "fingerprint_version": stringShape,
+		"who": nullableStringShape, "what": stringShape, "when": nullableStringShape,
+		"where": nullableStringShape, "why": nullableStringShape, "how": nullableStringShape,
+	})
+	item := v1.StrictJSONRequiredObject([]string{"summary", "semantic"}, map[string]*v1.StrictJSONShape{
+		"summary": stringShape, "semantic": semantic,
 	})
 	return v1.StrictJSONRequiredObject([]string{"raw_evidence_id", "evidences"}, map[string]*v1.StrictJSONShape{
 		"raw_evidence_id": stringShape, "evidences": v1.StrictJSONArray(item),

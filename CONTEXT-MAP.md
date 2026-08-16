@@ -68,6 +68,7 @@ Data Domain Service
 - `docs/adr/0014-agentrun-consumes-retained-qdrant-snapshot.md`
 - `docs/adr/0015-retire-root-shared-test-fixtures.md`
 - `docs/adr/0020-local-docker-application-and-infrastructure-projects.md`
+- `docs/adr/0021-simplify-atomic-evidence-semantics.md`
 
 ## Runtime
 

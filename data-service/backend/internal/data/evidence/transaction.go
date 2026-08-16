@@ -185,7 +185,7 @@ func categoryIDStrings(categoryIDs []evidencebiz.CategoryID) []string {
 }
 
 func (t *transaction) EvidencesByRawEvidence(ctx context.Context, rawEvidenceID string) ([]evidencebiz.StoredEvidence, error) {
-	rows, err := t.tx.QueryContext(ctx, evidenceSelect+` WHERE raw_evidence_id = $1 ORDER BY split_order`, rawEvidenceID)
+	rows, err := t.tx.QueryContext(ctx, evidenceSelect+` WHERE raw_evidence_id = $1 ORDER BY id`, rawEvidenceID)
 	if err != nil {
 		return nil, fmt.Errorf("read Evidence set: %w", err)
 	}
@@ -217,11 +217,7 @@ func (t *transaction) EvidencesByIDs(ctx context.Context, ids []string) ([]evide
 }
 
 const evidenceSelect = `
-SELECT id, raw_evidence_id, split_order, is_split, layer_type,
-       source_who, source_what, source_when, source_when_raw, source_where, source_why, source_how,
-       source_who_core, source_what_core, source_when_core, source_when_raw_core,
-       source_where_core, source_why_core, source_how_core,
-       expression_fingerprint, expression_key, fingerprint_version
+SELECT id, raw_evidence_id, is_split, summary, semantic
 FROM evidences`
 
 type evidenceRows interface {
@@ -234,15 +230,14 @@ func scanEvidences(rows evidenceRows) ([]evidencebiz.StoredEvidence, error) {
 	result := make([]evidencebiz.StoredEvidence, 0)
 	for rows.Next() {
 		var record evidencebiz.StoredEvidence
+		var semanticJSON []byte
 		if err := rows.Scan(
-			&record.ID, &record.RawEvidenceID, &record.SplitOrder, &record.IsSplit, &record.LayerType,
-			&record.SourceWho, &record.SourceWhat, &record.SourceWhen, &record.SourceWhenRaw,
-			&record.SourceWhere, &record.SourceWhy, &record.SourceHow, &record.SourceWhoCore,
-			&record.SourceWhatCore, &record.SourceWhenCore, &record.SourceWhenRawCore,
-			&record.SourceWhereCore, &record.SourceWhyCore, &record.SourceHowCore,
-			&record.ExpressionFingerprint, &record.ExpressionKey, &record.FingerprintVersion,
+			&record.ID, &record.RawEvidenceID, &record.IsSplit, &record.Summary, &semanticJSON,
 		); err != nil {
 			return nil, fmt.Errorf("scan Evidence: %w", err)
+		}
+		if err := decodeStoredSemantic(semanticJSON, &record.Semantic); err != nil {
+			return nil, fmt.Errorf("decode Evidence semantic: %w", err)
 		}
 		if err := validateStoredEvidence(&record); err != nil {
 			return nil, fmt.Errorf("read Evidence row invariant: %w", err)
@@ -256,23 +251,38 @@ func scanEvidences(rows evidenceRows) ([]evidencebiz.StoredEvidence, error) {
 }
 
 func (t *transaction) InsertEvidence(ctx context.Context, record evidencebiz.StoredEvidence) error {
-	_, err := t.tx.ExecContext(ctx, `
+	semanticJSON, err := json.Marshal(record.Semantic)
+	if err != nil {
+		return fmt.Errorf("encode Evidence semantic: %w", err)
+	}
+	_, err = t.tx.ExecContext(ctx, `
 INSERT INTO evidences (
-    id, raw_evidence_id, split_order, is_split, layer_type,
-    source_who, source_what, source_when, source_when_raw, source_where, source_why, source_how,
-    source_who_core, source_what_core, source_when_core, source_when_raw_core,
-    source_where_core, source_why_core, source_how_core,
-    expression_fingerprint, expression_key, fingerprint_version
-) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
-		record.ID, record.RawEvidenceID, record.SplitOrder, record.IsSplit, record.LayerType,
-		record.SourceWho, record.SourceWhat, record.SourceWhen, record.SourceWhenRaw,
-		record.SourceWhere, record.SourceWhy, record.SourceHow, record.SourceWhoCore,
-		record.SourceWhatCore, record.SourceWhenCore, record.SourceWhenRawCore,
-		record.SourceWhereCore, record.SourceWhyCore, record.SourceHowCore,
-		record.ExpressionFingerprint, record.ExpressionKey, record.FingerprintVersion,
+    id, raw_evidence_id, is_split, summary, semantic
+) VALUES ($1,$2,$3,$4,$5)`,
+		record.ID, record.RawEvidenceID, record.IsSplit, record.Summary, semanticJSON,
 	)
 	if err != nil {
 		return fmt.Errorf("insert Evidence: %w", err)
+	}
+	return nil
+}
+
+func decodeStoredSemantic(value []byte, target *evidencebiz.Semantic) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(value, &fields); err != nil {
+		return err
+	}
+	required := [...]string{"who", "what", "when", "where", "why", "how"}
+	if len(fields) != len(required) {
+		return errors.New("semantic must contain exactly the six 5W1H fields")
+	}
+	for _, field := range required {
+		if _, ok := fields[field]; !ok {
+			return fmt.Errorf("semantic field %s is missing", field)
+		}
+	}
+	if err := json.Unmarshal(value, target); err != nil {
+		return err
 	}
 	return nil
 }
