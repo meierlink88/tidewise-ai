@@ -16,6 +16,7 @@ import (
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/stdlib"
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
 	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
@@ -108,6 +109,21 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 	if categoryLinkID != expectedCategoryLinkID {
 		t.Fatalf("Raw Evidence Category Link ID = %q", categoryLinkID)
 	}
+	assertPostgresCode(t, db, "23514", `
+INSERT INTO raw_evidences(id,source_id,source_name,source_level,source_url,is_original,raw_text,collected_at,keywords)
+VALUES('BAD','SRC_bad_raw_identity','Bad Source','L1_OFFICIAL','https://example.test/bad',true,'bad identity',now(),'{}')`)
+	assertPostgresCode(t, db, "23514", `
+INSERT INTO evidences(id,raw_evidence_id,split_order,is_split,layer_type,source_what,expression_fingerprint,expression_key,fingerprint_version)
+VALUES('BAD',$1,99,false,'SINGLE','bad identity','bad identity','bad-identity','v1')`, rawID)
+	assertPostgresCode(t, db, "23514", `
+INSERT INTO raw_evidence_category_links(id,raw_evidence_id,category_id)
+VALUES('BAD',$1,'EVCc18ddddb-14bc-5496-99ea-963ee2c25597')`, rawID)
+	assertPostgresCode(t, db, "23505", `
+INSERT INTO raw_evidence_category_links(id,raw_evidence_id,category_id)
+VALUES('RCL11111111-1111-4111-8111-111111111111',$1,'EVCc18ddddb-14bc-5496-99ea-963ee2c25597')`, rawID)
+	assertPostgresCode(t, db, "23503", `
+INSERT INTO evidences(id,raw_evidence_id,split_order,is_split,layer_type,source_what,expression_fingerprint,expression_key,fingerprint_version)
+VALUES('EVD11111111-1111-4111-8111-111111111111','RAW11111111-1111-4111-8111-111111111111',0,false,'SINGLE','missing parent','missing parent','missing-parent','v1')`)
 
 	drift := append([]evidencebiz.Evidence(nil), items...)
 	drift[0].SourceWhat = "drifted"
@@ -117,6 +133,15 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 		t.Fatalf("drift error = %v, want ConflictError", err)
 	}
 
+}
+
+func assertPostgresCode(t *testing.T, db *sql.DB, want, query string, args ...any) {
+	t.Helper()
+	_, err := db.ExecContext(context.Background(), query, args...)
+	var postgresError *pgconn.PgError
+	if !errors.As(err, &postgresError) || postgresError.Code != want {
+		t.Fatalf("PostgreSQL error = %T %v, want SQLSTATE %s", err, err, want)
+	}
 }
 
 func TestPostgresTargetTablesUseOnlyIDAsPrimaryKey(t *testing.T) {

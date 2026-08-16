@@ -148,6 +148,26 @@ func TestPublishEvidenceCreatesCompleteSplitSetThenReusesIt(t *testing.T) {
 	}
 }
 
+func TestPublishEvidenceCollisionDetailsUseUnifiedIDName(t *testing.T) {
+	store := newMemoryStore()
+	raw := publishedRawEvidence(t)
+	store.raw[raw.ID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
+	collisionID, err := coreid.Derive(coreid.Evidence, "atomic-evidence", raw.ID, "0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.evidences[collisionID] = StoredEvidence{
+		Evidence:      Evidence{ID: collisionID},
+		RawEvidenceID: "RAW11111111-1111-4111-8111-111111111111",
+	}
+	_, err = mustNewUseCase(t, store).PublishEvidence(context.Background(), raw.ID, []Evidence{validEvidence("", 0)})
+	var conflict *ConflictError
+	if !errors.As(err, &conflict) || len(conflict.Issues) != 1 ||
+		strings.Contains(conflict.Issues[0].Message, "evidence_id") || !strings.Contains(conflict.Issues[0].Message, "id") {
+		t.Fatalf("collision error = %#v", err)
+	}
+}
+
 func TestPublishEvidenceSingleIsNotSplitAndRejectsNonContinuousOrder(t *testing.T) {
 	store := newMemoryStore()
 	raw := publishedRawEvidence(t)

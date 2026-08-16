@@ -82,6 +82,9 @@ func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *te
 
 	detail := productionEvidenceRequest(t, server, http.MethodGet, dataapi.APIPrefix+"/raw-evidences/"+rawEvidenceID, "raw-evidence-read-token", "", http.StatusOK)
 	raw := detail["result"].(map[string]any)["raw_evidence"].(map[string]any)
+	if raw["id"] != rawEvidenceID {
+		t.Fatalf("Raw Evidence identity = %#v", raw["id"])
+	}
 	categories := raw["categories"].([]any)
 	if len(categories) != 2 || categories[0].(map[string]any)["id"] != "EVC083b086f-c9ee-504c-85e9-639fa8d39e8f" || categories[1].(map[string]any)["id"] != "EVC097bf77a-fb8a-5756-ae47-e122c4367985" {
 		t.Fatalf("Raw Evidence categories = %#v", categories)

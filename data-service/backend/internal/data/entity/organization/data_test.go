@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	organizationbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/organization"
 	organizationdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/organization"
 	postgresfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/postgres"
@@ -68,6 +69,12 @@ func TestStorePublishesCatalogAndPersistsOrganizationFacts(t *testing.T) {
 	if storedLinkID != "ODL72d3c5ae-74ec-5d5e-9d3e-0d5ebbd189e8" {
 		t.Fatalf("Organization Domain Tag Link ID = %q", storedLinkID)
 	}
+	assertPostgresCode(t, db, "23514", `INSERT INTO organization_categories(id,code,name_zh) VALUES('BAD','BAD_CATEGORY_ID','Bad')`)
+	assertPostgresCode(t, db, "23505", `INSERT INTO organization_categories(id,code,name_zh) VALUES('OCA11111111-1111-4111-8111-111111111111','INTERGOVERNMENTAL','Duplicate')`)
+	assertPostgresCode(t, db, "23514", `INSERT INTO organization_domain_tags(id,code,function_code,name_zh) VALUES('BAD','BAD_TAG_ID','SECURITY','Bad')`)
+	assertPostgresCode(t, db, "23505", `INSERT INTO organization_domain_tags(id,code,function_code,name_zh) VALUES('ODT11111111-1111-4111-8111-111111111111','REGIONAL_SECURITY_DIALOGUE','SECURITY','Duplicate')`)
+	assertPostgresCode(t, db, "23514", `INSERT INTO organization_domain_tag_links(id,organization_id,function_code,domain_tag_code) VALUES('BAD',$1,'SECURITY','REGIONAL_SECURITY_DIALOGUE')`, tagged.ID)
+	assertPostgresCode(t, db, "23505", `INSERT INTO organization_domain_tag_links(id,organization_id,function_code,domain_tag_code) VALUES('ODL11111111-1111-4111-8111-111111111111',$1,'SECURITY','REGIONAL_SECURITY_DIALOGUE')`, tagged.ID)
 	if _, err := store.ReplaceDomainTags(ctx, "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549", []organizationbiz.DomainTagLink{{ID: "ODL876bcfd7-84cd-53b2-a2ac-e8bf42977183", DomainTagID: "ODT910b9189-86fa-5fcb-93c2-568212eb9d29", DomainTagCode: "AI_TECHNOLOGY_AND_GOVERNANCE"}}); err == nil {
 		t.Fatal("cross-Function Domain Tag error = nil")
 	} else {
@@ -82,6 +89,15 @@ func TestStorePublishesCatalogAndPersistsOrganizationFacts(t *testing.T) {
 	}
 	if len(listed) != 1 || listed[0].ID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" {
 		t.Fatalf("filtered Organizations = %#v", listed)
+	}
+}
+
+func assertPostgresCode(t *testing.T, db *sql.DB, want, query string, args ...any) {
+	t.Helper()
+	_, err := db.ExecContext(context.Background(), query, args...)
+	var postgresError *pgconn.PgError
+	if !errors.As(err, &postgresError) || postgresError.Code != want {
+		t.Fatalf("PostgreSQL error = %T %v, want SQLSTATE %s", err, err, want)
 	}
 }
 

@@ -412,7 +412,7 @@ func (s *UseCase) PublishEvidence(ctx context.Context, rawEvidenceID string, inp
 			if len(collisions) > 0 {
 				return &ConflictError{Issues: []Issue{{
 					Path: "evidences", Code: IssueEvidenceIDConflict,
-					Message: "an evidence_id is already assigned to different content",
+					Message: "an id is already assigned to different content",
 				}}}
 			}
 			for _, record := range records {
