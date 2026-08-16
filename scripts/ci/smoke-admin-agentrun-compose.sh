@@ -47,6 +47,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
+docker network create "$COMPOSE_NETWORK_NAME" >/dev/null
 "${compose[@]}" create --no-build data-migrate >/dev/null
 docker run -d --name "$data_postgres_fixture" --network "$COMPOSE_NETWORK_NAME" \
   -e POSTGRES_USER=tidewise \
