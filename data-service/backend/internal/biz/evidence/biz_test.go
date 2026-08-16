@@ -3,6 +3,7 @@ package evidence
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -122,7 +123,7 @@ func TestPublishEvidenceCreatesCompleteSplitSetThenReusesIt(t *testing.T) {
 	raw := publishedRawEvidence(t)
 	store.raw[raw.ID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
 	service := mustNewUseCase(t, store)
-	evidences := []Evidence{validEvidence("EVD888d6be0-6378-5f06-bfa1-6e6294f43dca", 1), validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0)}
+	evidences := []Evidence{validEvidence(1), validEvidence(0)}
 	created, err := service.PublishEvidence(context.Background(), raw.ID, evidences)
 	if err != nil {
 		t.Fatalf("publish Evidence: %v", err)
@@ -140,7 +141,7 @@ func TestPublishEvidenceCreatesCompleteSplitSetThenReusesIt(t *testing.T) {
 	}
 
 	drifted := append([]Evidence(nil), evidences...)
-	drifted[1].SourceWhat = "Changed fact"
+	drifted[1].Semantic.What = "Changed fact"
 	_, err = service.PublishEvidence(context.Background(), raw.ID, drifted)
 	var conflict *ConflictError
 	if !errors.As(err, &conflict) {
@@ -152,7 +153,12 @@ func TestPublishEvidenceCollisionDetailsUseUnifiedIDName(t *testing.T) {
 	store := newMemoryStore()
 	raw := publishedRawEvidence(t)
 	store.raw[raw.ID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
-	collisionID, err := coreid.Derive(coreid.Evidence, "atomic-evidence", raw.ID, "0")
+	collision := validEvidence(0)
+	seed, err := evidenceIdentitySeed(collision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	collisionID, err := coreid.Derive(coreid.Evidence, "atomic-evidence", raw.ID, seed)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +166,7 @@ func TestPublishEvidenceCollisionDetailsUseUnifiedIDName(t *testing.T) {
 		Evidence:      Evidence{ID: collisionID},
 		RawEvidenceID: "RAW11111111-1111-4111-8111-111111111111",
 	}
-	_, err = mustNewUseCase(t, store).PublishEvidence(context.Background(), raw.ID, []Evidence{validEvidence("", 0)})
+	_, err = mustNewUseCase(t, store).PublishEvidence(context.Background(), raw.ID, []Evidence{collision})
 	var conflict *ConflictError
 	if !errors.As(err, &conflict) || len(conflict.Issues) != 1 ||
 		strings.Contains(conflict.Issues[0].Message, "evidence_id") || !strings.Contains(conflict.Issues[0].Message, "id") {
@@ -168,13 +174,13 @@ func TestPublishEvidenceCollisionDetailsUseUnifiedIDName(t *testing.T) {
 	}
 }
 
-func TestPublishEvidenceSingleIsNotSplitAndRejectsNonContinuousOrder(t *testing.T) {
+func TestPublishEvidenceSingleIsNotSplitAndMultipleItemsAreOrderNeutral(t *testing.T) {
 	store := newMemoryStore()
 	raw := publishedRawEvidence(t)
 	store.raw[raw.ID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
 	service := mustNewUseCase(t, store)
 
-	single := validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0)
+	single := validEvidence(0)
 	result, err := service.PublishEvidence(context.Background(), raw.ID, []Evidence{single})
 	if err != nil {
 		t.Fatalf("publish single Evidence: %v", err)
@@ -185,15 +191,18 @@ func TestPublishEvidenceSingleIsNotSplitAndRejectsNonContinuousOrder(t *testing.
 
 	otherStore := newMemoryStore()
 	otherStore.raw[raw.ID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
-	nonContinuous := []Evidence{validEvidence("EVD888d6be0-6378-5f06-bfa1-6e6294f43dca", 0), validEvidence("EVDe81576cf-65e5-5790-9e39-854386939e72", 2)}
-	_, err = mustNewUseCase(t, otherStore).PublishEvidence(context.Background(), raw.ID, nonContinuous)
-	var validation *ValidationError
-	if !errors.As(err, &validation) {
-		t.Fatalf("non-continuous error = %v, want ValidationError", err)
+	items := []Evidence{validEvidence(1), validEvidence(2)}
+	created, err := mustNewUseCase(t, otherStore).PublishEvidence(context.Background(), raw.ID, items)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reordered, err := mustNewUseCase(t, otherStore).PublishEvidence(context.Background(), raw.ID, []Evidence{items[1], items[0]})
+	if err != nil || !equalStrings(created.IDs, reordered.IDs) {
+		t.Fatalf("order-neutral retry result=%#v error=%v, want %#v", reordered, err, created)
 	}
 }
 
-func TestPublishEvidenceRejectsCollectionReferenceLayerAndExpressionFailures(t *testing.T) {
+func TestPublishEvidenceRejectsCollectionReferenceAndSemanticFailures(t *testing.T) {
 	raw := publishedRawEvidence(t)
 	store := newMemoryStore()
 	store.raw[raw.ID] = StoredRawEvidence{RawEvidence: raw, ContentHash: contentHash(raw.RawText)}
@@ -205,23 +214,23 @@ func TestPublishEvidenceRejectsCollectionReferenceLayerAndExpressionFailures(t *
 		code  IssueCode
 	}{
 		{name: "zero", items: nil, code: IssueRequired},
-		{name: "duplicate split order", items: []Evidence{
-			validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0),
-			validEvidence("EVD888d6be0-6378-5f06-bfa1-6e6294f43dca", 0),
+		{name: "duplicate semantic", items: []Evidence{
+			validEvidence(0),
+			validEvidence(0),
 		}, code: IssueDuplicate},
-		{name: "single with core", items: func() []Evidence {
-			item := validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0)
-			item.SourceWhatCore = stringPointer("core fact")
-			return []Evidence{item}
-		}(), code: IssueInvalidLayer},
-		{name: "double without core what", items: func() []Evidence {
-			item := validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0)
-			item.LayerType = LayerTypeDouble
+		{name: "missing summary", items: func() []Evidence {
+			item := validEvidence(0)
+			item.Summary = ""
 			return []Evidence{item}
 		}(), code: IssueRequired},
-		{name: "missing expression identity", items: func() []Evidence {
-			item := validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0)
-			item.ExpressionKey = ""
+		{name: "missing semantic what", items: func() []Evidence {
+			item := validEvidence(0)
+			item.Semantic.What = ""
+			return []Evidence{item}
+		}(), code: IssueRequired},
+		{name: "blank optional semantic", items: func() []Evidence {
+			item := validEvidence(0)
+			item.Semantic.Who = stringPointer(" ")
 			return []Evidence{item}
 		}(), code: IssueRequired},
 	}
@@ -236,7 +245,7 @@ func TestPublishEvidenceRejectsCollectionReferenceLayerAndExpressionFailures(t *
 	}
 
 	_, err := service.PublishEvidence(context.Background(), "RAW6a2f6777-6aa6-5f07-9b95-ced31a3d8e59", []Evidence{
-		validEvidence("EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", 0),
+		validEvidence(0),
 	})
 	var reference *ReferenceError
 	if !errors.As(err, &reference) || !hasIssueCode(reference.Issues, IssueRawEvidenceNotFound) {
@@ -244,14 +253,13 @@ func TestPublishEvidenceRejectsCollectionReferenceLayerAndExpressionFailures(t *
 	}
 }
 
-func validEvidence(id string, splitOrder int) Evidence {
+func validEvidence(variant int) Evidence {
 	return Evidence{
-		SplitOrder:            splitOrder,
-		LayerType:             "SINGLE",
-		SourceWhat:            "Example Corp expanded production.",
-		ExpressionFingerprint: "Example Corp expands production",
-		ExpressionKey:         "example-corp-expands-production-v1",
-		FingerprintVersion:    "evidence-expression.v1",
+		Summary: fmt.Sprintf("Example Corp expands production %d", variant),
+		Semantic: Semantic{
+			Who: stringPointer("Example Corp"), What: fmt.Sprintf("expanded production line %d", variant),
+			When: stringPointer("2026-08-10"), Where: nil, Why: nil, How: stringPointer("by adding capacity"),
+		},
 	}
 }
 

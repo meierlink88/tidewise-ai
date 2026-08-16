@@ -55,10 +55,10 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 	}
 
 	items := []evidencebiz.Evidence{
-		postgresEvidence("EVDe29312f1-33fb-5d44-8cfb-2b455b50533b", 0),
-		postgresEvidence("EVD8fea9496-3764-53c2-ab57-5b1ff87b7581", 1),
+		postgresEvidence(0),
+		postgresEvidence(1),
 	}
-	items[1].SourceWhat = "A second source statement supports the same normalized fact."
+	items[1].Summary = "A second source statement supports a different atomic fact."
 	published, err := publication.PublishEvidence(ctx, rawID, items)
 	if err != nil {
 		t.Fatalf("publish Evidence set: %v", err)
@@ -92,11 +92,51 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 	if !sameTestStrings(keywords, raw.Keywords) {
 		t.Fatalf("stored keywords = %#v, want %#v", keywords, raw.Keywords)
 	}
-	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM evidences WHERE expression_key = $1`, items[0].ExpressionKey).Scan(&evidenceCount); err != nil {
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM evidences WHERE raw_evidence_id = $1`, rawID).Scan(&evidenceCount); err != nil {
 		t.Fatal(err)
 	}
 	if evidenceCount != 2 {
-		t.Fatalf("Evidence rows sharing expression_key = %d, want 2", evidenceCount)
+		t.Fatalf("stored Evidence rows = %d, want 2", evidenceCount)
+	}
+	var storedSummary string
+	var storedSemanticJSON []byte
+	var storedIsSplit bool
+	if err := db.QueryRowContext(ctx, `SELECT summary, semantic, is_split FROM evidences WHERE summary = $1`, items[0].Summary).
+		Scan(&storedSummary, &storedSemanticJSON, &storedIsSplit); err != nil {
+		t.Fatal(err)
+	}
+	var storedSemantic evidencebiz.Semantic
+	if err := json.Unmarshal(storedSemanticJSON, &storedSemantic); err != nil {
+		t.Fatal(err)
+	}
+	var storedSemanticFields map[string]json.RawMessage
+	if err := json.Unmarshal(storedSemanticJSON, &storedSemanticFields); err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []string{"who", "what", "when", "where", "why", "how"} {
+		if _, exists := storedSemanticFields[field]; !exists {
+			t.Fatalf("stored Evidence semantic is missing %q: %s", field, storedSemanticJSON)
+		}
+	}
+	if storedSummary != items[0].Summary || !storedIsSplit || len(storedSemanticFields) != 6 ||
+		!sameTestSemantic(storedSemantic, items[0].Semantic) {
+		t.Fatalf("stored Evidence summary=%q semantic=%#v is_split=%t", storedSummary, storedSemantic, storedIsSplit)
+	}
+	singleRaw := postgresEvidenceRaw("single-evidence-is-split-false")
+	singleRawResult, err := publication.PublishRawEvidence(ctx, singleRaw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	singleResult, err := publication.PublishEvidence(ctx, singleRawResult.ID, []evidencebiz.Evidence{postgresEvidence(2)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var singleIsSplit bool
+	if err := db.QueryRowContext(ctx, `SELECT is_split FROM evidences WHERE id = $1`, singleResult.IDs[0]).Scan(&singleIsSplit); err != nil {
+		t.Fatal(err)
+	}
+	if singleIsSplit {
+		t.Fatal("single Atomic Evidence persisted is_split=true, want false")
 	}
 	var categoryLinkID string
 	if err := db.QueryRowContext(ctx, `SELECT id FROM raw_evidence_category_links WHERE raw_evidence_id = $1`, rawID).Scan(&categoryLinkID); err != nil {
@@ -113,8 +153,8 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 INSERT INTO raw_evidences(id,source_id,source_name,source_level,source_url,is_original,raw_text,collected_at,keywords)
 VALUES('BAD','SRC_bad_raw_identity','Bad Source','L1_OFFICIAL','https://example.test/bad',true,'bad identity',now(),'{}')`)
 	assertPostgresCode(t, db, "23514", `
-INSERT INTO evidences(id,raw_evidence_id,split_order,is_split,layer_type,source_what,expression_fingerprint,expression_key,fingerprint_version)
-VALUES('BAD',$1,99,false,'SINGLE','bad identity','bad identity','bad-identity','v1')`, rawID)
+INSERT INTO evidences(id,raw_evidence_id,is_split,summary,semantic)
+VALUES('BAD',$1,false,'bad identity','{"who":null,"what":"bad identity","when":null,"where":null,"why":null,"how":null}')`, rawID)
 	assertPostgresCode(t, db, "23514", `
 INSERT INTO raw_evidence_category_links(id,raw_evidence_id,category_id)
 VALUES('BAD',$1,'EVCc18ddddb-14bc-5496-99ea-963ee2c25597')`, rawID)
@@ -122,15 +162,24 @@ VALUES('BAD',$1,'EVCc18ddddb-14bc-5496-99ea-963ee2c25597')`, rawID)
 INSERT INTO raw_evidence_category_links(id,raw_evidence_id,category_id)
 VALUES('RCL11111111-1111-4111-8111-111111111111',$1,'EVCc18ddddb-14bc-5496-99ea-963ee2c25597')`, rawID)
 	assertPostgresCode(t, db, "23503", `
-INSERT INTO evidences(id,raw_evidence_id,split_order,is_split,layer_type,source_what,expression_fingerprint,expression_key,fingerprint_version)
-VALUES('EVD11111111-1111-4111-8111-111111111111','RAW11111111-1111-4111-8111-111111111111',0,false,'SINGLE','missing parent','missing parent','missing-parent','v1')`)
+INSERT INTO evidences(id,raw_evidence_id,is_split,summary,semantic)
+VALUES('EVD11111111-1111-4111-8111-111111111111','RAW11111111-1111-4111-8111-111111111111',false,'missing parent','{"who":null,"what":"missing parent","when":null,"where":null,"why":null,"how":null}')`)
+	assertPostgresCode(t, db, "23514", `
+INSERT INTO evidences(id,raw_evidence_id,is_split,summary,semantic)
+VALUES('EVD11111111-1111-4111-8111-111111111112',$1,false,'invalid semantic','{"who":null,"what":"","when":null,"where":null,"why":null,"how":null,"summary":"duplicate"}')`, rawID)
 
 	drift := append([]evidencebiz.Evidence(nil), items...)
-	drift[0].SourceWhat = "drifted"
+	drift[0].Semantic.What = "drifted"
 	_, err = publication.PublishEvidence(ctx, rawID, drift)
 	var conflict *evidencebiz.ConflictError
 	if !errors.As(err, &conflict) {
-		t.Fatalf("drift error = %v, want ConflictError", err)
+		t.Fatalf("semantic drift error = %v, want ConflictError", err)
+	}
+	summaryDrift := append([]evidencebiz.Evidence(nil), items...)
+	summaryDrift[0].Summary = "drifted summary"
+	_, err = publication.PublishEvidence(ctx, rawID, summaryDrift)
+	if !errors.As(err, &conflict) {
+		t.Fatalf("summary drift error = %v, want ConflictError", err)
 	}
 
 }
@@ -182,6 +231,41 @@ ORDER BY tc.table_name, kcu.ordinal_position`)
 		columns := primaryKeys[table]
 		if len(columns) != 1 || columns[0] != "id" {
 			t.Errorf("%s primary key columns = %#v, want [id]", table, columns)
+		}
+	}
+}
+
+func TestPostgresAtomicEvidenceSchemaUsesSummaryAndSemantic(t *testing.T) {
+	db := openEvidencePublicationTestDatabase(t)
+	rows, err := db.Query(`
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_schema = current_schema() AND table_name = 'evidences'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	columns := make(map[string]string)
+	for rows.Next() {
+		var name, dataType string
+		if err := rows.Scan(&name, &dataType); err != nil {
+			t.Fatal(err)
+		}
+		columns[name] = dataType
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"id": "character varying", "raw_evidence_id": "character varying", "is_split": "boolean",
+		"summary": "character varying", "semantic": "jsonb", "created_at": "timestamp with time zone",
+	}
+	if len(columns) != len(want) {
+		t.Fatalf("Evidence columns = %#v, want exactly %#v", columns, want)
+	}
+	for name, dataType := range want {
+		if columns[name] != dataType {
+			t.Fatalf("Evidence column %s type = %q, want %q", name, columns[name], dataType)
 		}
 	}
 }
@@ -359,15 +443,9 @@ func TestEvidenceTransactionRejectsInvalidPersistedEvidenceSet(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	mock.ExpectBegin()
-	rows := sqlmock.NewRows([]string{
-		"id", "raw_evidence_id", "split_order", "is_split", "layer_type",
-		"source_who", "source_what", "source_when", "source_when_raw", "source_where", "source_why", "source_how",
-		"source_who_core", "source_what_core", "source_when_core", "source_when_raw_core",
-		"source_where_core", "source_why_core", "source_how_core",
-		"expression_fingerprint", "expression_key", "fingerprint_version",
-	})
-	rows.AddRow(persistedEvidenceRow("EVDc8222fc3-a24f-5d44-b204-09dfb2b8960f", rawEvidenceID, 0, "first fact")...)
-	rows.AddRow(persistedEvidenceRow("EVD0f10cab3-e6ca-5bbc-ac33-5b09d3ff1602", rawEvidenceID, 2, "second fact")...)
+	rows := sqlmock.NewRows([]string{"id", "raw_evidence_id", "is_split", "summary", "semantic"})
+	rows.AddRow(persistedEvidenceRow("EVD0f10cab3-e6ca-5bbc-ac33-5b09d3ff1602", rawEvidenceID, false, "first fact")...)
+	rows.AddRow(persistedEvidenceRow("EVDc8222fc3-a24f-5d44-b204-09dfb2b8960f", rawEvidenceID, false, "second fact")...)
 	mock.ExpectQuery("FROM evidences").
 		WithArgs(rawEvidenceID).
 		WillReturnRows(rows)
@@ -387,20 +465,18 @@ func TestEvidenceTransactionRejectsInvalidPersistedEvidenceSet(t *testing.T) {
 		return readErr
 	})
 	var invariantErr *persistedInvariantError
-	if errors.Is(err, accepted) || !errors.As(err, &invariantErr) || invariantErr.field != "split_order" {
-		t.Fatalf("EvidencesByRawEvidence() error = %v, want persisted split_order invariant error", err)
+	if errors.Is(err, accepted) || !errors.As(err, &invariantErr) || invariantErr.field != "is_split" {
+		t.Fatalf("EvidencesByRawEvidence() error = %v, want persisted is_split invariant error", err)
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
 	}
 }
 
-func persistedEvidenceRow(id, rawEvidenceID string, splitOrder int, sourceWhat string) []driver.Value {
+func persistedEvidenceRow(id, rawEvidenceID string, isSplit bool, summary string) []driver.Value {
 	return []driver.Value{
-		id, rawEvidenceID, splitOrder, true, "SINGLE",
-		nil, sourceWhat, nil, nil, nil, nil, nil,
-		nil, nil, nil, nil, nil, nil, nil,
-		sourceWhat + " normalized", id + "-key", "v1",
+		id, rawEvidenceID, isSplit, summary,
+		[]byte(`{"who":null,"what":"atomic fact","when":null,"where":null,"why":null,"how":null}`),
 	}
 }
 
@@ -420,14 +496,17 @@ func postgresRawEvidenceID(raw evidencebiz.RawEvidence) string {
 	return value
 }
 
-func postgresEvidence(_ string, order int) evidencebiz.Evidence {
+func postgresEvidence(variant int) evidencebiz.Evidence {
 	return evidencebiz.Evidence{
-		SplitOrder: order, LayerType: "SINGLE",
-		SourceWhat:            "Example Corp expanded production.",
-		ExpressionFingerprint: "Example Corp expands production",
-		ExpressionKey:         "shared-expression-key-v1", FingerprintVersion: "evidence-expression.v1",
+		Summary: fmt.Sprintf("Example Corp expands production %d", variant),
+		Semantic: evidencebiz.Semantic{
+			Who: testStringPointer("Example Corp"), What: fmt.Sprintf("expanded production line %d", variant),
+			When: testStringPointer("2026-08-10"), How: testStringPointer("by adding capacity"),
+		},
 	}
 }
+
+func testStringPointer(value string) *string { return &value }
 
 func sameTestStrings(left, right []string) bool {
 	if len(left) != len(right) {
@@ -439,6 +518,16 @@ func sameTestStrings(left, right []string) bool {
 		}
 	}
 	return true
+}
+
+func sameTestSemantic(left, right evidencebiz.Semantic) bool {
+	return sameTestOptionalString(left.Who, right.Who) && left.What == right.What &&
+		sameTestOptionalString(left.When, right.When) && sameTestOptionalString(left.Where, right.Where) &&
+		sameTestOptionalString(left.Why, right.Why) && sameTestOptionalString(left.How, right.How)
+}
+
+func sameTestOptionalString(left, right *string) bool {
+	return left == nil && right == nil || left != nil && right != nil && *left == *right
 }
 
 func openEvidencePublicationTestDatabase(t *testing.T) *sql.DB {

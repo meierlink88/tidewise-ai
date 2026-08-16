@@ -1,47 +1,27 @@
 {
-  "raw_evidence_id": "RAWec95a292-d513-5aa6-a54c-a9e3926add1a",
+  "raw_evidence_id": "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf",
   "evidences": [
     {
-      "split_order": 0,
-      "layer_type": "SINGLE",
-      "source_who": "Example Corp",
-      "source_what": "Example Corp expanded production.",
-      "source_when": "2026-08-10T00:00:00Z",
-      "source_when_raw": "August 10",
-      "source_where": null,
-      "source_why": null,
-      "source_how": null,
-      "source_who_core": null,
-      "source_what_core": null,
-      "source_when_core": null,
-      "source_when_raw_core": null,
-      "source_where_core": null,
-      "source_why_core": null,
-      "source_how_core": null,
-      "expression_fingerprint": "Example Corp expands production",
-      "expression_key": "example-corp-expands-production-v1",
-      "fingerprint_version": "evidence-expression.v1"
+      "summary": "Example Corp expands production",
+      "semantic": {
+        "who": "Example Corp",
+        "what": "expanded production",
+        "when": "August 10, 2026",
+        "where": null,
+        "why": null,
+        "how": "by adding a new production line"
+      }
     },
     {
-      "split_order": 1,
-      "layer_type": "SINGLE",
-      "source_who": "Example Corp",
-      "source_what": "A second statement supports the same normalized fact.",
-      "source_when": "2026-08-10T00:00:00Z",
-      "source_when_raw": "August 10",
-      "source_where": null,
-      "source_why": null,
-      "source_how": null,
-      "source_who_core": null,
-      "source_what_core": null,
-      "source_when_core": null,
-      "source_when_raw_core": null,
-      "source_where_core": null,
-      "source_why_core": null,
-      "source_how_core": null,
-      "expression_fingerprint": "Example Corp expands production",
-      "expression_key": "example-corp-expands-production-v1",
-      "fingerprint_version": "evidence-expression.v1"
+      "summary": "Example Corp secures additional capacity",
+      "semantic": {
+        "who": "Example Corp",
+        "what": "secured additional capacity",
+        "when": "August 10, 2026",
+        "where": null,
+        "why": "to meet rising demand",
+        "how": null
+      }
     }
   ]
 }

@@ -131,13 +131,12 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 	t.Helper()
 	for _, test := range []struct {
 		rawID         string
-		evidenceID    string
 		drift         bool
 		wantSucceeded int
 		wantConflicts int
 	}{
-		{rawID: "RAW31761f37-d5ea-5df4-849e-a2e0871cca83", evidenceID: "EVD2d4ad568-4eb5-536a-ba7c-13d6cb8e018f", wantSucceeded: 2},
-		{rawID: "RAW18c5ad2d-579d-5b0d-9c38-790dfd021100", evidenceID: "EVD67e8689b-cb97-509d-bdfe-4747c96caf9d", drift: true, wantSucceeded: 1, wantConflicts: 1},
+		{rawID: "RAW31761f37-d5ea-5df4-849e-a2e0871cca83", wantSucceeded: 2},
+		{rawID: "RAW18c5ad2d-579d-5b0d-9c38-790dfd021100", drift: true, wantSucceeded: 1, wantConflicts: 1},
 	} {
 		raw := postgresEvidenceRaw(test.rawID)
 		rawResult, err := publication.PublishRawEvidence(context.Background(), raw)
@@ -145,11 +144,10 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 			t.Fatal(err)
 		}
 		rawID := rawResult.ID
-		expectedEvidenceID, _ := coreid.Derive(coreid.Evidence, "atomic-evidence", rawID, "0")
-		left := []evidencebiz.Evidence{postgresEvidence(test.evidenceID, 0)}
-		right := []evidencebiz.Evidence{postgresEvidence(test.evidenceID, 0)}
+		left := []evidencebiz.Evidence{postgresEvidence(0)}
+		right := []evidencebiz.Evidence{postgresEvidence(0)}
 		if test.drift {
-			right[0].SourceWhat = "Concurrent semantic drift."
+			right[0].Semantic.What = "Concurrent semantic drift."
 		}
 		start := make(chan struct{})
 		type outcome struct {
@@ -166,11 +164,17 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 		}
 		close(start)
 		succeeded, conflicted := 0, 0
+		var expectedEvidenceID string
 		for count := 0; count < 2; count++ {
 			completed := <-outcomes
 			if completed.err == nil {
-				if len(completed.result.IDs) != 1 || completed.result.IDs[0] != expectedEvidenceID {
+				if len(completed.result.IDs) != 1 {
 					t.Fatalf("concurrent Evidence result = %#v", completed.result)
+				}
+				if expectedEvidenceID == "" {
+					expectedEvidenceID = completed.result.IDs[0]
+				} else if completed.result.IDs[0] != expectedEvidenceID {
+					t.Fatalf("concurrent Evidence ID = %q, want %q", completed.result.IDs[0], expectedEvidenceID)
 				}
 				succeeded++
 				continue
@@ -263,8 +267,11 @@ func assertEvidenceTransactionRollback(t *testing.T, publication *evidencebiz.Us
 		t.Fatal(err)
 	}
 	evidenceRaw.ID = evidenceRawResult.ID
-	evidence := postgresEvidence("EVD5a8f667a-cbca-5cb1-9bcd-e2d9072d4fda", 0)
-	evidence.ID, _ = coreid.Derive(coreid.Evidence, "atomic-evidence", evidenceRaw.ID, "0")
+	evidence := postgresEvidence(0)
+	evidence.ID, err = coreid.New(coreid.Evidence)
+	if err != nil {
+		t.Fatal(err)
+	}
 	err = store.InTransaction(context.Background(), func(tx evidencebiz.Transaction) error {
 		if err := tx.InsertEvidence(context.Background(), evidencebiz.StoredEvidence{
 			Evidence: evidence, RawEvidenceID: evidenceRaw.ID, IsSplit: false,

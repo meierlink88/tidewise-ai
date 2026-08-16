@@ -53,3 +53,4 @@
 000052	high	data	rewrite embedded business identity arrays and research receipt maps to registered prefixed identities
 000053	high	schema	forward-only zero-compatibility Organization and Evidence primary-key id unification without historical backfill
 000054	high	schema	forward-only zero-compatibility Organization Function primary-key id addition without historical backfill
+000055	high	mixed	delete historical Atomic Evidence and replace layered source columns with summary and strict 5W1H semantic JSONB

@@ -81,9 +81,9 @@ func TestEvidencePublicationProviderFixturesAreContractNeutralAndTwoPhase(t *tes
 	if len(rawRequest.RawEvidence.CategoryIDs) != 2 || rawRequest.RawEvidence.CategoryIDs[0] != "EVCed6e9380-8b20-53d5-b748-fa45c774fa67" || rawRequest.RawEvidence.CategoryIDs[1] != "EVC5b12ffce-178d-56ed-a54f-c01696c486f4" {
 		t.Fatalf("fixture Raw Evidence categories = %#v", rawRequest.RawEvidence.CategoryIDs)
 	}
-	if len(evidenceRequest.Evidences) != 2 ||
-		evidenceRequest.Evidences[0].ExpressionKey != evidenceRequest.Evidences[1].ExpressionKey {
-		t.Fatalf("fixture must preserve two source Evidences sharing one expression_key: %#v", evidenceRequest.Evidences)
+	if len(evidenceRequest.Evidences) != 2 || evidenceRequest.Evidences[0].Summary == "" ||
+		evidenceRequest.Evidences[0].Semantic.What == "" || evidenceRequest.Evidences[1].Semantic.What == "" {
+		t.Fatalf("fixture must contain complete summary and semantic Evidence items: %#v", evidenceRequest.Evidences)
 	}
 }
 
@@ -126,6 +126,37 @@ func TestEvidencePublicationOpenAPISuccessResultsContainOnlyFormalIdentities(t *
 		}
 		if schema["additionalProperties"] != false {
 			t.Fatalf("%s must reject additional response properties", name)
+		}
+	}
+}
+
+func TestAtomicEvidenceOpenAPIUsesSummaryAndExactSingleLayerSemantic(t *testing.T) {
+	var document map[string]any
+	if err := yaml.Unmarshal(v1.Document(), &document); err != nil {
+		t.Fatal(err)
+	}
+	components := document["components"].(map[string]any)["schemas"].(map[string]any)
+	atomic := components["AtomicEvidence"].(map[string]any)
+	atomicProperties := atomic["properties"].(map[string]any)
+	if len(atomicProperties) != 2 || atomicProperties["summary"] == nil || atomicProperties["semantic"] == nil || atomic["additionalProperties"] != false {
+		t.Fatalf("AtomicEvidence contract = %#v", atomic)
+	}
+	semantic := components["EvidenceSemantic"].(map[string]any)
+	semanticProperties := semantic["properties"].(map[string]any)
+	for _, field := range []string{"who", "what", "when", "where", "why", "how"} {
+		if _, exists := semanticProperties[field]; !exists {
+			t.Fatalf("EvidenceSemantic is missing %q", field)
+		}
+	}
+	if len(semanticProperties) != 6 || semantic["additionalProperties"] != false {
+		t.Fatalf("EvidenceSemantic contract = %#v", semantic)
+	}
+	for _, removed := range []string{"EvidenceLayerType", "expression_key", "fingerprint_version", "source_what", "source_what_core", "split_order"} {
+		if _, exists := components[removed]; exists {
+			t.Fatalf("removed Evidence schema %q is still published", removed)
+		}
+		if _, exists := atomicProperties[removed]; exists {
+			t.Fatalf("removed AtomicEvidence property %q is still published", removed)
 		}
 	}
 }

@@ -8,7 +8,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 
 - Entity 事实、独立 Object 事实、Object Schema、产业链节点及关系、
   Index 等正式事实。
-- 完整 Raw Evidence、阅读辅助 Keywords、原子 Evidence 及其确定性去重身份。
+- 完整 Raw Evidence、阅读辅助 Keywords、原子 Evidence 及其确定性正式身份。
 - 正式 Event、被 Event 引用的轻量 Evidence Record 及其证据关联。
 - Research Theme、Theme Impact、Reason Tree 及其关联数据。
 - PostgreSQL schema、migration 和 repository。
@@ -118,19 +118,21 @@ _Avoid_: AgentOS 自建或持久化 Catalog 副本、Prompt/YAML 中复制分类
 _Avoid_: Primary Category、分类置信度、Atomic Evidence Category
 
 **Atomic Evidence**:
-清洗流程从一个 Raw Evidence 得到的、可直接消费的一条原子 5W1H 事实表达，以
-`EVD + canonical lowercase UUID` 为 `id`。一个 Raw
-Evidence 正式清洗后必须拥有一至多条 Atomic Evidence；`1:1` 表示未拆分，`1:N` 表示
-各子项由拆分产生。
+清洗流程从一个 Raw Evidence 得到的、可直接消费的一条原子事实表达，以
+`EVD + canonical lowercase UUID` 为 `id`。每条 Atomic Evidence 包含一条非空简洁事实摘要
+`summary`，以及严格一层 `who`、`what`、`when`、`where`、`why`、`how` 的结构化
+`semantic`；`what` 必须为非空字符串，其余五项必须存在且允许为非空字符串或 `null`，
+`semantic` 不重复保存 `summary`。一个 Raw Evidence 正式清洗后必须拥有一至多条 Atomic
+Evidence；`1:1` 的 `is_split` 为 false，`1:N` 的每条 `is_split` 均为 true。
 Data 为新建 Atomic Evidence 保存数据库生成的内部 `created_at`；发布方不提交，发布 API
 不返回，历史行不回填。Evidence 不可变，因此没有 `updated_at`。
 _Avoid_: Event Evidence Link、完整 Raw Evidence、Evidence Group、Event
 
-**Evidence Deduplication Identity**:
-发布方为 Atomic Evidence 提交的 `expression_fingerprint`、可重复的稳定
-`expression_key` 与 `fingerprint_version`。共享同一 key 的多来源 Evidence 必须全部
-保留；Data 只校验格式与不可变一致性，不判断两个表达是否语义相同。
-_Avoid_: Evidence Group 实体、唯一 expression_key、Data 语义召回、embedding
+**Atomic Evidence Identity**:
+Data 根据所属 Raw Evidence 身份与 Atomic Evidence 的 `summary + semantic` 规范内容确定性
+派生正式 ID；调用方不提交 ID。该身份只保证同一 Raw Evidence 完整集合的安全重试，不执行
+跨 Raw Evidence 的语义去重，不把相同语义的多来源 Evidence 合并为 Group。
+_Avoid_: 调用方 Evidence ID、Expression Key、Evidence Group、Data 语义召回、embedding
 
 **Raw Evidence Publication**:
 采集完成后把一份完整 Raw Evidence、Keywords 及可选 Content Category 集合原子接纳为正式 Data 事实的同步发布。
@@ -141,8 +143,8 @@ _Avoid_: Evidence Publication、异步 Import Job、Idempotency-Key
 **Evidence Publication**:
 清洗完成后，为一个既有 Raw Evidence 一次提交完整 `1..N` Atomic Evidence 集合的同步
 发布。整包只能首次创建或以完全一致内容安全重试，不能覆盖、追加、删除或发布零项；成功
-响应只返回外键 `raw_evidence_id` 和按 `split_order` 排序的 Evidence `ids`，不创建发布回执或返回
-创建/复用分类。
+响应只返回外键 `raw_evidence_id` 和按正式 ID 确定性排序的 Evidence `ids`；该排序没有业务
+语义。发布不创建回执，也不返回创建/复用分类。
 _Avoid_: Raw Evidence Publication、Group Publication、部分成功、可变清洗结果
 
 **Data Runtime Health**:

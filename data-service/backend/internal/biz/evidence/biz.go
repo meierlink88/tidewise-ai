@@ -4,12 +4,12 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -18,7 +18,6 @@ import (
 )
 
 type SourceLevel string
-type LayerType string
 type IssueCode string
 type CategoryID string
 
@@ -34,25 +33,19 @@ const (
 	SourceLevelMedia    SourceLevel = "L3_MEDIA"
 	SourceLevelSocial   SourceLevel = "L4_SOCIAL"
 
-	LayerTypeSingle LayerType = "SINGLE"
-	LayerTypeDouble LayerType = "DOUBLE"
-
-	IssueRequired                IssueCode = "REQUIRED"
-	IssueTooLong                 IssueCode = "TOO_LONG"
-	IssueInvalidEnum             IssueCode = "INVALID_ENUM"
-	IssueInvalidURL              IssueCode = "INVALID_URL"
-	IssueInvalidOrigin           IssueCode = "INVALID_ORIGIN"
-	IssueInvalidTimestamp        IssueCode = "INVALID_TIMESTAMP"
-	IssueInvalidFormat           IssueCode = "INVALID_FORMAT"
-	IssueDuplicate               IssueCode = "DUPLICATE"
-	IssueOutOfRange              IssueCode = "OUT_OF_RANGE"
-	IssueInvalidLayer            IssueCode = "INVALID_LAYER"
-	IssueNonContinuousSplitOrder IssueCode = "NON_CONTINUOUS_SPLIT_ORDER"
-	IssueRawEvidenceConflict     IssueCode = "RAW_EVIDENCE_CONFLICT"
-	IssueRawEvidenceNotFound     IssueCode = "RAW_EVIDENCE_NOT_FOUND"
-	IssueCategoryNotFound        IssueCode = "EVIDENCE_CATEGORY_NOT_FOUND"
-	IssueEvidenceIDConflict      IssueCode = "EVIDENCE_ID_CONFLICT"
-	IssueEvidenceSetConflict     IssueCode = "EVIDENCE_SET_CONFLICT"
+	IssueRequired            IssueCode = "REQUIRED"
+	IssueTooLong             IssueCode = "TOO_LONG"
+	IssueInvalidEnum         IssueCode = "INVALID_ENUM"
+	IssueInvalidURL          IssueCode = "INVALID_URL"
+	IssueInvalidOrigin       IssueCode = "INVALID_ORIGIN"
+	IssueInvalidTimestamp    IssueCode = "INVALID_TIMESTAMP"
+	IssueInvalidFormat       IssueCode = "INVALID_FORMAT"
+	IssueDuplicate           IssueCode = "DUPLICATE"
+	IssueRawEvidenceConflict IssueCode = "RAW_EVIDENCE_CONFLICT"
+	IssueRawEvidenceNotFound IssueCode = "RAW_EVIDENCE_NOT_FOUND"
+	IssueCategoryNotFound    IssueCode = "EVIDENCE_CATEGORY_NOT_FOUND"
+	IssueEvidenceIDConflict  IssueCode = "EVIDENCE_ID_CONFLICT"
+	IssueEvidenceSetConflict IssueCode = "EVIDENCE_SET_CONFLICT"
 )
 
 type RawEvidence struct {
@@ -97,26 +90,18 @@ type Store interface {
 }
 
 type Evidence struct {
-	ID                    string
-	SplitOrder            int
-	LayerType             LayerType
-	SourceWho             *string
-	SourceWhat            string
-	SourceWhen            *time.Time
-	SourceWhenRaw         *string
-	SourceWhere           *string
-	SourceWhy             *string
-	SourceHow             *string
-	SourceWhoCore         *string
-	SourceWhatCore        *string
-	SourceWhenCore        *time.Time
-	SourceWhenRawCore     *string
-	SourceWhereCore       *string
-	SourceWhyCore         *string
-	SourceHowCore         *string
-	ExpressionFingerprint string
-	ExpressionKey         string
-	FingerprintVersion    string
+	ID       string
+	Summary  string
+	Semantic Semantic
+}
+
+type Semantic struct {
+	Who   *string `json:"who"`
+	What  string  `json:"what"`
+	When  *string `json:"when"`
+	Where *string `json:"where"`
+	Why   *string `json:"why"`
+	How   *string `json:"how"`
 }
 
 type StoredEvidence struct {
@@ -353,7 +338,11 @@ func (s *UseCase) PublishEvidence(ctx context.Context, rawEvidenceID string, inp
 		if strings.TrimSpace(input[index].ID) != "" {
 			return EvidenceResult{}, &ValidationError{Issues: []Issue{{Path: fmt.Sprintf("evidences[%d].id", index), Code: IssueInvalidFormat, Message: "must be omitted because Data generates Evidence IDs"}}}
 		}
-		id, err := coreid.Derive(coreid.Evidence, "atomic-evidence", rawEvidenceID, strconv.Itoa(input[index].SplitOrder))
+		seed, err := evidenceIdentitySeed(input[index])
+		if err != nil {
+			return EvidenceResult{}, fmt.Errorf("encode Evidence identity: %w", err)
+		}
+		id, err := coreid.Derive(coreid.Evidence, "atomic-evidence", rawEvidenceID, seed)
 		if err != nil {
 			return EvidenceResult{}, fmt.Errorf("generate Evidence ID: %w", err)
 		}
@@ -368,7 +357,7 @@ func (s *UseCase) PublishEvidence(ctx context.Context, rawEvidenceID string, inp
 	for index, item := range input {
 		records[index] = StoredEvidence{Evidence: cloneEvidence(item), RawEvidenceID: rawEvidenceID, IsSplit: isSplit}
 	}
-	sort.Slice(records, func(i, j int) bool { return records[i].SplitOrder < records[j].SplitOrder })
+	sort.Slice(records, func(i, j int) bool { return records[i].ID < records[j].ID })
 	ids := make([]string, len(records))
 	for index, record := range records {
 		ids[index] = record.ID
@@ -438,7 +427,6 @@ func validateEvidencePublication(rawEvidenceID string, input []Evidence) error {
 		issues = append(issues, Issue{Path: "evidences", Code: IssueRequired, Message: "at least one Evidence is required"})
 	}
 	seenIDs := make(map[string]struct{}, len(input))
-	seenOrders := make(map[int]struct{}, len(input))
 	for index, item := range input {
 		prefix := fmt.Sprintf("evidences[%d]", index)
 		requiredDomainID(&issues, prefix+".id", item.ID, EvidenceIDPrefix)
@@ -446,56 +434,19 @@ func validateEvidencePublication(rawEvidenceID string, input []Evidence) error {
 			issues = append(issues, Issue{Path: prefix + ".id", Code: IssueDuplicate, Message: "id must be unique within the publication"})
 		}
 		seenIDs[item.ID] = struct{}{}
-		if item.SplitOrder < 0 {
-			issues = append(issues, Issue{Path: prefix + ".split_order", Code: IssueOutOfRange, Message: "split_order must be non-negative"})
-		}
-		if _, ok := seenOrders[item.SplitOrder]; ok {
-			issues = append(issues, Issue{Path: prefix + ".split_order", Code: IssueDuplicate, Message: "split_order must be unique within the publication"})
-		}
-		seenOrders[item.SplitOrder] = struct{}{}
-		required(&issues, prefix+".source_what", item.SourceWhat, 0)
-		required(&issues, prefix+".expression_fingerprint", item.ExpressionFingerprint, 200)
-		required(&issues, prefix+".expression_key", item.ExpressionKey, 64)
-		required(&issues, prefix+".fingerprint_version", item.FingerprintVersion, 64)
-		validateOptionalEvidenceFields(&issues, prefix, item)
-		switch item.LayerType {
-		case LayerTypeSingle:
-			if hasCoreFields(item) {
-				issues = append(issues, Issue{Path: prefix + ".layer_type", Code: IssueInvalidLayer, Message: "SINGLE Evidence cannot declare core fields"})
-			}
-		case LayerTypeDouble:
-			if item.SourceWhatCore == nil || strings.TrimSpace(*item.SourceWhatCore) == "" {
-				issues = append(issues, Issue{Path: prefix + ".source_what_core", Code: IssueRequired, Message: "DOUBLE Evidence requires source_what_core"})
-			}
-		default:
-			issues = append(issues, Issue{Path: prefix + ".layer_type", Code: IssueInvalidEnum, Message: "layer_type is invalid"})
-		}
-	}
-	for expected := 0; expected < len(input); expected++ {
-		if _, ok := seenOrders[expected]; !ok {
-			issues = append(issues, Issue{Path: "evidences", Code: IssueNonContinuousSplitOrder, Message: "split_order must be continuous from zero"})
-			break
-		}
+		required(&issues, prefix+".summary", item.Summary, 200)
+		required(&issues, prefix+".semantic.what", item.Semantic.What, 0)
+		optional(&issues, prefix+".semantic.who", item.Semantic.Who, 0)
+		optional(&issues, prefix+".semantic.when", item.Semantic.When, 0)
+		optional(&issues, prefix+".semantic.where", item.Semantic.Where, 0)
+		optional(&issues, prefix+".semantic.why", item.Semantic.Why, 0)
+		optional(&issues, prefix+".semantic.how", item.Semantic.How, 0)
 	}
 	if len(issues) == 0 {
 		return nil
 	}
 	sortIssues(issues)
 	return &ValidationError{Issues: issues}
-}
-
-func validateOptionalEvidenceFields(issues *[]Issue, prefix string, item Evidence) {
-	if item.SourceWhen != nil && !isUTC(*item.SourceWhen) {
-		*issues = append(*issues, Issue{Path: prefix + ".source_when", Code: IssueInvalidTimestamp, Message: "source_when must use UTC"})
-	}
-	if item.SourceWhenCore != nil && !isUTC(*item.SourceWhenCore) {
-		*issues = append(*issues, Issue{Path: prefix + ".source_when_core", Code: IssueInvalidTimestamp, Message: "source_when_core must use UTC"})
-	}
-}
-
-func hasCoreFields(item Evidence) bool {
-	return item.SourceWhoCore != nil || item.SourceWhatCore != nil || item.SourceWhenCore != nil ||
-		item.SourceWhenRawCore != nil || item.SourceWhereCore != nil || item.SourceWhyCore != nil || item.SourceHowCore != nil
 }
 
 func evidenceSetConflict() error {
@@ -646,25 +597,11 @@ func missingCategoryIssue(requested []CategoryID, categories []Category) *Issue 
 }
 
 func cloneEvidence(input Evidence) Evidence {
-	input.SourceWho = cloneString(input.SourceWho)
-	input.SourceWhen = cloneTime(input.SourceWhen)
-	input.SourceWhenRaw = cloneString(input.SourceWhenRaw)
-	input.SourceWhere = cloneString(input.SourceWhere)
-	input.SourceWhy = cloneString(input.SourceWhy)
-	input.SourceHow = cloneString(input.SourceHow)
-	input.SourceWhoCore = cloneString(input.SourceWhoCore)
-	input.SourceWhatCore = cloneString(input.SourceWhatCore)
-	input.SourceWhenCore = cloneTime(input.SourceWhenCore)
-	if input.SourceWhen != nil {
-		*input.SourceWhen = normalizePostgresTime(*input.SourceWhen)
-	}
-	if input.SourceWhenCore != nil {
-		*input.SourceWhenCore = normalizePostgresTime(*input.SourceWhenCore)
-	}
-	input.SourceWhenRawCore = cloneString(input.SourceWhenRawCore)
-	input.SourceWhereCore = cloneString(input.SourceWhereCore)
-	input.SourceWhyCore = cloneString(input.SourceWhyCore)
-	input.SourceHowCore = cloneString(input.SourceHowCore)
+	input.Semantic.Who = cloneString(input.Semantic.Who)
+	input.Semantic.When = cloneString(input.Semantic.When)
+	input.Semantic.Where = cloneString(input.Semantic.Where)
+	input.Semantic.Why = cloneString(input.Semantic.Why)
+	input.Semantic.How = cloneString(input.Semantic.How)
 	return input
 }
 
@@ -704,12 +641,12 @@ func sameEvidenceSet(left, right []StoredEvidence) bool {
 	if len(left) != len(right) {
 		return false
 	}
-	leftByOrder := make(map[int]StoredEvidence, len(left))
+	leftByID := make(map[string]StoredEvidence, len(left))
 	for _, record := range left {
-		leftByOrder[record.SplitOrder] = record
+		leftByID[record.ID] = record
 	}
 	for _, record := range right {
-		existing, ok := leftByOrder[record.SplitOrder]
+		existing, ok := leftByID[record.ID]
 		if !ok || !sameEvidence(existing, record) {
 			return false
 		}
@@ -719,16 +656,24 @@ func sameEvidenceSet(left, right []StoredEvidence) bool {
 
 func sameEvidence(left, right StoredEvidence) bool {
 	return left.ID == right.ID && left.RawEvidenceID == right.RawEvidenceID &&
-		left.SplitOrder == right.SplitOrder && left.IsSplit == right.IsSplit && left.LayerType == right.LayerType &&
-		sameString(left.SourceWho, right.SourceWho) && left.SourceWhat == right.SourceWhat &&
-		sameTime(left.SourceWhen, right.SourceWhen) && sameString(left.SourceWhenRaw, right.SourceWhenRaw) &&
-		sameString(left.SourceWhere, right.SourceWhere) && sameString(left.SourceWhy, right.SourceWhy) &&
-		sameString(left.SourceHow, right.SourceHow) && sameString(left.SourceWhoCore, right.SourceWhoCore) &&
-		sameString(left.SourceWhatCore, right.SourceWhatCore) && sameTime(left.SourceWhenCore, right.SourceWhenCore) &&
-		sameString(left.SourceWhenRawCore, right.SourceWhenRawCore) && sameString(left.SourceWhereCore, right.SourceWhereCore) &&
-		sameString(left.SourceWhyCore, right.SourceWhyCore) && sameString(left.SourceHowCore, right.SourceHowCore) &&
-		left.ExpressionFingerprint == right.ExpressionFingerprint && left.ExpressionKey == right.ExpressionKey &&
-		left.FingerprintVersion == right.FingerprintVersion
+		left.IsSplit == right.IsSplit && left.Summary == right.Summary &&
+		sameSemantic(left.Semantic, right.Semantic)
+}
+
+func sameSemantic(left, right Semantic) bool {
+	return sameString(left.Who, right.Who) && left.What == right.What && sameString(left.When, right.When) &&
+		sameString(left.Where, right.Where) && sameString(left.Why, right.Why) && sameString(left.How, right.How)
+}
+
+func evidenceIdentitySeed(input Evidence) (string, error) {
+	value, err := json.Marshal(struct {
+		Summary  string   `json:"summary"`
+		Semantic Semantic `json:"semantic"`
+	}{Summary: input.Summary, Semantic: input.Semantic})
+	if err != nil {
+		return "", err
+	}
+	return contentHash(string(value)), nil
 }
 
 func sameString(left, right *string) bool {

@@ -124,7 +124,7 @@ func TestEvidencePublicationHTTPRunsMiddlewareWithStableOperation(t *testing.T) 
 		},
 		{
 			path:      v1.APIPrefix + "/evidence-publications",
-			body:      `{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"split_order":0,"layer_type":"SINGLE","source_what":"fact","expression_fingerprint":"fact","expression_key":"fact-v1","fingerprint_version":"v1"}]}`,
+			body:      `{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"summary":"fact","semantic":{"who":null,"what":"happened","when":null,"where":null,"why":null,"how":null}}]}`,
 			operation: OperationPublishEvidence,
 		},
 	} {
@@ -144,6 +144,29 @@ func TestEvidencePublicationHTTPRunsMiddlewareWithStableOperation(t *testing.T) 
 		if response.Code != v1.StatusCreated || operation != test.operation {
 			t.Errorf("%s status=%d operation=%q, want 201 %q", test.path, response.Code, operation, test.operation)
 		}
+	}
+}
+
+func TestEvidencePublicationHTTPBindsSummaryAndSingleLayerSemantic(t *testing.T) {
+	stub := &evidencePublicationHTTPStub{}
+	server := kratoshttp.NewServer()
+	RegisterHTTPServer(server, stub)
+	body := `{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"summary":"Example Corp expands production","semantic":{"who":"Example Corp","what":"expands production","when":null,"where":"Shanghai","why":null,"how":"by adding a new line"}}]}`
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/evidence-publications", strings.NewReader(body)))
+
+	if response.Code != v1.StatusCreated {
+		t.Fatalf("status = %d, want 201: %s", response.Code, response.Body.String())
+	}
+	if stub.evidenceRequest == nil || len(stub.evidenceRequest.Evidences) != 1 {
+		t.Fatalf("bound request = %#v", stub.evidenceRequest)
+	}
+	bound := stub.evidenceRequest.Evidences[0]
+	if bound.Summary != "Example Corp expands production" || bound.Semantic.Who == nil ||
+		*bound.Semantic.Who != "Example Corp" || bound.Semantic.What != "expands production" ||
+		bound.Semantic.When != nil || bound.Semantic.Where == nil || *bound.Semantic.Where != "Shanghai" ||
+		bound.Semantic.Why != nil || bound.Semantic.How == nil || *bound.Semantic.How != "by adding a new line" {
+		t.Fatalf("bound Evidence = %#v", bound)
 	}
 }
 
@@ -210,7 +233,9 @@ func TestEvidencePublicationHTTPRejectsDuplicateAndUnknownFields(t *testing.T) {
 	for _, body := range []string{
 		`{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[]}`,
 		`{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[],"group_id":"not-a-resource"}`,
-		`{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"evidence_id":"EVD5cb71bef-5b1d-5995-add0-7408eaa2be15","split_order":null,"layer_type":"SINGLE","source_what":"fact","expression_fingerprint":"fact","expression_key":"fact-v1","fingerprint_version":"v1"}]}`,
+		`{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"evidence_id":"EVD5cb71bef-5b1d-5995-add0-7408eaa2be15","summary":"fact","semantic":{"who":null,"what":"happened","when":null,"where":null,"why":null,"how":null}}]}`,
+		`{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"summary":"fact","semantic":{"who":null,"what":"happened","when":null,"where":null,"why":null}}]}`,
+		`{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"summary":"fact","semantic":{"who":null,"what":"happened","when":null,"where":null,"why":null,"how":null},"split_order":0}]}`,
 	} {
 		server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(func(response http.ResponseWriter, _ *http.Request, err error) {
 			public, ok := err.(*v1.PublicError)
@@ -242,7 +267,7 @@ func TestEvidencePublicationHTTPAppliesInternalExecutionBudget(t *testing.T) {
 		{
 			name: "Evidence",
 			path: v1.APIPrefix + "/evidence-publications",
-			body: `{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"split_order":0,"layer_type":"SINGLE","source_what":"fact","expression_fingerprint":"fact","expression_key":"fact-v1","fingerprint_version":"v1"}]}`,
+			body: `{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"summary":"fact","semantic":{"who":null,"what":"happened","when":null,"where":null,"why":null,"how":null}}]}`,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -273,7 +298,7 @@ func TestEvidencePublicationHTTPReturnsSafe503WhenInternalBudgetExpires(t *testi
 		},
 		{
 			path: v1.APIPrefix + "/evidence-publications",
-			body: `{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"split_order":0,"layer_type":"SINGLE","source_what":"fact","expression_fingerprint":"fact","expression_key":"fact-v1","fingerprint_version":"v1"}]}`,
+			body: `{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"summary":"fact","semantic":{"who":null,"what":"happened","when":null,"where":null,"why":null,"how":null}}]}`,
 		},
 	} {
 		server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(func(response http.ResponseWriter, request *http.Request, err error) {

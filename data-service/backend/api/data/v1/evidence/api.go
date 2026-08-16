@@ -101,25 +101,17 @@ type EvidencePublicationRequest struct {
 }
 
 type AtomicEvidence struct {
-	SplitOrder            int        `json:"split_order"`
-	LayerType             string     `json:"layer_type"`
-	SourceWho             *string    `json:"source_who"`
-	SourceWhat            string     `json:"source_what"`
-	SourceWhen            *time.Time `json:"source_when"`
-	SourceWhenRaw         *string    `json:"source_when_raw"`
-	SourceWhere           *string    `json:"source_where"`
-	SourceWhy             *string    `json:"source_why"`
-	SourceHow             *string    `json:"source_how"`
-	SourceWhoCore         *string    `json:"source_who_core"`
-	SourceWhatCore        *string    `json:"source_what_core"`
-	SourceWhenCore        *time.Time `json:"source_when_core"`
-	SourceWhenRawCore     *string    `json:"source_when_raw_core"`
-	SourceWhereCore       *string    `json:"source_where_core"`
-	SourceWhyCore         *string    `json:"source_why_core"`
-	SourceHowCore         *string    `json:"source_how_core"`
-	ExpressionFingerprint string     `json:"expression_fingerprint"`
-	ExpressionKey         string     `json:"expression_key"`
-	FingerprintVersion    string     `json:"fingerprint_version"`
+	Summary  string           `json:"summary"`
+	Semantic EvidenceSemantic `json:"semantic"`
+}
+
+type EvidenceSemantic struct {
+	Who   *string `json:"who"`
+	What  string  `json:"what"`
+	When  *string `json:"when"`
+	Where *string `json:"where"`
+	Why   *string `json:"why"`
+	How   *string `json:"how"`
 }
 
 type RawEvidencePublicationResult struct {
