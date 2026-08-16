@@ -1,0 +1,73 @@
+{
+  "request_id": "provider-contract-evidence-category-catalog",
+  "result": {
+    "categories": [
+      {
+        "id": "EVC7af2e623-fb5d-5145-91c8-dc308f2a1dce",
+        "code": "COMMENTARY_EDITORIAL_OPINION",
+        "name": "评论/社论/观点",
+        "description": "以作者或机构主观判断、立场和评价为核心的评论性内容。"
+      },
+      {
+        "id": "EVCc18ddddb-14bc-5496-99ea-963ee2c25597",
+        "code": "EVENT_BRIEF",
+        "name": "事件快讯",
+        "description": "简短报告已经发生或正在发生的事件，核心目的是说明发生了什么。"
+      },
+      {
+        "id": "EVC3a321d2c-1a58-5fde-bc69-fcdbb6d5180c",
+        "code": "FINANCIAL_REPORT_DATA_SUMMARY",
+        "name": "财报数据摘要",
+        "description": "提炼财务报告中的核心指标、同比环比变化或业绩表现。"
+      },
+      {
+        "id": "EVC097bf77a-fb8a-5756-ae47-e122c4367985",
+        "code": "FORECAST_PLAN_OUTLOOK",
+        "name": "预测/计划/展望",
+        "description": "表达对未来的预测、指引、目标、计划或行动展望。"
+      },
+      {
+        "id": "EVCed6e9380-8b20-53d5-b748-fa45c774fa67",
+        "code": "INDUSTRY_THEME_ANALYSIS",
+        "name": "行业/主题分析",
+        "description": "围绕产业链、行业或投资主题展开具有逻辑链条的分析。"
+      },
+      {
+        "id": "EVC083b086f-c9ee-504c-85e9-639fa8d39e8f",
+        "code": "INTERVIEW_OR_STATEMENT",
+        "name": "人物访谈/表态",
+        "description": "记录特定人物的采访内容、讲话、声明或公开表态。"
+      },
+      {
+        "id": "EVC5b12ffce-178d-56ed-a54f-c01696c486f4",
+        "code": "IN_DEPTH_REPORT",
+        "name": "专题/深度报道",
+        "description": "围绕一个专题进行长篇、多角度调查、梳理或深度报道。"
+      },
+      {
+        "id": "EVC22332f49-2236-5cc4-aa2c-c53c29f09906",
+        "code": "MARKET_MOVEMENT_ANALYSIS",
+        "name": "市场异动分析",
+        "description": "分析市场价格或指标变化的原因、传导关系及潜在影响。"
+      },
+      {
+        "id": "EVC02a34cd9-b141-5a77-a628-c4458b77dd4e",
+        "code": "MARKET_MOVEMENT_BRIEF",
+        "name": "行情异动简讯",
+        "description": "简短报告市场价格、收益率、成交量等指标的显著变化，通常只附简要原因。"
+      },
+      {
+        "id": "EVC5965b67d-1578-54a6-9b81-900a61a47a3f",
+        "code": "POLICY_DOCUMENT_SUMMARY",
+        "name": "政策文件摘要",
+        "description": "对正式政策、法规、规划或政府文件进行解读和摘要。"
+      },
+      {
+        "id": "EVCb7505968-f65e-55a5-9294-b8a7be829a4a",
+        "code": "SOCIAL_MEDIA_BRIEF",
+        "name": "社交媒体快讯",
+        "description": "来自社交媒体平台的简短发布、评论或即时消息。"
+      }
+    ]
+  }
+}

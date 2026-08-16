@@ -1,6 +1,7 @@
 package evidence
 
 import (
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -17,11 +18,61 @@ type Store struct{ db *sql.DB }
 
 var categoryCodePattern = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 
+const categorySelect = `
+SELECT category.id, category.code, category.name, category.description, category.created_at
+FROM evidence_categories AS category`
+
+const categoryCatalogQuery = categorySelect + ` ORDER BY category.code COLLATE "C", category.id COLLATE "C"`
+
 func NewStore(db *sql.DB) (Store, error) {
 	if db == nil {
 		return Store{}, errors.New("Evidence database is required")
 	}
 	return Store{db: db}, nil
+}
+
+func (s Store) ListCategories(ctx context.Context) ([]evidencebiz.Category, error) {
+	rows, err := s.db.QueryContext(ctx, categoryCatalogQuery)
+	if err != nil {
+		return nil, fmt.Errorf("query Evidence Category Catalog: %w", err)
+	}
+	defer rows.Close()
+	categories := make([]evidencebiz.Category, 0)
+	seenIDs := make(map[evidencebiz.CategoryID]struct{})
+	seenCodes := make(map[string]struct{})
+	for rows.Next() {
+		var category evidencebiz.Category
+		var id string
+		if err := rows.Scan(&id, &category.Code, &category.Name, &category.Description, &category.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan Evidence Category Catalog: %w", err)
+		}
+		category.ID = evidencebiz.CategoryID(id)
+		if err := validateStoredCategory(&category); err != nil {
+			return nil, fmt.Errorf("read Evidence Category Catalog invariant: %w", err)
+		}
+		if _, duplicate := seenIDs[category.ID]; duplicate {
+			return nil, persistedInvariant("Evidence Category Catalog", "id", "query returned a duplicate identity")
+		}
+		if _, duplicate := seenCodes[category.Code]; duplicate {
+			return nil, persistedInvariant("Evidence Category Catalog", "code", "query returned a duplicate code")
+		}
+		if len(categories) > 0 {
+			previous := categories[len(categories)-1]
+			if previous.Code > category.Code || previous.Code == category.Code && previous.ID >= category.ID {
+				return nil, persistedInvariant("Evidence Category Catalog", "order", "query result is not ordered by code and ID")
+			}
+		}
+		seenIDs[category.ID] = struct{}{}
+		seenCodes[category.Code] = struct{}{}
+		categories = append(categories, category)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate Evidence Category Catalog: %w", err)
+	}
+	if len(categories) == 0 {
+		return nil, persistedInvariant("Evidence Category Catalog", "categories", "catalog is empty")
+	}
+	return categories, nil
 }
 
 type persistedInvariantError struct {

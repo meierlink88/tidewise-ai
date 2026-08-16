@@ -8,11 +8,13 @@ import (
 )
 
 const (
-	OperationPublishRawEvidence = "data.v1.publishRawEvidence"
-	OperationGetRawEvidence     = "data.v1.getRawEvidence"
-	OperationPublishEvidence    = "data.v1.publishEvidence"
+	OperationPublishRawEvidence     = "data.v1.publishRawEvidence"
+	OperationGetRawEvidence         = "data.v1.getRawEvidence"
+	OperationPublishEvidence        = "data.v1.publishEvidence"
+	OperationListEvidenceCategories = "data.v1.listEvidenceCategories"
 
 	ErrorInvalidRequest                      = "INVALID_REQUEST"
+	ErrorDataServiceNotReady                 = "DATA_SERVICE_NOT_READY"
 	ErrorEvidencePublicationInvalid          = "EVIDENCE_PUBLICATION_INVALID"
 	ErrorEvidencePublicationReferenceInvalid = "EVIDENCE_PUBLICATION_REFERENCE_INVALID"
 	ErrorEvidencePublicationConflict         = "EVIDENCE_PUBLICATION_CONFLICT"
@@ -21,16 +23,19 @@ const (
 	ErrorRawEvidenceNotFound                 = "RAW_EVIDENCE_NOT_FOUND"
 	ErrorRawEvidenceReadTimeout              = "RAW_EVIDENCE_READ_TIMEOUT"
 	ErrorRawEvidenceReadFailed               = "RAW_EVIDENCE_READ_FAILED"
+	ErrorEvidenceCategoryCatalogFailed       = "EVIDENCE_CATEGORY_CATALOG_FAILED"
+	ErrorEvidenceCategoryCatalogTimeout      = "EVIDENCE_CATEGORY_CATALOG_TIMEOUT"
 )
 
 func BusinessOperations() []string {
-	return []string{OperationPublishRawEvidence, OperationGetRawEvidence, OperationPublishEvidence}
+	return []string{OperationPublishRawEvidence, OperationGetRawEvidence, OperationPublishEvidence, OperationListEvidenceCategories}
 }
 
 type Service interface {
 	PublishRawEvidence(context.Context, *RawEvidencePublicationRequest) (*v1.Response[RawEvidencePublicationResult], error)
 	GetRawEvidence(context.Context, *GetRawEvidenceRequest) (*v1.Response[RawEvidenceReadResult], error)
 	PublishEvidence(context.Context, *EvidencePublicationRequest) (*v1.Response[EvidencePublicationResult], error)
+	ListEvidenceCategories(context.Context) (*v1.Response[EvidenceCategoryCatalog], error)
 }
 
 type RawEvidencePublicationRequest struct {
@@ -63,6 +68,10 @@ type EvidenceCategory struct {
 	Code        string `json:"code"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+}
+
+type EvidenceCategoryCatalog struct {
+	Categories []EvidenceCategory `json:"categories"`
 }
 
 type RawEvidenceRead struct {

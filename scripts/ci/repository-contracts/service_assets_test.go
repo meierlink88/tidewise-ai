@@ -439,6 +439,7 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		t.Fatalf("read Admin Portal to AgentRun Compose smoke script: %v", err)
 	}
 	agentRunSmoke := string(agentRunSmokeContents)
+	assertSmokeCreatesExternalNetworkBeforeCompose(t, "Admin Portal to AgentRun", agentRunSmoke)
 	for _, required := range []string{
 		"data-migrate",
 		"agentrun-migrate",
@@ -460,6 +461,7 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		t.Fatalf("read Miniapp Compose smoke script: %v", err)
 	}
 	smoke := string(smokeContents)
+	assertSmokeCreatesExternalNetworkBeforeCompose(t, "Miniapp to Data Service", smoke)
 	for _, required := range []string{
 		"data-migrate",
 		"PGOPTIONS",
@@ -478,6 +480,26 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		if !strings.Contains(smoke, required) {
 			t.Fatalf("Miniapp Compose smoke script missing %q", required)
 		}
+	}
+}
+
+func assertSmokeCreatesExternalNetworkBeforeCompose(t *testing.T, name, script string) {
+	t.Helper()
+	const networkCreate = `docker network create "$COMPOSE_NETWORK_NAME"`
+	const composeCreate = `"${compose[@]}" create`
+	networkCreateIndex := strings.Index(script, networkCreate)
+	if networkCreateIndex < 0 {
+		t.Fatalf("%s Compose smoke script must create its external network", name)
+	}
+	composeCreateIndex := strings.Index(script, composeCreate)
+	if composeCreateIndex < 0 {
+		t.Fatalf("%s Compose smoke script must create its services", name)
+	}
+	if networkCreateIndex > composeCreateIndex {
+		t.Fatalf("%s Compose smoke script must create its external network before its services", name)
+	}
+	if !strings.Contains(script, `docker network rm "$COMPOSE_NETWORK_NAME"`) {
+		t.Fatalf("%s Compose smoke script must remove its external network during cleanup", name)
 	}
 }
 

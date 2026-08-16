@@ -2,7 +2,7 @@ package evidence
 
 import "context"
 
-type Store interface {
+type TransactionStore interface {
 	InTransaction(context.Context, func(Transaction) error) error
 }
 

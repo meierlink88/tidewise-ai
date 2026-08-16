@@ -920,6 +920,10 @@ func (testEvidenceService) PublishEvidence(context.Context, *evidenceapi.Evidenc
 	return &v1.Response[evidenceapi.EvidencePublicationResult]{Status: http.StatusNoContent}, nil
 }
 
+func (testEvidenceService) ListEvidenceCategories(context.Context) (*v1.Response[evidenceapi.EvidenceCategoryCatalog], error) {
+	return &v1.Response[evidenceapi.EvidenceCategoryCatalog]{Status: http.StatusNoContent}, nil
+}
+
 func marshalPublication(t *testing.T, publication eventbiz.PublicationBatch) []byte {
 	t.Helper()
 	return mustJSON(t, publication)

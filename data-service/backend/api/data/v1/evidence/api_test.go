@@ -1,6 +1,9 @@
 package evidence
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -8,6 +11,44 @@ import (
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	"gopkg.in/yaml.v3"
 )
+
+func TestEvidenceCategoryCatalogProviderFixtureMatchesExactDTO(t *testing.T) {
+	payload, err := os.ReadFile("testdata/evidence-category-catalog.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var envelope struct {
+		RequestID string                  `json:"request_id"`
+		Result    EvidenceCategoryCatalog `json:"result"`
+	}
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&envelope); err != nil {
+		t.Fatal(err)
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		t.Fatalf("fixture contains trailing JSON: %v", err)
+	}
+	if envelope.RequestID == "" || len(envelope.Result.Categories) != 11 {
+		t.Fatalf("fixture envelope = request_id %q, category count %d", envelope.RequestID, len(envelope.Result.Categories))
+	}
+	wantCodes := []string{
+		"COMMENTARY_EDITORIAL_OPINION", "EVENT_BRIEF", "FINANCIAL_REPORT_DATA_SUMMARY",
+		"FORECAST_PLAN_OUTLOOK", "INDUSTRY_THEME_ANALYSIS", "INTERVIEW_OR_STATEMENT",
+		"IN_DEPTH_REPORT", "MARKET_MOVEMENT_ANALYSIS", "MARKET_MOVEMENT_BRIEF",
+		"POLICY_DOCUMENT_SUMMARY", "SOCIAL_MEDIA_BRIEF",
+	}
+	seenIDs := make(map[string]struct{}, len(wantCodes))
+	for index, category := range envelope.Result.Categories {
+		if category.Code != wantCodes[index] || category.ID == "" || category.Name == "" || category.Description == "" {
+			t.Fatalf("fixture category[%d] = %#v, want code %s with complete fields", index, category, wantCodes[index])
+		}
+		if _, duplicate := seenIDs[category.ID]; duplicate {
+			t.Fatalf("fixture contains duplicate category ID %q", category.ID)
+		}
+		seenIDs[category.ID] = struct{}{}
+	}
+}
 
 func TestEvidencePublicationProviderFixturesAreContractNeutralAndTwoPhase(t *testing.T) {
 	rawPayload, err := os.ReadFile("testdata/raw-evidence-publication.json")
@@ -115,5 +156,75 @@ func TestRawEvidenceCategoryOpenAPIContract(t *testing.T) {
 	items := categories["items"].(map[string]any)
 	if items["$ref"] != "#/components/schemas/EvidenceCategory" {
 		t.Fatalf("RawEvidenceRead categories = %#v", categories)
+	}
+}
+
+func TestEvidenceCategoryCatalogOpenAPIContract(t *testing.T) {
+	var document map[string]any
+	if err := yaml.Unmarshal(v1.Document(), &document); err != nil {
+		t.Fatal(err)
+	}
+	paths := document["paths"].(map[string]any)
+	path, exists := paths[v1.APIPrefix+"/evidence-categories"].(map[string]any)
+	if !exists {
+		t.Fatal("Evidence Category Catalog path is missing")
+	}
+	operation := path["get"].(map[string]any)
+	for field, want := range map[string]any{
+		"operationId":              "listEvidenceCategories",
+		"x-client-drift-anchor":    "data.v1.listEvidenceCategories",
+		"x-required-service-scope": "data.evidence-categories.read",
+		"x-retry-policy":           "safe-get",
+		"x-timeout-budget-ms":      3000,
+	} {
+		if got := operation[field]; got != want {
+			t.Fatalf("%s = %#v, want %#v", field, got, want)
+		}
+	}
+	parameters := operation["parameters"].([]any)
+	if len(parameters) != 1 || parameters[0].(map[string]any)["$ref"] != "#/components/parameters/RequestID" {
+		t.Fatalf("parameters = %#v, want only RequestID", parameters)
+	}
+	responses := operation["responses"].(map[string]any)
+	for _, status := range []string{"200", "400", "401", "403", "500", "503"} {
+		if _, exists := responses[status]; !exists {
+			t.Fatalf("response %s is missing", status)
+		}
+	}
+	if responses["500"].(map[string]any)["$ref"] != "#/components/responses/EvidenceCategoryCatalogFailed" ||
+		responses["503"].(map[string]any)["$ref"] != "#/components/responses/EvidenceCategoryCatalogTimeout" {
+		t.Fatalf("catalog error responses = 500:%#v 503:%#v", responses["500"], responses["503"])
+	}
+	components := document["components"].(map[string]any)["schemas"].(map[string]any)
+	for schemaName, wantCode := range map[string]string{
+		"EvidenceCategoryCatalogFailedErrorDetail":  ErrorEvidenceCategoryCatalogFailed,
+		"EvidenceCategoryCatalogTimeoutErrorDetail": ErrorEvidenceCategoryCatalogTimeout,
+	} {
+		detail := components[schemaName].(map[string]any)
+		code := detail["properties"].(map[string]any)["code"].(map[string]any)
+		enum := code["enum"].([]any)
+		if len(enum) != 1 || enum[0] != wantCode {
+			t.Fatalf("%s code enum = %#v", schemaName, enum)
+		}
+	}
+	category := components["EvidenceCategory"].(map[string]any)
+	if category["additionalProperties"] != false {
+		t.Fatal("EvidenceCategory must reject additional properties")
+	}
+	code := category["properties"].(map[string]any)["code"].(map[string]any)
+	if code["pattern"] != "^[A-Z][A-Z0-9_]*$" {
+		t.Fatalf("EvidenceCategory code pattern = %#v", code["pattern"])
+	}
+	result := components["EvidenceCategoryCatalog"].(map[string]any)
+	if result["additionalProperties"] != false {
+		t.Fatal("EvidenceCategoryCatalog must reject additional properties")
+	}
+	categories := result["properties"].(map[string]any)["categories"].(map[string]any)
+	if categories["minItems"] != 1 {
+		t.Fatalf("categories minItems = %#v, want 1", categories["minItems"])
+	}
+	envelope := components["EvidenceCategoryCatalogEnvelope"].(map[string]any)
+	if envelope["additionalProperties"] != false {
+		t.Fatal("EvidenceCategoryCatalogEnvelope must reject additional properties")
 	}
 }

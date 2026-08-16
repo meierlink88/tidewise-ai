@@ -569,3 +569,7 @@ func (semanticTestEvidenceService) GetRawEvidence(context.Context, *evidenceapi.
 func (semanticTestEvidenceService) PublishEvidence(context.Context, *evidenceapi.EvidencePublicationRequest) (*v1.Response[evidenceapi.EvidencePublicationResult], error) {
 	return &v1.Response[evidenceapi.EvidencePublicationResult]{Status: http.StatusNoContent}, nil
 }
+
+func (semanticTestEvidenceService) ListEvidenceCategories(context.Context) (*v1.Response[evidenceapi.EvidenceCategoryCatalog], error) {
+	return &v1.Response[evidenceapi.EvidenceCategoryCatalog]{Status: http.StatusNoContent}, nil
+}

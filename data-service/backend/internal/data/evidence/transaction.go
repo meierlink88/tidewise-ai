@@ -115,10 +115,6 @@ WHERE link.raw_evidence_id = $1
 ORDER BY category.id`, rawEvidenceID)
 }
 
-const categorySelect = `
-SELECT category.id, category.code, category.name, category.description, category.created_at
-FROM evidence_categories AS category`
-
 func (t *transaction) categories(ctx context.Context, query string, argument any) ([]evidencebiz.Category, error) {
 	rows, err := t.tx.QueryContext(ctx, query, argument)
 	if err != nil {

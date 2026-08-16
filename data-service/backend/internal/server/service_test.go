@@ -1,8 +1,10 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -171,6 +173,58 @@ func TestServerEnforcesResearchReadScopeOnResearchRoutes(t *testing.T) {
 		if response.Code != test.want {
 			t.Fatalf("token=%s status=%d want=%d body=%s", test.token, response.Code, test.want, response.Body.String())
 		}
+	}
+}
+
+func TestServerEnforcesEvidenceCategoryReadScope(t *testing.T) {
+	authenticator, err := NewAuthenticator([]Credential{
+		{Secret: "catalog-token", Principal: dataapi.Principal{Identity: "agentos", Scopes: []string{"data.evidence-categories.read"}}},
+		{Secret: "raw-read-token", Principal: dataapi.Principal{Identity: "raw-reader", Scopes: []string{ScopeRawEvidenceRead}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := newTestHTTPServer(testConfig(), serverTestDataService{}, serverTestEvidenceService{}, authenticator).Server.Handler
+	for _, test := range []struct {
+		name, token string
+		want        int
+	}{
+		{name: "missing credential", want: http.StatusUnauthorized},
+		{name: "invalid credential", token: "unknown-token", want: http.StatusUnauthorized},
+		{name: "wrong scope", token: "raw-read-token", want: http.StatusForbidden},
+		{name: "authorized", token: "catalog-token", want: http.StatusOK},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodGet, dataapi.APIPrefix+"/evidence-categories", nil)
+			if test.token != "" {
+				request.Header.Set("Authorization", "Bearer "+test.token)
+			}
+			request.Header.Set("X-Request-ID", "catalog-request")
+			handler.ServeHTTP(response, request)
+			if response.Code != test.want {
+				t.Fatalf("status=%d want=%d body=%s", response.Code, test.want, response.Body)
+			}
+			if test.name == "authorized" {
+				var envelope struct {
+					RequestID string `json:"request_id"`
+					Result    struct {
+						Categories []evidenceapi.EvidenceCategory `json:"categories"`
+					} `json:"result"`
+				}
+				decoder := json.NewDecoder(bytes.NewReader(response.Body.Bytes()))
+				decoder.DisallowUnknownFields()
+				if err := decoder.Decode(&envelope); err != nil {
+					t.Fatal(err)
+				}
+				if err := decoder.Decode(new(any)); err != io.EOF {
+					t.Fatalf("response contains trailing JSON: %v", err)
+				}
+				if envelope.RequestID != "catalog-request" || len(envelope.Result.Categories) != 1 || envelope.Result.Categories[0].Code != "EVENT_BRIEF" {
+					t.Fatalf("envelope = %#v", envelope)
+				}
+			}
+		})
 	}
 }
 
@@ -512,6 +566,14 @@ func (serverTestEvidenceService) GetRawEvidence(context.Context, *evidenceapi.Ge
 
 func (serverTestEvidenceService) PublishEvidence(context.Context, *evidenceapi.EvidencePublicationRequest) (*dataapi.Response[evidenceapi.EvidencePublicationResult], error) {
 	return serverTestResponse[evidenceapi.EvidencePublicationResult]()
+}
+
+func (serverTestEvidenceService) ListEvidenceCategories(context.Context) (*dataapi.Response[evidenceapi.EvidenceCategoryCatalog], error) {
+	return &dataapi.Response[evidenceapi.EvidenceCategoryCatalog]{Status: http.StatusOK, Result: evidenceapi.EvidenceCategoryCatalog{
+		Categories: []evidenceapi.EvidenceCategory{{
+			ID: "EVCc18ddddb-14bc-5496-99ea-963ee2c25597", Code: "EVENT_BRIEF", Name: "事件快讯", Description: "事件快讯定义",
+		}},
+	}}, nil
 }
 
 func serverTestResponse[T any]() (*dataapi.Response[T], error) {

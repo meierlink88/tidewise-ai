@@ -13,6 +13,7 @@ type UseCase interface {
 	PublishRawEvidence(context.Context, evidencebiz.RawEvidence) (evidencebiz.RawEvidenceResult, error)
 	GetRawEvidence(context.Context, string) (evidencebiz.StoredRawEvidence, error)
 	PublishEvidence(context.Context, string, []evidencebiz.Evidence) (evidencebiz.EvidenceResult, error)
+	ListCategories(context.Context) (evidencebiz.CategoryCatalog, error)
 }
 
 type Service struct{ useCase UseCase }
@@ -24,9 +25,38 @@ func NewService(useCase UseCase) (*Service, error) {
 	return &Service{useCase: useCase}, nil
 }
 
+func (s *Service) ListEvidenceCategories(ctx context.Context) (*v1.Response[evidenceapi.EvidenceCategoryCatalog], error) {
+	if s == nil || s.useCase == nil {
+		return nil, publicError(v1.StatusInternalServerError, evidenceapi.ErrorDataServiceNotReady, "Evidence Category Catalog service is unavailable")
+	}
+	catalog, err := s.useCase.ListCategories(ctx)
+	if err != nil {
+		return nil, evidenceCategoryCatalogError(err)
+	}
+	categories := make([]evidenceapi.EvidenceCategory, len(catalog.Categories))
+	for index, category := range catalog.Categories {
+		categories[index] = evidenceapi.EvidenceCategory{
+			ID: string(category.ID), Code: category.Code, Name: category.Name, Description: category.Description,
+		}
+	}
+	return &v1.Response[evidenceapi.EvidenceCategoryCatalog]{Status: v1.StatusOK, Result: evidenceapi.EvidenceCategoryCatalog{
+		Categories: categories,
+	}}, nil
+}
+
+func evidenceCategoryCatalogError(err error) error {
+	if errors.Is(err, context.Canceled) {
+		return context.Canceled
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return publicError(v1.StatusServiceUnavailable, evidenceapi.ErrorEvidenceCategoryCatalogTimeout, "Evidence Category Catalog execution budget exceeded")
+	}
+	return publicError(v1.StatusInternalServerError, evidenceapi.ErrorEvidenceCategoryCatalogFailed, "Evidence Category Catalog is unavailable")
+}
+
 func (s *Service) GetRawEvidence(ctx context.Context, request *evidenceapi.GetRawEvidenceRequest) (*v1.Response[evidenceapi.RawEvidenceReadResult], error) {
 	if s == nil || s.useCase == nil {
-		return nil, publicError(v1.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "Evidence service is unavailable")
+		return nil, publicError(v1.StatusInternalServerError, evidenceapi.ErrorDataServiceNotReady, "Evidence service is unavailable")
 	}
 	result, err := s.useCase.GetRawEvidence(ctx, request.RawEvidenceID)
 	if err != nil {
@@ -40,7 +70,7 @@ func (s *Service) GetRawEvidence(ctx context.Context, request *evidenceapi.GetRa
 
 func (s *Service) PublishRawEvidence(ctx context.Context, request *evidenceapi.RawEvidencePublicationRequest) (*v1.Response[evidenceapi.RawEvidencePublicationResult], error) {
 	if s == nil || s.useCase == nil {
-		return nil, publicError(v1.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "Evidence Publication service is unavailable")
+		return nil, publicError(v1.StatusInternalServerError, evidenceapi.ErrorDataServiceNotReady, "Evidence Publication service is unavailable")
 	}
 	result, err := s.useCase.PublishRawEvidence(ctx, rawEvidenceInput(request.RawEvidence))
 	if err != nil {
@@ -51,7 +81,7 @@ func (s *Service) PublishRawEvidence(ctx context.Context, request *evidenceapi.R
 
 func (s *Service) PublishEvidence(ctx context.Context, request *evidenceapi.EvidencePublicationRequest) (*v1.Response[evidenceapi.EvidencePublicationResult], error) {
 	if s == nil || s.useCase == nil {
-		return nil, publicError(v1.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "Evidence Publication service is unavailable")
+		return nil, publicError(v1.StatusInternalServerError, evidenceapi.ErrorDataServiceNotReady, "Evidence Publication service is unavailable")
 	}
 	items := make([]evidencebiz.Evidence, len(request.Evidences))
 	for index, item := range request.Evidences {

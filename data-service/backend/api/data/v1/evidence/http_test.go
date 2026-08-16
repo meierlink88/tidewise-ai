@@ -22,6 +22,95 @@ type evidencePublicationHTTPStub struct {
 	blockUntilDone  bool
 }
 
+func (s *evidencePublicationHTTPStub) ListEvidenceCategories(ctx context.Context) (*v1.Response[EvidenceCategoryCatalog], error) {
+	s.deadline, _ = ctx.Deadline()
+	if s.blockUntilDone {
+		<-ctx.Done()
+		return nil, v1.NewPublicError(v1.StatusServiceUnavailable, ErrorEvidenceCategoryCatalogTimeout, "Evidence Category Catalog execution budget exceeded", nil)
+	}
+	return &v1.Response[EvidenceCategoryCatalog]{Status: v1.StatusOK, Result: EvidenceCategoryCatalog{
+		Categories: []EvidenceCategory{{
+			ID: "EVCc18ddddb-14bc-5496-99ea-963ee2c25597", Code: "EVENT_BRIEF",
+			Name: "事件快讯", Description: "简短报告已经发生或正在发生的事件，核心目的是说明发生了什么。",
+		}},
+	}}, nil
+}
+
+func TestEvidenceCategoryCatalogHTTPRejectsQueryParameters(t *testing.T) {
+	for _, rawQuery := range []string{"limit=1", "bad;param"} {
+		t.Run(rawQuery, func(t *testing.T) {
+			server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(func(response http.ResponseWriter, _ *http.Request, err error) {
+				public, ok := err.(*v1.PublicError)
+				if !ok {
+					t.Fatalf("error = %T %v, want PublicError", err, err)
+				}
+				response.WriteHeader(public.Status)
+			}))
+			RegisterHTTPServer(server, &evidencePublicationHTTPStub{})
+			response := httptest.NewRecorder()
+			server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, v1.APIPrefix+"/evidence-categories?"+rawQuery, nil))
+			if response.Code != v1.StatusBadRequest {
+				t.Fatalf("status=%d body=%s, want 400", response.Code, response.Body)
+			}
+		})
+	}
+}
+
+func TestEvidenceCategoryCatalogHTTPReturnsSafe503WhenInternalBudgetExpires(t *testing.T) {
+	server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(func(response http.ResponseWriter, request *http.Request, err error) {
+		public, ok := err.(*v1.PublicError)
+		if !ok {
+			t.Fatalf("error = %T %v, want PublicError", err, err)
+		}
+		response.WriteHeader(public.Status)
+		_ = json.NewEncoder(response).Encode(map[string]any{
+			"request_id": request.Header.Get("X-Request-ID"),
+			"error":      map[string]any{"code": public.Code, "message": public.Message, "details": public.Details},
+		})
+	}))
+	registerHTTPServer(server, &evidencePublicationHTTPStub{blockUntilDone: true}, 5*time.Millisecond)
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, v1.APIPrefix+"/evidence-categories", nil)
+	request.Header.Set("X-Request-ID", "catalog-timeout-request")
+	server.ServeHTTP(response, request)
+	if response.Code != v1.StatusServiceUnavailable ||
+		!strings.Contains(response.Body.String(), `"code":"`+ErrorEvidenceCategoryCatalogTimeout+`"`) ||
+		!strings.Contains(response.Body.String(), `"request_id":"catalog-timeout-request"`) {
+		t.Fatalf("timeout response status=%d body=%s", response.Code, response.Body)
+	}
+}
+
+func TestEvidenceCategoryCatalogHTTPRunsStableOperationWithBudget(t *testing.T) {
+	var operation string
+	recorder := func(next middleware.Handler) middleware.Handler {
+		return func(ctx context.Context, request any) (any, error) {
+			if serverTransport, ok := transport.FromServerContext(ctx); ok {
+				operation = serverTransport.Operation()
+			}
+			return next(ctx, request)
+		}
+	}
+	stub := &evidencePublicationHTTPStub{}
+	server := kratoshttp.NewServer(kratoshttp.Middleware(recorder))
+	startedAt := time.Now()
+	RegisterHTTPServer(server, stub)
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, v1.APIPrefix+"/evidence-categories", nil))
+	if response.Code != v1.StatusOK || operation != OperationListEvidenceCategories {
+		t.Fatalf("status=%d operation=%q body=%s", response.Code, operation, response.Body)
+	}
+	if stub.deadline.IsZero() || stub.deadline.Sub(startedAt) <= 0 || stub.deadline.Sub(startedAt) > ExecutionBudget {
+		t.Fatalf("Evidence Category Catalog deadline = %s", stub.deadline)
+	}
+	var catalog EvidenceCategoryCatalog
+	if err := json.Unmarshal(response.Body.Bytes(), &catalog); err != nil {
+		t.Fatal(err)
+	}
+	if len(catalog.Categories) != 1 || catalog.Categories[0].Code != "EVENT_BRIEF" {
+		t.Fatalf("catalog = %#v", catalog)
+	}
+}
+
 func TestEvidencePublicationHTTPRunsMiddlewareWithStableOperation(t *testing.T) {
 	for _, test := range []struct {
 		path      string

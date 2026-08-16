@@ -7,10 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
@@ -83,6 +85,15 @@ type Category struct {
 	Name        string
 	Description string
 	CreatedAt   time.Time
+}
+
+type CategoryCatalog struct {
+	Categories []Category
+}
+
+type Store interface {
+	TransactionStore
+	ListCategories(context.Context) ([]Category, error)
 }
 
 type Evidence struct {
@@ -158,6 +169,8 @@ func (e *ReferenceError) Error() string {
 
 var ErrRawEvidenceNotFound = errors.New("Raw Evidence was not found")
 
+var categoryCodePattern = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
+
 var allowedSourceLevels = map[SourceLevel]struct{}{
 	SourceLevelOfficial: {},
 	SourceLevelWire:     {},
@@ -178,6 +191,48 @@ func NewUseCase(store Store) (*UseCase, error) {
 		return nil, errors.New("Evidence Publication store is required")
 	}
 	return &UseCase{store: store}, nil
+}
+
+func (s *UseCase) ListCategories(ctx context.Context) (CategoryCatalog, error) {
+	if s == nil || s.store == nil {
+		return CategoryCatalog{}, errors.New("Evidence Category Catalog store is required")
+	}
+	categories, err := s.store.ListCategories(ctx)
+	if err != nil {
+		return CategoryCatalog{}, fmt.Errorf("list Evidence Categories: %w", err)
+	}
+	if len(categories) == 0 {
+		return CategoryCatalog{}, errors.New("Evidence Category Catalog is empty")
+	}
+	categories = cloneCategories(categories)
+	seenIDs := make(map[CategoryID]struct{}, len(categories))
+	seenCodes := make(map[string]struct{}, len(categories))
+	for _, category := range categories {
+		if !category.ID.IsValid() {
+			return CategoryCatalog{}, errors.New("Evidence Category Catalog contains an invalid category ID")
+		}
+		if !categoryCodePattern.MatchString(category.Code) || len(category.Code) > 50 {
+			return CategoryCatalog{}, errors.New("Evidence Category Catalog contains an invalid category code")
+		}
+		if strings.TrimSpace(category.Name) == "" || utf8.RuneCountInString(category.Name) > 50 || strings.TrimSpace(category.Description) == "" {
+			return CategoryCatalog{}, errors.New("Evidence Category Catalog contains incomplete category content")
+		}
+		if _, duplicate := seenIDs[category.ID]; duplicate {
+			return CategoryCatalog{}, errors.New("Evidence Category Catalog contains a duplicate category ID")
+		}
+		if _, duplicate := seenCodes[category.Code]; duplicate {
+			return CategoryCatalog{}, errors.New("Evidence Category Catalog contains a duplicate category code")
+		}
+		seenIDs[category.ID] = struct{}{}
+		seenCodes[category.Code] = struct{}{}
+	}
+	sort.Slice(categories, func(left, right int) bool {
+		if categories[left].Code != categories[right].Code {
+			return categories[left].Code < categories[right].Code
+		}
+		return categories[left].ID < categories[right].ID
+	})
+	return CategoryCatalog{Categories: categories}, nil
 }
 
 func (s *UseCase) PublishRawEvidence(ctx context.Context, input RawEvidence) (RawEvidenceResult, error) {
