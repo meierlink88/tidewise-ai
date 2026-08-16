@@ -63,7 +63,8 @@ Organization 唯一的可维护组织形态目录项，以 `OCA + canonical lowe
 _Avoid_: PostgreSQL enum、通用 Dictionary、带状态或展示顺序的分类
 
 **Organization Function**:
-Organization 唯一的可维护核心职能目录项；Domain Tag 必须归属于一个 Function。
+以 `OFN + canonical lowercase UUID` 为稳定身份的 Organization 唯一可维护核心职能目录项，
+code 作唯一自然键；Domain Tag 必须归属于一个 Function。
 _Avoid_: 多选核心职能、自由文本职能、与 Domain Tag 混用
 
 **Organization Domain Tag**:

@@ -32,7 +32,8 @@ Data 各领域曾并存裸 UUID、`PREFIX_ + code`、固定短码和非 UUID 自
 ## 受控对象前缀
 
 `ENT` Entity、`ERL` Entity Relation、`COU` Country、`REG` Region、`ORG` Organization、
-`OCA` Organization Category、`ODT` Organization Domain Tag、`ODL` Organization Domain Tag Link、
+`OCA` Organization Category、`OFN` Organization Function、`ODT` Organization Domain Tag、
+`ODL` Organization Domain Tag Link、
 `RAW` Raw Evidence、`EVD` Evidence、`EVC` Evidence Category、`RCL` Raw Evidence Category Link、`CPC` Chain Node Physical
 Constraint、`CNR` Chain Node Relation、`CRL` Country Region Link、`DIA` Direct Impact
 Assertion、`EEI` Entity External Identifier、`ENL` Event Entity Link、`EPR` Event
@@ -55,3 +56,7 @@ Issue #251 通过 forward-only migration `000053` 将 Organization Category、Or
 Organization Domain Tag Link 和 Raw Evidence Category Link 补齐正式身份，并将 Raw Evidence
 与 Atomic Evidence 的主键列及所有 Data/Biz/Service/API 宣言统一为 `id`。该切换不提供
 旧数据回填或旧主键名兼容。
+
+Issue #253 通过 forward-only migration `000054` 补齐 Organization Function 的 `OFN` 正式身份，
+使其与其余 Organization 目录共享 `id` 主键、确定性目录发布和 API 身份合同。该修正不改变
+既有表的物理列顺序，也不提供旧目录行回填或无 `id` 的旧 wire 兼容。

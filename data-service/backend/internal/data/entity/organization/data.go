@@ -57,7 +57,21 @@ func PublishCatalog(ctx context.Context, db *sql.DB, publication organizationbiz
 	functionCodes := make([]string, 0, len(publication.Functions))
 	for _, item := range publication.Functions {
 		functionCodes = append(functionCodes, item.Code)
-		if _, err := tx.ExecContext(ctx, `INSERT INTO organization_functions(code,name_zh) VALUES($1,$2) ON CONFLICT(code) DO UPDATE SET name_zh=excluded.name_zh,updated_at=now() WHERE organization_functions.name_zh IS DISTINCT FROM excluded.name_zh`, item.Code, item.NameZh); err != nil {
+		var storedID string
+		err := tx.QueryRowContext(ctx, `
+INSERT INTO organization_functions(id,code,name_zh) VALUES($1,$2,$3)
+ON CONFLICT(code) DO UPDATE SET
+    name_zh=excluded.name_zh,
+    updated_at=CASE
+        WHEN organization_functions.name_zh IS DISTINCT FROM excluded.name_zh THEN now()
+        ELSE organization_functions.updated_at
+    END
+WHERE organization_functions.id=excluded.id
+RETURNING id`, item.ID, item.Code, item.NameZh).Scan(&storedID)
+		if errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("%w: Organization Function identity conflicts for code %s", organizationbiz.ErrConflict, item.Code)
+		}
+		if err != nil {
 			return err
 		}
 	}
@@ -82,7 +96,7 @@ func PublishCatalog(ctx context.Context, db *sql.DB, publication organizationbiz
 
 const organizationColumns = `
 o.id, o.code, o.name, o.name_en, o.region_id,
-category.id, o.category_code, category.name_zh, o.function_code, function.name_zh,
+category.id, o.category_code, category.name_zh, function.id, o.function_code, function.name_zh,
 o.legal_entity_code, o.dominant_party_id, o.binding_power_level::text,
 o.influence_rating::text, o.strategic_positioning, o.core_impact_scope,
 o.founding_document, o.established_date, o.headquarters_city,
@@ -264,7 +278,7 @@ func (s *Store) Catalog(ctx context.Context) (organizationbiz.Catalog, error) {
 		return items, classifyRowsError(rows.Err())
 	}
 	readFunctions := func() ([]organizationbiz.Function, error) {
-		query := `SELECT code,name_zh FROM organization_functions ORDER BY code`
+		query := `SELECT id,code,name_zh FROM organization_functions ORDER BY code`
 		rows, err := s.db.QueryContext(ctx, query)
 		if err != nil {
 			return nil, classifyReadError(err)
@@ -273,7 +287,7 @@ func (s *Store) Catalog(ctx context.Context) (organizationbiz.Catalog, error) {
 		items := make([]organizationbiz.Function, 0)
 		for rows.Next() {
 			var item organizationbiz.Function
-			if err := rows.Scan(&item.Code, &item.NameZh); err != nil {
+			if err := rows.Scan(&item.ID, &item.Code, &item.NameZh); err != nil {
 				return nil, classifyReadError(err)
 			}
 			items = append(items, item)
@@ -420,7 +434,7 @@ func scanOrganization(row rowScanner, classify func(error) error) (organizationb
 	var domainTagsJSON []byte
 	if err := row.Scan(
 		&result.ID, &result.Code, &result.Name, &result.NameEn, &regionID,
-		&result.Category.ID, &result.Category.Code, &result.Category.NameZh, &result.Function.Code, &result.Function.NameZh,
+		&result.Category.ID, &result.Category.Code, &result.Category.NameZh, &result.Function.ID, &result.Function.Code, &result.Function.NameZh,
 		&legalEntityCode, &dominantPartyID, &bindingPowerLevel, &influenceRating,
 		&strategicPositioning, &coreImpactScope, &foundingDocument, &establishedDate,
 		&headquartersCity, &headquartersCountryID, &headquartersSubdivisionID, &description, &domainTagsJSON,

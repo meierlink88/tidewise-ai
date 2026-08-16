@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,7 +34,7 @@ func TestStorePublishesCatalogAndPersistsOrganizationFacts(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(catalog.Categories) != 4 || len(catalog.Functions) != 7 || len(catalog.DomainTags) != 20 ||
-		catalog.Categories[0].ID == "" || catalog.DomainTags[0].ID == "" || catalog.Categories[0].NameZh != "多边对话与合作机制" {
+		catalog.Categories[0].ID == "" || catalog.Functions[0].ID == "" || catalog.DomainTags[0].ID == "" || catalog.Categories[0].NameZh != "多边对话与合作机制" {
 		t.Fatalf("published catalog = %#v", catalog)
 	}
 	current := currentCatalog(t)
@@ -42,6 +44,15 @@ func TestStorePublishesCatalogAndPersistsOrganizationFacts(t *testing.T) {
 	if err := organizationdata.PublishCatalog(ctx, db, current); err != nil {
 		t.Fatalf("idempotent catalog publication: %v", err)
 	}
+	drifted := currentCatalog(t)
+	for index := range drifted.Functions {
+		if drifted.Functions[index].Code == "SECURITY" {
+			drifted.Functions[index].ID = "OFN11111111-1111-4111-8111-111111111111"
+		}
+	}
+	if err := organizationdata.PublishCatalog(ctx, db, drifted); !errors.Is(err, organizationbiz.ErrConflict) {
+		t.Fatalf("drifted Function identity error = %v, want conflict", err)
+	}
 	seedOrganizationReferences(t, db)
 
 	input := organizationFact()
@@ -49,7 +60,7 @@ func TestStorePublishesCatalogAndPersistsOrganizationFacts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if created.ID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" || created.Category.NameZh != "政府间国际组织" || created.Function.NameZh != "安全与防务" || len(created.DomainTags) != 0 {
+	if created.ID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" || created.Category.NameZh != "政府间国际组织" || created.Function.ID != "OFN1cd93122-d11c-5059-87aa-ddb8b2f2d25b" || created.Function.NameZh != "安全与防务" || len(created.DomainTags) != 0 {
 		t.Fatalf("created Organization = %#v", created)
 	}
 	if _, err := store.Create(ctx, input); !errors.Is(err, organizationbiz.ErrConflict) {
@@ -71,6 +82,8 @@ func TestStorePublishesCatalogAndPersistsOrganizationFacts(t *testing.T) {
 	}
 	assertPostgresCode(t, db, "23514", `INSERT INTO organization_categories(id,code,name_zh) VALUES('BAD','BAD_CATEGORY_ID','Bad')`)
 	assertPostgresCode(t, db, "23505", `INSERT INTO organization_categories(id,code,name_zh) VALUES('OCA11111111-1111-4111-8111-111111111111','INTERGOVERNMENTAL','Duplicate')`)
+	assertPostgresCode(t, db, "23514", `INSERT INTO organization_functions(id,code,name_zh) VALUES('BAD','BAD_FUNCTION_ID','Bad')`)
+	assertPostgresCode(t, db, "23505", `INSERT INTO organization_functions(id,code,name_zh) VALUES('OFN11111111-1111-4111-8111-111111111111','SECURITY','Duplicate')`)
 	assertPostgresCode(t, db, "23514", `INSERT INTO organization_domain_tags(id,code,function_code,name_zh) VALUES('BAD','BAD_TAG_ID','SECURITY','Bad')`)
 	assertPostgresCode(t, db, "23505", `INSERT INTO organization_domain_tags(id,code,function_code,name_zh) VALUES('ODT11111111-1111-4111-8111-111111111111','REGIONAL_SECURITY_DIALOGUE','SECURITY','Duplicate')`)
 	assertPostgresCode(t, db, "23514", `INSERT INTO organization_domain_tag_links(id,organization_id,function_code,domain_tag_code) VALUES('BAD',$1,'SECURITY','REGIONAL_SECURITY_DIALOGUE')`, tagged.ID)
@@ -89,6 +102,98 @@ func TestStorePublishesCatalogAndPersistsOrganizationFacts(t *testing.T) {
 	}
 	if len(listed) != 1 || listed[0].ID != "ORG3fb9e7ff-2222-57fa-b306-c223ce3af549" {
 		t.Fatalf("filtered Organizations = %#v", listed)
+	}
+}
+
+func TestOrganizationFunctionSchemaAndPersistenceStayAligned(t *testing.T) {
+	db := openOrganizationDatabase(t, "tw_organization_function_schema")
+	schemaPath, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "..", "doctype", "organization-function.schema"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema, err := os.ReadFile(schemaPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, contract := range []string{
+		"id(核心职能标识): Text",
+		`constraint: NotNull, Regular="^OFN[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"`,
+		"code(核心职能代码): Text",
+		"nameZh(中文名称): Text",
+		"createdAt(创建时间): Text",
+		"updatedAt(更新时间): Text",
+	} {
+		if !strings.Contains(string(schema), contract) {
+			t.Fatalf("Organization Function Object Schema is missing %q", contract)
+		}
+	}
+
+	type column struct {
+		name       string
+		nullable   string
+		maxLength  sql.NullInt64
+		defaultSQL sql.NullString
+	}
+	rows, err := db.QueryContext(context.Background(), `
+SELECT column_name, is_nullable, character_maximum_length, column_default
+FROM information_schema.columns
+WHERE table_schema=current_schema() AND table_name='organization_functions'
+ORDER BY ordinal_position`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	columns := make(map[string]column)
+	for rows.Next() {
+		var item column
+		if err := rows.Scan(&item.name, &item.nullable, &item.maxLength, &item.defaultSQL); err != nil {
+			t.Fatal(err)
+		}
+		columns[item.name] = item
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	for name, maxLength := range map[string]int64{"id": 39, "code": 30, "name_zh": 100} {
+		item, exists := columns[name]
+		if !exists || item.nullable != "NO" || !item.maxLength.Valid || item.maxLength.Int64 != maxLength || item.defaultSQL.Valid {
+			t.Fatalf("organization_functions.%s = %#v", name, item)
+		}
+	}
+	for _, name := range []string{"created_at", "updated_at"} {
+		item, exists := columns[name]
+		if !exists || item.nullable != "NO" || !item.defaultSQL.Valid || !strings.Contains(item.defaultSQL.String, "now()") {
+			t.Fatalf("organization_functions.%s = %#v", name, item)
+		}
+	}
+
+	var primaryKeyColumn string
+	if err := db.QueryRowContext(context.Background(), `
+SELECT kcu.column_name
+FROM information_schema.table_constraints tc
+JOIN information_schema.key_column_usage kcu
+  ON kcu.constraint_schema=tc.constraint_schema AND kcu.constraint_name=tc.constraint_name
+WHERE tc.table_schema=current_schema() AND tc.table_name='organization_functions'
+  AND tc.constraint_type='PRIMARY KEY'`).Scan(&primaryKeyColumn); err != nil {
+		t.Fatal(err)
+	}
+	if primaryKeyColumn != "id" {
+		t.Fatalf("Organization Function primary key = %q", primaryKeyColumn)
+	}
+	var codeUnique bool
+	if err := db.QueryRowContext(context.Background(), `
+SELECT EXISTS(
+    SELECT 1
+    FROM information_schema.table_constraints tc
+    JOIN information_schema.key_column_usage kcu
+      ON kcu.constraint_schema=tc.constraint_schema AND kcu.constraint_name=tc.constraint_name
+    WHERE tc.table_schema=current_schema() AND tc.table_name='organization_functions'
+      AND tc.constraint_type='UNIQUE' AND kcu.column_name='code'
+)`).Scan(&codeUnique); err != nil {
+		t.Fatal(err)
+	}
+	if !codeUnique {
+		t.Fatal("Organization Function code is not uniquely constrained")
 	}
 }
 

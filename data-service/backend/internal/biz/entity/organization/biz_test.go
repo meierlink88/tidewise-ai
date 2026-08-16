@@ -64,6 +64,7 @@ func TestNewUseCaseRejectsMissingRepository(t *testing.T) {
 func TestCurrentCatalogAssignsStableSystemOwnedIdentities(t *testing.T) {
 	catalog, err := AssignCatalogIdentities(Catalog{
 		Categories: []Category{{Code: "DIALOGUE_MECHANISM"}, {Code: "INTERGOVERNMENTAL"}},
+		Functions:  []Function{{Code: "SECURITY"}},
 		DomainTags: []DomainTag{{Code: "REGIONAL_SECURITY_DIALOGUE", FunctionCode: "SECURITY"}},
 	})
 	if err != nil {
@@ -71,6 +72,9 @@ func TestCurrentCatalogAssignsStableSystemOwnedIdentities(t *testing.T) {
 	}
 	if catalog.Categories[1].ID != "OCA7cf04802-4d04-5a8c-9a10-7d805cf29a4d" {
 		t.Fatalf("INTERGOVERNMENTAL Category ID = %q", catalog.Categories[1].ID)
+	}
+	if catalog.Functions[0].ID != "OFN1cd93122-d11c-5059-87aa-ddb8b2f2d25b" {
+		t.Fatalf("SECURITY Function ID = %q", catalog.Functions[0].ID)
 	}
 	for _, tag := range catalog.DomainTags {
 		if tag.Code == "REGIONAL_SECURITY_DIALOGUE" {

@@ -24,6 +24,7 @@ const (
 	Region                            Kind = "REG"
 	Organization                      Kind = "ORG"
 	OrganizationCategory              Kind = "OCA"
+	OrganizationFunction              Kind = "OFN"
 	OrganizationDomainTag             Kind = "ODT"
 	OrganizationDomainTagLink         Kind = "ODL"
 	RawEvidence                       Kind = "RAW"
@@ -155,7 +156,7 @@ func prefix(kind Kind) (string, error) {
 
 func registered(kind Kind) bool {
 	switch kind {
-	case Entity, EntityRelation, Country, Region, Organization, OrganizationCategory, OrganizationDomainTag,
+	case Entity, EntityRelation, Country, Region, Organization, OrganizationCategory, OrganizationFunction, OrganizationDomainTag,
 		OrganizationDomainTagLink, RawEvidence, Evidence, EvidenceCategory, RawEvidenceCategoryLink,
 		ChainNodePhysicalConstraint, ChainNodeRelation, CountryRegionLink, DirectImpactAssertion,
 		EntityExternalIdentifier, EventEntityLink, EventPublicationReceipt, EventSemanticCandidateSnapshot,

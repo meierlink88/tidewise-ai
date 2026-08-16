@@ -256,8 +256,8 @@ INSERT INTO regions (id, code, name, name_en, region_type)
 VALUES ('REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4', 'APAC', '亚太地区', 'Asia Pacific', 'GEOGRAPHIC');
 INSERT INTO organization_categories (id, code, name_zh)
 VALUES ('OCA7cf04802-4d04-5a8c-9a10-7d805cf29a4d', 'INTERGOVERNMENTAL', '政府间国际组织');
-INSERT INTO organization_functions (code, name_zh)
-VALUES ('GOVERNANCE', '治理与协调');
+INSERT INTO organization_functions (id, code, name_zh)
+VALUES ('OFN72d5d191-1510-5f5b-a2ab-0cc3a8919107', 'GOVERNANCE', '治理与协调');
 INSERT INTO organizations (id, code, name, name_en, region_id, category_code, function_code)
 VALUES ('ORG78c5d051-d89d-5968-be0a-a97b3b9fbc5d', 'TEST', '测试组织', 'Test Organization', 'REG88d53cc8-1c75-57e6-a02c-56f9a4bc13c4', 'INTERGOVERNMENTAL', 'GOVERNANCE')`); err != nil {
 		t.Fatal(err)

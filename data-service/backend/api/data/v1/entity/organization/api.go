@@ -159,6 +159,7 @@ type Category struct {
 }
 
 type Function struct {
+	ID     string `json:"id"`
 	Code   string `json:"code"`
 	NameZh string `json:"name_zh"`
 }
