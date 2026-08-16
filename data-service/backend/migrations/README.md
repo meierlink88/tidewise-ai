@@ -45,6 +45,8 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000052_migrate_embedded_business_ids.sql`：同步改写数组及研究回执 JSON map 中保存的业务 ID。
 - `000053_unify_organization_evidence_primary_keys.sql`：为四张 Organization/Evidence 目录与关系表增加
   Data Service 生成的前缀 UUID `id` 主键，并将 Raw Evidence 与 Atomic Evidence 主键列改名为 `id`。
+- `000054_add_organization_function_primary_id.sql`：为 Organization Function 目录补充 Data Service
+  生成的 `OFN` 前缀 UUID `id` 主键，并将 `code` 保留为唯一业务键。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -88,6 +90,17 @@ UUID 合同，Country 为 201 条 ISO alpha-2 code，且无孤儿引用，才可
 `000053` 是 Issue #251 授权的零兼容窗口切换。本需求明确不迁移旧数据；迁移在需要
 新 ID 的四张表存在行时 fail closed，不回填、不删除。执行后确认 ledger 为 `53`、六张目标表
 的唯一主键列均为 `id`，且分别满足 `OCA`/`ODT`/`ODL`/`RAW`/`EVD`/`RCL` 前缀合同。
+
+`000054` 是 Issue #253 对 Organization Function 遗漏身份的 forward-only 修正。迁移不回填、
+不删除数据；`organizations`、Organization Domain Tag Link、Domain Tag 或 Function 任一非空时
+均 fail closed。发布前停止 Data 写入并确认 PostgreSQL 恢复点；先确认 Organization 事实和
+Domain Tag Link 为空，再由经审阅的操作按外键依赖顺序清空 Domain Tag、Function 两类可重复
+发布目录，Category 不需清空。若环境已有 Organization 事实，本次无回填合同不允许直接升级；
+必须恢复/重建经审阅的空 Organization 环境，或另行设计迁移，不能由部署脚本删除事实。随后以
+候选镜像执行 check-only 并确认 `000054` 是唯一 pending migration，再执行 `-apply`。迁移后运行
+`organization-catalog-publish`，确认 ledger 为 `54`、7 条 Function 均满足 `OFN` 前缀合同，
+且 Category、Function、Domain Tag 分别为 4、7、21 条，然后部署新应用。旧应用不兼容必填
+Function `id`；回滚必须同时恢复切换前快照和上一版应用，不运行 down migration。
 
 Data 不再提供 `source-seed` 或维护 `source_catalogs`，既有 Event Publication 仍只通过
 `POST /api/data/v1/reviewed-event-imports` 连同轻量 Event 证据原子接纳；历史

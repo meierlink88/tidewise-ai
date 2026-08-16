@@ -91,6 +91,7 @@ func TestRegistryRejectsUnreviewedKind(t *testing.T) {
 func TestOrganizationAndEvidenceRelationshipKindsAreRegistered(t *testing.T) {
 	for kind, expectedPrefix := range map[Kind]string{
 		OrganizationCategory:      "OCA",
+		OrganizationFunction:      "OFN",
 		OrganizationDomainTag:     "ODT",
 		OrganizationDomainTagLink: "ODL",
 		RawEvidenceCategoryLink:   "RCL",

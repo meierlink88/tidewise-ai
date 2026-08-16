@@ -193,10 +193,8 @@ func TestOpenAPIContractFreezesOrganizationNullsErrorsAndRequestIDs(t *testing.T
 	)
 	assertRequired(t, schema(t, document, "OrganizationMemberDeleteEnvelope"), "request_id", "result")
 	assertRequired(t, schema(t, document, "OrganizationCategory"), "id", "code", "name_zh")
+	assertRequired(t, schema(t, document, "OrganizationFunction"), "id", "code", "name_zh")
 	assertRequired(t, schema(t, document, "OrganizationDomainTag"), "id", "code", "function_code", "name_zh")
-	if _, exists := object(t, schema(t, document, "OrganizationFunction")["properties"], "OrganizationFunction properties")["id"]; exists {
-		t.Fatal("OrganizationFunction is out of scope and must remain code-only")
-	}
 }
 
 func TestEventSemanticManifestReadersDeclareRequestIDAndContextDrift(t *testing.T) {

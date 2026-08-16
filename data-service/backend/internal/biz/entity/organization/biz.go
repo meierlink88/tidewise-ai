@@ -39,6 +39,7 @@ type Category struct {
 }
 
 type Function struct {
+	ID     string `json:"id"`
 	Code   string `json:"code"`
 	NameZh string `json:"name_zh"`
 }
@@ -262,6 +263,13 @@ func AssignCatalogIdentities(input Catalog) (Catalog, error) {
 			return Catalog{}, fmt.Errorf("generate Organization Category ID: %w", err)
 		}
 		result.Categories[index].ID = id
+	}
+	for index := range result.Functions {
+		id, err := coreid.Derive(coreid.OrganizationFunction, "organization-function", result.Functions[index].Code)
+		if err != nil {
+			return Catalog{}, fmt.Errorf("generate Organization Function ID: %w", err)
+		}
+		result.Functions[index].ID = id
 	}
 	for index := range result.DomainTags {
 		id, err := coreid.Derive(coreid.OrganizationDomainTag, "organization-domain-tag", result.DomainTags[index].Code)

@@ -1740,8 +1740,9 @@ components:
     OrganizationFunction:
       type: object
       additionalProperties: false
-      required: [code, name_zh]
+      required: [id, code, name_zh]
       properties:
+        id: {type: string, pattern: '^OFN[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', maxLength: 39}
         code: {type: string, pattern: '^[A-Z][A-Z0-9_]*$'}
         name_zh: {type: string, minLength: 1, maxLength: 100}
     OrganizationDomainTag:
