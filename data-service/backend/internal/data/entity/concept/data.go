@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	conceptbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/concept"
@@ -26,6 +24,13 @@ c.id, c.name, array_to_json(c.aliases), c.concept_type, c.definition,
 c.review_status, c.created_at, c.updated_at`
 
 func (s *Store) Create(ctx context.Context, input conceptbiz.Concept) (conceptbiz.Concept, error) {
+	exists, err := s.objectIdentityExists(ctx, input.ID)
+	if err != nil {
+		return conceptbiz.Concept{}, err
+	}
+	if exists {
+		return conceptbiz.Concept{}, conceptbiz.ErrConflict
+	}
 	row := s.db.QueryRowContext(ctx, `
 WITH inserted AS (
     INSERT INTO concept (id, name, aliases, concept_type, definition, review_status)
@@ -38,7 +43,7 @@ FROM inserted`, input.ID, input.Name, input.Aliases, input.ConceptType, input.De
 	return scanConcept(row, classifyWriteError)
 }
 
-func (s *Store) Get(ctx context.Context, id string) (conceptbiz.Concept, error) {
+func (s *Store) Get(ctx context.Context, id conceptbiz.ID) (conceptbiz.Concept, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT `+conceptColumns+` FROM concept c WHERE c.id = $1`, id)
 	return scanConcept(row, classifyReadError)
 }
@@ -66,7 +71,7 @@ ORDER BY c.name, c.id`)
 	return result, nil
 }
 
-func (s *Store) Update(ctx context.Context, id string, input conceptbiz.Update) (conceptbiz.Concept, error) {
+func (s *Store) Update(ctx context.Context, id conceptbiz.ID, input conceptbiz.Update) (conceptbiz.Concept, error) {
 	_, err := s.db.ExecContext(ctx, `
 UPDATE concept
 SET name = $2,
@@ -102,7 +107,24 @@ func scanConcept(row rowScanner, classify func(error) error) (conceptbiz.Concept
 	if result.Aliases == nil || result.CreatedAt.IsZero() || result.UpdatedAt.IsZero() || result.UpdatedAt.Before(result.CreatedAt) {
 		return conceptbiz.Concept{}, conceptbiz.ErrPersistence
 	}
+	if err := conceptbiz.ValidatePersisted(result); err != nil {
+		return conceptbiz.Concept{}, conceptbiz.ErrPersistence
+	}
 	return result, nil
+}
+
+func (s *Store) objectIdentityExists(ctx context.Context, id conceptbiz.ID) (bool, error) {
+	var exists bool
+	err := s.db.QueryRowContext(ctx, `
+SELECT EXISTS (
+    SELECT 1 FROM entity_nodes WHERE id = $1
+    UNION ALL SELECT 1 FROM industry WHERE id = $1
+    UNION ALL SELECT 1 FROM concept WHERE id = $1
+)`, id).Scan(&exists)
+	if err != nil {
+		return false, classifyReadError(err)
+	}
+	return exists, nil
 }
 
 func classifyWriteError(err error) error {
@@ -120,10 +142,7 @@ func classifyWriteError(err error) error {
 	case "23505":
 		return conceptbiz.ErrConflict
 	case "P0001":
-		if strings.Contains(postgresError.Message, "already belongs") {
-			return conceptbiz.ErrConflict
-		}
-		return &conceptbiz.ValidationError{Field: "concept", Message: "violates the persistence contract"}
+		return conceptbiz.ErrConflict
 	case "22001", "23502", "23514":
 		return &conceptbiz.ValidationError{Field: "concept", Message: "violates the persistence contract"}
 	default:
@@ -138,7 +157,7 @@ func classifyReadError(err error) error {
 	if errors.Is(err, sql.ErrNoRows) {
 		return conceptbiz.ErrNotFound
 	}
-	return fmt.Errorf("%w", conceptbiz.ErrPersistence)
+	return conceptbiz.ErrPersistence
 }
 
 var _ conceptbiz.Repository = (*Store)(nil)

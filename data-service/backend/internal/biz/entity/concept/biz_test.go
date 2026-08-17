@@ -14,9 +14,9 @@ func (s *repositoryStub) Create(_ context.Context, input Concept) (Concept, erro
 	return input, nil
 }
 
-func (*repositoryStub) Get(context.Context, string) (Concept, error) { return Concept{}, nil }
-func (*repositoryStub) List(context.Context) ([]Concept, error)      { return nil, nil }
-func (*repositoryStub) Update(context.Context, string, Update) (Concept, error) {
+func (*repositoryStub) Get(context.Context, ID) (Concept, error) { return Concept{}, nil }
+func (*repositoryStub) List(context.Context) ([]Concept, error)  { return nil, nil }
+func (*repositoryStub) Update(context.Context, ID, Update) (Concept, error) {
 	return Concept{}, nil
 }
 
@@ -34,12 +34,12 @@ func TestCreateGeneratesIdentityAndRejectsInvalidConceptBeforePersistence(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	if created.ID == "" || store.created.ID != created.ID || !IsID(created.ID) {
+	if created.ID == "" || store.created.ID != created.ID || !IsID(string(created.ID)) {
 		t.Fatalf("generated Concept identity = %q, persisted = %q", created.ID, store.created.ID)
 	}
 
 	for name, mutate := range map[string]func(*Concept){
-		"caller ID":        func(input *Concept) { input.ID = testConceptID },
+		"caller ID":        func(input *Concept) { input.ID = ID(testConceptID) },
 		"unsupported type": func(input *Concept) { input.ConceptType = "sector" },
 		"duplicate alias":  func(input *Concept) { input.Aliases = []string{"AI", "AI"} },
 		"missing aliases":  func(input *Concept) { input.Aliases = nil },

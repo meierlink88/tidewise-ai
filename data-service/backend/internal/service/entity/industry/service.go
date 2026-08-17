@@ -14,8 +14,8 @@ import (
 type UseCase interface {
 	Create(context.Context, industrybiz.Industry) (industrybiz.Industry, error)
 	List(context.Context) ([]industrybiz.Industry, error)
-	Get(context.Context, string) (industrybiz.Industry, error)
-	Update(context.Context, string, industrybiz.Update) (industrybiz.Industry, error)
+	Get(context.Context, industrybiz.ID) (industrybiz.Industry, error)
+	Update(context.Context, industrybiz.ID, industrybiz.Update) (industrybiz.Industry, error)
 }
 
 type Service struct{ useCase UseCase }
@@ -31,7 +31,7 @@ func (s *Service) Create(ctx context.Context, request *industryapi.CreateRequest
 	result, err := s.useCase.Create(ctx, industrybiz.Industry{
 		Name: request.Name, Aliases: request.Aliases,
 		ClassificationSystem: request.ClassificationSystem, IndustryCode: request.IndustryCode,
-		ParentIndustryID: request.ParentIndustryID, HierarchyPathCodes: request.HierarchyPathCodes,
+		ParentIndustryID: industryIDPointer(request.ParentIndustryID), HierarchyPathCodes: request.HierarchyPathCodes,
 		Definition: request.Definition, ReviewStatus: industrybiz.ReviewStatus(request.ReviewStatus),
 	})
 	return industryResponse(result, err, v1.StatusCreated)
@@ -50,13 +50,13 @@ func (s *Service) List(ctx context.Context, _ *industryapi.ListRequest) (*v1.Res
 }
 
 func (s *Service) Get(ctx context.Context, request *industryapi.GetRequest) (*v1.Response[industryapi.Industry], error) {
-	result, err := s.useCase.Get(ctx, request.IndustryID)
+	result, err := s.useCase.Get(ctx, industrybiz.ID(request.IndustryID))
 	return industryResponse(result, err, v1.StatusOK)
 }
 
 func (s *Service) Update(ctx context.Context, request *industryapi.UpdateRequest) (*v1.Response[industryapi.Industry], error) {
-	result, err := s.useCase.Update(ctx, request.IndustryID, industrybiz.Update{
-		Name: request.Name, Aliases: request.Aliases, ParentIndustryID: request.ParentIndustryID,
+	result, err := s.useCase.Update(ctx, industrybiz.ID(request.IndustryID), industrybiz.Update{
+		Name: request.Name, Aliases: request.Aliases, ParentIndustryID: industryIDPointer(request.ParentIndustryID),
 		HierarchyPathCodes: request.HierarchyPathCodes, Definition: request.Definition,
 		ReviewStatus: industrybiz.ReviewStatus(request.ReviewStatus),
 	})
@@ -107,12 +107,28 @@ func industryDTO(input industrybiz.Industry) industryapi.Industry {
 		path = []string{}
 	}
 	return industryapi.Industry{
-		ID: input.ID, Name: input.Name, Aliases: aliases,
+		ID: string(input.ID), Name: input.Name, Aliases: aliases,
 		ClassificationSystem: input.ClassificationSystem, IndustryCode: input.IndustryCode,
-		ParentIndustryID: input.ParentIndustryID, HierarchyPathCodes: path,
+		ParentIndustryID: stringPointer(input.ParentIndustryID), HierarchyPathCodes: path,
 		Definition: input.Definition, ReviewStatus: string(input.ReviewStatus),
 		CreatedAt: input.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: input.UpdatedAt.UTC().Format(time.RFC3339Nano),
 	}
+}
+
+func industryIDPointer(value *string) *industrybiz.ID {
+	if value == nil {
+		return nil
+	}
+	id := industrybiz.ID(*value)
+	return &id
+}
+
+func stringPointer(value *industrybiz.ID) *string {
+	if value == nil {
+		return nil
+	}
+	id := string(*value)
+	return &id
 }
 
 var _ industryapi.Service = (*Service)(nil)

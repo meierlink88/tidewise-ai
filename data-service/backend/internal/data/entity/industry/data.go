@@ -5,8 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"strings"
 
 	"github.com/jackc/pgx/v5/pgconn"
 	industrybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/industry"
@@ -27,6 +25,16 @@ i.parent_industry_id, array_to_json(i.hierarchy_path_codes), i.definition,
 i.review_status, i.created_at, i.updated_at`
 
 func (s *Store) Create(ctx context.Context, input industrybiz.Industry) (industrybiz.Industry, error) {
+	exists, err := s.objectIdentityExists(ctx, input.ID)
+	if err != nil {
+		return industrybiz.Industry{}, err
+	}
+	if exists {
+		return industrybiz.Industry{}, industrybiz.ErrConflict
+	}
+	if err := s.requireParent(ctx, input.ParentIndustryID); err != nil {
+		return industrybiz.Industry{}, err
+	}
 	row := s.db.QueryRowContext(ctx, `
 WITH inserted AS (
     INSERT INTO industry (
@@ -44,7 +52,7 @@ FROM inserted`, input.ID, input.Name, input.Aliases, input.ClassificationSystem,
 	return scanIndustry(row, classifyWriteError)
 }
 
-func (s *Store) Get(ctx context.Context, id string) (industrybiz.Industry, error) {
+func (s *Store) Get(ctx context.Context, id industrybiz.ID) (industrybiz.Industry, error) {
 	row := s.db.QueryRowContext(ctx, `SELECT `+industryColumns+` FROM industry i WHERE i.id = $1`, id)
 	return scanIndustry(row, classifyReadError)
 }
@@ -72,7 +80,10 @@ ORDER BY i.classification_system, i.hierarchy_path_codes, i.industry_code, i.id`
 	return result, nil
 }
 
-func (s *Store) Update(ctx context.Context, id string, input industrybiz.Update) (industrybiz.Industry, error) {
+func (s *Store) Update(ctx context.Context, id industrybiz.ID, input industrybiz.Update) (industrybiz.Industry, error) {
+	if err := s.requireParent(ctx, input.ParentIndustryID); err != nil {
+		return industrybiz.Industry{}, err
+	}
 	_, err := s.db.ExecContext(ctx, `
 UPDATE industry
 SET name = $2,
@@ -105,7 +116,8 @@ func scanIndustry(row rowScanner, classify func(error) error) (industrybiz.Indus
 		return industrybiz.Industry{}, classify(err)
 	}
 	if parent.Valid {
-		result.ParentIndustryID = &parent.String
+		parentID := industrybiz.ID(parent.String)
+		result.ParentIndustryID = &parentID
 	}
 	if err := json.Unmarshal(aliasesJSON, &result.Aliases); err != nil {
 		return industrybiz.Industry{}, industrybiz.ErrPersistence
@@ -116,7 +128,38 @@ func scanIndustry(row rowScanner, classify func(error) error) (industrybiz.Indus
 	if result.Aliases == nil || result.HierarchyPathCodes == nil || result.CreatedAt.IsZero() || result.UpdatedAt.IsZero() || result.UpdatedAt.Before(result.CreatedAt) {
 		return industrybiz.Industry{}, industrybiz.ErrPersistence
 	}
+	if err := industrybiz.ValidatePersisted(result); err != nil {
+		return industrybiz.Industry{}, industrybiz.ErrPersistence
+	}
 	return result, nil
+}
+
+func (s *Store) objectIdentityExists(ctx context.Context, id industrybiz.ID) (bool, error) {
+	var exists bool
+	err := s.db.QueryRowContext(ctx, `
+SELECT EXISTS (
+    SELECT 1 FROM entity_nodes WHERE id = $1
+    UNION ALL SELECT 1 FROM industry WHERE id = $1
+    UNION ALL SELECT 1 FROM concept WHERE id = $1
+)`, id).Scan(&exists)
+	if err != nil {
+		return false, classifyReadError(err)
+	}
+	return exists, nil
+}
+
+func (s *Store) requireParent(ctx context.Context, id *industrybiz.ID) error {
+	if id == nil {
+		return nil
+	}
+	var exists bool
+	if err := s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM industry WHERE id = $1)`, *id).Scan(&exists); err != nil {
+		return classifyReadError(err)
+	}
+	if !exists {
+		return &industrybiz.ReferenceError{Field: "parent_industry_id", Message: "identifies an unknown Industry"}
+	}
+	return nil
 }
 
 func classifyWriteError(err error) error {
@@ -136,12 +179,6 @@ func classifyWriteError(err error) error {
 	case "23503":
 		return &industrybiz.ReferenceError{Field: "parent_industry_id", Message: "identifies an unknown Industry"}
 	case "P0001":
-		if strings.Contains(postgresError.Message, "already belongs") {
-			return industrybiz.ErrConflict
-		}
-		if strings.Contains(postgresError.Message, "parent") {
-			return &industrybiz.ReferenceError{Field: "parent_industry_id", Message: "does not satisfy the Industry hierarchy"}
-		}
 		return &industrybiz.ValidationError{Field: "industry", Message: "violates the persistence contract"}
 	case "22001", "23502", "23514":
 		return &industrybiz.ValidationError{Field: "industry", Message: "violates the persistence contract"}
@@ -157,7 +194,7 @@ func classifyReadError(err error) error {
 	if errors.Is(err, sql.ErrNoRows) {
 		return industrybiz.ErrNotFound
 	}
-	return fmt.Errorf("%w", industrybiz.ErrPersistence)
+	return industrybiz.ErrPersistence
 }
 
 var _ industrybiz.Repository = (*Store)(nil)

@@ -37,13 +37,15 @@ const (
 	ReviewStatusApproved  ReviewStatus = "approved"
 )
 
+type ID string
+
 type Industry struct {
-	ID                   string
+	ID                   ID
 	Name                 string
 	Aliases              []string
 	ClassificationSystem string
 	IndustryCode         string
-	ParentIndustryID     *string
+	ParentIndustryID     *ID
 	HierarchyPathCodes   []string
 	Definition           string
 	ReviewStatus         ReviewStatus
@@ -54,7 +56,7 @@ type Industry struct {
 type Update struct {
 	Name               string
 	Aliases            []string
-	ParentIndustryID   *string
+	ParentIndustryID   *ID
 	HierarchyPathCodes []string
 	Definition         string
 	ReviewStatus       ReviewStatus
@@ -62,9 +64,9 @@ type Update struct {
 
 type Repository interface {
 	Create(context.Context, Industry) (Industry, error)
-	Get(context.Context, string) (Industry, error)
+	Get(context.Context, ID) (Industry, error)
 	List(context.Context) ([]Industry, error)
-	Update(context.Context, string, Update) (Industry, error)
+	Update(context.Context, ID, Update) (Industry, error)
 }
 
 type UseCase struct{ repository Repository }
@@ -77,7 +79,7 @@ func NewUseCase(repository Repository) (*UseCase, error) {
 }
 
 func (s *UseCase) Create(ctx context.Context, input Industry) (Industry, error) {
-	if strings.TrimSpace(input.ID) != "" {
+	if strings.TrimSpace(string(input.ID)) != "" {
 		return Industry{}, &ValidationError{Field: "id", Message: "must be omitted because Data generates Industry IDs"}
 	}
 	if err := validateIndustry(input); err != nil {
@@ -87,11 +89,11 @@ func (s *UseCase) Create(ctx context.Context, input Industry) (Industry, error) 
 	if err != nil {
 		return Industry{}, fmt.Errorf("generate Industry ID: %w", err)
 	}
-	input.ID = id
+	input.ID = ID(id)
 	return s.repository.Create(ctx, cloneIndustry(input))
 }
 
-func (s *UseCase) Get(ctx context.Context, id string) (Industry, error) {
+func (s *UseCase) Get(ctx context.Context, id ID) (Industry, error) {
 	if err := validateID("industry_id", id); err != nil {
 		return Industry{}, err
 	}
@@ -102,7 +104,7 @@ func (s *UseCase) List(ctx context.Context) ([]Industry, error) {
 	return s.repository.List(ctx)
 }
 
-func (s *UseCase) Update(ctx context.Context, id string, input Update) (Industry, error) {
+func (s *UseCase) Update(ctx context.Context, id ID, input Update) (Industry, error) {
 	if err := validateID("industry_id", id); err != nil {
 		return Industry{}, err
 	}
@@ -113,6 +115,16 @@ func (s *UseCase) Update(ctx context.Context, id string, input Update) (Industry
 }
 
 func IsID(value string) bool { return coreid.Is(value, coreid.Entity) }
+
+func ValidatePersisted(input Industry) error {
+	if err := validateID("industry_id", input.ID); err != nil {
+		return err
+	}
+	if input.ParentIndustryID != nil && *input.ParentIndustryID == input.ID {
+		return &ValidationError{Field: "parent_industry_id", Message: "must identify a different Industry"}
+	}
+	return validateIndustry(input)
+}
 
 func validateIndustry(input Industry) error {
 	if strings.TrimSpace(input.ClassificationSystem) == "" {
@@ -130,7 +142,7 @@ func validateIndustry(input Industry) error {
 	return nil
 }
 
-func validateMutable(name string, aliases []string, parentIndustryID *string, path []string, definition string, reviewStatus ReviewStatus, currentID string) error {
+func validateMutable(name string, aliases []string, parentIndustryID *ID, path []string, definition string, reviewStatus ReviewStatus, currentID ID) error {
 	if strings.TrimSpace(name) == "" {
 		return &ValidationError{Field: "name", Message: "must be nonblank"}
 	}
@@ -138,7 +150,7 @@ func validateMutable(name string, aliases []string, parentIndustryID *string, pa
 		return err
 	}
 	if parentIndustryID != nil {
-		if !IsID(*parentIndustryID) {
+		if !IsID(string(*parentIndustryID)) {
 			return &ValidationError{Field: "parent_industry_id", Message: "must be a stable Industry ID when present"}
 		}
 		if currentID != "" && *parentIndustryID == currentID {
@@ -162,8 +174,8 @@ func validateMutable(name string, aliases []string, parentIndustryID *string, pa
 	return nil
 }
 
-func validateID(field, value string) error {
-	if !IsID(value) {
+func validateID(field string, value ID) error {
+	if !IsID(string(value)) {
 		return &ValidationError{Field: field, Message: "must equal ENT immediately followed by a canonical lowercase UUID"}
 	}
 	return nil
@@ -200,7 +212,7 @@ func cloneUpdate(input Update) Update {
 	return input
 }
 
-func cloneString(value *string) *string {
+func cloneString(value *ID) *ID {
 	if value == nil {
 		return nil
 	}

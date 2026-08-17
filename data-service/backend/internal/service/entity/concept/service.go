@@ -14,8 +14,8 @@ import (
 type UseCase interface {
 	Create(context.Context, conceptbiz.Concept) (conceptbiz.Concept, error)
 	List(context.Context) ([]conceptbiz.Concept, error)
-	Get(context.Context, string) (conceptbiz.Concept, error)
-	Update(context.Context, string, conceptbiz.Update) (conceptbiz.Concept, error)
+	Get(context.Context, conceptbiz.ID) (conceptbiz.Concept, error)
+	Update(context.Context, conceptbiz.ID, conceptbiz.Update) (conceptbiz.Concept, error)
 }
 
 type Service struct{ useCase UseCase }
@@ -48,12 +48,12 @@ func (s *Service) List(ctx context.Context, _ *conceptapi.ListRequest) (*v1.Resp
 }
 
 func (s *Service) Get(ctx context.Context, request *conceptapi.GetRequest) (*v1.Response[conceptapi.Concept], error) {
-	result, err := s.useCase.Get(ctx, request.ConceptID)
+	result, err := s.useCase.Get(ctx, conceptbiz.ID(request.ConceptID))
 	return conceptResponse(result, err, v1.StatusOK)
 }
 
 func (s *Service) Update(ctx context.Context, request *conceptapi.UpdateRequest) (*v1.Response[conceptapi.Concept], error) {
-	result, err := s.useCase.Update(ctx, request.ConceptID, conceptbiz.Update{
+	result, err := s.useCase.Update(ctx, conceptbiz.ID(request.ConceptID), conceptbiz.Update{
 		Name: request.Name, Aliases: request.Aliases, ConceptType: conceptbiz.Type(request.ConceptType),
 		Definition: request.Definition, ReviewStatus: conceptbiz.ReviewStatus(request.ReviewStatus),
 	})
@@ -96,7 +96,7 @@ func conceptDTO(input conceptbiz.Concept) conceptapi.Concept {
 		aliases = []string{}
 	}
 	return conceptapi.Concept{
-		ID: input.ID, Name: input.Name, Aliases: aliases, ConceptType: string(input.ConceptType),
+		ID: string(input.ID), Name: input.Name, Aliases: aliases, ConceptType: string(input.ConceptType),
 		Definition: input.Definition, ReviewStatus: string(input.ReviewStatus),
 		CreatedAt: input.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: input.UpdatedAt.UTC().Format(time.RFC3339Nano),
 	}

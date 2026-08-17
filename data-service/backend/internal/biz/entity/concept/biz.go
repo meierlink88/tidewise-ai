@@ -44,8 +44,10 @@ const (
 	ReviewStatusApproved  ReviewStatus = "approved"
 )
 
+type ID string
+
 type Concept struct {
-	ID           string
+	ID           ID
 	Name         string
 	Aliases      []string
 	ConceptType  Type
@@ -65,9 +67,9 @@ type Update struct {
 
 type Repository interface {
 	Create(context.Context, Concept) (Concept, error)
-	Get(context.Context, string) (Concept, error)
+	Get(context.Context, ID) (Concept, error)
 	List(context.Context) ([]Concept, error)
-	Update(context.Context, string, Update) (Concept, error)
+	Update(context.Context, ID, Update) (Concept, error)
 }
 
 type UseCase struct{ repository Repository }
@@ -80,7 +82,7 @@ func NewUseCase(repository Repository) (*UseCase, error) {
 }
 
 func (s *UseCase) Create(ctx context.Context, input Concept) (Concept, error) {
-	if strings.TrimSpace(input.ID) != "" {
+	if strings.TrimSpace(string(input.ID)) != "" {
 		return Concept{}, &ValidationError{Field: "id", Message: "must be omitted because Data generates Concept IDs"}
 	}
 	if err := validateValues(input.Name, input.Aliases, input.ConceptType, input.Definition, input.ReviewStatus); err != nil {
@@ -90,11 +92,11 @@ func (s *UseCase) Create(ctx context.Context, input Concept) (Concept, error) {
 	if err != nil {
 		return Concept{}, fmt.Errorf("generate Concept ID: %w", err)
 	}
-	input.ID = id
+	input.ID = ID(id)
 	return s.repository.Create(ctx, cloneConcept(input))
 }
 
-func (s *UseCase) Get(ctx context.Context, id string) (Concept, error) {
+func (s *UseCase) Get(ctx context.Context, id ID) (Concept, error) {
 	if err := validateID(id); err != nil {
 		return Concept{}, err
 	}
@@ -105,7 +107,7 @@ func (s *UseCase) List(ctx context.Context) ([]Concept, error) {
 	return s.repository.List(ctx)
 }
 
-func (s *UseCase) Update(ctx context.Context, id string, input Update) (Concept, error) {
+func (s *UseCase) Update(ctx context.Context, id ID, input Update) (Concept, error) {
 	if err := validateID(id); err != nil {
 		return Concept{}, err
 	}
@@ -117,8 +119,15 @@ func (s *UseCase) Update(ctx context.Context, id string, input Update) (Concept,
 
 func IsID(value string) bool { return coreid.Is(value, coreid.Entity) }
 
-func validateID(value string) error {
-	if !IsID(value) {
+func ValidatePersisted(input Concept) error {
+	if err := validateID(input.ID); err != nil {
+		return err
+	}
+	return validateValues(input.Name, input.Aliases, input.ConceptType, input.Definition, input.ReviewStatus)
+}
+
+func validateID(value ID) error {
+	if !IsID(string(value)) {
 		return &ValidationError{Field: "concept_id", Message: "must equal ENT immediately followed by a canonical lowercase UUID"}
 	}
 	return nil

@@ -17,9 +17,9 @@ func (s *repositoryStub) Create(_ context.Context, input Industry) (Industry, er
 	return input, nil
 }
 
-func (*repositoryStub) Get(context.Context, string) (Industry, error) { return Industry{}, nil }
-func (*repositoryStub) List(context.Context) ([]Industry, error)      { return nil, nil }
-func (*repositoryStub) Update(context.Context, string, Update) (Industry, error) {
+func (*repositoryStub) Get(context.Context, ID) (Industry, error) { return Industry{}, nil }
+func (*repositoryStub) List(context.Context) ([]Industry, error)  { return nil, nil }
+func (*repositoryStub) Update(context.Context, ID, Update) (Industry, error) {
 	return Industry{}, nil
 }
 
@@ -38,12 +38,12 @@ func TestCreateGeneratesIdentityAndRejectsInvalidIndustryBeforePersistence(t *te
 	if err != nil {
 		t.Fatal(err)
 	}
-	if created.ID == "" || store.created.ID != created.ID || !IsID(created.ID) {
+	if created.ID == "" || store.created.ID != created.ID || !IsID(string(created.ID)) {
 		t.Fatalf("generated Industry identity = %q, persisted = %q", created.ID, store.created.ID)
 	}
 
 	invalid := valid
-	invalid.ID = testIndustryID
+	invalid.ID = ID(testIndustryID)
 	if _, err := useCase.Create(context.Background(), invalid); err == nil {
 		t.Fatal("caller supplied Industry ID error = nil")
 	}
@@ -65,7 +65,7 @@ func TestUpdateValidatesParentAndHierarchyBeforePersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	parent := testParentIndustryID
+	parent := ID(testParentIndustryID)
 	valid := Update{
 		Name: "集成电路", Aliases: []string{}, ParentIndustryID: &parent,
 		HierarchyPathCodes: []string{"SEMICONDUCTOR", "IC"}, Definition: "集成电路行业",
@@ -74,7 +74,7 @@ func TestUpdateValidatesParentAndHierarchyBeforePersistence(t *testing.T) {
 	if _, err := useCase.Update(context.Background(), testIndustryID, valid); err != nil {
 		t.Fatal(err)
 	}
-	self := testIndustryID
+	self := ID(testIndustryID)
 	invalid := valid
 	invalid.ParentIndustryID = &self
 	if _, err := useCase.Update(context.Background(), testIndustryID, invalid); err == nil {
