@@ -16,21 +16,21 @@ import (
 
 const (
 	testEventID              = "EVT11111111-1111-4111-8111-111111111111"
-	testChainID              = "ENT22222222-2222-4222-8222-222222222222"
-	testNodeID               = "ENT33333333-3333-4333-8333-333333333333"
+	testChainID              = "ICH22222222-2222-4222-8222-222222222222"
+	testNodeID               = "CND33333333-3333-4333-8333-333333333333"
 	testSignalID             = "VSG44444444-4444-4444-8444-444444444444"
 	testSubmissionID         = "ESS55555555-5555-4555-8555-555555555555"
 	testEvidenceID           = "EEL66666666-6666-4666-8666-666666666666"
-	testTargetNodeID         = "ENT77777777-7777-4777-8777-777777777777"
+	testTargetNodeID         = "CND77777777-7777-4777-8777-777777777777"
 	testImpactID             = "DIA88888888-8888-4888-8888-888888888888"
 	testImpactEventID        = "EVT99999999-9999-4999-8999-999999999999"
 	testImpactEvidenceID     = "EELaaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
 	testTargetSignalID       = "VSGbbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
 	testImpactSourceSignalID = "VSGcccccccc-cccc-4ccc-8ccc-cccccccccccc"
-	testBCIChainID           = "ENT822a8ddc-5ebc-5f03-8ef8-ba9bfba192d9"
-	testBCISystemNodeID      = "ENTc38d2f7b-9900-5e81-af06-76393bcc2617"
-	testBCITerminalNodeID    = "ENT96336148-76c0-504e-b82e-ac395f8fe268"
-	testBCIElectrodeNodeID   = "ENTd3882237-d639-5660-b7d8-aa3563706113"
+	testBCIChainID           = "ICH822a8ddc-5ebc-5f03-8ef8-ba9bfba192d9"
+	testBCISystemNodeID      = "CNDc38d2f7b-9900-5e81-af06-76393bcc2617"
+	testBCITerminalNodeID    = "CND96336148-76c0-504e-b82e-ac395f8fe268"
+	testBCIElectrodeNodeID   = "CNDd3882237-d639-5660-b7d8-aa3563706113"
 	testBCITerminalEdgeID    = "IGE300188b0-d01c-5987-ad8a-646067edc7cd"
 	testBCIElectrodeEdgeID   = "IGEdc00a16e-0d8e-5db9-9a5d-fbc1fd9a84cf"
 )
@@ -71,7 +71,7 @@ func TestPublishRejectsReferenceMismatchBeforeAnyWrite(t *testing.T) {
 	aggregate := validAggregate()
 	tx := &publicationTransactionStub{facts: validFacts()}
 	signal := tx.facts.Signals[testSignalID]
-	signal.SubjectEntityID = "ENT77777777-7777-4777-8777-777777777777"
+	signal.SubjectEntityID = "CND77777777-7777-4777-8777-777777777777"
 	tx.facts.Signals[testSignalID] = signal
 	service := (&UseCase{publicationStore: publicationStoreStub{tx: tx}, now: time.Now})
 
@@ -1308,8 +1308,8 @@ func TestAnalysisContextKeepsCursorValidAfterUnrelatedDictionaryChanges(t *testi
 	request.Cursor = first.NextCursor
 	store.page = AnalysisContextStorePage{}
 	store.dictionaries = Dictionaries{Entities: []Entity{{
-		EntityID:   "ENT33333333-3333-4333-8333-333333333333",
-		EntityType: "company",
+		EntityID:   "CND33333333-3333-4333-8333-333333333333",
+		EntityType: "chain_node",
 	}}}
 	if _, err := service.List(context.Background(), request); err != nil {
 		t.Fatalf("cursor was invalidated by an unrelated dictionary change: %v", err)
@@ -1353,7 +1353,7 @@ func TestAnalysisContextRequiresRestartWhenPageReferenceClosureIsInconsistent(t 
 				Event: Event{ID: eventID},
 				EntityLinks: []EntityLink{{
 					EventEntityLinkID: "ENL22222222-2222-4222-8222-222222222222",
-					EntityID:          "ENT33333333-3333-4333-8333-333333333333",
+					EntityID:          "CND33333333-3333-4333-8333-333333333333",
 				}},
 			},
 		}},
@@ -1405,8 +1405,8 @@ func TestAnalysisContextFailsClosedForBundleClosureAndPageBudgets(t *testing.T) 
 			name: "page reference closure",
 			store: &contextStoreStub{dictionaries: Dictionaries{
 				Entities: []Entity{{
-					EntityID:   "ENT33333333-3333-4333-8333-333333333333",
-					EntityType: "company",
+					EntityID:   "CND33333333-3333-4333-8333-333333333333",
+					EntityType: "chain_node",
 					Name:       strings.Repeat("x", MaxDictionaryBytes),
 				}},
 			}},
@@ -1496,8 +1496,8 @@ func pageBudgetStore() *contextStoreStub {
 		page: AnalysisContextStorePage{Bundles: bundles},
 		dictionaries: Dictionaries{
 			Entities: []Entity{{
-				EntityID:   "ENT33333333-3333-4333-8333-333333333333",
-				EntityType: "company",
+				EntityID:   "CND33333333-3333-4333-8333-333333333333",
+				EntityType: "chain_node",
 				Name:       strings.Repeat("x", 3900*1024),
 			}},
 		},
@@ -1537,8 +1537,8 @@ func TestGraphReturnsDeterministicReferenceCompleteGraph(t *testing.T) {
 				Name:       "Producer", CanonicalName: "producer", Status: "active",
 			},
 			{
-				EntityID:   "ENT22222222-2222-4222-8222-222222222222",
-				EntityType: "product",
+				EntityID:   "ICH22222222-2222-4222-8222-222222222222",
+				EntityType: "industry_chain",
 				Name:       "Product", CanonicalName: "product", Status: "active",
 			},
 		},
@@ -1548,7 +1548,7 @@ func TestGraphReturnsDeterministicReferenceCompleteGraph(t *testing.T) {
 		EntityRelations: []GraphEntityRelation{{
 			EntityRelationID: "ERL33333333-3333-4333-8333-333333333333",
 			FromEntityID:     "ENT11111111-1111-4111-8111-111111111111",
-			ToEntityID:       "ENT22222222-2222-4222-8222-222222222222",
+			ToEntityID:       "ICH22222222-2222-4222-8222-222222222222",
 			RelationType:     "produces",
 			Status:           "active",
 		}},
@@ -1676,7 +1676,7 @@ func TestGraphRejectsInvalidOrOrphanedGraphRequests(t *testing.T) {
 		EntityRelations: []GraphEntityRelation{{
 			EntityRelationID: "ERL33333333-3333-4333-8333-333333333333",
 			FromEntityID:     "ENT11111111-1111-4111-8111-111111111111",
-			ToEntityID:       "ENT22222222-2222-4222-8222-222222222222",
+			ToEntityID:       "ICH22222222-2222-4222-8222-222222222222",
 			RelationType:     "produces",
 		}},
 	}}
@@ -1697,7 +1697,7 @@ func TestGraphReportsTheExceededGraphBudgetDimension(t *testing.T) {
 	}
 	entities := []GraphEntity{
 		{EntityID: "ENT11111111-1111-4111-8111-111111111111"},
-		{EntityID: "ENT22222222-2222-4222-8222-222222222222"},
+		{EntityID: "ICH22222222-2222-4222-8222-222222222222"},
 	}
 	relations := []GraphEntityRelation{
 		{
@@ -1899,7 +1899,7 @@ func TestServiceMapsReasoningTreeSignalsWithoutChoosingImpactPriority(t *testing
 		ImpactNodeIDs: []string{nodeID},
 		ReasoningTree: ReasoningTreeRecord{
 			ReasoningTreeID: treeID, ThemeID: themeID,
-			IndustryChainID:   "ENT44444444-4444-4444-8444-444444444444",
+			IndustryChainID:   "ICH44444444-4444-4444-8444-444444444444",
 			IndustryChainName: "产业链", Title: "Tree", DisplayOrder: 1,
 			OneLineConclusion: "结论", ImpactDirection: "positive", ImpactStrength: "medium",
 			PublishedAt: time.Date(2026, 7, 28, 9, 0, 0, 0, time.UTC),

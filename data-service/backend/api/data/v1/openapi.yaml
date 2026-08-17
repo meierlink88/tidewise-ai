@@ -1959,25 +1959,25 @@ components:
       in: path
       required: true
       schema:
-        $ref: '#/components/schemas/EntityID'
+        $ref: '#/components/schemas/IndustryID'
     ConceptID:
       name: concept_id
       in: path
       required: true
       schema:
-        $ref: '#/components/schemas/EntityID'
+        $ref: '#/components/schemas/ConceptID'
     ChainNodeID:
       name: chain_node_id
       in: path
       required: true
       schema:
-        $ref: '#/components/schemas/EntityID'
+        $ref: '#/components/schemas/ChainNodeID'
     IndustryChainID:
       name: industry_chain_id
       in: path
       required: true
       schema:
-        $ref: '#/components/schemas/EntityID'
+        $ref: '#/components/schemas/IndustryChainID'
     RegionIDQuery:
       name: region_id
       in: query
@@ -2324,7 +2324,7 @@ components:
         classification_system: {type: string, minLength: 1}
         industry_code: {type: string, minLength: 1}
         parent_industry_id:
-          allOf: [{$ref: '#/components/schemas/EntityID'}]
+          allOf: [{$ref: '#/components/schemas/IndustryID'}]
           nullable: true
         hierarchy_path_codes:
           type: array
@@ -2343,7 +2343,7 @@ components:
           uniqueItems: true
           items: {type: string, minLength: 1}
         parent_industry_id:
-          allOf: [{$ref: '#/components/schemas/EntityID'}]
+          allOf: [{$ref: '#/components/schemas/IndustryID'}]
           nullable: true
         hierarchy_path_codes:
           type: array
@@ -2356,7 +2356,7 @@ components:
       additionalProperties: false
       required: [id, name, aliases, classification_system, industry_code, parent_industry_id, hierarchy_path_codes, definition, review_status, created_at, updated_at]
       properties:
-        id: {$ref: '#/components/schemas/EntityID'}
+        id: {$ref: '#/components/schemas/IndustryID'}
         name: {type: string, minLength: 1}
         aliases:
           type: array
@@ -2365,7 +2365,7 @@ components:
         classification_system: {type: string, minLength: 1}
         industry_code: {type: string, minLength: 1}
         parent_industry_id:
-          allOf: [{$ref: '#/components/schemas/EntityID'}]
+          allOf: [{$ref: '#/components/schemas/IndustryID'}]
           nullable: true
         hierarchy_path_codes:
           type: array
@@ -2422,7 +2422,7 @@ components:
       additionalProperties: false
       required: [id, name, aliases, concept_type, definition, review_status, created_at, updated_at]
       properties:
-        id: {$ref: '#/components/schemas/EntityID'}
+        id: {$ref: '#/components/schemas/ConceptID'}
         name: {type: string, minLength: 1}
         aliases:
           type: array
@@ -2479,7 +2479,7 @@ components:
       additionalProperties: false
       required: [id, name, aliases, definition, review_status, created_at, updated_at]
       properties:
-        id: {$ref: '#/components/schemas/EntityID'}
+        id: {$ref: '#/components/schemas/ChainNodeID'}
         name: {type: string, minLength: 1}
         aliases:
           type: array
@@ -2542,7 +2542,7 @@ components:
       additionalProperties: false
       required: [id, name, aliases, scope, target_output, end_use, geography, primary_country_id, as_of_date, review_status, review_note, technology_route_qualifier, observable_variables, created_at, updated_at]
       properties:
-        id: {$ref: '#/components/schemas/EntityID'}
+        id: {$ref: '#/components/schemas/IndustryChainID'}
         name: {type: string, minLength: 1}
         aliases: {type: array, uniqueItems: true, items: {type: string, minLength: 1}}
         scope: {type: string, minLength: 1}
@@ -2667,6 +2667,22 @@ components:
       type: string
       pattern: '^ENT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
       description: Entity 领域前缀直接连接 canonical lowercase UUID。
+    IndustryID:
+      type: string
+      pattern: '^IND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      description: Industry 领域前缀直接连接 canonical lowercase UUID。
+    ConceptID:
+      type: string
+      pattern: '^CON[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      description: Concept 领域前缀直接连接 canonical lowercase UUID。
+    ChainNodeID:
+      type: string
+      pattern: '^CND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      description: ChainNode 领域前缀直接连接 canonical lowercase UUID。
+    IndustryChainID:
+      type: string
+      pattern: '^ICH[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      description: IndustryChain 领域前缀直接连接 canonical lowercase UUID。
     EntityRelationID:
       type: string
       pattern: '^ERL[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
@@ -2732,6 +2748,10 @@ components:
       oneOf:
         - type: string
           pattern: '^ENT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+        - $ref: '#/components/schemas/IndustryID'
+        - $ref: '#/components/schemas/ConceptID'
+        - $ref: '#/components/schemas/ChainNodeID'
+        - $ref: '#/components/schemas/IndustryChainID'
         - type: string
           pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         - type: string
@@ -3001,7 +3021,7 @@ components:
       additionalProperties: false
       required: [chain_node_id, relation_role, impact_direction, impact_summary, display_order]
       properties:
-        chain_node_id: {$ref: '#/components/schemas/EntityID'}
+        chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
         relation_role: {type: string, enum: [driver, beneficiary, constraint, exposure]}
         impact_direction: {$ref: '#/components/schemas/ResearchDirection'}
         impact_summary: {type: string, nullable: true}
@@ -3130,7 +3150,7 @@ components:
       additionalProperties: false
       required: [industry_chain_id, title, display_order, one_line_conclusion, fact_summary, transmission_summary, impact_direction, impact_strength, impact_summary, conclusion_boundary_summary, support_summary, counter_summary, invalidation_conditions, checkpoints, events, nodes]
       properties:
-        industry_chain_id: {$ref: '#/components/schemas/EntityID'}
+        industry_chain_id: {$ref: '#/components/schemas/IndustryChainID'}
         title: {type: string, minLength: 1}
         display_order: {type: integer, minimum: 1}
         one_line_conclusion: {type: string, minLength: 1}
@@ -3175,7 +3195,7 @@ components:
       required: [position, chain_node_id, state_summary, impact_direction, impact_strength, impact_summary, reasoning_basis_summary, evidence_gap_summary, incoming_industry_chain_graph_edge_id, incoming_transmission_title, incoming_transmission_mechanism, incoming_condition_summary, incoming_lineage, signals]
       properties:
         position: {type: integer, minimum: 1}
-        chain_node_id: {$ref: '#/components/schemas/EntityID'}
+        chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
         state_summary: {type: string, nullable: true}
         impact_direction: {$ref: '#/components/schemas/ResearchDirection'}
         impact_strength: {$ref: '#/components/schemas/ResearchImpactStrength'}
@@ -3282,7 +3302,7 @@ components:
       properties:
         node_key: {$ref: '#/components/schemas/ResearchLocalKey'}
         display_name: {type: string}
-        chain_node_id: {type: string, description: Empty for analyst_snapshot publications.}
+        chain_node_id: {type: string, pattern: '^(|CND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$', description: Empty for analyst_snapshot publications.}
         name: {type: string}
         relation_role: {type: string, enum: [driver, beneficiary, constraint, exposure]}
         impact_direction: {$ref: '#/components/schemas/ResearchDirection'}
@@ -3378,7 +3398,7 @@ components:
         tree_key: {$ref: '#/components/schemas/ResearchLocalKey'}
         display_name: {type: string}
         reasoning_tree_id: {$ref: '#/components/schemas/ResearchReasoningTreeID'}
-        industry_chain_id: {type: string, description: Empty for analyst_snapshot publications.}
+        industry_chain_id: {type: string, pattern: '^(|ICH[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$', description: Empty for analyst_snapshot publications.}
         industry_chain_name: {type: string}
         title: {type: string}
         display_order: {type: integer, minimum: 1}
@@ -3417,7 +3437,7 @@ components:
         display_name: {type: string}
         id: {$ref: '#/components/schemas/ResearchReasoningTreeNodeID'}
         position: {type: integer, minimum: 1}
-        chain_node_id: {type: string, description: Empty for analyst_snapshot publications.}
+        chain_node_id: {type: string, pattern: '^(|CND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$', description: Empty for analyst_snapshot publications.}
         name: {type: string}
         state_summary: {type: string, nullable: true}
         impact_direction: {$ref: '#/components/schemas/ResearchDirection'}
@@ -3446,7 +3466,7 @@ components:
         display_name: {type: string}
         reasoning_tree_id: {$ref: '#/components/schemas/ResearchReasoningTreeID'}
         theme_id: {$ref: '#/components/schemas/ResearchThemeID'}
-        industry_chain_id: {type: string, description: Empty for analyst_snapshot publications.}
+        industry_chain_id: {type: string, pattern: '^(|ICH[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$', description: Empty for analyst_snapshot publications.}
         industry_chain_name: {type: string}
         title: {type: string}
         display_order: {type: integer, minimum: 1}
@@ -4769,7 +4789,7 @@ components:
         source_variable_signal_id:
           $ref: '#/components/schemas/VariableSignalID'
         target_entity_id:
-          $ref: '#/components/schemas/EntityID'
+          $ref: '#/components/schemas/ObjectID'
         affected_variable_key:
           type: string
         affected_variable_version:
@@ -4929,7 +4949,7 @@ components:
             additionalProperties: false
             required: [industry_chain_id, scope, target_output, end_use, geography, as_of_date, review_status]
             properties:
-              industry_chain_id: {$ref: '#/components/schemas/EntityID'}
+              industry_chain_id: {$ref: '#/components/schemas/IndustryChainID'}
               scope: {type: string}
               target_output: {type: string}
               end_use: {type: string}
@@ -4944,8 +4964,8 @@ components:
             additionalProperties: false
             required: [industry_chain_id, chain_node_id, position, contextual_stage, review_status, status]
             properties:
-              industry_chain_id: {$ref: '#/components/schemas/EntityID'}
-              chain_node_id: {$ref: '#/components/schemas/EntityID'}
+              industry_chain_id: {$ref: '#/components/schemas/IndustryChainID'}
+              chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
               position: {type: integer, minimum: 1}
               contextual_stage: {type: string}
               review_status: {type: string, enum: [approved]}
@@ -4958,9 +4978,9 @@ components:
             required: [industry_chain_graph_edge_id, industry_chain_id, from_chain_node_id, to_chain_node_id, relation_type, mechanism, condition_note, segment_kind, omitted_step_note, review_status, status]
             properties:
               industry_chain_graph_edge_id: {$ref: '#/components/schemas/IndustryChainGraphEdgeID'}
-              industry_chain_id: {$ref: '#/components/schemas/EntityID'}
-              from_chain_node_id: {$ref: '#/components/schemas/EntityID'}
-              to_chain_node_id: {$ref: '#/components/schemas/EntityID'}
+              industry_chain_id: {$ref: '#/components/schemas/IndustryChainID'}
+              from_chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
+              to_chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
               relation_type: {type: string}
               mechanism: {type: string}
               condition_note: {type: string, nullable: true}
@@ -5099,7 +5119,7 @@ components:
           minimum: 1
           maximum: 5
         industry_chain_id:
-          $ref: '#/components/schemas/EntityID'
+          $ref: '#/components/schemas/IndustryChainID'
         node_budget:
           type: integer
           minimum: 1
@@ -5151,7 +5171,7 @@ components:
             additionalProperties: false
             required: [industry_chain_id, scope, target_output, end_use, geography, as_of_date, review_status]
             properties:
-              industry_chain_id: {$ref: '#/components/schemas/EntityID'}
+              industry_chain_id: {$ref: '#/components/schemas/IndustryChainID'}
               scope: {type: string}
               target_output: {type: string}
               end_use: {type: string}
@@ -5166,8 +5186,8 @@ components:
             additionalProperties: false
             required: [industry_chain_id, chain_node_id, position, contextual_stage, review_status, status]
             properties:
-              industry_chain_id: {$ref: '#/components/schemas/EntityID'}
-              chain_node_id: {$ref: '#/components/schemas/EntityID'}
+              industry_chain_id: {$ref: '#/components/schemas/IndustryChainID'}
+              chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
               position: {type: integer, minimum: 1}
               contextual_stage: {type: string}
               review_status: {type: string, enum: [approved]}
@@ -5180,9 +5200,9 @@ components:
             required: [industry_chain_graph_edge_id, industry_chain_id, from_chain_node_id, to_chain_node_id, relation_type, mechanism, condition_note, segment_kind, omitted_step_note, review_status, status]
             properties:
               industry_chain_graph_edge_id: {$ref: '#/components/schemas/IndustryChainGraphEdgeID'}
-              industry_chain_id: {$ref: '#/components/schemas/EntityID'}
-              from_chain_node_id: {$ref: '#/components/schemas/EntityID'}
-              to_chain_node_id: {$ref: '#/components/schemas/EntityID'}
+              industry_chain_id: {$ref: '#/components/schemas/IndustryChainID'}
+              from_chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
+              to_chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
               relation_type: {type: string}
               mechanism: {type: string}
               condition_note: {type: string, nullable: true}

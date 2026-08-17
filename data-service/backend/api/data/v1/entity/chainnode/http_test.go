@@ -64,7 +64,7 @@ func TestChainNodeHTTPContractPersistsIndependentChainNodeFacts(t *testing.T) {
 		"name":"旧合同","aliases":[],"definition":"旧合同不得继续写入",
 		"boundary_note":"retired","review_status":"candidate"
 	}`, http.StatusBadRequest, "INVALID_REQUEST")
-	requestError(t, handler, http.MethodGet, v1.APIPrefix+"/entities/chain-nodes/ENT99999999-9999-4999-8999-999999999999", "", http.StatusNotFound, chainnodeapi.ErrorNotFound)
+	requestError(t, handler, http.MethodGet, v1.APIPrefix+"/entities/chain-nodes/CND99999999-9999-4999-8999-999999999999", "", http.StatusNotFound, chainnodeapi.ErrorNotFound)
 
 	var shadowRows int
 	if err := db.QueryRowContext(context.Background(), `SELECT count(*) FROM entity_nodes WHERE id = ANY($1::text[])`, []string{created.ID, second.ID}).Scan(&shadowRows); err != nil {

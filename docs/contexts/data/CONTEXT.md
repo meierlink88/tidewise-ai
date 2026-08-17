@@ -154,26 +154,30 @@ _Avoid_: Neo4j/Qdrant 健康代理、读取业务事实、把健康检查结果�
 
 **产业链（Industry Chain）**:
 围绕明确目标产出与终端用途，由多个独立 ChainNode 通过投入、组成、技术支撑或依赖形成的
-有边界、有方向研究子图。IndustryChain 直接拥有稳定 ID、名称、别名、范围、目标产出、
+有边界、有方向研究子图。IndustryChain 以 `ICH + canonical lowercase UUID` 为稳定身份，
+直接拥有名称、别名、范围、目标产出、
 终端用途、地域、截至日期、审核、技术路线、可观察变量和审计时间，不使用 `entity_nodes`
 或 definition/profile 表。
 _Avoid_: Industry、Concept、Chain Node 列表、IndustryChain shadow Entity、definition profile
 
 **产业链节点（ChainNode）**:
-产业链中可复用的独立环节事实，直接拥有稳定 ID、名称、别名、定义、审核状态和审计时间。
+产业链中可复用的独立环节事实，以 `CND + canonical lowercase UUID` 为稳定身份，直接拥有
+名称、别名、定义、审核状态和审计时间。
 ChainNode 不使用 `entity_nodes` 或 profile 表，也不保存边界备注；上中下游位置只属于
 Industry Chain Node Membership。
 _Avoid_: ChainNode Profile、ChainNode shadow Entity、`boundary_note`、节点全局上下游标签
 
 **行业（Industry）**:
-受控分类体系中的独立行业事实，直接拥有稳定 ID、名称、别名、分类体系、行业代码、父级、
+受控分类体系中的独立行业事实，以 `IND + canonical lowercase UUID` 为稳定身份，直接拥有
+名称、别名、分类体系、行业代码、父级、
 层级路径、定义和审核状态。Industry 不使用 `entity_nodes` 或 profile 表；根行业没有父级，
 分类深度由层级路径推导，不保存分类版本、分类层级或边界备注。
 _Avoid_: Industry Profile、Industry shadow Entity、持久化 classification level、从名称推测层级
 
 **概念（Concept）**:
 跨行业表达技术、政策、应用、需求、商业模式、企业/产品生态、事件叙事或市场主题的独立
-事实，直接拥有稳定 ID、名称、别名、Concept Type、定义和审核状态。Concept 不使用
+事实，以 `CON + canonical lowercase UUID` 为稳定身份，直接拥有名称、别名、Concept Type、
+定义和审核状态。Concept 不使用
 `entity_nodes` 或 profile 表，也不保存边界备注。
 _Avoid_: Concept Profile、Concept shadow Entity、把 Concept 当作 Industry 分类层级
 

@@ -319,8 +319,8 @@ func (t ThemeInput) validate(path string) error {
 		if impact.DisplayOrder != index+1 {
 			return invalidTheme(t.ThemeKey, impactPath+".display_order", fmt.Sprint(impact.DisplayOrder), "must be contiguous from 1")
 		}
-		if !entitybiz.IsEntityID(impact.ChainNodeID) {
-			return invalidTheme(t.ThemeKey, impactPath+".chain_node_id", impact.ChainNodeID, "must be an Entity ID")
+		if !entitybiz.IsChainNodeID(impact.ChainNodeID) {
+			return invalidTheme(t.ThemeKey, impactPath+".chain_node_id", impact.ChainNodeID, "must be a ChainNode ID")
 		}
 		if _, duplicate := seenImpacts[impact.ChainNodeID]; duplicate {
 			return invalidTheme(t.ThemeKey, impactPath+".chain_node_id", impact.ChainNodeID, "must be unique within the ThemeInput")
@@ -495,8 +495,8 @@ func (p ReasonTreePublication) Validate() error {
 		if tree.DisplayOrder != index+1 {
 			return invalidReasonTree(tree.IndustryChainID, path+".display_order", fmt.Sprint(tree.DisplayOrder), "must be contiguous from 1")
 		}
-		if !entitybiz.IsEntityID(tree.IndustryChainID) {
-			return invalidReasonTree(tree.IndustryChainID, path+".industry_chain_id", tree.IndustryChainID, "must be an Entity ID")
+		if !entitybiz.IsIndustryChainID(tree.IndustryChainID) {
+			return invalidReasonTree(tree.IndustryChainID, path+".industry_chain_id", tree.IndustryChainID, "must be an IndustryChain ID")
 		}
 		if _, duplicate := seenChains[tree.IndustryChainID]; duplicate {
 			return invalidReasonTree(tree.IndustryChainID, path+".industry_chain_id", tree.IndustryChainID, "must be unique within the Theme")
@@ -578,8 +578,8 @@ func (t ReasonTreeInput) validate(path string, snapshots map[string]ReasonTreeSi
 		if node.Position != index+1 {
 			return invalidReasonTree(t.IndustryChainID, nodePath+".position", fmt.Sprint(node.Position), "must be contiguous from 1")
 		}
-		if !entitybiz.IsEntityID(node.ChainNodeID) {
-			return invalidReasonTree(t.IndustryChainID, nodePath+".chain_node_id", node.ChainNodeID, "must be an Entity ID")
+		if !entitybiz.IsChainNodeID(node.ChainNodeID) {
+			return invalidReasonTree(t.IndustryChainID, nodePath+".chain_node_id", node.ChainNodeID, "must be a ChainNode ID")
 		}
 		if _, duplicate := seenNodes[node.ChainNodeID]; duplicate {
 			return invalidReasonTree(t.IndustryChainID, nodePath+".chain_node_id", node.ChainNodeID, "must be unique within the Tree")
@@ -4071,7 +4071,7 @@ func validateGraphSearchRequest(request GraphSearchRequest) (GraphQuery, normali
 	}
 	seedSet := map[string]struct{}{}
 	for _, id := range request.SeedEntityIDs {
-		if !entitybiz.IsEntityID(id) && !entitybiz.IsCountryID(id) && !entitybiz.IsRegionID(id) && !entitybiz.IsOrganizationID(id) {
+		if !entitybiz.IsObjectID(id) {
 			return GraphQuery{}, normalizedGraphSearchRequest{}, &GraphValidationError{Reason: "seed_entity_ids contains an invalid Object ID"}
 		}
 		if _, exists := seedSet[id]; exists {
@@ -4124,9 +4124,9 @@ func validateGraphSearchRequest(request GraphSearchRequest) (GraphQuery, normali
 		}
 	}
 	if request.IndustryChainID != nil &&
-		!entitybiz.IsEntityID(*request.IndustryChainID) {
+		!entitybiz.IsIndustryChainID(*request.IndustryChainID) {
 		return GraphQuery{}, normalizedGraphSearchRequest{}, &GraphValidationError{
-			Reason: "industry_chain_id must be an Entity ID",
+			Reason: "industry_chain_id must be an IndustryChain ID",
 		}
 	}
 	asOf = asOf.UTC()

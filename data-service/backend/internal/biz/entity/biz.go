@@ -13,14 +13,18 @@ import (
 var ErrResearchHistoricalReferencesUnavailable = errors.New("strict historical Entity references are unavailable because selected facts changed after analysis_as_of")
 
 const (
-	ObjectTypeCountry      = "country"
-	ObjectTypeRegion       = "region"
-	ObjectTypeOrganization = "organization"
-	EntityIDPrefix         = coreid.Entity
-	EntityRelationIDPrefix = coreid.EntityRelation
-	CountryIDPrefix        = coreid.Country
-	RegionIDPrefix         = coreid.Region
-	OrganizationIDPrefix   = coreid.Organization
+	ObjectTypeCountry       = "country"
+	ObjectTypeRegion        = "region"
+	ObjectTypeOrganization  = "organization"
+	ObjectTypeIndustry      = "industry"
+	ObjectTypeConcept       = "concept"
+	ObjectTypeChainNode     = "chain_node"
+	ObjectTypeIndustryChain = "industry_chain"
+	EntityIDPrefix          = coreid.Entity
+	EntityRelationIDPrefix  = coreid.EntityRelation
+	CountryIDPrefix         = coreid.Country
+	RegionIDPrefix          = coreid.Region
+	OrganizationIDPrefix    = coreid.Organization
 )
 
 func IsEntityID(value string) bool         { return coreid.Is(value, EntityIDPrefix) }
@@ -28,6 +32,36 @@ func IsEntityRelationID(value string) bool { return coreid.Is(value, EntityRelat
 func IsCountryID(value string) bool        { return coreid.Is(value, CountryIDPrefix) }
 func IsRegionID(value string) bool         { return coreid.Is(value, RegionIDPrefix) }
 func IsOrganizationID(value string) bool   { return coreid.Is(value, OrganizationIDPrefix) }
+func IsIndustryID(value string) bool       { return coreid.Is(value, coreid.Industry) }
+func IsConceptID(value string) bool        { return coreid.Is(value, coreid.Concept) }
+func IsChainNodeID(value string) bool      { return coreid.Is(value, coreid.ChainNode) }
+func IsIndustryChainID(value string) bool  { return coreid.Is(value, coreid.IndustryChain) }
+
+func IsObjectID(value string) bool {
+	return IsEntityID(value) || IsCountryID(value) || IsRegionID(value) || IsOrganizationID(value) ||
+		IsIndustryID(value) || IsConceptID(value) || IsChainNodeID(value) || IsIndustryChainID(value)
+}
+
+func ObjectTypeMatchesID(objectType, value string) bool {
+	switch objectType {
+	case ObjectTypeCountry:
+		return IsCountryID(value)
+	case ObjectTypeRegion:
+		return IsRegionID(value)
+	case ObjectTypeOrganization:
+		return IsOrganizationID(value)
+	case ObjectTypeIndustry:
+		return IsIndustryID(value)
+	case ObjectTypeConcept:
+		return IsConceptID(value)
+	case ObjectTypeChainNode:
+		return IsChainNodeID(value)
+	case ObjectTypeIndustryChain:
+		return IsIndustryChainID(value)
+	default:
+		return IsEntityID(value)
+	}
+}
 
 // ResearchGraphRepository exposes persisted Entity graph facts to the Entity domain.
 type ResearchGraphRepository interface {

@@ -33,7 +33,7 @@ func TestPersistedEventSemanticReferencesUseDomainObjectIdentities(t *testing.T)
 	if err := validatePersistedEntityRelation(relation); err != nil {
 		t.Fatalf("canonical Entity Relation rejected: %v", err)
 	}
-	if !validPersistedEntityIDSet([]string{relation.FromEntityID, relation.ToEntityID}, true) {
+	if !validPersistedObjectIDSet([]string{relation.FromEntityID, relation.ToEntityID}, true) {
 		t.Fatal("canonical Entity ID set rejected")
 	}
 	impact := eventbiz.DirectImpactCandidate{
@@ -72,7 +72,7 @@ func TestEventSemanticRoutePartitionsApplyStableDatabaseBudget(t *testing.T) {
 	mock.ExpectQuery("(?s)SELECT id, name.*FROM industry.*LIMIT \\$1").
 		WithArgs(eventSemanticsRoutePartitionLimit).
 		WillReturnRows(sqlmock.NewRows([]string{"entity_id", "name"}).
-			AddRow("ENT11111111-1111-4111-8111-111111111111", "Industry"))
+			AddRow("IND11111111-1111-4111-8111-111111111111", "Industry"))
 	if partitions, _, err := repository.eventSemanticIndustryPartitions(context.Background()); err != nil || len(partitions) != 1 {
 		t.Fatalf("industry partitions = %v err = %v", partitions, err)
 	}
@@ -95,20 +95,20 @@ func TestHydrateSubmissionContextResolvesIndustryAndConceptWithoutShadowEntity(t
 			id, name, aliases, classification_system, industry_code,
 			parent_industry_id, hierarchy_path_codes, definition, review_status
 		) VALUES (
-			'ENT11111111-1111-4111-8111-111111111111', '半导体', ARRAY['集成电路'],
+			'IND11111111-1111-4111-8111-111111111111', '半导体', ARRAY['集成电路'],
 			'sw', '801000', NULL, ARRAY['801000'], '半导体行业', 'approved'
 		);
 		INSERT INTO concept (id, name, aliases, concept_type, definition, review_status)
 		VALUES (
-			'ENT22222222-2222-4222-8222-222222222222', '人工智能', ARRAY['AI'],
+			'CON22222222-2222-4222-8222-222222222222', '人工智能', ARRAY['AI'],
 			'technology', '跨行业技术聚合', 'approved'
 		)`); err != nil {
 		t.Fatal(err)
 	}
 
 	submission := eventbiz.Submission{EntityLinks: []eventbiz.EntityLinkCandidate{
-		{Key: "industry", Mention: "半导体", EntityID: "ENT11111111-1111-4111-8111-111111111111", ProjectedEntityType: "industry"},
-		{Key: "concept", Mention: "人工智能", EntityID: "ENT22222222-2222-4222-8222-222222222222", ProjectedEntityType: "concept"},
+		{Key: "industry", Mention: "半导体", EntityID: "IND11111111-1111-4111-8111-111111111111", ProjectedEntityType: "industry"},
+		{Key: "concept", Mention: "人工智能", EntityID: "CON22222222-2222-4222-8222-222222222222", ProjectedEntityType: "concept"},
 	}}
 	for _, lockSelectedFacts := range []bool{false, true} {
 		result, err := hydrateEventSemanticSubmissionContext(
@@ -129,8 +129,8 @@ func TestHydrateSubmissionContextResolvesIndustryAndConceptWithoutShadowEntity(t
 	if err := db.QueryRowContext(context.Background(), `
 		SELECT count(*) FROM entity_nodes
 		WHERE id IN (
-			'ENT11111111-1111-4111-8111-111111111111',
-			'ENT22222222-2222-4222-8222-222222222222'
+			'IND11111111-1111-4111-8111-111111111111',
+			'CON22222222-2222-4222-8222-222222222222'
 		)`).Scan(&shadowRows); err != nil {
 		t.Fatal(err)
 	}

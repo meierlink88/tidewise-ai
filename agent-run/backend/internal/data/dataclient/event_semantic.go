@@ -307,7 +307,7 @@ func validReviewerWorkPackage(work *eventsemantic.ReviewerWorkPackage, requireRe
 	}
 	entities := make(map[string]struct{}, len(work.ResolvedEntities))
 	for _, entity := range work.ResolvedEntities {
-		if !validEntityID(entity.EntityID) || strings.TrimSpace(entity.EntityType) == "" ||
+		if !validDataObjectType(entity.EntityID, entity.EntityType) ||
 			strings.TrimSpace(entity.CanonicalName) == "" || entity.Status != "active" {
 			return false
 		}
@@ -316,7 +316,7 @@ func validReviewerWorkPackage(work *eventsemantic.ReviewerWorkPackage, requireRe
 	links := make(map[string]struct{}, len(work.EntityLinks))
 	for _, link := range work.EntityLinks {
 		if strings.TrimSpace(link.CandidateKey) == "" || strings.TrimSpace(link.Mention) == "" ||
-			!validEntityID(link.EntityID) || !validUUIDSet(link.EvidenceIDs) {
+			!validDataObjectID(link.EntityID) || !validUUIDSet(link.EvidenceIDs) {
 			return false
 		}
 		if requireResolvedEntities {
@@ -427,12 +427,38 @@ func validUUID(value string) bool {
 	return err == nil
 }
 
-func validEntityID(value string) bool {
-	const prefix = "ENT"
-	if !strings.HasPrefix(value, prefix) {
-		return false
+func validDataObjectID(value string) bool {
+	for _, prefix := range []string{"ENT", "IND", "CON", "CND", "ICH", "COU", "REG", "ORG"} {
+		if strings.HasPrefix(value, prefix) {
+			suffix := strings.TrimPrefix(value, prefix)
+			parsed, err := uuid.Parse(suffix)
+			return err == nil && parsed != uuid.Nil && parsed.String() == suffix
+		}
 	}
-	suffix := strings.TrimPrefix(value, prefix)
-	parsed, err := uuid.Parse(suffix)
-	return err == nil && parsed != uuid.Nil && parsed.String() == suffix
+	return false
+}
+
+func validDataObjectType(value, entityType string) bool {
+	wantPrefix := "ENT"
+	switch entityType {
+	case "industry":
+		wantPrefix = "IND"
+	case "concept":
+		wantPrefix = "CON"
+	case "chain_node":
+		wantPrefix = "CND"
+	case "industry_chain":
+		wantPrefix = "ICH"
+	case "country":
+		wantPrefix = "COU"
+	case "region":
+		wantPrefix = "REG"
+	case "organization":
+		wantPrefix = "ORG"
+	default:
+		if strings.TrimSpace(entityType) == "" {
+			return false
+		}
+	}
+	return strings.HasPrefix(value, wantPrefix) && validDataObjectID(value)
 }

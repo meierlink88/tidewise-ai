@@ -93,7 +93,7 @@ func invalidPersistedEventSemantic(resource string) error {
 }
 
 func validPersistedObjectID(value string) bool {
-	return entitybiz.IsEntityID(value) || entitybiz.IsCountryID(value) || entitybiz.IsRegionID(value) || entitybiz.IsOrganizationID(value)
+	return entitybiz.IsObjectID(value)
 }
 
 func validPersistedSHA256(value string) bool {
@@ -200,12 +200,12 @@ func validPersistedEvidenceIDSet(values []string, required bool) bool {
 	return true
 }
 
-func validPersistedEntityIDSet(values []string, required bool) bool {
+func validPersistedObjectIDSet(values []string, required bool) bool {
 	if !validPersistedStringSet(values, required) {
 		return false
 	}
 	for _, value := range values {
-		if !entitybiz.IsEntityID(value) {
+		if !entitybiz.IsObjectID(value) {
 			return false
 		}
 	}
@@ -246,9 +246,7 @@ func validatePersistedEvidence(item eventbiz.Evidence) error {
 
 func validatePersistedEntity(item eventbiz.Entity) error {
 	if !validPersistedObjectID(item.ID) || strings.TrimSpace(item.Type) == "" ||
-		(entitybiz.IsCountryID(item.ID) != (item.Type == entitybiz.ObjectTypeCountry)) ||
-		(entitybiz.IsRegionID(item.ID) != (item.Type == entitybiz.ObjectTypeRegion)) ||
-		(entitybiz.IsOrganizationID(item.ID) != (item.Type == entitybiz.ObjectTypeOrganization)) ||
+		!entitybiz.ObjectTypeMatchesID(item.Type, item.ID) ||
 		strings.TrimSpace(item.Name) == "" || strings.TrimSpace(item.CanonicalName) == "" ||
 		item.Status != "active" || !validPersistedStringSet(item.Aliases, false) {
 		return invalidPersistedEventSemantic("Entity")
@@ -257,8 +255,8 @@ func validatePersistedEntity(item eventbiz.Entity) error {
 }
 
 func validatePersistedEntityRelation(item eventbiz.EntityRelation) error {
-	if !entitybiz.IsEntityRelationID(item.ID) || !entitybiz.IsEntityID(item.FromEntityID) ||
-		!entitybiz.IsEntityID(item.ToEntityID) || strings.TrimSpace(item.Type) == "" || item.Status != "active" {
+	if !entitybiz.IsEntityRelationID(item.ID) || !entitybiz.IsObjectID(item.FromEntityID) ||
+		!entitybiz.IsObjectID(item.ToEntityID) || strings.TrimSpace(item.Type) == "" || item.Status != "active" {
 		return invalidPersistedEventSemantic("Entity Relation")
 	}
 	return nil
@@ -1140,7 +1138,7 @@ func (r Store) eventSemanticIndustryPartitions(ctx context.Context) ([]string, m
 		if err := rows.Scan(&partition, &label); err != nil {
 			return nil, nil, err
 		}
-		if !entitybiz.IsEntityID(partition) || strings.TrimSpace(label) == "" {
+		if !entitybiz.IsIndustryID(partition) || strings.TrimSpace(label) == "" {
 			return nil, nil, invalidPersistedEventSemantic("Industry partition")
 		}
 		result = append(result, partition)
@@ -1347,11 +1345,12 @@ func (r Store) ResolveChainNodeCandidates(
 		return nil, err
 	}
 	relationType, anchorTable := "", ""
+	var validAnchorID func(string) bool
 	switch routeID {
 	case "chain-node-via-industry.v1":
-		relationType, anchorTable = "mapped_to_industry", "industry"
+		relationType, anchorTable, validAnchorID = "mapped_to_industry", "industry", entitybiz.IsIndustryID
 	case "chain-node-via-concept.v1":
-		relationType, anchorTable = "mapped_to_concept", "concept"
+		relationType, anchorTable, validAnchorID = "mapped_to_concept", "concept", entitybiz.IsConceptID
 	default:
 		return nil, &eventbiz.ValidationError{Reason: "route_id is not supported"}
 	}
@@ -1460,10 +1459,14 @@ func (r Store) ResolveChainNodeCandidates(
 		if err := validatePersistedEntity(item.Entity); err != nil {
 			return nil, err
 		}
-		if !entitybiz.IsEntityID(item.Receipt.AnchorEntityID) ||
-			!entitybiz.IsEntityID(item.Receipt.IndustryChainID) ||
+		validMatchedAnchors := validPersistedObjectIDSet(item.MatchedAnchorEntityIDs, true)
+		for _, anchorID := range item.MatchedAnchorEntityIDs {
+			validMatchedAnchors = validMatchedAnchors && validAnchorID(anchorID)
+		}
+		if !validAnchorID(item.Receipt.AnchorEntityID) ||
+			!entitybiz.IsIndustryChainID(item.Receipt.IndustryChainID) ||
 			!entitybiz.IsEntityRelationID(item.Receipt.MappingRelationID) ||
-			!validPersistedEntityIDSet(item.MatchedAnchorEntityIDs, true) ||
+			!validMatchedAnchors ||
 			strings.TrimSpace(item.Description) == "" || strings.TrimSpace(item.IndustryChainEntityName) == "" ||
 			membershipUpdatedAt.IsZero() || anchorUpdatedAt.IsZero() || chainUpdatedAt.IsZero() ||
 			mappingUpdatedAt.IsZero() || targetUpdatedAt.IsZero() {
@@ -1734,7 +1737,7 @@ func validatePersistedVariableSignalCandidate(item eventbiz.VariableSignalCandid
 
 func validatePersistedDirectImpactCandidate(item eventbiz.DirectImpactCandidate) error {
 	if strings.TrimSpace(item.Key) == "" || strings.TrimSpace(item.SourceSignalKey) == "" ||
-		!entitybiz.IsEntityID(item.TargetEntityID) ||
+		!entitybiz.IsObjectID(item.TargetEntityID) ||
 		(item.EntityRelationID != "" && !entitybiz.IsEntityRelationID(item.EntityRelationID)) ||
 		strings.TrimSpace(item.AffectedVariableKey) == "" ||
 		item.AffectedVariableVersion <= 0 || strings.TrimSpace(item.AffectedDirection) == "" ||
@@ -2796,8 +2799,7 @@ func validateResearchSemanticRecord(record eventbiz.ResearchSemanticRecord) erro
 }
 
 func researchObjectID(value string) bool {
-	return entitybiz.IsEntityID(value) || entitybiz.IsCountryID(value) ||
-		entitybiz.IsRegionID(value) || entitybiz.IsOrganizationID(value)
+	return entitybiz.IsObjectID(value)
 }
 
 func validResearchEvidenceIDSet(values []string) bool {

@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	testIndustryID       = "ENT11111111-1111-4111-8111-111111111111"
-	testParentIndustryID = "ENT22222222-2222-4222-8222-222222222222"
+	testIndustryID       = "IND11111111-1111-4111-8111-111111111111"
+	testParentIndustryID = "IND22222222-2222-4222-8222-222222222222"
 )
 
 type repositoryStub struct {
@@ -73,6 +73,19 @@ func TestCreateGeneratesIdentityAndRejectsInvalidIndustryBeforePersistence(t *te
 	}
 	if created.ID == "" || store.created.ID != created.ID || !IsID(string(created.ID)) {
 		t.Fatalf("generated Industry identity = %q, persisted = %q", created.ID, store.created.ID)
+	}
+	if string(created.ID)[:3] != "IND" {
+		t.Fatalf("generated Industry identity = %q, want IND prefix", created.ID)
+	}
+	for _, value := range []string{
+		"ENT11111111-1111-4111-8111-111111111111",
+		"CON11111111-1111-4111-8111-111111111111",
+		"CND11111111-1111-4111-8111-111111111111",
+		"ICH11111111-1111-4111-8111-111111111111",
+	} {
+		if IsID(value) {
+			t.Errorf("Industry accepted identity %q with another object's prefix", value)
+		}
 	}
 
 	invalid := valid

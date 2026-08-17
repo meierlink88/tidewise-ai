@@ -4,8 +4,8 @@ Industry(行业): EntityType
     desc: 表示受控分类体系中的独立行业对象，自身拥有名称、别名、分类层级路径与定义，不依赖通用 Entity 节点
     properties:
         id(行业标识): Text
-            desc: 从既有 Industry Entity 无损保留的稳定标识，由 ENT 前缀直接连接 canonical lowercase UUID
-            constraint: NotNull, Regular="^ENT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+            desc: 从既有 Industry Entity 无损保留 UUID 后缀的稳定标识，由 IND 前缀直接连接 canonical lowercase UUID
+            constraint: NotNull, Regular="^IND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
         name(行业名称): Text
             desc: 行业的正式显示名称
             constraint: NotNull

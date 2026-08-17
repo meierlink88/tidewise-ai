@@ -4,14 +4,14 @@
     "anchors": [
       {
         "entity": {
-          "entity_id": "ENTaaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "entity_id": "INDaaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
           "entity_type": "industry",
           "name": "Fixture Industry",
           "canonical_name": "Fixture Industry",
           "aliases": ["Fixture Sector"],
           "status": "active"
         },
-        "partition": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "partition": "INDaaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         "description": "Controlled fixture industry definition",
         "hierarchy_identity": "fixture:v1:fixture-industry"
       }

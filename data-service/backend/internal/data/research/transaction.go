@@ -125,7 +125,7 @@ func validatePersistedResearchReceipt(receipt researchbiz.Receipt) error {
 		if receipt.PublicationMode == researchbiz.SnapshotPublicationMode && !researchKeyPattern.MatchString(key) {
 			return invalid("a snapshot Reason Tree key is malformed")
 		}
-		if receipt.PublicationMode == "formal" && !entitybiz.IsEntityID(key) {
+		if receipt.PublicationMode == "formal" && !entitybiz.IsIndustryChainID(key) {
 			return invalid("a formal Industry Chain identity is malformed")
 		}
 	}

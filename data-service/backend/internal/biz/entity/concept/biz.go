@@ -114,7 +114,7 @@ func (s *UseCase) Create(ctx context.Context, input Concept) (Concept, error) {
 	if err := validateValues(input.Name, input.Aliases, input.ConceptType, input.Definition, input.ReviewStatus); err != nil {
 		return Concept{}, err
 	}
-	id, err := coreid.New(coreid.Entity)
+	id, err := coreid.New(coreid.Concept)
 	if err != nil {
 		return Concept{}, fmt.Errorf("generate Concept ID: %w", err)
 	}
@@ -162,7 +162,7 @@ func (s *UseCase) Update(ctx context.Context, id ID, input Update) (Concept, err
 	return s.repository.Update(ctx, id, cloneUpdate(input))
 }
 
-func IsID(value string) bool { return coreid.Is(value, coreid.Entity) }
+func IsID(value string) bool { return coreid.Is(value, coreid.Concept) }
 
 func ValidatePersisted(input Concept) error {
 	if err := validateID(input.ID); err != nil {
@@ -173,7 +173,7 @@ func ValidatePersisted(input Concept) error {
 
 func validateID(value ID) error {
 	if !IsID(string(value)) {
-		return &ValidationError{Field: "concept_id", Message: "must equal ENT immediately followed by a canonical lowercase UUID"}
+		return &ValidationError{Field: "concept_id", Message: "must equal CON immediately followed by a canonical lowercase UUID"}
 	}
 	return nil
 }

@@ -105,3 +105,23 @@ func TestOrganizationAndEvidenceRelationshipKindsAreRegistered(t *testing.T) {
 		}
 	}
 }
+
+func TestIndependentEntityKindsUseDistinctReviewedPrefixes(t *testing.T) {
+	for kind, expectedPrefix := range map[Kind]string{
+		Industry:      "IND",
+		Concept:       "CON",
+		ChainNode:     "CND",
+		IndustryChain: "ICH",
+	} {
+		value, err := New(kind)
+		if err != nil {
+			t.Fatalf("New(%q) error = %v", kind, err)
+		}
+		if !strings.HasPrefix(value, expectedPrefix) {
+			t.Fatalf("New(%q) = %q, want %q prefix", kind, value, expectedPrefix)
+		}
+		if _, err := Parse(value, Entity); err == nil {
+			t.Fatalf("Parse(%q, Entity) succeeded for independent kind %q", value, kind)
+		}
+	}
+}

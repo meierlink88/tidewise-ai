@@ -148,6 +148,9 @@ func TestOpenAPIContractFreezesIndustryAndConceptWriteOperations(t *testing.T) {
 	assertRequired(t, schema(t, document, "Concept"), "id", "name", "aliases", "concept_type", "definition", "review_status", "created_at", "updated_at")
 	assertRequired(t, schema(t, document, "ChainNode"), "id", "name", "aliases", "definition", "review_status", "created_at", "updated_at")
 	assertRequired(t, schema(t, document, "IndustryChain"), "id", "name", "aliases", "scope", "target_output", "end_use", "geography", "primary_country_id", "as_of_date", "review_status", "review_note", "technology_route_qualifier", "observable_variables", "created_at", "updated_at")
+	directImpactProperties := object(t, schema(t, document, "ResearchAnalysisDirectImpact")["properties"], "ResearchAnalysisDirectImpact properties")
+	targetIdentity := object(t, directImpactProperties["target_entity_id"], "ResearchAnalysisDirectImpact target_entity_id")
+	assertString(t, targetIdentity, "$ref", "#/components/schemas/ObjectID")
 }
 
 func TestOpenAPIContractFreezesIndustryAndConceptKeysetPagination(t *testing.T) {
@@ -549,7 +552,7 @@ func TestOpenAPIContractFreezesResearchThemeBatchPublicationV1(t *testing.T) {
 	assertRequired(t, impact, "chain_node_id", "relation_role", "impact_direction", "impact_summary", "display_order")
 	lowercaseUUID := schema(t, document, "LowercaseUUID")
 	assertString(t, lowercaseUUID, "pattern", "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
-	assertString(t, object(t, object(t, impact["properties"], "impact properties")["chain_node_id"], "chain_node_id"), "$ref", "#/components/schemas/EntityID")
+	assertString(t, object(t, object(t, impact["properties"], "impact properties")["chain_node_id"], "chain_node_id"), "$ref", "#/components/schemas/ChainNodeID")
 	assertStringSet(t, object(t, object(t, impact["properties"], "impact properties")["relation_role"], "relation_role")["enum"], "driver", "beneficiary", "constraint", "exposure")
 	event := schema(t, document, "ResearchThemeImportEvent")
 	assertRequired(t, event, "event_id", "evidence_role", "supported_claim")

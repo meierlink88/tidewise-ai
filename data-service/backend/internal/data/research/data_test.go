@@ -55,7 +55,8 @@ func TestResearchThemeAdapterRejectsMalformedPersistedRows(t *testing.T) {
 func TestResearchReasoningTreeAdapterRejectsMalformedPersistedRows(t *testing.T) {
 	now := time.Date(2026, 8, 12, 8, 0, 0, 0, time.UTC)
 	treeID := "RRT11111111-1111-4111-8111-111111111111"
-	chainID := "ENT22222222-2222-4222-8222-222222222222"
+	chainID := "ICH22222222-2222-4222-8222-222222222222"
+	nodeID := "CND55555555-5555-4555-8555-555555555555"
 	publication := researchReasoningTreePublication{
 		ReceiptID: "RRI33333333-3333-4333-8333-333333333333",
 		Mapping:   map[string]string{chainID: treeID},
@@ -83,22 +84,22 @@ func TestResearchReasoningTreeAdapterRejectsMalformedPersistedRows(t *testing.T)
 		Title: "Tree", OneLineConclusion: "Conclusion", ImpactDirection: "positive", ImpactStrength: "medium",
 		DisplayOrder: 1, PublishedAt: now,
 		Nodes: []researchbiz.ReasoningTreeNodeRecord{{
-			ID: "RRN55555555-5555-4555-8555-555555555555", NodeKey: chainID, DisplayName: "Node",
-			ChainNodeID: chainID, Name: "Node", Position: 1, ImpactDirection: "positive", ImpactStrength: "medium",
+			ID: "RRN55555555-5555-4555-8555-555555555555", NodeKey: nodeID, DisplayName: "Node",
+			ChainNodeID: nodeID, Name: "Node", Position: 1, ImpactDirection: "positive", ImpactStrength: "medium",
 			Signals: []researchbiz.SignalRecord{{
 				SignalKey: "signal:one", VariableSignalKey: "signal:one", SignalRole: "primary",
 				SignalDirection: "increase", DisplaySummary: "Signal", DisplayOrder: 1,
 			}},
 		}},
 	}
-	if !validReasoningTreeDetail(detail, tree, []string{chainID}) {
+	if !validReasoningTreeDetail(detail, tree, []string{nodeID}) {
 		t.Fatal("valid persisted Reasoning Tree detail was rejected")
 	}
 	invalidTree := tree
 	invalidTree.Nodes = append([]researchbiz.ReasoningTreeNodeRecord(nil), tree.Nodes...)
 	invalidTree.Nodes[0].Signals = append([]researchbiz.SignalRecord(nil), tree.Nodes[0].Signals...)
 	invalidTree.Nodes[0].Signals[0].SignalRole = "invented"
-	if validReasoningTreeDetail(detail, invalidTree, []string{chainID}) {
+	if validReasoningTreeDetail(detail, invalidTree, []string{nodeID}) {
 		t.Fatal("malformed persisted Reasoning Tree Signal enum was accepted")
 	}
 	invalidTree = tree
@@ -108,14 +109,14 @@ func TestResearchReasoningTreeAdapterRejectsMalformedPersistedRows(t *testing.T)
 	invalidTree.Nodes[0].IncomingGraphEdge = &researchbiz.GraphEdgeRecord{
 		ID: incomingID, RelationType: "input_to", ReviewStatus: "approved", Status: "active",
 	}
-	if validReasoningTreeDetail(detail, invalidTree, []string{chainID}) {
+	if validReasoningTreeDetail(detail, invalidTree, []string{nodeID}) {
 		t.Fatal("persisted Reasoning Tree first node with an Incoming Graph Edge was accepted")
 	}
 	secondNode := tree.Nodes[0]
 	secondNode.ID = "RRN77777777-7777-4777-8777-777777777777"
 	secondNode.NodeKey = "node:second"
 	secondNode.DisplayName = "Second node"
-	secondNode.ChainNodeID = "ENT88888888-8888-4888-8888-888888888888"
+	secondNode.ChainNodeID = "CND88888888-8888-4888-8888-888888888888"
 	secondNode.Position = 2
 	secondNode.IncomingIndustryChainGraphEdgeID = &incomingID
 	secondNode.IncomingGraphEdge = &researchbiz.GraphEdgeRecord{
@@ -123,7 +124,7 @@ func TestResearchReasoningTreeAdapterRejectsMalformedPersistedRows(t *testing.T)
 	}
 	invalidTree = tree
 	invalidTree.Nodes = append(append([]researchbiz.ReasoningTreeNodeRecord(nil), tree.Nodes...), secondNode)
-	if validReasoningTreeDetail(detail, invalidTree, []string{chainID, secondNode.NodeKey}) {
+	if validReasoningTreeDetail(detail, invalidTree, []string{nodeID, secondNode.NodeKey}) {
 		t.Fatal("persisted Reasoning Tree mismatched Incoming Graph Edge identity was accepted")
 	}
 }
@@ -267,6 +268,14 @@ INSERT INTO variable_definitions (
 			}
 		}
 	}
+	var originalNodeUpdatedAt time.Time
+	if err := db.QueryRowContext(
+		ctx,
+		`SELECT updated_at FROM chain_node WHERE id = $1::text`,
+		testTypedNodeID,
+	).Scan(&originalNodeUpdatedAt); err != nil {
+		t.Fatalf("read referenced ChainNode update time: %v", err)
+	}
 	if _, err := db.ExecContext(
 		ctx,
 		`UPDATE chain_node SET updated_at = $2 WHERE id = $1::text`,
@@ -285,7 +294,7 @@ INSERT INTO variable_definitions (
 		ctx,
 		`UPDATE chain_node SET updated_at = $2 WHERE id = $1::text`,
 		testTypedNodeID,
-		now.Add(-time.Hour),
+		originalNodeUpdatedAt,
 	); err != nil {
 		t.Fatalf("restore referenced Entity update time: %v", err)
 	}
@@ -705,8 +714,8 @@ func seedPostAsOfSupersession(
 }
 
 const (
-	testTypedChainID             = "ENT10000000-0000-4000-8000-000000000001"
-	testTypedNodeID              = "ENT10000000-0000-4000-8000-000000000002"
+	testTypedChainID             = "ICH10000000-0000-4000-8000-000000000001"
+	testTypedNodeID              = "CND10000000-0000-4000-8000-000000000002"
 	testTypedEventID             = "EVT10000000-0000-4000-8000-000000000003"
 	testTypedEvidenceID          = "EEL11000000-0000-4000-8000-000000000002"
 	testTypedSubmissionID        = "ESS11000000-0000-4000-8000-000000000004"
@@ -715,10 +724,10 @@ const (
 	testTypedForwardEvidenceID   = "EEL12000000-0000-4000-8000-000000000002"
 	testTypedForwardSubmissionID = "ESS12000000-0000-4000-8000-000000000004"
 	testTypedForwardSignalID     = "VSG12000000-0000-4000-8000-000000000006"
-	testBCIChainID               = "ENT822a8ddc-5ebc-5f03-8ef8-ba9bfba192d9"
-	testBCISystemNodeID          = "ENTc38d2f7b-9900-5e81-af06-76393bcc2617"
-	testBCITerminalNodeID        = "ENT96336148-76c0-504e-b82e-ac395f8fe268"
-	testBCIElectrodeNodeID       = "ENTd3882237-d639-5660-b7d8-aa3563706113"
+	testBCIChainID               = "ICH822a8ddc-5ebc-5f03-8ef8-ba9bfba192d9"
+	testBCISystemNodeID          = "CNDc38d2f7b-9900-5e81-af06-76393bcc2617"
+	testBCITerminalNodeID        = "CND96336148-76c0-504e-b82e-ac395f8fe268"
+	testBCIElectrodeNodeID       = "CNDd3882237-d639-5660-b7d8-aa3563706113"
 	testBCITerminalEdgeID        = "IGE300188b0-d01c-5987-ad8a-646067edc7cd"
 	testBCIElectrodeEdgeID       = "IGEdc00a16e-0d8e-5db9-9a5d-fbc1fd9a84cf"
 )
@@ -1335,8 +1344,8 @@ func openResearchV1TestDatabase(t *testing.T) *sql.DB {
 func seedResearchV1MasterData(t *testing.T, db *sql.DB) {
 	t.Helper()
 	const (
-		chainID      = "ENT10000000-0000-4000-8000-000000000001"
-		nodeID       = "ENT10000000-0000-4000-8000-000000000002"
+		chainID      = "ICH10000000-0000-4000-8000-000000000001"
+		nodeID       = "CND10000000-0000-4000-8000-000000000002"
 		eventID      = "EVT10000000-0000-4000-8000-000000000003"
 		draftEventID = "EVT10000000-0000-4000-8000-000000000004"
 	)

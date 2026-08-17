@@ -93,7 +93,7 @@ func (s *UseCase) Create(ctx context.Context, input ChainNode) (ChainNode, error
 	if err := validateValues(input.Name, input.Aliases, input.Definition, input.ReviewStatus); err != nil {
 		return ChainNode{}, err
 	}
-	id, err := coreid.New(coreid.Entity)
+	id, err := coreid.New(coreid.ChainNode)
 	if err != nil {
 		return ChainNode{}, fmt.Errorf("generate ChainNode ID: %w", err)
 	}
@@ -142,7 +142,7 @@ func (s *UseCase) Update(ctx context.Context, id ID, input Update) (ChainNode, e
 	return s.repository.Update(ctx, id, input)
 }
 
-func IsID(value string) bool { return coreid.Is(value, coreid.Entity) }
+func IsID(value string) bool { return coreid.Is(value, coreid.ChainNode) }
 
 func ValidatePersisted(input ChainNode) error {
 	if err := validateID(input.ID); err != nil {
@@ -153,7 +153,7 @@ func ValidatePersisted(input ChainNode) error {
 
 func validateID(value ID) error {
 	if !IsID(string(value)) {
-		return &ValidationError{Field: "chain_node_id", Message: "must equal ENT immediately followed by a canonical lowercase UUID"}
+		return &ValidationError{Field: "chain_node_id", Message: "must equal CND immediately followed by a canonical lowercase UUID"}
 	}
 	return nil
 }

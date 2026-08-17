@@ -252,8 +252,8 @@ func validatePersistedResearchThemeSummary(item ResearchThemeSummary) error {
 			!oneOf(impact.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
 			return invalid("an Impact is malformed")
 		}
-		if impact.ChainNodeID != "" && !entitybiz.IsEntityID(impact.ChainNodeID) {
-			return invalid("an Impact Entity reference is malformed")
+		if impact.ChainNodeID != "" && !entitybiz.IsChainNodeID(impact.ChainNodeID) {
+			return invalid("an Impact ChainNode reference is malformed")
 		}
 		if _, duplicate := seen[impact.NodeKey]; duplicate {
 			return invalid("Impact identity is duplicated")
@@ -584,8 +584,8 @@ func validReasoningTreePublication(publication researchReasoningTreePublication,
 	seenTreeIDs := make(map[string]struct{}, len(publication.Trees))
 	for index, tree := range publication.Trees {
 		if !coreid.Is(tree.ReasoningTreeID, coreid.ResearchReasoningTree) ||
-			(!entitybiz.IsEntityID(tree.TreeKey) && !researchKeyPattern.MatchString(tree.TreeKey)) ||
-			(tree.IndustryChainID != "" && !entitybiz.IsEntityID(tree.IndustryChainID)) ||
+			(!entitybiz.IsIndustryChainID(tree.TreeKey) && !researchKeyPattern.MatchString(tree.TreeKey)) ||
+			(tree.IndustryChainID != "" && !entitybiz.IsIndustryChainID(tree.IndustryChainID)) ||
 			tree.DisplayOrder != index+1 || tree.EventCount < 0 || tree.PublishedAt.IsZero() ||
 			strings.TrimSpace(tree.Title) == "" || strings.TrimSpace(tree.DisplayName) == "" ||
 			strings.TrimSpace(tree.IndustryChainName) == "" {
@@ -601,7 +601,7 @@ func validReasoningTreePublication(publication researchReasoningTreePublication,
 		seenTreeIDs[tree.ReasoningTreeID] = struct{}{}
 	}
 	for key, id := range publication.Mapping {
-		if (!entitybiz.IsEntityID(key) && !researchKeyPattern.MatchString(key)) || !coreid.Is(id, coreid.ResearchReasoningTree) {
+		if (!entitybiz.IsIndustryChainID(key) && !researchKeyPattern.MatchString(key)) || !coreid.Is(id, coreid.ResearchReasoningTree) {
 			return false
 		}
 	}
@@ -622,7 +622,7 @@ func validReasoningTreeDetail(detail ResearchReasoningTreeDetail, tree ResearchR
 	snapshot := detail.PublicationMode == researchbiz.SnapshotPublicationMode && detail.PublicationContractVersion == 3
 	if (!formal && !snapshot) || !researchKeyPattern.MatchString(detail.ThemeKey) ||
 		!coreid.Is(tree.ReasoningTreeID, coreid.ResearchReasoningTree) || !coreid.Is(tree.ThemeID, coreid.ResearchTheme) ||
-		(!entitybiz.IsEntityID(tree.TreeKey) && !researchKeyPattern.MatchString(tree.TreeKey)) ||
+		(!entitybiz.IsIndustryChainID(tree.TreeKey) && !researchKeyPattern.MatchString(tree.TreeKey)) ||
 		strings.TrimSpace(tree.DisplayName) == "" || strings.TrimSpace(tree.IndustryChainName) == "" ||
 		strings.TrimSpace(tree.Title) == "" || strings.TrimSpace(tree.OneLineConclusion) == "" ||
 		!oneOf(tree.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") ||
@@ -631,7 +631,7 @@ func validReasoningTreeDetail(detail ResearchReasoningTreeDetail, tree ResearchR
 		len(tree.Nodes) == 0 || len(impactNodeIDs) == 0 {
 		return false
 	}
-	if formal && !entitybiz.IsEntityID(tree.IndustryChainID) {
+	if formal && !entitybiz.IsIndustryChainID(tree.IndustryChainID) {
 		return false
 	}
 	if snapshot && tree.IndustryChainID != "" {
@@ -685,7 +685,7 @@ func validReasoningTreeDetail(detail ResearchReasoningTreeDetail, tree ResearchR
 			len(node.Signals) < 1 || len(node.Signals) > 5 {
 			return false
 		}
-		if formal && !entitybiz.IsEntityID(node.ChainNodeID) {
+		if formal && !entitybiz.IsChainNodeID(node.ChainNodeID) {
 			return false
 		}
 		if snapshot && node.ChainNodeID != "" {

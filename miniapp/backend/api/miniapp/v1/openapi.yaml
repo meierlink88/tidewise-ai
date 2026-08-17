@@ -405,7 +405,7 @@ components:
       properties:
         node_key: {$ref: '#/components/schemas/ResearchLocalKey'}
         display_name: {type: string}
-        chain_node_id: {type: string, description: Empty for analyst_snapshot publications.}
+        chain_node_id: {type: string, pattern: '^(|CND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$', description: Empty for analyst_snapshot publications.}
         name: {type: string}
         relation_role: {type: string}
         impact_direction: {type: string}
@@ -441,7 +441,7 @@ components:
         tree_key: {$ref: '#/components/schemas/ResearchLocalKey'}
         display_name: {type: string}
         reasoning_tree_id: {$ref: '#/components/schemas/UUID'}
-        industry_chain_id: {type: string, description: Empty for analyst_snapshot publications.}
+        industry_chain_id: {type: string, pattern: '^(|ICH[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$', description: Empty for analyst_snapshot publications.}
         industry_chain_name: {type: string}
         title: {type: string}
         display_order: {type: integer}
@@ -513,7 +513,7 @@ components:
         display_name: {type: string}
         id: {$ref: '#/components/schemas/UUID'}
         position: {type: integer}
-        chain_node_id: {type: string, description: Empty for analyst_snapshot publications.}
+        chain_node_id: {type: string, pattern: '^(|CND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$', description: Empty for analyst_snapshot publications.}
         name: {type: string}
         state_summary: {type: string, nullable: true}
         impact_direction: {type: string, enum: [positive, negative, mixed, neutral, uncertain]}
@@ -565,7 +565,7 @@ components:
         display_name: {type: string}
         reasoning_tree_id: {$ref: '#/components/schemas/UUID'}
         theme_id: {$ref: '#/components/schemas/UUID'}
-        industry_chain_id: {type: string, description: Empty for analyst_snapshot publications.}
+        industry_chain_id: {type: string, pattern: '^(|ICH[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$', description: Empty for analyst_snapshot publications.}
         industry_chain_name: {type: string}
         title: {type: string}
         display_order: {type: integer}

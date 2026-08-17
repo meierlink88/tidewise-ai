@@ -116,8 +116,8 @@ func TestResearchGraphResolvesIndependentIndustryWithoutShadowEntity(t *testing.
 	db := openEntityTestDatabase(t)
 	ctx := context.Background()
 	const (
-		industryID = "ENT11111111-1111-4111-8111-111111111111"
-		chainID    = "ENT22222222-2222-4222-8222-222222222222"
+		industryID = "IND11111111-1111-4111-8111-111111111111"
+		chainID    = "ICH22222222-2222-4222-8222-222222222222"
 		relationID = "ERL33333333-3333-4333-8333-333333333333"
 	)
 	if _, err := db.ExecContext(ctx, `
@@ -273,21 +273,21 @@ func TestIndependentEntityPersistenceSchemasStayAligned(t *testing.T) {
 	for name, statement := range map[string]string{
 		"blank ChainNode alias": `INSERT INTO chain_node (
 			id, name, aliases, definition, review_status
-		) VALUES ('ENT60000000-0000-4000-8000-000000000001', 'Blank Alias', ARRAY[''], 'definition', 'candidate')`,
+		) VALUES ('CND60000000-0000-4000-8000-000000000001', 'Blank Alias', ARRAY[''], 'definition', 'candidate')`,
 		"duplicate ChainNode alias": `INSERT INTO chain_node (
 			id, name, aliases, definition, review_status
-		) VALUES ('ENT60000000-0000-4000-8000-000000000002', 'Duplicate Alias', ARRAY['same','same'], 'definition', 'candidate')`,
+		) VALUES ('CND60000000-0000-4000-8000-000000000002', 'Duplicate Alias', ARRAY['same','same'], 'definition', 'candidate')`,
 		"inverted ChainNode timestamps": `INSERT INTO chain_node (
 			id, name, aliases, definition, review_status, created_at, updated_at
-		) VALUES ('ENT60000000-0000-4000-8000-000000000003', 'Inverted Time', '{}', 'definition', 'candidate', now(), now() - interval '1 day')`,
+		) VALUES ('CND60000000-0000-4000-8000-000000000003', 'Inverted Time', '{}', 'definition', 'candidate', now(), now() - interval '1 day')`,
 		"blank IndustryChain variable": `INSERT INTO industry_chain (
 			id, name, aliases, scope, target_output, end_use, geography, as_of_date,
 			review_status, observable_variables
-		) VALUES ('ENT60000000-0000-4000-8000-000000000004', 'Blank Variable', '{}', 'scope', 'output', 'use', 'global', CURRENT_DATE, 'candidate', ARRAY[''])`,
+		) VALUES ('ICH60000000-0000-4000-8000-000000000004', 'Blank Variable', '{}', 'scope', 'output', 'use', 'global', CURRENT_DATE, 'candidate', ARRAY[''])`,
 		"duplicate IndustryChain variable": `INSERT INTO industry_chain (
 			id, name, aliases, scope, target_output, end_use, geography, as_of_date,
 			review_status, observable_variables
-		) VALUES ('ENT60000000-0000-4000-8000-000000000005', 'Duplicate Variable', '{}', 'scope', 'output', 'use', 'global', CURRENT_DATE, 'candidate', ARRAY['same','same'])`,
+		) VALUES ('ICH60000000-0000-4000-8000-000000000005', 'Duplicate Variable', '{}', 'scope', 'output', 'use', 'global', CURRENT_DATE, 'candidate', ARRAY['same','same'])`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := db.ExecContext(context.Background(), statement); err == nil {
@@ -297,27 +297,38 @@ func TestIndependentEntityPersistenceSchemasStayAligned(t *testing.T) {
 	}
 }
 
-func TestIndustryConceptAndEntityIdentitiesStayGloballyUnique(t *testing.T) {
+func TestIndependentObjectPrefixesSeparateOwnersWithTheSameUUIDSuffix(t *testing.T) {
 	db := openEntityTestDatabase(t)
 	ctx := context.Background()
-	const objectID = "ENT44444444-4444-4444-8444-444444444444"
+	const suffix = "44444444-4444-4444-8444-444444444444"
 	if _, err := db.ExecContext(ctx, `INSERT INTO industry (
 		id, name, aliases, classification_system, industry_code,
 		parent_industry_id, hierarchy_path_codes, definition, review_status
-	) VALUES ($1, '全局唯一行业', '{}', 'test', 'unique', NULL, ARRAY['unique'], '测试行业', 'approved')`, objectID); err != nil {
+	) VALUES ($1, '独立行业', '{}', 'test', 'industry', NULL, ARRAY['industry'], '测试行业', 'approved')`, "IND"+suffix); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO concept (
 		id, name, aliases, concept_type, definition, review_status
-	) VALUES ($1, '冲突概念', '{}', 'technology', '冲突测试', 'approved')`, objectID); err == nil ||
-		!strings.Contains(err.Error(), "already belongs to another object") {
-		t.Fatalf("duplicate Concept identity error = %v", err)
+	) VALUES ($1, '独立概念', '{}', 'technology', '测试概念', 'approved')`, "CON"+suffix); err != nil {
+		t.Fatal(err)
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO entity_nodes (
 		id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
-	) VALUES ($1, 'company:duplicate', 'company', 'company', '冲突实体', '冲突实体', '{}', 'active')`, objectID); err == nil ||
-		!strings.Contains(err.Error(), "already belongs to an independent object") {
-		t.Fatalf("duplicate Entity identity error = %v", err)
+	) VALUES ($1, 'company:same-suffix', 'company', 'company', '独立实体', '独立实体', '{}', 'active')`, "ENT"+suffix); err != nil {
+		t.Fatal(err)
+	}
+	for objectID, wantType := range map[string]string{
+		"ENT" + suffix: "company",
+		"IND" + suffix: "industry",
+		"CON" + suffix: "concept",
+	} {
+		var gotType string
+		if err := db.QueryRowContext(ctx, `SELECT data_object_type($1)`, objectID).Scan(&gotType); err != nil {
+			t.Fatal(err)
+		}
+		if gotType != wantType {
+			t.Fatalf("data_object_type(%q) = %q, want %q", objectID, gotType, wantType)
+		}
 	}
 }
 
@@ -326,11 +337,11 @@ func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	const (
-		chainA = "ENT20000000-0000-4000-8000-000000000001"
-		chainB = "ENT20000000-0000-4000-8000-000000000002"
-		nodeA  = "ENT20000000-0000-4000-8000-000000000003"
-		nodeB  = "ENT20000000-0000-4000-8000-000000000004"
-		nodeC  = "ENT20000000-0000-4000-8000-000000000005"
+		chainA = "ICH20000000-0000-4000-8000-000000000001"
+		chainB = "ICH20000000-0000-4000-8000-000000000002"
+		nodeA  = "CND20000000-0000-4000-8000-000000000003"
+		nodeB  = "CND20000000-0000-4000-8000-000000000004"
+		nodeC  = "CND20000000-0000-4000-8000-000000000005"
 	)
 	for _, statement := range []string{
 		`INSERT INTO chain_node (id, name, aliases, definition, review_status) VALUES

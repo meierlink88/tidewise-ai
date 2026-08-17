@@ -107,7 +107,7 @@ func (s *UseCase) Create(ctx context.Context, input IndustryChain) (IndustryChai
 	if err := validateValues(input.Name, input.Aliases, input.Scope, input.TargetOutput, input.EndUse, input.Geography, input.PrimaryCountryID, input.AsOfDate, input.ReviewStatus, input.ReviewNote, input.TechnologyRouteQualifier, input.ObservableVariables); err != nil {
 		return IndustryChain{}, err
 	}
-	id, err := coreid.New(coreid.Entity)
+	id, err := coreid.New(coreid.IndustryChain)
 	if err != nil {
 		return IndustryChain{}, fmt.Errorf("generate IndustryChain ID: %w", err)
 	}
@@ -155,7 +155,7 @@ func (s *UseCase) Update(ctx context.Context, id ID, input Update) (IndustryChai
 	return s.repository.Update(ctx, id, cloneUpdate(input))
 }
 
-func IsID(value string) bool { return coreid.Is(value, coreid.Entity) }
+func IsID(value string) bool { return coreid.Is(value, coreid.IndustryChain) }
 func ValidatePersisted(input IndustryChain) error {
 	if err := validateID(input.ID); err != nil {
 		return err
@@ -164,7 +164,7 @@ func ValidatePersisted(input IndustryChain) error {
 }
 func validateID(value ID) error {
 	if !IsID(string(value)) {
-		return &ValidationError{Field: "industry_chain_id", Message: "must equal ENT immediately followed by a canonical lowercase UUID"}
+		return &ValidationError{Field: "industry_chain_id", Message: "must equal ICH immediately followed by a canonical lowercase UUID"}
 	}
 	return nil
 }

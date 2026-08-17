@@ -18,8 +18,9 @@ Membership、Graph Edge、Relation、Constraint 与 Research 合同继续使用
 
 - Data 使用独立的单数 `chain_node` 与 `industry_chain` 表拥有正式事实，不引用
   `entity_nodes`，不保留 profile、definition shadow、双读或双写入口。
-- 两类对象无损保留既有 `ENT + canonical lowercase UUID` ID。owning 主键列从
-  `entity_id` 改为 `id`，不执行身份重排或前缀替换。
+- Migration `000057` 首次独立化时保留既有 `ENT + canonical lowercase UUID` ID。随后
+  ADR-0024 与 migration `000058` 保留 UUID 后缀，将 ChainNode 正式身份切换为 `CND`、
+  IndustryChain 正式身份切换为 `ICH`。
 - 两类对象直接拥有非空 `name` 与 `aliases`。ChainNode 保留 definition、review status，
   删除 `boundary_note`，并从原 Entity 保留创建与更新时间；IndustryChain 保留 scope、
   target output、end use、geography、primary Country、as-of date、review facts、technology

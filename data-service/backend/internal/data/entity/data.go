@@ -442,27 +442,8 @@ func containsOrganizationSeed(ids []string) bool {
 	return false
 }
 
-func validIndependentObjectID(id string) bool {
-	if biz.IsCountryID(id) {
-		return true
-	}
-	if biz.IsOrganizationID(id) {
-		return true
-	}
-	return biz.IsRegionID(id)
-}
-
 func validResearchGraphIdentity(id, objectType string) bool {
-	if biz.IsEntityID(id) {
-		return objectType != biz.ObjectTypeCountry && objectType != biz.ObjectTypeOrganization && objectType != "region"
-	}
-	if biz.IsCountryID(id) {
-		return objectType == biz.ObjectTypeCountry
-	}
-	if biz.IsOrganizationID(id) {
-		return objectType == biz.ObjectTypeOrganization
-	}
-	return validIndependentObjectID(id) && objectType == "region"
+	return biz.ObjectTypeMatchesID(objectType, id)
 }
 
 func (s *Store) searchOrganizationResearchGraph(ctx context.Context, query biz.ResearchGraphQuery) (biz.ResearchGraphSubgraph, error) {
@@ -742,7 +723,7 @@ func validatePersistedResearchGraph(graph biz.ResearchGraphSubgraph, maxDepth in
 	}
 	chains := make(map[string]struct{}, len(graph.IndustryChains))
 	for _, chain := range graph.IndustryChains {
-		if !biz.IsEntityID(chain.IndustryChainID) || chain.ReviewStatus != "approved" ||
+		if !biz.IsIndustryChainID(chain.IndustryChainID) || chain.ReviewStatus != "approved" ||
 			strings.TrimSpace(chain.Scope) == "" || strings.TrimSpace(chain.TargetOutput) == "" ||
 			strings.TrimSpace(chain.EndUse) == "" || strings.TrimSpace(chain.Geography) == "" ||
 			strings.TrimSpace(chain.AsOfDate) == "" ||

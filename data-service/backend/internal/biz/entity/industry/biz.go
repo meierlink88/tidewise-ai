@@ -111,7 +111,7 @@ func (s *UseCase) Create(ctx context.Context, input Industry) (Industry, error) 
 	if err := validateIndustry(input); err != nil {
 		return Industry{}, err
 	}
-	id, err := coreid.New(coreid.Entity)
+	id, err := coreid.New(coreid.Industry)
 	if err != nil {
 		return Industry{}, fmt.Errorf("generate Industry ID: %w", err)
 	}
@@ -159,7 +159,7 @@ func (s *UseCase) Update(ctx context.Context, id ID, input Update) (Industry, er
 	return s.repository.Update(ctx, id, cloneUpdate(input))
 }
 
-func IsID(value string) bool { return coreid.Is(value, coreid.Entity) }
+func IsID(value string) bool { return coreid.Is(value, coreid.Industry) }
 
 func ValidatePersisted(input Industry) error {
 	if err := validateID("industry_id", input.ID); err != nil {
@@ -221,7 +221,7 @@ func validateMutable(name string, aliases []string, parentIndustryID *ID, path [
 
 func validateID(field string, value ID) error {
 	if !IsID(string(value)) {
-		return &ValidationError{Field: field, Message: "must equal ENT immediately followed by a canonical lowercase UUID"}
+		return &ValidationError{Field: field, Message: "must equal IND immediately followed by a canonical lowercase UUID"}
 	}
 	return nil
 }

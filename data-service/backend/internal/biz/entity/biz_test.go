@@ -19,6 +19,27 @@ func TestDomainObjectIdentityRequiresPrefixAndUUID(t *testing.T) {
 	}
 }
 
+func TestObjectIdentityRecognizesIndependentDomainPrefixes(t *testing.T) {
+	suffix := "550e8400-e29b-41d4-a716-446655440000"
+	for objectType, prefix := range map[string]string{
+		ObjectTypeIndustry:      "IND",
+		ObjectTypeConcept:       "CON",
+		ObjectTypeChainNode:     "CND",
+		ObjectTypeIndustryChain: "ICH",
+	} {
+		value := prefix + suffix
+		if !IsObjectID(value) {
+			t.Errorf("IsObjectID(%q) = false", value)
+		}
+		if !ObjectTypeMatchesID(objectType, value) {
+			t.Errorf("ObjectTypeMatchesID(%q, %q) = false", objectType, value)
+		}
+		if ObjectTypeMatchesID(objectType, "ENT"+suffix) {
+			t.Errorf("ObjectTypeMatchesID(%q, legacy ENT ID) = true", objectType)
+		}
+	}
+}
+
 func TestThemeProfiles(t *testing.T) {
 	tests := []struct {
 		name    string

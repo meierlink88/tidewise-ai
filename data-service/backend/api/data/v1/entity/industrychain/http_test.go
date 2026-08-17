@@ -73,7 +73,7 @@ func TestIndustryChainHTTPContractPersistsIndependentIndustryChainFacts(t *testi
 		"primary_country_id":null,"as_of_date":"2026-08-17","review_status":"candidate","review_note":null,
 		"technology_route_qualifier":null,"observable_variables":["legacy"]
 	}`, http.StatusBadRequest, "INVALID_REQUEST")
-	requestError(t, handler, http.MethodGet, v1.APIPrefix+"/entities/industry-chains/ENT99999999-9999-4999-8999-999999999999", "", http.StatusNotFound, industrychainapi.ErrorNotFound)
+	requestError(t, handler, http.MethodGet, v1.APIPrefix+"/entities/industry-chains/ICH99999999-9999-4999-8999-999999999999", "", http.StatusNotFound, industrychainapi.ErrorNotFound)
 
 	var shadowRows int
 	if err := db.QueryRowContext(context.Background(), `SELECT count(*) FROM entity_nodes WHERE id = ANY($1::text[])`, []string{created.ID, second.ID}).Scan(&shadowRows); err != nil {
