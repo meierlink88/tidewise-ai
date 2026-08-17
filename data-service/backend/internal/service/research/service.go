@@ -309,7 +309,7 @@ func researchAnalysisIndustryChainDTOs(values []researchbiz.IndustryChain) []res
 	result := make([]researchapi.ResearchAnalysisIndustryChain, 0, len(values))
 	for _, item := range values {
 		result = append(result, researchapi.ResearchAnalysisIndustryChain{
-			IndustryChainEntityID: item.IndustryChainEntityID, Scope: item.Scope,
+			IndustryChainID: item.IndustryChainID, Scope: item.Scope,
 			TargetOutput: item.TargetOutput, EndUse: item.EndUse, Geography: item.Geography,
 			AsOfDate: item.AsOfDate, ReviewStatus: item.ReviewStatus,
 		})
@@ -321,7 +321,7 @@ func researchAnalysisMembershipDTOs(values []researchbiz.IndustryChainMembership
 	result := make([]researchapi.ResearchAnalysisIndustryChainMembership, 0, len(values))
 	for _, item := range values {
 		result = append(result, researchapi.ResearchAnalysisIndustryChainMembership{
-			IndustryChainEntityID: item.IndustryChainEntityID, ChainNodeEntityID: item.ChainNodeEntityID,
+			IndustryChainID: item.IndustryChainID, ChainNodeID: item.ChainNodeID,
 			Position: item.Position, ContextualStage: item.ContextualStage,
 			ReviewStatus: item.ReviewStatus, Status: item.Status,
 		})
@@ -334,8 +334,8 @@ func researchAnalysisIndustryEdgeDTOs(values []researchbiz.IndustryChainGraphEdg
 	for _, item := range values {
 		result = append(result, researchapi.ResearchAnalysisIndustryChainGraphEdge{
 			IndustryChainGraphEdgeID: item.IndustryChainGraphEdgeID,
-			IndustryChainEntityID:    item.IndustryChainEntityID, FromChainNodeEntityID: item.FromChainNodeEntityID,
-			ToChainNodeEntityID: item.ToChainNodeEntityID, RelationType: item.RelationType,
+			IndustryChainID:          item.IndustryChainID, FromChainNodeID: item.FromChainNodeID,
+			ToChainNodeID: item.ToChainNodeID, RelationType: item.RelationType,
 			Mechanism: item.Mechanism, ConditionNote: item.ConditionNote, SegmentKind: item.SegmentKind,
 			OmittedStepNote: item.OmittedStepNote, ReviewStatus: item.ReviewStatus, Status: item.Status,
 		})
@@ -370,7 +370,7 @@ func researchThemeImportInput(request *researchapi.ResearchThemeImportRequest) r
 	impacts := make([]researchbiz.ThemeImpactInput, 0, len(theme.Impacts))
 	for _, impact := range theme.Impacts {
 		impacts = append(impacts, researchbiz.ThemeImpactInput{
-			ChainNodeEntityID: impact.ChainNodeEntityID, RelationRole: impact.RelationRole,
+			ChainNodeID: impact.ChainNodeID, RelationRole: impact.RelationRole,
 			ImpactDirection: impact.ImpactDirection, ImpactSummary: impact.ImpactSummary,
 			DisplayOrder: impact.DisplayOrder,
 		})
@@ -441,7 +441,7 @@ func researchThemeImportInput(request *researchapi.ResearchThemeImportRequest) r
 				}
 			}
 			nodes = append(nodes, researchbiz.Node{
-				Position: node.Position, ChainNodeEntityID: node.ChainNodeEntityID,
+				Position: node.Position, ChainNodeID: node.ChainNodeID,
 				StateSummary: node.StateSummary, ImpactDirection: node.ImpactDirection,
 				ImpactStrength: node.ImpactStrength, ImpactSummary: node.ImpactSummary,
 				ReasoningBasisSummary: node.ReasoningBasisSummary, EvidenceGapSummary: node.EvidenceGapSummary,
@@ -454,7 +454,7 @@ func researchThemeImportInput(request *researchapi.ResearchThemeImportRequest) r
 		}
 		trees = append(trees, researchbiz.ReasoningTree{
 			ReasonTreeInput: researchbiz.ReasonTreeInput{
-				IndustryChainEntityID: tree.IndustryChainEntityID, Title: tree.Title, DisplayOrder: tree.DisplayOrder,
+				IndustryChainID: tree.IndustryChainID, Title: tree.Title, DisplayOrder: tree.DisplayOrder,
 				OneLineConclusion: tree.OneLineConclusion, FactSummary: tree.FactSummary,
 				TransmissionSummary: tree.TransmissionSummary, ImpactDirection: tree.ImpactDirection,
 				ImpactStrength: tree.ImpactStrength, ImpactSummary: tree.ImpactSummary,
@@ -558,10 +558,10 @@ func researchThemeSnapshotImportInput(request *researchapi.ResearchThemeSnapshot
 func researchThemeImportDTO(result researchbiz.Result) researchapi.ResearchThemeImportResult {
 	return researchapi.ResearchThemeImportResult{
 		ReceiptID: result.ReceiptID, AnalysisBatchID: result.AnalysisBatchID, PayloadHash: result.PayloadHash,
-		ThemeID:                                 result.ThemeID,
-		PublicationMode:                         result.PublicationMode,
-		ReasoningTreeIDsByIndustryChainEntityID: result.ReasoningTreeIDsByIndustryChainEntityID,
-		ReasoningTreeIDsByTreeKey:               result.ReasoningTreeIDsByTreeKey,
+		ThemeID:                           result.ThemeID,
+		PublicationMode:                   result.PublicationMode,
+		ReasoningTreeIDsByIndustryChainID: result.ReasoningTreeIDsByIndustryChainID,
+		ReasoningTreeIDsByTreeKey:         result.ReasoningTreeIDsByTreeKey,
 		Counts: researchapi.ResearchThemeImportCounts{
 			Themes: result.Counts.Themes, Impacts: result.Counts.Impacts,
 			ThemeEventAssociations: result.Counts.ThemeEventAssociations,
@@ -578,7 +578,7 @@ func researchThemeDTO(value researchbiz.ResearchTheme) researchapi.ResearchTheme
 	for _, impact := range value.Impacts {
 		impacts = append(impacts, researchapi.ResearchThemeImpact{
 			NodeKey: impact.NodeKey, DisplayName: impact.DisplayName,
-			ChainNodeEntityID: impact.ChainNodeEntityID, Name: impact.Name,
+			ChainNodeID: impact.ChainNodeID, Name: impact.Name,
 			RelationRole: impact.RelationRole, ImpactDirection: impact.ImpactDirection,
 			ImpactSummary: impact.ImpactSummary, DisplayOrder: impact.DisplayOrder,
 		})
@@ -634,7 +634,7 @@ func reasoningTreeListDTO(value researchbiz.ResearchReasoningTreeList) researcha
 	for _, tree := range value.ReasoningTrees {
 		trees = append(trees, researchapi.ResearchReasoningTreeSummary{
 			TreeKey: tree.TreeKey, DisplayName: tree.DisplayName,
-			ReasoningTreeID: tree.ReasoningTreeID, IndustryChainEntityID: tree.IndustryChainEntityID,
+			ReasoningTreeID: tree.ReasoningTreeID, IndustryChainID: tree.IndustryChainID,
 			IndustryChainName: tree.IndustryChainName, Title: tree.Title, DisplayOrder: tree.DisplayOrder,
 			EventCount: tree.EventCount, PublishedAt: tree.PublishedAt,
 		})
@@ -663,7 +663,7 @@ func reasoningTreeDetailDTO(value researchbiz.ResearchReasoningTreeDetail) resea
 		}
 		nodes = append(nodes, researchapi.ResearchReasoningTreeNode{
 			NodeKey: node.NodeKey, DisplayName: node.DisplayName,
-			ID: node.ID, Position: node.Position, ChainNodeEntityID: node.ChainNodeEntityID, Name: node.Name,
+			ID: node.ID, Position: node.Position, ChainNodeID: node.ChainNodeID, Name: node.Name,
 			StateSummary: node.StateSummary, ImpactDirection: node.ImpactDirection,
 			ImpactStrength: node.ImpactStrength, ImpactSummary: node.ImpactSummary,
 			ReasoningBasisSummary: node.ReasoningBasisSummary, EvidenceGapSummary: node.EvidenceGapSummary,
@@ -682,7 +682,7 @@ func reasoningTreeDetailDTO(value researchbiz.ResearchReasoningTreeDetail) resea
 		ReasoningTree: researchapi.ResearchReasoningTree{
 			TreeKey: tree.TreeKey, DisplayName: tree.DisplayName,
 			ReasoningTreeID: tree.ReasoningTreeID, ThemeID: tree.ThemeID,
-			IndustryChainEntityID: tree.IndustryChainEntityID, IndustryChainName: tree.IndustryChainName,
+			IndustryChainID: tree.IndustryChainID, IndustryChainName: tree.IndustryChainName,
 			Title: tree.Title, DisplayOrder: tree.DisplayOrder, OneLineConclusion: tree.OneLineConclusion,
 			FactSummary: tree.FactSummary, TransmissionSummary: tree.TransmissionSummary,
 			ImpactDirection: tree.ImpactDirection, ImpactStrength: tree.ImpactStrength,
@@ -722,13 +722,13 @@ func (s *Service) SearchResearchGraph(
 		})
 	}
 	result, err := s.useCase.Search(ctx, researchbiz.GraphSearchRequest{
-		AnalysisAsOf:          request.AnalysisAsOf,
-		SeedEntityIDs:         request.SeedEntityIDs,
-		RelationFilters:       filters,
-		MaxDepth:              request.MaxDepth,
-		IndustryChainEntityID: request.IndustryChainEntityID,
-		NodeBudget:            request.NodeBudget,
-		EdgeBudget:            request.EdgeBudget,
+		AnalysisAsOf:    request.AnalysisAsOf,
+		SeedEntityIDs:   request.SeedEntityIDs,
+		RelationFilters: filters,
+		MaxDepth:        request.MaxDepth,
+		IndustryChainID: request.IndustryChainID,
+		NodeBudget:      request.NodeBudget,
+		EdgeBudget:      request.EdgeBudget,
 	})
 	if err != nil {
 		var validation *researchbiz.GraphValidationError

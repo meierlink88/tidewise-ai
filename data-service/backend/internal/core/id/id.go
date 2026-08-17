@@ -19,6 +19,10 @@ type Kind string
 
 const (
 	Entity                            Kind = "ENT"
+	Industry                          Kind = "IND"
+	Concept                           Kind = "CON"
+	ChainNode                         Kind = "CND"
+	IndustryChain                     Kind = "ICH"
 	EntityRelation                    Kind = "ERL"
 	Country                           Kind = "COU"
 	Region                            Kind = "REG"
@@ -156,7 +160,7 @@ func prefix(kind Kind) (string, error) {
 
 func registered(kind Kind) bool {
 	switch kind {
-	case Entity, EntityRelation, Country, Region, Organization, OrganizationCategory, OrganizationFunction, OrganizationDomainTag,
+	case Entity, Industry, Concept, ChainNode, IndustryChain, EntityRelation, Country, Region, Organization, OrganizationCategory, OrganizationFunction, OrganizationDomainTag,
 		OrganizationDomainTagLink, RawEvidence, Evidence, EvidenceCategory, RawEvidenceCategoryLink,
 		ChainNodePhysicalConstraint, ChainNodeRelation, CountryRegionLink, DirectImpactAssertion,
 		EntityExternalIdentifier, EventEntityLink, EventPublicationReceipt, EventSemanticCandidateSnapshot,

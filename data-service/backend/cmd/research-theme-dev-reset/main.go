@@ -51,8 +51,8 @@ WHERE n.nspname = current_schema()
     (SELECT COUNT(*) FROM entity_nodes),
     (SELECT COUNT(*) FROM industry),
     (SELECT COUNT(*) FROM concept),
-    (SELECT COUNT(*) FROM chain_node_profiles),
-    (SELECT COUNT(*) FROM industry_chain_definitions),
+    (SELECT COUNT(*) FROM chain_node),
+    (SELECT COUNT(*) FROM industry_chain),
     (SELECT COUNT(*) FROM industry_chain_graph_edges),
     (SELECT COUNT(*) FROM index_profiles),
     (SELECT COUNT(*) FROM event_tag_defs),
@@ -107,17 +107,17 @@ type publicationCounts struct {
 func (c publicationCounts) isZero() bool { return c == (publicationCounts{}) }
 
 type protectedCounts struct {
-	Events                   int64 `json:"events"`
-	EntityNodes              int64 `json:"entity_nodes"`
-	Industries               int64 `json:"industry"`
-	Concepts                 int64 `json:"concept"`
-	ChainNodeProfiles        int64 `json:"chain_node_profiles"`
-	IndustryChainDefinitions int64 `json:"industry_chain_definitions"`
-	IndustryChainGraphEdges  int64 `json:"industry_chain_graph_edges"`
-	IndexProfiles            int64 `json:"index_profiles"`
-	EventTagDefs             int64 `json:"event_tag_defs"`
-	EventTagMaps             int64 `json:"event_tag_maps"`
-	RawDocuments             int64 `json:"raw_documents"`
+	Events                  int64 `json:"events"`
+	EntityNodes             int64 `json:"entity_nodes"`
+	Industries              int64 `json:"industry"`
+	Concepts                int64 `json:"concept"`
+	ChainNodes              int64 `json:"chain_node"`
+	IndustryChains          int64 `json:"industry_chain"`
+	IndustryChainGraphEdges int64 `json:"industry_chain_graph_edges"`
+	IndexProfiles           int64 `json:"index_profiles"`
+	EventTagDefs            int64 `json:"event_tag_defs"`
+	EventTagMaps            int64 `json:"event_tag_maps"`
+	RawDocuments            int64 `json:"raw_documents"`
 }
 
 type resetReport struct {
@@ -308,8 +308,8 @@ func readPublicationCounts(ctx context.Context, tx *sql.Tx) (publicationCounts, 
 func readProtectedCounts(ctx context.Context, tx *sql.Tx) (protectedCounts, error) {
 	var counts protectedCounts
 	err := tx.QueryRowContext(ctx, protectedCountsSQL).Scan(
-		&counts.Events, &counts.EntityNodes, &counts.Industries, &counts.Concepts, &counts.ChainNodeProfiles,
-		&counts.IndustryChainDefinitions, &counts.IndustryChainGraphEdges,
+		&counts.Events, &counts.EntityNodes, &counts.Industries, &counts.Concepts, &counts.ChainNodes,
+		&counts.IndustryChains, &counts.IndustryChainGraphEdges,
 		&counts.IndexProfiles, &counts.EventTagDefs, &counts.EventTagMaps, &counts.RawDocuments,
 	)
 	if err != nil {

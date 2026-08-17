@@ -31,7 +31,8 @@ Data 各领域曾并存裸 UUID、`PREFIX_ + code`、固定短码和非 UUID 自
 
 ## 受控对象前缀
 
-`ENT` Entity、`ERL` Entity Relation、`COU` Country、`REG` Region、`ORG` Organization、
+`ENT` Entity、`IND` Industry、`CON` Concept、`CND` ChainNode、`ICH` IndustryChain、
+`ERL` Entity Relation、`COU` Country、`REG` Region、`ORG` Organization、
 `OCA` Organization Category、`OFN` Organization Function、`ODT` Organization Domain Tag、
 `ODL` Organization Domain Tag Link、
 `RAW` Raw Evidence、`EVD` Evidence、`EVC` Evidence Category、`RCL` Raw Evidence Category Link、`CPC` Chain Node Physical
@@ -60,3 +61,7 @@ Organization Domain Tag Link 和 Raw Evidence Category Link 补齐正式身份�
 Issue #253 通过 forward-only migration `000054` 补齐 Organization Function 的 `OFN` 正式身份，
 使其与其余 Organization 目录共享 `id` 主键、确定性目录发布和 API 身份合同。该修正不改变
 既有表的物理列顺序，也不提供旧目录行回填或无 `id` 的旧 wire 兼容。
+
+Issue #265 通过 forward-only migration `000058` 将已经独立的 Industry、Concept、ChainNode
+和 IndustryChain 从历史共享 `ENT` 身份切换到 `IND`、`CON`、`CND` 和 `ICH`，保留 canonical
+UUID 后缀并同步改写全部支持引用。普通 Entity 继续使用 `ENT`；四类独立对象不接受旧前缀。

@@ -19,10 +19,10 @@ type ResearchReasoningTreeListResponse struct {
 	ReasoningTrees []ResearchReasoningTreeSummaryDTO
 }
 type ResearchReasoningTreeSummaryDTO struct {
-	TreeKey, DisplayName                                             string
-	ReasoningTreeID, IndustryChainEntityID, IndustryChainName, Title string
-	DisplayOrder, EventCount                                         int
-	PublishedAt                                                      string
+	TreeKey, DisplayName                                       string
+	ReasoningTreeID, IndustryChainID, IndustryChainName, Title string
+	DisplayOrder, EventCount                                   int
+	PublishedAt                                                string
 }
 type ResearchReasoningTreeDetailResponse struct {
 	ThemeID       string
@@ -38,30 +38,30 @@ type ResearchSignalDTO struct {
 	DisplayOrder                                                   int
 }
 type ResearchReasoningTreeNodeDTO struct {
-	NodeKey, DisplayName                                         string
-	ID, ChainNodeEntityID, Name, ImpactDirection, ImpactStrength string
-	Position                                                     int
-	StateSummary, ImpactSummary, ReasoningBasisSummary           *string
-	EvidenceGapSummary                                           *string
-	IncomingIndustryChainGraphEdgeID, IncomingTransmissionTitle  *string
-	IncomingTransmissionMechanism, IncomingConditionSummary      *string
-	IncomingGraphEdge                                            *ResearchGraphEdgeDTO
-	Signals                                                      []ResearchSignalDTO
-	PrimarySignal                                                ResearchSignalDTO
-	SignalDisplaySummary                                         string
+	NodeKey, DisplayName                                        string
+	ID, ChainNodeID, Name, ImpactDirection, ImpactStrength      string
+	Position                                                    int
+	StateSummary, ImpactSummary, ReasoningBasisSummary          *string
+	EvidenceGapSummary                                          *string
+	IncomingIndustryChainGraphEdgeID, IncomingTransmissionTitle *string
+	IncomingTransmissionMechanism, IncomingConditionSummary     *string
+	IncomingGraphEdge                                           *ResearchGraphEdgeDTO
+	Signals                                                     []ResearchSignalDTO
+	PrimarySignal                                               ResearchSignalDTO
+	SignalDisplaySummary                                        string
 }
 type ResearchReasoningTreeDTO struct {
-	TreeKey, DisplayName                                               string
-	ReasoningTreeID, ThemeID, IndustryChainEntityID, IndustryChainName string
-	Title, OneLineConclusion, ImpactDirection, ImpactStrength          string
-	DisplayOrder, EventCount                                           int
-	FactSummary, TransmissionSummary, ImpactSummary                    *string
-	ConclusionBoundarySummary, SupportSummary, CounterSummary          *string
-	InvalidationConditions                                             []string
-	Checkpoints                                                        []ResearchCheckpointDTO
-	PublishedAt                                                        string
-	Events                                                             []ResearchEventDTO
-	Nodes                                                              []ResearchReasoningTreeNodeDTO
+	TreeKey, DisplayName                                         string
+	ReasoningTreeID, ThemeID, IndustryChainID, IndustryChainName string
+	Title, OneLineConclusion, ImpactDirection, ImpactStrength    string
+	DisplayOrder, EventCount                                     int
+	FactSummary, TransmissionSummary, ImpactSummary              *string
+	ConclusionBoundarySummary, SupportSummary, CounterSummary    *string
+	InvalidationConditions                                       []string
+	Checkpoints                                                  []ResearchCheckpointDTO
+	PublishedAt                                                  string
+	Events                                                       []ResearchEventDTO
+	Nodes                                                        []ResearchReasoningTreeNodeDTO
 }
 
 func (s *ResearchService) ListReasoningTrees(ctx context.Context, themeID string) (ResearchReasoningTreeListResponse, error) {
@@ -80,7 +80,7 @@ func (s *ResearchService) ListReasoningTrees(ctx context.Context, themeID string
 	for _, tree := range value.ReasoningTrees {
 		trees = append(trees, ResearchReasoningTreeSummaryDTO{
 			TreeKey: tree.TreeKey, DisplayName: tree.DisplayName,
-			ReasoningTreeID: tree.ReasoningTreeID, IndustryChainEntityID: tree.IndustryChainEntityID,
+			ReasoningTreeID: tree.ReasoningTreeID, IndustryChainID: tree.IndustryChainID,
 			IndustryChainName: tree.IndustryChainName, Title: tree.Title, DisplayOrder: tree.DisplayOrder,
 			EventCount: tree.EventCount, PublishedAt: formatTime(tree.PublishedAt),
 		})
@@ -123,7 +123,7 @@ func reasoningTreeDTO(value ResearchReasoningTree) ResearchReasoningTreeDTO {
 		}
 		nodes = append(nodes, ResearchReasoningTreeNodeDTO{
 			NodeKey: node.NodeKey, DisplayName: node.DisplayName,
-			ID: node.ID, Position: node.Position, ChainNodeEntityID: node.ChainNodeEntityID, Name: node.Name,
+			ID: node.ID, Position: node.Position, ChainNodeID: node.ChainNodeID, Name: node.Name,
 			StateSummary: node.StateSummary, ImpactDirection: node.ImpactDirection, ImpactStrength: node.ImpactStrength,
 			ImpactSummary: node.ImpactSummary, ReasoningBasisSummary: node.ReasoningBasisSummary,
 			EvidenceGapSummary: node.EvidenceGapSummary, IncomingIndustryChainGraphEdgeID: node.IncomingIndustryChainGraphEdgeID,
@@ -135,7 +135,7 @@ func reasoningTreeDTO(value ResearchReasoningTree) ResearchReasoningTreeDTO {
 	return ResearchReasoningTreeDTO{
 		TreeKey: value.TreeKey, DisplayName: value.DisplayName,
 		ReasoningTreeID: value.ReasoningTreeID, ThemeID: value.ThemeID,
-		IndustryChainEntityID: value.IndustryChainEntityID, IndustryChainName: value.IndustryChainName,
+		IndustryChainID: value.IndustryChainID, IndustryChainName: value.IndustryChainName,
 		Title: value.Title, DisplayOrder: value.DisplayOrder, OneLineConclusion: value.OneLineConclusion,
 		FactSummary: value.FactSummary, TransmissionSummary: value.TransmissionSummary,
 		ImpactDirection: value.ImpactDirection, ImpactStrength: value.ImpactStrength, ImpactSummary: value.ImpactSummary,

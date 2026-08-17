@@ -16,9 +16,11 @@ import (
 	"github.com/go-kratos/kratos/v3/transport"
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
+	chainnodeapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/chainnode"
 	conceptapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/concept"
 	countryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/country"
 	industryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/industry"
+	industrychainapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/industrychain"
 	organizationapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/organization"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/eventsemantic"
@@ -841,7 +843,7 @@ func newEventHTTPHandler(t *testing.T, application *eventservice.Service, creden
 	httpServer, err := serverpkg.NewHTTPServer(conf.Config{
 		App:    conf.AppConfig{Env: conf.EnvLocal},
 		Server: conf.ServerConfig{Host: "127.0.0.1", Port: 18081, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10},
-	}, testRuntimeHealthService{}, researchfixture.Service{}, application, testEventSemanticService{}, testEvidenceService{}, testRawDocumentService{}, testCountryService{}, testIndustryService{}, testConceptService{}, eventHTTPOrganizationStub{}, authenticator, nil)
+	}, testRuntimeHealthService{}, researchfixture.Service{}, application, testEventSemanticService{}, testEvidenceService{}, testRawDocumentService{}, testCountryService{}, testIndustryService{}, testConceptService{}, testChainNodeService{}, testIndustryChainService{}, eventHTTPOrganizationStub{}, authenticator, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -855,6 +857,10 @@ type testCountryService struct{}
 type testIndustryService struct{}
 
 type testConceptService struct{}
+
+type testChainNodeService struct{}
+
+type testIndustryChainService struct{}
 
 func (testCountryService) Create(context.Context, *countryapi.CreateRequest) (*v1.Response[countryapi.Country], error) {
 	return &v1.Response[countryapi.Country]{Status: http.StatusNoContent}, nil
@@ -900,6 +906,32 @@ func (testConceptService) Get(context.Context, *conceptapi.GetRequest) (*v1.Resp
 }
 func (testConceptService) Update(context.Context, *conceptapi.UpdateRequest) (*v1.Response[conceptapi.Concept], error) {
 	return &v1.Response[conceptapi.Concept]{Status: http.StatusNoContent}, nil
+}
+
+func (testChainNodeService) Create(context.Context, *chainnodeapi.CreateRequest) (*v1.Response[chainnodeapi.ChainNode], error) {
+	return &v1.Response[chainnodeapi.ChainNode]{Status: http.StatusNoContent}, nil
+}
+func (testChainNodeService) List(context.Context, *chainnodeapi.ListRequest) (*v1.Response[chainnodeapi.ChainNodeList], error) {
+	return &v1.Response[chainnodeapi.ChainNodeList]{Status: http.StatusNoContent}, nil
+}
+func (testChainNodeService) Get(context.Context, *chainnodeapi.GetRequest) (*v1.Response[chainnodeapi.ChainNode], error) {
+	return &v1.Response[chainnodeapi.ChainNode]{Status: http.StatusNoContent}, nil
+}
+func (testChainNodeService) Update(context.Context, *chainnodeapi.UpdateRequest) (*v1.Response[chainnodeapi.ChainNode], error) {
+	return &v1.Response[chainnodeapi.ChainNode]{Status: http.StatusNoContent}, nil
+}
+
+func (testIndustryChainService) Create(context.Context, *industrychainapi.CreateRequest) (*v1.Response[industrychainapi.IndustryChain], error) {
+	return &v1.Response[industrychainapi.IndustryChain]{Status: http.StatusNoContent}, nil
+}
+func (testIndustryChainService) List(context.Context, *industrychainapi.ListRequest) (*v1.Response[industrychainapi.IndustryChainList], error) {
+	return &v1.Response[industrychainapi.IndustryChainList]{Status: http.StatusNoContent}, nil
+}
+func (testIndustryChainService) Get(context.Context, *industrychainapi.GetRequest) (*v1.Response[industrychainapi.IndustryChain], error) {
+	return &v1.Response[industrychainapi.IndustryChain]{Status: http.StatusNoContent}, nil
+}
+func (testIndustryChainService) Update(context.Context, *industrychainapi.UpdateRequest) (*v1.Response[industrychainapi.IndustryChain], error) {
+	return &v1.Response[industrychainapi.IndustryChain]{Status: http.StatusNoContent}, nil
 }
 
 func (testRuntimeHealthService) GetRuntimeHealth(context.Context, *runtimehealthapi.Request) (*v1.Response[runtimehealthapi.Result], error) {

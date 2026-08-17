@@ -72,7 +72,7 @@ func TestIndustryHTTPContractPersistsIndependentIndustryFacts(t *testing.T) {
 	}`, http.StatusConflict, "INDUSTRY_CONFLICT")
 	requestError(t, handler, http.MethodPost, v1.APIPrefix+"/entities/industries", `{
 		"name":"未知父级","aliases":[],"classification_system":"TIDEWISE","industry_code":"UNKNOWN_CHILD",
-		"parent_industry_id":"ENT99999999-9999-4999-8999-999999999999",
+		"parent_industry_id":"IND99999999-9999-4999-8999-999999999999",
 		"hierarchy_path_codes":["UNKNOWN","UNKNOWN_CHILD"],"definition":"无效层级","review_status":"candidate"
 	}`, http.StatusUnprocessableEntity, "INDUSTRY_REFERENCE_INVALID")
 	requestError(t, handler, http.MethodPost, v1.APIPrefix+"/entities/industries", `{

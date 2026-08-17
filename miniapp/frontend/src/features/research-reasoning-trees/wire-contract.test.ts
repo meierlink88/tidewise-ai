@@ -24,7 +24,7 @@ describe('analyst snapshot reasoning tree wire contract', () => {
         display_name: '高速光模块产业链',
         reasoning_tree_id: treeId,
         theme_id: themeId,
-        industry_chain_entity_id: '',
+        industry_chain_id: '',
         industry_chain_name: '高速光模块产业链',
         title: '高速光模块',
         display_order: 1,
@@ -59,7 +59,7 @@ describe('analyst snapshot reasoning tree wire contract', () => {
             display_name: '高速光模块',
             id: '70000000-0000-4000-8000-000000000004',
             position: 1,
-            chain_node_entity_id: '',
+            chain_node_id: '',
             name: '高速光模块',
             state_summary: null,
             impact_direction: 'uncertain',
@@ -85,11 +85,11 @@ describe('analyst snapshot reasoning tree wire contract', () => {
     expect(parsed.reasoningTree).toMatchObject({
       treeKey: 'tree:optical-module',
       displayName: '高速光模块产业链',
-      industryChainEntityId: null
+      industryChainId: null
     });
     expect(parsed.reasoningTree.nodes[0]).toMatchObject({
       nodeKey: 'node:optical-module',
-      chainNodeEntityId: null,
+      chainNodeId: null,
       displayName: '高速光模块',
       primarySignal: {
         signalKey: 'signal:purchase-volume',

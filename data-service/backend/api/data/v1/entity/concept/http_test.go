@@ -66,7 +66,7 @@ func TestConceptHTTPContractPersistsIndependentConceptFacts(t *testing.T) {
 		"id":"ENT99999999-9999-4999-8999-999999999999","name":"调用方 ID","aliases":[],
 		"concept_type":"technology","definition":"禁止调用方 ID","review_status":"candidate"
 	}`, http.StatusBadRequest, "INVALID_REQUEST")
-	requestError(t, handler, http.MethodGet, v1.APIPrefix+"/entities/concepts/ENT99999999-9999-4999-8999-999999999999", "", http.StatusNotFound, "CONCEPT_NOT_FOUND")
+	requestError(t, handler, http.MethodGet, v1.APIPrefix+"/entities/concepts/CON99999999-9999-4999-8999-999999999999", "", http.StatusNotFound, "CONCEPT_NOT_FOUND")
 
 	var shadowRows int
 	if err := db.QueryRowContext(context.Background(), `SELECT count(*) FROM entity_nodes WHERE id = ANY($1::text[])`, []string{created.ID, second.ID}).Scan(&shadowRows); err != nil {

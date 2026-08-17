@@ -13,14 +13,18 @@ import (
 var ErrResearchHistoricalReferencesUnavailable = errors.New("strict historical Entity references are unavailable because selected facts changed after analysis_as_of")
 
 const (
-	ObjectTypeCountry      = "country"
-	ObjectTypeRegion       = "region"
-	ObjectTypeOrganization = "organization"
-	EntityIDPrefix         = coreid.Entity
-	EntityRelationIDPrefix = coreid.EntityRelation
-	CountryIDPrefix        = coreid.Country
-	RegionIDPrefix         = coreid.Region
-	OrganizationIDPrefix   = coreid.Organization
+	ObjectTypeCountry       = "country"
+	ObjectTypeRegion        = "region"
+	ObjectTypeOrganization  = "organization"
+	ObjectTypeIndustry      = "industry"
+	ObjectTypeConcept       = "concept"
+	ObjectTypeChainNode     = "chain_node"
+	ObjectTypeIndustryChain = "industry_chain"
+	EntityIDPrefix          = coreid.Entity
+	EntityRelationIDPrefix  = coreid.EntityRelation
+	CountryIDPrefix         = coreid.Country
+	RegionIDPrefix          = coreid.Region
+	OrganizationIDPrefix    = coreid.Organization
 )
 
 func IsEntityID(value string) bool         { return coreid.Is(value, EntityIDPrefix) }
@@ -28,6 +32,36 @@ func IsEntityRelationID(value string) bool { return coreid.Is(value, EntityRelat
 func IsCountryID(value string) bool        { return coreid.Is(value, CountryIDPrefix) }
 func IsRegionID(value string) bool         { return coreid.Is(value, RegionIDPrefix) }
 func IsOrganizationID(value string) bool   { return coreid.Is(value, OrganizationIDPrefix) }
+func IsIndustryID(value string) bool       { return coreid.Is(value, coreid.Industry) }
+func IsConceptID(value string) bool        { return coreid.Is(value, coreid.Concept) }
+func IsChainNodeID(value string) bool      { return coreid.Is(value, coreid.ChainNode) }
+func IsIndustryChainID(value string) bool  { return coreid.Is(value, coreid.IndustryChain) }
+
+func IsObjectID(value string) bool {
+	return IsEntityID(value) || IsCountryID(value) || IsRegionID(value) || IsOrganizationID(value) ||
+		IsIndustryID(value) || IsConceptID(value) || IsChainNodeID(value) || IsIndustryChainID(value)
+}
+
+func ObjectTypeMatchesID(objectType, value string) bool {
+	switch objectType {
+	case ObjectTypeCountry:
+		return IsCountryID(value)
+	case ObjectTypeRegion:
+		return IsRegionID(value)
+	case ObjectTypeOrganization:
+		return IsOrganizationID(value)
+	case ObjectTypeIndustry:
+		return IsIndustryID(value)
+	case ObjectTypeConcept:
+		return IsConceptID(value)
+	case ObjectTypeChainNode:
+		return IsChainNodeID(value)
+	case ObjectTypeIndustryChain:
+		return IsIndustryChainID(value)
+	default:
+		return IsEntityID(value)
+	}
+}
 
 // ResearchGraphRepository exposes persisted Entity graph facts to the Entity domain.
 type ResearchGraphRepository interface {
@@ -112,14 +146,14 @@ func ApprovedActiveResearchGraphFactPolicy() ResearchGraphFactPolicy {
 }
 
 type ResearchGraphQuery struct {
-	AnalysisAsOf          time.Time
-	SeedEntityIDs         []string
-	RelationFilters       []ResearchGraphRelationFilter
-	MaxDepth              int
-	IndustryChainEntityID *string
-	NodeBudget            int
-	EdgeBudget            int
-	FactPolicy            ResearchGraphFactPolicy
+	AnalysisAsOf    time.Time
+	SeedEntityIDs   []string
+	RelationFilters []ResearchGraphRelationFilter
+	MaxDepth        int
+	IndustryChainID *string
+	NodeBudget      int
+	EdgeBudget      int
+	FactPolicy      ResearchGraphFactPolicy
 }
 
 type ResearchGraphSubgraph struct {
@@ -155,30 +189,30 @@ type ResearchGraphEntityRelation struct {
 }
 
 type ResearchGraphIndustryChain struct {
-	IndustryChainEntityID string `json:"industry_chain_entity_id"`
-	Scope                 string `json:"scope"`
-	TargetOutput          string `json:"target_output"`
-	EndUse                string `json:"end_use"`
-	Geography             string `json:"geography"`
-	PrimaryCountryID      string `json:"primary_country_id,omitempty"`
-	AsOfDate              string `json:"as_of_date"`
-	ReviewStatus          string `json:"review_status"`
+	IndustryChainID  string `json:"industry_chain_id"`
+	Scope            string `json:"scope"`
+	TargetOutput     string `json:"target_output"`
+	EndUse           string `json:"end_use"`
+	Geography        string `json:"geography"`
+	PrimaryCountryID string `json:"primary_country_id,omitempty"`
+	AsOfDate         string `json:"as_of_date"`
+	ReviewStatus     string `json:"review_status"`
 }
 
 type ResearchGraphMembership struct {
-	IndustryChainEntityID string `json:"industry_chain_entity_id"`
-	ChainNodeEntityID     string `json:"chain_node_entity_id"`
-	Position              int    `json:"position"`
-	ContextualStage       string `json:"contextual_stage"`
-	ReviewStatus          string `json:"review_status"`
-	Status                string `json:"status"`
+	IndustryChainID string `json:"industry_chain_id"`
+	ChainNodeID     string `json:"chain_node_id"`
+	Position        int    `json:"position"`
+	ContextualStage string `json:"contextual_stage"`
+	ReviewStatus    string `json:"review_status"`
+	Status          string `json:"status"`
 }
 
 type ResearchGraphIndustryEdge struct {
 	IndustryChainGraphEdgeID string  `json:"industry_chain_graph_edge_id"`
-	IndustryChainEntityID    string  `json:"industry_chain_entity_id"`
-	FromChainNodeEntityID    string  `json:"from_chain_node_entity_id"`
-	ToChainNodeEntityID      string  `json:"to_chain_node_entity_id"`
+	IndustryChainID          string  `json:"industry_chain_id"`
+	FromChainNodeID          string  `json:"from_chain_node_id"`
+	ToChainNodeID            string  `json:"to_chain_node_id"`
 	RelationType             string  `json:"relation_type"`
 	Mechanism                string  `json:"mechanism"`
 	ConditionNote            *string `json:"condition_note"`
@@ -339,50 +373,17 @@ const (
 	IndustryChainSegmentCompressedCandidate IndustryChainSegmentKind = "compressed_candidate"
 )
 
-type IndustryChainDefinition struct {
-	EntityID         string
-	Scope            string
-	TargetOutput     string
-	EndUse           string
-	Geography        string
-	PrimaryCountryID string
-	AsOfDate         time.Time
-	ReviewStatus     ReviewStatus
-	ReviewNote       string
-}
-
-func (d IndustryChainDefinition) Validate() error {
-	if strings.TrimSpace(d.EntityID) == "" ||
-		strings.TrimSpace(d.Scope) == "" ||
-		strings.TrimSpace(d.TargetOutput) == "" ||
-		strings.TrimSpace(d.EndUse) == "" ||
-		strings.TrimSpace(d.Geography) == "" ||
-		d.AsOfDate.IsZero() {
-		return fmt.Errorf("industry chain identity, scope, output, end use, geography, and as-of date are required")
-	}
-	if !validMasterDataReviewStatus(d.ReviewStatus) {
-		return fmt.Errorf("unsupported industry chain review status %q", d.ReviewStatus)
-	}
-	if d.PrimaryCountryID != "" && !IsCountryID(d.PrimaryCountryID) {
-		return fmt.Errorf("industry chain primary country must be a stable Country ID")
-	}
-	if d.ReviewNote != "" && strings.TrimSpace(d.ReviewNote) == "" {
-		return fmt.Errorf("industry chain review note must be nonblank when present")
-	}
-	return nil
-}
-
 type IndustryChainNodeMembership struct {
-	IndustryChainEntityID string
-	ChainNodeEntityID     string
-	Position              int
-	ContextualStage       IndustryChainContextualStage
-	ReviewStatus          ReviewStatus
-	Status                Status
+	IndustryChainID string
+	ChainNodeID     string
+	Position        int
+	ContextualStage IndustryChainContextualStage
+	ReviewStatus    ReviewStatus
+	Status          Status
 }
 
 func (m IndustryChainNodeMembership) Validate() error {
-	if strings.TrimSpace(m.IndustryChainEntityID) == "" || strings.TrimSpace(m.ChainNodeEntityID) == "" {
+	if strings.TrimSpace(m.IndustryChainID) == "" || strings.TrimSpace(m.ChainNodeID) == "" {
 		return fmt.Errorf("industry chain membership identities are required")
 	}
 	if m.Position <= 0 {
@@ -401,26 +402,26 @@ func (m IndustryChainNodeMembership) Validate() error {
 }
 
 type IndustryChainGraphEdge struct {
-	ID                    string
-	IndustryChainEntityID string
-	FromChainNodeEntityID string
-	ToChainNodeEntityID   string
-	RelationType          ChainNodeRelationType
-	Mechanism             string
-	ConditionNote         string
-	SegmentKind           IndustryChainSegmentKind
-	OmittedStepNote       string
-	ReviewStatus          ReviewStatus
-	Status                Status
+	ID              string
+	IndustryChainID string
+	FromChainNodeID string
+	ToChainNodeID   string
+	RelationType    ChainNodeRelationType
+	Mechanism       string
+	ConditionNote   string
+	SegmentKind     IndustryChainSegmentKind
+	OmittedStepNote string
+	ReviewStatus    ReviewStatus
+	Status          Status
 }
 
 func (e IndustryChainGraphEdge) Validate() error {
-	if strings.TrimSpace(e.ID) == "" || strings.TrimSpace(e.IndustryChainEntityID) == "" ||
-		strings.TrimSpace(e.FromChainNodeEntityID) == "" || strings.TrimSpace(e.ToChainNodeEntityID) == "" ||
+	if strings.TrimSpace(e.ID) == "" || strings.TrimSpace(e.IndustryChainID) == "" ||
+		strings.TrimSpace(e.FromChainNodeID) == "" || strings.TrimSpace(e.ToChainNodeID) == "" ||
 		strings.TrimSpace(e.Mechanism) == "" {
 		return fmt.Errorf("industry chain graph identity and mechanism are required")
 	}
-	if e.FromChainNodeEntityID == e.ToChainNodeEntityID {
+	if e.FromChainNodeID == e.ToChainNodeID {
 		return fmt.Errorf("industry chain graph self edge is forbidden")
 	}
 	if !validStatus(e.RelationType, ChainNodeRelationInputTo, ChainNodeRelationComponentOf, ChainNodeRelationDependsOn) {
@@ -572,26 +573,6 @@ func (m SectorSourceMapping) Validate() error {
 	return nil
 }
 
-type ChainNodeProfile struct {
-	EntityID     string
-	Definition   string
-	BoundaryNote string
-	ReviewStatus ReviewStatus
-}
-
-func (p ChainNodeProfile) Validate() error {
-	if strings.TrimSpace(p.EntityID) == "" || strings.TrimSpace(p.Definition) == "" {
-		return fmt.Errorf("chain node identity and definition are required")
-	}
-	if p.BoundaryNote != "" && strings.TrimSpace(p.BoundaryNote) == "" {
-		return fmt.Errorf("chain node boundary note must be nonblank when present")
-	}
-	if p.ReviewStatus != "" && !validMasterDataReviewStatus(p.ReviewStatus) {
-		return fmt.Errorf("unsupported chain node review status %q", p.ReviewStatus)
-	}
-	return nil
-}
-
 type Theme struct {
 	Entity
 }
@@ -695,8 +676,6 @@ func validEntityType(value EntityType) bool {
 		EntityTypeMarket,
 		EntityTypeIndex,
 		EntityTypeSector,
-		EntityTypeIndustryChain,
-		EntityTypeChainNode,
 		EntityTypeTheme,
 		EntityTypeCompany,
 		EntityTypeSecurity,

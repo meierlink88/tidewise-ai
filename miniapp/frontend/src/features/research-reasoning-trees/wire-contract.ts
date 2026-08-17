@@ -14,8 +14,10 @@ import type { ResearchDirection, ResearchImpactStrength } from '../research-them
 import { parseResearchThemeWire } from '../research-themes/wire-contract';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const entityIDPattern =
-  /^ENT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const chainNodeIDPattern =
+  /^CND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const industryChainIDPattern =
+  /^ICH[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const directionValues = ['positive', 'negative', 'mixed', 'neutral', 'uncertain'] as const;
 const strengthValues = ['strong', 'medium', 'weak', 'unknown'] as const;
 const evidenceRoleValues = ['driver', 'supporting', 'contradicting', 'context'] as const;
@@ -64,7 +66,7 @@ function mapSummary(value: RecordValue): ResearchReasoningTreeSummary {
   onlyKeys(value, [
     ...(snapshot ? ['tree_key', 'display_name'] : []),
     'reasoning_tree_id',
-    'industry_chain_entity_id',
+    'industry_chain_id',
     'industry_chain_name',
     'title',
     'display_order',
@@ -72,12 +74,12 @@ function mapSummary(value: RecordValue): ResearchReasoningTreeSummary {
     'published_at'
   ]);
   return {
-    treeKey: snapshot ? localKey(value.tree_key) : entityID(value.industry_chain_entity_id),
+    treeKey: snapshot ? localKey(value.tree_key) : industryChainID(value.industry_chain_id),
     displayName: text(snapshot ? value.display_name : value.industry_chain_name),
     reasoningTreeId: uuid(value.reasoning_tree_id),
-    industryChainEntityId: snapshot
-      ? nullableEntityIDString(value.industry_chain_entity_id)
-      : entityID(value.industry_chain_entity_id),
+    industryChainId: snapshot
+      ? nullableIndustryChainIDString(value.industry_chain_id)
+      : industryChainID(value.industry_chain_id),
     industryChainName: text(snapshot ? value.display_name : value.industry_chain_name),
     title: text(value.title),
     displayOrder: positiveInteger(value.display_order),
@@ -92,7 +94,7 @@ function mapTree(value: RecordValue): ResearchReasoningTree {
     ...(snapshot ? ['tree_key', 'display_name'] : []),
     'reasoning_tree_id',
     'theme_id',
-    'industry_chain_entity_id',
+    'industry_chain_id',
     'industry_chain_name',
     'title',
     'display_order',
@@ -116,13 +118,13 @@ function mapTree(value: RecordValue): ResearchReasoningTree {
   const nodes = array(value.nodes).map((item, index) => mapNode(record(item), index));
   if (nodes.length === 0 || nonNegativeInteger(value.event_count) !== events.length) invalid();
   return {
-    treeKey: snapshot ? localKey(value.tree_key) : entityID(value.industry_chain_entity_id),
+    treeKey: snapshot ? localKey(value.tree_key) : industryChainID(value.industry_chain_id),
     displayName: text(snapshot ? value.display_name : value.industry_chain_name),
     reasoningTreeId: uuid(value.reasoning_tree_id),
     themeId: uuid(value.theme_id),
-    industryChainEntityId: snapshot
-      ? nullableEntityIDString(value.industry_chain_entity_id)
-      : entityID(value.industry_chain_entity_id),
+    industryChainId: snapshot
+      ? nullableIndustryChainIDString(value.industry_chain_id)
+      : industryChainID(value.industry_chain_id),
     industryChainName: text(snapshot ? value.display_name : value.industry_chain_name),
     title: text(value.title),
     displayOrder: positiveInteger(value.display_order),
@@ -183,7 +185,7 @@ function mapNode(value: RecordValue, index: number): ResearchReasoningTreeNode {
     ...(snapshot ? ['node_key', 'display_name'] : []),
     'id',
     'position',
-    'chain_node_entity_id',
+    'chain_node_id',
     'name',
     'state_summary',
     'impact_direction',
@@ -222,13 +224,13 @@ function mapNode(value: RecordValue, index: number): ResearchReasoningTreeNode {
   const incomingGraphEdge =
     value.incoming_graph_edge === null ? null : mapGraphEdge(record(value.incoming_graph_edge));
   return {
-    nodeKey: snapshot ? localKey(value.node_key) : entityID(value.chain_node_entity_id),
+    nodeKey: snapshot ? localKey(value.node_key) : chainNodeID(value.chain_node_id),
     displayName: text(snapshot ? value.display_name : value.name),
     id: uuid(value.id),
     position,
-    chainNodeEntityId: snapshot
-      ? nullableEntityIDString(value.chain_node_entity_id)
-      : entityID(value.chain_node_entity_id),
+    chainNodeId: snapshot
+      ? nullableChainNodeIDString(value.chain_node_id)
+      : chainNodeID(value.chain_node_id),
     name: text(snapshot ? value.display_name : value.name),
     stateSummary: nullableText(value.state_summary),
     impactDirection: enumValue<ResearchDirection>(value.impact_direction, directionValues),
@@ -303,8 +305,12 @@ function localKey(value: unknown): string {
   return result;
 }
 
-function nullableEntityIDString(value: unknown): string | null {
-  return value === '' || value === null ? null : entityID(value);
+function nullableIndustryChainIDString(value: unknown): string | null {
+  return value === '' || value === null ? null : industryChainID(value);
+}
+
+function nullableChainNodeIDString(value: unknown): string | null {
+  return value === '' || value === null ? null : chainNodeID(value);
 }
 
 function nullableTextAllowEmpty(value: unknown): string | null {
@@ -359,9 +365,15 @@ function uuid(value: unknown): string {
   return parsed;
 }
 
-function entityID(value: unknown): string {
+function industryChainID(value: unknown): string {
   const parsed = text(value);
-  if (!entityIDPattern.test(parsed)) invalid();
+  if (!industryChainIDPattern.test(parsed)) invalid();
+  return parsed;
+}
+
+function chainNodeID(value: unknown): string {
+  const parsed = text(value);
+  if (!chainNodeIDPattern.test(parsed)) invalid();
   return parsed;
 }
 

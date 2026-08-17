@@ -40,7 +40,7 @@ describe('research theme BFF adapter', () => {
               published_at: '2026-07-28T08:05:00Z',
               impacts: [
                 {
-                  chain_node_entity_id: 'ENT33333333-3333-4333-8333-333333333333',
+                  chain_node_id: 'CND33333333-3333-4333-8333-333333333333',
                   name: '高速光模块',
                   relation_role: 'beneficiary',
                   impact_direction: 'positive',

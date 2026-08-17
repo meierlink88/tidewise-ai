@@ -23,7 +23,7 @@ export interface ResearchReasoningTreeSummary {
   treeKey: string;
   displayName: string;
   reasoningTreeId: string;
-  industryChainEntityId: string | null;
+  industryChainId: string | null;
   industryChainName: string;
   title: string;
   displayOrder: number;
@@ -68,7 +68,7 @@ export interface ResearchReasoningTreeNode {
   displayName: string;
   id: string;
   position: number;
-  chainNodeEntityId: string | null;
+  chainNodeId: string | null;
   name: string;
   stateSummary: string | null;
   impactDirection: ResearchDirection;
@@ -90,7 +90,7 @@ export interface ResearchReasoningTree {
   displayName: string;
   reasoningTreeId: string;
   themeId: string;
-  industryChainEntityId: string | null;
+  industryChainId: string | null;
   industryChainName: string;
   title: string;
   displayOrder: number;

@@ -115,3 +115,24 @@ func TestHistoricalAuditWorkPackageMayLackResolvedEntitiesButResumableReviewMayN
 		t.Fatal("resumable reviewer work package without resolved_entities was accepted")
 	}
 }
+
+func TestReviewerWorkPackageRejectsEntityTypeAndIDPrefixMismatch(t *testing.T) {
+	work := &eventsemantic.ReviewerWorkPackage{ResolvedEntities: []eventsemantic.Entity{{
+		EntityID: "CND33333333-3333-4333-8333-333333333333", EntityType: "chain_node",
+		CanonicalName: "晶圆制造", Status: "active",
+	}}}
+	if !validReviewerWorkPackage(work, false) {
+		t.Fatal("valid ChainNode identity and type were rejected")
+	}
+	work.ResolvedEntities[0].EntityType = "company"
+	if validReviewerWorkPackage(work, false) {
+		t.Fatal("CND identity paired with company type was accepted")
+	}
+	work.ResolvedEntities[0] = eventsemantic.Entity{
+		EntityID: "ENT33333333-3333-4333-8333-333333333333", EntityType: "concept",
+		CanonicalName: "晶圆制造", Status: "active",
+	}
+	if validReviewerWorkPackage(work, false) {
+		t.Fatal("ENT identity paired with Concept type was accepted")
+	}
+}

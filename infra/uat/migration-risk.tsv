@@ -55,3 +55,5 @@
 000054	high	schema	forward-only zero-compatibility Organization Function primary-key id addition without historical backfill
 000055	high	mixed	delete historical Atomic Evidence and replace layered source columns with summary and strict 5W1H semantic JSONB
 000056	high	mixed	preserve and detach Industry and Concept facts plus object references from shadow Entity rows in a stop-write cutover
+000057	high	mixed	preserve and detach ChainNode and IndustryChain facts plus graph and Research references from shadow Entity rows in a stop-write cutover
+000058	high	mixed	rewrite four independent object prefixes and every direct polymorphic and JSONB reference in a stop-write cutover

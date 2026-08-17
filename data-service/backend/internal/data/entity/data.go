@@ -26,6 +26,12 @@ const researchGraphCTE = `
 	    UNION ALL
 	    SELECT id, 'concept', name, name, aliases, 'active', created_at, updated_at
 	    FROM concept
+	    UNION ALL
+	    SELECT id, 'chain_node', name, name, aliases, 'active', created_at, updated_at
+	    FROM chain_node
+	    UNION ALL
+	    SELECT id, 'industry_chain', name, name, aliases, 'active', created_at, updated_at
+	    FROM industry_chain
 	),
 	requested_seeds(entity_id) AS (
 	    SELECT unnest($2::text[])
@@ -38,7 +44,7 @@ const researchGraphCTE = `
 	    SELECT
 	        'entity_relation'::text edge_kind,
 	        relation.id edge_id,
-	        NULL::text industry_chain_entity_id,
+	        NULL::text industry_chain_id,
 	        relation.from_entity_id,
 	        relation.to_entity_id,
 	        relation.relation_type,
@@ -66,41 +72,41 @@ const researchGraphCTE = `
 	    SELECT
 	        'industry_chain_graph_edge'::text,
 	        edge.id::text,
-	        edge.industry_chain_entity_id,
-	        edge.from_chain_node_entity_id,
-	        edge.to_chain_node_entity_id,
+	        edge.industry_chain_id,
+	        edge.from_chain_node_id,
+	        edge.to_chain_node_id,
 	        edge.relation_type,
 	        edge.mechanism,
 	        edge.condition_note,
 	        edge.segment_kind,
 	        edge.omitted_step_note
 	    FROM industry_chain_graph_edges edge
-	    JOIN industry_chain_definitions definition
-	      ON definition.entity_id = edge.industry_chain_entity_id
+	    JOIN industry_chain definition
+	      ON definition.id = edge.industry_chain_id
 	     AND definition.review_status = $11
 	     AND definition.created_at <= $1
 	     AND definition.updated_at <= $1
 	    JOIN industry_chain_node_memberships from_membership
-	      ON from_membership.industry_chain_entity_id = edge.industry_chain_entity_id
-	     AND from_membership.chain_node_entity_id = edge.from_chain_node_entity_id
+	      ON from_membership.industry_chain_id = edge.industry_chain_id
+	     AND from_membership.chain_node_id = edge.from_chain_node_id
 	     AND from_membership.review_status = $12
 	     AND from_membership.status = $13
 	     AND from_membership.created_at <= $1
 	     AND from_membership.updated_at <= $1
 	    JOIN industry_chain_node_memberships to_membership
-	      ON to_membership.industry_chain_entity_id = edge.industry_chain_entity_id
-	     AND to_membership.chain_node_entity_id = edge.to_chain_node_entity_id
+	      ON to_membership.industry_chain_id = edge.industry_chain_id
+	     AND to_membership.chain_node_id = edge.to_chain_node_id
 	     AND to_membership.review_status = $12
 	     AND to_membership.status = $13
 	     AND to_membership.created_at <= $1
 	     AND to_membership.updated_at <= $1
 	    JOIN all_entities from_entity
-	      ON from_entity.id = edge.from_chain_node_entity_id
+	      ON from_entity.id = edge.from_chain_node_id
 	     AND from_entity.status = $9
 	     AND from_entity.created_at <= $1
 	     AND from_entity.updated_at <= $1
 	    JOIN all_entities to_entity
-	      ON to_entity.id = edge.to_chain_node_entity_id
+	      ON to_entity.id = edge.to_chain_node_id
 	     AND to_entity.status = $9
 	     AND to_entity.created_at <= $1
 	     AND to_entity.updated_at <= $1
@@ -110,7 +116,7 @@ const researchGraphCTE = `
 	      AND edge.review_status = $14
 	      AND edge.created_at <= $1
 	      AND edge.updated_at <= $1
-	      AND ($6::text IS NULL OR edge.industry_chain_entity_id = $6::text)
+	      AND ($6::text IS NULL OR edge.industry_chain_id = $6::text)
 	),
 	traversal_options AS NOT MATERIALIZED (
 	    SELECT
@@ -203,8 +209,8 @@ const researchGraphCTE = `
 	      ON used.edge_kind = 'industry_chain_graph_edge'
 	     AND used.edge_id = edge.id::text
 	),
-	selected_chain_ids(industry_chain_entity_id) AS MATERIALIZED (
-	    SELECT DISTINCT industry_chain_entity_id
+	selected_chain_ids(industry_chain_id) AS MATERIALIZED (
+	    SELECT DISTINCT industry_chain_id
 	    FROM selected_graph_edges
 	    UNION
 	    SELECT $6::text
@@ -213,7 +219,7 @@ const researchGraphCTE = `
 	selected_entity_ids(entity_id) AS MATERIALIZED (
 	    SELECT entity_id FROM reached_entities
 	    UNION
-	    SELECT industry_chain_entity_id FROM selected_chain_ids
+	    SELECT industry_chain_id FROM selected_chain_ids
 	),
 	selected_entities AS MATERIALIZED (
 	    SELECT entity.*
@@ -225,9 +231,9 @@ const researchGraphCTE = `
 	),
 	selected_industry_chains AS MATERIALIZED (
 	    SELECT definition.*
-	    FROM industry_chain_definitions definition
+	    FROM industry_chain definition
 	    JOIN selected_chain_ids selected
-	      ON selected.industry_chain_entity_id = definition.entity_id
+	      ON selected.industry_chain_id = definition.id
 	    WHERE definition.review_status = $11
 	      AND definition.created_at <= $1
 	      AND definition.updated_at <= $1
@@ -236,9 +242,9 @@ const researchGraphCTE = `
 	    SELECT membership.*
 	    FROM industry_chain_node_memberships membership
 	    JOIN selected_chain_ids selected_chain
-	      ON selected_chain.industry_chain_entity_id = membership.industry_chain_entity_id
+	      ON selected_chain.industry_chain_id = membership.industry_chain_id
 	    JOIN reached_entities selected_node
-	      ON selected_node.entity_id = membership.chain_node_entity_id
+	      ON selected_node.entity_id = membership.chain_node_id
 	    WHERE membership.review_status = $12
 	      AND membership.status = $13
 	      AND membership.created_at <= $1
@@ -276,7 +282,7 @@ func (s *Store) SearchResearchGraph(
 		relationTypes,
 		directions,
 		query.MaxDepth,
-		query.IndustryChainEntityID,
+		query.IndustryChainID,
 		query.NodeBudget,
 		query.EdgeBudget,
 		query.FactPolicy.EntityStatus,
@@ -361,7 +367,7 @@ func (s *Store) SearchResearchGraph(
 		    ), '[]'::jsonb),
 		    'industry_chains', COALESCE((
 		        SELECT jsonb_agg(jsonb_build_object(
-		            'industry_chain_entity_id', definition.entity_id,
+		            'industry_chain_id', definition.id,
 		            'scope', definition.scope,
 		            'target_output', definition.target_output,
 			            'end_use', definition.end_use,
@@ -369,26 +375,26 @@ func (s *Store) SearchResearchGraph(
 			            'primary_country_id', definition.primary_country_id,
 			            'as_of_date', definition.as_of_date,
 		            'review_status', definition.review_status
-		        ) ORDER BY definition.entity_id)
+		        ) ORDER BY definition.id)
 		        FROM selected_industry_chains definition
 		    ), '[]'::jsonb),
 		    'industry_chain_memberships', COALESCE((
 		        SELECT jsonb_agg(jsonb_build_object(
-		            'industry_chain_entity_id', membership.industry_chain_entity_id,
-		            'chain_node_entity_id', membership.chain_node_entity_id,
+		            'industry_chain_id', membership.industry_chain_id,
+		            'chain_node_id', membership.chain_node_id,
 		            'position', membership.position,
 		            'contextual_stage', membership.contextual_stage,
 		            'review_status', membership.review_status,
 		            'status', membership.status
-		        ) ORDER BY membership.industry_chain_entity_id, membership.position, membership.chain_node_entity_id)
+		        ) ORDER BY membership.industry_chain_id, membership.position, membership.chain_node_id)
 		        FROM selected_memberships membership
 		    ), '[]'::jsonb),
 		    'industry_chain_graph_edges', COALESCE((
 		        SELECT jsonb_agg(jsonb_build_object(
 		            'industry_chain_graph_edge_id', edge.id,
-		            'industry_chain_entity_id', edge.industry_chain_entity_id,
-		            'from_chain_node_entity_id', edge.from_chain_node_entity_id,
-		            'to_chain_node_entity_id', edge.to_chain_node_entity_id,
+		            'industry_chain_id', edge.industry_chain_id,
+		            'from_chain_node_id', edge.from_chain_node_id,
+		            'to_chain_node_id', edge.to_chain_node_id,
 		            'relation_type', edge.relation_type,
 		            'mechanism', edge.mechanism,
 		            'condition_note', edge.condition_note,
@@ -396,7 +402,7 @@ func (s *Store) SearchResearchGraph(
 		            'omitted_step_note', edge.omitted_step_note,
 		            'review_status', edge.review_status,
 		            'status', edge.status
-		        ) ORDER BY edge.industry_chain_entity_id, edge.from_chain_node_entity_id, edge.to_chain_node_entity_id, edge.id)
+		        ) ORDER BY edge.industry_chain_id, edge.from_chain_node_id, edge.to_chain_node_id, edge.id)
 		        FROM selected_graph_edges edge
 		    ), '[]'::jsonb)
 		)
@@ -436,31 +442,12 @@ func containsOrganizationSeed(ids []string) bool {
 	return false
 }
 
-func validIndependentObjectID(id string) bool {
-	if biz.IsCountryID(id) {
-		return true
-	}
-	if biz.IsOrganizationID(id) {
-		return true
-	}
-	return biz.IsRegionID(id)
-}
-
 func validResearchGraphIdentity(id, objectType string) bool {
-	if biz.IsEntityID(id) {
-		return objectType != biz.ObjectTypeCountry && objectType != biz.ObjectTypeOrganization && objectType != "region"
-	}
-	if biz.IsCountryID(id) {
-		return objectType == biz.ObjectTypeCountry
-	}
-	if biz.IsOrganizationID(id) {
-		return objectType == biz.ObjectTypeOrganization
-	}
-	return validIndependentObjectID(id) && objectType == "region"
+	return biz.ObjectTypeMatchesID(objectType, id)
 }
 
 func (s *Store) searchOrganizationResearchGraph(ctx context.Context, query biz.ResearchGraphQuery) (biz.ResearchGraphSubgraph, error) {
-	if query.IndustryChainEntityID != nil {
+	if query.IndustryChainID != nil {
 		return biz.ResearchGraphSubgraph{}, &biz.ResearchGraphValidationError{Reason: "Organization seeds cannot use an Industry Chain scope"}
 	}
 	for _, id := range query.SeedEntityIDs {
@@ -558,7 +545,7 @@ func (s *Store) searchCountryResearchGraph(
 	ctx context.Context,
 	query biz.ResearchGraphQuery,
 ) (biz.ResearchGraphSubgraph, error) {
-	if query.IndustryChainEntityID != nil {
+	if query.IndustryChainID != nil {
 		return biz.ResearchGraphSubgraph{}, &biz.ResearchGraphValidationError{Reason: "Country seeds cannot use an Industry Chain scope"}
 	}
 	for _, id := range query.SeedEntityIDs {
@@ -736,27 +723,27 @@ func validatePersistedResearchGraph(graph biz.ResearchGraphSubgraph, maxDepth in
 	}
 	chains := make(map[string]struct{}, len(graph.IndustryChains))
 	for _, chain := range graph.IndustryChains {
-		if !biz.IsEntityID(chain.IndustryChainEntityID) || chain.ReviewStatus != "approved" ||
+		if !biz.IsIndustryChainID(chain.IndustryChainID) || chain.ReviewStatus != "approved" ||
 			strings.TrimSpace(chain.Scope) == "" || strings.TrimSpace(chain.TargetOutput) == "" ||
 			strings.TrimSpace(chain.EndUse) == "" || strings.TrimSpace(chain.Geography) == "" ||
 			strings.TrimSpace(chain.AsOfDate) == "" ||
 			(chain.PrimaryCountryID != "" && !biz.IsCountryID(chain.PrimaryCountryID)) {
 			return errors.New("persisted Research Graph Industry Chain violates invariants")
 		}
-		if _, ok := entities[chain.IndustryChainEntityID]; !ok {
+		if _, ok := entities[chain.IndustryChainID]; !ok {
 			return errors.New("persisted Research Graph Industry Chain Entity is unavailable")
 		}
-		chains[chain.IndustryChainEntityID] = struct{}{}
+		chains[chain.IndustryChainID] = struct{}{}
 	}
 	for _, membership := range graph.IndustryChainMemberships {
 		if membership.Position <= 0 || !oneOfResearchGraph(membership.ContextualStage, "upstream", "midstream", "downstream") ||
 			membership.ReviewStatus != "approved" || membership.Status != "active" {
 			return errors.New("persisted Research Graph membership violates invariants")
 		}
-		if _, ok := chains[membership.IndustryChainEntityID]; !ok {
+		if _, ok := chains[membership.IndustryChainID]; !ok {
 			return errors.New("persisted Research Graph membership Chain is unavailable")
 		}
-		if _, ok := entities[membership.ChainNodeEntityID]; !ok {
+		if _, ok := entities[membership.ChainNodeID]; !ok {
 			return errors.New("persisted Research Graph membership Entity is unavailable")
 		}
 	}
@@ -764,16 +751,16 @@ func validatePersistedResearchGraph(graph biz.ResearchGraphSubgraph, maxDepth in
 	for _, edge := range graph.IndustryChainGraphEdges {
 		if !coreid.Is(edge.IndustryChainGraphEdgeID, coreid.IndustryChainGraphEdge) || strings.TrimSpace(edge.Mechanism) == "" ||
 			!oneOfResearchGraph(edge.SegmentKind, "direct_candidate", "compressed_candidate") ||
-			edge.ReviewStatus != "approved" || edge.Status != "active" || edge.FromChainNodeEntityID == edge.ToChainNodeEntityID {
+			edge.ReviewStatus != "approved" || edge.Status != "active" || edge.FromChainNodeID == edge.ToChainNodeID {
 			return errors.New("persisted Research Graph Industry Chain edge violates invariants")
 		}
-		if _, ok := chains[edge.IndustryChainEntityID]; !ok {
+		if _, ok := chains[edge.IndustryChainID]; !ok {
 			return errors.New("persisted Research Graph Industry Chain edge Chain is unavailable")
 		}
-		if _, ok := entities[edge.FromChainNodeEntityID]; !ok {
+		if _, ok := entities[edge.FromChainNodeID]; !ok {
 			return errors.New("persisted Research Graph Industry Chain edge source is unavailable")
 		}
-		if _, ok := entities[edge.ToChainNodeEntityID]; !ok {
+		if _, ok := entities[edge.ToChainNodeID]; !ok {
 			return errors.New("persisted Research Graph Industry Chain edge target is unavailable")
 		}
 		if _, ok := relationTypes[edge.RelationType]; !ok {
@@ -820,6 +807,8 @@ all_entities(id, created_at, updated_at) AS (
     SELECT id, created_at, updated_at FROM entity_nodes
     UNION ALL SELECT id, created_at, updated_at FROM industry
     UNION ALL SELECT id, created_at, updated_at FROM concept
+	UNION ALL SELECT id, created_at, updated_at FROM chain_node
+	UNION ALL SELECT id, created_at, updated_at FROM industry_chain
 )
 SELECT EXISTS (
     SELECT 1 FROM all_entities entity JOIN requested_entities requested ON requested.id = entity.id
@@ -828,7 +817,7 @@ SELECT EXISTS (
     SELECT 1 FROM entity_edges relation JOIN requested_relations requested ON requested.id = relation.id
     WHERE relation.created_at <= $1 AND relation.updated_at > $1
 ) OR EXISTS (
-    SELECT 1 FROM industry_chain_definitions definition JOIN requested_entities requested ON requested.id = definition.entity_id
+    SELECT 1 FROM industry_chain definition JOIN requested_entities requested ON requested.id = definition.id
     WHERE definition.created_at <= $1 AND definition.updated_at > $1
 )`, query.AnalysisAsOf, legacyEntityIDs, query.EntityRelationIDs).Scan(&historicalGap); err != nil {
 		return biz.ResearchReferenceDictionaries{}, fmt.Errorf("check historical Entity reference closure: %w", err)
@@ -846,6 +835,8 @@ all_entities(id, entity_type, name, canonical_name, aliases, status, created_at,
     FROM entity_nodes
     UNION ALL SELECT id, 'industry', name, name, aliases, 'active', created_at, updated_at FROM industry
     UNION ALL SELECT id, 'concept', name, name, aliases, 'active', created_at, updated_at FROM concept
+	UNION ALL SELECT id, 'chain_node', name, name, aliases, 'active', created_at, updated_at FROM chain_node
+	UNION ALL SELECT id, 'industry_chain', name, name, aliases, 'active', created_at, updated_at FROM industry_chain
 ),
 selected_relations AS MATERIALIZED (
     SELECT relation.* FROM entity_edges relation
@@ -863,8 +854,8 @@ selected_entities AS MATERIALIZED (
     WHERE entity.status = 'active' AND entity.created_at <= $1 AND entity.updated_at <= $1
 ),
 selected_industry_chains AS MATERIALIZED (
-    SELECT definition.* FROM industry_chain_definitions definition
-    JOIN selected_entity_ids selected ON selected.id = definition.entity_id
+    SELECT definition.* FROM industry_chain definition
+    JOIN selected_entity_ids selected ON selected.id = definition.id
     WHERE definition.review_status = 'approved' AND definition.created_at <= $1 AND definition.updated_at <= $1
 ),
 selected_relation_types(relation_type) AS (
@@ -884,12 +875,12 @@ SELECT jsonb_build_object(
         'to_entity_id', relation.to_entity_id, 'relation_type', relation.relation_type, 'status', relation.status
     ) ORDER BY relation.relation_type, relation.from_entity_id, relation.to_entity_id, relation.id) FROM selected_relations relation), '[]'::jsonb),
     'industry_chains', COALESCE((SELECT jsonb_agg(jsonb_build_object(
-        'industry_chain_entity_id', definition.entity_id, 'scope', definition.scope,
+        'industry_chain_id', definition.id, 'scope', definition.scope,
 		'target_output', definition.target_output, 'end_use', definition.end_use,
 		'geography', definition.geography, 'primary_country_id', definition.primary_country_id,
 		'as_of_date', definition.as_of_date,
         'review_status', definition.review_status
-    ) ORDER BY definition.entity_id) FROM selected_industry_chains definition), '[]'::jsonb),
+    ) ORDER BY definition.id) FROM selected_industry_chains definition), '[]'::jsonb),
     'industry_chain_memberships', '[]'::jsonb,
     'industry_chain_graph_edges', '[]'::jsonb
 )`, query.AnalysisAsOf, legacyEntityIDs, query.EntityRelationIDs, query.RelationTypes).Scan(&payload)
@@ -1010,7 +1001,7 @@ func validateResearchReferenceDictionaries(value biz.ResearchReferenceDictionari
 		}
 	}
 	for _, chain := range value.IndustryChains {
-		if _, ok := entities[chain.IndustryChainEntityID]; !ok || chain.ReviewStatus != "approved" ||
+		if _, ok := entities[chain.IndustryChainID]; !ok || chain.ReviewStatus != "approved" ||
 			strings.TrimSpace(chain.Scope) == "" || strings.TrimSpace(chain.TargetOutput) == "" ||
 			strings.TrimSpace(chain.AsOfDate) == "" ||
 			(chain.PrimaryCountryID != "" && !biz.IsCountryID(chain.PrimaryCountryID)) {
@@ -1031,6 +1022,8 @@ func (s *Store) validateResearchGraphReferences(
 		    SELECT id, status::text, created_at, updated_at FROM entity_nodes
 		    UNION ALL SELECT id, 'active', created_at, updated_at FROM industry
 		    UNION ALL SELECT id, 'active', created_at, updated_at FROM concept
+		    UNION ALL SELECT id, 'active', created_at, updated_at FROM chain_node
+		    UNION ALL SELECT id, 'active', created_at, updated_at FROM industry_chain
 		)
 		SELECT
 		    (
@@ -1064,32 +1057,32 @@ func (s *Store) validateResearchGraphReferences(
 		            UNION ALL
 		            SELECT 1
 		            FROM industry_chain_graph_edges edge
-		            JOIN industry_chain_definitions definition
-		              ON definition.entity_id = edge.industry_chain_entity_id
+		            JOIN industry_chain definition
+		              ON definition.id = edge.industry_chain_id
 		             AND definition.review_status = $7
 		             AND definition.created_at <= $1
 		             AND definition.updated_at <= $1
 		            JOIN industry_chain_node_memberships from_membership
-		              ON from_membership.industry_chain_entity_id = edge.industry_chain_entity_id
-		             AND from_membership.chain_node_entity_id = edge.from_chain_node_entity_id
+		              ON from_membership.industry_chain_id = edge.industry_chain_id
+		             AND from_membership.chain_node_id = edge.from_chain_node_id
 		             AND from_membership.review_status = $8
 		             AND from_membership.status = $9
 		             AND from_membership.created_at <= $1
 		             AND from_membership.updated_at <= $1
 		            JOIN industry_chain_node_memberships to_membership
-		              ON to_membership.industry_chain_entity_id = edge.industry_chain_entity_id
-		             AND to_membership.chain_node_entity_id = edge.to_chain_node_entity_id
+		              ON to_membership.industry_chain_id = edge.industry_chain_id
+		             AND to_membership.chain_node_id = edge.to_chain_node_id
 		             AND to_membership.review_status = $8
 		             AND to_membership.status = $9
 		             AND to_membership.created_at <= $1
 		             AND to_membership.updated_at <= $1
 		            JOIN all_entities from_entity
-		              ON from_entity.id = edge.from_chain_node_entity_id
+		              ON from_entity.id = edge.from_chain_node_id
 		             AND from_entity.status = $5
 		             AND from_entity.created_at <= $1
 		             AND from_entity.updated_at <= $1
 		            JOIN all_entities to_entity
-		              ON to_entity.id = edge.to_chain_node_entity_id
+		              ON to_entity.id = edge.to_chain_node_id
 		             AND to_entity.status = $5
 		             AND to_entity.created_at <= $1
 		             AND to_entity.updated_at <= $1
@@ -1098,15 +1091,15 @@ func (s *Store) validateResearchGraphReferences(
 		              AND edge.review_status = $10
 		              AND edge.created_at <= $1
 		              AND edge.updated_at <= $1
-		              AND ($4::text IS NULL OR edge.industry_chain_entity_id = $4::text)
+		              AND ($4::text IS NULL OR edge.industry_chain_id = $4::text)
 		        )
 		    ),
 		    CASE
 		        WHEN $4::text IS NULL THEN 1
 		        ELSE (
 		            SELECT count(*)
-		            FROM industry_chain_definitions definition
-		            WHERE definition.entity_id = $4::text
+		            FROM industry_chain definition
+		            WHERE definition.id = $4::text
 		              AND definition.review_status = $7
 		              AND definition.created_at <= $1
 		              AND definition.updated_at <= $1
@@ -1116,7 +1109,7 @@ func (s *Store) validateResearchGraphReferences(
 		query.AnalysisAsOf,
 		query.SeedEntityIDs,
 		relationTypes,
-		query.IndustryChainEntityID,
+		query.IndustryChainID,
 		query.FactPolicy.EntityStatus,
 		query.FactPolicy.EntityRelationStatus,
 		query.FactPolicy.IndustryChainReviewStatus,

@@ -129,7 +129,7 @@ func (*dataStub) GetEventSemantics(context.Context, string) (eventsemantic.Event
 func TestWorkflowUsesCrossTypeEventBatchAndGeneratesSignalsAfterResolution(t *testing.T) {
 	generator := &queuedModel{responses: []string{
 		`{"mentions":[{"candidate_key":"nvidia","mention":"英伟达","evidence_ids":["` + testEvidenceID + `"]},{"candidate_key":"packaging","mention":"第三方封测厂","evidence_ids":["` + testEvidenceID + `"]}]}`,
-		`{"selections":[{"candidate_key":"nvidia","entity_id":"ENT33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false},{"candidate_key":"packaging","entity_id":"ENT44444444-4444-4444-8444-444444444444","entity_role":"event_subject","no_match":false}]}`,
+		`{"selections":[{"candidate_key":"nvidia","entity_id":"ENT33333333-3333-4333-8333-333333333333","entity_role":"actor","no_match":false},{"candidate_key":"packaging","entity_id":"CND44444444-4444-4444-8444-444444444444","entity_role":"event_subject","no_match":false}]}`,
 		`{"variable_signals":[{"candidate_key":"nvidia-capacity","subject_link_key":"nvidia","variable_key":"capacity_commitment","variable_version":1,"direction":"increase","assertion_modality":"stated_intent","evidence_ids":["` + testEvidenceID + `"],"measurements":[{"measurement_text":"价值15亿美元","evidence_ids":["` + testEvidenceID + `"]}]}]}`,
 	}}
 	reviewer := &queuedModel{responses: []string{
@@ -141,7 +141,7 @@ func TestWorkflowUsesCrossTypeEventBatchAndGeneratesSignalsAfterResolution(t *te
 			{CandidateKey: "packaging"},
 		},
 		search: []eventsemantic.EntityCandidateSet{{CandidateKey: "packaging", Candidates: []eventsemantic.EntityCandidate{{
-			Entity: eventsemantic.Entity{EntityID: "ENT44444444-4444-4444-8444-444444444444", EntityType: "chain_node", CanonicalName: "第三方封测", Status: "active"}, Score: 0.81,
+			Entity: eventsemantic.Entity{EntityID: "CND44444444-4444-4444-8444-444444444444", EntityType: "chain_node", CanonicalName: "第三方封测", Status: "active"}, Score: 0.81,
 		}}}},
 	}
 	data := &dataStub{}
@@ -238,11 +238,11 @@ func TestWorkflowVectorRecallsAndMergesNonUniqueExactCandidates(t *testing.T) {
 	retriever := &retrieverStub{
 		exact: []eventsemantic.EntityCandidateSet{{CandidateKey: "nvidia", Candidates: []eventsemantic.EntityCandidate{
 			{Entity: companyEntity()},
-			{Entity: eventsemantic.Entity{EntityID: "ENT55555555-5555-4555-8555-555555555555", EntityType: "concept", CanonicalName: "英伟达生态", Status: "active"}},
+			{Entity: eventsemantic.Entity{EntityID: "CON55555555-5555-4555-8555-555555555555", EntityType: "concept", CanonicalName: "英伟达生态", Status: "active"}},
 		}}},
 		search: []eventsemantic.EntityCandidateSet{{CandidateKey: "nvidia", Candidates: []eventsemantic.EntityCandidate{
 			{Entity: companyEntity(), Score: 0.93},
-			{Entity: eventsemantic.Entity{EntityID: "ENT44444444-4444-4444-8444-444444444444", EntityType: "chain_node", CanonicalName: "GPU", Status: "active"}, Score: 0.72},
+			{Entity: eventsemantic.Entity{EntityID: "CND44444444-4444-4444-8444-444444444444", EntityType: "chain_node", CanonicalName: "GPU", Status: "active"}, Score: 0.72},
 		}}},
 	}
 	data := &dataStub{}

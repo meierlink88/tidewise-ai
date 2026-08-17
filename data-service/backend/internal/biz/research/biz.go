@@ -125,12 +125,12 @@ func writePublicationCanonicalString(writer *bytes.Buffer, value string) error {
 	return nil
 }
 
-func publicationReasonTreeID(themeID, industryChainEntityID string) string {
-	return mustDeriveResearchID(coreid.ResearchReasoningTree, "research-reasoning-tree", themeID, industryChainEntityID)
+func publicationReasonTreeID(themeID, industryChainID string) string {
+	return mustDeriveResearchID(coreid.ResearchReasoningTree, "research-reasoning-tree", themeID, industryChainID)
 }
 
-func publicationReasonTreeNodeID(reasoningTreeID string, position int, chainNodeEntityID string) string {
-	return mustDeriveResearchID(coreid.ResearchReasoningTreeNode, "research-reasoning-tree-node", reasoningTreeID, strconv.Itoa(position), chainNodeEntityID)
+func publicationReasonTreeNodeID(reasoningTreeID string, position int, chainNodeID string) string {
+	return mustDeriveResearchID(coreid.ResearchReasoningTreeNode, "research-reasoning-tree-node", reasoningTreeID, strconv.Itoa(position), chainNodeID)
 }
 
 func publicationThemeID(analysisBatchID, themeKey string) string {
@@ -178,11 +178,11 @@ type ThemeInput struct {
 }
 
 type ThemeImpactInput struct {
-	ChainNodeEntityID string  `json:"chain_node_entity_id"`
-	RelationRole      string  `json:"relation_role"`
-	ImpactDirection   string  `json:"impact_direction"`
-	ImpactSummary     *string `json:"impact_summary"`
-	DisplayOrder      int     `json:"display_order"`
+	ChainNodeID     string  `json:"chain_node_id"`
+	RelationRole    string  `json:"relation_role"`
+	ImpactDirection string  `json:"impact_direction"`
+	ImpactSummary   *string `json:"impact_summary"`
+	DisplayOrder    int     `json:"display_order"`
 }
 
 type ThemeEventInput struct {
@@ -319,13 +319,13 @@ func (t ThemeInput) validate(path string) error {
 		if impact.DisplayOrder != index+1 {
 			return invalidTheme(t.ThemeKey, impactPath+".display_order", fmt.Sprint(impact.DisplayOrder), "must be contiguous from 1")
 		}
-		if !entitybiz.IsEntityID(impact.ChainNodeEntityID) {
-			return invalidTheme(t.ThemeKey, impactPath+".chain_node_entity_id", impact.ChainNodeEntityID, "must be an Entity ID")
+		if !entitybiz.IsChainNodeID(impact.ChainNodeID) {
+			return invalidTheme(t.ThemeKey, impactPath+".chain_node_id", impact.ChainNodeID, "must be a ChainNode ID")
 		}
-		if _, duplicate := seenImpacts[impact.ChainNodeEntityID]; duplicate {
-			return invalidTheme(t.ThemeKey, impactPath+".chain_node_entity_id", impact.ChainNodeEntityID, "must be unique within the ThemeInput")
+		if _, duplicate := seenImpacts[impact.ChainNodeID]; duplicate {
+			return invalidTheme(t.ThemeKey, impactPath+".chain_node_id", impact.ChainNodeID, "must be unique within the ThemeInput")
 		}
-		seenImpacts[impact.ChainNodeEntityID] = struct{}{}
+		seenImpacts[impact.ChainNodeID] = struct{}{}
 		if !isAllowedValue(impact.RelationRole, "driver", "beneficiary", "constraint", "exposure") {
 			return invalidTheme(t.ThemeKey, impactPath+".relation_role", impact.RelationRole, "has an unsupported value")
 		}
@@ -407,7 +407,7 @@ type ReasonTreePublication struct {
 }
 
 type ReasonTreeInput struct {
-	IndustryChainEntityID     string                 `json:"industry_chain_entity_id"`
+	IndustryChainID           string                 `json:"industry_chain_id"`
 	Title                     string                 `json:"title"`
 	DisplayOrder              int                    `json:"display_order"`
 	OneLineConclusion         string                 `json:"one_line_conclusion"`
@@ -438,7 +438,7 @@ type ReasonTreeEventInput struct {
 
 type ReasonTreeNodeInput struct {
 	Position                         int                     `json:"position"`
-	ChainNodeEntityID                string                  `json:"chain_node_entity_id"`
+	ChainNodeID                      string                  `json:"chain_node_id"`
 	StateSummary                     *string                 `json:"state_summary"`
 	ImpactDirection                  string                  `json:"impact_direction"`
 	ImpactStrength                   string                  `json:"impact_strength"`
@@ -461,10 +461,10 @@ type ReasonTreeSignalInput struct {
 }
 
 type ReasonTreeValidationError struct {
-	IndustryChainEntityID string
-	Path                  string
-	Reference             string
-	Message               string
+	IndustryChainID string
+	Path            string
+	Reference       string
+	Message         string
 }
 
 func (e *ReasonTreeValidationError) Error() string {
@@ -472,8 +472,8 @@ func (e *ReasonTreeValidationError) Error() string {
 		return "research Reason Tree publication validation failed"
 	}
 	location := e.Path
-	if e.IndustryChainEntityID != "" {
-		location = e.IndustryChainEntityID + ": " + location
+	if e.IndustryChainID != "" {
+		location = e.IndustryChainID + ": " + location
 	}
 	if e.Reference != "" {
 		return fmt.Sprintf("%s: %s (%s)", location, e.Message, e.Reference)
@@ -493,15 +493,15 @@ func (p ReasonTreePublication) Validate() error {
 	for index, tree := range p.ReasoningTrees {
 		path := fmt.Sprintf("reasoning_trees[%d]", index)
 		if tree.DisplayOrder != index+1 {
-			return invalidReasonTree(tree.IndustryChainEntityID, path+".display_order", fmt.Sprint(tree.DisplayOrder), "must be contiguous from 1")
+			return invalidReasonTree(tree.IndustryChainID, path+".display_order", fmt.Sprint(tree.DisplayOrder), "must be contiguous from 1")
 		}
-		if !entitybiz.IsEntityID(tree.IndustryChainEntityID) {
-			return invalidReasonTree(tree.IndustryChainEntityID, path+".industry_chain_entity_id", tree.IndustryChainEntityID, "must be an Entity ID")
+		if !entitybiz.IsIndustryChainID(tree.IndustryChainID) {
+			return invalidReasonTree(tree.IndustryChainID, path+".industry_chain_id", tree.IndustryChainID, "must be an IndustryChain ID")
 		}
-		if _, duplicate := seenChains[tree.IndustryChainEntityID]; duplicate {
-			return invalidReasonTree(tree.IndustryChainEntityID, path+".industry_chain_entity_id", tree.IndustryChainEntityID, "must be unique within the Theme")
+		if _, duplicate := seenChains[tree.IndustryChainID]; duplicate {
+			return invalidReasonTree(tree.IndustryChainID, path+".industry_chain_id", tree.IndustryChainID, "must be unique within the Theme")
 		}
-		seenChains[tree.IndustryChainEntityID] = struct{}{}
+		seenChains[tree.IndustryChainID] = struct{}{}
 		if err := tree.validate(path, signalSnapshots); err != nil {
 			return err
 		}
@@ -510,17 +510,17 @@ func (p ReasonTreePublication) Validate() error {
 }
 
 func (t ReasonTreeInput) validate(path string, snapshots map[string]ReasonTreeSignalInput) error {
-	if err := requiredReasonTreeText(t.IndustryChainEntityID, path+".title", t.Title, 300); err != nil {
+	if err := requiredReasonTreeText(t.IndustryChainID, path+".title", t.Title, 300); err != nil {
 		return err
 	}
-	if err := requiredReasonTreeText(t.IndustryChainEntityID, path+".one_line_conclusion", t.OneLineConclusion, 1000); err != nil {
+	if err := requiredReasonTreeText(t.IndustryChainID, path+".one_line_conclusion", t.OneLineConclusion, 1000); err != nil {
 		return err
 	}
 	if !isAllowedValue(t.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
-		return invalidReasonTree(t.IndustryChainEntityID, path+".impact_direction", t.ImpactDirection, "has an unsupported value")
+		return invalidReasonTree(t.IndustryChainID, path+".impact_direction", t.ImpactDirection, "has an unsupported value")
 	}
 	if !isAllowedValue(t.ImpactStrength, "strong", "medium", "weak", "unknown") {
-		return invalidReasonTree(t.IndustryChainEntityID, path+".impact_strength", t.ImpactStrength, "has an unsupported value")
+		return invalidReasonTree(t.IndustryChainID, path+".impact_strength", t.ImpactStrength, "has an unsupported value")
 	}
 	for _, field := range []struct {
 		name  string
@@ -534,21 +534,21 @@ func (t ReasonTreeInput) validate(path string, snapshots map[string]ReasonTreeSi
 		{"support_summary", t.SupportSummary, 4000},
 		{"counter_summary", t.CounterSummary, 4000},
 	} {
-		if err := optionalReasonTreeText(t.IndustryChainEntityID, path+"."+field.name, field.value, field.max); err != nil {
+		if err := optionalReasonTreeText(t.IndustryChainID, path+"."+field.name, field.value, field.max); err != nil {
 			return err
 		}
 	}
 	for index, condition := range t.InvalidationConditions {
-		if err := requiredReasonTreeText(t.IndustryChainEntityID, fmt.Sprintf("%s.invalidation_conditions[%d]", path, index), condition, 2000); err != nil {
+		if err := requiredReasonTreeText(t.IndustryChainID, fmt.Sprintf("%s.invalidation_conditions[%d]", path, index), condition, 2000); err != nil {
 			return err
 		}
 	}
 	for index, checkpoint := range t.Checkpoints {
 		checkpointPath := fmt.Sprintf("%s.checkpoints[%d]", path, index)
 		if !isAllowedValue(checkpoint.Type, "event", "relationship", "metric") {
-			return invalidReasonTree(t.IndustryChainEntityID, checkpointPath+".type", checkpoint.Type, "has an unsupported value")
+			return invalidReasonTree(t.IndustryChainID, checkpointPath+".type", checkpoint.Type, "has an unsupported value")
 		}
-		if err := requiredReasonTreeText(t.IndustryChainEntityID, checkpointPath+".summary", checkpoint.Summary, 2000); err != nil {
+		if err := requiredReasonTreeText(t.IndustryChainID, checkpointPath+".summary", checkpoint.Summary, 2000); err != nil {
 			return err
 		}
 	}
@@ -556,40 +556,40 @@ func (t ReasonTreeInput) validate(path string, snapshots map[string]ReasonTreeSi
 	for index, event := range t.Events {
 		eventPath := fmt.Sprintf("%s.events[%d]", path, index)
 		if event.DisplayOrder != index+1 {
-			return invalidReasonTree(t.IndustryChainEntityID, eventPath+".display_order", fmt.Sprint(event.DisplayOrder), "must be contiguous from 1")
+			return invalidReasonTree(t.IndustryChainID, eventPath+".display_order", fmt.Sprint(event.DisplayOrder), "must be contiguous from 1")
 		}
 		if !coreid.Is(event.EventID, coreid.Event) {
-			return invalidReasonTree(t.IndustryChainEntityID, eventPath+".event_id", event.EventID, "must be an Event ID")
+			return invalidReasonTree(t.IndustryChainID, eventPath+".event_id", event.EventID, "must be an Event ID")
 		}
 		if _, duplicate := seenEvents[event.EventID]; duplicate {
-			return invalidReasonTree(t.IndustryChainEntityID, eventPath+".event_id", event.EventID, "must be unique within the Tree")
+			return invalidReasonTree(t.IndustryChainID, eventPath+".event_id", event.EventID, "must be unique within the Tree")
 		}
 		seenEvents[event.EventID] = struct{}{}
 		if !isAllowedValue(event.EvidenceRole, "driver", "supporting", "contradicting", "context") {
-			return invalidReasonTree(t.IndustryChainEntityID, eventPath+".evidence_role", event.EvidenceRole, "has an unsupported value")
+			return invalidReasonTree(t.IndustryChainID, eventPath+".evidence_role", event.EvidenceRole, "has an unsupported value")
 		}
 	}
 	if len(t.Nodes) == 0 {
-		return invalidReasonTree(t.IndustryChainEntityID, path+".nodes", "", "must contain at least one ReasonTreeNodeInput")
+		return invalidReasonTree(t.IndustryChainID, path+".nodes", "", "must contain at least one ReasonTreeNodeInput")
 	}
 	seenNodes := make(map[string]struct{}, len(t.Nodes))
 	for index, node := range t.Nodes {
 		nodePath := fmt.Sprintf("%s.nodes[%d]", path, index)
 		if node.Position != index+1 {
-			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".position", fmt.Sprint(node.Position), "must be contiguous from 1")
+			return invalidReasonTree(t.IndustryChainID, nodePath+".position", fmt.Sprint(node.Position), "must be contiguous from 1")
 		}
-		if !entitybiz.IsEntityID(node.ChainNodeEntityID) {
-			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".chain_node_entity_id", node.ChainNodeEntityID, "must be an Entity ID")
+		if !entitybiz.IsChainNodeID(node.ChainNodeID) {
+			return invalidReasonTree(t.IndustryChainID, nodePath+".chain_node_id", node.ChainNodeID, "must be a ChainNode ID")
 		}
-		if _, duplicate := seenNodes[node.ChainNodeEntityID]; duplicate {
-			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".chain_node_entity_id", node.ChainNodeEntityID, "must be unique within the Tree")
+		if _, duplicate := seenNodes[node.ChainNodeID]; duplicate {
+			return invalidReasonTree(t.IndustryChainID, nodePath+".chain_node_id", node.ChainNodeID, "must be unique within the Tree")
 		}
-		seenNodes[node.ChainNodeEntityID] = struct{}{}
+		seenNodes[node.ChainNodeID] = struct{}{}
 		if !isAllowedValue(node.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
-			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".impact_direction", node.ImpactDirection, "has an unsupported value")
+			return invalidReasonTree(t.IndustryChainID, nodePath+".impact_direction", node.ImpactDirection, "has an unsupported value")
 		}
 		if !isAllowedValue(node.ImpactStrength, "strong", "medium", "weak", "unknown") {
-			return invalidReasonTree(t.IndustryChainEntityID, nodePath+".impact_strength", node.ImpactStrength, "has an unsupported value")
+			return invalidReasonTree(t.IndustryChainID, nodePath+".impact_strength", node.ImpactStrength, "has an unsupported value")
 		}
 		for _, field := range []struct {
 			name  string
@@ -601,18 +601,18 @@ func (t ReasonTreeInput) validate(path string, snapshots map[string]ReasonTreeSi
 			{"reasoning_basis_summary", node.ReasoningBasisSummary, 4000},
 			{"evidence_gap_summary", node.EvidenceGapSummary, 4000},
 		} {
-			if err := optionalReasonTreeText(t.IndustryChainEntityID, nodePath+"."+field.name, field.value, field.max); err != nil {
+			if err := optionalReasonTreeText(t.IndustryChainID, nodePath+"."+field.name, field.value, field.max); err != nil {
 				return err
 			}
 		}
 		if index == 0 {
 			if node.IncomingIndustryChainGraphEdgeID != nil || node.IncomingTransmissionTitle != nil ||
 				node.IncomingTransmissionMechanism != nil || node.IncomingConditionSummary != nil {
-				return invalidReasonTree(t.IndustryChainEntityID, nodePath+".incoming_*", "", "must all be null for the first ReasonTreeNodeInput")
+				return invalidReasonTree(t.IndustryChainID, nodePath+".incoming_*", "", "must all be null for the first ReasonTreeNodeInput")
 			}
 		} else {
 			if node.IncomingIndustryChainGraphEdgeID != nil && !coreid.Is(*node.IncomingIndustryChainGraphEdgeID, coreid.IndustryChainGraphEdge) {
-				return invalidReasonTree(t.IndustryChainEntityID, nodePath+".incoming_industry_chain_graph_edge_id", *node.IncomingIndustryChainGraphEdgeID, "must be an Industry Chain Graph Edge ID")
+				return invalidReasonTree(t.IndustryChainID, nodePath+".incoming_industry_chain_graph_edge_id", *node.IncomingIndustryChainGraphEdgeID, "must be an Industry Chain Graph Edge ID")
 			}
 			for _, field := range []struct {
 				name  string
@@ -623,14 +623,14 @@ func (t ReasonTreeInput) validate(path string, snapshots map[string]ReasonTreeSi
 				{"incoming_condition_summary", node.IncomingConditionSummary},
 			} {
 				if field.value == nil {
-					return invalidReasonTree(t.IndustryChainEntityID, nodePath+"."+field.name, "", "is required after the first ReasonTreeNodeInput")
+					return invalidReasonTree(t.IndustryChainID, nodePath+"."+field.name, "", "is required after the first ReasonTreeNodeInput")
 				}
-				if err := requiredReasonTreeText(t.IndustryChainEntityID, nodePath+"."+field.name, *field.value, 4000); err != nil {
+				if err := requiredReasonTreeText(t.IndustryChainID, nodePath+"."+field.name, *field.value, 4000); err != nil {
 					return err
 				}
 			}
 		}
-		if err := validateReasonTreeSignals(t.IndustryChainEntityID, nodePath, node.Signals, snapshots); err != nil {
+		if err := validateReasonTreeSignals(t.IndustryChainID, nodePath, node.Signals, snapshots); err != nil {
 			return err
 		}
 	}
@@ -704,7 +704,7 @@ func optionalReasonTreeText(chainID, path string, value *string, max int) error 
 }
 
 func invalidReasonTree(chainID, path, reference, message string) *ReasonTreeValidationError {
-	return &ReasonTreeValidationError{IndustryChainEntityID: chainID, Path: path, Reference: reference, Message: message}
+	return &ReasonTreeValidationError{IndustryChainID: chainID, Path: path, Reference: reference, Message: message}
 }
 
 type EventSemanticBundle struct {
@@ -1253,10 +1253,10 @@ func researchContextReferencesResolve(page AnalysisContextStorePage) bool {
 	}
 	chains := make(map[string]struct{}, len(page.Dictionaries.IndustryChains))
 	for _, chain := range page.Dictionaries.IndustryChains {
-		if !containsID(entities, chain.IndustryChainEntityID) {
+		if !containsID(entities, chain.IndustryChainID) {
 			return false
 		}
-		chains[chain.IndustryChainEntityID] = struct{}{}
+		chains[chain.IndustryChainID] = struct{}{}
 	}
 	for _, entity := range page.Dictionaries.Entities {
 		if entity.EntityType == "industry_chain" &&
@@ -1266,16 +1266,16 @@ func researchContextReferencesResolve(page AnalysisContextStorePage) bool {
 	}
 	memberships := make(map[string]struct{}, len(page.Dictionaries.IndustryChainMemberships))
 	for _, membership := range page.Dictionaries.IndustryChainMemberships {
-		if !containsID(chains, membership.IndustryChainEntityID) ||
-			!containsID(entities, membership.ChainNodeEntityID) {
+		if !containsID(chains, membership.IndustryChainID) ||
+			!containsID(entities, membership.ChainNodeID) {
 			return false
 		}
-		memberships[membership.IndustryChainEntityID+"\x00"+membership.ChainNodeEntityID] = struct{}{}
+		memberships[membership.IndustryChainID+"\x00"+membership.ChainNodeID] = struct{}{}
 	}
 	for _, edge := range page.Dictionaries.IndustryChainGraphEdges {
-		if !containsID(chains, edge.IndustryChainEntityID) ||
-			!containsID(memberships, edge.IndustryChainEntityID+"\x00"+edge.FromChainNodeEntityID) ||
-			!containsID(memberships, edge.IndustryChainEntityID+"\x00"+edge.ToChainNodeEntityID) {
+		if !containsID(chains, edge.IndustryChainID) ||
+			!containsID(memberships, edge.IndustryChainID+"\x00"+edge.FromChainNodeID) ||
+			!containsID(memberships, edge.IndustryChainID+"\x00"+edge.ToChainNodeID) {
 			return false
 		}
 	}
@@ -1593,14 +1593,14 @@ var (
 )
 
 type ThemeImpactRecord struct {
-	NodeKey           string  `json:"node_key"`
-	DisplayName       string  `json:"display_name"`
-	ChainNodeEntityID string  `json:"chain_node_entity_id"`
-	Name              string  `json:"name"`
-	RelationRole      string  `json:"relation_role"`
-	ImpactDirection   string  `json:"impact_direction"`
-	ImpactSummary     *string `json:"impact_summary"`
-	DisplayOrder      int     `json:"display_order"`
+	NodeKey         string  `json:"node_key"`
+	DisplayName     string  `json:"display_name"`
+	ChainNodeID     string  `json:"chain_node_id"`
+	Name            string  `json:"name"`
+	RelationRole    string  `json:"relation_role"`
+	ImpactDirection string  `json:"impact_direction"`
+	ImpactSummary   *string `json:"impact_summary"`
+	DisplayOrder    int     `json:"display_order"`
 }
 
 type EventRecord struct {
@@ -1649,10 +1649,10 @@ type ThemeStorePage struct {
 }
 
 type ReasoningTreeSummaryRecord struct {
-	ReasoningTreeID, IndustryChainEntityID, IndustryChainName, Title string
-	TreeKey, DisplayName                                             string
-	DisplayOrder, EventCount                                         int
-	PublishedAt                                                      time.Time
+	ReasoningTreeID, IndustryChainID, IndustryChainName, Title string
+	TreeKey, DisplayName                                       string
+	DisplayOrder, EventCount                                   int
+	PublishedAt                                                time.Time
 }
 
 type ReasoningTreeListRecord struct {
@@ -1676,29 +1676,29 @@ type SignalRecord struct {
 }
 
 type ReasoningTreeNodeRecord struct {
-	ID, ChainNodeEntityID, Name, ImpactDirection, ImpactStrength string
-	NodeKey, DisplayName                                         string
-	Position                                                     int
-	StateSummary, ImpactSummary, ReasoningBasisSummary           *string
-	EvidenceGapSummary                                           *string
-	IncomingIndustryChainGraphEdgeID, IncomingTransmissionTitle  *string
-	IncomingTransmissionMechanism, IncomingConditionSummary      *string
-	IncomingGraphEdge                                            *GraphEdgeRecord
-	Signals                                                      []SignalRecord
+	ID, ChainNodeID, Name, ImpactDirection, ImpactStrength      string
+	NodeKey, DisplayName                                        string
+	Position                                                    int
+	StateSummary, ImpactSummary, ReasoningBasisSummary          *string
+	EvidenceGapSummary                                          *string
+	IncomingIndustryChainGraphEdgeID, IncomingTransmissionTitle *string
+	IncomingTransmissionMechanism, IncomingConditionSummary     *string
+	IncomingGraphEdge                                           *GraphEdgeRecord
+	Signals                                                     []SignalRecord
 }
 
 type ReasoningTreeRecord struct {
-	ReasoningTreeID, ThemeID, IndustryChainEntityID, IndustryChainName string
-	TreeKey, DisplayName                                               string
-	Title, OneLineConclusion, ImpactDirection, ImpactStrength          string
-	DisplayOrder, EventCount                                           int
-	FactSummary, TransmissionSummary, ImpactSummary                    *string
-	ConclusionBoundarySummary, SupportSummary, CounterSummary          *string
-	InvalidationConditions                                             []string
-	Checkpoints                                                        []CheckpointRecord
-	PublishedAt                                                        time.Time
-	Events                                                             []EventRecord
-	Nodes                                                              []ReasoningTreeNodeRecord
+	ReasoningTreeID, ThemeID, IndustryChainID, IndustryChainName string
+	TreeKey, DisplayName                                         string
+	Title, OneLineConclusion, ImpactDirection, ImpactStrength    string
+	DisplayOrder, EventCount                                     int
+	FactSummary, TransmissionSummary, ImpactSummary              *string
+	ConclusionBoundarySummary, SupportSummary, CounterSummary    *string
+	InvalidationConditions                                       []string
+	Checkpoints                                                  []CheckpointRecord
+	PublishedAt                                                  time.Time
+	Events                                                       []EventRecord
+	Nodes                                                        []ReasoningTreeNodeRecord
 }
 
 type ReasoningTreeDetailRecord struct {
@@ -1728,15 +1728,15 @@ type ResearchReasoningTreeList struct {
 }
 
 type ResearchReasoningTreeSummary struct {
-	TreeKey               string    `json:"tree_key"`
-	DisplayName           string    `json:"display_name"`
-	ReasoningTreeID       string    `json:"reasoning_tree_id"`
-	IndustryChainEntityID string    `json:"industry_chain_entity_id"`
-	IndustryChainName     string    `json:"industry_chain_name"`
-	Title                 string    `json:"title"`
-	DisplayOrder          int       `json:"display_order"`
-	EventCount            int       `json:"event_count"`
-	PublishedAt           time.Time `json:"published_at"`
+	TreeKey           string    `json:"tree_key"`
+	DisplayName       string    `json:"display_name"`
+	ReasoningTreeID   string    `json:"reasoning_tree_id"`
+	IndustryChainID   string    `json:"industry_chain_id"`
+	IndustryChainName string    `json:"industry_chain_name"`
+	Title             string    `json:"title"`
+	DisplayOrder      int       `json:"display_order"`
+	EventCount        int       `json:"event_count"`
+	PublishedAt       time.Time `json:"published_at"`
 }
 
 type ResearchCheckpoint struct {
@@ -1763,7 +1763,7 @@ type ResearchReasoningTreeNode struct {
 	DisplayName                      string             `json:"display_name"`
 	ID                               string             `json:"id"`
 	Position                         int                `json:"position"`
-	ChainNodeEntityID                string             `json:"chain_node_entity_id"`
+	ChainNodeID                      string             `json:"chain_node_id"`
 	Name                             string             `json:"name"`
 	StateSummary                     *string            `json:"state_summary"`
 	ImpactDirection                  string             `json:"impact_direction"`
@@ -1782,17 +1782,17 @@ type ResearchReasoningTreeNode struct {
 }
 
 type ResearchReasoningTree struct {
-	ReasoningTreeID, ThemeID, IndustryChainEntityID, IndustryChainName string
-	TreeKey, DisplayName                                               string
-	Title, OneLineConclusion, ImpactDirection, ImpactStrength          string
-	DisplayOrder, EventCount                                           int
-	FactSummary, TransmissionSummary, ImpactSummary                    *string
-	ConclusionBoundarySummary, SupportSummary, CounterSummary          *string
-	InvalidationConditions                                             []string
-	Checkpoints                                                        []ResearchCheckpoint
-	PublishedAt                                                        time.Time
-	Events                                                             []ResearchEvent
-	Nodes                                                              []ResearchReasoningTreeNode
+	ReasoningTreeID, ThemeID, IndustryChainID, IndustryChainName string
+	TreeKey, DisplayName                                         string
+	Title, OneLineConclusion, ImpactDirection, ImpactStrength    string
+	DisplayOrder, EventCount                                     int
+	FactSummary, TransmissionSummary, ImpactSummary              *string
+	ConclusionBoundarySummary, SupportSummary, CounterSummary    *string
+	InvalidationConditions                                       []string
+	Checkpoints                                                  []ResearchCheckpoint
+	PublishedAt                                                  time.Time
+	Events                                                       []ResearchEvent
+	Nodes                                                        []ResearchReasoningTreeNode
 }
 
 type ResearchReasoningTreeDetail struct {
@@ -1815,9 +1815,9 @@ func (s *UseCase) ListReasoningTrees(ctx context.Context, themeID string) (Resea
 	for _, value := range result.ReasoningTrees {
 		summaries = append(summaries, ResearchReasoningTreeSummary{
 			TreeKey: value.TreeKey, DisplayName: value.DisplayName,
-			ReasoningTreeID:       value.ReasoningTreeID,
-			IndustryChainEntityID: value.IndustryChainEntityID,
-			IndustryChainName:     value.IndustryChainName, Title: value.Title,
+			ReasoningTreeID:   value.ReasoningTreeID,
+			IndustryChainID:   value.IndustryChainID,
+			IndustryChainName: value.IndustryChainName, Title: value.Title,
 			DisplayOrder: value.DisplayOrder, EventCount: value.EventCount,
 			PublishedAt: value.PublishedAt.UTC(),
 		})
@@ -1867,7 +1867,7 @@ func (s *UseCase) GetReasoningTree(ctx context.Context, themeID, reasoningTreeID
 		}
 		nodes = append(nodes, ResearchReasoningTreeNode{
 			NodeKey: node.NodeKey, DisplayName: node.DisplayName,
-			ID: node.ID, Position: node.Position, ChainNodeEntityID: node.ChainNodeEntityID,
+			ID: node.ID, Position: node.Position, ChainNodeID: node.ChainNodeID,
 			Name: node.Name, StateSummary: node.StateSummary, ImpactDirection: node.ImpactDirection,
 			ImpactStrength: node.ImpactStrength, ImpactSummary: node.ImpactSummary,
 			ReasoningBasisSummary: node.ReasoningBasisSummary, EvidenceGapSummary: node.EvidenceGapSummary,
@@ -1889,7 +1889,7 @@ func (s *UseCase) GetReasoningTree(ctx context.Context, themeID, reasoningTreeID
 		ReasoningTree: ResearchReasoningTree{
 			TreeKey: tree.TreeKey, DisplayName: tree.DisplayName,
 			ReasoningTreeID: tree.ReasoningTreeID, ThemeID: tree.ThemeID,
-			IndustryChainEntityID: tree.IndustryChainEntityID, IndustryChainName: tree.IndustryChainName,
+			IndustryChainID: tree.IndustryChainID, IndustryChainName: tree.IndustryChainName,
 			Title: tree.Title, DisplayOrder: tree.DisplayOrder, OneLineConclusion: tree.OneLineConclusion,
 			FactSummary: tree.FactSummary, TransmissionSummary: tree.TransmissionSummary,
 			ImpactDirection: tree.ImpactDirection, ImpactStrength: tree.ImpactStrength,
@@ -1978,14 +1978,14 @@ type ResearchTheme struct {
 }
 
 type ResearchThemeImpact struct {
-	NodeKey           string  `json:"node_key"`
-	DisplayName       string  `json:"display_name"`
-	ChainNodeEntityID string  `json:"chain_node_entity_id"`
-	Name              string  `json:"name"`
-	RelationRole      string  `json:"relation_role"`
-	ImpactDirection   string  `json:"impact_direction"`
-	ImpactSummary     *string `json:"impact_summary"`
-	DisplayOrder      int     `json:"display_order"`
+	NodeKey         string  `json:"node_key"`
+	DisplayName     string  `json:"display_name"`
+	ChainNodeID     string  `json:"chain_node_id"`
+	Name            string  `json:"name"`
+	RelationRole    string  `json:"relation_role"`
+	ImpactDirection string  `json:"impact_direction"`
+	ImpactSummary   *string `json:"impact_summary"`
+	DisplayOrder    int     `json:"display_order"`
 }
 
 type ResearchThemeDetail struct {
@@ -2221,7 +2221,7 @@ func impactDTOs(values []ThemeImpactRecord) []ResearchThemeImpact {
 	for _, value := range values {
 		result = append(result, ResearchThemeImpact{
 			NodeKey: value.NodeKey, DisplayName: value.DisplayName,
-			ChainNodeEntityID: value.ChainNodeEntityID, Name: value.Name,
+			ChainNodeID: value.ChainNodeID, Name: value.Name,
 			RelationRole: value.RelationRole, ImpactDirection: value.ImpactDirection,
 			ImpactSummary: value.ImpactSummary, DisplayOrder: value.DisplayOrder,
 		})
@@ -2268,7 +2268,7 @@ var (
 type Result struct {
 	ReceiptID, AnalysisBatchID, PayloadHash, ThemeID string
 	PublicationMode                                  string
-	ReasoningTreeIDsByIndustryChainEntityID          map[string]string
+	ReasoningTreeIDsByIndustryChainID                map[string]string
 	ReasoningTreeIDsByTreeKey                        map[string]string
 	Counts                                           Counts
 	PublishedAt, ImportedAt                          time.Time
@@ -2312,7 +2312,7 @@ func (s *UseCase) Publish(ctx context.Context, publisher string, aggregate Aggre
 				return ErrPayloadConflict
 			}
 			if existing.ThemeID != plan.ThemeID ||
-				!reflect.DeepEqual(existing.ReasoningTreeIDsByIndustryChainEntityID, plan.ReasoningTreeIDsByIndustryChainEntityID) ||
+				!reflect.DeepEqual(existing.ReasoningTreeIDsByIndustryChainID, plan.ReasoningTreeIDsByIndustryChainID) ||
 				existing.Counts != plan.Counts {
 				return errors.New("research publication receipt does not match deterministic plan")
 			}
@@ -2359,7 +2359,7 @@ func (s *UseCase) Publish(ctx context.Context, publisher string, aggregate Aggre
 		}
 		for _, impact := range theme.Impacts {
 			if err := tx.InsertThemeImpact(ctx, PublicationThemeImpactRecord{
-				ThemeID: themeID, ChainNodeEntityID: impact.ChainNodeEntityID,
+				ThemeID: themeID, ChainNodeID: impact.ChainNodeID,
 				RelationRole: impact.RelationRole, ImpactDirection: impact.ImpactDirection,
 				ImpactSummary: impact.ImpactSummary, DisplayOrder: impact.DisplayOrder,
 			}); err != nil {
@@ -2378,7 +2378,7 @@ func (s *UseCase) Publish(ctx context.Context, publisher string, aggregate Aggre
 		treeReceipt := ReasonTreeReceipt{
 			ID:      mustDeriveResearchID(coreid.ResearchReasoningTreeReceipt, "research-reasoning-tree-import-receipt", themeID),
 			ThemeID: themeID, PublisherSubject: publisher, PayloadHash: payloadHash,
-			ReasoningTreeIDsByIndustryChainEntityID: cloneMap(plan.ReasoningTreeIDsByIndustryChainEntityID),
+			ReasoningTreeIDsByIndustryChainID: cloneMap(plan.ReasoningTreeIDsByIndustryChainID),
 			Counts: ReasonTreeCounts{
 				ReasoningTrees: plan.Counts.ReasoningTrees, Nodes: plan.Counts.Nodes,
 				EventAssociations:  plan.Counts.TreeEventAssociations,
@@ -2390,10 +2390,10 @@ func (s *UseCase) Publish(ctx context.Context, publisher string, aggregate Aggre
 			return fmt.Errorf("insert Reason Tree receipt: %w", err)
 		}
 		for _, tree := range aggregate.ReasoningTrees {
-			treeID := plan.ReasoningTreeIDsByIndustryChainEntityID[tree.IndustryChainEntityID]
+			treeID := plan.ReasoningTreeIDsByIndustryChainID[tree.IndustryChainID]
 			if err := tx.InsertTree(ctx, ReasonTreeRecord{
 				ID: treeID, ThemeID: themeID, ImportReceiptID: treeReceipt.ID,
-				IndustryChainEntityID: tree.IndustryChainEntityID, Title: tree.Title,
+				IndustryChainID: tree.IndustryChainID, Title: tree.Title,
 				DisplayOrder: tree.DisplayOrder, OneLineConclusion: tree.OneLineConclusion,
 				FactSummary: tree.FactSummary, TransmissionSummary: tree.TransmissionSummary,
 				ImpactDirection: tree.ImpactDirection, ImpactStrength: tree.ImpactStrength,
@@ -2413,10 +2413,10 @@ func (s *UseCase) Publish(ctx context.Context, publisher string, aggregate Aggre
 				}
 			}
 			for _, node := range tree.Nodes {
-				nodeID := publicationReasonTreeNodeID(treeID, node.Position, node.ChainNodeEntityID)
+				nodeID := publicationReasonTreeNodeID(treeID, node.Position, node.ChainNodeID)
 				record := NodeRecord{ReasonTreeNodeRecord: ReasonTreeNodeRecord{
 					ID: nodeID, ReasoningTreeID: treeID, Position: node.Position,
-					ChainNodeEntityID: node.ChainNodeEntityID, StateSummary: node.StateSummary,
+					ChainNodeID: node.ChainNodeID, StateSummary: node.StateSummary,
 					ImpactDirection: node.ImpactDirection, ImpactStrength: node.ImpactStrength,
 					ImpactSummary: node.ImpactSummary, ReasoningBasisSummary: node.ReasoningBasisSummary,
 					EvidenceGapSummary:               node.EvidenceGapSummary,
@@ -2478,7 +2478,7 @@ func publicationPlan(a Aggregate, themeID, payloadHash string) Receipt {
 	treeIDs := make(map[string]string, len(a.ReasoningTrees))
 	counts := Counts{Themes: 1, Impacts: len(a.Theme.Impacts), ThemeEventAssociations: len(a.Theme.Events), Receipts: 2}
 	for _, tree := range a.ReasoningTrees {
-		treeIDs[tree.IndustryChainEntityID] = publicationReasonTreeID(themeID, tree.IndustryChainEntityID)
+		treeIDs[tree.IndustryChainID] = publicationReasonTreeID(themeID, tree.IndustryChainID)
 		counts.ReasoningTrees++
 		counts.TreeEventAssociations += len(tree.Events)
 		counts.Nodes += len(tree.Nodes)
@@ -2490,25 +2490,25 @@ func publicationPlan(a Aggregate, themeID, payloadHash string) Receipt {
 		ID:              mustDeriveResearchID(coreid.ResearchThemeReceipt, "research-theme-import-receipt", a.AnalysisBatchID),
 		AnalysisBatchID: a.AnalysisBatchID, PayloadHash: payloadHash, ThemeID: themeID,
 		ThemeKey: a.Theme.ThemeKey, ContractVersion: 2, PublicationMode: "formal",
-		ReasoningTreeIDsByIndustryChainEntityID: treeIDs, Counts: counts,
+		ReasoningTreeIDsByIndustryChainID: treeIDs, Counts: counts,
 	}
 }
 
 func referenceQuery(a Aggregate) ReferenceQuery {
 	q := ReferenceQuery{}
 	for _, impact := range a.Theme.Impacts {
-		q.ChainNodeIDs = append(q.ChainNodeIDs, impact.ChainNodeEntityID)
+		q.ChainNodeIDs = append(q.ChainNodeIDs, impact.ChainNodeID)
 	}
 	for _, event := range a.Theme.Events {
 		q.EventIDs = append(q.EventIDs, event.EventID)
 	}
 	for _, tree := range a.ReasoningTrees {
-		q.IndustryChainIDs = append(q.IndustryChainIDs, tree.IndustryChainEntityID)
+		q.IndustryChainIDs = append(q.IndustryChainIDs, tree.IndustryChainID)
 		for _, event := range tree.Events {
 			q.EventIDs = append(q.EventIDs, event.EventID)
 		}
 		for _, node := range tree.Nodes {
-			q.ChainNodeIDs = append(q.ChainNodeIDs, node.ChainNodeEntityID)
+			q.ChainNodeIDs = append(q.ChainNodeIDs, node.ChainNodeID)
 			if node.IncomingIndustryChainGraphEdgeID != nil {
 				q.GraphEdgeIDs = append(q.GraphEdgeIDs, *node.IncomingIndustryChainGraphEdgeID)
 			}
@@ -2556,9 +2556,9 @@ func validateReferences(a Aggregate, asOf time.Time, facts ReferenceFacts) error
 	windowStart, _ := time.Parse(time.RFC3339, a.DiscoveryWindowStart)
 	windowEnd, _ := time.Parse(time.RFC3339, a.DiscoveryWindowEnd)
 	for index, impact := range a.Theme.Impacts {
-		temporal, ok := facts.ChainNodeIDs[impact.ChainNodeEntityID]
+		temporal, ok := facts.ChainNodeIDs[impact.ChainNodeID]
 		if !ok || !temporalFactAvailableAt(temporal, asOf) {
-			return invalidReference(fmt.Sprintf("theme.impacts[%d].chain_node_entity_id", index), impact.ChainNodeEntityID, "active approved Chain Node does not exist")
+			return invalidReference(fmt.Sprintf("theme.impacts[%d].chain_node_id", index), impact.ChainNodeID, "active approved Chain Node does not exist")
 		}
 	}
 	for index, event := range a.Theme.Events {
@@ -2577,9 +2577,9 @@ func validateReferences(a Aggregate, asOf time.Time, facts ReferenceFacts) error
 	}
 	for treeIndex, tree := range a.ReasoningTrees {
 		treePath := fmt.Sprintf("reasoning_trees[%d]", treeIndex)
-		chainTemporal, ok := facts.IndustryChainIDs[tree.IndustryChainEntityID]
+		chainTemporal, ok := facts.IndustryChainIDs[tree.IndustryChainID]
 		if !ok || !temporalFactAvailableAt(chainTemporal, asOf) {
-			return invalidReference(treePath+".industry_chain_entity_id", tree.IndustryChainEntityID, "active approved Industry Chain does not exist")
+			return invalidReference(treePath+".industry_chain_id", tree.IndustryChainID, "active approved Industry Chain does not exist")
 		}
 		treeEvents := make(map[string]struct{}, len(tree.Events))
 		for _, event := range tree.Events {
@@ -2588,25 +2588,25 @@ func validateReferences(a Aggregate, asOf time.Time, facts ReferenceFacts) error
 		for nodeIndex, node := range tree.Nodes {
 			nodePath := fmt.Sprintf("%s.nodes[%d]", treePath, nodeIndex)
 			step := inferenceStep{
-				CurrentNodeEntityID:   node.ChainNodeEntityID,
-				IndustryChainEntityID: tree.IndustryChainEntityID,
+				CurrentNodeEntityID: node.ChainNodeID,
+				IndustryChainID:     tree.IndustryChainID,
 			}
 			if nodeIndex > 0 {
-				step.PreviousNodeEntityID = &tree.Nodes[nodeIndex-1].ChainNodeEntityID
+				step.PreviousNodeEntityID = &tree.Nodes[nodeIndex-1].ChainNodeID
 			}
-			membership, ok := facts.Memberships[tree.IndustryChainEntityID][node.ChainNodeEntityID]
+			membership, ok := facts.Memberships[tree.IndustryChainID][node.ChainNodeID]
 			if !ok || !temporalFactAvailableAt(membership, asOf) {
-				return invalidReference(nodePath+".chain_node_entity_id", node.ChainNodeEntityID, "Node is not an active approved member of the Industry Chain")
+				return invalidReference(nodePath+".chain_node_id", node.ChainNodeID, "Node is not an active approved member of the Industry Chain")
 			}
 			if node.IncomingIndustryChainGraphEdgeID != nil {
 				edge, ok := facts.GraphEdges[*node.IncomingIndustryChainGraphEdgeID]
 				if !ok || !temporalFactAvailableAt(edge.TemporalFact, asOf) ||
-					nodeIndex == 0 || edge.IndustryChainEntityID != tree.IndustryChainEntityID ||
+					nodeIndex == 0 || edge.IndustryChainID != tree.IndustryChainID ||
 					!connectsEntities(
-						edge.FromChainNodeEntityID,
-						edge.ToChainNodeEntityID,
-						tree.Nodes[nodeIndex-1].ChainNodeEntityID,
-						node.ChainNodeEntityID,
+						edge.FromChainNodeID,
+						edge.ToChainNodeID,
+						tree.Nodes[nodeIndex-1].ChainNodeID,
+						node.ChainNodeID,
 					) {
 					return invalidReference(nodePath+".incoming_industry_chain_graph_edge_id", *node.IncomingIndustryChainGraphEdgeID, "Graph Edge does not connect the adjacent Tree Nodes")
 				}
@@ -2642,9 +2642,9 @@ func validateReferences(a Aggregate, asOf time.Time, facts ReferenceFacts) error
 }
 
 type inferenceStep struct {
-	PreviousNodeEntityID  *string
-	CurrentNodeEntityID   string
-	IndustryChainEntityID string
+	PreviousNodeEntityID *string
+	CurrentNodeEntityID  string
+	IndustryChainID      string
 }
 
 func validateSignalLineage(
@@ -2780,13 +2780,13 @@ func validateInference(
 	if graphEdgeID != nil {
 		edge, ok := facts.GraphEdges[*graphEdgeID]
 		connectsStep := relationConnectsInferenceStep(
-			edge.FromChainNodeEntityID,
-			edge.ToChainNodeEntityID,
+			edge.FromChainNodeID,
+			edge.ToChainNodeID,
 			step,
 			upstreamEntityIDs,
 		)
 		if !ok || !temporalFactAvailableAt(edge.TemporalFact, asOf) ||
-			edge.IndustryChainEntityID != step.IndustryChainEntityID || !connectsStep {
+			edge.IndustryChainID != step.IndustryChainID || !connectsStep {
 			return invalidReference(path+".industry_chain_graph_edge_id", *graphEdgeID, "active approved Industry Chain Graph Edge does not connect the adjacent Tree Nodes")
 		}
 	}
@@ -2839,9 +2839,9 @@ func resultFromReceipt(r Receipt, replayed bool) Result {
 	return Result{
 		ReceiptID: r.ID, AnalysisBatchID: r.AnalysisBatchID, PayloadHash: r.PayloadHash,
 		ThemeID: r.ThemeID, PublicationMode: r.PublicationMode,
-		ReasoningTreeIDsByIndustryChainEntityID: cloneMap(r.ReasoningTreeIDsByIndustryChainEntityID),
-		ReasoningTreeIDsByTreeKey:               cloneMap(r.ReasoningTreeIDsByTreeKey),
-		Counts:                                  r.Counts, PublishedAt: r.PublishedAt, ImportedAt: r.ImportedAt, Replayed: replayed,
+		ReasoningTreeIDsByIndustryChainID: cloneMap(r.ReasoningTreeIDsByIndustryChainID),
+		ReasoningTreeIDsByTreeKey:         cloneMap(r.ReasoningTreeIDsByTreeKey),
+		Counts:                            r.Counts, PublishedAt: r.PublishedAt, ImportedAt: r.ImportedAt, Replayed: replayed,
 	}
 }
 
@@ -2871,7 +2871,7 @@ type ReasoningTree struct {
 
 type Node struct {
 	Position                         int              `json:"position"`
-	ChainNodeEntityID                string           `json:"chain_node_entity_id"`
+	ChainNodeID                      string           `json:"chain_node_id"`
 	StateSummary                     *string          `json:"state_summary"`
 	ImpactDirection                  string           `json:"impact_direction"`
 	ImpactStrength                   string           `json:"impact_strength"`
@@ -2996,7 +2996,7 @@ func (a Aggregate) Validate() (time.Time, string, error) {
 				}
 			}
 			legacyNodes = append(legacyNodes, ReasonTreeNodeInput{
-				Position: node.Position, ChainNodeEntityID: node.ChainNodeEntityID,
+				Position: node.Position, ChainNodeID: node.ChainNodeID,
 				StateSummary: node.StateSummary, ImpactDirection: node.ImpactDirection,
 				ImpactStrength: node.ImpactStrength, ImpactSummary: node.ImpactSummary,
 				ReasoningBasisSummary: node.ReasoningBasisSummary, EvidenceGapSummary: node.EvidenceGapSummary,
@@ -3019,7 +3019,7 @@ func (a Aggregate) Validate() (time.Time, string, error) {
 	themeImpacts := make(map[string]struct{}, len(a.Theme.Impacts))
 	coveredImpacts := make(map[string]struct{}, len(a.Theme.Impacts))
 	for _, impact := range a.Theme.Impacts {
-		themeImpacts[impact.ChainNodeEntityID] = struct{}{}
+		themeImpacts[impact.ChainNodeID] = struct{}{}
 	}
 	for _, event := range a.Theme.Events {
 		themeEvents[event.EventID] = struct{}{}
@@ -3027,8 +3027,8 @@ func (a Aggregate) Validate() (time.Time, string, error) {
 	for treeIndex, tree := range a.ReasoningTrees {
 		treeImpactCount := 0
 		for _, node := range tree.Nodes {
-			if _, ok := themeImpacts[node.ChainNodeEntityID]; ok {
-				coveredImpacts[node.ChainNodeEntityID] = struct{}{}
+			if _, ok := themeImpacts[node.ChainNodeID]; ok {
+				coveredImpacts[node.ChainNodeID] = struct{}{}
 				treeImpactCount++
 			}
 		}
@@ -3347,8 +3347,8 @@ func snapshotPublicationPlan(a SnapshotAggregate, themeID, payloadHash string) R
 		ID:              mustDeriveResearchID(coreid.ResearchThemeReceipt, "research-theme-import-receipt", a.AnalysisBatchID),
 		AnalysisBatchID: a.AnalysisBatchID, PayloadHash: payloadHash, ThemeID: themeID,
 		ThemeKey: a.Theme.ThemeKey, ContractVersion: 3, PublicationMode: SnapshotPublicationMode,
-		ReasoningTreeIDsByIndustryChainEntityID: map[string]string{},
-		ReasoningTreeIDsByTreeKey:               treeIDs, Counts: counts,
+		ReasoningTreeIDsByIndustryChainID: map[string]string{},
+		ReasoningTreeIDsByTreeKey:         treeIDs, Counts: counts,
 	}
 }
 
@@ -3931,13 +3931,13 @@ const (
 type RelationFilter = entitybiz.ResearchGraphRelationFilter
 
 type GraphSearchRequest struct {
-	AnalysisAsOf          string           `json:"analysis_as_of"`
-	SeedEntityIDs         []string         `json:"seed_entity_ids"`
-	RelationFilters       []RelationFilter `json:"relation_filters"`
-	MaxDepth              int              `json:"max_depth"`
-	IndustryChainEntityID *string          `json:"industry_chain_entity_id,omitempty"`
-	NodeBudget            int              `json:"node_budget"`
-	EdgeBudget            int              `json:"edge_budget"`
+	AnalysisAsOf    string           `json:"analysis_as_of"`
+	SeedEntityIDs   []string         `json:"seed_entity_ids"`
+	RelationFilters []RelationFilter `json:"relation_filters"`
+	MaxDepth        int              `json:"max_depth"`
+	IndustryChainID *string          `json:"industry_chain_id,omitempty"`
+	NodeBudget      int              `json:"node_budget"`
+	EdgeBudget      int              `json:"edge_budget"`
 }
 
 type GraphSearchResult struct {
@@ -4048,7 +4048,7 @@ type normalizedGraphSearchRequest struct {
 	SeedEntityIDs              []string         `json:"seed_entity_ids"`
 	RelationFilters            []RelationFilter `json:"relation_filters"`
 	MaxDepth                   int              `json:"max_depth"`
-	IndustryChainEntityID      *string          `json:"industry_chain_entity_id,omitempty"`
+	IndustryChainID            *string          `json:"industry_chain_id,omitempty"`
 	NodeBudget                 int              `json:"node_budget"`
 	EdgeBudget                 int              `json:"edge_budget"`
 }
@@ -4071,7 +4071,7 @@ func validateGraphSearchRequest(request GraphSearchRequest) (GraphQuery, normali
 	}
 	seedSet := map[string]struct{}{}
 	for _, id := range request.SeedEntityIDs {
-		if !entitybiz.IsEntityID(id) && !entitybiz.IsCountryID(id) && !entitybiz.IsRegionID(id) && !entitybiz.IsOrganizationID(id) {
+		if !entitybiz.IsObjectID(id) {
 			return GraphQuery{}, normalizedGraphSearchRequest{}, &GraphValidationError{Reason: "seed_entity_ids contains an invalid Object ID"}
 		}
 		if _, exists := seedSet[id]; exists {
@@ -4123,10 +4123,10 @@ func validateGraphSearchRequest(request GraphSearchRequest) (GraphQuery, normali
 			Reason: "node_budget or edge_budget exceeds the supported range",
 		}
 	}
-	if request.IndustryChainEntityID != nil &&
-		!entitybiz.IsEntityID(*request.IndustryChainEntityID) {
+	if request.IndustryChainID != nil &&
+		!entitybiz.IsIndustryChainID(*request.IndustryChainID) {
 		return GraphQuery{}, normalizedGraphSearchRequest{}, &GraphValidationError{
-			Reason: "industry_chain_entity_id must be an Entity ID",
+			Reason: "industry_chain_id must be an IndustryChain ID",
 		}
 	}
 	asOf = asOf.UTC()
@@ -4137,19 +4137,19 @@ func validateGraphSearchRequest(request GraphSearchRequest) (GraphQuery, normali
 		SeedEntityIDs:              seeds,
 		RelationFilters:            filters,
 		MaxDepth:                   request.MaxDepth,
-		IndustryChainEntityID:      request.IndustryChainEntityID,
+		IndustryChainID:            request.IndustryChainID,
 		NodeBudget:                 request.NodeBudget,
 		EdgeBudget:                 request.EdgeBudget,
 	}
 	return GraphQuery{
-		AnalysisAsOf:          asOf,
-		SeedEntityIDs:         seeds,
-		RelationFilters:       filters,
-		MaxDepth:              request.MaxDepth,
-		IndustryChainEntityID: request.IndustryChainEntityID,
-		NodeBudget:            request.NodeBudget,
-		EdgeBudget:            request.EdgeBudget,
-		FactPolicy:            entitybiz.ApprovedActiveResearchGraphFactPolicy(),
+		AnalysisAsOf:    asOf,
+		SeedEntityIDs:   seeds,
+		RelationFilters: filters,
+		MaxDepth:        request.MaxDepth,
+		IndustryChainID: request.IndustryChainID,
+		NodeBudget:      request.NodeBudget,
+		EdgeBudget:      request.EdgeBudget,
+		FactPolicy:      entitybiz.ApprovedActiveResearchGraphFactPolicy(),
 	}, normalized, nil
 }
 
@@ -4164,20 +4164,20 @@ func referencesResolve(graph GraphSubgraph) bool {
 	}
 	chains := map[string]struct{}{}
 	for _, chain := range graph.IndustryChains {
-		if _, ok := entities[chain.IndustryChainEntityID]; !ok {
+		if _, ok := entities[chain.IndustryChainID]; !ok {
 			return false
 		}
-		chains[chain.IndustryChainEntityID] = struct{}{}
+		chains[chain.IndustryChainID] = struct{}{}
 	}
 	memberships := map[string]struct{}{}
 	for _, membership := range graph.IndustryChainMemberships {
-		if _, ok := chains[membership.IndustryChainEntityID]; !ok {
+		if _, ok := chains[membership.IndustryChainID]; !ok {
 			return false
 		}
-		if _, ok := entities[membership.ChainNodeEntityID]; !ok {
+		if _, ok := entities[membership.ChainNodeID]; !ok {
 			return false
 		}
-		memberships[membership.IndustryChainEntityID+"\x00"+membership.ChainNodeEntityID] = struct{}{}
+		memberships[membership.IndustryChainID+"\x00"+membership.ChainNodeID] = struct{}{}
 	}
 	for _, relation := range graph.EntityRelations {
 		if _, ok := entities[relation.FromEntityID]; !ok {
@@ -4194,10 +4194,10 @@ func referencesResolve(graph GraphSubgraph) bool {
 		if _, ok := relationTypes[edge.RelationType]; !ok {
 			return false
 		}
-		if _, ok := memberships[edge.IndustryChainEntityID+"\x00"+edge.FromChainNodeEntityID]; !ok {
+		if _, ok := memberships[edge.IndustryChainID+"\x00"+edge.FromChainNodeID]; !ok {
 			return false
 		}
-		if _, ok := memberships[edge.IndustryChainEntityID+"\x00"+edge.ToChainNodeEntityID]; !ok {
+		if _, ok := memberships[edge.IndustryChainID+"\x00"+edge.ToChainNodeID]; !ok {
 			return false
 		}
 	}

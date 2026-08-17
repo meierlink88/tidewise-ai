@@ -193,52 +193,49 @@ var syntheticEntitySeedStatements = []string{`
 INSERT INTO entity_nodes (
   id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
 ) VALUES
-  ('ENT22000000-0000-4000-8000-000000000001', 'company:synthetic-wafer-fab',
-   'chain_node', 'chain_node', 'Synthetic Wafer Production', 'Synthetic Wafer Production',
-   ARRAY['Synthetic Wafer Fab'], 'active'),
-  ('ENT22000000-0000-4000-8000-000000000002', 'product:synthetic-wafer',
-   'chain_node', 'chain_node', 'Synthetic 8-inch Wafer Supply', 'Synthetic 8-inch Wafer Supply',
-   ARRAY['Synthetic Wafer'], 'active'),
-  ('ENT23000000-0000-4000-8000-000000000001', 'industry-chain:synthetic-wafer',
-   'industry_chain', 'industry_chain', 'Synthetic Wafer Chain', 'Synthetic Wafer Chain',
-   ARRAY['Synthetic Chain'], 'active')
+  ('ENT23000000-0000-4000-8000-000000000003', 'company:synthetic-wafer-fab',
+   'company', 'company', 'Synthetic Wafer Producer', 'Synthetic Wafer Producer',
+   ARRAY['Synthetic Producer'], 'active')
 `, `
-INSERT INTO chain_node_profiles (entity_id, definition, boundary_note, review_status) VALUES
-  ('ENT22000000-0000-4000-8000-000000000001', 'Synthetic wafer producer', NULL, 'approved'),
-  ('ENT22000000-0000-4000-8000-000000000002', 'Synthetic wafer product supply', NULL, 'approved');
+INSERT INTO chain_node (id, name, aliases, definition, review_status) VALUES
+  ('CND22000000-0000-4000-8000-000000000001', 'Synthetic Wafer Production',
+   ARRAY['Synthetic Wafer Fab'], 'Synthetic wafer producer', 'approved'),
+  ('CND22000000-0000-4000-8000-000000000002', 'Synthetic 8-inch Wafer Supply',
+   ARRAY['Synthetic Wafer'], 'Synthetic wafer product supply', 'approved');
 INSERT INTO industry (
   id, name, aliases, classification_system, industry_code,
   parent_industry_id, hierarchy_path_codes, definition, review_status
 ) VALUES
-  ('ENT23000000-0000-4000-8000-000000000002', 'Synthetic Semiconductor Manufacturing',
+  ('IND23000000-0000-4000-8000-000000000002', 'Synthetic Semiconductor Manufacturing',
    ARRAY['Synthetic Manufacturing'], 'synthetic', 'S01', NULL, ARRAY['S01'],
    'Synthetic semiconductor manufacturing', 'approved'),
-  ('ENT23000000-0000-4000-8000-000000000004', 'Synthetic Semiconductor Components',
+  ('IND23000000-0000-4000-8000-000000000004', 'Synthetic Semiconductor Components',
    ARRAY['Synthetic Components'], 'synthetic', 'S0101',
-   'ENT23000000-0000-4000-8000-000000000002', ARRAY['S01','S0101'],
+   'IND23000000-0000-4000-8000-000000000002', ARRAY['S01','S0101'],
    'Synthetic semiconductor components', 'approved'),
-  ('ENT23000000-0000-4000-8000-000000000005', 'Synthetic Wafer Capacity',
+  ('IND23000000-0000-4000-8000-000000000005', 'Synthetic Wafer Capacity',
    ARRAY['Synthetic Capacity'], 'synthetic', 'S010101',
-   'ENT23000000-0000-4000-8000-000000000004', ARRAY['S01','S0101','S010101'],
+   'IND23000000-0000-4000-8000-000000000004', ARRAY['S01','S0101','S010101'],
    'Synthetic wafer capacity', 'approved');
-INSERT INTO industry_chain_definitions (
-  entity_id, scope, target_output, end_use, geography, as_of_date, review_status,
+INSERT INTO industry_chain (
+  id, name, aliases, scope, target_output, end_use, geography, as_of_date, review_status,
   observable_variables
 ) VALUES (
-  'ENT23000000-0000-4000-8000-000000000001',
+  'ICH23000000-0000-4000-8000-000000000001',
+  'Synthetic Wafer Chain', ARRAY['Synthetic Chain'],
   'Synthetic acceptance scope', 'Synthetic 8-inch Wafer', 'Semiconductor manufacturing',
   'Global', '2026-07-28', 'approved', ARRAY['production_volume','market_supply']
 );
 INSERT INTO industry_chain_node_memberships (
-  industry_chain_entity_id, chain_node_entity_id, position, contextual_stage,
+  industry_chain_id, chain_node_id, position, contextual_stage,
   review_status, status, inclusion_reason, evidence_ids, source_name, source_url, verified_at
 ) VALUES
-  ('ENT23000000-0000-4000-8000-000000000001',
-   'ENT22000000-0000-4000-8000-000000000001', 1, 'upstream', 'approved', 'active',
+  ('ICH23000000-0000-4000-8000-000000000001',
+   'CND22000000-0000-4000-8000-000000000001', 1, 'upstream', 'approved', 'active',
    'Synthetic producer node', ARRAY['synthetic-membership-1'], 'Synthetic Fixture',
    'artifact://synthetic/membership/1', '2026-07-28T00:00:00Z'),
-  ('ENT23000000-0000-4000-8000-000000000001',
-   'ENT22000000-0000-4000-8000-000000000002', 2, 'midstream', 'approved', 'active',
+  ('ICH23000000-0000-4000-8000-000000000001',
+   'CND22000000-0000-4000-8000-000000000002', 2, 'midstream', 'approved', 'active',
    'Synthetic supply node', ARRAY['synthetic-membership-2'], 'Synthetic Fixture',
    'artifact://synthetic/membership/2', '2026-07-28T00:00:00Z')
 ;
@@ -259,14 +256,14 @@ INSERT INTO entity_edges (
 ) VALUES
 (
   'ERL22000000-0000-4000-8000-000000000003',
-  'ENT22000000-0000-4000-8000-000000000001',
-  'ENT22000000-0000-4000-8000-000000000002',
+  'CND22000000-0000-4000-8000-000000000001',
+  'CND22000000-0000-4000-8000-000000000002',
   'produces', 'Synthetic acceptance fixture', 'active'
 ),
 (
   'ERL23000000-0000-4000-8000-000000000003',
-  'ENT23000000-0000-4000-8000-000000000001',
-  'ENT23000000-0000-4000-8000-000000000005',
+  'ICH23000000-0000-4000-8000-000000000001',
+  'IND23000000-0000-4000-8000-000000000005',
   'mapped_to_industry', 'Synthetic formal anchor route', 'active'
 )
 `}

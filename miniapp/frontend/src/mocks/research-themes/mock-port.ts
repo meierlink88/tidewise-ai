@@ -56,7 +56,7 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
         {
           nodeKey: '22222222-2222-4222-8222-222222222222',
           displayName: '交换机',
-          chainNodeEntityId: '22222222-2222-4222-8222-222222222222',
+          chainNodeId: '22222222-2222-4222-8222-222222222222',
           name: '交换机',
           relationRole: 'beneficiary',
           impactDirection: 'positive',
@@ -66,7 +66,7 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
         {
           nodeKey: '33333333-3333-4333-8333-333333333333',
           displayName: '高速光模块',
-          chainNodeEntityId: '33333333-3333-4333-8333-333333333333',
+          chainNodeId: '33333333-3333-4333-8333-333333333333',
           name: '高速光模块',
           relationRole: 'beneficiary',
           impactDirection: 'positive',
@@ -76,7 +76,7 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
         {
           nodeKey: '44444444-4444-4444-8444-444444444444',
           displayName: 'DSP 芯片',
-          chainNodeEntityId: '44444444-4444-4444-8444-444444444444',
+          chainNodeId: '44444444-4444-4444-8444-444444444444',
           name: 'DSP 芯片',
           relationRole: 'beneficiary',
           impactDirection: 'positive',
@@ -124,7 +124,7 @@ export const mockHistoricalResearchThemeFeed: HomeResearchThemeFeed = {
         {
           nodeKey: '66666666-6666-4666-8666-666666666666',
           displayName: '存储芯片',
-          chainNodeEntityId: '66666666-6666-4666-8666-666666666666',
+          chainNodeId: '66666666-6666-4666-8666-666666666666',
           name: '存储芯片',
           relationRole: 'beneficiary',
           impactDirection: 'mixed',

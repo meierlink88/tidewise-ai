@@ -41,9 +41,9 @@ type PublicationThemeRecord struct {
 }
 
 type PublicationThemeImpactRecord struct {
-	ThemeID, ChainNodeEntityID, RelationRole, ImpactDirection string
-	ImpactSummary                                             *string
-	DisplayOrder                                              int
+	ThemeID, ChainNodeID, RelationRole, ImpactDirection string
+	ImpactSummary                                       *string
+	DisplayOrder                                        int
 }
 
 type PublicationThemeEventRecord struct {
@@ -53,13 +53,13 @@ type PublicationThemeEventRecord struct {
 }
 
 type ReasonTreeRecord struct {
-	ID, ThemeID, ImportReceiptID, IndustryChainEntityID, Title, OneLineConclusion string
-	DisplayOrder                                                                  int
-	FactSummary, TransmissionSummary, ImpactSummary                               *string
-	ImpactDirection, ImpactStrength                                               string
-	ConclusionBoundarySummary, SupportSummary, CounterSummary                     *string
-	InvalidationConditions                                                        []string
-	Checkpoints                                                                   []ReasonTreeCheckpoint
+	ID, ThemeID, ImportReceiptID, IndustryChainID, Title, OneLineConclusion string
+	DisplayOrder                                                            int
+	FactSummary, TransmissionSummary, ImpactSummary                         *string
+	ImpactDirection, ImpactStrength                                         string
+	ConclusionBoundarySummary, SupportSummary, CounterSummary               *string
+	InvalidationConditions                                                  []string
+	Checkpoints                                                             []ReasonTreeCheckpoint
 }
 
 type ReasonTreeEventRecord struct {
@@ -69,11 +69,11 @@ type ReasonTreeEventRecord struct {
 }
 
 type ReasonTreeNodeRecord struct {
-	ID, ReasoningTreeID, ChainNodeEntityID, ImpactDirection, ImpactStrength string
-	Position                                                                int
-	StateSummary, ImpactSummary, ReasoningBasisSummary, EvidenceGapSummary  *string
-	IncomingIndustryChainGraphEdgeID, IncomingTransmissionTitle             *string
-	IncomingTransmissionMechanism, IncomingConditionSummary                 *string
+	ID, ReasoningTreeID, ChainNodeID, ImpactDirection, ImpactStrength      string
+	Position                                                               int
+	StateSummary, ImpactSummary, ReasoningBasisSummary, EvidenceGapSummary *string
+	IncomingIndustryChainGraphEdgeID, IncomingTransmissionTitle            *string
+	IncomingTransmissionMechanism, IncomingConditionSummary                *string
 }
 
 type ReasonTreeSignalRecord struct {
@@ -82,7 +82,7 @@ type ReasonTreeSignalRecord struct {
 }
 
 type ReasonTreeGraphEdgeReference struct {
-	ID, IndustryChainEntityID, FromChainNodeEntityID, ToChainNodeEntityID string
+	ID, IndustryChainID, FromChainNodeID, ToChainNodeID string
 }
 
 type ReasonTreeCounts struct {
@@ -95,7 +95,7 @@ type ReasonTreeCounts struct {
 
 type ReasonTreeReceipt struct {
 	ID, ThemeID, PublisherSubject, PayloadHash string
-	ReasoningTreeIDsByIndustryChainEntityID    map[string]string
+	ReasoningTreeIDsByIndustryChainID          map[string]string
 	Counts                                     ReasonTreeCounts
 	PublishedAt, ImportedAt                    time.Time
 }
@@ -105,7 +105,7 @@ type Receipt struct {
 	ThemeKey                                                    string
 	ContractVersion                                             int
 	PublicationMode                                             string
-	ReasoningTreeIDsByIndustryChainEntityID                     map[string]string
+	ReasoningTreeIDsByIndustryChainID                           map[string]string
 	ReasoningTreeIDsByTreeKey                                   map[string]string
 	Counts                                                      Counts
 	PublishedAt, ImportedAt                                     time.Time

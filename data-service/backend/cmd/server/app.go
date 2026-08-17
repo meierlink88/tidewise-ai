@@ -12,9 +12,11 @@ import (
 
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	entitybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
+	chainnodebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/chainnode"
 	conceptbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/concept"
 	countrybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/country"
 	industrybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/industry"
+	industrychainbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/industrychain"
 	organizationbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/organization"
 	eventbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/event"
 	eventsemanticbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/eventsemantic"
@@ -26,9 +28,11 @@ import (
 	data "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/dbmigration"
 	entitydata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity"
+	chainnodedata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/chainnode"
 	conceptdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/concept"
 	countrydata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/country"
 	industrydata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/industry"
+	industrychaindata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/industrychain"
 	organizationdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/organization"
 	eventdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/event"
 	eventsemanticdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/eventsemantic"
@@ -36,9 +40,11 @@ import (
 	rawdocumentdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/rawdocument"
 	researchdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/research"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/server"
+	chainnodeservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/chainnode"
 	conceptservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/concept"
 	countryservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/country"
 	industryservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/industry"
+	industrychainservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/industrychain"
 	organizationservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/organization"
 	eventservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/event"
 	eventsemanticservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/eventsemantic"
@@ -140,6 +146,22 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Concept use case: %w", err))
 	}
+	chainNodeStore, err := chainnodedata.NewStore(db)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure ChainNode store: %w", err))
+	}
+	chainNodeUseCase, err := chainnodebiz.NewUseCase(chainNodeStore)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure ChainNode use case: %w", err))
+	}
+	industryChainStore, err := industrychaindata.NewStore(db)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure IndustryChain store: %w", err))
+	}
+	industryChainUseCase, err := industrychainbiz.NewUseCase(industryChainStore)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure IndustryChain use case: %w", err))
+	}
 	organizationStore, err := organizationdata.NewStore(db)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Organization store: %w", err))
@@ -200,11 +222,19 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Concept API service: %w", err))
 	}
+	chainNodeApplication, err := chainnodeservice.NewService(chainNodeUseCase)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure ChainNode API service: %w", err))
+	}
+	industryChainApplication, err := industrychainservice.NewService(industryChainUseCase)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure IndustryChain API service: %w", err))
+	}
 	organizationApplication, err := organizationservice.NewService(organizationUseCase)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Organization API service: %w", err))
 	}
-	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, eventSemanticApplication, evidenceApplication, rawDocumentApplication, countryApplication, industryApplication, conceptApplication, organizationApplication, authenticator, logger)
+	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, eventSemanticApplication, evidenceApplication, rawDocumentApplication, countryApplication, industryApplication, conceptApplication, chainNodeApplication, industryChainApplication, organizationApplication, authenticator, logger)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure HTTP server: %w", err))
 	}
@@ -236,6 +266,10 @@ func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 				server.ScopeIndustryWrite,
 				server.ScopeConceptRead,
 				server.ScopeConceptWrite,
+				server.ScopeChainNodeRead,
+				server.ScopeChainNodeWrite,
+				server.ScopeIndustryChainRead,
+				server.ScopeIndustryChainWrite,
 				server.ScopeOrganizationRead,
 				server.ScopeOrganizationWrite,
 			}},

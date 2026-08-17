@@ -745,7 +745,7 @@ paths:
       x-timeout-budget-ms: 15000
       summary: 按 Codex 显式范围执行受预算约束的确定性研究图谱检索
       description: >-
-        Data 只执行确定性、只读、受预算约束的图遍历。industry_chain_entity_id 仅约束
+        Data 只执行确定性、只读、受预算约束的图遍历。industry_chain_id 仅约束
         Industry Chain Graph Edge；全局 EntityRelation 仍由显式 relation_filters 控制。
         超过预算时整次失败，不返回静默截断的部分子图。
       parameters:
@@ -1432,6 +1432,180 @@ paths:
         '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/ServiceUnavailable'}
 
+  /api/data/v1/entities/chain-nodes:
+    get:
+      tags: [ChainNode]
+      operationId: listChainNodes
+      x-client-drift-anchor: data.v1.listChainNodes
+      x-required-service-scope: data.chain-nodes.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 查询 ChainNode
+      description: 按稳定 ID 升序，通过 opaque cursor 分页返回独立 ChainNode。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/EntityListCursor'
+      responses:
+        '200':
+          description: ChainNode 集合
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/ChainNodeListEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+    post:
+      tags: [ChainNode]
+      operationId: createChainNode
+      x-client-drift-anchor: data.v1.createChainNode
+      x-required-service-scope: data.chain-nodes.write
+      x-retry-policy: caller-resolves-chain-node-conflict
+      x-timeout-budget-ms: 5000
+      summary: 创建 ChainNode
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChainNodeWriteRequest'}}}}
+      responses:
+        '201':
+          description: ChainNode 已创建
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/ChainNodeEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
+  /api/data/v1/entities/chain-nodes/{chain_node_id}:
+    parameters:
+      - $ref: '#/components/parameters/ChainNodeID'
+    get:
+      tags: [ChainNode]
+      operationId: getChainNode
+      x-client-drift-anchor: data.v1.getChainNode
+      x-required-service-scope: data.chain-nodes.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 获取 ChainNode 详情
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200': {description: ChainNode, headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ChainNodeEnvelope'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+    put:
+      tags: [ChainNode]
+      operationId: updateChainNode
+      x-client-drift-anchor: data.v1.updateChainNode
+      x-required-service-scope: data.chain-nodes.write
+      x-retry-policy: idempotent-put
+      x-timeout-budget-ms: 5000
+      summary: 更新 ChainNode 可变事实
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ChainNodeWriteRequest'}}}}
+      responses:
+        '200': {description: 更新后的 ChainNode, headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}, content: {application/json: {schema: {$ref: '#/components/schemas/ChainNodeEnvelope'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
+  /api/data/v1/entities/industry-chains:
+    get:
+      tags: [IndustryChain]
+      operationId: listIndustryChains
+      x-client-drift-anchor: data.v1.listIndustryChains
+      x-required-service-scope: data.industry-chains.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 查询 IndustryChain
+      description: 按稳定 ID 升序，通过 opaque cursor 分页返回独立 IndustryChain。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/EntityListCursor'
+      responses:
+        '200': {description: IndustryChain 集合, headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}, content: {application/json: {schema: {$ref: '#/components/schemas/IndustryChainListEnvelope'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+    post:
+      tags: [IndustryChain]
+      operationId: createIndustryChain
+      x-client-drift-anchor: data.v1.createIndustryChain
+      x-required-service-scope: data.industry-chains.write
+      x-retry-policy: caller-resolves-industry-chain-conflict
+      x-timeout-budget-ms: 5000
+      summary: 创建 IndustryChain
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/IndustryChainWriteRequest'}}}}
+      responses:
+        '201': {description: IndustryChain 已创建, headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}, content: {application/json: {schema: {$ref: '#/components/schemas/IndustryChainEnvelope'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
+  /api/data/v1/entities/industry-chains/{industry_chain_id}:
+    parameters:
+      - $ref: '#/components/parameters/IndustryChainID'
+    get:
+      tags: [IndustryChain]
+      operationId: getIndustryChain
+      x-client-drift-anchor: data.v1.getIndustryChain
+      x-required-service-scope: data.industry-chains.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 获取 IndustryChain 详情
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200': {description: IndustryChain, headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}, content: {application/json: {schema: {$ref: '#/components/schemas/IndustryChainEnvelope'}}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+    put:
+      tags: [IndustryChain]
+      operationId: updateIndustryChain
+      x-client-drift-anchor: data.v1.updateIndustryChain
+      x-required-service-scope: data.industry-chains.write
+      x-retry-policy: idempotent-put
+      x-timeout-budget-ms: 5000
+      summary: 更新 IndustryChain 可变事实
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/IndustryChainWriteRequest'}}}}
+      responses:
+        '200': {description: 更新后的 IndustryChain, headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}, content: {application/json: {schema: {$ref: '#/components/schemas/IndustryChainEnvelope'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
   /api/data/v1/entities/organizations:
     get:
       tags: [Organization]
@@ -1785,13 +1959,25 @@ components:
       in: path
       required: true
       schema:
-        $ref: '#/components/schemas/EntityID'
+        $ref: '#/components/schemas/IndustryID'
     ConceptID:
       name: concept_id
       in: path
       required: true
       schema:
-        $ref: '#/components/schemas/EntityID'
+        $ref: '#/components/schemas/ConceptID'
+    ChainNodeID:
+      name: chain_node_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/ChainNodeID'
+    IndustryChainID:
+      name: industry_chain_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/IndustryChainID'
     RegionIDQuery:
       name: region_id
       in: query
@@ -2138,7 +2324,7 @@ components:
         classification_system: {type: string, minLength: 1}
         industry_code: {type: string, minLength: 1}
         parent_industry_id:
-          allOf: [{$ref: '#/components/schemas/EntityID'}]
+          allOf: [{$ref: '#/components/schemas/IndustryID'}]
           nullable: true
         hierarchy_path_codes:
           type: array
@@ -2157,7 +2343,7 @@ components:
           uniqueItems: true
           items: {type: string, minLength: 1}
         parent_industry_id:
-          allOf: [{$ref: '#/components/schemas/EntityID'}]
+          allOf: [{$ref: '#/components/schemas/IndustryID'}]
           nullable: true
         hierarchy_path_codes:
           type: array
@@ -2170,7 +2356,7 @@ components:
       additionalProperties: false
       required: [id, name, aliases, classification_system, industry_code, parent_industry_id, hierarchy_path_codes, definition, review_status, created_at, updated_at]
       properties:
-        id: {$ref: '#/components/schemas/EntityID'}
+        id: {$ref: '#/components/schemas/IndustryID'}
         name: {type: string, minLength: 1}
         aliases:
           type: array
@@ -2179,7 +2365,7 @@ components:
         classification_system: {type: string, minLength: 1}
         industry_code: {type: string, minLength: 1}
         parent_industry_id:
-          allOf: [{$ref: '#/components/schemas/EntityID'}]
+          allOf: [{$ref: '#/components/schemas/IndustryID'}]
           nullable: true
         hierarchy_path_codes:
           type: array
@@ -2236,7 +2422,7 @@ components:
       additionalProperties: false
       required: [id, name, aliases, concept_type, definition, review_status, created_at, updated_at]
       properties:
-        id: {$ref: '#/components/schemas/EntityID'}
+        id: {$ref: '#/components/schemas/ConceptID'}
         name: {type: string, minLength: 1}
         aliases:
           type: array
@@ -2276,6 +2462,122 @@ components:
       properties:
         request_id: {type: string, minLength: 1, maxLength: 128}
         result: {$ref: '#/components/schemas/ConceptList'}
+    ChainNodeWriteRequest:
+      type: object
+      additionalProperties: false
+      required: [name, aliases, definition, review_status]
+      properties:
+        name: {type: string, minLength: 1}
+        aliases:
+          type: array
+          uniqueItems: true
+          items: {type: string, minLength: 1}
+        definition: {type: string, minLength: 1}
+        review_status: {type: string, enum: [candidate, approved]}
+    ChainNode:
+      type: object
+      additionalProperties: false
+      required: [id, name, aliases, definition, review_status, created_at, updated_at]
+      properties:
+        id: {$ref: '#/components/schemas/ChainNodeID'}
+        name: {type: string, minLength: 1}
+        aliases:
+          type: array
+          uniqueItems: true
+          items: {type: string, minLength: 1}
+        definition: {type: string, minLength: 1}
+        review_status: {type: string, enum: [candidate, approved]}
+        created_at: {$ref: '#/components/schemas/UTCTimestamp'}
+        updated_at: {$ref: '#/components/schemas/UTCTimestamp'}
+    ChainNodeList:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/ChainNode'}}
+        next_cursor: {type: string, minLength: 1, maxLength: 256, nullable: true}
+    ChainNodeEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string, minLength: 1, maxLength: 128}
+        result: {$ref: '#/components/schemas/ChainNode'}
+    ChainNodeListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string, minLength: 1, maxLength: 128}
+        result: {$ref: '#/components/schemas/ChainNodeList'}
+    IndustryChainWriteRequest:
+      type: object
+      additionalProperties: false
+      required: [name, aliases, scope, target_output, end_use, geography, primary_country_id, as_of_date, review_status, review_note, technology_route_qualifier, observable_variables]
+      properties:
+        name: {type: string, minLength: 1}
+        aliases:
+          type: array
+          uniqueItems: true
+          items: {type: string, minLength: 1}
+        scope: {type: string, minLength: 1}
+        target_output: {type: string, minLength: 1}
+        end_use: {type: string, minLength: 1}
+        geography: {type: string, minLength: 1}
+        primary_country_id:
+          type: string
+          pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+          nullable: true
+        as_of_date: {type: string, format: date}
+        review_status: {type: string, enum: [candidate, approved]}
+        review_note: {type: string, minLength: 1, nullable: true}
+        technology_route_qualifier: {type: string, minLength: 1, nullable: true}
+        observable_variables:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: {type: string, minLength: 1}
+    IndustryChain:
+      type: object
+      additionalProperties: false
+      required: [id, name, aliases, scope, target_output, end_use, geography, primary_country_id, as_of_date, review_status, review_note, technology_route_qualifier, observable_variables, created_at, updated_at]
+      properties:
+        id: {$ref: '#/components/schemas/IndustryChainID'}
+        name: {type: string, minLength: 1}
+        aliases: {type: array, uniqueItems: true, items: {type: string, minLength: 1}}
+        scope: {type: string, minLength: 1}
+        target_output: {type: string, minLength: 1}
+        end_use: {type: string, minLength: 1}
+        geography: {type: string, minLength: 1}
+        primary_country_id: {type: string, pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', nullable: true}
+        as_of_date: {type: string, format: date}
+        review_status: {type: string, enum: [candidate, approved]}
+        review_note: {type: string, minLength: 1, nullable: true}
+        technology_route_qualifier: {type: string, minLength: 1, nullable: true}
+        observable_variables: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
+        created_at: {$ref: '#/components/schemas/UTCTimestamp'}
+        updated_at: {$ref: '#/components/schemas/UTCTimestamp'}
+    IndustryChainList:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/IndustryChain'}}
+        next_cursor: {type: string, minLength: 1, maxLength: 256, nullable: true}
+    IndustryChainEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string, minLength: 1, maxLength: 128}
+        result: {$ref: '#/components/schemas/IndustryChain'}
+    IndustryChainListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string, minLength: 1, maxLength: 128}
+        result: {$ref: '#/components/schemas/IndustryChainList'}
     CountryCreateRequest:
       type: object
       additionalProperties: false
@@ -2365,6 +2667,22 @@ components:
       type: string
       pattern: '^ENT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
       description: Entity 领域前缀直接连接 canonical lowercase UUID。
+    IndustryID:
+      type: string
+      pattern: '^IND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      description: Industry 领域前缀直接连接 canonical lowercase UUID。
+    ConceptID:
+      type: string
+      pattern: '^CON[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      description: Concept 领域前缀直接连接 canonical lowercase UUID。
+    ChainNodeID:
+      type: string
+      pattern: '^CND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      description: ChainNode 领域前缀直接连接 canonical lowercase UUID。
+    IndustryChainID:
+      type: string
+      pattern: '^ICH[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      description: IndustryChain 领域前缀直接连接 canonical lowercase UUID。
     EntityRelationID:
       type: string
       pattern: '^ERL[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
@@ -2430,6 +2748,10 @@ components:
       oneOf:
         - type: string
           pattern: '^ENT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+        - $ref: '#/components/schemas/IndustryID'
+        - $ref: '#/components/schemas/ConceptID'
+        - $ref: '#/components/schemas/ChainNodeID'
+        - $ref: '#/components/schemas/IndustryChainID'
         - type: string
           pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         - type: string
@@ -2697,9 +3019,9 @@ components:
     ResearchThemeImportImpact:
       type: object
       additionalProperties: false
-      required: [chain_node_entity_id, relation_role, impact_direction, impact_summary, display_order]
+      required: [chain_node_id, relation_role, impact_direction, impact_summary, display_order]
       properties:
-        chain_node_entity_id: {$ref: '#/components/schemas/EntityID'}
+        chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
         relation_role: {type: string, enum: [driver, beneficiary, constraint, exposure]}
         impact_direction: {$ref: '#/components/schemas/ResearchDirection'}
         impact_summary: {type: string, nullable: true}
@@ -2729,14 +3051,14 @@ components:
       type: object
       additionalProperties: false
       x-client-drift-anchor: data.v1.schema.ResearchThemeImportResult
-      required: [receipt_id, analysis_batch_id, payload_hash, theme_id, publication_mode, reasoning_tree_ids_by_industry_chain_entity_id, reasoning_tree_ids_by_tree_key, counts, published_at, imported_at, replayed]
+      required: [receipt_id, analysis_batch_id, payload_hash, theme_id, publication_mode, reasoning_tree_ids_by_industry_chain_id, reasoning_tree_ids_by_tree_key, counts, published_at, imported_at, replayed]
       properties:
         receipt_id: {$ref: '#/components/schemas/ResearchThemeReceiptID'}
         analysis_batch_id: {type: string}
         payload_hash: {$ref: '#/components/schemas/PayloadHash'}
         theme_id: {$ref: '#/components/schemas/ResearchThemeID'}
         publication_mode: {type: string, enum: [formal, analyst_snapshot]}
-        reasoning_tree_ids_by_industry_chain_entity_id:
+        reasoning_tree_ids_by_industry_chain_id:
           type: object
           additionalProperties: {$ref: '#/components/schemas/ResearchReasoningTreeID'}
         reasoning_tree_ids_by_tree_key:
@@ -2826,9 +3148,9 @@ components:
     ResearchReasoningTreeImportItem:
       type: object
       additionalProperties: false
-      required: [industry_chain_entity_id, title, display_order, one_line_conclusion, fact_summary, transmission_summary, impact_direction, impact_strength, impact_summary, conclusion_boundary_summary, support_summary, counter_summary, invalidation_conditions, checkpoints, events, nodes]
+      required: [industry_chain_id, title, display_order, one_line_conclusion, fact_summary, transmission_summary, impact_direction, impact_strength, impact_summary, conclusion_boundary_summary, support_summary, counter_summary, invalidation_conditions, checkpoints, events, nodes]
       properties:
-        industry_chain_entity_id: {$ref: '#/components/schemas/EntityID'}
+        industry_chain_id: {$ref: '#/components/schemas/IndustryChainID'}
         title: {type: string, minLength: 1}
         display_order: {type: integer, minimum: 1}
         one_line_conclusion: {type: string, minLength: 1}
@@ -2870,10 +3192,10 @@ components:
     ResearchReasoningTreeImportNode:
       type: object
       additionalProperties: false
-      required: [position, chain_node_entity_id, state_summary, impact_direction, impact_strength, impact_summary, reasoning_basis_summary, evidence_gap_summary, incoming_industry_chain_graph_edge_id, incoming_transmission_title, incoming_transmission_mechanism, incoming_condition_summary, incoming_lineage, signals]
+      required: [position, chain_node_id, state_summary, impact_direction, impact_strength, impact_summary, reasoning_basis_summary, evidence_gap_summary, incoming_industry_chain_graph_edge_id, incoming_transmission_title, incoming_transmission_mechanism, incoming_condition_summary, incoming_lineage, signals]
       properties:
         position: {type: integer, minimum: 1}
-        chain_node_entity_id: {$ref: '#/components/schemas/EntityID'}
+        chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
         state_summary: {type: string, nullable: true}
         impact_direction: {$ref: '#/components/schemas/ResearchDirection'}
         impact_strength: {$ref: '#/components/schemas/ResearchImpactStrength'}
@@ -2976,11 +3298,11 @@ components:
     ResearchThemeImpact:
       type: object
       additionalProperties: false
-      required: [node_key, display_name, chain_node_entity_id, name, relation_role, impact_direction, impact_summary, display_order]
+      required: [node_key, display_name, chain_node_id, name, relation_role, impact_direction, impact_summary, display_order]
       properties:
         node_key: {$ref: '#/components/schemas/ResearchLocalKey'}
         display_name: {type: string}
-        chain_node_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
+        chain_node_id: {type: string, pattern: '^(|CND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$', description: Empty for analyst_snapshot publications.}
         name: {type: string}
         relation_role: {type: string, enum: [driver, beneficiary, constraint, exposure]}
         impact_direction: {$ref: '#/components/schemas/ResearchDirection'}
@@ -3071,12 +3393,12 @@ components:
     ResearchReasoningTreeSummary:
       type: object
       additionalProperties: false
-      required: [tree_key, display_name, reasoning_tree_id, industry_chain_entity_id, industry_chain_name, title, display_order, event_count, published_at]
+      required: [tree_key, display_name, reasoning_tree_id, industry_chain_id, industry_chain_name, title, display_order, event_count, published_at]
       properties:
         tree_key: {$ref: '#/components/schemas/ResearchLocalKey'}
         display_name: {type: string}
         reasoning_tree_id: {$ref: '#/components/schemas/ResearchReasoningTreeID'}
-        industry_chain_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
+        industry_chain_id: {type: string, pattern: '^(|ICH[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$', description: Empty for analyst_snapshot publications.}
         industry_chain_name: {type: string}
         title: {type: string}
         display_order: {type: integer, minimum: 1}
@@ -3109,13 +3431,13 @@ components:
     ResearchReasoningTreeNode:
       type: object
       additionalProperties: false
-      required: [node_key, display_name, id, position, chain_node_entity_id, name, state_summary, impact_direction, impact_strength, impact_summary, reasoning_basis_summary, evidence_gap_summary, incoming_industry_chain_graph_edge_id, incoming_transmission_title, incoming_transmission_mechanism, incoming_condition_summary, incoming_graph_edge, signals, primary_signal, signal_display_summary]
+      required: [node_key, display_name, id, position, chain_node_id, name, state_summary, impact_direction, impact_strength, impact_summary, reasoning_basis_summary, evidence_gap_summary, incoming_industry_chain_graph_edge_id, incoming_transmission_title, incoming_transmission_mechanism, incoming_condition_summary, incoming_graph_edge, signals, primary_signal, signal_display_summary]
       properties:
         node_key: {$ref: '#/components/schemas/ResearchLocalKey'}
         display_name: {type: string}
         id: {$ref: '#/components/schemas/ResearchReasoningTreeNodeID'}
         position: {type: integer, minimum: 1}
-        chain_node_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
+        chain_node_id: {type: string, pattern: '^(|CND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$', description: Empty for analyst_snapshot publications.}
         name: {type: string}
         state_summary: {type: string, nullable: true}
         impact_direction: {$ref: '#/components/schemas/ResearchDirection'}
@@ -3138,13 +3460,13 @@ components:
     ResearchReasoningTree:
       type: object
       additionalProperties: false
-      required: [tree_key, display_name, reasoning_tree_id, theme_id, industry_chain_entity_id, industry_chain_name, title, display_order, one_line_conclusion, fact_summary, transmission_summary, impact_direction, impact_strength, impact_summary, conclusion_boundary_summary, support_summary, counter_summary, invalidation_conditions, checkpoints, published_at, event_count, events, nodes]
+      required: [tree_key, display_name, reasoning_tree_id, theme_id, industry_chain_id, industry_chain_name, title, display_order, one_line_conclusion, fact_summary, transmission_summary, impact_direction, impact_strength, impact_summary, conclusion_boundary_summary, support_summary, counter_summary, invalidation_conditions, checkpoints, published_at, event_count, events, nodes]
       properties:
         tree_key: {$ref: '#/components/schemas/ResearchLocalKey'}
         display_name: {type: string}
         reasoning_tree_id: {$ref: '#/components/schemas/ResearchReasoningTreeID'}
         theme_id: {$ref: '#/components/schemas/ResearchThemeID'}
-        industry_chain_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
+        industry_chain_id: {type: string, pattern: '^(|ICH[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$', description: Empty for analyst_snapshot publications.}
         industry_chain_name: {type: string}
         title: {type: string}
         display_order: {type: integer, minimum: 1}
@@ -4467,7 +4789,7 @@ components:
         source_variable_signal_id:
           $ref: '#/components/schemas/VariableSignalID'
         target_entity_id:
-          $ref: '#/components/schemas/EntityID'
+          $ref: '#/components/schemas/ObjectID'
         affected_variable_key:
           type: string
         affected_variable_version:
@@ -4625,9 +4947,9 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [industry_chain_entity_id, scope, target_output, end_use, geography, as_of_date, review_status]
+            required: [industry_chain_id, scope, target_output, end_use, geography, as_of_date, review_status]
             properties:
-              industry_chain_entity_id: {$ref: '#/components/schemas/EntityID'}
+              industry_chain_id: {$ref: '#/components/schemas/IndustryChainID'}
               scope: {type: string}
               target_output: {type: string}
               end_use: {type: string}
@@ -4640,10 +4962,10 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [industry_chain_entity_id, chain_node_entity_id, position, contextual_stage, review_status, status]
+            required: [industry_chain_id, chain_node_id, position, contextual_stage, review_status, status]
             properties:
-              industry_chain_entity_id: {$ref: '#/components/schemas/EntityID'}
-              chain_node_entity_id: {$ref: '#/components/schemas/EntityID'}
+              industry_chain_id: {$ref: '#/components/schemas/IndustryChainID'}
+              chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
               position: {type: integer, minimum: 1}
               contextual_stage: {type: string}
               review_status: {type: string, enum: [approved]}
@@ -4653,12 +4975,12 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [industry_chain_graph_edge_id, industry_chain_entity_id, from_chain_node_entity_id, to_chain_node_entity_id, relation_type, mechanism, condition_note, segment_kind, omitted_step_note, review_status, status]
+            required: [industry_chain_graph_edge_id, industry_chain_id, from_chain_node_id, to_chain_node_id, relation_type, mechanism, condition_note, segment_kind, omitted_step_note, review_status, status]
             properties:
               industry_chain_graph_edge_id: {$ref: '#/components/schemas/IndustryChainGraphEdgeID'}
-              industry_chain_entity_id: {$ref: '#/components/schemas/EntityID'}
-              from_chain_node_entity_id: {$ref: '#/components/schemas/EntityID'}
-              to_chain_node_entity_id: {$ref: '#/components/schemas/EntityID'}
+              industry_chain_id: {$ref: '#/components/schemas/IndustryChainID'}
+              from_chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
+              to_chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
               relation_type: {type: string}
               mechanism: {type: string}
               condition_note: {type: string, nullable: true}
@@ -4796,8 +5118,8 @@ components:
           type: integer
           minimum: 1
           maximum: 5
-        industry_chain_entity_id:
-          $ref: '#/components/schemas/EntityID'
+        industry_chain_id:
+          $ref: '#/components/schemas/IndustryChainID'
         node_budget:
           type: integer
           minimum: 1
@@ -4847,9 +5169,9 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [industry_chain_entity_id, scope, target_output, end_use, geography, as_of_date, review_status]
+            required: [industry_chain_id, scope, target_output, end_use, geography, as_of_date, review_status]
             properties:
-              industry_chain_entity_id: {$ref: '#/components/schemas/EntityID'}
+              industry_chain_id: {$ref: '#/components/schemas/IndustryChainID'}
               scope: {type: string}
               target_output: {type: string}
               end_use: {type: string}
@@ -4862,10 +5184,10 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [industry_chain_entity_id, chain_node_entity_id, position, contextual_stage, review_status, status]
+            required: [industry_chain_id, chain_node_id, position, contextual_stage, review_status, status]
             properties:
-              industry_chain_entity_id: {$ref: '#/components/schemas/EntityID'}
-              chain_node_entity_id: {$ref: '#/components/schemas/EntityID'}
+              industry_chain_id: {$ref: '#/components/schemas/IndustryChainID'}
+              chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
               position: {type: integer, minimum: 1}
               contextual_stage: {type: string}
               review_status: {type: string, enum: [approved]}
@@ -4875,12 +5197,12 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [industry_chain_graph_edge_id, industry_chain_entity_id, from_chain_node_entity_id, to_chain_node_entity_id, relation_type, mechanism, condition_note, segment_kind, omitted_step_note, review_status, status]
+            required: [industry_chain_graph_edge_id, industry_chain_id, from_chain_node_id, to_chain_node_id, relation_type, mechanism, condition_note, segment_kind, omitted_step_note, review_status, status]
             properties:
               industry_chain_graph_edge_id: {$ref: '#/components/schemas/IndustryChainGraphEdgeID'}
-              industry_chain_entity_id: {$ref: '#/components/schemas/EntityID'}
-              from_chain_node_entity_id: {$ref: '#/components/schemas/EntityID'}
-              to_chain_node_entity_id: {$ref: '#/components/schemas/EntityID'}
+              industry_chain_id: {$ref: '#/components/schemas/IndustryChainID'}
+              from_chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
+              to_chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
               relation_type: {type: string}
               mechanism: {type: string}
               condition_note: {type: string, nullable: true}

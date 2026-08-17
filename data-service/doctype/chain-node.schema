@@ -1,0 +1,26 @@
+namespace Tidewise
+
+ChainNode(产业链节点): EntityType
+    desc: 表示产业链中的独立环节对象，自身拥有名称、别名、定义与审核状态，不依赖通用 Entity 节点
+    properties:
+        id(产业链节点标识): Text
+            desc: 从既有 ChainNode Entity 无损保留 UUID 后缀的稳定标识，由 CND 前缀直接连接 canonical lowercase UUID
+            constraint: NotNull, Regular="^CND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        name(产业链节点名称): Text
+            desc: 产业链节点的正式显示名称
+            constraint: NotNull
+        aliases(产业链节点别名): Text
+            desc: 产业链节点用于匹配和检索的零个或多个稳定别名
+            constraint: NotNull, MultiValue
+        definition(产业链节点定义): Text
+            desc: 产业链节点业务含义与环节边界的正式定义
+            constraint: NotNull
+        reviewStatus(审核状态): Text
+            desc: candidate 表示候选节点事实；approved 表示已批准节点事实
+            constraint: NotNull, Enum="candidate,approved"
+        createdAt(创建时间): Text
+            desc: 从既有 Entity 无损保留或由 PostgreSQL 生成的节点事实创建时间
+            constraint: NotNull
+        updatedAt(更新时间): Text
+            desc: 从既有 Entity 无损保留或由 PostgreSQL 生成的节点事实最近变更时间
+            constraint: NotNull

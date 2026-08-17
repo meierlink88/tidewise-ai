@@ -42,10 +42,10 @@ type ResearchTheme struct {
 }
 
 type ResearchThemeImpact struct {
-	NodeKey, DisplayName                                   string
-	ChainNodeEntityID, Name, RelationRole, ImpactDirection string
-	ImpactSummary                                          *string
-	DisplayOrder                                           int
+	NodeKey, DisplayName                             string
+	ChainNodeID, Name, RelationRole, ImpactDirection string
+	ImpactSummary                                    *string
+	DisplayOrder                                     int
 }
 
 type ResearchThemeDetail struct {
@@ -62,10 +62,10 @@ type ResearchEvent struct {
 }
 
 type ResearchReasoningTreeSummary struct {
-	TreeKey, DisplayName                                             string
-	ReasoningTreeID, IndustryChainEntityID, IndustryChainName, Title string
-	DisplayOrder, EventCount                                         int
-	PublishedAt                                                      time.Time
+	TreeKey, DisplayName                                       string
+	ReasoningTreeID, IndustryChainID, IndustryChainName, Title string
+	DisplayOrder, EventCount                                   int
+	PublishedAt                                                time.Time
 }
 
 type ResearchReasoningTreeList struct {
@@ -83,31 +83,31 @@ type ResearchSignal struct {
 }
 
 type ResearchReasoningTreeNode struct {
-	NodeKey, DisplayName                                         string
-	ID, ChainNodeEntityID, Name, ImpactDirection, ImpactStrength string
-	Position                                                     int
-	StateSummary, ImpactSummary, ReasoningBasisSummary           *string
-	EvidenceGapSummary                                           *string
-	IncomingIndustryChainGraphEdgeID, IncomingTransmissionTitle  *string
-	IncomingTransmissionMechanism, IncomingConditionSummary      *string
-	IncomingGraphEdge                                            *ResearchGraphEdge
-	Signals                                                      []ResearchSignal
-	PrimarySignal                                                ResearchSignal
-	SignalDisplaySummary                                         string
+	NodeKey, DisplayName                                        string
+	ID, ChainNodeID, Name, ImpactDirection, ImpactStrength      string
+	Position                                                    int
+	StateSummary, ImpactSummary, ReasoningBasisSummary          *string
+	EvidenceGapSummary                                          *string
+	IncomingIndustryChainGraphEdgeID, IncomingTransmissionTitle *string
+	IncomingTransmissionMechanism, IncomingConditionSummary     *string
+	IncomingGraphEdge                                           *ResearchGraphEdge
+	Signals                                                     []ResearchSignal
+	PrimarySignal                                               ResearchSignal
+	SignalDisplaySummary                                        string
 }
 
 type ResearchReasoningTree struct {
-	TreeKey, DisplayName                                               string
-	ReasoningTreeID, ThemeID, IndustryChainEntityID, IndustryChainName string
-	Title, OneLineConclusion, ImpactDirection, ImpactStrength          string
-	DisplayOrder, EventCount                                           int
-	FactSummary, TransmissionSummary, ImpactSummary                    *string
-	ConclusionBoundarySummary, SupportSummary, CounterSummary          *string
-	InvalidationConditions                                             []string
-	Checkpoints                                                        []ResearchCheckpoint
-	PublishedAt                                                        time.Time
-	Events                                                             []ResearchEvent
-	Nodes                                                              []ResearchReasoningTreeNode
+	TreeKey, DisplayName                                         string
+	ReasoningTreeID, ThemeID, IndustryChainID, IndustryChainName string
+	Title, OneLineConclusion, ImpactDirection, ImpactStrength    string
+	DisplayOrder, EventCount                                     int
+	FactSummary, TransmissionSummary, ImpactSummary              *string
+	ConclusionBoundarySummary, SupportSummary, CounterSummary    *string
+	InvalidationConditions                                       []string
+	Checkpoints                                                  []ResearchCheckpoint
+	PublishedAt                                                  time.Time
+	Events                                                       []ResearchEvent
+	Nodes                                                        []ResearchReasoningTreeNode
 }
 
 type ResearchReasoningTreeDetail struct {

@@ -50,9 +50,9 @@ t.checkpoint_summary, t.risk_summary, t.analysis_as_of, t.window_start, t.window
 t.published_at,
 COALESCE((
     SELECT jsonb_agg(jsonb_build_object(
-		'node_key', COALESCE(impact.node_key, impact.chain_node_entity_id::text),
+		'node_key', COALESCE(impact.node_key, impact.chain_node_id::text),
 		'display_name', COALESCE(impact.display_name, node.name),
-		'chain_node_entity_id', COALESCE(impact.chain_node_entity_id::text, ''),
+		'chain_node_id', COALESCE(impact.chain_node_id::text, ''),
 		'name', COALESCE(node.name, impact.display_name),
         'relation_role', impact.relation_role,
         'impact_direction', impact.impact_direction,
@@ -60,7 +60,7 @@ COALESCE((
         'display_order', impact.display_order
     ) ORDER BY impact.display_order)
     FROM research_theme_impacts impact
-	LEFT JOIN entity_nodes node ON node.id = impact.chain_node_entity_id
+	LEFT JOIN chain_node node ON node.id = impact.chain_node_id
     WHERE impact.theme_id = t.id
 ), '[]'::jsonb),
 (SELECT count(*) FROM research_theme_events event WHERE event.theme_id = t.id),
@@ -252,8 +252,8 @@ func validatePersistedResearchThemeSummary(item ResearchThemeSummary) error {
 			!oneOf(impact.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") {
 			return invalid("an Impact is malformed")
 		}
-		if impact.ChainNodeEntityID != "" && !entitybiz.IsEntityID(impact.ChainNodeEntityID) {
-			return invalid("an Impact Entity reference is malformed")
+		if impact.ChainNodeID != "" && !entitybiz.IsChainNodeID(impact.ChainNodeID) {
+			return invalid("an Impact ChainNode reference is malformed")
 		}
 		if _, duplicate := seen[impact.NodeKey]; duplicate {
 			return invalid("Impact identity is duplicated")
@@ -330,14 +330,14 @@ const getResearchReasoningTreePublicationQuery = `
 SELECT receipt.id::text,
 	   CASE WHEN receipt.publication_mode = 'analyst_snapshot'
 	        THEN receipt.reasoning_tree_ids_by_tree_key
-	        ELSE receipt.reasoning_tree_ids_by_industry_chain_entity_id END,
+	        ELSE receipt.reasoning_tree_ids_by_industry_chain_id END,
        receipt.write_counts,
        COALESCE((
            SELECT jsonb_agg(jsonb_build_object(
                'ReasoningTreeID', tree.id,
-			   'TreeKey', COALESCE(tree.tree_key, tree.industry_chain_entity_id::text),
+			   'TreeKey', COALESCE(tree.tree_key, tree.industry_chain_id::text),
 			   'DisplayName', COALESCE(tree.display_name, chain.name),
-			   'IndustryChainEntityID', COALESCE(tree.industry_chain_entity_id::text, ''),
+			   'IndustryChainID', COALESCE(tree.industry_chain_id::text, ''),
 			   'IndustryChainName', COALESCE(chain.name, tree.display_name),
                'Title', tree.title,
                'DisplayOrder', tree.display_order,
@@ -346,7 +346,7 @@ SELECT receipt.id::text,
                'PublishedAt', receipt.published_at
            ) ORDER BY tree.display_order)
            FROM research_reasoning_trees tree
-		   LEFT JOIN entity_nodes chain ON chain.id = tree.industry_chain_entity_id
+			   LEFT JOIN industry_chain chain ON chain.id = tree.industry_chain_id
            WHERE tree.theme_id = receipt.theme_id AND tree.import_receipt_id = receipt.id
        ), '[]'::jsonb),
        (SELECT count(*) FROM research_reasoning_tree_nodes node
@@ -365,9 +365,9 @@ WHERE receipt.theme_id = $1`
 const getResearchReasoningTreeDetailQuery = `
 SELECT theme.theme_key, receipt.publication_mode, receipt.publication_contract_version,
 	   tree.id::text, tree.theme_id::text,
-	   COALESCE(tree.tree_key, tree.industry_chain_entity_id::text),
+	   COALESCE(tree.tree_key, tree.industry_chain_id::text),
 	   COALESCE(tree.display_name, chain.name),
-	   COALESCE(tree.industry_chain_entity_id::text, ''),
+	   COALESCE(tree.industry_chain_id::text, ''),
 	   COALESCE(chain.name, tree.display_name), tree.title, tree.display_order, tree.one_line_conclusion,
        tree.fact_summary, tree.transmission_summary, tree.impact_direction,
        tree.impact_strength, tree.impact_summary, tree.conclusion_boundary_summary,
@@ -390,10 +390,10 @@ SELECT theme.theme_key, receipt.publication_mode, receipt.publication_contract_v
        COALESCE((
            SELECT jsonb_agg(jsonb_build_object(
                'ID', node.id,
-			   'NodeKey', COALESCE(node.node_key, node.chain_node_entity_id::text),
+			   'NodeKey', COALESCE(node.node_key, node.chain_node_id::text),
 			   'DisplayName', COALESCE(node.display_name, chain_node.name),
                'Position', node.position,
-			   'ChainNodeEntityID', COALESCE(node.chain_node_entity_id::text, ''),
+			   'ChainNodeID', COALESCE(node.chain_node_id::text, ''),
 			   'Name', COALESCE(chain_node.name, node.display_name),
                'StateSummary', node.state_summary,
                'ImpactDirection', node.impact_direction,
@@ -427,20 +427,20 @@ SELECT theme.theme_key, receipt.publication_mode, receipt.publication_contract_v
                ), '[]'::jsonb)
            ) ORDER BY node.position)
            FROM research_reasoning_tree_nodes node
-		   LEFT JOIN entity_nodes chain_node ON chain_node.id = node.chain_node_entity_id
+			   LEFT JOIN chain_node chain_node ON chain_node.id = node.chain_node_id
            LEFT JOIN industry_chain_graph_edges edge
              ON edge.id = node.incoming_industry_chain_graph_edge_id
            WHERE node.reasoning_tree_id = tree.id
        ), '[]'::jsonb),
        COALESCE((
-		   SELECT jsonb_agg(COALESCE(impact.node_key, impact.chain_node_entity_id::text) ORDER BY impact.display_order)
+		   SELECT jsonb_agg(COALESCE(impact.node_key, impact.chain_node_id::text) ORDER BY impact.display_order)
            FROM research_theme_impacts impact
            WHERE impact.theme_id = tree.theme_id
              AND EXISTS (
                  SELECT 1 FROM research_reasoning_tree_nodes impact_node
                  WHERE impact_node.reasoning_tree_id = tree.id
-                   AND COALESCE(impact_node.node_key, impact_node.chain_node_entity_id::text)
-                       = COALESCE(impact.node_key, impact.chain_node_entity_id::text)
+                   AND COALESCE(impact_node.node_key, impact_node.chain_node_id::text)
+                       = COALESCE(impact.node_key, impact.chain_node_id::text)
              )
        ), '[]'::jsonb),
        (SELECT count(*) FROM research_reasoning_tree_events event
@@ -453,7 +453,7 @@ SELECT theme.theme_key, receipt.publication_mode, receipt.publication_contract_v
 FROM research_reasoning_trees tree
 JOIN research_reasoning_tree_import_receipts receipt ON receipt.id = tree.import_receipt_id
 	JOIN research_themes theme ON theme.id = tree.theme_id
-	LEFT JOIN entity_nodes chain ON chain.id = tree.industry_chain_entity_id
+		LEFT JOIN industry_chain chain ON chain.id = tree.industry_chain_id
 WHERE tree.theme_id = $1 AND tree.id = $2`
 
 type researchReasoningTreePublication struct {
@@ -494,7 +494,7 @@ func (r Store) GetResearchThemeReasoningTree(ctx context.Context, themeID, reaso
 		themeID, reasoningTreeID).Scan(
 		&result.ThemeKey, &result.PublicationMode, &result.PublicationContractVersion,
 		&tree.ReasoningTreeID, &tree.ThemeID, &tree.TreeKey, &tree.DisplayName,
-		&tree.IndustryChainEntityID,
+		&tree.IndustryChainID,
 		&tree.IndustryChainName, &tree.Title, &tree.DisplayOrder,
 		&tree.OneLineConclusion, &tree.FactSummary, &tree.TransmissionSummary,
 		&tree.ImpactDirection, &tree.ImpactStrength, &tree.ImpactSummary,
@@ -584,8 +584,8 @@ func validReasoningTreePublication(publication researchReasoningTreePublication,
 	seenTreeIDs := make(map[string]struct{}, len(publication.Trees))
 	for index, tree := range publication.Trees {
 		if !coreid.Is(tree.ReasoningTreeID, coreid.ResearchReasoningTree) ||
-			(!entitybiz.IsEntityID(tree.TreeKey) && !researchKeyPattern.MatchString(tree.TreeKey)) ||
-			(tree.IndustryChainEntityID != "" && !entitybiz.IsEntityID(tree.IndustryChainEntityID)) ||
+			(!entitybiz.IsIndustryChainID(tree.TreeKey) && !researchKeyPattern.MatchString(tree.TreeKey)) ||
+			(tree.IndustryChainID != "" && !entitybiz.IsIndustryChainID(tree.IndustryChainID)) ||
 			tree.DisplayOrder != index+1 || tree.EventCount < 0 || tree.PublishedAt.IsZero() ||
 			strings.TrimSpace(tree.Title) == "" || strings.TrimSpace(tree.DisplayName) == "" ||
 			strings.TrimSpace(tree.IndustryChainName) == "" {
@@ -601,7 +601,7 @@ func validReasoningTreePublication(publication researchReasoningTreePublication,
 		seenTreeIDs[tree.ReasoningTreeID] = struct{}{}
 	}
 	for key, id := range publication.Mapping {
-		if (!entitybiz.IsEntityID(key) && !researchKeyPattern.MatchString(key)) || !coreid.Is(id, coreid.ResearchReasoningTree) {
+		if (!entitybiz.IsIndustryChainID(key) && !researchKeyPattern.MatchString(key)) || !coreid.Is(id, coreid.ResearchReasoningTree) {
 			return false
 		}
 	}
@@ -622,7 +622,7 @@ func validReasoningTreeDetail(detail ResearchReasoningTreeDetail, tree ResearchR
 	snapshot := detail.PublicationMode == researchbiz.SnapshotPublicationMode && detail.PublicationContractVersion == 3
 	if (!formal && !snapshot) || !researchKeyPattern.MatchString(detail.ThemeKey) ||
 		!coreid.Is(tree.ReasoningTreeID, coreid.ResearchReasoningTree) || !coreid.Is(tree.ThemeID, coreid.ResearchTheme) ||
-		(!entitybiz.IsEntityID(tree.TreeKey) && !researchKeyPattern.MatchString(tree.TreeKey)) ||
+		(!entitybiz.IsIndustryChainID(tree.TreeKey) && !researchKeyPattern.MatchString(tree.TreeKey)) ||
 		strings.TrimSpace(tree.DisplayName) == "" || strings.TrimSpace(tree.IndustryChainName) == "" ||
 		strings.TrimSpace(tree.Title) == "" || strings.TrimSpace(tree.OneLineConclusion) == "" ||
 		!oneOf(tree.ImpactDirection, "positive", "negative", "mixed", "neutral", "uncertain") ||
@@ -631,10 +631,10 @@ func validReasoningTreeDetail(detail ResearchReasoningTreeDetail, tree ResearchR
 		len(tree.Nodes) == 0 || len(impactNodeIDs) == 0 {
 		return false
 	}
-	if formal && !entitybiz.IsEntityID(tree.IndustryChainEntityID) {
+	if formal && !entitybiz.IsIndustryChainID(tree.IndustryChainID) {
 		return false
 	}
-	if snapshot && tree.IndustryChainEntityID != "" {
+	if snapshot && tree.IndustryChainID != "" {
 		return false
 	}
 	for _, checkpoint := range tree.Checkpoints {
@@ -685,10 +685,10 @@ func validReasoningTreeDetail(detail ResearchReasoningTreeDetail, tree ResearchR
 			len(node.Signals) < 1 || len(node.Signals) > 5 {
 			return false
 		}
-		if formal && !entitybiz.IsEntityID(node.ChainNodeEntityID) {
+		if formal && !entitybiz.IsChainNodeID(node.ChainNodeID) {
 			return false
 		}
-		if snapshot && node.ChainNodeEntityID != "" {
+		if snapshot && node.ChainNodeID != "" {
 			return false
 		}
 		if _, duplicate := seenNodes[node.NodeKey]; duplicate {

@@ -18,10 +18,10 @@ func TestResearchReceiptAdapterRejectsMalformedPersistedRows(t *testing.T) {
 		PublisherSubject: "agentos", PayloadHash: strings.Repeat("a", 64),
 		ThemeID: "RTH22222222-2222-4222-8222-222222222222", ThemeKey: "theme:one",
 		ContractVersion: 3, PublicationMode: researchbiz.SnapshotPublicationMode,
-		ReasoningTreeIDsByIndustryChainEntityID: map[string]string{},
-		ReasoningTreeIDsByTreeKey:               map[string]string{"tree:one": "RRT33333333-3333-4333-8333-333333333333"},
-		Counts:                                  researchbiz.Counts{Themes: 1, Impacts: 1, ReasoningTrees: 1, Nodes: 1, SignalAssociations: 1, Receipts: 2},
-		PublishedAt:                             now, ImportedAt: now,
+		ReasoningTreeIDsByIndustryChainID: map[string]string{},
+		ReasoningTreeIDsByTreeKey:         map[string]string{"tree:one": "RRT33333333-3333-4333-8333-333333333333"},
+		Counts:                            researchbiz.Counts{Themes: 1, Impacts: 1, ReasoningTrees: 1, Nodes: 1, SignalAssociations: 1, Receipts: 2},
+		PublishedAt:                       now, ImportedAt: now,
 	}
 	if err := validatePersistedResearchReceipt(valid); err != nil {
 		t.Fatalf("valid persisted Receipt rejected: %v", err)

@@ -93,7 +93,7 @@ func invalidPersistedEventSemantic(resource string) error {
 }
 
 func validPersistedObjectID(value string) bool {
-	return entitybiz.IsEntityID(value) || entitybiz.IsCountryID(value) || entitybiz.IsRegionID(value) || entitybiz.IsOrganizationID(value)
+	return entitybiz.IsObjectID(value)
 }
 
 func validPersistedSHA256(value string) bool {
@@ -200,12 +200,12 @@ func validPersistedEvidenceIDSet(values []string, required bool) bool {
 	return true
 }
 
-func validPersistedEntityIDSet(values []string, required bool) bool {
+func validPersistedObjectIDSet(values []string, required bool) bool {
 	if !validPersistedStringSet(values, required) {
 		return false
 	}
 	for _, value := range values {
-		if !entitybiz.IsEntityID(value) {
+		if !entitybiz.IsObjectID(value) {
 			return false
 		}
 	}
@@ -246,9 +246,7 @@ func validatePersistedEvidence(item eventbiz.Evidence) error {
 
 func validatePersistedEntity(item eventbiz.Entity) error {
 	if !validPersistedObjectID(item.ID) || strings.TrimSpace(item.Type) == "" ||
-		(entitybiz.IsCountryID(item.ID) != (item.Type == entitybiz.ObjectTypeCountry)) ||
-		(entitybiz.IsRegionID(item.ID) != (item.Type == entitybiz.ObjectTypeRegion)) ||
-		(entitybiz.IsOrganizationID(item.ID) != (item.Type == entitybiz.ObjectTypeOrganization)) ||
+		!entitybiz.ObjectTypeMatchesID(item.Type, item.ID) ||
 		strings.TrimSpace(item.Name) == "" || strings.TrimSpace(item.CanonicalName) == "" ||
 		item.Status != "active" || !validPersistedStringSet(item.Aliases, false) {
 		return invalidPersistedEventSemantic("Entity")
@@ -257,8 +255,8 @@ func validatePersistedEntity(item eventbiz.Entity) error {
 }
 
 func validatePersistedEntityRelation(item eventbiz.EntityRelation) error {
-	if !entitybiz.IsEntityRelationID(item.ID) || !entitybiz.IsEntityID(item.FromEntityID) ||
-		!entitybiz.IsEntityID(item.ToEntityID) || strings.TrimSpace(item.Type) == "" || item.Status != "active" {
+	if !entitybiz.IsEntityRelationID(item.ID) || !entitybiz.IsObjectID(item.FromEntityID) ||
+		!entitybiz.IsObjectID(item.ToEntityID) || strings.TrimSpace(item.Type) == "" || item.Status != "active" {
 		return invalidPersistedEventSemantic("Entity Relation")
 	}
 	return nil
@@ -408,12 +406,24 @@ func hydrateEventSemanticSubmissionContext(
 				FROM industry
 				WHERE id = ANY($1::text[])
 				`+lockClause+`
-			), selected_concepts AS MATERIALIZED (
-				SELECT id, 'concept', name, name,
-				       array_to_json(aliases), 'active'
-				FROM concept
-				WHERE id = ANY($1::text[])
-				`+lockClause+`
+				), selected_concepts AS MATERIALIZED (
+					SELECT id, 'concept', name, name,
+					       array_to_json(aliases), 'active'
+					FROM concept
+					WHERE id = ANY($1::text[])
+					`+lockClause+`
+				), selected_chain_nodes AS MATERIALIZED (
+					SELECT id, 'chain_node', name, name,
+					       array_to_json(aliases), 'active'
+					FROM chain_node
+					WHERE id = ANY($1::text[])
+					`+lockClause+`
+				), selected_industry_chains AS MATERIALIZED (
+					SELECT id, 'industry_chain', name, name,
+					       array_to_json(aliases), 'active'
+					FROM industry_chain
+					WHERE id = ANY($1::text[])
+					`+lockClause+`
 			), selected_countries AS MATERIALIZED (
 				SELECT id, 'country' object_type, name, name canonical_name,
 				       array_to_json(ARRAY[name_en]) aliases, 'active' status
@@ -437,9 +447,13 @@ func hydrateEventSemanticSubmissionContext(
 			UNION ALL
 			SELECT * FROM selected_industries
 			UNION ALL
-			SELECT * FROM selected_concepts
-			UNION ALL
-			SELECT * FROM selected_countries
+				SELECT * FROM selected_concepts
+				UNION ALL
+				SELECT * FROM selected_chain_nodes
+				UNION ALL
+				SELECT * FROM selected_industry_chains
+				UNION ALL
+				SELECT * FROM selected_countries
 			UNION ALL
 			SELECT * FROM selected_regions
 			UNION ALL
@@ -936,13 +950,25 @@ func (r Store) Resolve(
 				  AND (lower(name) = lower($2)
 				       OR EXISTS (SELECT 1 FROM unnest(aliases) alias WHERE lower(alias) = lower($2)))
 				UNION ALL
-				SELECT id, 'concept', name, name, array_to_json(aliases), 'active'
-				FROM concept
-				WHERE 'concept' = ANY($1)
-				  AND (lower(name) = lower($2)
-				       OR EXISTS (SELECT 1 FROM unnest(aliases) alias WHERE lower(alias) = lower($2)))
-				UNION ALL
-				SELECT id, 'country', name, name, array_to_json(ARRAY[name_en]), 'active'
+					SELECT id, 'concept', name, name, array_to_json(aliases), 'active'
+					FROM concept
+					WHERE 'concept' = ANY($1)
+					  AND (lower(name) = lower($2)
+					       OR EXISTS (SELECT 1 FROM unnest(aliases) alias WHERE lower(alias) = lower($2)))
+					UNION ALL
+					SELECT id, 'chain_node', name, name, array_to_json(aliases), 'active'
+					FROM chain_node
+					WHERE 'chain_node' = ANY($1)
+					  AND (lower(name) = lower($2)
+					       OR EXISTS (SELECT 1 FROM unnest(aliases) alias WHERE lower(alias) = lower($2)))
+					UNION ALL
+					SELECT id, 'industry_chain', name, name, array_to_json(aliases), 'active'
+					FROM industry_chain
+					WHERE 'industry_chain' = ANY($1)
+					  AND (lower(name) = lower($2)
+					       OR EXISTS (SELECT 1 FROM unnest(aliases) alias WHERE lower(alias) = lower($2)))
+					UNION ALL
+					SELECT id, 'country', name, name, array_to_json(ARRAY[name_en]), 'active'
 				FROM countries
 				WHERE 'country' = ANY($1)
 				  AND (lower(name) = lower($2) OR lower(name_en) = lower($2))
@@ -1009,9 +1035,11 @@ func (r Store) SearchDirectTargets(
 		       edge.id, edge.from_entity_id, edge.to_entity_id, edge.relation_type, edge.status
 		FROM entity_edges edge
 		JOIN (
-			SELECT id, entity_type::text, name, canonical_name, aliases, status::text FROM entity_nodes
-			UNION ALL SELECT id, 'industry', name, name, aliases, 'active' FROM industry
-			UNION ALL SELECT id, 'concept', name, name, aliases, 'active' FROM concept
+				SELECT id, entity_type::text, name, canonical_name, aliases, status::text FROM entity_nodes
+				UNION ALL SELECT id, 'industry', name, name, aliases, 'active' FROM industry
+				UNION ALL SELECT id, 'concept', name, name, aliases, 'active' FROM concept
+				UNION ALL SELECT id, 'chain_node', name, name, aliases, 'active' FROM chain_node
+				UNION ALL SELECT id, 'industry_chain', name, name, aliases, 'active' FROM industry_chain
 		) target ON target.id = edge.to_entity_id AND target.status = 'active'
 		WHERE edge.from_entity_id = $1 AND edge.status = 'active'
 		  AND target.entity_type = ANY($2)
@@ -1110,7 +1138,7 @@ func (r Store) eventSemanticIndustryPartitions(ctx context.Context) ([]string, m
 		if err := rows.Scan(&partition, &label); err != nil {
 			return nil, nil, err
 		}
-		if !entitybiz.IsEntityID(partition) || strings.TrimSpace(label) == "" {
+		if !entitybiz.IsIndustryID(partition) || strings.TrimSpace(label) == "" {
 			return nil, nil, invalidPersistedEventSemantic("Industry partition")
 		}
 		result = append(result, partition)
@@ -1222,17 +1250,13 @@ func (r Store) ListResolutionAnchors(
 			  AND EXISTS (
 			    SELECT 1
 			    FROM entity_edges mapping
-			    JOIN entity_nodes chain ON chain.id = mapping.from_entity_id AND chain.status = 'active'
-			    JOIN industry_chain_definitions definition
-			      ON definition.entity_id = chain.id AND definition.review_status = 'approved'
+				    JOIN industry_chain chain
+				      ON chain.id = mapping.from_entity_id AND chain.review_status = 'approved'
 			    JOIN industry_chain_node_memberships membership
-			      ON membership.industry_chain_entity_id = chain.id
+			      ON membership.industry_chain_id = chain.id
 			     AND membership.status = 'active' AND membership.review_status = 'approved'
-			    JOIN chain_node_profiles node_profile
-			      ON node_profile.entity_id = membership.chain_node_entity_id
-			     AND node_profile.review_status = 'approved'
-			    JOIN entity_nodes node
-			      ON node.id = membership.chain_node_entity_id AND node.status = 'active'
+				    JOIN chain_node node
+				      ON node.id = membership.chain_node_id AND node.review_status = 'approved'
 			    WHERE mapping.to_entity_id = value.id
 			      AND mapping.relation_type = 'mapped_to_industry' AND mapping.status = 'active'
 			  )
@@ -1262,17 +1286,13 @@ func (r Store) ListResolutionAnchors(
 			  AND EXISTS (
 			    SELECT 1
 			    FROM entity_edges mapping
-			    JOIN entity_nodes chain ON chain.id = mapping.from_entity_id AND chain.status = 'active'
-			    JOIN industry_chain_definitions definition
-			      ON definition.entity_id = chain.id AND definition.review_status = 'approved'
+				    JOIN industry_chain chain
+				      ON chain.id = mapping.from_entity_id AND chain.review_status = 'approved'
 			    JOIN industry_chain_node_memberships membership
-			      ON membership.industry_chain_entity_id = chain.id
+			      ON membership.industry_chain_id = chain.id
 			     AND membership.status = 'active' AND membership.review_status = 'approved'
-			    JOIN chain_node_profiles node_profile
-			      ON node_profile.entity_id = membership.chain_node_entity_id
-			     AND node_profile.review_status = 'approved'
-			    JOIN entity_nodes node
-			      ON node.id = membership.chain_node_entity_id AND node.status = 'active'
+				    JOIN chain_node node
+				      ON node.id = membership.chain_node_id AND node.review_status = 'approved'
 			    WHERE mapping.to_entity_id = value.id
 			      AND mapping.relation_type = 'mapped_to_concept' AND mapping.status = 'active'
 			  )
@@ -1325,11 +1345,12 @@ func (r Store) ResolveChainNodeCandidates(
 		return nil, err
 	}
 	relationType, anchorTable := "", ""
+	var validAnchorID func(string) bool
 	switch routeID {
 	case "chain-node-via-industry.v1":
-		relationType, anchorTable = "mapped_to_industry", "industry"
+		relationType, anchorTable, validAnchorID = "mapped_to_industry", "industry", entitybiz.IsIndustryID
 	case "chain-node-via-concept.v1":
-		relationType, anchorTable = "mapped_to_concept", "concept"
+		relationType, anchorTable, validAnchorID = "mapped_to_concept", "concept", entitybiz.IsConceptID
 	default:
 		return nil, &eventbiz.ValidationError{Reason: "route_id is not supported"}
 	}
@@ -1350,33 +1371,30 @@ func (r Store) ResolveChainNodeCandidates(
 	}
 	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
 		WITH target_page AS (
-		  SELECT node.id AS target_id, node.canonical_name, node_profile.definition
+			  SELECT node.id AS target_id, node.name AS canonical_name, node.definition
 		  FROM entity_edges mapping
 		  JOIN %s anchor ON anchor.id = mapping.to_entity_id AND anchor.review_status = 'approved'
-		  JOIN entity_nodes chain ON chain.id = mapping.from_entity_id AND chain.status = 'active'
-		  JOIN industry_chain_definitions definition
-		    ON definition.entity_id = chain.id AND definition.review_status = 'approved'
+			  JOIN industry_chain chain
+			    ON chain.id = mapping.from_entity_id AND chain.review_status = 'approved'
 		  JOIN industry_chain_node_memberships membership
-		    ON membership.industry_chain_entity_id = chain.id
+		    ON membership.industry_chain_id = chain.id
 		   AND membership.status = 'active' AND membership.review_status = 'approved'
-		  JOIN chain_node_profiles node_profile
-		    ON node_profile.entity_id = membership.chain_node_entity_id
-		   AND node_profile.review_status = 'approved'
-		  JOIN entity_nodes node ON node.id = membership.chain_node_entity_id AND node.status = 'active'
+			  JOIN chain_node node
+			    ON node.id = membership.chain_node_id AND node.review_status = 'approved'
 		  WHERE mapping.relation_type = $1 AND mapping.status = 'active'
 		    AND anchor.id = ANY($2::text[])
-		    AND ($3::text IS NULL OR (node.canonical_name, node.id) > ($3::text, $4::text))
-		  GROUP BY node.id, node.canonical_name, node_profile.definition
-		  ORDER BY node.canonical_name, node.id
+			    AND ($3::text IS NULL OR (node.name, node.id) > ($3::text, $4::text))
+			  GROUP BY node.id, node.name, node.definition
+			  ORDER BY node.name, node.id
 		  LIMIT $5
 		)
-		SELECT path.anchor_id, path.chain_id, path.mapping_id, node.id, node.entity_type,
-		       node.name, node.canonical_name, array_to_json(node.aliases), node.status,
+			SELECT path.anchor_id, path.chain_id, path.mapping_id, node.id, 'chain_node',
+			       node.name, node.name, array_to_json(node.aliases), 'active',
 		       path.position, path.membership_updated_at, page.definition,
 		       path.chain_name, path.anchor_updated_at, path.chain_updated_at,
 		       path.mapping_updated_at, node.updated_at, array_to_json(matched.anchor_ids)
 		FROM target_page page
-		JOIN entity_nodes node ON node.id = page.target_id
+			JOIN chain_node node ON node.id = page.target_id
 		JOIN LATERAL (
 		  SELECT anchor.id AS anchor_id, chain.id AS chain_id, mapping.id AS mapping_id,
 		         membership.position, membership.updated_at AS membership_updated_at,
@@ -1385,33 +1403,31 @@ func (r Store) ResolveChainNodeCandidates(
 		         mapping.updated_at AS mapping_updated_at
 		  FROM entity_edges mapping
 		  JOIN %s anchor ON anchor.id = mapping.to_entity_id AND anchor.review_status = 'approved'
-		  JOIN entity_nodes chain ON chain.id = mapping.from_entity_id AND chain.status = 'active'
-		  JOIN industry_chain_definitions definition
-		    ON definition.entity_id = chain.id AND definition.review_status = 'approved'
+			  JOIN industry_chain chain
+			    ON chain.id = mapping.from_entity_id AND chain.review_status = 'approved'
 		  JOIN industry_chain_node_memberships membership
-		    ON membership.industry_chain_entity_id = chain.id
-		   AND membership.chain_node_entity_id = page.target_id
+		    ON membership.industry_chain_id = chain.id
+		   AND membership.chain_node_id = page.target_id
 		   AND membership.status = 'active' AND membership.review_status = 'approved'
 		  WHERE mapping.relation_type = $1 AND mapping.status = 'active'
 		    AND anchor.id = ANY($2::text[])
-		  ORDER BY anchor.id, chain.canonical_name, membership.position, chain.id, mapping.id
+			  ORDER BY anchor.id, chain.name, membership.position, chain.id, mapping.id
 		  LIMIT 1
 		) path ON true
 		JOIN LATERAL (
 		  SELECT array_agg(DISTINCT mapping.to_entity_id::text ORDER BY mapping.to_entity_id::text) AS anchor_ids
 		  FROM entity_edges mapping
 		  JOIN %s anchor ON anchor.id = mapping.to_entity_id AND anchor.review_status = 'approved'
-		  JOIN entity_nodes chain ON chain.id = mapping.from_entity_id AND chain.status = 'active'
-		  JOIN industry_chain_definitions definition
-		    ON definition.entity_id = chain.id AND definition.review_status = 'approved'
+			  JOIN industry_chain chain
+			    ON chain.id = mapping.from_entity_id AND chain.review_status = 'approved'
 		  JOIN industry_chain_node_memberships membership
-		    ON membership.industry_chain_entity_id = chain.id
-		   AND membership.chain_node_entity_id = page.target_id
+		    ON membership.industry_chain_id = chain.id
+		   AND membership.chain_node_id = page.target_id
 		   AND membership.status = 'active' AND membership.review_status = 'approved'
 		  WHERE mapping.relation_type = $1 AND mapping.status = 'active'
 		    AND mapping.to_entity_id = ANY($2::text[])
 		) matched ON true
-		ORDER BY node.canonical_name, node.id
+			ORDER BY node.name, node.id
 	`, anchorTable, anchorTable, anchorTable), relationType, anchorEntityIDs, afterName, afterID, limit)
 	if err != nil {
 		return nil, err
@@ -1425,7 +1441,7 @@ func (r Store) ResolveChainNodeCandidates(
 		var membershipUpdatedAt time.Time
 		var anchorUpdatedAt, chainUpdatedAt, mappingUpdatedAt, targetUpdatedAt time.Time
 		if err := rows.Scan(
-			&item.Receipt.AnchorEntityID, &item.Receipt.IndustryChainEntityID,
+			&item.Receipt.AnchorEntityID, &item.Receipt.IndustryChainID,
 			&item.Receipt.MappingRelationID, &item.Entity.ID, &item.Entity.Type,
 			&item.Entity.Name, &item.Entity.CanonicalName, &aliases, &item.Entity.Status,
 			&item.Receipt.MembershipPosition, &membershipUpdatedAt, &item.Description,
@@ -1443,10 +1459,14 @@ func (r Store) ResolveChainNodeCandidates(
 		if err := validatePersistedEntity(item.Entity); err != nil {
 			return nil, err
 		}
-		if !entitybiz.IsEntityID(item.Receipt.AnchorEntityID) ||
-			!entitybiz.IsEntityID(item.Receipt.IndustryChainEntityID) ||
+		validMatchedAnchors := validPersistedObjectIDSet(item.MatchedAnchorEntityIDs, true)
+		for _, anchorID := range item.MatchedAnchorEntityIDs {
+			validMatchedAnchors = validMatchedAnchors && validAnchorID(anchorID)
+		}
+		if !validAnchorID(item.Receipt.AnchorEntityID) ||
+			!entitybiz.IsIndustryChainID(item.Receipt.IndustryChainID) ||
 			!entitybiz.IsEntityRelationID(item.Receipt.MappingRelationID) ||
-			!validPersistedEntityIDSet(item.MatchedAnchorEntityIDs, true) ||
+			!validMatchedAnchors ||
 			strings.TrimSpace(item.Description) == "" || strings.TrimSpace(item.IndustryChainEntityName) == "" ||
 			membershipUpdatedAt.IsZero() || anchorUpdatedAt.IsZero() || chainUpdatedAt.IsZero() ||
 			mappingUpdatedAt.IsZero() || targetUpdatedAt.IsZero() {
@@ -1505,22 +1525,19 @@ func validateEventSemanticResolutionReceipts(
 			       chain.updated_at, mapping.updated_at, node.updated_at
 			FROM entity_edges mapping
 			%s
-			JOIN entity_nodes chain ON chain.id = mapping.from_entity_id AND chain.status = 'active'
-			JOIN industry_chain_definitions definition
-			  ON definition.entity_id = mapping.from_entity_id AND definition.review_status = 'approved'
+				JOIN industry_chain chain
+				  ON chain.id = mapping.from_entity_id AND chain.review_status = 'approved'
 			JOIN industry_chain_node_memberships membership
-			  ON membership.industry_chain_entity_id = mapping.from_entity_id
+			  ON membership.industry_chain_id = mapping.from_entity_id
 			 AND membership.status = 'active' AND membership.review_status = 'approved'
-			JOIN chain_node_profiles node_profile
-			  ON node_profile.entity_id = membership.chain_node_entity_id
-			 AND node_profile.review_status = 'approved'
-			JOIN entity_nodes node ON node.id = membership.chain_node_entity_id AND node.status = 'active'
+				JOIN chain_node node
+				  ON node.id = membership.chain_node_id AND node.review_status = 'approved'
 			WHERE mapping.id = $1 AND mapping.relation_type = $2 AND mapping.status = 'active'
 			  AND mapping.to_entity_id = $3 AND mapping.from_entity_id = $4
-			  AND membership.chain_node_entity_id = $5
-			FOR SHARE OF mapping, anchor, chain, definition, membership, node_profile, node
+			  AND membership.chain_node_id = $5
+				FOR SHARE OF mapping, anchor, chain, membership, node
 		`, anchorJoin), receipt.MappingRelationID, relationType, receipt.AnchorEntityID,
-			receipt.IndustryChainEntityID, receipt.TargetEntityID).Scan(
+			receipt.IndustryChainID, receipt.TargetEntityID).Scan(
 			&position, &updatedAt, &anchorUpdatedAt, &chainUpdatedAt, &mappingUpdatedAt, &targetUpdatedAt,
 		)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -1567,7 +1584,7 @@ func eventSemanticResolutionFingerprint(
 		Position                                                                 int
 	}{
 		RouteID: receipt.RouteID, RouteVersion: receipt.RouteContractVersion,
-		AnchorID: receipt.AnchorEntityID, ChainID: receipt.IndustryChainEntityID,
+		AnchorID: receipt.AnchorEntityID, ChainID: receipt.IndustryChainID,
 		MappingID: receipt.MappingRelationID, TargetID: receipt.TargetEntityID,
 		UpdatedAt: receipt.MembershipUpdatedAt, Position: receipt.MembershipPosition,
 		AnchorUpdatedAt: versions.AnchorUpdatedAt, ChainUpdatedAt: versions.ChainUpdatedAt,
@@ -1720,7 +1737,7 @@ func validatePersistedVariableSignalCandidate(item eventbiz.VariableSignalCandid
 
 func validatePersistedDirectImpactCandidate(item eventbiz.DirectImpactCandidate) error {
 	if strings.TrimSpace(item.Key) == "" || strings.TrimSpace(item.SourceSignalKey) == "" ||
-		!entitybiz.IsEntityID(item.TargetEntityID) ||
+		!entitybiz.IsObjectID(item.TargetEntityID) ||
 		(item.EntityRelationID != "" && !entitybiz.IsEntityRelationID(item.EntityRelationID)) ||
 		strings.TrimSpace(item.AffectedVariableKey) == "" ||
 		item.AffectedVariableVersion <= 0 || strings.TrimSpace(item.AffectedDirection) == "" ||
@@ -2782,8 +2799,7 @@ func validateResearchSemanticRecord(record eventbiz.ResearchSemanticRecord) erro
 }
 
 func researchObjectID(value string) bool {
-	return entitybiz.IsEntityID(value) || entitybiz.IsCountryID(value) ||
-		entitybiz.IsRegionID(value) || entitybiz.IsOrganizationID(value)
+	return entitybiz.IsObjectID(value)
 }
 
 func validResearchEvidenceIDSet(values []string) bool {

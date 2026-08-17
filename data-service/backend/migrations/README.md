@@ -53,6 +53,11 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000056_make_industry_concept_independent.sql`：将 profiled Industry/Concept 无损迁移为独立
   `industry`/`concept` 事实表，回填名称和别名，移除退役分类/边界字段，保留全部 object-aware
   引用后删除对应 shadow Entity；无 profile 的 legacy Entity 不变。
+- `000057_make_chain_node_industry_chain_independent.sql`：将 profiled ChainNode/IndustryChain
+  无损迁移为独立 `chain_node`/`industry_chain` 事实表，保留全部图谱、Research 与多态引用。
+- `000058_assign_independent_object_id_prefixes.sql`：保留四类独立对象的 canonical UUID 后缀，
+  将 Industry、Concept、ChainNode、IndustryChain 的历史 `ENT` 前缀分别切换为
+  `IND`、`CON`、`CND`、`ICH`，并同步改写全部直接、多态和 JSONB 引用。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -125,6 +130,13 @@ migration 后才执行 `-apply`。执行后必须确认 ledger 为 `56`，`indus
 `entity_nodes` 中没有 shadow row。无法表达的旧状态、去除分类版本后的重复代码或未支持的
 typed Entity 引用会在删除前 fail closed。旧应用不兼容新表；回滚必须同时恢复迁移前快照和
 上一版应用，不运行 down migration。
+
+`000058` 是 Issue #265 授权的零兼容身份切换。操作员必须停止 Data 及全部上游写入者、
+确认 PostgreSQL 恢复点，并用候选镜像 check-only；只有确认 `000058` 是唯一 pending
+migration 后才执行 apply。执行后确认 ledger 为 `58`，四类 owner 表分别只含
+`IND`/`CON`/`CND`/`ICH`，所有 UUID 后缀、事实数量和内容保持一致，直接外键、多态引用、
+Research 与 JSONB 回执无旧身份或孤儿。旧应用不兼容新前缀；回滚必须同时恢复 migration
+58 前快照和上一版应用，不运行 down migration。
 
 Data 不再提供 `source-seed` 或维护 `source_catalogs`，既有 Event Publication 仍只通过
 `POST /api/data/v1/reviewed-event-imports` 连同轻量 Event 证据原子接纳；历史

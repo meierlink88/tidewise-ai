@@ -153,7 +153,7 @@ func indexedBindingPath(path, field string) (int, bool) {
 
 func researchThemeImportShape() *v1.StrictJSONShape {
 	impact := v1.StrictJSONObject(map[string]*v1.StrictJSONShape{
-		"chain_node_entity_id": v1.StrictJSONScalar(), "relation_role": v1.StrictJSONScalar(),
+		"chain_node_id": v1.StrictJSONScalar(), "relation_role": v1.StrictJSONScalar(),
 		"impact_direction": v1.StrictJSONScalar(), "impact_summary": v1.StrictJSONNullableString(),
 		"display_order": v1.StrictJSONScalar(),
 	})
@@ -205,12 +205,12 @@ func researchThemeImportShape() *v1.StrictJSONShape {
 		"entity_relation_id":                  v1.StrictJSONNullableString(),
 	})
 	node := v1.StrictJSONRequiredObject([]string{
-		"position", "chain_node_entity_id", "state_summary", "impact_direction",
+		"position", "chain_node_id", "state_summary", "impact_direction",
 		"impact_strength", "impact_summary", "reasoning_basis_summary", "evidence_gap_summary",
 		"incoming_industry_chain_graph_edge_id", "incoming_transmission_title",
 		"incoming_transmission_mechanism", "incoming_condition_summary", "incoming_lineage", "signals",
 	}, map[string]*v1.StrictJSONShape{
-		"position": v1.StrictJSONScalar(), "chain_node_entity_id": v1.StrictJSONString(),
+		"position": v1.StrictJSONScalar(), "chain_node_id": v1.StrictJSONString(),
 		"state_summary": v1.StrictJSONNullableString(), "impact_direction": v1.StrictJSONString(),
 		"impact_strength": v1.StrictJSONString(), "impact_summary": v1.StrictJSONNullableString(),
 		"reasoning_basis_summary": v1.StrictJSONNullableString(), "evidence_gap_summary": v1.StrictJSONNullableString(),
@@ -222,12 +222,12 @@ func researchThemeImportShape() *v1.StrictJSONShape {
 		"signals":                               v1.StrictJSONArray(signal),
 	})
 	tree := v1.StrictJSONRequiredObject([]string{
-		"industry_chain_entity_id", "title", "display_order", "one_line_conclusion",
+		"industry_chain_id", "title", "display_order", "one_line_conclusion",
 		"fact_summary", "transmission_summary", "impact_direction", "impact_strength",
 		"impact_summary", "conclusion_boundary_summary", "support_summary", "counter_summary",
 		"invalidation_conditions", "checkpoints", "events", "nodes",
 	}, map[string]*v1.StrictJSONShape{
-		"industry_chain_entity_id": v1.StrictJSONString(), "title": v1.StrictJSONString(), "display_order": v1.StrictJSONScalar(),
+		"industry_chain_id": v1.StrictJSONString(), "title": v1.StrictJSONString(), "display_order": v1.StrictJSONScalar(),
 		"one_line_conclusion": v1.StrictJSONString(), "fact_summary": v1.StrictJSONNullableString(),
 		"transmission_summary": v1.StrictJSONNullableString(), "impact_direction": v1.StrictJSONString(),
 		"impact_strength": v1.StrictJSONString(), "impact_summary": v1.StrictJSONNullableString(),

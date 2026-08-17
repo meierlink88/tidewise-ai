@@ -21,7 +21,7 @@ export function createMockResearchReasoningTreePort(): ResearchReasoningTreePort
     reasoningTree: {
       ...detail.reasoningTree,
       reasoningTreeId: secondSummary.reasoningTreeId,
-      industryChainEntityId: secondSummary.industryChainEntityId,
+      industryChainId: secondSummary.industryChainId,
       industryChainName: secondSummary.industryChainName,
       title: secondSummary.title,
       displayOrder: secondSummary.displayOrder,

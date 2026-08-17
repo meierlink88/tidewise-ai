@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-const testConceptID = "ENT33333333-3333-4333-8333-333333333333"
+const testConceptID = "CON33333333-3333-4333-8333-333333333333"
 
 type repositoryStub struct {
 	created    Concept
@@ -66,6 +66,19 @@ func TestCreateGeneratesIdentityAndRejectsInvalidConceptBeforePersistence(t *tes
 	}
 	if created.ID == "" || store.created.ID != created.ID || !IsID(string(created.ID)) {
 		t.Fatalf("generated Concept identity = %q, persisted = %q", created.ID, store.created.ID)
+	}
+	if string(created.ID)[:3] != "CON" {
+		t.Fatalf("generated Concept identity = %q, want CON prefix", created.ID)
+	}
+	for _, value := range []string{
+		"ENT33333333-3333-4333-8333-333333333333",
+		"IND33333333-3333-4333-8333-333333333333",
+		"CND33333333-3333-4333-8333-333333333333",
+		"ICH33333333-3333-4333-8333-333333333333",
+	} {
+		if IsID(value) {
+			t.Errorf("Concept accepted identity %q with another object's prefix", value)
+		}
 	}
 
 	for name, mutate := range map[string]func(*Concept){

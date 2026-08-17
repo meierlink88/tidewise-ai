@@ -47,7 +47,7 @@ func (t *publicationTransaction) Receipt(ctx context.Context, analysisBatchID st
 	err := t.tx.QueryRowContext(ctx, `SELECT
     id::text, analysis_batch_id, publisher_subject, payload_hash,
     publication_contract_version, publication_mode, COALESCE(aggregate_theme_id::text, ''),
-    reasoning_tree_ids_by_industry_chain_entity_id, reasoning_tree_ids_by_tree_key, aggregate_write_counts,
+    reasoning_tree_ids_by_industry_chain_id, reasoning_tree_ids_by_tree_key, aggregate_write_counts,
     published_at, imported_at
 FROM research_theme_import_receipts
 WHERE analysis_batch_id = $1`, analysisBatchID).Scan(
@@ -61,7 +61,7 @@ WHERE analysis_batch_id = $1`, analysisBatchID).Scan(
 	if err != nil {
 		return nil, err
 	}
-	if err := json.Unmarshal(treeIDsJSON, &receipt.ReasoningTreeIDsByIndustryChainEntityID); err != nil {
+	if err := json.Unmarshal(treeIDsJSON, &receipt.ReasoningTreeIDsByIndustryChainID); err != nil {
 		return nil, err
 	}
 	if err := json.Unmarshal(treeKeyIDsJSON, &receipt.ReasoningTreeIDsByTreeKey); err != nil {
@@ -106,9 +106,9 @@ func validatePersistedResearchReceipt(receipt researchbiz.Receipt) error {
 		counts.TreeEventAssociations < 0 || counts.SignalAssociations < 1 {
 		return invalid("aggregate write counts are invalid")
 	}
-	identities := receipt.ReasoningTreeIDsByIndustryChainEntityID
+	identities := receipt.ReasoningTreeIDsByIndustryChainID
 	if receipt.PublicationMode == researchbiz.SnapshotPublicationMode {
-		if len(receipt.ReasoningTreeIDsByIndustryChainEntityID) != 0 {
+		if len(receipt.ReasoningTreeIDsByIndustryChainID) != 0 {
 			return invalid("snapshot Receipt contains formal Reason Tree identities")
 		}
 		identities = receipt.ReasoningTreeIDsByTreeKey
@@ -125,7 +125,7 @@ func validatePersistedResearchReceipt(receipt researchbiz.Receipt) error {
 		if receipt.PublicationMode == researchbiz.SnapshotPublicationMode && !researchKeyPattern.MatchString(key) {
 			return invalid("a snapshot Reason Tree key is malformed")
 		}
-		if receipt.PublicationMode == "formal" && !entitybiz.IsEntityID(key) {
+		if receipt.PublicationMode == "formal" && !entitybiz.IsIndustryChainID(key) {
 			return invalid("a formal Industry Chain identity is malformed")
 		}
 	}
@@ -138,13 +138,11 @@ func (t *publicationTransaction) ReferenceFacts(
 ) (researchbiz.ReferenceFacts, error) {
 	facts := researchbiz.ReferenceFacts{}
 	var err error
-	facts.ChainNodeIDs, err = queryResearchPublicationTemporalFacts(ctx, t.tx, `SELECT profile.entity_id::text,
-       node.created_at, node.updated_at
-FROM chain_node_profiles profile
-JOIN entity_nodes node ON node.id = profile.entity_id
-WHERE profile.entity_id = ANY($1::text[])
-  AND node.status = 'active'
-  AND profile.review_status = 'approved'`, query.ChainNodeIDs)
+	facts.ChainNodeIDs, err = queryResearchPublicationTemporalFacts(ctx, t.tx, `SELECT value.id::text,
+       value.created_at, value.updated_at
+FROM chain_node value
+WHERE value.id = ANY($1::text[])
+  AND value.review_status = 'approved'`, query.ChainNodeIDs)
 	if err != nil {
 		return facts, err
 	}
@@ -152,14 +150,11 @@ WHERE profile.entity_id = ANY($1::text[])
 	if err != nil {
 		return facts, err
 	}
-	facts.IndustryChainIDs, err = queryResearchPublicationTemporalFacts(ctx, t.tx, `SELECT definition.entity_id::text,
-       GREATEST(node.created_at, definition.created_at),
-       GREATEST(node.updated_at, definition.updated_at)
-FROM industry_chain_definitions definition
-JOIN entity_nodes node ON node.id = definition.entity_id
-WHERE definition.entity_id = ANY($1::text[])
-  AND definition.review_status = 'approved'
-  AND node.status = 'active'`, query.IndustryChainIDs)
+	facts.IndustryChainIDs, err = queryResearchPublicationTemporalFacts(ctx, t.tx, `SELECT value.id::text,
+       value.created_at, value.updated_at
+FROM industry_chain value
+WHERE value.id = ANY($1::text[])
+  AND value.review_status = 'approved'`, query.IndustryChainIDs)
 	if err != nil {
 		return facts, err
 	}
@@ -280,16 +275,15 @@ func (t *publicationTransaction) memberships(
 	ctx context.Context,
 	chainIDs []string,
 ) (map[string]map[string]researchbiz.TemporalFact, error) {
-	rows, err := t.tx.QueryContext(ctx, `SELECT membership.industry_chain_entity_id::text,
-       membership.chain_node_entity_id::text,
+	rows, err := t.tx.QueryContext(ctx, `SELECT membership.industry_chain_id::text,
+       membership.chain_node_id::text,
        GREATEST(membership.created_at, node.created_at),
        GREATEST(membership.updated_at, node.updated_at)
 FROM industry_chain_node_memberships membership
-JOIN entity_nodes node ON node.id = membership.chain_node_entity_id
-JOIN chain_node_profiles profile ON profile.entity_id = membership.chain_node_entity_id
-WHERE membership.industry_chain_entity_id = ANY($1::text[])
+JOIN chain_node node ON node.id = membership.chain_node_id
+WHERE membership.industry_chain_id = ANY($1::text[])
   AND membership.status = 'active' AND membership.review_status = 'approved'
-  AND node.status = 'active' AND profile.review_status = 'approved'`, chainIDs)
+  AND node.review_status = 'approved'`, chainIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -313,8 +307,8 @@ func (t *publicationTransaction) graphEdges(
 	ctx context.Context,
 	ids []string,
 ) (map[string]researchbiz.GraphEdgeFact, error) {
-	rows, err := t.tx.QueryContext(ctx, `SELECT id::text, industry_chain_entity_id::text,
-       from_chain_node_entity_id::text, to_chain_node_entity_id::text,
+	rows, err := t.tx.QueryContext(ctx, `SELECT id::text, industry_chain_id::text,
+       from_chain_node_id::text, to_chain_node_id::text,
        created_at, updated_at
 FROM industry_chain_graph_edges
 WHERE id = ANY($1::text[]) AND status = 'active' AND review_status = 'approved'`, ids)
@@ -326,8 +320,8 @@ WHERE id = ANY($1::text[]) AND status = 'active' AND review_status = 'approved'`
 	for rows.Next() {
 		var value researchbiz.GraphEdgeFact
 		if err := rows.Scan(
-			&value.ID, &value.IndustryChainEntityID,
-			&value.FromChainNodeEntityID, &value.ToChainNodeEntityID,
+			&value.ID, &value.IndustryChainID,
+			&value.FromChainNodeID, &value.ToChainNodeID,
 			&value.CreatedAt, &value.UpdatedAt,
 		); err != nil {
 			return nil, err
@@ -464,7 +458,7 @@ func (t *publicationTransaction) InsertThemeReceipt(ctx context.Context, receipt
 	if err != nil {
 		return fmt.Errorf("encode Research Theme receipt IDs: %w", err)
 	}
-	treeIDs, err := json.Marshal(receipt.ReasoningTreeIDsByIndustryChainEntityID)
+	treeIDs, err := json.Marshal(receipt.ReasoningTreeIDsByIndustryChainID)
 	if err != nil {
 		return fmt.Errorf("encode Research Reason Tree receipt IDs: %w", err)
 	}
@@ -488,7 +482,7 @@ func (t *publicationTransaction) InsertThemeReceipt(ctx context.Context, receipt
 	_, err = t.tx.ExecContext(ctx, `INSERT INTO research_theme_import_receipts (
     id, analysis_batch_id, publisher_subject, payload_hash, theme_ids_by_key,
     write_counts, published_at, imported_at, publication_contract_version,
-    aggregate_theme_id, reasoning_tree_ids_by_industry_chain_entity_id,
+    aggregate_theme_id, reasoning_tree_ids_by_industry_chain_id,
     reasoning_tree_ids_by_tree_key, aggregate_write_counts, publication_mode
 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
 		receipt.ID, receipt.AnalysisBatchID, receipt.PublisherSubject, receipt.PayloadHash,
@@ -525,8 +519,8 @@ func (t *publicationTransaction) InsertTheme(ctx context.Context, record researc
 }
 func (t *publicationTransaction) InsertThemeImpact(ctx context.Context, record researchbiz.PublicationThemeImpactRecord) error {
 	_, err := t.tx.ExecContext(ctx, `INSERT INTO research_theme_impacts (
-    theme_id, chain_node_entity_id, relation_role, impact_direction, impact_summary, display_order
-) VALUES ($1,$2,$3,$4,$5,$6)`, record.ThemeID, record.ChainNodeEntityID,
+    theme_id, chain_node_id, relation_role, impact_direction, impact_summary, display_order
+) VALUES ($1,$2,$3,$4,$5,$6)`, record.ThemeID, record.ChainNodeID,
 		record.RelationRole, record.ImpactDirection, record.ImpactSummary, record.DisplayOrder)
 	return err
 }
@@ -545,7 +539,7 @@ func (t *publicationTransaction) InsertThemeEvent(ctx context.Context, record re
 	return err
 }
 func (t *publicationTransaction) InsertTreeReceipt(ctx context.Context, record researchbiz.ReasonTreeReceipt) error {
-	treeIDs, err := json.Marshal(record.ReasoningTreeIDsByIndustryChainEntityID)
+	treeIDs, err := json.Marshal(record.ReasoningTreeIDsByIndustryChainID)
 	if err != nil {
 		return err
 	}
@@ -555,7 +549,7 @@ func (t *publicationTransaction) InsertTreeReceipt(ctx context.Context, record r
 	}
 	_, err = t.tx.ExecContext(ctx, `INSERT INTO research_reasoning_tree_import_receipts (
     id, theme_id, publisher_subject, payload_hash,
-    reasoning_tree_ids_by_industry_chain_entity_id, write_counts, published_at, imported_at
+    reasoning_tree_ids_by_industry_chain_id, write_counts, published_at, imported_at
 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, record.ID, record.ThemeID, record.PublisherSubject,
 		record.PayloadHash, treeIDs, counts, record.PublishedAt, record.ImportedAt)
 	return err
@@ -571,7 +565,7 @@ func (t *publicationTransaction) InsertSnapshotTreeReceipt(ctx context.Context, 
 	}
 	_, err = t.tx.ExecContext(ctx, `INSERT INTO research_reasoning_tree_import_receipts (
     id, theme_id, publisher_subject, payload_hash,
-    reasoning_tree_ids_by_industry_chain_entity_id, reasoning_tree_ids_by_tree_key,
+    reasoning_tree_ids_by_industry_chain_id, reasoning_tree_ids_by_tree_key,
     write_counts, published_at, imported_at, publication_contract_version, publication_mode
 ) VALUES ($1,$2,$3,$4,'{}'::jsonb,$5,$6,$7,$8,3,'analyst_snapshot')`,
 		record.ID, record.ThemeID, record.PublisherSubject, record.PayloadHash,
@@ -588,12 +582,12 @@ func (t *publicationTransaction) InsertTree(ctx context.Context, record research
 		return err
 	}
 	_, err = t.tx.ExecContext(ctx, `INSERT INTO research_reasoning_trees (
-    id, theme_id, import_receipt_id, industry_chain_entity_id, title, display_order,
+    id, theme_id, import_receipt_id, industry_chain_id, title, display_order,
     one_line_conclusion, fact_summary, transmission_summary, impact_direction,
     impact_strength, impact_summary, conclusion_boundary_summary, support_summary,
     counter_summary, invalidation_conditions, checkpoints
 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
-		record.ID, record.ThemeID, record.ImportReceiptID, record.IndustryChainEntityID,
+		record.ID, record.ThemeID, record.ImportReceiptID, record.IndustryChainID,
 		record.Title, record.DisplayOrder, record.OneLineConclusion, record.FactSummary,
 		record.TransmissionSummary, record.ImpactDirection, record.ImpactStrength,
 		record.ImpactSummary, record.ConclusionBoundarySummary, record.SupportSummary,
@@ -638,7 +632,7 @@ func (t *publicationTransaction) InsertTreeEvent(ctx context.Context, record res
 
 func (t *publicationTransaction) InsertNode(ctx context.Context, record researchbiz.NodeRecord) error {
 	_, err := t.tx.ExecContext(ctx, `INSERT INTO research_reasoning_tree_nodes (
-    id, reasoning_tree_id, position, chain_node_entity_id, state_summary,
+    id, reasoning_tree_id, position, chain_node_id, state_summary,
     impact_direction, impact_strength, impact_summary, reasoning_basis_summary,
     evidence_gap_summary, incoming_industry_chain_graph_edge_id,
     incoming_transmission_title, incoming_transmission_mechanism, incoming_condition_summary,
@@ -648,7 +642,7 @@ func (t *publicationTransaction) InsertNode(ctx context.Context, record research
     inference_upstream_variable_signal_id, inference_upstream_direct_impact_assertion_id,
     inference_entity_relation_id
 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)`,
-		record.ID, record.ReasoningTreeID, record.Position, record.ChainNodeEntityID,
+		record.ID, record.ReasoningTreeID, record.Position, record.ChainNodeID,
 		record.StateSummary, record.ImpactDirection, record.ImpactStrength, record.ImpactSummary,
 		record.ReasoningBasisSummary, record.EvidenceGapSummary,
 		record.IncomingIndustryChainGraphEdgeID, record.IncomingTransmissionTitle,
@@ -727,8 +721,8 @@ func (t *publicationTransaction) Verify(ctx context.Context, receipt researchbiz
 	if counts != receipt.Counts {
 		return fmt.Errorf("aggregate write counts do not match persisted rows")
 	}
-	identityColumn := "industry_chain_entity_id::text"
-	expected := receipt.ReasoningTreeIDsByIndustryChainEntityID
+	identityColumn := "industry_chain_id::text"
+	expected := receipt.ReasoningTreeIDsByIndustryChainID
 	if receipt.PublicationMode == researchbiz.SnapshotPublicationMode {
 		identityColumn = "tree_key"
 		expected = receipt.ReasoningTreeIDsByTreeKey
