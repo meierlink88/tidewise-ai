@@ -125,12 +125,12 @@ func writePublicationCanonicalString(writer *bytes.Buffer, value string) error {
 	return nil
 }
 
-func publicationReasonTreeID(themeID, industryChainEntityID string) string {
-	return mustDeriveResearchID(coreid.ResearchReasoningTree, "research-reasoning-tree", themeID, industryChainEntityID)
+func publicationReasonTreeID(themeID, industryChainID string) string {
+	return mustDeriveResearchID(coreid.ResearchReasoningTree, "research-reasoning-tree", themeID, industryChainID)
 }
 
-func publicationReasonTreeNodeID(reasoningTreeID string, position int, chainNodeEntityID string) string {
-	return mustDeriveResearchID(coreid.ResearchReasoningTreeNode, "research-reasoning-tree-node", reasoningTreeID, strconv.Itoa(position), chainNodeEntityID)
+func publicationReasonTreeNodeID(reasoningTreeID string, position int, chainNodeID string) string {
+	return mustDeriveResearchID(coreid.ResearchReasoningTreeNode, "research-reasoning-tree-node", reasoningTreeID, strconv.Itoa(position), chainNodeID)
 }
 
 func publicationThemeID(analysisBatchID, themeKey string) string {

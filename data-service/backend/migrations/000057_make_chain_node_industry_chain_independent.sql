@@ -15,6 +15,14 @@ BEGIN
            OR entity.canonical_name <> entity.name
            OR btrim(entity.name) = ''
            OR entity.aliases IS NULL
+           OR array_position(entity.aliases, NULL) IS NOT NULL
+           OR EXISTS (
+               SELECT 1 FROM unnest(entity.aliases) alias WHERE btrim(alias) = ''
+           )
+           OR cardinality(entity.aliases) <> (
+               SELECT count(DISTINCT alias) FROM unnest(entity.aliases) alias
+           )
+           OR entity.updated_at < entity.created_at
            OR profile.review_status IS NULL
     ) THEN
         RAISE EXCEPTION 'ChainNode profiles cannot be represented without losing Entity facts';
@@ -30,6 +38,23 @@ BEGIN
            OR entity.canonical_name <> entity.name
            OR btrim(entity.name) = ''
            OR entity.aliases IS NULL
+           OR array_position(entity.aliases, NULL) IS NOT NULL
+           OR EXISTS (
+               SELECT 1 FROM unnest(entity.aliases) alias WHERE btrim(alias) = ''
+           )
+           OR cardinality(entity.aliases) <> (
+               SELECT count(DISTINCT alias) FROM unnest(entity.aliases) alias
+           )
+           OR EXISTS (
+               SELECT 1
+               FROM unnest(definition.observable_variables) variable
+               WHERE btrim(variable) = ''
+           )
+           OR cardinality(definition.observable_variables) <> (
+               SELECT count(DISTINCT variable)
+               FROM unnest(definition.observable_variables) variable
+           )
+           OR definition.updated_at < definition.created_at
     ) THEN
         RAISE EXCEPTION 'IndustryChain definitions cannot be represented without losing Entity facts';
     END IF;
@@ -51,6 +76,24 @@ BEGIN
         RAISE EXCEPTION 'A profiled ChainNode or IndustryChain is referenced through a typed legacy Entity foreign key';
     END IF;
 END;
+$$;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+CREATE FUNCTION valid_independent_object_text_set(values_to_check TEXT[], allow_empty BOOLEAN)
+RETURNS BOOLEAN
+LANGUAGE SQL
+IMMUTABLE
+PARALLEL SAFE
+AS $$
+    SELECT (allow_empty OR cardinality(values_to_check) > 0)
+       AND array_position(values_to_check, NULL) IS NULL
+       AND NOT EXISTS (
+           SELECT 1 FROM unnest(values_to_check) value WHERE btrim(value) = ''
+       )
+       AND cardinality(values_to_check) = (
+           SELECT count(DISTINCT value) FROM unnest(values_to_check) value
+       )
 $$;
 -- +goose StatementEnd
 
@@ -96,7 +139,10 @@ ALTER TABLE chain_node
         id ~ '^ENT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
     ),
     ADD CONSTRAINT chk_chain_node_name_nonblank CHECK (btrim(name) <> ''),
-    ADD CONSTRAINT chk_chain_node_aliases CHECK (array_position(aliases, NULL) IS NULL);
+    ADD CONSTRAINT chk_chain_node_aliases CHECK (
+        valid_independent_object_text_set(aliases, TRUE)
+    ),
+    ADD CONSTRAINT chk_chain_node_timestamp_order CHECK (updated_at >= created_at);
 
 CREATE INDEX idx_chain_node_review_name ON chain_node (review_status, name, id);
 CREATE INDEX idx_chain_node_aliases_gin ON chain_node USING GIN (aliases);
@@ -122,6 +168,7 @@ ALTER TABLE industry_chain
     RENAME CONSTRAINT chk_industry_chain_definition_route_nonblank TO chk_industry_chain_route_nonblank;
 ALTER TABLE industry_chain
     RENAME CONSTRAINT chk_industry_chain_definition_observable_variables TO chk_industry_chain_observable_variables;
+ALTER TABLE industry_chain DROP CONSTRAINT chk_industry_chain_observable_variables;
 ALTER INDEX idx_industry_chain_definitions_review_date RENAME TO idx_industry_chain_review_date;
 ALTER INDEX idx_industry_chain_definitions_primary_country RENAME TO idx_industry_chain_primary_country;
 ALTER TABLE industry_chain
@@ -142,7 +189,13 @@ ALTER TABLE industry_chain
         id ~ '^ENT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
     ),
     ADD CONSTRAINT chk_industry_chain_name_nonblank CHECK (btrim(name) <> ''),
-    ADD CONSTRAINT chk_industry_chain_aliases CHECK (array_position(aliases, NULL) IS NULL);
+    ADD CONSTRAINT chk_industry_chain_aliases CHECK (
+        valid_independent_object_text_set(aliases, TRUE)
+    ),
+    ADD CONSTRAINT chk_industry_chain_observable_variables CHECK (
+        valid_independent_object_text_set(observable_variables, FALSE)
+    ),
+    ADD CONSTRAINT chk_industry_chain_timestamp_order CHECK (updated_at >= created_at);
 
 CREATE INDEX idx_industry_chain_review_date_name
     ON industry_chain (review_status, as_of_date DESC, name, id);

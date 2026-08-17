@@ -115,7 +115,7 @@ export function parseResearchThemeWire(value: unknown, asOf?: string): HomeResea
       return {
         nodeKey: snapshot ? localKey(impact.node_key) : entityID(impact.chain_node_id),
         displayName: text(snapshot ? impact.display_name : impact.name),
-        chainNodeEntityId: snapshot
+        chainNodeId: snapshot
           ? nullableEntityIDString(impact.chain_node_id)
           : entityID(impact.chain_node_id),
         name: text(snapshot ? impact.display_name : impact.name),

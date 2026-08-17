@@ -75,7 +75,7 @@ function mapSummary(value: RecordValue): ResearchReasoningTreeSummary {
     treeKey: snapshot ? localKey(value.tree_key) : entityID(value.industry_chain_id),
     displayName: text(snapshot ? value.display_name : value.industry_chain_name),
     reasoningTreeId: uuid(value.reasoning_tree_id),
-    industryChainEntityId: snapshot
+    industryChainId: snapshot
       ? nullableEntityIDString(value.industry_chain_id)
       : entityID(value.industry_chain_id),
     industryChainName: text(snapshot ? value.display_name : value.industry_chain_name),
@@ -120,7 +120,7 @@ function mapTree(value: RecordValue): ResearchReasoningTree {
     displayName: text(snapshot ? value.display_name : value.industry_chain_name),
     reasoningTreeId: uuid(value.reasoning_tree_id),
     themeId: uuid(value.theme_id),
-    industryChainEntityId: snapshot
+    industryChainId: snapshot
       ? nullableEntityIDString(value.industry_chain_id)
       : entityID(value.industry_chain_id),
     industryChainName: text(snapshot ? value.display_name : value.industry_chain_name),
@@ -226,7 +226,7 @@ function mapNode(value: RecordValue, index: number): ResearchReasoningTreeNode {
     displayName: text(snapshot ? value.display_name : value.name),
     id: uuid(value.id),
     position,
-    chainNodeEntityId: snapshot
+    chainNodeId: snapshot
       ? nullableEntityIDString(value.chain_node_id)
       : entityID(value.chain_node_id),
     name: text(snapshot ? value.display_name : value.name),

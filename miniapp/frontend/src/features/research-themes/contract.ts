@@ -15,7 +15,7 @@ export interface ResearchThemeListRequest {
 export interface HomeResearchThemeImpact {
   nodeKey: string;
   displayName: string;
-  chainNodeEntityId: string | null;
+  chainNodeId: string | null;
   name: string;
   relationRole: 'driver' | 'beneficiary' | 'constraint' | 'exposure';
   impactDirection: ResearchDirection;

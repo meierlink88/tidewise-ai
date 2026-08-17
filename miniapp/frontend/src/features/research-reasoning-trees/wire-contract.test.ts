@@ -85,11 +85,11 @@ describe('analyst snapshot reasoning tree wire contract', () => {
     expect(parsed.reasoningTree).toMatchObject({
       treeKey: 'tree:optical-module',
       displayName: '高速光模块产业链',
-      industryChainEntityId: null
+      industryChainId: null
     });
     expect(parsed.reasoningTree.nodes[0]).toMatchObject({
       nodeKey: 'node:optical-module',
-      chainNodeEntityId: null,
+      chainNodeId: null,
       displayName: '高速光模块',
       primarySignal: {
         signalKey: 'signal:purchase-volume',

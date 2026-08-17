@@ -269,6 +269,32 @@ func TestIndependentEntityPersistenceSchemasStayAligned(t *testing.T) {
 	if legacyTables != 0 {
 		t.Fatalf("legacy profile tables = %d", legacyTables)
 	}
+
+	for name, statement := range map[string]string{
+		"blank ChainNode alias": `INSERT INTO chain_node (
+			id, name, aliases, definition, review_status
+		) VALUES ('ENT60000000-0000-4000-8000-000000000001', 'Blank Alias', ARRAY[''], 'definition', 'candidate')`,
+		"duplicate ChainNode alias": `INSERT INTO chain_node (
+			id, name, aliases, definition, review_status
+		) VALUES ('ENT60000000-0000-4000-8000-000000000002', 'Duplicate Alias', ARRAY['same','same'], 'definition', 'candidate')`,
+		"inverted ChainNode timestamps": `INSERT INTO chain_node (
+			id, name, aliases, definition, review_status, created_at, updated_at
+		) VALUES ('ENT60000000-0000-4000-8000-000000000003', 'Inverted Time', '{}', 'definition', 'candidate', now(), now() - interval '1 day')`,
+		"blank IndustryChain variable": `INSERT INTO industry_chain (
+			id, name, aliases, scope, target_output, end_use, geography, as_of_date,
+			review_status, observable_variables
+		) VALUES ('ENT60000000-0000-4000-8000-000000000004', 'Blank Variable', '{}', 'scope', 'output', 'use', 'global', CURRENT_DATE, 'candidate', ARRAY[''])`,
+		"duplicate IndustryChain variable": `INSERT INTO industry_chain (
+			id, name, aliases, scope, target_output, end_use, geography, as_of_date,
+			review_status, observable_variables
+		) VALUES ('ENT60000000-0000-4000-8000-000000000005', 'Duplicate Variable', '{}', 'scope', 'output', 'use', 'global', CURRENT_DATE, 'candidate', ARRAY['same','same'])`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := db.ExecContext(context.Background(), statement); err == nil {
+				t.Fatal("invalid independent object write succeeded")
+			}
+		})
+	}
 }
 
 func TestIndustryConceptAndEntityIdentitiesStayGloballyUnique(t *testing.T) {
