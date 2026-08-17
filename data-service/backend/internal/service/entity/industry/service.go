@@ -83,6 +83,9 @@ func industryError(err error) error {
 	}
 	var validation *industrybiz.ValidationError
 	if errors.As(err, &validation) {
+		if validation.Field == "cursor" {
+			return v1.NewPublicError(v1.StatusBadRequest, industryapi.ErrorInvalidRequest, "Industry list cursor is invalid", nil)
+		}
 		return v1.NewPublicError(v1.StatusUnprocessableEntity, industryapi.ErrorInvalid, "Industry data is invalid", map[string]any{"field": validation.Field, "message": validation.Message})
 	}
 	var reference *industrybiz.ReferenceError

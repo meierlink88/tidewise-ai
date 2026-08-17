@@ -63,14 +63,8 @@ func (s *Store) Get(ctx context.Context, id industrybiz.ID) (industrybiz.Industr
 }
 
 func (s *Store) List(ctx context.Context, query industrybiz.ListQuery) (industrybiz.ListResult, error) {
-	var afterSystem any
-	var afterPath any
-	var afterCode any
 	var afterID any
 	if query.After != nil {
-		afterSystem = query.After.ClassificationSystem
-		afterPath = query.After.HierarchyPathCodes
-		afterCode = query.After.IndustryCode
 		afterID = query.After.ID
 	}
 	rows, err := s.db.QueryContext(ctx, `
@@ -78,9 +72,10 @@ SELECT `+industryColumns+`
 FROM industry i
 WHERE $1::text IS NULL OR
       (i.classification_system, i.hierarchy_path_codes, i.industry_code, i.id) >
-      ($1::text, $2::text[], $3::text, $4::text)
+      (SELECT anchor.classification_system, anchor.hierarchy_path_codes, anchor.industry_code, anchor.id
+       FROM industry anchor WHERE anchor.id = $1)
 ORDER BY i.classification_system, i.hierarchy_path_codes, i.industry_code, i.id
-LIMIT $5`, afterSystem, afterPath, afterCode, afterID, query.PageSize+1)
+LIMIT $2`, afterID, query.PageSize+1)
 	if err != nil {
 		return industrybiz.ListResult{}, classifyReadError(err)
 	}

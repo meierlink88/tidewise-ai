@@ -70,10 +70,7 @@ type ListRequest struct {
 }
 
 type ListKey struct {
-	ClassificationSystem string
-	HierarchyPathCodes   []string
-	IndustryCode         string
-	ID                   ID
+	ID ID
 }
 
 type ListQuery struct {
@@ -269,18 +266,12 @@ func cloneString(value *ID) *ID {
 }
 
 type listCursor struct {
-	Version              int      `json:"v"`
-	ClassificationSystem string   `json:"classification_system"`
-	HierarchyPathCodes   []string `json:"hierarchy_path_codes"`
-	IndustryCode         string   `json:"industry_code"`
-	ID                   ID       `json:"id"`
+	Version int `json:"v"`
+	ID      ID  `json:"id"`
 }
 
 func encodeListCursor(input Industry) (string, error) {
-	payload, err := json.Marshal(listCursor{
-		Version: 1, ClassificationSystem: input.ClassificationSystem,
-		HierarchyPathCodes: input.HierarchyPathCodes, IndustryCode: input.IndustryCode, ID: input.ID,
-	})
+	payload, err := json.Marshal(listCursor{Version: 1, ID: input.ID})
 	if err != nil {
 		return "", err
 	}
@@ -291,7 +282,7 @@ func decodeListCursor(value string) (*ListKey, error) {
 	if value == "" {
 		return nil, nil
 	}
-	if len(value) > 2048 {
+	if len(value) > 256 {
 		return nil, &ValidationError{Field: "cursor", Message: "must be an opaque Industry list cursor"}
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(value)
@@ -299,19 +290,8 @@ func decodeListCursor(value string) (*ListKey, error) {
 		return nil, &ValidationError{Field: "cursor", Message: "must be an opaque Industry list cursor"}
 	}
 	var cursor listCursor
-	if err := json.Unmarshal(payload, &cursor); err != nil || cursor.Version != 1 ||
-		strings.TrimSpace(cursor.ClassificationSystem) == "" || strings.TrimSpace(cursor.IndustryCode) == "" ||
-		len(cursor.HierarchyPathCodes) == 0 || validateID("cursor.id", cursor.ID) != nil {
+	if err := json.Unmarshal(payload, &cursor); err != nil || cursor.Version != 1 || validateID("cursor.id", cursor.ID) != nil {
 		return nil, &ValidationError{Field: "cursor", Message: "must be an opaque Industry list cursor"}
 	}
-	for _, code := range cursor.HierarchyPathCodes {
-		if strings.TrimSpace(code) == "" {
-			return nil, &ValidationError{Field: "cursor", Message: "must be an opaque Industry list cursor"}
-		}
-	}
-	return &ListKey{
-		ClassificationSystem: cursor.ClassificationSystem,
-		HierarchyPathCodes:   append([]string(nil), cursor.HierarchyPathCodes...),
-		IndustryCode:         cursor.IndustryCode, ID: cursor.ID,
-	}, nil
+	return &ListKey{ID: cursor.ID}, nil
 }

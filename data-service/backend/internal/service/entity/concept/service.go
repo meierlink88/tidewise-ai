@@ -80,6 +80,9 @@ func conceptError(err error) error {
 	}
 	var validation *conceptbiz.ValidationError
 	if errors.As(err, &validation) {
+		if validation.Field == "cursor" {
+			return v1.NewPublicError(v1.StatusBadRequest, conceptapi.ErrorInvalidRequest, "Concept list cursor is invalid", nil)
+		}
 		return v1.NewPublicError(v1.StatusUnprocessableEntity, conceptapi.ErrorInvalid, "Concept data is invalid", map[string]any{"field": validation.Field, "message": validation.Message})
 	}
 	if errors.Is(err, conceptbiz.ErrNotFound) {

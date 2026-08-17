@@ -146,7 +146,7 @@ func TestOpenAPIContractFreezesIndustryAndConceptKeysetPagination(t *testing.T) 
 			ref := stringValue(t, object(t, parameter, path+" parameter")["$ref"], path+" parameter ref")
 			refs[ref] = true
 		}
-		for _, want := range []string{"#/components/parameters/PageSize", "#/components/parameters/Cursor"} {
+		for _, want := range []string{"#/components/parameters/PageSize", "#/components/parameters/EntityListCursor"} {
 			if !refs[want] {
 				t.Errorf("%s does not declare %s", path, want)
 			}

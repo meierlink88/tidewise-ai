@@ -13,6 +13,7 @@ const (
 	OperationUpdate = "data.v1.updateConcept"
 
 	ErrorTimeout           = "CONCEPT_TIMEOUT"
+	ErrorInvalidRequest    = "INVALID_REQUEST"
 	ErrorInvalid           = "CONCEPT_INVALID"
 	ErrorNotFound          = "CONCEPT_NOT_FOUND"
 	ErrorConflict          = "CONCEPT_CONFLICT"

@@ -56,13 +56,14 @@ func TestIndustryHTTPContractPersistsIndependentIndustryFacts(t *testing.T) {
 		t.Fatalf("Industry detail = %#v", detail)
 	}
 	firstPage := request[industryapi.IndustryList](t, handler, http.MethodGet, v1.APIPrefix+"/entities/industries?page_size=1", "", http.StatusOK)
-	if len(firstPage.Items) != 1 || firstPage.Items[0].ID != root.ID || firstPage.NextCursor == nil {
+	if len(firstPage.Items) != 1 || firstPage.Items[0].ID != root.ID || firstPage.NextCursor == nil || len(*firstPage.NextCursor) > 256 {
 		t.Fatalf("first Industry page = %#v", firstPage)
 	}
 	secondPage := request[industryapi.IndustryList](t, handler, http.MethodGet, v1.APIPrefix+"/entities/industries?page_size=1&cursor="+url.QueryEscape(*firstPage.NextCursor), "", http.StatusOK)
 	if len(secondPage.Items) != 1 || secondPage.Items[0].ID != child.ID || secondPage.NextCursor != nil {
 		t.Fatalf("second Industry page = %#v", secondPage)
 	}
+	requestError(t, handler, http.MethodGet, v1.APIPrefix+"/entities/industries?cursor=not-a-cursor", "", http.StatusBadRequest, industryapi.ErrorInvalidRequest)
 
 	requestError(t, handler, http.MethodPost, v1.APIPrefix+"/entities/industries", `{
 		"name":"重复半导体","aliases":[],"classification_system":"TIDEWISE",

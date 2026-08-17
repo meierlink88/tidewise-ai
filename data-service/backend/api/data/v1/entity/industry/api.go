@@ -13,6 +13,7 @@ const (
 	OperationUpdate = "data.v1.updateIndustry"
 
 	ErrorTimeout           = "INDUSTRY_TIMEOUT"
+	ErrorInvalidRequest    = "INVALID_REQUEST"
 	ErrorInvalid           = "INDUSTRY_INVALID"
 	ErrorReferenceInvalid  = "INDUSTRY_REFERENCE_INVALID"
 	ErrorNotFound          = "INDUSTRY_NOT_FOUND"

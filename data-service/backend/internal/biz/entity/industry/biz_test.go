@@ -45,9 +45,7 @@ func TestListUsesOpaqueStableKeysetCursor(t *testing.T) {
 	if _, err := useCase.List(context.Background(), ListRequest{PageSize: 1, Cursor: *first.NextCursor}); err != nil {
 		t.Fatal(err)
 	}
-	if store.listQuery.After == nil || store.listQuery.After.ID != item.ID ||
-		store.listQuery.After.ClassificationSystem != item.ClassificationSystem ||
-		len(store.listQuery.After.HierarchyPathCodes) != 1 || store.listQuery.After.HierarchyPathCodes[0] != item.IndustryCode {
+	if store.listQuery.After == nil || store.listQuery.After.ID != item.ID {
 		t.Fatalf("decoded Industry keyset = %#v", store.listQuery.After)
 	}
 	if _, err := useCase.List(context.Background(), ListRequest{PageSize: 1, Cursor: "not-a-cursor"}); err == nil {

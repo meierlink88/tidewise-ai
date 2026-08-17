@@ -49,18 +49,18 @@ func (s *Store) Get(ctx context.Context, id conceptbiz.ID) (conceptbiz.Concept, 
 }
 
 func (s *Store) List(ctx context.Context, query conceptbiz.ListQuery) (conceptbiz.ListResult, error) {
-	var afterName any
 	var afterID any
 	if query.After != nil {
-		afterName = query.After.Name
 		afterID = query.After.ID
 	}
 	rows, err := s.db.QueryContext(ctx, `
 SELECT `+conceptColumns+`
 FROM concept c
-WHERE $1::text IS NULL OR (c.name, c.id) > ($1::text, $2::text)
+WHERE $1::text IS NULL OR (c.name, c.id) > (
+    SELECT anchor.name, anchor.id FROM concept anchor WHERE anchor.id = $1
+)
 ORDER BY c.name, c.id
-LIMIT $3`, afterName, afterID, query.PageSize+1)
+LIMIT $2`, afterID, query.PageSize+1)
 	if err != nil {
 		return conceptbiz.ListResult{}, classifyReadError(err)
 	}

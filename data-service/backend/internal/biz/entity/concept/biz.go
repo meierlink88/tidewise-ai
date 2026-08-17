@@ -73,8 +73,7 @@ type ListRequest struct {
 }
 
 type ListKey struct {
-	Name string
-	ID   ID
+	ID ID
 }
 
 type ListQuery struct {
@@ -231,13 +230,12 @@ func cloneConcept(input Concept) Concept {
 }
 
 type listCursor struct {
-	Version int    `json:"v"`
-	Name    string `json:"name"`
-	ID      ID     `json:"id"`
+	Version int `json:"v"`
+	ID      ID  `json:"id"`
 }
 
 func encodeListCursor(input Concept) (string, error) {
-	payload, err := json.Marshal(listCursor{Version: 1, Name: input.Name, ID: input.ID})
+	payload, err := json.Marshal(listCursor{Version: 1, ID: input.ID})
 	if err != nil {
 		return "", err
 	}
@@ -248,7 +246,7 @@ func decodeListCursor(value string) (*ListKey, error) {
 	if value == "" {
 		return nil, nil
 	}
-	if len(value) > 2048 {
+	if len(value) > 256 {
 		return nil, &ValidationError{Field: "cursor", Message: "must be an opaque Concept list cursor"}
 	}
 	payload, err := base64.RawURLEncoding.DecodeString(value)
@@ -256,10 +254,10 @@ func decodeListCursor(value string) (*ListKey, error) {
 		return nil, &ValidationError{Field: "cursor", Message: "must be an opaque Concept list cursor"}
 	}
 	var cursor listCursor
-	if err := json.Unmarshal(payload, &cursor); err != nil || cursor.Version != 1 || strings.TrimSpace(cursor.Name) == "" || validateID(cursor.ID) != nil {
+	if err := json.Unmarshal(payload, &cursor); err != nil || cursor.Version != 1 || validateID(cursor.ID) != nil {
 		return nil, &ValidationError{Field: "cursor", Message: "must be an opaque Concept list cursor"}
 	}
-	return &ListKey{Name: cursor.Name, ID: cursor.ID}, nil
+	return &ListKey{ID: cursor.ID}, nil
 }
 
 func cloneUpdate(input Update) Update {

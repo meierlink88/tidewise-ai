@@ -49,13 +49,14 @@ func TestConceptHTTPContractPersistsIndependentConceptFacts(t *testing.T) {
 		"definition":"人工智能算力需求主题","review_status":"candidate"
 	}`, http.StatusCreated)
 	firstPage := request[conceptapi.ConceptList](t, handler, http.MethodGet, v1.APIPrefix+"/entities/concepts?page_size=1", "", http.StatusOK)
-	if len(firstPage.Items) != 1 || firstPage.Items[0].ID != created.ID || firstPage.NextCursor == nil {
+	if len(firstPage.Items) != 1 || firstPage.Items[0].ID != created.ID || firstPage.NextCursor == nil || len(*firstPage.NextCursor) > 256 {
 		t.Fatalf("first Concept page = %#v", firstPage)
 	}
 	secondPage := request[conceptapi.ConceptList](t, handler, http.MethodGet, v1.APIPrefix+"/entities/concepts?page_size=1&cursor="+url.QueryEscape(*firstPage.NextCursor), "", http.StatusOK)
 	if len(secondPage.Items) != 1 || secondPage.Items[0].ID != second.ID || secondPage.NextCursor != nil {
 		t.Fatalf("second Concept page = %#v", secondPage)
 	}
+	requestError(t, handler, http.MethodGet, v1.APIPrefix+"/entities/concepts?cursor=not-a-cursor", "", http.StatusBadRequest, conceptapi.ErrorInvalidRequest)
 
 	requestError(t, handler, http.MethodPost, v1.APIPrefix+"/entities/concepts", `{
 		"name":"错误概念","aliases":[],"concept_type":"sector",

@@ -39,7 +39,7 @@ func TestListUsesOpaqueStableKeysetCursor(t *testing.T) {
 	if _, err := useCase.List(context.Background(), ListRequest{PageSize: 1, Cursor: *first.NextCursor}); err != nil {
 		t.Fatal(err)
 	}
-	if store.listQuery.After == nil || store.listQuery.After.ID != item.ID || store.listQuery.After.Name != item.Name {
+	if store.listQuery.After == nil || store.listQuery.After.ID != item.ID {
 		t.Fatalf("decoded Concept keyset = %#v", store.listQuery.After)
 	}
 	if _, err := useCase.List(context.Background(), ListRequest{PageSize: 1, Cursor: "not-a-cursor"}); err == nil {

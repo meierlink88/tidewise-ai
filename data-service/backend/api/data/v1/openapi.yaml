@@ -1245,7 +1245,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/RequestID'
         - $ref: '#/components/parameters/PageSize'
-        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/EntityListCursor'
       responses:
         '200':
           description: Industry 集合
@@ -1345,7 +1345,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/RequestID'
         - $ref: '#/components/parameters/PageSize'
-        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/EntityListCursor'
       responses:
         '200':
           description: Concept 集合
@@ -1735,6 +1735,15 @@ components:
         type: string
         minLength: 1
         maxLength: 2048
+    EntityListCursor:
+      name: cursor
+      in: query
+      required: false
+      description: 上一页返回的有界 opaque entity list cursor。
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 256
     Page:
       name: page
       in: query
@@ -2191,7 +2200,7 @@ components:
         next_cursor:
           type: string
           minLength: 1
-          maxLength: 2048
+          maxLength: 256
           nullable: true
     IndustryEnvelope:
       type: object
@@ -2251,7 +2260,7 @@ components:
         next_cursor:
           type: string
           minLength: 1
-          maxLength: 2048
+          maxLength: 256
           nullable: true
     ConceptEnvelope:
       type: object
