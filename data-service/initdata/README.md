@@ -58,3 +58,22 @@ Data image with `APP_ENV=uat` and the approved database secret. Take the
 required operational backup and stop Region/Country-Region writes before
 running it. UAT publication remains a manual operation separate from the UAT
 deployment workflow.
+
+## Organization facts
+
+`organizations-v1.json` is the reviewed initialization publication from the
+`联盟组织` and `组织成员关系` sheets in `联盟国家组织.xlsx`. It contains the 78
+rows selected by `需要？=Y`, one Domain Tag assignment for each Organization,
+and 1,543 Country membership facts. The package contains natural keys and no
+database primary keys.
+
+The package intentionally leaves Organization description, legal/binding,
+strategy/impact, headquarters, founding, Region, and dominant-party fields
+empty. Its omission audit records 32 Organizations without member rows, 22
+institution-only membership rows, one duplicate Country membership, one
+explicit non-member, and five historical memberships without exact expiry
+dates. Those rows are not silently converted into Country memberships.
+
+This artifact does not add or change an initializer, runtime command, database
+transaction, schema, migration, or deployment behavior. Environment-specific
+loading remains outside this data-only package.
