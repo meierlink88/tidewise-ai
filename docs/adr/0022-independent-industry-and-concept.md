@@ -28,6 +28,9 @@ profile 表中。该双表聚合与 Tidewise AI 2.0 的独立 Object Schema 决�
 - Concept 删除 `boundary_note`，保留 Concept Type、definition 与 review status。
 - 既有 relation mapping、external identifier、redirect、Event Entity Link、Direct Impact 与
   Event Semantic binding 保留原 ID 和内容，并通过 Data object-aware 引用校验识别独立对象。
+- `entity_nodes`、`industry` 与 `concept` 共用全局唯一的 Data Object ID 命名空间。
+  对象写入、引用写入与 owner 删除使用同一 ID advisory lock；全部多态引用统一为
+  `RESTRICT`，不再为 Entity external identifier 单独保留 cascade 删除。
 - 只有拥有 profile 的 Industry/Concept shadow row 被迁移后删除；没有 profile 的 legacy
   Entity row 不推测缺失属性、不删除，也不进入新的独立对象集合。
 - API 中既有对象 ID 保持不变。需要 Entity-shaped 展示的既有读取合同以独立对象 `name`

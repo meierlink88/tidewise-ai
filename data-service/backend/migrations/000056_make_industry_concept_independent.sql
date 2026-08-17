@@ -252,7 +252,7 @@ RETURNS TEXT
 LANGUAGE SQL
 STABLE
 AS $$
-    SELECT object_type
+    SELECT CASE WHEN count(*) = 1 THEN min(object_type) END
     FROM (
         SELECT entity_type::TEXT object_type FROM entity_nodes WHERE id = reference_id
         UNION ALL
@@ -260,7 +260,6 @@ AS $$
         UNION ALL
         SELECT 'concept' FROM concept WHERE id = reference_id
     ) value
-    LIMIT 1
 $$;
 -- +goose StatementEnd
 
@@ -272,11 +271,23 @@ AS $$
 DECLARE
     column_name TEXT;
     reference_id TEXT;
+    reference_ids TEXT[] := '{}'::TEXT[];
 BEGIN
     FOREACH column_name IN ARRAY TG_ARGV LOOP
         reference_id := to_jsonb(NEW) ->> column_name;
-        IF reference_id IS NOT NULL AND data_object_type(reference_id) IS NULL THEN
-            RAISE EXCEPTION '% references unknown Data object % through %', TG_TABLE_NAME, reference_id, column_name;
+        IF reference_id IS NOT NULL THEN
+            reference_ids := array_append(reference_ids, reference_id);
+        END IF;
+    END LOOP;
+
+    FOR reference_id IN
+        SELECT DISTINCT value FROM unnest(reference_ids) value ORDER BY value
+    LOOP
+        PERFORM pg_advisory_xact_lock(hashtextextended(reference_id, 0));
+    END LOOP;
+    FOREACH reference_id IN ARRAY reference_ids LOOP
+        IF data_object_type(reference_id) IS NULL THEN
+            RAISE EXCEPTION '% references unknown or ambiguous Data object %', TG_TABLE_NAME, reference_id;
         END IF;
     END LOOP;
     RETURN NEW;
@@ -303,41 +314,6 @@ FOR EACH ROW EXECUTE FUNCTION assert_data_object_references('target_entity_id');
 CREATE TRIGGER trg_resolution_binding_object_references
 BEFORE INSERT OR UPDATE OF anchor_entity_id, target_entity_id ON event_semantic_resolution_bindings
 FOR EACH ROW EXECUTE FUNCTION assert_data_object_references('anchor_entity_id', 'target_entity_id');
-
--- The former Entity foreign keys also provided ON DELETE protection. Keep that
--- contract after the polymorphic references start resolving against three object
--- tables instead of entity_nodes alone.
--- +goose StatementBegin
-CREATE FUNCTION protect_independent_data_object_references()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM entity_edges WHERE from_entity_id = OLD.id OR to_entity_id = OLD.id)
-       OR EXISTS (SELECT 1 FROM entity_external_identifiers WHERE entity_id = OLD.id)
-       OR EXISTS (SELECT 1 FROM event_entity_links WHERE entity_id = OLD.id)
-       OR EXISTS (
-           SELECT 1 FROM entity_redirects
-           WHERE source_entity_id = OLD.id OR target_entity_id = OLD.id
-       )
-       OR EXISTS (SELECT 1 FROM direct_impact_assertions WHERE target_entity_id = OLD.id)
-       OR EXISTS (
-           SELECT 1 FROM event_semantic_resolution_bindings
-           WHERE anchor_entity_id = OLD.id OR target_entity_id = OLD.id
-       ) THEN
-        RAISE EXCEPTION 'Data object % is still referenced and cannot be deleted', OLD.id;
-    END IF;
-    RETURN OLD;
-END;
-$$;
--- +goose StatementEnd
-
-CREATE TRIGGER trg_industry_protect_object_references
-BEFORE DELETE ON industry
-FOR EACH ROW EXECUTE FUNCTION protect_independent_data_object_references();
-CREATE TRIGGER trg_concept_protect_object_references
-BEFORE DELETE ON concept
-FOR EACH ROW EXECUTE FUNCTION protect_independent_data_object_references();
 
 -- +goose StatementBegin
 CREATE OR REPLACE FUNCTION validate_entity_redirect()
@@ -414,6 +390,159 @@ WHERE entity.id IN (
     UNION ALL
     SELECT id FROM concept
 );
+
+-- Every reference write, identity write and owner delete uses the same advisory
+-- lock for an object ID. This closes the gap that a cross-table CHECK followed by
+-- a concurrent write would otherwise leave, while retaining one global identity
+-- namespace across entity_nodes, industry and concept.
+-- +goose StatementBegin
+CREATE FUNCTION assert_data_object_identity_unique()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    lock_id TEXT;
+    lock_ids TEXT[] := ARRAY[NEW.id]::TEXT[];
+BEGIN
+    IF TG_OP = 'UPDATE' AND OLD.id IS DISTINCT FROM NEW.id THEN
+        lock_ids := array_append(lock_ids, OLD.id);
+    END IF;
+    FOR lock_id IN SELECT DISTINCT value FROM unnest(lock_ids) value ORDER BY value LOOP
+        PERFORM pg_advisory_xact_lock(hashtextextended(lock_id, 0));
+    END LOOP;
+
+    IF TG_TABLE_NAME = 'entity_nodes' THEN
+        IF NEW.entity_type IN ('industry', 'concept')
+           AND (TG_OP = 'INSERT' OR OLD.entity_type IS DISTINCT FROM NEW.entity_type) THEN
+            RAISE EXCEPTION 'new Industry and Concept facts must use their independent object tables';
+        END IF;
+        IF EXISTS (SELECT 1 FROM industry WHERE id = NEW.id)
+           OR EXISTS (SELECT 1 FROM concept WHERE id = NEW.id) THEN
+            RAISE EXCEPTION 'Data object identity % already belongs to an independent object', NEW.id;
+        END IF;
+    ELSIF TG_TABLE_NAME = 'industry' THEN
+        IF EXISTS (SELECT 1 FROM entity_nodes WHERE id = NEW.id)
+           OR EXISTS (SELECT 1 FROM concept WHERE id = NEW.id) THEN
+            RAISE EXCEPTION 'Data object identity % already belongs to another object', NEW.id;
+        END IF;
+    ELSIF TG_TABLE_NAME = 'concept' THEN
+        IF EXISTS (SELECT 1 FROM entity_nodes WHERE id = NEW.id)
+           OR EXISTS (SELECT 1 FROM industry WHERE id = NEW.id) THEN
+            RAISE EXCEPTION 'Data object identity % already belongs to another object', NEW.id;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+-- +goose StatementEnd
+
+CREATE TRIGGER trg_entity_node_object_identity_unique
+BEFORE INSERT OR UPDATE OF id, entity_type ON entity_nodes
+FOR EACH ROW EXECUTE FUNCTION assert_data_object_identity_unique();
+CREATE TRIGGER trg_industry_object_identity_unique
+BEFORE INSERT OR UPDATE OF id ON industry
+FOR EACH ROW EXECUTE FUNCTION assert_data_object_identity_unique();
+CREATE TRIGGER trg_concept_object_identity_unique
+BEFORE INSERT OR UPDATE OF id ON concept
+FOR EACH ROW EXECUTE FUNCTION assert_data_object_identity_unique();
+
+-- The former Entity foreign keys also provided ON DELETE protection. The unified
+-- RESTRICT contract intentionally protects external identifiers as facts instead
+-- of retaining their old Entity-only cascade behavior.
+-- +goose StatementBegin
+CREATE FUNCTION protect_data_object_references()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    PERFORM pg_advisory_xact_lock(hashtextextended(OLD.id, 0));
+    IF EXISTS (SELECT 1 FROM entity_edges WHERE from_entity_id = OLD.id OR to_entity_id = OLD.id)
+       OR EXISTS (SELECT 1 FROM entity_external_identifiers WHERE entity_id = OLD.id)
+       OR EXISTS (SELECT 1 FROM event_entity_links WHERE entity_id = OLD.id)
+       OR EXISTS (
+           SELECT 1 FROM entity_redirects
+           WHERE source_entity_id = OLD.id OR target_entity_id = OLD.id
+       )
+       OR EXISTS (SELECT 1 FROM direct_impact_assertions WHERE target_entity_id = OLD.id)
+       OR EXISTS (
+           SELECT 1 FROM event_semantic_resolution_bindings
+           WHERE anchor_entity_id = OLD.id OR target_entity_id = OLD.id
+       ) THEN
+        RAISE EXCEPTION 'Data object % is still referenced and cannot change identity or be deleted', OLD.id;
+    END IF;
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+-- +goose StatementEnd
+
+CREATE TRIGGER trg_entity_node_protect_object_delete
+BEFORE DELETE ON entity_nodes
+FOR EACH ROW EXECUTE FUNCTION protect_data_object_references();
+CREATE TRIGGER trg_entity_node_protect_object_id_update
+BEFORE UPDATE OF id ON entity_nodes
+FOR EACH ROW EXECUTE FUNCTION protect_data_object_references();
+CREATE TRIGGER trg_industry_protect_object_delete
+BEFORE DELETE ON industry
+FOR EACH ROW EXECUTE FUNCTION protect_data_object_references();
+CREATE TRIGGER trg_industry_protect_object_id_update
+BEFORE UPDATE OF id ON industry
+FOR EACH ROW EXECUTE FUNCTION protect_data_object_references();
+CREATE TRIGGER trg_concept_protect_object_delete
+BEFORE DELETE ON concept
+FOR EACH ROW EXECUTE FUNCTION protect_data_object_references();
+CREATE TRIGGER trg_concept_protect_object_id_update
+BEFORE UPDATE OF id ON concept
+FOR EACH ROW EXECUTE FUNCTION protect_data_object_references();
+
+-- TRUNCATE bypasses row-level DELETE triggers. Its ACCESS EXCLUSIVE owner-table
+-- lock serializes against reference validation's owner lookup, so this statement
+-- guard restores the same RESTRICT behavior without a per-row race.
+-- +goose StatementBegin
+CREATE FUNCTION protect_data_object_truncate()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    has_references BOOLEAN;
+BEGIN
+    EXECUTE format($query$
+        SELECT EXISTS (
+            WITH references_to_objects(id) AS (
+                SELECT from_entity_id FROM entity_edges
+                UNION ALL SELECT to_entity_id FROM entity_edges
+                UNION ALL SELECT entity_id FROM entity_external_identifiers
+                UNION ALL SELECT entity_id FROM event_entity_links WHERE entity_id IS NOT NULL
+                UNION ALL SELECT source_entity_id FROM entity_redirects
+                UNION ALL SELECT target_entity_id FROM entity_redirects
+                UNION ALL SELECT target_entity_id FROM direct_impact_assertions
+                UNION ALL SELECT anchor_entity_id FROM event_semantic_resolution_bindings
+                UNION ALL SELECT target_entity_id FROM event_semantic_resolution_bindings
+            )
+            SELECT 1
+            FROM references_to_objects reference
+            JOIN %I owner ON owner.id = reference.id
+        )
+    $query$, TG_TABLE_NAME) INTO has_references;
+    IF has_references THEN
+        RAISE EXCEPTION 'Data object table % still owns referenced facts and cannot be truncated', TG_TABLE_NAME;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+-- +goose StatementEnd
+
+CREATE TRIGGER trg_entity_node_protect_object_truncate
+BEFORE TRUNCATE ON entity_nodes
+FOR EACH STATEMENT EXECUTE FUNCTION protect_data_object_truncate();
+CREATE TRIGGER trg_industry_protect_object_truncate
+BEFORE TRUNCATE ON industry
+FOR EACH STATEMENT EXECUTE FUNCTION protect_data_object_truncate();
+CREATE TRIGGER trg_concept_protect_object_truncate
+BEFORE TRUNCATE ON concept
+FOR EACH STATEMENT EXECUTE FUNCTION protect_data_object_truncate();
 
 -- +goose StatementBegin
 DO $$

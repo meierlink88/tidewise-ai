@@ -584,7 +584,7 @@ IndustryChain，再经已批准 Membership 到 ChainNode；路由、锚点和候
 Industry 根分区以正式 ID 加显示名称提供，Route 同时声明方向、用途和下一操作。
 Industry anchor 页只返回分区内存在正式映射且可到达 approved ChainNode 的后代叶级锚点，
 因此 L3 mapping 无需模型递归即可到达。Anchor/Candidate 均在 PostgreSQL 使用
-`canonical_name + entity_id` keyset 和 `LIMIT page_size + 1`，不得先物化全量结果再切页。
+`name + id` keyset 和 `LIMIT page_size + 1`，不得先物化全量结果再切页。
 _Avoid_: 开放式图遍历、AgentRun 直连数据库/Neo4j、全库 Entity Catalog、模型发明路径
 
 **Event Semantic Resolution Binding**:

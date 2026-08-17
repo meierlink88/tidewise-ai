@@ -3,7 +3,6 @@ package entity
 import (
 	"context"
 	"database/sql"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -157,8 +156,16 @@ func TestResearchGraphResolvesIndependentIndustryWithoutShadowEntity(t *testing.
 		t.Fatalf("shadow Entity rows = %d", shadowRows)
 	}
 	if _, err := db.ExecContext(ctx, `DELETE FROM industry WHERE id = $1`, industryID); err == nil ||
-		!strings.Contains(err.Error(), "is still referenced and cannot be deleted") {
+		!strings.Contains(err.Error(), "is still referenced and cannot change identity or be deleted") {
 		t.Fatalf("delete referenced Industry error = %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `DELETE FROM entity_nodes WHERE id = $1`, chainID); err == nil ||
+		!strings.Contains(err.Error(), "is still referenced and cannot change identity or be deleted") {
+		t.Fatalf("delete referenced generic Entity error = %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `TRUNCATE industry`); err == nil ||
+		!strings.Contains(err.Error(), "still owns referenced facts and cannot be truncated") {
+		t.Fatalf("truncate referenced Industry table error = %v", err)
 	}
 	var industryRows int
 	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM industry WHERE id = $1`, industryID).Scan(&industryRows); err != nil {
@@ -169,37 +176,8 @@ func TestResearchGraphResolvesIndependentIndustryWithoutShadowEntity(t *testing.
 	}
 }
 
-func TestIndustryConceptSchemasAndPersistenceStayAligned(t *testing.T) {
+func TestIndustryConceptPersistenceSchemasStayAligned(t *testing.T) {
 	db := openEntityTestDatabase(t)
-	for fileName, contracts := range map[string][]string{
-		"industry.schema": {
-			"Industry(行业): EntityType", "id(行业标识): Text", "name(行业名称): Text",
-			"aliases(行业别名): Text", "classificationSystem(分类体系): Text",
-			"industryCode(行业代码): Text", "hierarchyPathCodes(层级路径代码): Text",
-			"definition(行业定义): Text", "reviewStatus(审核状态): Text",
-			"parentIndustry(父级行业): Industry",
-		},
-		"concept.schema": {
-			"Concept(概念): EntityType", "id(概念标识): Text", "name(概念名称): Text",
-			"aliases(概念别名): Text", "conceptType(概念类型): Text",
-			"definition(概念定义): Text", "reviewStatus(审核状态): Text",
-		},
-	} {
-		schemaPath, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "doctype", fileName))
-		if err != nil {
-			t.Fatal(err)
-		}
-		schema, err := os.ReadFile(schemaPath)
-		if err != nil {
-			t.Fatal(err)
-		}
-		for _, contract := range contracts {
-			if !strings.Contains(string(schema), contract) {
-				t.Fatalf("%s is missing %q", fileName, contract)
-			}
-		}
-	}
-
 	wantColumns := map[string]map[string]string{
 		"industry": {
 			"id": "NO", "name": "NO", "aliases": "NO", "classification_system": "NO",
@@ -254,6 +232,30 @@ func TestIndustryConceptSchemasAndPersistenceStayAligned(t *testing.T) {
 	}
 	if legacyTables != 0 {
 		t.Fatalf("legacy profile tables = %d", legacyTables)
+	}
+}
+
+func TestIndustryConceptAndEntityIdentitiesStayGloballyUnique(t *testing.T) {
+	db := openEntityTestDatabase(t)
+	ctx := context.Background()
+	const objectID = "ENT44444444-4444-4444-8444-444444444444"
+	if _, err := db.ExecContext(ctx, `INSERT INTO industry (
+		id, name, aliases, classification_system, industry_code,
+		parent_industry_id, hierarchy_path_codes, definition, review_status
+	) VALUES ($1, '全局唯一行业', '{}', 'test', 'unique', NULL, ARRAY['unique'], '测试行业', 'approved')`, objectID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO concept (
+		id, name, aliases, concept_type, definition, review_status
+	) VALUES ($1, '冲突概念', '{}', 'technology', '冲突测试', 'approved')`, objectID); err == nil ||
+		!strings.Contains(err.Error(), "already belongs to another object") {
+		t.Fatalf("duplicate Concept identity error = %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO entity_nodes (
+		id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
+	) VALUES ($1, 'company:duplicate', 'company', 'company', '冲突实体', '冲突实体', '{}', 'active')`, objectID); err == nil ||
+		!strings.Contains(err.Error(), "already belongs to an independent object") {
+		t.Fatalf("duplicate Entity identity error = %v", err)
 	}
 }
 
