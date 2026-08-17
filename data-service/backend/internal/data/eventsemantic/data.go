@@ -402,6 +402,18 @@ func hydrateEventSemanticSubmissionContext(
 				FROM entity_nodes
 				WHERE id = ANY($1::text[])
 				`+lockClause+`
+			), selected_industries AS MATERIALIZED (
+				SELECT id, 'industry', name, name,
+				       array_to_json(aliases), 'active'
+				FROM industry
+				WHERE id = ANY($1::text[])
+				`+lockClause+`
+			), selected_concepts AS MATERIALIZED (
+				SELECT id, 'concept', name, name,
+				       array_to_json(aliases), 'active'
+				FROM concept
+				WHERE id = ANY($1::text[])
+				`+lockClause+`
 			), selected_countries AS MATERIALIZED (
 				SELECT id, 'country' object_type, name, name canonical_name,
 				       array_to_json(ARRAY[name_en]) aliases, 'active' status
@@ -422,6 +434,10 @@ func hydrateEventSemanticSubmissionContext(
 				`+lockClause+`
 			)
 			SELECT * FROM selected_entities
+			UNION ALL
+			SELECT * FROM selected_industries
+			UNION ALL
+			SELECT * FROM selected_concepts
 			UNION ALL
 			SELECT * FROM selected_countries
 			UNION ALL
@@ -914,6 +930,18 @@ func (r Store) Resolve(
 				  AND (lower(name) = lower($2) OR lower(canonical_name) = lower($2)
 				       OR EXISTS (SELECT 1 FROM unnest(aliases) alias WHERE lower(alias) = lower($2)))
 				UNION ALL
+				SELECT id, 'industry', name, name, array_to_json(aliases), 'active'
+				FROM industry
+				WHERE 'industry' = ANY($1)
+				  AND (lower(name) = lower($2)
+				       OR EXISTS (SELECT 1 FROM unnest(aliases) alias WHERE lower(alias) = lower($2)))
+				UNION ALL
+				SELECT id, 'concept', name, name, array_to_json(aliases), 'active'
+				FROM concept
+				WHERE 'concept' = ANY($1)
+				  AND (lower(name) = lower($2)
+				       OR EXISTS (SELECT 1 FROM unnest(aliases) alias WHERE lower(alias) = lower($2)))
+				UNION ALL
 				SELECT id, 'country', name, name, array_to_json(ARRAY[name_en]), 'active'
 				FROM countries
 				WHERE 'country' = ANY($1)
@@ -980,7 +1008,11 @@ func (r Store) SearchDirectTargets(
 		       array_to_json(target.aliases), target.status,
 		       edge.id, edge.from_entity_id, edge.to_entity_id, edge.relation_type, edge.status
 		FROM entity_edges edge
-		JOIN entity_nodes target ON target.id = edge.to_entity_id AND target.status = 'active'
+		JOIN (
+			SELECT id, entity_type::text, name, canonical_name, aliases, status::text FROM entity_nodes
+			UNION ALL SELECT id, 'industry', name, name, aliases, 'active' FROM industry
+			UNION ALL SELECT id, 'concept', name, name, aliases, 'active' FROM concept
+		) target ON target.id = edge.to_entity_id AND target.status = 'active'
 		WHERE edge.from_entity_id = $1 AND edge.status = 'active'
 		  AND target.entity_type = ANY($2)
 		ORDER BY edge.relation_type, target.canonical_name, target.id
@@ -1042,7 +1074,7 @@ func (r Store) ListResolutionRoutes(
 			PartitionLabels: industryLabels,
 			Direction:       "industry_to_industry_chain_to_chain_node",
 			Purpose:         "Resolve a formal ChainNode through an approved Industry anchor",
-			NextOperation:   "list_resolution_anchors", OrderingContract: "canonical_name_entity_id.v1",
+			NextOperation:   "list_resolution_anchors", OrderingContract: "name_entity_id.v1",
 		})
 	}
 	if len(conceptPartitions) > 0 {
@@ -1053,7 +1085,7 @@ func (r Store) ListResolutionRoutes(
 			PartitionLabels: conceptLabels,
 			Direction:       "concept_to_industry_chain_to_chain_node",
 			Purpose:         "Resolve a formal ChainNode through an approved Concept anchor",
-			NextOperation:   "list_resolution_anchors", OrderingContract: "canonical_name_entity_id.v1",
+			NextOperation:   "list_resolution_anchors", OrderingContract: "name_entity_id.v1",
 		})
 	}
 	return routes, nil
@@ -1061,11 +1093,10 @@ func (r Store) ListResolutionRoutes(
 
 func (r Store) eventSemanticIndustryPartitions(ctx context.Context) ([]string, map[string]string, error) {
 	rows, err := r.db.QueryContext(ctx, `
-		SELECT profile.entity_id::text, entity.name
-		FROM industry_profiles profile
-		JOIN entity_nodes entity ON entity.id = profile.entity_id AND entity.status = 'active'
-		WHERE profile.review_status = 'approved' AND profile.classification_level = 1
-		ORDER BY entity.canonical_name, profile.entity_id
+		SELECT id, name
+		FROM industry
+		WHERE review_status = 'approved' AND parent_industry_id IS NULL
+		ORDER BY name, id
 		LIMIT $1
 	`, eventSemanticsRoutePartitionLimit)
 	if err != nil {
@@ -1091,9 +1122,8 @@ func (r Store) eventSemanticIndustryPartitions(ctx context.Context) ([]string, m
 func (r Store) eventSemanticConceptPartitions(ctx context.Context) ([]string, map[string]string, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT DISTINCT concept_type
-		FROM concept_profiles profile
-		JOIN entity_nodes entity ON entity.id = profile.entity_id AND entity.status = 'active'
-		WHERE profile.review_status = 'approved'
+		FROM concept
+		WHERE review_status = 'approved'
 		ORDER BY concept_type
 		LIMIT $1
 	`, eventSemanticsRoutePartitionLimit)
@@ -1143,10 +1173,9 @@ func (r Store) ListResolutionAnchors(
 		var validPartition bool
 		if err := r.db.QueryRowContext(ctx, `
 			SELECT EXISTS (
-			  SELECT 1 FROM industry_profiles profile
-			  JOIN entity_nodes entity ON entity.id = profile.entity_id AND entity.status = 'active'
-			  WHERE profile.entity_id = $1::text AND profile.classification_level = 1
-			    AND profile.review_status = 'approved'
+			  SELECT 1 FROM industry value
+			  WHERE value.id = $1::text AND value.parent_industry_id IS NULL
+			    AND value.review_status = 'approved'
 			)
 		`, partition).Scan(&validPartition); err != nil {
 			return nil, err
@@ -1157,12 +1186,11 @@ func (r Store) ListResolutionAnchors(
 		var validParentCount int
 		if len(parentAnchorIDs) > 0 {
 			if err := r.db.QueryRowContext(ctx, `
-				SELECT count(DISTINCT child.entity_id)
-				FROM industry_profiles root
-				JOIN industry_profiles child
-				  ON child.entity_id = ANY($2::text[]) AND child.review_status = 'approved'
-				JOIN entity_nodes entity ON entity.id = child.entity_id AND entity.status = 'active'
-				WHERE root.entity_id = $1::text AND root.classification_level = 1
+				SELECT count(DISTINCT child.id)
+				FROM industry root
+				JOIN industry child
+				  ON child.id = ANY($2::text[]) AND child.review_status = 'approved'
+				WHERE root.id = $1::text AND root.parent_industry_id IS NULL
 				  AND root.review_status = 'approved'
 				  AND child.hierarchy_path_codes[1] = root.industry_code
 			`, partition, parentAnchorIDs).Scan(&validParentCount); err != nil {
@@ -1173,23 +1201,21 @@ func (r Store) ListResolutionAnchors(
 			}
 		}
 		rows, err = r.db.QueryContext(ctx, `
-			SELECT entity.id, entity.entity_type, entity.name, entity.canonical_name,
-			       array_to_json(entity.aliases), entity.status, $1::text,
-			       profile.definition,
-			       profile.classification_system || ':' || profile.classification_version || ':' ||
-			         array_to_string(profile.hierarchy_path_codes, '/')
-			FROM industry_profiles profile
-			JOIN entity_nodes entity ON entity.id = profile.entity_id AND entity.status = 'active'
-			JOIN industry_profiles root
-			  ON root.entity_id = $1::text AND root.classification_level = 1
+			SELECT value.id, 'industry', value.name, value.name,
+			       array_to_json(value.aliases), 'active', $1::text,
+			       value.definition,
+			       value.classification_system || ':' || array_to_string(value.hierarchy_path_codes, '/')
+			FROM industry value
+			JOIN industry root
+			  ON root.id = $1::text AND root.parent_industry_id IS NULL
 			 AND root.review_status = 'approved'
-			WHERE profile.review_status = 'approved'
-			  AND profile.hierarchy_path_codes[1] = root.industry_code
+			WHERE value.review_status = 'approved'
+			  AND value.hierarchy_path_codes[1] = root.industry_code
 			  AND (
 			    cardinality($2::text[]) = 0 OR EXISTS (
-			      SELECT 1 FROM industry_profiles parent
-			      WHERE parent.entity_id = ANY($2::text[]) AND parent.review_status = 'approved'
-			        AND profile.hierarchy_path_codes[1:cardinality(parent.hierarchy_path_codes)] =
+			      SELECT 1 FROM industry parent
+			      WHERE parent.id = ANY($2::text[]) AND parent.review_status = 'approved'
+			        AND value.hierarchy_path_codes[1:cardinality(parent.hierarchy_path_codes)] =
 			            parent.hierarchy_path_codes
 			    )
 			  )
@@ -1207,20 +1233,19 @@ func (r Store) ListResolutionAnchors(
 			     AND node_profile.review_status = 'approved'
 			    JOIN entity_nodes node
 			      ON node.id = membership.chain_node_entity_id AND node.status = 'active'
-			    WHERE mapping.to_entity_id = profile.entity_id
+			    WHERE mapping.to_entity_id = value.id
 			      AND mapping.relation_type = 'mapped_to_industry' AND mapping.status = 'active'
 			  )
-			  AND ($3::text IS NULL OR (entity.canonical_name, entity.id) > ($3::text, $4::text))
-			ORDER BY entity.canonical_name, entity.id
+			  AND ($3::text IS NULL OR (value.name, value.id) > ($3::text, $4::text))
+			ORDER BY value.name, value.id
 			LIMIT $5
 		`, partition, parentAnchorIDs, afterName, afterID, limit)
 	case "chain-node-via-concept.v1":
 		var validPartition bool
 		if err := r.db.QueryRowContext(ctx, `
 			SELECT EXISTS (
-			  SELECT 1 FROM concept_profiles profile
-			  JOIN entity_nodes entity ON entity.id = profile.entity_id AND entity.status = 'active'
-			  WHERE profile.concept_type = $1 AND profile.review_status = 'approved'
+			  SELECT 1 FROM concept value
+			  WHERE value.concept_type = $1 AND value.review_status = 'approved'
 			)
 		`, partition).Scan(&validPartition); err != nil {
 			return nil, err
@@ -1229,12 +1254,11 @@ func (r Store) ListResolutionAnchors(
 			return nil, &eventbiz.ValidationError{Reason: "Concept partition is unknown, inactive or unapproved"}
 		}
 		rows, err = r.db.QueryContext(ctx, `
-			SELECT entity.id, entity.entity_type, entity.name, entity.canonical_name,
-			       array_to_json(entity.aliases), entity.status, profile.concept_type,
-			       profile.definition, profile.concept_type || ':' || entity.id::text
-			FROM concept_profiles profile
-			JOIN entity_nodes entity ON entity.id = profile.entity_id AND entity.status = 'active'
-			WHERE profile.review_status = 'approved' AND profile.concept_type = $1
+			SELECT value.id, 'concept', value.name, value.name,
+			       array_to_json(value.aliases), 'active', value.concept_type,
+			       value.definition, value.concept_type || ':' || value.id
+			FROM concept value
+			WHERE value.review_status = 'approved' AND value.concept_type = $1
 			  AND EXISTS (
 			    SELECT 1
 			    FROM entity_edges mapping
@@ -1249,11 +1273,11 @@ func (r Store) ListResolutionAnchors(
 			     AND node_profile.review_status = 'approved'
 			    JOIN entity_nodes node
 			      ON node.id = membership.chain_node_entity_id AND node.status = 'active'
-			    WHERE mapping.to_entity_id = profile.entity_id
+			    WHERE mapping.to_entity_id = value.id
 			      AND mapping.relation_type = 'mapped_to_concept' AND mapping.status = 'active'
 			  )
-			  AND ($2::text IS NULL OR (entity.canonical_name, entity.id) > ($2::text, $3::text))
-			ORDER BY entity.canonical_name, entity.id
+			  AND ($2::text IS NULL OR (value.name, value.id) > ($2::text, $3::text))
+			ORDER BY value.name, value.id
 			LIMIT $4
 		`, partition, afterName, afterID, limit)
 	default:
@@ -1300,31 +1324,21 @@ func (r Store) ResolveChainNodeCandidates(
 	if err != nil {
 		return nil, err
 	}
-	relationType, anchorEntityType := "", ""
+	relationType, anchorTable := "", ""
 	switch routeID {
 	case "chain-node-via-industry.v1":
-		relationType, anchorEntityType = "mapped_to_industry", "industry"
+		relationType, anchorTable = "mapped_to_industry", "industry"
 	case "chain-node-via-concept.v1":
-		relationType, anchorEntityType = "mapped_to_concept", "concept"
+		relationType, anchorTable = "mapped_to_concept", "concept"
 	default:
 		return nil, &eventbiz.ValidationError{Reason: "route_id is not supported"}
 	}
 	var validAnchorCount int
-	if err := r.db.QueryRowContext(ctx, `
+	if err := r.db.QueryRowContext(ctx, fmt.Sprintf(`
 		SELECT count(DISTINCT anchor.id)
-		FROM entity_nodes anchor
-		WHERE anchor.id = ANY($1::text[]) AND anchor.status = 'active' AND anchor.entity_type = $2
-		  AND (
-		    ($2 = 'industry' AND EXISTS (
-		      SELECT 1 FROM industry_profiles profile
-		      WHERE profile.entity_id = anchor.id AND profile.review_status = 'approved'
-		    ))
-		    OR ($2 = 'concept' AND EXISTS (
-		      SELECT 1 FROM concept_profiles profile
-		      WHERE profile.entity_id = anchor.id AND profile.review_status = 'approved'
-		    ))
-		  )
-	`, anchorEntityIDs, anchorEntityType).Scan(&validAnchorCount); err != nil {
+		FROM %s anchor
+		WHERE anchor.id = ANY($1::text[]) AND anchor.review_status = 'approved'
+	`, anchorTable), anchorEntityIDs).Scan(&validAnchorCount); err != nil {
 		return nil, err
 	}
 	if validAnchorCount != len(anchorEntityIDs) {
@@ -1334,11 +1348,11 @@ func (r Store) ResolveChainNodeCandidates(
 	if after != nil {
 		afterName, afterID = after.CanonicalName, after.EntityID
 	}
-	rows, err := r.db.QueryContext(ctx, `
+	rows, err := r.db.QueryContext(ctx, fmt.Sprintf(`
 		WITH target_page AS (
 		  SELECT node.id AS target_id, node.canonical_name, node_profile.definition
 		  FROM entity_edges mapping
-		  JOIN entity_nodes anchor ON anchor.id = mapping.to_entity_id AND anchor.status = 'active'
+		  JOIN %s anchor ON anchor.id = mapping.to_entity_id AND anchor.review_status = 'approved'
 		  JOIN entity_nodes chain ON chain.id = mapping.from_entity_id AND chain.status = 'active'
 		  JOIN industry_chain_definitions definition
 		    ON definition.entity_id = chain.id AND definition.review_status = 'approved'
@@ -1370,7 +1384,7 @@ func (r Store) ResolveChainNodeCandidates(
 		         anchor.updated_at AS anchor_updated_at, chain.updated_at AS chain_updated_at,
 		         mapping.updated_at AS mapping_updated_at
 		  FROM entity_edges mapping
-		  JOIN entity_nodes anchor ON anchor.id = mapping.to_entity_id AND anchor.status = 'active'
+		  JOIN %s anchor ON anchor.id = mapping.to_entity_id AND anchor.review_status = 'approved'
 		  JOIN entity_nodes chain ON chain.id = mapping.from_entity_id AND chain.status = 'active'
 		  JOIN industry_chain_definitions definition
 		    ON definition.entity_id = chain.id AND definition.review_status = 'approved'
@@ -1386,6 +1400,7 @@ func (r Store) ResolveChainNodeCandidates(
 		JOIN LATERAL (
 		  SELECT array_agg(DISTINCT mapping.to_entity_id::text ORDER BY mapping.to_entity_id::text) AS anchor_ids
 		  FROM entity_edges mapping
+		  JOIN %s anchor ON anchor.id = mapping.to_entity_id AND anchor.review_status = 'approved'
 		  JOIN entity_nodes chain ON chain.id = mapping.from_entity_id AND chain.status = 'active'
 		  JOIN industry_chain_definitions definition
 		    ON definition.entity_id = chain.id AND definition.review_status = 'approved'
@@ -1397,7 +1412,7 @@ func (r Store) ResolveChainNodeCandidates(
 		    AND mapping.to_entity_id = ANY($2::text[])
 		) matched ON true
 		ORDER BY node.canonical_name, node.id
-	`, relationType, anchorEntityIDs, afterName, afterID, limit)
+	`, anchorTable, anchorTable, anchorTable), relationType, anchorEntityIDs, afterName, afterID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -1466,16 +1481,16 @@ func validateEventSemanticResolutionReceipts(
 			continue
 		}
 		receipt := *link.ResolutionReceipt
-		relationType, profileJoin := "", ""
+		relationType, anchorJoin := "", ""
 		switch receipt.RouteID {
 		case "chain-node-via-industry.v1":
 			relationType = "mapped_to_industry"
-			profileJoin = `JOIN industry_profiles anchor_profile
-			  ON anchor_profile.entity_id = anchor.id AND anchor_profile.review_status = 'approved'`
+			anchorJoin = `JOIN industry anchor
+			  ON anchor.id = mapping.to_entity_id AND anchor.review_status = 'approved'`
 		case "chain-node-via-concept.v1":
 			relationType = "mapped_to_concept"
-			profileJoin = `JOIN concept_profiles anchor_profile
-			  ON anchor_profile.entity_id = anchor.id AND anchor_profile.review_status = 'approved'`
+			anchorJoin = `JOIN concept anchor
+			  ON anchor.id = mapping.to_entity_id AND anchor.review_status = 'approved'`
 		default:
 			return &eventbiz.ContextDriftError{Reason: "selected anchor route is no longer valid"}
 		}
@@ -1489,7 +1504,6 @@ func validateEventSemanticResolutionReceipts(
 			SELECT membership.position, membership.updated_at, anchor.updated_at,
 			       chain.updated_at, mapping.updated_at, node.updated_at
 			FROM entity_edges mapping
-			JOIN entity_nodes anchor ON anchor.id = mapping.to_entity_id AND anchor.status = 'active'
 			%s
 			JOIN entity_nodes chain ON chain.id = mapping.from_entity_id AND chain.status = 'active'
 			JOIN industry_chain_definitions definition
@@ -1504,8 +1518,8 @@ func validateEventSemanticResolutionReceipts(
 			WHERE mapping.id = $1 AND mapping.relation_type = $2 AND mapping.status = 'active'
 			  AND mapping.to_entity_id = $3 AND mapping.from_entity_id = $4
 			  AND membership.chain_node_entity_id = $5
-			FOR SHARE OF mapping, anchor, anchor_profile, chain, definition, membership, node_profile, node
-		`, profileJoin), receipt.MappingRelationID, relationType, receipt.AnchorEntityID,
+			FOR SHARE OF mapping, anchor, chain, definition, membership, node_profile, node
+		`, anchorJoin), receipt.MappingRelationID, relationType, receipt.AnchorEntityID,
 			receipt.IndustryChainEntityID, receipt.TargetEntityID).Scan(
 			&position, &updatedAt, &anchorUpdatedAt, &chainUpdatedAt, &mappingUpdatedAt, &targetUpdatedAt,
 		)

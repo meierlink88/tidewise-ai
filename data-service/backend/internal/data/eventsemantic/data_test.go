@@ -69,7 +69,7 @@ func TestEventSemanticRoutePartitionsApplyStableDatabaseBudget(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mock.ExpectQuery("(?s)SELECT profile.entity_id::text, entity.name.*LIMIT \\$1").
+	mock.ExpectQuery("(?s)SELECT id, name.*FROM industry.*LIMIT \\$1").
 		WithArgs(eventSemanticsRoutePartitionLimit).
 		WillReturnRows(sqlmock.NewRows([]string{"entity_id", "name"}).
 			AddRow("ENT11111111-1111-4111-8111-111111111111", "Industry"))
@@ -85,6 +85,57 @@ func TestEventSemanticRoutePartitionsApplyStableDatabaseBudget(t *testing.T) {
 	}
 	if err := mock.ExpectationsWereMet(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestHydrateSubmissionContextResolvesIndustryAndConceptWithoutShadowEntity(t *testing.T) {
+	db := openEventPublicationTestDatabase(t)
+	if _, err := db.ExecContext(context.Background(), `
+		INSERT INTO industry (
+			id, name, aliases, classification_system, industry_code,
+			parent_industry_id, hierarchy_path_codes, definition, review_status
+		) VALUES (
+			'ENT11111111-1111-4111-8111-111111111111', '半导体', ARRAY['集成电路'],
+			'sw', '801000', NULL, ARRAY['801000'], '半导体行业', 'approved'
+		);
+		INSERT INTO concept (id, name, aliases, concept_type, definition, review_status)
+		VALUES (
+			'ENT22222222-2222-4222-8222-222222222222', '人工智能', ARRAY['AI'],
+			'technology', '跨行业技术聚合', 'approved'
+		)`); err != nil {
+		t.Fatal(err)
+	}
+
+	submission := eventbiz.Submission{EntityLinks: []eventbiz.EntityLinkCandidate{
+		{Key: "industry", Mention: "半导体", EntityID: "ENT11111111-1111-4111-8111-111111111111", ProjectedEntityType: "industry"},
+		{Key: "concept", Mention: "人工智能", EntityID: "ENT22222222-2222-4222-8222-222222222222", ProjectedEntityType: "concept"},
+	}}
+	for _, lockSelectedFacts := range []bool{false, true} {
+		result, err := hydrateEventSemanticSubmissionContext(
+			context.Background(), db, eventbiz.Context{}, submission, lockSelectedFacts,
+		)
+		if err != nil {
+			t.Fatalf("lockSelectedFacts=%v: %v", lockSelectedFacts, err)
+		}
+		if len(result.Entities) != 2 || result.Entities[0].Type != "concept" ||
+			result.Entities[0].Name != "人工智能" || result.Entities[0].Aliases[0] != "AI" ||
+			result.Entities[1].Type != "industry" || result.Entities[1].Name != "半导体" ||
+			result.Entities[1].Aliases[0] != "集成电路" {
+			t.Fatalf("lockSelectedFacts=%v entities=%#v", lockSelectedFacts, result.Entities)
+		}
+	}
+
+	var shadowRows int
+	if err := db.QueryRowContext(context.Background(), `
+		SELECT count(*) FROM entity_nodes
+		WHERE id IN (
+			'ENT11111111-1111-4111-8111-111111111111',
+			'ENT22222222-2222-4222-8222-222222222222'
+		)`).Scan(&shadowRows); err != nil {
+		t.Fatal(err)
+	}
+	if shadowRows != 0 {
+		t.Fatalf("shadow Entity rows = %d", shadowRows)
 	}
 }
 

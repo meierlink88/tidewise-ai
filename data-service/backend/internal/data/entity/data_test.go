@@ -3,7 +3,9 @@ package entity
 import (
 	"context"
 	"database/sql"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -79,6 +81,182 @@ func TestResearchGraphResolvesIndependentOrganizationMembership(t *testing.T) {
 		t.Fatalf("Organization membership relation ID = %q", graph.EntityRelations[0].EntityRelationID)
 	}
 }
+
+func TestResearchGraphResolvesIndependentIndustryWithoutShadowEntity(t *testing.T) {
+	db := openEntityTestDatabase(t)
+	ctx := context.Background()
+	const (
+		industryID = "ENT11111111-1111-4111-8111-111111111111"
+		chainID    = "ENT22222222-2222-4222-8222-222222222222"
+		relationID = "ERL33333333-3333-4333-8333-333333333333"
+	)
+	if _, err := db.ExecContext(ctx, `
+		INSERT INTO industry (
+			id, name, aliases, classification_system, industry_code,
+			parent_industry_id, hierarchy_path_codes, definition, review_status
+		) VALUES (
+			'`+industryID+`', '半导体', ARRAY['集成电路'], 'sw', '801000',
+			NULL, ARRAY['801000'], '半导体行业', 'approved'
+		);
+		INSERT INTO entity_nodes (
+			id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
+		) VALUES (
+			'`+chainID+`', 'industry-chain:semiconductor', 'industry_chain', 'industry_chain',
+			'半导体产业链', '半导体产业链', '{}', 'active'
+		);
+		INSERT INTO industry_chain_definitions (
+			entity_id, scope, target_output, end_use, observable_variables,
+			geography, as_of_date, review_status
+		) VALUES (
+			'`+chainID+`', '半导体产业链', '芯片', '计算', ARRAY['supply'],
+			'global', CURRENT_DATE, 'approved'
+		);
+		INSERT INTO entity_edges (
+			id, from_entity_id, to_entity_id, relation_type, evidence_note, status
+		) VALUES (
+			'`+relationID+`', '`+chainID+`', '`+industryID+`',
+			'mapped_to_industry', '正式行业映射', 'active'
+		)`); err != nil {
+		t.Fatal(err)
+	}
+
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	graph, err := store.SearchResearchGraph(ctx, domain.ResearchGraphQuery{
+		AnalysisAsOf:  time.Now().UTC().Add(time.Minute),
+		SeedEntityIDs: []string{industryID},
+		RelationFilters: []domain.ResearchGraphRelationFilter{{
+			RelationType: "mapped_to_industry", Direction: domain.ResearchGraphDirectionIncoming,
+		}},
+		MaxDepth: 1, NodeBudget: 10, EdgeBudget: 10,
+		FactPolicy: domain.ApprovedActiveResearchGraphFactPolicy(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(graph.Entities) != 2 || len(graph.EntityRelations) != 1 {
+		t.Fatalf("Industry Research Graph = %#v", graph)
+	}
+	foundIndustry := false
+	for _, entity := range graph.Entities {
+		if entity.EntityID == industryID {
+			foundIndustry = entity.EntityType == "industry" && entity.Name == "半导体" &&
+				len(entity.Aliases) == 1 && entity.Aliases[0] == "集成电路"
+		}
+	}
+	if !foundIndustry {
+		t.Fatalf("independent Industry missing from graph: %#v", graph.Entities)
+	}
+	var shadowRows int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM entity_nodes WHERE id = $1`, industryID).Scan(&shadowRows); err != nil {
+		t.Fatal(err)
+	}
+	if shadowRows != 0 {
+		t.Fatalf("shadow Entity rows = %d", shadowRows)
+	}
+	if _, err := db.ExecContext(ctx, `DELETE FROM industry WHERE id = $1`, industryID); err == nil ||
+		!strings.Contains(err.Error(), "is still referenced and cannot be deleted") {
+		t.Fatalf("delete referenced Industry error = %v", err)
+	}
+	var industryRows int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM industry WHERE id = $1`, industryID).Scan(&industryRows); err != nil {
+		t.Fatal(err)
+	}
+	if industryRows != 1 {
+		t.Fatalf("referenced Industry rows after rejected delete = %d", industryRows)
+	}
+}
+
+func TestIndustryConceptSchemasAndPersistenceStayAligned(t *testing.T) {
+	db := openEntityTestDatabase(t)
+	for fileName, contracts := range map[string][]string{
+		"industry.schema": {
+			"Industry(行业): EntityType", "id(行业标识): Text", "name(行业名称): Text",
+			"aliases(行业别名): Text", "classificationSystem(分类体系): Text",
+			"industryCode(行业代码): Text", "hierarchyPathCodes(层级路径代码): Text",
+			"definition(行业定义): Text", "reviewStatus(审核状态): Text",
+			"parentIndustry(父级行业): Industry",
+		},
+		"concept.schema": {
+			"Concept(概念): EntityType", "id(概念标识): Text", "name(概念名称): Text",
+			"aliases(概念别名): Text", "conceptType(概念类型): Text",
+			"definition(概念定义): Text", "reviewStatus(审核状态): Text",
+		},
+	} {
+		schemaPath, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "doctype", fileName))
+		if err != nil {
+			t.Fatal(err)
+		}
+		schema, err := os.ReadFile(schemaPath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, contract := range contracts {
+			if !strings.Contains(string(schema), contract) {
+				t.Fatalf("%s is missing %q", fileName, contract)
+			}
+		}
+	}
+
+	wantColumns := map[string]map[string]string{
+		"industry": {
+			"id": "NO", "name": "NO", "aliases": "NO", "classification_system": "NO",
+			"industry_code": "NO", "parent_industry_id": "YES", "hierarchy_path_codes": "NO",
+			"definition": "NO", "review_status": "NO", "created_at": "NO", "updated_at": "NO",
+		},
+		"concept": {
+			"id": "NO", "name": "NO", "aliases": "NO", "concept_type": "NO",
+			"definition": "NO", "review_status": "NO", "created_at": "NO", "updated_at": "NO",
+		},
+	}
+	for tableName, want := range wantColumns {
+		rows, err := db.QueryContext(context.Background(), `
+			SELECT column_name, is_nullable
+			FROM information_schema.columns
+			WHERE table_schema = current_schema() AND table_name = $1`, tableName)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := make(map[string]string)
+		for rows.Next() {
+			var name, nullable string
+			if err := rows.Scan(&name, &nullable); err != nil {
+				rows.Close()
+				t.Fatal(err)
+			}
+			got[name] = nullable
+		}
+		if err := rows.Close(); err != nil {
+			t.Fatal(err)
+		}
+		if len(got) != len(want) {
+			t.Fatalf("%s columns = %#v, want %#v", tableName, got, want)
+		}
+		for name, nullable := range want {
+			if got[name] != nullable {
+				t.Fatalf("%s.%s nullable = %q, want %q", tableName, name, got[name], nullable)
+			}
+		}
+		for _, retired := range []string{"entity_id", "classification_version", "classification_level", "boundary_note"} {
+			if _, ok := got[retired]; ok {
+				t.Fatalf("%s retains retired column %s", tableName, retired)
+			}
+		}
+	}
+
+	var legacyTables int
+	if err := db.QueryRowContext(context.Background(), `
+		SELECT count(*) FROM pg_class
+		WHERE oid IN (to_regclass('industry_profiles'), to_regclass('concept_profiles'))`).Scan(&legacyTables); err != nil {
+		t.Fatal(err)
+	}
+	if legacyTables != 0 {
+		t.Fatalf("legacy profile tables = %d", legacyTables)
+	}
+}
+
 func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 	db := openEntityTestDatabase(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

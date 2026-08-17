@@ -35,7 +35,7 @@ func TestRunResetDryRunOnlyReadsCounts(t *testing.T) {
 	}
 	defer db.Close()
 	before := publicationCounts{ResearchThemes: 1, ResearchThemeImpacts: 3, ResearchReasoningTrees: 2}
-	protected := protectedCounts{Events: 2, EntityNodes: 5, ChainNodeProfiles: 3}
+	protected := protectedCounts{Events: 2, EntityNodes: 5, Industries: 7, Concepts: 4, ChainNodeProfiles: 3}
 	expectPreflight(mock, before, protected)
 	mock.ExpectCommit()
 
@@ -57,7 +57,7 @@ func TestRunResetDeletesOnlyResearchPublicationsAndRestoresTriggers(t *testing.T
 		t.Fatal(err)
 	}
 	defer db.Close()
-	protected := protectedCounts{Events: 2, EntityNodes: 5, ChainNodeProfiles: 3, IndustryChainDefinitions: 1}
+	protected := protectedCounts{Events: 2, EntityNodes: 5, Industries: 7, Concepts: 4, ChainNodeProfiles: 3, IndustryChainDefinitions: 1}
 	expectPreflight(mock, publicationCounts{ResearchThemes: 1, ResearchReasoningTrees: 2}, protected)
 	mock.ExpectExec(regexp.QuoteMeta(disablePublicationTriggersSQL)).WillReturnResult(sqlmock.NewResult(0, 0))
 	mock.ExpectExec(regexp.QuoteMeta(deletePublicationsSQL)).WillReturnResult(sqlmock.NewResult(0, 9))
@@ -138,11 +138,11 @@ func expectPublicationCounts(mock sqlmock.Sqlmock, counts publicationCounts) {
 func expectProtectedCounts(mock sqlmock.Sqlmock, counts protectedCounts) {
 	mock.ExpectQuery(regexp.QuoteMeta(protectedCountsSQL)).WillReturnRows(
 		sqlmock.NewRows([]string{
-			"events", "entity_nodes", "chain_node_profiles", "industry_chain_definitions",
+			"events", "entity_nodes", "industry", "concept", "chain_node_profiles", "industry_chain_definitions",
 			"industry_chain_graph_edges", "index_profiles", "event_tag_defs",
 			"event_tag_maps", "raw_documents",
 		}).AddRow(
-			counts.Events, counts.EntityNodes, counts.ChainNodeProfiles,
+			counts.Events, counts.EntityNodes, counts.Industries, counts.Concepts, counts.ChainNodeProfiles,
 			counts.IndustryChainDefinitions, counts.IndustryChainGraphEdges,
 			counts.IndexProfiles, counts.EventTagDefs, counts.EventTagMaps, counts.RawDocuments,
 		),

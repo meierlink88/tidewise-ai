@@ -50,6 +50,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000055_simplify_atomic_evidence_semantics.sql`：零兼容删除历史 Atomic Evidence，删除顺序、
   双层 Source 与 Expression 身份列，并以独立 `summary` 和严格单层 5W1H `semantic JSONB`
   建立当前 Evidence 合同；Raw Evidence 保留。
+- `000056_make_industry_concept_independent.sql`：将 profiled Industry/Concept 无损迁移为独立
+  `industry`/`concept` 事实表，回填名称和别名，移除退役分类/边界字段，保留全部 object-aware
+  引用后删除对应 shadow Entity；无 profile 的 legacy Entity 不变。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -112,6 +115,15 @@ Function `id`；回滚必须同时恢复切换前快照和上一版应用，不�
 迁移后确认 ledger 为 `55`、`evidences` 为空、`raw_evidences` 保持原数量、Evidence 表只保留
 正式身份、Raw Evidence 外键、`is_split`、`summary`、`semantic` 和 `created_at`，随后一起发布
 新 Data Service 与新发布方。旧应用和旧 payload 不兼容；回滚必须同时恢复切换前快照与
+上一版应用，不运行 down migration。
+
+`000056` 是 Issue #258 授权的零兼容协调切换。操作员必须停止 Data 及上游写入者、确认
+PostgreSQL 恢复点，并用候选 Data 镜像执行 check-only；只有确认 `000056` 是唯一 pending
+migration 后才执行 `-apply`。执行后必须确认 ledger 为 `56`，`industry_profiles` 与
+`concept_profiles` 不存在，独立 `industry`/`concept` 的 ID、name、aliases、保留字段、时间戳
+及映射/外部标识/Redirect/Event Semantic 引用与迁移前完全一致，并确认已迁移对象在
+`entity_nodes` 中没有 shadow row。无法表达的旧状态、去除分类版本后的重复代码或未支持的
+typed Entity 引用会在删除前 fail closed。旧应用不兼容新表；回滚必须同时恢复迁移前快照和
 上一版应用，不运行 down migration。
 
 Data 不再提供 `source-seed` 或维护 `source_catalogs`，既有 Event Publication 仍只通过

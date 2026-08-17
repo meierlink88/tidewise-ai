@@ -156,6 +156,18 @@ _Avoid_: Neo4j/Qdrant 健康代理、读取业务事实、把健康检查结果�
 围绕明确目标产出与终端用途，由多个独立经济节点通过投入、组成、技术支撑或依赖形成的有边界、有方向研究子图。
 _Avoid_: Industry、Concept、Chain Node 列表
 
+**行业（Industry）**:
+受控分类体系中的独立行业事实，直接拥有稳定 ID、名称、别名、分类体系、行业代码、父级、
+层级路径、定义和审核状态。Industry 不使用 `entity_nodes` 或 profile 表；根行业没有父级，
+分类深度由层级路径推导，不保存分类版本、分类层级或边界备注。
+_Avoid_: Industry Profile、Industry shadow Entity、持久化 classification level、从名称推测层级
+
+**概念（Concept）**:
+跨行业表达技术、政策、应用、需求、商业模式、企业/产品生态、事件叙事或市场主题的独立
+事实，直接拥有稳定 ID、名称、别名、Concept Type、定义和审核状态。Concept 不使用
+`entity_nodes` 或 profile 表，也不保存边界备注。
+_Avoid_: Concept Profile、Concept shadow Entity、把 Concept 当作 Industry 分类层级
+
 **产业链节点归属（Industry Chain Node Membership）**:
 一个 Chain Node 被纳入某一特定 Industry Chain 的上下文关系；上中下游阶段和位置属于该关系，不是节点的全局属性。
 _Avoid_: 节点全局上下游标签、节点之间的图谱边
@@ -569,7 +581,7 @@ _Avoid_: Data 恢复 PG→Qdrant writer、Qdrant 作为事实源、Data 代理�
 Data Service 暴露的版本化、受控 Entity Resolution 路径。ChainNode MVP 只允许从正式且
 已批准的 Industry 或 Concept 锚点，经 `mapped_to_industry | mapped_to_concept` 到
 IndustryChain，再经已批准 Membership 到 ChainNode；路由、锚点和候选均稳定排序并分页。
-Industry 一级分区以正式 UUID 加显示名称提供，Route 同时声明方向、用途和下一操作。
+Industry 根分区以正式 ID 加显示名称提供，Route 同时声明方向、用途和下一操作。
 Industry anchor 页只返回分区内存在正式映射且可到达 approved ChainNode 的后代叶级锚点，
 因此 L3 mapping 无需模型递归即可到达。Anchor/Candidate 均在 PostgreSQL 使用
 `canonical_name + entity_id` keyset 和 `LIMIT page_size + 1`，不得先物化全量结果再切页。

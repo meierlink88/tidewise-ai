@@ -17,6 +17,16 @@ import (
 
 const researchGraphCTE = `
 	WITH RECURSIVE
+	all_entities(id, entity_type, name, canonical_name, aliases, status, created_at, updated_at) AS MATERIALIZED (
+	    SELECT id, entity_type::text, name, canonical_name, aliases, status::text, created_at, updated_at
+	    FROM entity_nodes
+	    UNION ALL
+	    SELECT id, 'industry', name, name, aliases, 'active', created_at, updated_at
+	    FROM industry
+	    UNION ALL
+	    SELECT id, 'concept', name, name, aliases, 'active', created_at, updated_at
+	    FROM concept
+	),
 	requested_seeds(entity_id) AS (
 	    SELECT unnest($2::text[])
 	),
@@ -37,12 +47,12 @@ const researchGraphCTE = `
 	        ''::text segment_kind,
 	        NULL::text omitted_step_note
 	    FROM entity_edges relation
-	    JOIN entity_nodes from_entity
+	    JOIN all_entities from_entity
 	      ON from_entity.id = relation.from_entity_id
 	     AND from_entity.status = $9
 	     AND from_entity.created_at <= $1
 	     AND from_entity.updated_at <= $1
-	    JOIN entity_nodes to_entity
+	    JOIN all_entities to_entity
 	      ON to_entity.id = relation.to_entity_id
 	     AND to_entity.status = $9
 	     AND to_entity.created_at <= $1
@@ -84,12 +94,12 @@ const researchGraphCTE = `
 	     AND to_membership.status = $13
 	     AND to_membership.created_at <= $1
 	     AND to_membership.updated_at <= $1
-	    JOIN entity_nodes from_entity
+	    JOIN all_entities from_entity
 	      ON from_entity.id = edge.from_chain_node_entity_id
 	     AND from_entity.status = $9
 	     AND from_entity.created_at <= $1
 	     AND from_entity.updated_at <= $1
-	    JOIN entity_nodes to_entity
+	    JOIN all_entities to_entity
 	      ON to_entity.id = edge.to_chain_node_entity_id
 	     AND to_entity.status = $9
 	     AND to_entity.created_at <= $1
@@ -207,7 +217,7 @@ const researchGraphCTE = `
 	),
 	selected_entities AS MATERIALIZED (
 	    SELECT entity.*
-	    FROM entity_nodes entity
+	    FROM all_entities entity
 	    JOIN selected_entity_ids selected ON selected.entity_id = entity.id
 	    WHERE entity.status = $9
 	      AND entity.created_at <= $1
@@ -805,9 +815,14 @@ func (s *Store) ResearchReferenceClosure(
 	var historicalGap bool
 	if err := s.db.QueryRowContext(ctx, `WITH
 requested_entities(id) AS (SELECT unnest($2::text[])),
-requested_relations(id) AS (SELECT unnest($3::text[]))
+requested_relations(id) AS (SELECT unnest($3::text[])),
+all_entities(id, created_at, updated_at) AS (
+    SELECT id, created_at, updated_at FROM entity_nodes
+    UNION ALL SELECT id, created_at, updated_at FROM industry
+    UNION ALL SELECT id, created_at, updated_at FROM concept
+)
 SELECT EXISTS (
-    SELECT 1 FROM entity_nodes entity JOIN requested_entities requested ON requested.id = entity.id
+    SELECT 1 FROM all_entities entity JOIN requested_entities requested ON requested.id = entity.id
     WHERE entity.created_at <= $1 AND entity.updated_at > $1
 ) OR EXISTS (
     SELECT 1 FROM entity_edges relation JOIN requested_relations requested ON requested.id = relation.id
@@ -826,6 +841,12 @@ SELECT EXISTS (
 requested_entities(id) AS (SELECT unnest($2::text[])),
 requested_relations(id) AS (SELECT unnest($3::text[])),
 requested_relation_types(relation_type) AS (SELECT unnest($4::text[])),
+all_entities(id, entity_type, name, canonical_name, aliases, status, created_at, updated_at) AS (
+    SELECT id, entity_type::text, name, canonical_name, aliases, status::text, created_at, updated_at
+    FROM entity_nodes
+    UNION ALL SELECT id, 'industry', name, name, aliases, 'active', created_at, updated_at FROM industry
+    UNION ALL SELECT id, 'concept', name, name, aliases, 'active', created_at, updated_at FROM concept
+),
 selected_relations AS MATERIALIZED (
     SELECT relation.* FROM entity_edges relation
     JOIN requested_relations requested ON requested.id = relation.id
@@ -837,7 +858,7 @@ selected_entity_ids(id) AS MATERIALIZED (
     UNION SELECT to_entity_id FROM selected_relations
 ),
 selected_entities AS MATERIALIZED (
-    SELECT entity.* FROM entity_nodes entity
+    SELECT entity.* FROM all_entities entity
     JOIN selected_entity_ids selected ON selected.id = entity.id
     WHERE entity.status = 'active' AND entity.created_at <= $1 AND entity.updated_at <= $1
 ),
@@ -1006,10 +1027,15 @@ func (s *Store) validateResearchGraphReferences(
 ) error {
 	var seedCount, relationTypeCount, chainCount int
 	if err := s.db.QueryRowContext(ctx, `
+		WITH all_entities(id, status, created_at, updated_at) AS MATERIALIZED (
+		    SELECT id, status::text, created_at, updated_at FROM entity_nodes
+		    UNION ALL SELECT id, 'active', created_at, updated_at FROM industry
+		    UNION ALL SELECT id, 'active', created_at, updated_at FROM concept
+		)
 		SELECT
 		    (
 		        SELECT count(*)
-		        FROM entity_nodes entity
+		        FROM all_entities entity
 		        WHERE entity.id = ANY($2::text[])
 		          AND entity.status = $5
 		          AND entity.created_at <= $1
@@ -1021,12 +1047,12 @@ func (s *Store) validateResearchGraphReferences(
 		        WHERE EXISTS (
 		            SELECT 1
 		            FROM entity_edges relation
-		            JOIN entity_nodes from_entity
+		            JOIN all_entities from_entity
 		              ON from_entity.id = relation.from_entity_id
 		             AND from_entity.status = $5
 		             AND from_entity.created_at <= $1
 		             AND from_entity.updated_at <= $1
-		            JOIN entity_nodes to_entity
+		            JOIN all_entities to_entity
 		              ON to_entity.id = relation.to_entity_id
 		             AND to_entity.status = $5
 		             AND to_entity.created_at <= $1
@@ -1057,12 +1083,12 @@ func (s *Store) validateResearchGraphReferences(
 		             AND to_membership.status = $9
 		             AND to_membership.created_at <= $1
 		             AND to_membership.updated_at <= $1
-		            JOIN entity_nodes from_entity
+		            JOIN all_entities from_entity
 		              ON from_entity.id = edge.from_chain_node_entity_id
 		             AND from_entity.status = $5
 		             AND from_entity.created_at <= $1
 		             AND from_entity.updated_at <= $1
-		            JOIN entity_nodes to_entity
+		            JOIN all_entities to_entity
 		              ON to_entity.id = edge.to_chain_node_entity_id
 		             AND to_entity.status = $5
 		             AND to_entity.created_at <= $1

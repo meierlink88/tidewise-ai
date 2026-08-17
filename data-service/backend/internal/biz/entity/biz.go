@@ -353,56 +353,57 @@ const (
 	IndustryChainSegmentCompressedCandidate IndustryChainSegmentKind = "compressed_candidate"
 )
 
-type IndustryProfile struct {
-	EntityID               string
-	ClassificationSystem   string
-	ClassificationVersion  string
-	IndustryCode           string
-	ClassificationLevel    int
-	ParentIndustryEntityID string
-	HierarchyPathCodes     []string
-	Definition             string
-	BoundaryNote           string
-	ReviewStatus           ReviewStatus
+type Industry struct {
+	ID                   string
+	Name                 string
+	Aliases              []string
+	ClassificationSystem string
+	IndustryCode         string
+	ParentIndustryID     string
+	HierarchyPathCodes   []string
+	Definition           string
+	ReviewStatus         ReviewStatus
 }
 
-func (p IndustryProfile) Validate() error {
-	if strings.TrimSpace(p.EntityID) == "" ||
-		strings.TrimSpace(p.ClassificationSystem) == "" ||
-		strings.TrimSpace(p.ClassificationVersion) == "" ||
-		strings.TrimSpace(p.IndustryCode) == "" ||
-		strings.TrimSpace(p.Definition) == "" ||
-		strings.TrimSpace(p.BoundaryNote) == "" {
-		return fmt.Errorf("industry identity, classification, definition, and boundary are required")
+func (industry Industry) Validate() error {
+	if !IsEntityID(industry.ID) ||
+		strings.TrimSpace(industry.Name) == "" ||
+		strings.TrimSpace(industry.ClassificationSystem) == "" ||
+		strings.TrimSpace(industry.IndustryCode) == "" ||
+		strings.TrimSpace(industry.Definition) == "" {
+		return fmt.Errorf("industry identity, name, classification, and definition are required")
 	}
-	if p.ClassificationLevel < 1 || p.ClassificationLevel > 3 {
-		return fmt.Errorf("industry classification level must be 1, 2, or 3")
+	if err := validateStringSet("industry aliases", industry.Aliases); err != nil {
+		return err
 	}
-	if (p.ClassificationLevel == 1) != (strings.TrimSpace(p.ParentIndustryEntityID) == "") {
-		return fmt.Errorf("industry parent must be absent only at level 1")
+	if industry.ParentIndustryID != "" && (!IsEntityID(industry.ParentIndustryID) || industry.ParentIndustryID == industry.ID) {
+		return fmt.Errorf("industry parent must be a distinct Industry identity")
 	}
-	if len(p.HierarchyPathCodes) != p.ClassificationLevel {
-		return fmt.Errorf("industry hierarchy path length must equal classification level")
+	if len(industry.HierarchyPathCodes) == 0 ||
+		(industry.ParentIndustryID == "" && len(industry.HierarchyPathCodes) != 1) ||
+		(industry.ParentIndustryID != "" && len(industry.HierarchyPathCodes) < 2) {
+		return fmt.Errorf("industry hierarchy path must identify a root or extend a parent")
 	}
-	for _, code := range p.HierarchyPathCodes {
+	for _, code := range industry.HierarchyPathCodes {
 		if strings.TrimSpace(code) == "" {
 			return fmt.Errorf("industry hierarchy path contains a blank code")
 		}
 	}
-	if p.HierarchyPathCodes[len(p.HierarchyPathCodes)-1] != p.IndustryCode {
+	if industry.HierarchyPathCodes[len(industry.HierarchyPathCodes)-1] != industry.IndustryCode {
 		return fmt.Errorf("industry hierarchy path must end with industry code")
 	}
-	if !validMasterDataReviewStatus(p.ReviewStatus) {
-		return fmt.Errorf("unsupported industry review status %q", p.ReviewStatus)
+	if !validMasterDataReviewStatus(industry.ReviewStatus) {
+		return fmt.Errorf("unsupported industry review status %q", industry.ReviewStatus)
 	}
 	return nil
 }
 
-type ConceptProfile struct {
-	EntityID     string
+type Concept struct {
+	ID           string
+	Name         string
+	Aliases      []string
 	ConceptType  ConceptType
 	Definition   string
-	BoundaryNote string
 	ReviewStatus ReviewStatus
 }
 
@@ -514,12 +515,15 @@ func (e IndustryChainGraphEdge) Validate() error {
 	return nil
 }
 
-func (p ConceptProfile) Validate() error {
-	if strings.TrimSpace(p.EntityID) == "" || strings.TrimSpace(p.Definition) == "" || strings.TrimSpace(p.BoundaryNote) == "" {
-		return fmt.Errorf("concept identity, definition, and boundary are required")
+func (concept Concept) Validate() error {
+	if !IsEntityID(concept.ID) || strings.TrimSpace(concept.Name) == "" || strings.TrimSpace(concept.Definition) == "" {
+		return fmt.Errorf("concept identity, name, and definition are required")
+	}
+	if err := validateStringSet("concept aliases", concept.Aliases); err != nil {
+		return err
 	}
 	if !validStatus(
-		p.ConceptType,
+		concept.ConceptType,
 		ConceptTypeTechnology,
 		ConceptTypePolicy,
 		ConceptTypeApplication,
@@ -530,10 +534,10 @@ func (p ConceptProfile) Validate() error {
 		ConceptTypeEventNarrative,
 		ConceptTypeMarketTheme,
 	) {
-		return fmt.Errorf("unsupported concept type %q", p.ConceptType)
+		return fmt.Errorf("unsupported concept type %q", concept.ConceptType)
 	}
-	if !validMasterDataReviewStatus(p.ReviewStatus) {
-		return fmt.Errorf("unsupported concept review status %q", p.ReviewStatus)
+	if !validMasterDataReviewStatus(concept.ReviewStatus) {
+		return fmt.Errorf("unsupported concept review status %q", concept.ReviewStatus)
 	}
 	return nil
 }
@@ -786,8 +790,6 @@ func validEntityType(value EntityType) bool {
 		EntityTypeMarket,
 		EntityTypeIndex,
 		EntityTypeSector,
-		EntityTypeIndustry,
-		EntityTypeConcept,
 		EntityTypeIndustryChain,
 		EntityTypeChainNode,
 		EntityTypeTheme,

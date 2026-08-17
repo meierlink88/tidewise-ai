@@ -193,16 +193,7 @@ INSERT INTO entity_nodes (
    ARRAY['Synthetic Wafer'], 'active'),
   ('23000000-0000-4000-8000-000000000001', 'industry-chain:synthetic-wafer',
    'industry_chain', 'industry_chain', 'Synthetic Wafer Chain', 'Synthetic Wafer Chain',
-   ARRAY['Synthetic Chain'], 'active'),
-  ('23000000-0000-4000-8000-000000000002', 'industry:synthetic-semiconductor',
-   'industry', 'industry', 'Synthetic Semiconductor Manufacturing',
-   'Synthetic Semiconductor Manufacturing', ARRAY['Synthetic Manufacturing'], 'active'),
-  ('23000000-0000-4000-8000-000000000004', 'industry:synthetic-semiconductor-components',
-   'industry', 'industry', 'Synthetic Semiconductor Components',
-   'Synthetic Semiconductor Components', ARRAY['Synthetic Components'], 'active'),
-  ('23000000-0000-4000-8000-000000000005', 'industry:synthetic-wafer-capacity',
-   'industry', 'industry', 'Synthetic Wafer Capacity',
-   'Synthetic Wafer Capacity', ARRAY['Synthetic Capacity'], 'active')
+   ARRAY['Synthetic Chain'], 'active')
 `); err != nil {
 		return err
 	}
@@ -210,19 +201,21 @@ INSERT INTO entity_nodes (
 INSERT INTO chain_node_profiles (entity_id, definition, boundary_note, review_status) VALUES
   ('22000000-0000-4000-8000-000000000001', 'Synthetic wafer producer', NULL, 'approved'),
   ('22000000-0000-4000-8000-000000000002', 'Synthetic wafer product supply', NULL, 'approved');
-INSERT INTO industry_profiles (
-  entity_id, classification_system, classification_version, industry_code,
-  classification_level, parent_industry_entity_id, hierarchy_path_codes,
-  definition, boundary_note, review_status
+INSERT INTO industry (
+  id, name, aliases, classification_system, industry_code,
+  parent_industry_id, hierarchy_path_codes, definition, review_status
 ) VALUES
-  ('23000000-0000-4000-8000-000000000002', 'synthetic', 'v1', 'S01', 1,
-   NULL, ARRAY['S01'], 'Synthetic semiconductor manufacturing', 'Synthetic fixture only', 'approved'),
-  ('23000000-0000-4000-8000-000000000004', 'synthetic', 'v1', 'S0101', 2,
+  ('23000000-0000-4000-8000-000000000002', 'Synthetic Semiconductor Manufacturing',
+   ARRAY['Synthetic Manufacturing'], 'synthetic', 'S01', NULL, ARRAY['S01'],
+   'Synthetic semiconductor manufacturing', 'approved'),
+  ('23000000-0000-4000-8000-000000000004', 'Synthetic Semiconductor Components',
+   ARRAY['Synthetic Components'], 'synthetic', 'S0101',
    '23000000-0000-4000-8000-000000000002', ARRAY['S01','S0101'],
-   'Synthetic semiconductor components', 'Synthetic fixture only', 'approved'),
-  ('23000000-0000-4000-8000-000000000005', 'synthetic', 'v1', 'S010101', 3,
+   'Synthetic semiconductor components', 'approved'),
+  ('23000000-0000-4000-8000-000000000005', 'Synthetic Wafer Capacity',
+   ARRAY['Synthetic Capacity'], 'synthetic', 'S010101',
    '23000000-0000-4000-8000-000000000004', ARRAY['S01','S0101','S010101'],
-   'Synthetic wafer capacity', 'Synthetic fixture only', 'approved');
+   'Synthetic wafer capacity', 'approved');
 INSERT INTO industry_chain_definitions (
   entity_id, scope, target_output, end_use, geography, as_of_date, review_status,
   observable_variables

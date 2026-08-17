@@ -99,7 +99,7 @@ func prepareV1ResetSchema(t *testing.T, db *sql.DB) {
 		{"research_reasoning_tree_node_signals", "trg_research_reasoning_tree_node_signals_immutable"},
 	}
 	protectedTables := []string{
-		"events", "entity_nodes", "chain_node_profiles", "industry_chain_definitions",
+		"events", "entity_nodes", "industry", "concept", "chain_node_profiles", "industry_chain_definitions",
 		"industry_chain_graph_edges", "index_profiles", "event_tag_defs",
 		"event_tag_maps", "raw_documents",
 	}

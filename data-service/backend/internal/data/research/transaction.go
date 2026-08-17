@@ -245,13 +245,18 @@ func (t *publicationTransaction) entityRelations(
 	ctx context.Context,
 	ids []string,
 ) (map[string]researchbiz.EntityRelationFact, error) {
-	rows, err := t.tx.QueryContext(ctx, `SELECT edge.id::text,
+	rows, err := t.tx.QueryContext(ctx, `WITH data_objects(id, status, created_at, updated_at) AS (
+    SELECT id, status::text, created_at, updated_at FROM entity_nodes
+    UNION ALL SELECT id, 'active', created_at, updated_at FROM industry
+    UNION ALL SELECT id, 'active', created_at, updated_at FROM concept
+)
+SELECT edge.id::text,
        edge.from_entity_id::text, edge.to_entity_id::text,
        GREATEST(edge.created_at, source.created_at, target.created_at),
        GREATEST(edge.updated_at, source.updated_at, target.updated_at)
 FROM entity_edges edge
-JOIN entity_nodes source ON source.id = edge.from_entity_id AND source.status = 'active'
-JOIN entity_nodes target ON target.id = edge.to_entity_id AND target.status = 'active'
+JOIN data_objects source ON source.id = edge.from_entity_id AND source.status = 'active'
+JOIN data_objects target ON target.id = edge.to_entity_id AND target.status = 'active'
 WHERE edge.id = ANY($1::text[]) AND edge.status = 'active'`, ids)
 	if err != nil {
 		return nil, err
