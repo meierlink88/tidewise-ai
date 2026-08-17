@@ -24,6 +24,8 @@ tags:
   - name: Research Theme import
   - name: Research Reason Tree import
   - name: Country
+  - name: Industry
+  - name: Concept
   - name: Organization
 
 paths:
@@ -1230,6 +1232,200 @@ paths:
         '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/ServiceUnavailable'}
 
+  /api/data/v1/entities/industries:
+    get:
+      tags: [Industry]
+      operationId: listIndustries
+      x-client-drift-anchor: data.v1.listIndustries
+      x-required-service-scope: data.industries.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 查询 Industry
+      description: 按分类体系、层级路径、行业代码和 ID 稳定升序返回 Industry。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          description: Industry 集合
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/IndustryListEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+    post:
+      tags: [Industry]
+      operationId: createIndustry
+      x-client-drift-anchor: data.v1.createIndustry
+      x-required-service-scope: data.industries.write
+      x-retry-policy: caller-resolves-industry-classification-conflict
+      x-timeout-budget-ms: 5000
+      summary: 创建 Industry
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/IndustryCreateRequest'}}}
+      responses:
+        '201':
+          description: Industry 已创建
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/IndustryEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
+  /api/data/v1/entities/industries/{industry_id}:
+    parameters:
+      - $ref: '#/components/parameters/IndustryID'
+    get:
+      tags: [Industry]
+      operationId: getIndustry
+      x-client-drift-anchor: data.v1.getIndustry
+      x-required-service-scope: data.industries.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 获取 Industry 详情
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          description: Industry
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/IndustryEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+    put:
+      tags: [Industry]
+      operationId: updateIndustry
+      x-client-drift-anchor: data.v1.updateIndustry
+      x-required-service-scope: data.industries.write
+      x-retry-policy: idempotent-put
+      x-timeout-budget-ms: 5000
+      summary: 更新 Industry 可变事实
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/IndustryUpdateRequest'}}}
+      responses:
+        '200':
+          description: 更新后的 Industry
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/IndustryEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
+  /api/data/v1/entities/concepts:
+    get:
+      tags: [Concept]
+      operationId: listConcepts
+      x-client-drift-anchor: data.v1.listConcepts
+      x-required-service-scope: data.concepts.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 查询 Concept
+      description: 按名称和 ID 稳定升序返回 Concept。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          description: Concept 集合
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/ConceptListEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+    post:
+      tags: [Concept]
+      operationId: createConcept
+      x-client-drift-anchor: data.v1.createConcept
+      x-required-service-scope: data.concepts.write
+      x-retry-policy: caller-resolves-concept-conflict
+      x-timeout-budget-ms: 5000
+      summary: 创建 Concept
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/ConceptWriteRequest'}}}
+      responses:
+        '201':
+          description: Concept 已创建
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/ConceptEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
+  /api/data/v1/entities/concepts/{concept_id}:
+    parameters:
+      - $ref: '#/components/parameters/ConceptID'
+    get:
+      tags: [Concept]
+      operationId: getConcept
+      x-client-drift-anchor: data.v1.getConcept
+      x-required-service-scope: data.concepts.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      summary: 获取 Concept 详情
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          description: Concept
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/ConceptEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+    put:
+      tags: [Concept]
+      operationId: updateConcept
+      x-client-drift-anchor: data.v1.updateConcept
+      x-required-service-scope: data.concepts.write
+      x-retry-policy: idempotent-put
+      x-timeout-budget-ms: 5000
+      summary: 更新 Concept 可变事实
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/ConceptWriteRequest'}}}
+      responses:
+        '200':
+          description: 更新后的 Concept
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/ConceptEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
   /api/data/v1/entities/organizations:
     get:
       tags: [Organization]
@@ -1569,6 +1765,18 @@ components:
       schema:
         type: string
         pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    IndustryID:
+      name: industry_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/EntityID'
+    ConceptID:
+      name: concept_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/EntityID'
     RegionIDQuery:
       name: region_id
       in: query
@@ -1902,6 +2110,147 @@ components:
           additionalProperties: false
           required: [deleted]
           properties: {deleted: {type: boolean, enum: [true]}}
+    IndustryCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [name, aliases, classification_system, industry_code, hierarchy_path_codes, definition, review_status]
+      properties:
+        name: {type: string, minLength: 1}
+        aliases:
+          type: array
+          uniqueItems: true
+          items: {type: string, minLength: 1}
+        classification_system: {type: string, minLength: 1}
+        industry_code: {type: string, minLength: 1}
+        parent_industry_id:
+          allOf: [{$ref: '#/components/schemas/EntityID'}]
+          nullable: true
+        hierarchy_path_codes:
+          type: array
+          minItems: 1
+          items: {type: string, minLength: 1}
+        definition: {type: string, minLength: 1}
+        review_status: {type: string, enum: [candidate, approved]}
+    IndustryUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [name, aliases, hierarchy_path_codes, definition, review_status]
+      properties:
+        name: {type: string, minLength: 1}
+        aliases:
+          type: array
+          uniqueItems: true
+          items: {type: string, minLength: 1}
+        parent_industry_id:
+          allOf: [{$ref: '#/components/schemas/EntityID'}]
+          nullable: true
+        hierarchy_path_codes:
+          type: array
+          minItems: 1
+          items: {type: string, minLength: 1}
+        definition: {type: string, minLength: 1}
+        review_status: {type: string, enum: [candidate, approved]}
+    Industry:
+      type: object
+      additionalProperties: false
+      required: [id, name, aliases, classification_system, industry_code, parent_industry_id, hierarchy_path_codes, definition, review_status, created_at, updated_at]
+      properties:
+        id: {$ref: '#/components/schemas/EntityID'}
+        name: {type: string, minLength: 1}
+        aliases:
+          type: array
+          uniqueItems: true
+          items: {type: string, minLength: 1}
+        classification_system: {type: string, minLength: 1}
+        industry_code: {type: string, minLength: 1}
+        parent_industry_id:
+          allOf: [{$ref: '#/components/schemas/EntityID'}]
+          nullable: true
+        hierarchy_path_codes:
+          type: array
+          minItems: 1
+          items: {type: string, minLength: 1}
+        definition: {type: string, minLength: 1}
+        review_status: {type: string, enum: [candidate, approved]}
+        created_at: {$ref: '#/components/schemas/UTCTimestamp'}
+        updated_at: {$ref: '#/components/schemas/UTCTimestamp'}
+    IndustryList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/Industry'}
+    IndustryEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string, minLength: 1, maxLength: 128}
+        result: {$ref: '#/components/schemas/Industry'}
+    IndustryListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string, minLength: 1, maxLength: 128}
+        result: {$ref: '#/components/schemas/IndustryList'}
+    ConceptWriteRequest:
+      type: object
+      additionalProperties: false
+      required: [name, aliases, concept_type, definition, review_status]
+      properties:
+        name: {type: string, minLength: 1}
+        aliases:
+          type: array
+          uniqueItems: true
+          items: {type: string, minLength: 1}
+        concept_type:
+          type: string
+          enum: [technology, policy, application, demand, business_model, company_ecosystem, product_ecosystem, event_narrative, market_theme]
+        definition: {type: string, minLength: 1}
+        review_status: {type: string, enum: [candidate, approved]}
+    Concept:
+      type: object
+      additionalProperties: false
+      required: [id, name, aliases, concept_type, definition, review_status, created_at, updated_at]
+      properties:
+        id: {$ref: '#/components/schemas/EntityID'}
+        name: {type: string, minLength: 1}
+        aliases:
+          type: array
+          uniqueItems: true
+          items: {type: string, minLength: 1}
+        concept_type:
+          type: string
+          enum: [technology, policy, application, demand, business_model, company_ecosystem, product_ecosystem, event_narrative, market_theme]
+        definition: {type: string, minLength: 1}
+        review_status: {type: string, enum: [candidate, approved]}
+        created_at: {$ref: '#/components/schemas/UTCTimestamp'}
+        updated_at: {$ref: '#/components/schemas/UTCTimestamp'}
+    ConceptList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/Concept'}
+    ConceptEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string, minLength: 1, maxLength: 128}
+        result: {$ref: '#/components/schemas/Concept'}
+    ConceptListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string, minLength: 1, maxLength: 128}
+        result: {$ref: '#/components/schemas/ConceptList'}
     CountryCreateRequest:
       type: object
       additionalProperties: false

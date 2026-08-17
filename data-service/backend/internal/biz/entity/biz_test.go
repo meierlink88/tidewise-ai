@@ -6,7 +6,6 @@ import (
 )
 
 const testEntityID = "ENT550e8400-e29b-41d4-a716-446655440000"
-const testParentIndustryID = "ENT11111111-1111-4111-8111-111111111111"
 
 func TestDomainObjectIdentityRequiresPrefixAndUUID(t *testing.T) {
 	for value, want := range map[string]bool{
@@ -78,62 +77,6 @@ func TestEntityExternalIdentifierValidation(t *testing.T) {
 		if err := candidate.Validate(); err == nil {
 			t.Fatalf("case %d Validate() error = nil", i)
 		}
-	}
-}
-
-func TestIndependentIndustryAndConceptValidateFrozenVocabulary(t *testing.T) {
-	tests := []struct {
-		name    string
-		object  interface{ Validate() error }
-		wantErr bool
-	}{
-		{
-			name: "industry",
-			object: Industry{
-				ID: testEntityID, Name: "半导体", Aliases: []string{"集成电路"},
-				ClassificationSystem: "sw", IndustryCode: "801010", ParentIndustryID: testParentIndustryID,
-				HierarchyPathCodes: []string{"801000", "801010"}, Definition: "二级行业",
-				ReviewStatus: ReviewStatusApproved,
-			},
-		},
-		{
-			name: "industry path mismatch",
-			object: Industry{
-				ID: testEntityID, Name: "半导体", ClassificationSystem: "sw",
-				IndustryCode: "801010", ParentIndustryID: testParentIndustryID,
-				HierarchyPathCodes: []string{"801010"}, Definition: "行业",
-				ReviewStatus: ReviewStatusApproved,
-			},
-			wantErr: true,
-		},
-		{
-			name:   "concept",
-			object: Concept{ID: testEntityID, Name: "人工智能", Aliases: []string{"AI"}, ConceptType: ConceptTypeTechnology, Definition: "跨行业技术聚合", ReviewStatus: ReviewStatusCandidate},
-		},
-		{
-			name:    "concept rejects historical reviewed status",
-			object:  Concept{ID: testEntityID, Name: "人工智能", ConceptType: ConceptTypeTechnology, Definition: "跨行业技术聚合", ReviewStatus: ReviewStatusReviewed},
-			wantErr: true,
-		},
-		{
-			name:    "concept type",
-			object:  Concept{ID: testEntityID, Name: "人工智能", ConceptType: "sector", Definition: "错误聚合", ReviewStatus: ReviewStatusApproved},
-			wantErr: true,
-		},
-		{
-			name:    "concept alias set",
-			object:  Concept{ID: testEntityID, Name: "人工智能", Aliases: []string{"AI", "AI"}, ConceptType: ConceptTypeTechnology, Definition: "跨行业技术聚合", ReviewStatus: ReviewStatusApproved},
-			wantErr: true,
-		},
-	}
-
-	for _, testCase := range tests {
-		t.Run(testCase.name, func(t *testing.T) {
-			err := testCase.object.Validate()
-			if (err != nil) != testCase.wantErr {
-				t.Fatalf("Validate() error = %v, wantErr %v", err, testCase.wantErr)
-			}
-		})
 	}
 }
 

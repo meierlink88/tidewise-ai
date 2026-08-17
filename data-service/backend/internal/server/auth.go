@@ -11,7 +11,9 @@ import (
 	"github.com/go-kratos/kratos/v3/transport"
 
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
+	conceptapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/concept"
 	countryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/country"
+	industryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/industry"
 	organizationapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/organization"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/eventsemantic"
@@ -35,6 +37,10 @@ const (
 	ScopeEventSemanticsWrite  = "data.event-semantics.write"
 	ScopeCountryRead          = "data.countries.read"
 	ScopeCountryWrite         = "data.countries.write"
+	ScopeIndustryRead         = "data.industries.read"
+	ScopeIndustryWrite        = "data.industries.write"
+	ScopeConceptRead          = "data.concepts.read"
+	ScopeConceptWrite         = "data.concepts.write"
 	ScopeOrganizationRead     = "data.organizations.read"
 	ScopeOrganizationWrite    = "data.organizations.write"
 	operationHealth           = "data.health"
@@ -146,6 +152,14 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeCountryRead, true
 	case countryapi.OperationCreate, countryapi.OperationUpdate, countryapi.OperationReplaceRegions:
 		return ScopeCountryWrite, true
+	case industryapi.OperationList, industryapi.OperationGet:
+		return ScopeIndustryRead, true
+	case industryapi.OperationCreate, industryapi.OperationUpdate:
+		return ScopeIndustryWrite, true
+	case conceptapi.OperationList, conceptapi.OperationGet:
+		return ScopeConceptRead, true
+	case conceptapi.OperationCreate, conceptapi.OperationUpdate:
+		return ScopeConceptWrite, true
 	case organizationapi.OperationList, organizationapi.OperationGet, organizationapi.OperationGetCatalog, organizationapi.OperationListMembers:
 		return ScopeOrganizationRead, true
 	case organizationapi.OperationCreate, organizationapi.OperationUpdate, organizationapi.OperationReplaceDomainTags,

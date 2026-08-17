@@ -1,0 +1,209 @@
+package industry
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
+
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
+)
+
+var (
+	ErrNotFound    = errors.New("Industry not found")
+	ErrConflict    = errors.New("Industry conflict")
+	ErrPersistence = errors.New("Industry persistence failed")
+)
+
+type ValidationError struct {
+	Field   string
+	Message string
+}
+
+func (e *ValidationError) Error() string { return e.Field + ": " + e.Message }
+
+type ReferenceError struct {
+	Field   string
+	Message string
+}
+
+func (e *ReferenceError) Error() string { return e.Field + ": " + e.Message }
+
+type ReviewStatus string
+
+const (
+	ReviewStatusCandidate ReviewStatus = "candidate"
+	ReviewStatusApproved  ReviewStatus = "approved"
+)
+
+type Industry struct {
+	ID                   string
+	Name                 string
+	Aliases              []string
+	ClassificationSystem string
+	IndustryCode         string
+	ParentIndustryID     *string
+	HierarchyPathCodes   []string
+	Definition           string
+	ReviewStatus         ReviewStatus
+	CreatedAt            time.Time
+	UpdatedAt            time.Time
+}
+
+type Update struct {
+	Name               string
+	Aliases            []string
+	ParentIndustryID   *string
+	HierarchyPathCodes []string
+	Definition         string
+	ReviewStatus       ReviewStatus
+}
+
+type Repository interface {
+	Create(context.Context, Industry) (Industry, error)
+	Get(context.Context, string) (Industry, error)
+	List(context.Context) ([]Industry, error)
+	Update(context.Context, string, Update) (Industry, error)
+}
+
+type UseCase struct{ repository Repository }
+
+func NewUseCase(repository Repository) (*UseCase, error) {
+	if repository == nil {
+		return nil, errors.New("Industry repository is required")
+	}
+	return &UseCase{repository: repository}, nil
+}
+
+func (s *UseCase) Create(ctx context.Context, input Industry) (Industry, error) {
+	if strings.TrimSpace(input.ID) != "" {
+		return Industry{}, &ValidationError{Field: "id", Message: "must be omitted because Data generates Industry IDs"}
+	}
+	if err := validateIndustry(input); err != nil {
+		return Industry{}, err
+	}
+	id, err := coreid.New(coreid.Entity)
+	if err != nil {
+		return Industry{}, fmt.Errorf("generate Industry ID: %w", err)
+	}
+	input.ID = id
+	return s.repository.Create(ctx, cloneIndustry(input))
+}
+
+func (s *UseCase) Get(ctx context.Context, id string) (Industry, error) {
+	if err := validateID("industry_id", id); err != nil {
+		return Industry{}, err
+	}
+	return s.repository.Get(ctx, id)
+}
+
+func (s *UseCase) List(ctx context.Context) ([]Industry, error) {
+	return s.repository.List(ctx)
+}
+
+func (s *UseCase) Update(ctx context.Context, id string, input Update) (Industry, error) {
+	if err := validateID("industry_id", id); err != nil {
+		return Industry{}, err
+	}
+	if err := validateMutable(input.Name, input.Aliases, input.ParentIndustryID, input.HierarchyPathCodes, input.Definition, input.ReviewStatus, id); err != nil {
+		return Industry{}, err
+	}
+	return s.repository.Update(ctx, id, cloneUpdate(input))
+}
+
+func IsID(value string) bool { return coreid.Is(value, coreid.Entity) }
+
+func validateIndustry(input Industry) error {
+	if strings.TrimSpace(input.ClassificationSystem) == "" {
+		return &ValidationError{Field: "classification_system", Message: "must be nonblank"}
+	}
+	if strings.TrimSpace(input.IndustryCode) == "" {
+		return &ValidationError{Field: "industry_code", Message: "must be nonblank"}
+	}
+	if err := validateMutable(input.Name, input.Aliases, input.ParentIndustryID, input.HierarchyPathCodes, input.Definition, input.ReviewStatus, ""); err != nil {
+		return err
+	}
+	if input.HierarchyPathCodes[len(input.HierarchyPathCodes)-1] != input.IndustryCode {
+		return &ValidationError{Field: "hierarchy_path_codes", Message: "must end with industry_code"}
+	}
+	return nil
+}
+
+func validateMutable(name string, aliases []string, parentIndustryID *string, path []string, definition string, reviewStatus ReviewStatus, currentID string) error {
+	if strings.TrimSpace(name) == "" {
+		return &ValidationError{Field: "name", Message: "must be nonblank"}
+	}
+	if err := validateStringSet("aliases", aliases); err != nil {
+		return err
+	}
+	if parentIndustryID != nil {
+		if !IsID(*parentIndustryID) {
+			return &ValidationError{Field: "parent_industry_id", Message: "must be a stable Industry ID when present"}
+		}
+		if currentID != "" && *parentIndustryID == currentID {
+			return &ValidationError{Field: "parent_industry_id", Message: "must identify a different Industry"}
+		}
+	}
+	if len(path) == 0 || (parentIndustryID == nil && len(path) != 1) || (parentIndustryID != nil && len(path) < 2) {
+		return &ValidationError{Field: "hierarchy_path_codes", Message: "must identify a root or extend a parent path"}
+	}
+	for index, code := range path {
+		if strings.TrimSpace(code) == "" {
+			return &ValidationError{Field: fmt.Sprintf("hierarchy_path_codes[%d]", index), Message: "must be nonblank"}
+		}
+	}
+	if strings.TrimSpace(definition) == "" {
+		return &ValidationError{Field: "definition", Message: "must be nonblank"}
+	}
+	if reviewStatus != ReviewStatusCandidate && reviewStatus != ReviewStatusApproved {
+		return &ValidationError{Field: "review_status", Message: "must be candidate or approved"}
+	}
+	return nil
+}
+
+func validateID(field, value string) error {
+	if !IsID(value) {
+		return &ValidationError{Field: field, Message: "must equal ENT immediately followed by a canonical lowercase UUID"}
+	}
+	return nil
+}
+
+func validateStringSet(field string, values []string) error {
+	if values == nil {
+		return &ValidationError{Field: field, Message: "must be provided as an array"}
+	}
+	seen := make(map[string]struct{}, len(values))
+	for index, value := range values {
+		if strings.TrimSpace(value) == "" {
+			return &ValidationError{Field: fmt.Sprintf("%s[%d]", field, index), Message: "must be nonblank"}
+		}
+		if _, duplicate := seen[value]; duplicate {
+			return &ValidationError{Field: fmt.Sprintf("%s[%d]", field, index), Message: "must be unique"}
+		}
+		seen[value] = struct{}{}
+	}
+	return nil
+}
+
+func cloneIndustry(input Industry) Industry {
+	input.Aliases = append([]string(nil), input.Aliases...)
+	input.ParentIndustryID = cloneString(input.ParentIndustryID)
+	input.HierarchyPathCodes = append([]string(nil), input.HierarchyPathCodes...)
+	return input
+}
+
+func cloneUpdate(input Update) Update {
+	input.Aliases = append([]string(nil), input.Aliases...)
+	input.ParentIndustryID = cloneString(input.ParentIndustryID)
+	input.HierarchyPathCodes = append([]string(nil), input.HierarchyPathCodes...)
+	return input
+}
+
+func cloneString(value *string) *string {
+	if value == nil {
+		return nil
+	}
+	copy := *value
+	return &copy
+}

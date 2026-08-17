@@ -50,6 +50,10 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/entities/countries":                                             {method: "get", operationID: "listCountries", driftAnchor: "data.v1.listCountries", scope: "data.countries.read"},
 		namespace + "/entities/countries/{country_id}":                                {method: "get", operationID: "getCountry", driftAnchor: "data.v1.getCountry", scope: "data.countries.read"},
 		namespace + "/entities/countries/{country_id}/regions":                        {method: "put", operationID: "replaceCountryRegions", driftAnchor: "data.v1.replaceCountryRegions", scope: "data.countries.write"},
+		namespace + "/entities/industries":                                            {method: "get", operationID: "listIndustries", driftAnchor: "data.v1.listIndustries", scope: "data.industries.read"},
+		namespace + "/entities/industries/{industry_id}":                              {method: "get", operationID: "getIndustry", driftAnchor: "data.v1.getIndustry", scope: "data.industries.read"},
+		namespace + "/entities/concepts":                                              {method: "get", operationID: "listConcepts", driftAnchor: "data.v1.listConcepts", scope: "data.concepts.read"},
+		namespace + "/entities/concepts/{concept_id}":                                 {method: "get", operationID: "getConcept", driftAnchor: "data.v1.getConcept", scope: "data.concepts.read"},
 		namespace + "/entities/organizations":                                         {method: "get", operationID: "listOrganizations", driftAnchor: "data.v1.listOrganizations", scope: "data.organizations.read"},
 		namespace + "/entities/organizations/{organization_id}":                       {method: "get", operationID: "getOrganization", driftAnchor: "data.v1.getOrganization", scope: "data.organizations.read"},
 		namespace + "/entities/organizations/{organization_id}/domain-tags":           {method: "put", operationID: "replaceOrganizationDomainTags", driftAnchor: "data.v1.replaceOrganizationDomainTags", scope: "data.organizations.write"},
@@ -60,6 +64,10 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 	additionalMethods := map[string]map[string]struct{}{
 		namespace + "/entities/countries":                                           {"post": {}},
 		namespace + "/entities/countries/{country_id}":                              {"put": {}},
+		namespace + "/entities/industries":                                          {"post": {}},
+		namespace + "/entities/industries/{industry_id}":                            {"put": {}},
+		namespace + "/entities/concepts":                                            {"post": {}},
+		namespace + "/entities/concepts/{concept_id}":                               {"put": {}},
 		namespace + "/entities/organizations":                                       {"post": {}},
 		namespace + "/entities/organizations/{organization_id}":                     {"put": {}},
 		namespace + "/entities/organizations/{organization_id}/members":             {"post": {}},
@@ -109,10 +117,31 @@ func TestOpenAPIContractFreezesCountryWriteOperations(t *testing.T) {
 	}
 }
 
+func TestOpenAPIContractFreezesIndustryAndConceptWriteOperations(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	for path, expected := range map[string]operationContract{
+		namespace + "/entities/industries":               {method: "post", operationID: "createIndustry", driftAnchor: "data.v1.createIndustry", scope: "data.industries.write"},
+		namespace + "/entities/industries/{industry_id}": {method: "put", operationID: "updateIndustry", driftAnchor: "data.v1.updateIndustry", scope: "data.industries.write"},
+		namespace + "/entities/concepts":                 {method: "post", operationID: "createConcept", driftAnchor: "data.v1.createConcept", scope: "data.concepts.write"},
+		namespace + "/entities/concepts/{concept_id}":    {method: "put", operationID: "updateConcept", driftAnchor: "data.v1.updateConcept", scope: "data.concepts.write"},
+	} {
+		operation := object(t, object(t, paths[path], path)[expected.method], expected.method+" "+path)
+		assertString(t, operation, "operationId", expected.operationID)
+		assertString(t, operation, "x-client-drift-anchor", expected.driftAnchor)
+		assertString(t, operation, "x-required-service-scope", expected.scope)
+		assertInt(t, operation, "x-timeout-budget-ms", 5000)
+	}
+	assertRequired(t, schema(t, document, "Industry"), "id", "name", "aliases", "classification_system", "industry_code", "parent_industry_id", "hierarchy_path_codes", "definition", "review_status", "created_at", "updated_at")
+	assertRequired(t, schema(t, document, "Concept"), "id", "name", "aliases", "concept_type", "definition", "review_status", "created_at", "updated_at")
+}
+
 func TestOpenAPICreateContractsDoNotAcceptSystemOwnedPrimaryKeys(t *testing.T) {
 	document := loadContract(t)
 	for schemaName, forbidden := range map[string][]string{
 		"CountryCreateRequest":                    {"id", "country_id"},
+		"IndustryCreateRequest":                   {"id", "industry_id"},
+		"ConceptWriteRequest":                     {"id", "concept_id"},
 		"CountryRegionsReplaceRequest":            {"id", "country_region_link_id"},
 		"OrganizationCreateRequest":               {"id", "organization_id"},
 		"OrganizationMemberWriteRequest":          {"id", "member_id"},
