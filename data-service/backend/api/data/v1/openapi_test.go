@@ -136,6 +136,32 @@ func TestOpenAPIContractFreezesIndustryAndConceptWriteOperations(t *testing.T) {
 	assertRequired(t, schema(t, document, "Concept"), "id", "name", "aliases", "concept_type", "definition", "review_status", "created_at", "updated_at")
 }
 
+func TestOpenAPIContractFreezesIndustryAndConceptKeysetPagination(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	for _, path := range []string{namespace + "/entities/industries", namespace + "/entities/concepts"} {
+		operation := object(t, object(t, paths[path], path)["get"], "get "+path)
+		refs := make(map[string]bool)
+		for _, parameter := range array(t, operation["parameters"], path+" parameters") {
+			ref := stringValue(t, object(t, parameter, path+" parameter")["$ref"], path+" parameter ref")
+			refs[ref] = true
+		}
+		for _, want := range []string{"#/components/parameters/PageSize", "#/components/parameters/Cursor"} {
+			if !refs[want] {
+				t.Errorf("%s does not declare %s", path, want)
+			}
+		}
+	}
+	for _, schemaName := range []string{"IndustryList", "ConceptList"} {
+		page := schema(t, document, schemaName)
+		assertRequired(t, page, "items", "next_cursor")
+		nextCursor := object(t, object(t, page["properties"], schemaName+" properties")["next_cursor"], schemaName+" next_cursor")
+		if nullable, ok := nextCursor["nullable"].(bool); !ok || !nullable {
+			t.Errorf("%s next_cursor must be nullable", schemaName)
+		}
+	}
+}
+
 func TestOpenAPICreateContractsDoNotAcceptSystemOwnedPrimaryKeys(t *testing.T) {
 	document := loadContract(t)
 	for schemaName, forbidden := range map[string][]string{

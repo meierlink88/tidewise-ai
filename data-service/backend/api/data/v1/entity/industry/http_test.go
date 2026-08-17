@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"testing"
 
@@ -54,9 +55,13 @@ func TestIndustryHTTPContractPersistsIndependentIndustryFacts(t *testing.T) {
 	if detail.Name != updated.Name || detail.IndustryCode != child.IndustryCode {
 		t.Fatalf("Industry detail = %#v", detail)
 	}
-	list := request[industryapi.IndustryList](t, handler, http.MethodGet, v1.APIPrefix+"/entities/industries", "", http.StatusOK)
-	if len(list.Items) != 2 || list.Items[0].ID != root.ID || list.Items[1].ID != child.ID {
-		t.Fatalf("Industry list = %#v", list.Items)
+	firstPage := request[industryapi.IndustryList](t, handler, http.MethodGet, v1.APIPrefix+"/entities/industries?page_size=1", "", http.StatusOK)
+	if len(firstPage.Items) != 1 || firstPage.Items[0].ID != root.ID || firstPage.NextCursor == nil {
+		t.Fatalf("first Industry page = %#v", firstPage)
+	}
+	secondPage := request[industryapi.IndustryList](t, handler, http.MethodGet, v1.APIPrefix+"/entities/industries?page_size=1&cursor="+url.QueryEscape(*firstPage.NextCursor), "", http.StatusOK)
+	if len(secondPage.Items) != 1 || secondPage.Items[0].ID != child.ID || secondPage.NextCursor != nil {
+		t.Fatalf("second Industry page = %#v", secondPage)
 	}
 
 	requestError(t, handler, http.MethodPost, v1.APIPrefix+"/entities/industries", `{

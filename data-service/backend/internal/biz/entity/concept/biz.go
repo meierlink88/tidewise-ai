@@ -2,6 +2,8 @@ package concept
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -65,10 +67,35 @@ type Update struct {
 	ReviewStatus ReviewStatus
 }
 
+type ListRequest struct {
+	PageSize int
+	Cursor   string
+}
+
+type ListKey struct {
+	Name string
+	ID   ID
+}
+
+type ListQuery struct {
+	PageSize int
+	After    *ListKey
+}
+
+type ListResult struct {
+	Items   []Concept
+	HasMore bool
+}
+
+type Page struct {
+	Items      []Concept
+	NextCursor *string
+}
+
 type Repository interface {
 	Create(context.Context, Concept) (Concept, error)
 	Get(context.Context, ID) (Concept, error)
-	List(context.Context) ([]Concept, error)
+	List(context.Context, ListQuery) (ListResult, error)
 	Update(context.Context, ID, Update) (Concept, error)
 }
 
@@ -103,8 +130,27 @@ func (s *UseCase) Get(ctx context.Context, id ID) (Concept, error) {
 	return s.repository.Get(ctx, id)
 }
 
-func (s *UseCase) List(ctx context.Context) ([]Concept, error) {
-	return s.repository.List(ctx)
+func (s *UseCase) List(ctx context.Context, request ListRequest) (Page, error) {
+	if request.PageSize < 1 || request.PageSize > 100 {
+		return Page{}, &ValidationError{Field: "page_size", Message: "must be between 1 and 100"}
+	}
+	after, err := decodeListCursor(request.Cursor)
+	if err != nil {
+		return Page{}, err
+	}
+	result, err := s.repository.List(ctx, ListQuery{PageSize: request.PageSize, After: after})
+	if err != nil {
+		return Page{}, err
+	}
+	page := Page{Items: result.Items}
+	if result.HasMore && len(result.Items) > 0 {
+		next, err := encodeListCursor(result.Items[len(result.Items)-1])
+		if err != nil {
+			return Page{}, fmt.Errorf("encode Concept list cursor: %w", err)
+		}
+		page.NextCursor = &next
+	}
+	return page, nil
 }
 
 func (s *UseCase) Update(ctx context.Context, id ID, input Update) (Concept, error) {
@@ -182,6 +228,38 @@ func validateStringSet(field string, values []string) error {
 func cloneConcept(input Concept) Concept {
 	input.Aliases = append([]string(nil), input.Aliases...)
 	return input
+}
+
+type listCursor struct {
+	Version int    `json:"v"`
+	Name    string `json:"name"`
+	ID      ID     `json:"id"`
+}
+
+func encodeListCursor(input Concept) (string, error) {
+	payload, err := json.Marshal(listCursor{Version: 1, Name: input.Name, ID: input.ID})
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(payload), nil
+}
+
+func decodeListCursor(value string) (*ListKey, error) {
+	if value == "" {
+		return nil, nil
+	}
+	if len(value) > 2048 {
+		return nil, &ValidationError{Field: "cursor", Message: "must be an opaque Concept list cursor"}
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(value)
+	if err != nil {
+		return nil, &ValidationError{Field: "cursor", Message: "must be an opaque Concept list cursor"}
+	}
+	var cursor listCursor
+	if err := json.Unmarshal(payload, &cursor); err != nil || cursor.Version != 1 || strings.TrimSpace(cursor.Name) == "" || validateID(cursor.ID) != nil {
+		return nil, &ValidationError{Field: "cursor", Message: "must be an opaque Concept list cursor"}
+	}
+	return &ListKey{Name: cursor.Name, ID: cursor.ID}, nil
 }
 
 func cloneUpdate(input Update) Update {

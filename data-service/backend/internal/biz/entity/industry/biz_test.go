@@ -10,7 +10,11 @@ const (
 	testParentIndustryID = "ENT22222222-2222-4222-8222-222222222222"
 )
 
-type repositoryStub struct{ created Industry }
+type repositoryStub struct {
+	created    Industry
+	listQuery  ListQuery
+	listResult ListResult
+}
 
 func (s *repositoryStub) Create(_ context.Context, input Industry) (Industry, error) {
 	s.created = input
@@ -18,7 +22,38 @@ func (s *repositoryStub) Create(_ context.Context, input Industry) (Industry, er
 }
 
 func (*repositoryStub) Get(context.Context, ID) (Industry, error) { return Industry{}, nil }
-func (*repositoryStub) List(context.Context) ([]Industry, error)  { return nil, nil }
+func (s *repositoryStub) List(_ context.Context, query ListQuery) (ListResult, error) {
+	s.listQuery = query
+	return s.listResult, nil
+}
+
+func TestListUsesOpaqueStableKeysetCursor(t *testing.T) {
+	item := Industry{
+		ID: ID(testIndustryID), ClassificationSystem: "TIDEWISE", IndustryCode: "SEMICONDUCTOR",
+		HierarchyPathCodes: []string{"SEMICONDUCTOR"},
+	}
+	store := &repositoryStub{listResult: ListResult{Items: []Industry{item}, HasMore: true}}
+	useCase, err := NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := useCase.List(context.Background(), ListRequest{PageSize: 1})
+	if err != nil || first.NextCursor == nil {
+		t.Fatalf("first page = %#v, error = %v", first, err)
+	}
+	store.listResult = ListResult{}
+	if _, err := useCase.List(context.Background(), ListRequest{PageSize: 1, Cursor: *first.NextCursor}); err != nil {
+		t.Fatal(err)
+	}
+	if store.listQuery.After == nil || store.listQuery.After.ID != item.ID ||
+		store.listQuery.After.ClassificationSystem != item.ClassificationSystem ||
+		len(store.listQuery.After.HierarchyPathCodes) != 1 || store.listQuery.After.HierarchyPathCodes[0] != item.IndustryCode {
+		t.Fatalf("decoded Industry keyset = %#v", store.listQuery.After)
+	}
+	if _, err := useCase.List(context.Background(), ListRequest{PageSize: 1, Cursor: "not-a-cursor"}); err == nil {
+		t.Fatal("invalid cursor error = nil")
+	}
+}
 func (*repositoryStub) Update(context.Context, ID, Update) (Industry, error) {
 	return Industry{}, nil
 }

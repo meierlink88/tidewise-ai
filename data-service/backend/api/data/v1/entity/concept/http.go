@@ -32,7 +32,8 @@ func createHandler(application Service) kratoshttp.HandlerFunc {
 
 func listHandler(application Service) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
-		request := &ListRequest{}
+		query := ctx.Query()
+		request := &ListRequest{PageSize: query.Get("page_size"), Cursor: query.Get("cursor")}
 		return call(ctx, OperationList, request, func(callContext context.Context) (*v1.Response[ConceptList], error) {
 			return application.List(callContext, request)
 		})

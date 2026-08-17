@@ -13,7 +13,7 @@ import (
 
 type UseCase interface {
 	Create(context.Context, industrybiz.Industry) (industrybiz.Industry, error)
-	List(context.Context) ([]industrybiz.Industry, error)
+	List(context.Context, industrybiz.ListRequest) (industrybiz.Page, error)
 	Get(context.Context, industrybiz.ID) (industrybiz.Industry, error)
 	Update(context.Context, industrybiz.ID, industrybiz.Update) (industrybiz.Industry, error)
 }
@@ -37,16 +37,20 @@ func (s *Service) Create(ctx context.Context, request *industryapi.CreateRequest
 	return industryResponse(result, err, v1.StatusCreated)
 }
 
-func (s *Service) List(ctx context.Context, _ *industryapi.ListRequest) (*v1.Response[industryapi.IndustryList], error) {
-	result, err := s.useCase.List(ctx)
+func (s *Service) List(ctx context.Context, request *industryapi.ListRequest) (*v1.Response[industryapi.IndustryList], error) {
+	pageSize, err := v1.ParseBoundedInt(request.PageSize, 50, 1, 100, "page_size")
+	if err != nil {
+		return nil, err
+	}
+	result, err := s.useCase.List(ctx, industrybiz.ListRequest{PageSize: pageSize, Cursor: request.Cursor})
 	if err != nil {
 		return nil, industryError(err)
 	}
-	items := make([]industryapi.Industry, len(result))
-	for index, item := range result {
+	items := make([]industryapi.Industry, len(result.Items))
+	for index, item := range result.Items {
 		items[index] = industryDTO(item)
 	}
-	return &v1.Response[industryapi.IndustryList]{Status: v1.StatusOK, Result: industryapi.IndustryList{Items: items}}, nil
+	return &v1.Response[industryapi.IndustryList]{Status: v1.StatusOK, Result: industryapi.IndustryList{Items: items, NextCursor: result.NextCursor}}, nil
 }
 
 func (s *Service) Get(ctx context.Context, request *industryapi.GetRequest) (*v1.Response[industryapi.Industry], error) {
@@ -75,26 +79,26 @@ func industryError(err error) error {
 		return context.Canceled
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		return v1.NewPublicError(v1.StatusServiceUnavailable, "INDUSTRY_TIMEOUT", "Industry operation exceeded its execution budget", nil)
+		return v1.NewPublicError(v1.StatusServiceUnavailable, industryapi.ErrorTimeout, "Industry operation exceeded its execution budget", nil)
 	}
 	var validation *industrybiz.ValidationError
 	if errors.As(err, &validation) {
-		return v1.NewPublicError(v1.StatusUnprocessableEntity, "INDUSTRY_INVALID", "Industry data is invalid", map[string]any{"field": validation.Field, "message": validation.Message})
+		return v1.NewPublicError(v1.StatusUnprocessableEntity, industryapi.ErrorInvalid, "Industry data is invalid", map[string]any{"field": validation.Field, "message": validation.Message})
 	}
 	var reference *industrybiz.ReferenceError
 	if errors.As(err, &reference) {
-		return v1.NewPublicError(v1.StatusUnprocessableEntity, "INDUSTRY_REFERENCE_INVALID", "Industry references unavailable data", map[string]any{"field": reference.Field, "message": reference.Message})
+		return v1.NewPublicError(v1.StatusUnprocessableEntity, industryapi.ErrorReferenceInvalid, "Industry references unavailable data", map[string]any{"field": reference.Field, "message": reference.Message})
 	}
 	if errors.Is(err, industrybiz.ErrNotFound) {
-		return v1.NewPublicError(v1.StatusNotFound, "INDUSTRY_NOT_FOUND", "Industry was not found", nil)
+		return v1.NewPublicError(v1.StatusNotFound, industryapi.ErrorNotFound, "Industry was not found", nil)
 	}
 	if errors.Is(err, industrybiz.ErrConflict) {
-		return v1.NewPublicError(v1.StatusConflict, "INDUSTRY_CONFLICT", "Industry identity conflicts with stored data", nil)
+		return v1.NewPublicError(v1.StatusConflict, industryapi.ErrorConflict, "Industry identity conflicts with stored data", nil)
 	}
 	if errors.Is(err, industrybiz.ErrPersistence) {
-		return v1.NewPublicError(v1.StatusServiceUnavailable, "INDUSTRY_PERSISTENCE_FAILED", "Industry persistence is unavailable", nil)
+		return v1.NewPublicError(v1.StatusServiceUnavailable, industryapi.ErrorPersistenceFailed, "Industry persistence is unavailable", nil)
 	}
-	return v1.NewPublicError(v1.StatusInternalServerError, "INDUSTRY_FAILED", "Industry operation failed", nil)
+	return v1.NewPublicError(v1.StatusInternalServerError, industryapi.ErrorFailed, "Industry operation failed", nil)
 }
 
 func industryDTO(input industrybiz.Industry) industryapi.Industry {

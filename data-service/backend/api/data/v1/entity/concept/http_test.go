@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"path/filepath"
 	"testing"
 
@@ -43,9 +44,17 @@ func TestConceptHTTPContractPersistsIndependentConceptFacts(t *testing.T) {
 	if detail.Name != updated.Name || len(detail.Aliases) != 1 || detail.Aliases[0] != "GenAI" {
 		t.Fatalf("Concept detail = %#v", detail)
 	}
-	list := request[conceptapi.ConceptList](t, handler, http.MethodGet, v1.APIPrefix+"/entities/concepts", "", http.StatusOK)
-	if len(list.Items) != 1 || list.Items[0].ID != created.ID {
-		t.Fatalf("Concept list = %#v", list.Items)
+	second := request[conceptapi.Concept](t, handler, http.MethodPost, v1.APIPrefix+"/entities/concepts", `{
+		"name":"算力","aliases":[],"concept_type":"demand",
+		"definition":"人工智能算力需求主题","review_status":"candidate"
+	}`, http.StatusCreated)
+	firstPage := request[conceptapi.ConceptList](t, handler, http.MethodGet, v1.APIPrefix+"/entities/concepts?page_size=1", "", http.StatusOK)
+	if len(firstPage.Items) != 1 || firstPage.Items[0].ID != created.ID || firstPage.NextCursor == nil {
+		t.Fatalf("first Concept page = %#v", firstPage)
+	}
+	secondPage := request[conceptapi.ConceptList](t, handler, http.MethodGet, v1.APIPrefix+"/entities/concepts?page_size=1&cursor="+url.QueryEscape(*firstPage.NextCursor), "", http.StatusOK)
+	if len(secondPage.Items) != 1 || secondPage.Items[0].ID != second.ID || secondPage.NextCursor != nil {
+		t.Fatalf("second Concept page = %#v", secondPage)
 	}
 
 	requestError(t, handler, http.MethodPost, v1.APIPrefix+"/entities/concepts", `{
@@ -59,7 +68,7 @@ func TestConceptHTTPContractPersistsIndependentConceptFacts(t *testing.T) {
 	requestError(t, handler, http.MethodGet, v1.APIPrefix+"/entities/concepts/ENT99999999-9999-4999-8999-999999999999", "", http.StatusNotFound, "CONCEPT_NOT_FOUND")
 
 	var shadowRows int
-	if err := db.QueryRowContext(context.Background(), `SELECT count(*) FROM entity_nodes WHERE id = $1`, created.ID).Scan(&shadowRows); err != nil {
+	if err := db.QueryRowContext(context.Background(), `SELECT count(*) FROM entity_nodes WHERE id = ANY($1::text[])`, []string{created.ID, second.ID}).Scan(&shadowRows); err != nil {
 		t.Fatal(err)
 	}
 	if shadowRows != 0 {

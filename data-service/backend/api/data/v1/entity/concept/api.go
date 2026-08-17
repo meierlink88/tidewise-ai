@@ -11,6 +11,13 @@ const (
 	OperationList   = "data.v1.listConcepts"
 	OperationGet    = "data.v1.getConcept"
 	OperationUpdate = "data.v1.updateConcept"
+
+	ErrorTimeout           = "CONCEPT_TIMEOUT"
+	ErrorInvalid           = "CONCEPT_INVALID"
+	ErrorNotFound          = "CONCEPT_NOT_FOUND"
+	ErrorConflict          = "CONCEPT_CONFLICT"
+	ErrorPersistenceFailed = "CONCEPT_PERSISTENCE_FAILED"
+	ErrorFailed            = "CONCEPT_FAILED"
 )
 
 func BusinessOperations() []string {
@@ -32,7 +39,10 @@ type CreateRequest struct {
 	ReviewStatus string   `json:"review_status"`
 }
 
-type ListRequest struct{}
+type ListRequest struct {
+	PageSize string
+	Cursor   string
+}
 type GetRequest struct{ ConceptID string }
 
 type UpdateRequest struct {
@@ -56,5 +66,6 @@ type Concept struct {
 }
 
 type ConceptList struct {
-	Items []Concept `json:"items"`
+	Items      []Concept `json:"items"`
+	NextCursor *string   `json:"next_cursor"`
 }

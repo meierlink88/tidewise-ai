@@ -7,7 +7,11 @@ import (
 
 const testConceptID = "ENT33333333-3333-4333-8333-333333333333"
 
-type repositoryStub struct{ created Concept }
+type repositoryStub struct {
+	created    Concept
+	listQuery  ListQuery
+	listResult ListResult
+}
 
 func (s *repositoryStub) Create(_ context.Context, input Concept) (Concept, error) {
 	s.created = input
@@ -15,7 +19,33 @@ func (s *repositoryStub) Create(_ context.Context, input Concept) (Concept, erro
 }
 
 func (*repositoryStub) Get(context.Context, ID) (Concept, error) { return Concept{}, nil }
-func (*repositoryStub) List(context.Context) ([]Concept, error)  { return nil, nil }
+func (s *repositoryStub) List(_ context.Context, query ListQuery) (ListResult, error) {
+	s.listQuery = query
+	return s.listResult, nil
+}
+
+func TestListUsesOpaqueStableKeysetCursor(t *testing.T) {
+	item := Concept{ID: ID(testConceptID), Name: "人工智能"}
+	store := &repositoryStub{listResult: ListResult{Items: []Concept{item}, HasMore: true}}
+	useCase, err := NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := useCase.List(context.Background(), ListRequest{PageSize: 1})
+	if err != nil || first.NextCursor == nil {
+		t.Fatalf("first page = %#v, error = %v", first, err)
+	}
+	store.listResult = ListResult{}
+	if _, err := useCase.List(context.Background(), ListRequest{PageSize: 1, Cursor: *first.NextCursor}); err != nil {
+		t.Fatal(err)
+	}
+	if store.listQuery.After == nil || store.listQuery.After.ID != item.ID || store.listQuery.After.Name != item.Name {
+		t.Fatalf("decoded Concept keyset = %#v", store.listQuery.After)
+	}
+	if _, err := useCase.List(context.Background(), ListRequest{PageSize: 1, Cursor: "not-a-cursor"}); err == nil {
+		t.Fatal("invalid cursor error = nil")
+	}
+}
 func (*repositoryStub) Update(context.Context, ID, Update) (Concept, error) {
 	return Concept{}, nil
 }

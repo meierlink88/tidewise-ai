@@ -22,7 +22,14 @@ func NewStore(db *sql.DB) (*Store, error) {
 const industryColumns = `
 i.id, i.name, array_to_json(i.aliases), i.classification_system, i.industry_code,
 i.parent_industry_id, array_to_json(i.hierarchy_path_codes), i.definition,
-i.review_status, i.created_at, i.updated_at`
+i.review_status, i.created_at, i.updated_at,
+CASE WHEN i.parent_industry_id IS NULL THEN TRUE ELSE EXISTS (
+    SELECT 1
+    FROM industry parent
+    WHERE parent.id = i.parent_industry_id
+      AND parent.classification_system = i.classification_system
+      AND i.hierarchy_path_codes = parent.hierarchy_path_codes || ARRAY[i.industry_code]
+) END`
 
 func (s *Store) Create(ctx context.Context, input industrybiz.Industry) (industrybiz.Industry, error) {
 	exists, err := s.objectIdentityExists(ctx, input.ID)
@@ -44,10 +51,8 @@ WITH inserted AS (
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
     RETURNING *
 )
-SELECT id, name, array_to_json(aliases), classification_system, industry_code,
-       parent_industry_id, array_to_json(hierarchy_path_codes), definition,
-       review_status, created_at, updated_at
-FROM inserted`, input.ID, input.Name, input.Aliases, input.ClassificationSystem, input.IndustryCode,
+SELECT `+industryColumns+`
+FROM inserted i`, input.ID, input.Name, input.Aliases, input.ClassificationSystem, input.IndustryCode,
 		input.ParentIndustryID, input.HierarchyPathCodes, input.Definition, input.ReviewStatus)
 	return scanIndustry(row, classifyWriteError)
 }
@@ -57,27 +62,45 @@ func (s *Store) Get(ctx context.Context, id industrybiz.ID) (industrybiz.Industr
 	return scanIndustry(row, classifyReadError)
 }
 
-func (s *Store) List(ctx context.Context) ([]industrybiz.Industry, error) {
+func (s *Store) List(ctx context.Context, query industrybiz.ListQuery) (industrybiz.ListResult, error) {
+	var afterSystem any
+	var afterPath any
+	var afterCode any
+	var afterID any
+	if query.After != nil {
+		afterSystem = query.After.ClassificationSystem
+		afterPath = query.After.HierarchyPathCodes
+		afterCode = query.After.IndustryCode
+		afterID = query.After.ID
+	}
 	rows, err := s.db.QueryContext(ctx, `
 SELECT `+industryColumns+`
 FROM industry i
-ORDER BY i.classification_system, i.hierarchy_path_codes, i.industry_code, i.id`)
+WHERE $1::text IS NULL OR
+      (i.classification_system, i.hierarchy_path_codes, i.industry_code, i.id) >
+      ($1::text, $2::text[], $3::text, $4::text)
+ORDER BY i.classification_system, i.hierarchy_path_codes, i.industry_code, i.id
+LIMIT $5`, afterSystem, afterPath, afterCode, afterID, query.PageSize+1)
 	if err != nil {
-		return nil, classifyReadError(err)
+		return industrybiz.ListResult{}, classifyReadError(err)
 	}
 	defer rows.Close()
-	result := make([]industrybiz.Industry, 0)
+	result := make([]industrybiz.Industry, 0, query.PageSize+1)
 	for rows.Next() {
 		item, err := scanIndustry(rows, classifyReadError)
 		if err != nil {
-			return nil, err
+			return industrybiz.ListResult{}, err
 		}
 		result = append(result, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, classifyReadError(err)
+		return industrybiz.ListResult{}, classifyReadError(err)
 	}
-	return result, nil
+	hasMore := len(result) > query.PageSize
+	if hasMore {
+		result = result[:query.PageSize]
+	}
+	return industrybiz.ListResult{Items: result, HasMore: hasMore}, nil
 }
 
 func (s *Store) Update(ctx context.Context, id industrybiz.ID, input industrybiz.Update) (industrybiz.Industry, error) {
@@ -109,9 +132,11 @@ func scanIndustry(row rowScanner, classify func(error) error) (industrybiz.Indus
 	var result industrybiz.Industry
 	var aliasesJSON, pathJSON []byte
 	var parent sql.NullString
+	var parentContractValid bool
 	if err := row.Scan(
 		&result.ID, &result.Name, &aliasesJSON, &result.ClassificationSystem, &result.IndustryCode,
 		&parent, &pathJSON, &result.Definition, &result.ReviewStatus, &result.CreatedAt, &result.UpdatedAt,
+		&parentContractValid,
 	); err != nil {
 		return industrybiz.Industry{}, classify(err)
 	}
@@ -125,7 +150,7 @@ func scanIndustry(row rowScanner, classify func(error) error) (industrybiz.Indus
 	if err := json.Unmarshal(pathJSON, &result.HierarchyPathCodes); err != nil {
 		return industrybiz.Industry{}, industrybiz.ErrPersistence
 	}
-	if result.Aliases == nil || result.HierarchyPathCodes == nil || result.CreatedAt.IsZero() || result.UpdatedAt.IsZero() || result.UpdatedAt.Before(result.CreatedAt) {
+	if !parentContractValid || result.Aliases == nil || result.HierarchyPathCodes == nil || result.CreatedAt.IsZero() || result.UpdatedAt.IsZero() || result.UpdatedAt.Before(result.CreatedAt) {
 		return industrybiz.Industry{}, industrybiz.ErrPersistence
 	}
 	if err := industrybiz.ValidatePersisted(result); err != nil {

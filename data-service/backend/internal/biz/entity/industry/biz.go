@@ -2,6 +2,8 @@ package industry
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -62,10 +64,37 @@ type Update struct {
 	ReviewStatus       ReviewStatus
 }
 
+type ListRequest struct {
+	PageSize int
+	Cursor   string
+}
+
+type ListKey struct {
+	ClassificationSystem string
+	HierarchyPathCodes   []string
+	IndustryCode         string
+	ID                   ID
+}
+
+type ListQuery struct {
+	PageSize int
+	After    *ListKey
+}
+
+type ListResult struct {
+	Items   []Industry
+	HasMore bool
+}
+
+type Page struct {
+	Items      []Industry
+	NextCursor *string
+}
+
 type Repository interface {
 	Create(context.Context, Industry) (Industry, error)
 	Get(context.Context, ID) (Industry, error)
-	List(context.Context) ([]Industry, error)
+	List(context.Context, ListQuery) (ListResult, error)
 	Update(context.Context, ID, Update) (Industry, error)
 }
 
@@ -100,8 +129,27 @@ func (s *UseCase) Get(ctx context.Context, id ID) (Industry, error) {
 	return s.repository.Get(ctx, id)
 }
 
-func (s *UseCase) List(ctx context.Context) ([]Industry, error) {
-	return s.repository.List(ctx)
+func (s *UseCase) List(ctx context.Context, request ListRequest) (Page, error) {
+	if request.PageSize < 1 || request.PageSize > 100 {
+		return Page{}, &ValidationError{Field: "page_size", Message: "must be between 1 and 100"}
+	}
+	after, err := decodeListCursor(request.Cursor)
+	if err != nil {
+		return Page{}, err
+	}
+	result, err := s.repository.List(ctx, ListQuery{PageSize: request.PageSize, After: after})
+	if err != nil {
+		return Page{}, err
+	}
+	page := Page{Items: result.Items}
+	if result.HasMore && len(result.Items) > 0 {
+		next, err := encodeListCursor(result.Items[len(result.Items)-1])
+		if err != nil {
+			return Page{}, fmt.Errorf("encode Industry list cursor: %w", err)
+		}
+		page.NextCursor = &next
+	}
+	return page, nil
 }
 
 func (s *UseCase) Update(ctx context.Context, id ID, input Update) (Industry, error) {
@@ -218,4 +266,52 @@ func cloneString(value *ID) *ID {
 	}
 	copy := *value
 	return &copy
+}
+
+type listCursor struct {
+	Version              int      `json:"v"`
+	ClassificationSystem string   `json:"classification_system"`
+	HierarchyPathCodes   []string `json:"hierarchy_path_codes"`
+	IndustryCode         string   `json:"industry_code"`
+	ID                   ID       `json:"id"`
+}
+
+func encodeListCursor(input Industry) (string, error) {
+	payload, err := json.Marshal(listCursor{
+		Version: 1, ClassificationSystem: input.ClassificationSystem,
+		HierarchyPathCodes: input.HierarchyPathCodes, IndustryCode: input.IndustryCode, ID: input.ID,
+	})
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(payload), nil
+}
+
+func decodeListCursor(value string) (*ListKey, error) {
+	if value == "" {
+		return nil, nil
+	}
+	if len(value) > 2048 {
+		return nil, &ValidationError{Field: "cursor", Message: "must be an opaque Industry list cursor"}
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(value)
+	if err != nil {
+		return nil, &ValidationError{Field: "cursor", Message: "must be an opaque Industry list cursor"}
+	}
+	var cursor listCursor
+	if err := json.Unmarshal(payload, &cursor); err != nil || cursor.Version != 1 ||
+		strings.TrimSpace(cursor.ClassificationSystem) == "" || strings.TrimSpace(cursor.IndustryCode) == "" ||
+		len(cursor.HierarchyPathCodes) == 0 || validateID("cursor.id", cursor.ID) != nil {
+		return nil, &ValidationError{Field: "cursor", Message: "must be an opaque Industry list cursor"}
+	}
+	for _, code := range cursor.HierarchyPathCodes {
+		if strings.TrimSpace(code) == "" {
+			return nil, &ValidationError{Field: "cursor", Message: "must be an opaque Industry list cursor"}
+		}
+	}
+	return &ListKey{
+		ClassificationSystem: cursor.ClassificationSystem,
+		HierarchyPathCodes:   append([]string(nil), cursor.HierarchyPathCodes...),
+		IndustryCode:         cursor.IndustryCode, ID: cursor.ID,
+	}, nil
 }

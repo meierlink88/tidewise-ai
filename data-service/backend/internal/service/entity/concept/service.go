@@ -13,7 +13,7 @@ import (
 
 type UseCase interface {
 	Create(context.Context, conceptbiz.Concept) (conceptbiz.Concept, error)
-	List(context.Context) ([]conceptbiz.Concept, error)
+	List(context.Context, conceptbiz.ListRequest) (conceptbiz.Page, error)
 	Get(context.Context, conceptbiz.ID) (conceptbiz.Concept, error)
 	Update(context.Context, conceptbiz.ID, conceptbiz.Update) (conceptbiz.Concept, error)
 }
@@ -35,16 +35,20 @@ func (s *Service) Create(ctx context.Context, request *conceptapi.CreateRequest)
 	return conceptResponse(result, err, v1.StatusCreated)
 }
 
-func (s *Service) List(ctx context.Context, _ *conceptapi.ListRequest) (*v1.Response[conceptapi.ConceptList], error) {
-	result, err := s.useCase.List(ctx)
+func (s *Service) List(ctx context.Context, request *conceptapi.ListRequest) (*v1.Response[conceptapi.ConceptList], error) {
+	pageSize, err := v1.ParseBoundedInt(request.PageSize, 50, 1, 100, "page_size")
+	if err != nil {
+		return nil, err
+	}
+	result, err := s.useCase.List(ctx, conceptbiz.ListRequest{PageSize: pageSize, Cursor: request.Cursor})
 	if err != nil {
 		return nil, conceptError(err)
 	}
-	items := make([]conceptapi.Concept, len(result))
-	for index, item := range result {
+	items := make([]conceptapi.Concept, len(result.Items))
+	for index, item := range result.Items {
 		items[index] = conceptDTO(item)
 	}
-	return &v1.Response[conceptapi.ConceptList]{Status: v1.StatusOK, Result: conceptapi.ConceptList{Items: items}}, nil
+	return &v1.Response[conceptapi.ConceptList]{Status: v1.StatusOK, Result: conceptapi.ConceptList{Items: items, NextCursor: result.NextCursor}}, nil
 }
 
 func (s *Service) Get(ctx context.Context, request *conceptapi.GetRequest) (*v1.Response[conceptapi.Concept], error) {
@@ -72,22 +76,22 @@ func conceptError(err error) error {
 		return context.Canceled
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		return v1.NewPublicError(v1.StatusServiceUnavailable, "CONCEPT_TIMEOUT", "Concept operation exceeded its execution budget", nil)
+		return v1.NewPublicError(v1.StatusServiceUnavailable, conceptapi.ErrorTimeout, "Concept operation exceeded its execution budget", nil)
 	}
 	var validation *conceptbiz.ValidationError
 	if errors.As(err, &validation) {
-		return v1.NewPublicError(v1.StatusUnprocessableEntity, "CONCEPT_INVALID", "Concept data is invalid", map[string]any{"field": validation.Field, "message": validation.Message})
+		return v1.NewPublicError(v1.StatusUnprocessableEntity, conceptapi.ErrorInvalid, "Concept data is invalid", map[string]any{"field": validation.Field, "message": validation.Message})
 	}
 	if errors.Is(err, conceptbiz.ErrNotFound) {
-		return v1.NewPublicError(v1.StatusNotFound, "CONCEPT_NOT_FOUND", "Concept was not found", nil)
+		return v1.NewPublicError(v1.StatusNotFound, conceptapi.ErrorNotFound, "Concept was not found", nil)
 	}
 	if errors.Is(err, conceptbiz.ErrConflict) {
-		return v1.NewPublicError(v1.StatusConflict, "CONCEPT_CONFLICT", "Concept identity conflicts with stored data", nil)
+		return v1.NewPublicError(v1.StatusConflict, conceptapi.ErrorConflict, "Concept identity conflicts with stored data", nil)
 	}
 	if errors.Is(err, conceptbiz.ErrPersistence) {
-		return v1.NewPublicError(v1.StatusServiceUnavailable, "CONCEPT_PERSISTENCE_FAILED", "Concept persistence is unavailable", nil)
+		return v1.NewPublicError(v1.StatusServiceUnavailable, conceptapi.ErrorPersistenceFailed, "Concept persistence is unavailable", nil)
 	}
-	return v1.NewPublicError(v1.StatusInternalServerError, "CONCEPT_FAILED", "Concept operation failed", nil)
+	return v1.NewPublicError(v1.StatusInternalServerError, conceptapi.ErrorFailed, "Concept operation failed", nil)
 }
 
 func conceptDTO(input conceptbiz.Concept) conceptapi.Concept {

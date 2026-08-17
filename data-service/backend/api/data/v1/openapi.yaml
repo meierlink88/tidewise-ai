@@ -1241,14 +1241,17 @@ paths:
       x-retry-policy: safe-get
       x-timeout-budget-ms: 5000
       summary: 查询 Industry
-      description: 按分类体系、层级路径、行业代码和 ID 稳定升序返回 Industry。
+      description: 按分类体系、层级路径、行业代码和 ID 稳定升序，通过 opaque cursor 分页返回 Industry。
       parameters:
         - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
           description: Industry 集合
           headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
           content: {application/json: {schema: {$ref: '#/components/schemas/IndustryListEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -1338,14 +1341,17 @@ paths:
       x-retry-policy: safe-get
       x-timeout-budget-ms: 5000
       summary: 查询 Concept
-      description: 按名称和 ID 稳定升序返回 Concept。
+      description: 按名称和 ID 稳定升序，通过 opaque cursor 分页返回 Concept。
       parameters:
         - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/Cursor'
       responses:
         '200':
           description: Concept 集合
           headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
           content: {application/json: {schema: {$ref: '#/components/schemas/ConceptListEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '500': {$ref: '#/components/responses/InternalError'}
@@ -2177,11 +2183,16 @@ components:
     IndustryList:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [items, next_cursor]
       properties:
         items:
           type: array
           items: {$ref: '#/components/schemas/Industry'}
+        next_cursor:
+          type: string
+          minLength: 1
+          maxLength: 2048
+          nullable: true
     IndustryEnvelope:
       type: object
       additionalProperties: false
@@ -2232,11 +2243,16 @@ components:
     ConceptList:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [items, next_cursor]
       properties:
         items:
           type: array
           items: {$ref: '#/components/schemas/Concept'}
+        next_cursor:
+          type: string
+          minLength: 1
+          maxLength: 2048
+          nullable: true
     ConceptEnvelope:
       type: object
       additionalProperties: false

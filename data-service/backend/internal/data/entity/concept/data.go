@@ -48,27 +48,39 @@ func (s *Store) Get(ctx context.Context, id conceptbiz.ID) (conceptbiz.Concept, 
 	return scanConcept(row, classifyReadError)
 }
 
-func (s *Store) List(ctx context.Context) ([]conceptbiz.Concept, error) {
+func (s *Store) List(ctx context.Context, query conceptbiz.ListQuery) (conceptbiz.ListResult, error) {
+	var afterName any
+	var afterID any
+	if query.After != nil {
+		afterName = query.After.Name
+		afterID = query.After.ID
+	}
 	rows, err := s.db.QueryContext(ctx, `
 SELECT `+conceptColumns+`
 FROM concept c
-ORDER BY c.name, c.id`)
+WHERE $1::text IS NULL OR (c.name, c.id) > ($1::text, $2::text)
+ORDER BY c.name, c.id
+LIMIT $3`, afterName, afterID, query.PageSize+1)
 	if err != nil {
-		return nil, classifyReadError(err)
+		return conceptbiz.ListResult{}, classifyReadError(err)
 	}
 	defer rows.Close()
-	result := make([]conceptbiz.Concept, 0)
+	result := make([]conceptbiz.Concept, 0, query.PageSize+1)
 	for rows.Next() {
 		item, err := scanConcept(rows, classifyReadError)
 		if err != nil {
-			return nil, err
+			return conceptbiz.ListResult{}, err
 		}
 		result = append(result, item)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, classifyReadError(err)
+		return conceptbiz.ListResult{}, classifyReadError(err)
 	}
-	return result, nil
+	hasMore := len(result) > query.PageSize
+	if hasMore {
+		result = result[:query.PageSize]
+	}
+	return conceptbiz.ListResult{Items: result, HasMore: hasMore}, nil
 }
 
 func (s *Store) Update(ctx context.Context, id conceptbiz.ID, input conceptbiz.Update) (conceptbiz.Concept, error) {

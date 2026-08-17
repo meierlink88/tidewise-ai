@@ -11,6 +11,14 @@ const (
 	OperationList   = "data.v1.listIndustries"
 	OperationGet    = "data.v1.getIndustry"
 	OperationUpdate = "data.v1.updateIndustry"
+
+	ErrorTimeout           = "INDUSTRY_TIMEOUT"
+	ErrorInvalid           = "INDUSTRY_INVALID"
+	ErrorReferenceInvalid  = "INDUSTRY_REFERENCE_INVALID"
+	ErrorNotFound          = "INDUSTRY_NOT_FOUND"
+	ErrorConflict          = "INDUSTRY_CONFLICT"
+	ErrorPersistenceFailed = "INDUSTRY_PERSISTENCE_FAILED"
+	ErrorFailed            = "INDUSTRY_FAILED"
 )
 
 func BusinessOperations() []string {
@@ -35,7 +43,10 @@ type CreateRequest struct {
 	ReviewStatus         string   `json:"review_status"`
 }
 
-type ListRequest struct{}
+type ListRequest struct {
+	PageSize string
+	Cursor   string
+}
 type GetRequest struct{ IndustryID string }
 
 type UpdateRequest struct {
@@ -63,5 +74,6 @@ type Industry struct {
 }
 
 type IndustryList struct {
-	Items []Industry `json:"items"`
+	Items      []Industry `json:"items"`
+	NextCursor *string    `json:"next_cursor"`
 }
