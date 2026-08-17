@@ -134,27 +134,27 @@ func seed(ctx context.Context) error {
 	}
 	if err := seedEvent(
 		ctx, database,
-		"20000000-0000-4000-8000-000000000001",
-		"20000000-0000-4000-8000-000000000002",
-		"20000000-0000-4000-8000-000000000003",
+		"EER20000000-0000-4000-8000-000000000001",
+		"EVT20000000-0000-4000-8000-000000000002",
+		"EEL20000000-0000-4000-8000-000000000003",
 		"synthetic:accepted", "2026-07-28T08:00:00Z",
 	); err != nil {
 		return err
 	}
 	if err := seedEvent(
 		ctx, database,
-		"21000000-0000-4000-8000-000000000001",
-		"21000000-0000-4000-8000-000000000002",
-		"21000000-0000-4000-8000-000000000003",
+		"EER21000000-0000-4000-8000-000000000001",
+		"EVT21000000-0000-4000-8000-000000000002",
+		"EEL21000000-0000-4000-8000-000000000003",
 		"synthetic:quarantined", "2026-07-28T09:00:00Z",
 	); err != nil {
 		return err
 	}
 	if err := seedEvent(
 		ctx, database,
-		"24000000-0000-4000-8000-000000000001",
-		"24000000-0000-4000-8000-000000000002",
-		"24000000-0000-4000-8000-000000000003",
+		"EER24000000-0000-4000-8000-000000000001",
+		"EVT24000000-0000-4000-8000-000000000002",
+		"EEL24000000-0000-4000-8000-000000000003",
 		"synthetic:forecast-no-impact", "2026-07-28T10:00:00Z",
 	); err != nil {
 		return err
@@ -163,7 +163,7 @@ func seed(ctx context.Context) error {
 UPDATE raw_documents
 SET title = 'Synthetic demand forecast',
     content_text = 'The upstream wafer capacity stage forecasts wafer demand growth of 12 percent'
-WHERE id = '24000000-0000-4000-8000-000000000001';
+WHERE id = 'EER24000000-0000-4000-8000-000000000001';
 UPDATE events
 SET title = 'Synthetic Wafer Fab forecasts demand growth',
     summary = 'The upstream wafer capacity stage forecasts wafer demand growth of 12 percent.',
@@ -171,63 +171,61 @@ SET title = 'Synthetic Wafer Fab forecasts demand growth',
         'statement_source', 'Synthetic Wafer Fab',
         'forecast_demand_change_percent', 12
     )
-WHERE id = '24000000-0000-4000-8000-000000000002';
+WHERE id = 'EVT24000000-0000-4000-8000-000000000002';
 UPDATE event_sources
 SET evidence_statement = 'The upstream wafer capacity stage forecasts wafer demand growth of 12 percent',
     supports_fields = ARRAY['title','factual_summary','occurred_at','fact_payload']
-WHERE id = '24000000-0000-4000-8000-000000000003'
+WHERE id = 'EEL24000000-0000-4000-8000-000000000003'
 `)
 	return err
 }
 
 func seedEntities(ctx context.Context, database *pgxpool.Pool) error {
-	if _, err := database.Exec(ctx, `
+	for _, statement := range syntheticEntitySeedStatements {
+		if _, err := database.Exec(ctx, statement); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+var syntheticEntitySeedStatements = []string{`
 INSERT INTO entity_nodes (
   id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
 ) VALUES
-  ('22000000-0000-4000-8000-000000000001', 'company:synthetic-wafer-fab',
+  ('ENT22000000-0000-4000-8000-000000000001', 'company:synthetic-wafer-fab',
    'chain_node', 'chain_node', 'Synthetic Wafer Production', 'Synthetic Wafer Production',
    ARRAY['Synthetic Wafer Fab'], 'active'),
-  ('22000000-0000-4000-8000-000000000002', 'product:synthetic-wafer',
+  ('ENT22000000-0000-4000-8000-000000000002', 'product:synthetic-wafer',
    'chain_node', 'chain_node', 'Synthetic 8-inch Wafer Supply', 'Synthetic 8-inch Wafer Supply',
    ARRAY['Synthetic Wafer'], 'active'),
-  ('23000000-0000-4000-8000-000000000001', 'industry-chain:synthetic-wafer',
+  ('ENT23000000-0000-4000-8000-000000000001', 'industry-chain:synthetic-wafer',
    'industry_chain', 'industry_chain', 'Synthetic Wafer Chain', 'Synthetic Wafer Chain',
-   ARRAY['Synthetic Chain'], 'active'),
-  ('23000000-0000-4000-8000-000000000002', 'industry:synthetic-semiconductor',
-   'industry', 'industry', 'Synthetic Semiconductor Manufacturing',
-   'Synthetic Semiconductor Manufacturing', ARRAY['Synthetic Manufacturing'], 'active'),
-  ('23000000-0000-4000-8000-000000000004', 'industry:synthetic-semiconductor-components',
-   'industry', 'industry', 'Synthetic Semiconductor Components',
-   'Synthetic Semiconductor Components', ARRAY['Synthetic Components'], 'active'),
-  ('23000000-0000-4000-8000-000000000005', 'industry:synthetic-wafer-capacity',
-   'industry', 'industry', 'Synthetic Wafer Capacity',
-   'Synthetic Wafer Capacity', ARRAY['Synthetic Capacity'], 'active')
-`); err != nil {
-		return err
-	}
-	if _, err := database.Exec(ctx, `
+   ARRAY['Synthetic Chain'], 'active')
+`, `
 INSERT INTO chain_node_profiles (entity_id, definition, boundary_note, review_status) VALUES
-  ('22000000-0000-4000-8000-000000000001', 'Synthetic wafer producer', NULL, 'approved'),
-  ('22000000-0000-4000-8000-000000000002', 'Synthetic wafer product supply', NULL, 'approved');
-INSERT INTO industry_profiles (
-  entity_id, classification_system, classification_version, industry_code,
-  classification_level, parent_industry_entity_id, hierarchy_path_codes,
-  definition, boundary_note, review_status
+  ('ENT22000000-0000-4000-8000-000000000001', 'Synthetic wafer producer', NULL, 'approved'),
+  ('ENT22000000-0000-4000-8000-000000000002', 'Synthetic wafer product supply', NULL, 'approved');
+INSERT INTO industry (
+  id, name, aliases, classification_system, industry_code,
+  parent_industry_id, hierarchy_path_codes, definition, review_status
 ) VALUES
-  ('23000000-0000-4000-8000-000000000002', 'synthetic', 'v1', 'S01', 1,
-   NULL, ARRAY['S01'], 'Synthetic semiconductor manufacturing', 'Synthetic fixture only', 'approved'),
-  ('23000000-0000-4000-8000-000000000004', 'synthetic', 'v1', 'S0101', 2,
-   '23000000-0000-4000-8000-000000000002', ARRAY['S01','S0101'],
-   'Synthetic semiconductor components', 'Synthetic fixture only', 'approved'),
-  ('23000000-0000-4000-8000-000000000005', 'synthetic', 'v1', 'S010101', 3,
-   '23000000-0000-4000-8000-000000000004', ARRAY['S01','S0101','S010101'],
-   'Synthetic wafer capacity', 'Synthetic fixture only', 'approved');
+  ('ENT23000000-0000-4000-8000-000000000002', 'Synthetic Semiconductor Manufacturing',
+   ARRAY['Synthetic Manufacturing'], 'synthetic', 'S01', NULL, ARRAY['S01'],
+   'Synthetic semiconductor manufacturing', 'approved'),
+  ('ENT23000000-0000-4000-8000-000000000004', 'Synthetic Semiconductor Components',
+   ARRAY['Synthetic Components'], 'synthetic', 'S0101',
+   'ENT23000000-0000-4000-8000-000000000002', ARRAY['S01','S0101'],
+   'Synthetic semiconductor components', 'approved'),
+  ('ENT23000000-0000-4000-8000-000000000005', 'Synthetic Wafer Capacity',
+   ARRAY['Synthetic Capacity'], 'synthetic', 'S010101',
+   'ENT23000000-0000-4000-8000-000000000004', ARRAY['S01','S0101','S010101'],
+   'Synthetic wafer capacity', 'approved');
 INSERT INTO industry_chain_definitions (
   entity_id, scope, target_output, end_use, geography, as_of_date, review_status,
   observable_variables
 ) VALUES (
-  '23000000-0000-4000-8000-000000000001',
+  'ENT23000000-0000-4000-8000-000000000001',
   'Synthetic acceptance scope', 'Synthetic 8-inch Wafer', 'Semiconductor manufacturing',
   'Global', '2026-07-28', 'approved', ARRAY['production_volume','market_supply']
 );
@@ -235,12 +233,12 @@ INSERT INTO industry_chain_node_memberships (
   industry_chain_entity_id, chain_node_entity_id, position, contextual_stage,
   review_status, status, inclusion_reason, evidence_ids, source_name, source_url, verified_at
 ) VALUES
-  ('23000000-0000-4000-8000-000000000001',
-   '22000000-0000-4000-8000-000000000001', 1, 'upstream', 'approved', 'active',
+  ('ENT23000000-0000-4000-8000-000000000001',
+   'ENT22000000-0000-4000-8000-000000000001', 1, 'upstream', 'approved', 'active',
    'Synthetic producer node', ARRAY['synthetic-membership-1'], 'Synthetic Fixture',
    'artifact://synthetic/membership/1', '2026-07-28T00:00:00Z'),
-  ('23000000-0000-4000-8000-000000000001',
-   '22000000-0000-4000-8000-000000000002', 2, 'midstream', 'approved', 'active',
+  ('ENT23000000-0000-4000-8000-000000000001',
+   'ENT22000000-0000-4000-8000-000000000002', 2, 'midstream', 'approved', 'active',
    'Synthetic supply node', ARRAY['synthetic-membership-2'], 'Synthetic Fixture',
    'artifact://synthetic/membership/2', '2026-07-28T00:00:00Z')
 ;
@@ -255,28 +253,23 @@ INSERT INTO direct_transmission_rules (
   'market_supply', 1, 'decrease', 'Synthetic fixture only',
   '{source_entity} production decline reduces {target_entity} supply', 'approved'
 )
-`); err != nil {
-		return err
-	}
-	_, err := database.Exec(ctx, `
+`, `
 INSERT INTO entity_edges (
   id, from_entity_id, to_entity_id, relation_type, evidence_note, status
 ) VALUES
 (
-  '22000000-0000-4000-8000-000000000003',
-  '22000000-0000-4000-8000-000000000001',
-  '22000000-0000-4000-8000-000000000002',
+  'ERL22000000-0000-4000-8000-000000000003',
+  'ENT22000000-0000-4000-8000-000000000001',
+  'ENT22000000-0000-4000-8000-000000000002',
   'produces', 'Synthetic acceptance fixture', 'active'
 ),
 (
-  '23000000-0000-4000-8000-000000000003',
-  '23000000-0000-4000-8000-000000000001',
-  '23000000-0000-4000-8000-000000000005',
+  'ERL23000000-0000-4000-8000-000000000003',
+  'ENT23000000-0000-4000-8000-000000000001',
+  'ENT23000000-0000-4000-8000-000000000005',
   'mapped_to_industry', 'Synthetic formal anchor route', 'active'
 )
-`)
-	return err
-}
+`}
 
 func seedEvent(
 	ctx context.Context,

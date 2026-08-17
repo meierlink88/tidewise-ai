@@ -1,0 +1,38 @@
+namespace Tidewise
+
+Industry(行业): EntityType
+    desc: 表示受控分类体系中的独立行业对象，自身拥有名称、别名、分类层级路径与定义，不依赖通用 Entity 节点
+    properties:
+        id(行业标识): Text
+            desc: 从既有 Industry Entity 无损保留的稳定标识，由 ENT 前缀直接连接 canonical lowercase UUID
+            constraint: NotNull, Regular="^ENT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        name(行业名称): Text
+            desc: 行业的正式显示名称
+            constraint: NotNull
+        aliases(行业别名): Text
+            desc: 行业用于匹配和检索的零个或多个稳定别名
+            constraint: NotNull, MultiValue
+        classificationSystem(分类体系): Text
+            desc: 行业代码及层级路径所属的受控分类体系
+            constraint: NotNull
+        industryCode(行业代码): Text
+            desc: 行业在所属分类体系中的稳定代码
+            constraint: NotNull
+        hierarchyPathCodes(层级路径代码): Text
+            desc: 从根行业到当前行业的有序代码路径，末项必须等于当前行业代码
+            constraint: NotNull, MultiValue
+        definition(行业定义): Text
+            desc: 行业业务边界的正式定义
+            constraint: NotNull
+        reviewStatus(审核状态): Text
+            desc: candidate 表示候选行业事实；approved 表示已批准行业事实
+            constraint: NotNull, Enum="candidate,approved"
+        createdAt(创建时间): Text
+            desc: PostgreSQL 生成的行业事实创建时间
+            constraint: NotNull
+        updatedAt(更新时间): Text
+            desc: PostgreSQL 生成的行业事实最近变更时间
+            constraint: NotNull
+    relations:
+        parentIndustry(父级行业): Industry
+            desc: 同一分类体系中可空的直接父级行业；根行业没有父级，层级深度由路径推导而不单独持久化

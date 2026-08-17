@@ -205,6 +205,14 @@ func loadEntities(ctx context.Context, database *sql.DB) ([]entityIdentity, erro
 			       array_to_json(entity.aliases)::text aliases_json, entity.status::text status
 			FROM entity_nodes entity
 			UNION ALL
+			SELECT industry.id, 'industry', industry.name, industry.name,
+			       array_to_json(industry.aliases)::text, 'active'
+			FROM industry
+			UNION ALL
+			SELECT concept.id, 'concept', concept.name, concept.name,
+			       array_to_json(concept.aliases)::text, 'active'
+			FROM concept
+			UNION ALL
 			SELECT country.id, 'country', country.name, country.name,
 			       array_to_json(ARRAY[country.name_en])::text, 'active'
 			FROM countries country

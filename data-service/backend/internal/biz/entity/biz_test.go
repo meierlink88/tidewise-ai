@@ -6,6 +6,7 @@ import (
 )
 
 const testEntityID = "ENT550e8400-e29b-41d4-a716-446655440000"
+const testParentIndustryID = "ENT11111111-1111-4111-8111-111111111111"
 
 func TestDomainObjectIdentityRequiresPrefixAndUUID(t *testing.T) {
 	for value, want := range map[string]bool{
@@ -80,50 +81,55 @@ func TestEntityExternalIdentifierValidation(t *testing.T) {
 	}
 }
 
-func TestTypedMasterDataProfilesValidateFrozenVocabulary(t *testing.T) {
+func TestIndependentIndustryAndConceptValidateFrozenVocabulary(t *testing.T) {
 	tests := []struct {
 		name    string
-		profile interface{ Validate() error }
+		object  interface{ Validate() error }
 		wantErr bool
 	}{
 		{
 			name: "industry",
-			profile: IndustryProfile{
-				EntityID: "industry", ClassificationSystem: "sw", ClassificationVersion: "workbook_snapshot_v1",
-				IndustryCode: "801010", ClassificationLevel: 2, ParentIndustryEntityID: "parent",
-				HierarchyPathCodes: []string{"801000", "801010"}, Definition: "二级行业", BoundaryNote: "行业边界",
+			object: Industry{
+				ID: testEntityID, Name: "半导体", Aliases: []string{"集成电路"},
+				ClassificationSystem: "sw", IndustryCode: "801010", ParentIndustryID: testParentIndustryID,
+				HierarchyPathCodes: []string{"801000", "801010"}, Definition: "二级行业",
 				ReviewStatus: ReviewStatusApproved,
 			},
 		},
 		{
 			name: "industry path mismatch",
-			profile: IndustryProfile{
-				EntityID: "industry", ClassificationSystem: "sw", ClassificationVersion: "v1",
-				IndustryCode: "801010", ClassificationLevel: 2, ParentIndustryEntityID: "parent",
-				HierarchyPathCodes: []string{"801010"}, Definition: "行业", BoundaryNote: "边界",
+			object: Industry{
+				ID: testEntityID, Name: "半导体", ClassificationSystem: "sw",
+				IndustryCode: "801010", ParentIndustryID: testParentIndustryID,
+				HierarchyPathCodes: []string{"801010"}, Definition: "行业",
 				ReviewStatus: ReviewStatusApproved,
 			},
 			wantErr: true,
 		},
 		{
-			name:    "concept",
-			profile: ConceptProfile{EntityID: "concept", ConceptType: ConceptTypeTechnology, Definition: "跨行业技术聚合", BoundaryNote: "不是行业", ReviewStatus: ReviewStatusCandidate},
+			name:   "concept",
+			object: Concept{ID: testEntityID, Name: "人工智能", Aliases: []string{"AI"}, ConceptType: ConceptTypeTechnology, Definition: "跨行业技术聚合", ReviewStatus: ReviewStatusCandidate},
 		},
 		{
 			name:    "concept rejects historical reviewed status",
-			profile: ConceptProfile{EntityID: "concept", ConceptType: ConceptTypeTechnology, Definition: "跨行业技术聚合", BoundaryNote: "不是行业", ReviewStatus: ReviewStatusReviewed},
+			object:  Concept{ID: testEntityID, Name: "人工智能", ConceptType: ConceptTypeTechnology, Definition: "跨行业技术聚合", ReviewStatus: ReviewStatusReviewed},
 			wantErr: true,
 		},
 		{
 			name:    "concept type",
-			profile: ConceptProfile{EntityID: "concept", ConceptType: "sector", Definition: "错误聚合", BoundaryNote: "边界", ReviewStatus: ReviewStatusApproved},
+			object:  Concept{ID: testEntityID, Name: "人工智能", ConceptType: "sector", Definition: "错误聚合", ReviewStatus: ReviewStatusApproved},
+			wantErr: true,
+		},
+		{
+			name:    "concept alias set",
+			object:  Concept{ID: testEntityID, Name: "人工智能", Aliases: []string{"AI", "AI"}, ConceptType: ConceptTypeTechnology, Definition: "跨行业技术聚合", ReviewStatus: ReviewStatusApproved},
 			wantErr: true,
 		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			err := testCase.profile.Validate()
+			err := testCase.object.Validate()
 			if (err != nil) != testCase.wantErr {
 				t.Fatalf("Validate() error = %v, wantErr %v", err, testCase.wantErr)
 			}
@@ -131,11 +137,11 @@ func TestTypedMasterDataProfilesValidateFrozenVocabulary(t *testing.T) {
 	}
 }
 
-func TestEntityAcceptsIndustryAndConceptAsDistinctTypes(t *testing.T) {
+func TestGenericEntityRejectsIndependentIndustryAndConceptTypes(t *testing.T) {
 	for _, entityType := range []EntityType{EntityTypeIndustry, EntityTypeConcept} {
 		node := Entity{ID: testEntityID, EntityType: entityType, LayerCode: string(entityType), Name: "人工智能", CanonicalName: "人工智能", Status: StatusActive}
-		if err := node.Validate(); err != nil {
-			t.Fatalf("Entity.Validate(%q) error = %v", entityType, err)
+		if err := node.Validate(); err == nil {
+			t.Fatalf("Entity.Validate(%q) error = nil", entityType)
 		}
 	}
 }
