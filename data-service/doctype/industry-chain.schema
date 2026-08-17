@@ -1,0 +1,50 @@
+namespace Tidewise
+
+IndustryChain(产业链): EntityType
+    desc: 表示围绕目标产出、终端用途、地域与技术路线组织的独立产业链对象，不依赖通用 Entity 节点
+    properties:
+        id(产业链标识): Text
+            desc: 从既有 IndustryChain Entity 无损保留的稳定标识，由 ENT 前缀直接连接 canonical lowercase UUID
+            constraint: NotNull, Regular="^ENT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        name(产业链名称): Text
+            desc: 产业链的正式显示名称
+            constraint: NotNull
+        aliases(产业链别名): Text
+            desc: 产业链用于匹配和检索的零个或多个稳定别名
+            constraint: NotNull, MultiValue
+        scope(产业链范围): Text
+            desc: 产业链事实覆盖的业务和产品范围
+            constraint: NotNull
+        targetOutput(目标产出): Text
+            desc: 产业链最终关注的目标产出
+            constraint: NotNull
+        endUse(终端用途): Text
+            desc: 目标产出的主要终端用途
+            constraint: NotNull
+        geography(地域范围): Text
+            desc: 产业链事实适用的地域范围描述
+            constraint: NotNull
+        asOfDate(截至日期): Text
+            desc: 产业链结构及其关系事实对应的业务日期
+            constraint: NotNull
+        reviewStatus(审核状态): Text
+            desc: candidate 表示候选产业链事实；approved 表示已批准产业链事实
+            constraint: NotNull, Enum="candidate,approved"
+        reviewNote(审核说明): Text
+            desc: 可选的产业链审核说明
+        technologyRouteQualifier(技术路线限定): Text
+            desc: 可选的产业链技术路线限定条件
+        observableVariables(可观察变量): Text
+            desc: 用于观察产业链状态的一个或多个稳定变量键
+            constraint: NotNull, MultiValue
+        createdAt(创建时间): Text
+            desc: PostgreSQL 生成的产业链事实创建时间
+            constraint: NotNull
+        updatedAt(更新时间): Text
+            desc: PostgreSQL 生成的产业链事实最近变更时间
+            constraint: NotNull
+    relations:
+        primaryCountry(主要国家): Country
+            desc: 产业链可选的主要国家范围，由 primary_country_id 持久化
+        chainNodes(产业链节点): ChainNode
+            desc: 产业链通过 membership 持有的零个或多个 ChainNode；顺序、阶段、审核和溯源由 membership 事实持久化

@@ -41,14 +41,14 @@ type wireResearchTheme struct {
 	ReasoningTreeCount        int                       `json:"reasoning_tree_count"`
 }
 type wireResearchThemeImpact struct {
-	NodeKey           string  `json:"node_key"`
-	DisplayName       string  `json:"display_name"`
-	ChainNodeEntityID string  `json:"chain_node_entity_id"`
-	Name              string  `json:"name"`
-	RelationRole      string  `json:"relation_role"`
-	ImpactDirection   string  `json:"impact_direction"`
-	ImpactSummary     *string `json:"impact_summary"`
-	DisplayOrder      int     `json:"display_order"`
+	NodeKey         string  `json:"node_key"`
+	DisplayName     string  `json:"display_name"`
+	ChainNodeID     string  `json:"chain_node_id"`
+	Name            string  `json:"name"`
+	RelationRole    string  `json:"relation_role"`
+	ImpactDirection string  `json:"impact_direction"`
+	ImpactSummary   *string `json:"impact_summary"`
+	DisplayOrder    int     `json:"display_order"`
 }
 type wireResearchThemeDetail struct {
 	ThemeKey                   string              `json:"theme_key"`
@@ -68,15 +68,15 @@ type wireResearchEvent struct {
 	DisplayOrder   int        `json:"display_order"`
 }
 type wireResearchReasoningTreeSummary struct {
-	TreeKey               string    `json:"tree_key"`
-	DisplayName           string    `json:"display_name"`
-	ReasoningTreeID       string    `json:"reasoning_tree_id"`
-	IndustryChainEntityID string    `json:"industry_chain_entity_id"`
-	IndustryChainName     string    `json:"industry_chain_name"`
-	Title                 string    `json:"title"`
-	DisplayOrder          int       `json:"display_order"`
-	EventCount            int       `json:"event_count"`
-	PublishedAt           time.Time `json:"published_at"`
+	TreeKey           string    `json:"tree_key"`
+	DisplayName       string    `json:"display_name"`
+	ReasoningTreeID   string    `json:"reasoning_tree_id"`
+	IndustryChainID   string    `json:"industry_chain_id"`
+	IndustryChainName string    `json:"industry_chain_name"`
+	Title             string    `json:"title"`
+	DisplayOrder      int       `json:"display_order"`
+	EventCount        int       `json:"event_count"`
+	PublishedAt       time.Time `json:"published_at"`
 }
 type wireResearchReasoningTreeList struct {
 	Theme          wireResearchTheme                  `json:"theme"`
@@ -107,7 +107,7 @@ type wireResearchReasoningTreeNode struct {
 	DisplayName                      string                 `json:"display_name"`
 	ID                               string                 `json:"id"`
 	Position                         int                    `json:"position"`
-	ChainNodeEntityID                string                 `json:"chain_node_entity_id"`
+	ChainNodeID                      string                 `json:"chain_node_id"`
 	Name                             string                 `json:"name"`
 	StateSummary                     *string                `json:"state_summary"`
 	ImpactDirection                  string                 `json:"impact_direction"`
@@ -129,7 +129,7 @@ type wireResearchReasoningTree struct {
 	DisplayName               string                          `json:"display_name"`
 	ReasoningTreeID           string                          `json:"reasoning_tree_id"`
 	ThemeID                   string                          `json:"theme_id"`
-	IndustryChainEntityID     string                          `json:"industry_chain_entity_id"`
+	IndustryChainID           string                          `json:"industry_chain_id"`
 	IndustryChainName         string                          `json:"industry_chain_name"`
 	Title                     string                          `json:"title"`
 	DisplayOrder              int                             `json:"display_order"`
@@ -174,7 +174,7 @@ func (v wireResearchTheme) toBiz() biz.ResearchTheme {
 	}
 }
 func (v wireResearchThemeImpact) toBiz() biz.ResearchThemeImpact {
-	return biz.ResearchThemeImpact{NodeKey: v.NodeKey, DisplayName: v.DisplayName, ChainNodeEntityID: v.ChainNodeEntityID, Name: v.Name, RelationRole: v.RelationRole, ImpactDirection: v.ImpactDirection, ImpactSummary: v.ImpactSummary, DisplayOrder: v.DisplayOrder}
+	return biz.ResearchThemeImpact{NodeKey: v.NodeKey, DisplayName: v.DisplayName, ChainNodeID: v.ChainNodeID, Name: v.Name, RelationRole: v.RelationRole, ImpactDirection: v.ImpactDirection, ImpactSummary: v.ImpactSummary, DisplayOrder: v.DisplayOrder}
 }
 func (v wireResearchEvent) toBiz() biz.ResearchEvent {
 	return biz.ResearchEvent{EventID: v.EventID, EvidenceIDs: v.EvidenceIDs, Title: v.Title, Summary: v.Summary, EventTime: v.EventTime, EvidenceRole: v.EvidenceRole, SupportedClaim: v.SupportedClaim, DisplayOrder: v.DisplayOrder}
@@ -183,7 +183,7 @@ func (v wireResearchThemeDetail) toBiz() biz.ResearchThemeDetail {
 	return biz.ResearchThemeDetail{Theme: v.Theme.toBiz(), Events: mapSlice(v.Events, wireResearchEvent.toBiz)}
 }
 func (v wireResearchReasoningTreeSummary) toBiz() biz.ResearchReasoningTreeSummary {
-	return biz.ResearchReasoningTreeSummary{TreeKey: v.TreeKey, DisplayName: v.DisplayName, ReasoningTreeID: v.ReasoningTreeID, IndustryChainEntityID: v.IndustryChainEntityID, IndustryChainName: v.IndustryChainName, Title: v.Title, DisplayOrder: v.DisplayOrder, EventCount: v.EventCount, PublishedAt: v.PublishedAt}
+	return biz.ResearchReasoningTreeSummary{TreeKey: v.TreeKey, DisplayName: v.DisplayName, ReasoningTreeID: v.ReasoningTreeID, IndustryChainID: v.IndustryChainID, IndustryChainName: v.IndustryChainName, Title: v.Title, DisplayOrder: v.DisplayOrder, EventCount: v.EventCount, PublishedAt: v.PublishedAt}
 }
 func (v wireResearchReasoningTreeList) toBiz() biz.ResearchReasoningTreeList {
 	return biz.ResearchReasoningTreeList{Theme: v.Theme.toBiz(), ReasoningTrees: mapSlice(v.ReasoningTrees, wireResearchReasoningTreeSummary.toBiz)}
@@ -196,14 +196,14 @@ func (v wireResearchReasoningTreeNode) toBiz() biz.ResearchReasoningTreeNode {
 	if v.IncomingGraphEdge != nil {
 		edge = &biz.ResearchGraphEdge{ID: v.IncomingGraphEdge.ID, RelationType: v.IncomingGraphEdge.RelationType, ReviewStatus: v.IncomingGraphEdge.ReviewStatus, Status: v.IncomingGraphEdge.Status}
 	}
-	return biz.ResearchReasoningTreeNode{NodeKey: v.NodeKey, DisplayName: v.DisplayName, ID: v.ID, Position: v.Position, ChainNodeEntityID: v.ChainNodeEntityID, Name: v.Name, StateSummary: v.StateSummary, ImpactDirection: v.ImpactDirection, ImpactStrength: v.ImpactStrength, ImpactSummary: v.ImpactSummary, ReasoningBasisSummary: v.ReasoningBasisSummary, EvidenceGapSummary: v.EvidenceGapSummary, IncomingIndustryChainGraphEdgeID: v.IncomingIndustryChainGraphEdgeID, IncomingTransmissionTitle: v.IncomingTransmissionTitle, IncomingTransmissionMechanism: v.IncomingTransmissionMechanism, IncomingConditionSummary: v.IncomingConditionSummary, IncomingGraphEdge: edge, Signals: mapSlice(v.Signals, wireResearchSignal.toBiz), PrimarySignal: v.PrimarySignal.toBiz(), SignalDisplaySummary: v.SignalDisplaySummary}
+	return biz.ResearchReasoningTreeNode{NodeKey: v.NodeKey, DisplayName: v.DisplayName, ID: v.ID, Position: v.Position, ChainNodeID: v.ChainNodeID, Name: v.Name, StateSummary: v.StateSummary, ImpactDirection: v.ImpactDirection, ImpactStrength: v.ImpactStrength, ImpactSummary: v.ImpactSummary, ReasoningBasisSummary: v.ReasoningBasisSummary, EvidenceGapSummary: v.EvidenceGapSummary, IncomingIndustryChainGraphEdgeID: v.IncomingIndustryChainGraphEdgeID, IncomingTransmissionTitle: v.IncomingTransmissionTitle, IncomingTransmissionMechanism: v.IncomingTransmissionMechanism, IncomingConditionSummary: v.IncomingConditionSummary, IncomingGraphEdge: edge, Signals: mapSlice(v.Signals, wireResearchSignal.toBiz), PrimarySignal: v.PrimarySignal.toBiz(), SignalDisplaySummary: v.SignalDisplaySummary}
 }
 func (v wireResearchReasoningTree) toBiz() biz.ResearchReasoningTree {
 	checkpoints := make([]biz.ResearchCheckpoint, 0, len(v.Checkpoints))
 	for _, c := range v.Checkpoints {
 		checkpoints = append(checkpoints, biz.ResearchCheckpoint{Type: c.Type, Summary: c.Summary})
 	}
-	return biz.ResearchReasoningTree{TreeKey: v.TreeKey, DisplayName: v.DisplayName, ReasoningTreeID: v.ReasoningTreeID, ThemeID: v.ThemeID, IndustryChainEntityID: v.IndustryChainEntityID, IndustryChainName: v.IndustryChainName, Title: v.Title, DisplayOrder: v.DisplayOrder, OneLineConclusion: v.OneLineConclusion, FactSummary: v.FactSummary, TransmissionSummary: v.TransmissionSummary, ImpactDirection: v.ImpactDirection, ImpactStrength: v.ImpactStrength, ImpactSummary: v.ImpactSummary, ConclusionBoundarySummary: v.ConclusionBoundarySummary, SupportSummary: v.SupportSummary, CounterSummary: v.CounterSummary, InvalidationConditions: v.InvalidationConditions, Checkpoints: checkpoints, PublishedAt: v.PublishedAt, EventCount: v.EventCount, Events: mapSlice(v.Events, wireResearchEvent.toBiz), Nodes: mapSlice(v.Nodes, wireResearchReasoningTreeNode.toBiz)}
+	return biz.ResearchReasoningTree{TreeKey: v.TreeKey, DisplayName: v.DisplayName, ReasoningTreeID: v.ReasoningTreeID, ThemeID: v.ThemeID, IndustryChainID: v.IndustryChainID, IndustryChainName: v.IndustryChainName, Title: v.Title, DisplayOrder: v.DisplayOrder, OneLineConclusion: v.OneLineConclusion, FactSummary: v.FactSummary, TransmissionSummary: v.TransmissionSummary, ImpactDirection: v.ImpactDirection, ImpactStrength: v.ImpactStrength, ImpactSummary: v.ImpactSummary, ConclusionBoundarySummary: v.ConclusionBoundarySummary, SupportSummary: v.SupportSummary, CounterSummary: v.CounterSummary, InvalidationConditions: v.InvalidationConditions, Checkpoints: checkpoints, PublishedAt: v.PublishedAt, EventCount: v.EventCount, Events: mapSlice(v.Events, wireResearchEvent.toBiz), Nodes: mapSlice(v.Nodes, wireResearchReasoningTreeNode.toBiz)}
 }
 func (v wireResearchReasoningTreeDetail) toBiz() biz.ResearchReasoningTreeDetail {
 	return biz.ResearchReasoningTreeDetail{ThemeID: v.ThemeID, ImpactNodeIDs: v.ImpactNodeIDs, ReasoningTree: v.ReasoningTree.toBiz()}

@@ -244,14 +244,14 @@ func validateStringSet(field string, values []string) error {
 }
 
 func cloneIndustry(input Industry) Industry {
-	input.Aliases = append([]string(nil), input.Aliases...)
+	input.Aliases = append([]string{}, input.Aliases...)
 	input.ParentIndustryID = cloneString(input.ParentIndustryID)
 	input.HierarchyPathCodes = append([]string(nil), input.HierarchyPathCodes...)
 	return input
 }
 
 func cloneUpdate(input Update) Update {
-	input.Aliases = append([]string(nil), input.Aliases...)
+	input.Aliases = append([]string{}, input.Aliases...)
 	input.ParentIndustryID = cloneString(input.ParentIndustryID)
 	input.HierarchyPathCodes = append([]string(nil), input.HierarchyPathCodes...)
 	return input

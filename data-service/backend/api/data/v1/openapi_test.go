@@ -54,6 +54,10 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/entities/industries/{industry_id}":                              {method: "get", operationID: "getIndustry", driftAnchor: "data.v1.getIndustry", scope: "data.industries.read"},
 		namespace + "/entities/concepts":                                              {method: "get", operationID: "listConcepts", driftAnchor: "data.v1.listConcepts", scope: "data.concepts.read"},
 		namespace + "/entities/concepts/{concept_id}":                                 {method: "get", operationID: "getConcept", driftAnchor: "data.v1.getConcept", scope: "data.concepts.read"},
+		namespace + "/entities/chain-nodes":                                           {method: "get", operationID: "listChainNodes", driftAnchor: "data.v1.listChainNodes", scope: "data.chain-nodes.read"},
+		namespace + "/entities/chain-nodes/{chain_node_id}":                           {method: "get", operationID: "getChainNode", driftAnchor: "data.v1.getChainNode", scope: "data.chain-nodes.read"},
+		namespace + "/entities/industry-chains":                                       {method: "get", operationID: "listIndustryChains", driftAnchor: "data.v1.listIndustryChains", scope: "data.industry-chains.read"},
+		namespace + "/entities/industry-chains/{industry_chain_id}":                   {method: "get", operationID: "getIndustryChain", driftAnchor: "data.v1.getIndustryChain", scope: "data.industry-chains.read"},
 		namespace + "/entities/organizations":                                         {method: "get", operationID: "listOrganizations", driftAnchor: "data.v1.listOrganizations", scope: "data.organizations.read"},
 		namespace + "/entities/organizations/{organization_id}":                       {method: "get", operationID: "getOrganization", driftAnchor: "data.v1.getOrganization", scope: "data.organizations.read"},
 		namespace + "/entities/organizations/{organization_id}/domain-tags":           {method: "put", operationID: "replaceOrganizationDomainTags", driftAnchor: "data.v1.replaceOrganizationDomainTags", scope: "data.organizations.write"},
@@ -68,6 +72,10 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/entities/industries/{industry_id}":                            {"put": {}},
 		namespace + "/entities/concepts":                                            {"post": {}},
 		namespace + "/entities/concepts/{concept_id}":                               {"put": {}},
+		namespace + "/entities/chain-nodes":                                         {"post": {}},
+		namespace + "/entities/chain-nodes/{chain_node_id}":                         {"put": {}},
+		namespace + "/entities/industry-chains":                                     {"post": {}},
+		namespace + "/entities/industry-chains/{industry_chain_id}":                 {"put": {}},
 		namespace + "/entities/organizations":                                       {"post": {}},
 		namespace + "/entities/organizations/{organization_id}":                     {"put": {}},
 		namespace + "/entities/organizations/{organization_id}/members":             {"post": {}},
@@ -121,10 +129,14 @@ func TestOpenAPIContractFreezesIndustryAndConceptWriteOperations(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
 	for path, expected := range map[string]operationContract{
-		namespace + "/entities/industries":               {method: "post", operationID: "createIndustry", driftAnchor: "data.v1.createIndustry", scope: "data.industries.write"},
-		namespace + "/entities/industries/{industry_id}": {method: "put", operationID: "updateIndustry", driftAnchor: "data.v1.updateIndustry", scope: "data.industries.write"},
-		namespace + "/entities/concepts":                 {method: "post", operationID: "createConcept", driftAnchor: "data.v1.createConcept", scope: "data.concepts.write"},
-		namespace + "/entities/concepts/{concept_id}":    {method: "put", operationID: "updateConcept", driftAnchor: "data.v1.updateConcept", scope: "data.concepts.write"},
+		namespace + "/entities/industries":                          {method: "post", operationID: "createIndustry", driftAnchor: "data.v1.createIndustry", scope: "data.industries.write"},
+		namespace + "/entities/industries/{industry_id}":            {method: "put", operationID: "updateIndustry", driftAnchor: "data.v1.updateIndustry", scope: "data.industries.write"},
+		namespace + "/entities/concepts":                            {method: "post", operationID: "createConcept", driftAnchor: "data.v1.createConcept", scope: "data.concepts.write"},
+		namespace + "/entities/concepts/{concept_id}":               {method: "put", operationID: "updateConcept", driftAnchor: "data.v1.updateConcept", scope: "data.concepts.write"},
+		namespace + "/entities/chain-nodes":                         {method: "post", operationID: "createChainNode", driftAnchor: "data.v1.createChainNode", scope: "data.chain-nodes.write"},
+		namespace + "/entities/chain-nodes/{chain_node_id}":         {method: "put", operationID: "updateChainNode", driftAnchor: "data.v1.updateChainNode", scope: "data.chain-nodes.write"},
+		namespace + "/entities/industry-chains":                     {method: "post", operationID: "createIndustryChain", driftAnchor: "data.v1.createIndustryChain", scope: "data.industry-chains.write"},
+		namespace + "/entities/industry-chains/{industry_chain_id}": {method: "put", operationID: "updateIndustryChain", driftAnchor: "data.v1.updateIndustryChain", scope: "data.industry-chains.write"},
 	} {
 		operation := object(t, object(t, paths[path], path)[expected.method], expected.method+" "+path)
 		assertString(t, operation, "operationId", expected.operationID)
@@ -134,12 +146,14 @@ func TestOpenAPIContractFreezesIndustryAndConceptWriteOperations(t *testing.T) {
 	}
 	assertRequired(t, schema(t, document, "Industry"), "id", "name", "aliases", "classification_system", "industry_code", "parent_industry_id", "hierarchy_path_codes", "definition", "review_status", "created_at", "updated_at")
 	assertRequired(t, schema(t, document, "Concept"), "id", "name", "aliases", "concept_type", "definition", "review_status", "created_at", "updated_at")
+	assertRequired(t, schema(t, document, "ChainNode"), "id", "name", "aliases", "definition", "review_status", "created_at", "updated_at")
+	assertRequired(t, schema(t, document, "IndustryChain"), "id", "name", "aliases", "scope", "target_output", "end_use", "geography", "primary_country_id", "as_of_date", "review_status", "review_note", "technology_route_qualifier", "observable_variables", "created_at", "updated_at")
 }
 
 func TestOpenAPIContractFreezesIndustryAndConceptKeysetPagination(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
-	for _, path := range []string{namespace + "/entities/industries", namespace + "/entities/concepts"} {
+	for _, path := range []string{namespace + "/entities/industries", namespace + "/entities/concepts", namespace + "/entities/chain-nodes", namespace + "/entities/industry-chains"} {
 		operation := object(t, object(t, paths[path], path)["get"], "get "+path)
 		refs := make(map[string]bool)
 		for _, parameter := range array(t, operation["parameters"], path+" parameters") {
@@ -152,7 +166,7 @@ func TestOpenAPIContractFreezesIndustryAndConceptKeysetPagination(t *testing.T) 
 			}
 		}
 	}
-	for _, schemaName := range []string{"IndustryList", "ConceptList"} {
+	for _, schemaName := range []string{"IndustryList", "ConceptList", "ChainNodeList", "IndustryChainList"} {
 		page := schema(t, document, schemaName)
 		assertRequired(t, page, "items", "next_cursor")
 		nextCursor := object(t, object(t, page["properties"], schemaName+" properties")["next_cursor"], schemaName+" next_cursor")
@@ -168,6 +182,8 @@ func TestOpenAPICreateContractsDoNotAcceptSystemOwnedPrimaryKeys(t *testing.T) {
 		"CountryCreateRequest":                    {"id", "country_id"},
 		"IndustryCreateRequest":                   {"id", "industry_id"},
 		"ConceptWriteRequest":                     {"id", "concept_id"},
+		"ChainNodeWriteRequest":                   {"id", "chain_node_id"},
+		"IndustryChainWriteRequest":               {"id", "industry_chain_id"},
 		"CountryRegionsReplaceRequest":            {"id", "country_region_link_id"},
 		"OrganizationCreateRequest":               {"id", "organization_id"},
 		"OrganizationMemberWriteRequest":          {"id", "member_id"},
@@ -350,7 +366,7 @@ func TestOpenAPIContractFreezesResearchReasoningTreeReadV1(t *testing.T) {
 	tree := schema(t, document, "ResearchReasoningTree")
 	assertRequired(t, tree,
 		"tree_key", "display_name",
-		"reasoning_tree_id", "theme_id", "industry_chain_entity_id", "industry_chain_name", "title",
+		"reasoning_tree_id", "theme_id", "industry_chain_id", "industry_chain_name", "title",
 		"display_order", "one_line_conclusion", "fact_summary", "transmission_summary",
 		"impact_direction", "impact_strength", "impact_summary", "conclusion_boundary_summary",
 		"support_summary", "counter_summary", "invalidation_conditions", "checkpoints",
@@ -359,7 +375,7 @@ func TestOpenAPIContractFreezesResearchReasoningTreeReadV1(t *testing.T) {
 	node := schema(t, document, "ResearchReasoningTreeNode")
 	assertRequired(t, node,
 		"node_key", "display_name",
-		"id", "position", "chain_node_entity_id", "name", "state_summary", "impact_direction",
+		"id", "position", "chain_node_id", "name", "state_summary", "impact_direction",
 		"impact_strength", "impact_summary", "reasoning_basis_summary", "evidence_gap_summary",
 		"incoming_industry_chain_graph_edge_id", "incoming_transmission_title",
 		"incoming_transmission_mechanism", "incoming_condition_summary", "incoming_graph_edge",
@@ -385,14 +401,14 @@ func TestOpenAPIContractFreezesAtomicResearchPublicationV2(t *testing.T) {
 	assertRequired(t, request, "analysis_batch_id", "analysis_as_of", "discovery_window_start", "discovery_window_end", "theme", "reasoning_trees")
 	tree := schema(t, document, "ResearchReasoningTreeImportItem")
 	assertRequired(t, tree,
-		"industry_chain_entity_id", "title", "display_order", "one_line_conclusion", "fact_summary",
+		"industry_chain_id", "title", "display_order", "one_line_conclusion", "fact_summary",
 		"transmission_summary", "impact_direction", "impact_strength", "impact_summary",
 		"conclusion_boundary_summary", "support_summary", "counter_summary",
 		"invalidation_conditions", "checkpoints", "events", "nodes",
 	)
 	node := schema(t, document, "ResearchReasoningTreeImportNode")
 	assertRequired(t, node,
-		"position", "chain_node_entity_id", "state_summary", "impact_direction", "impact_strength",
+		"position", "chain_node_id", "state_summary", "impact_direction", "impact_strength",
 		"impact_summary", "reasoning_basis_summary", "evidence_gap_summary",
 		"incoming_industry_chain_graph_edge_id", "incoming_transmission_title",
 		"incoming_transmission_mechanism", "incoming_condition_summary", "incoming_lineage", "signals",
@@ -405,7 +421,7 @@ func TestOpenAPIContractFreezesAtomicResearchPublicationV2(t *testing.T) {
 		"industry_chain_graph_edge_id",
 	)
 	result := schema(t, document, "ResearchThemeImportResult")
-	assertRequired(t, result, "receipt_id", "analysis_batch_id", "theme_id", "payload_hash", "publication_mode", "reasoning_tree_ids_by_industry_chain_entity_id", "reasoning_tree_ids_by_tree_key", "counts", "published_at", "imported_at", "replayed")
+	assertRequired(t, result, "receipt_id", "analysis_batch_id", "theme_id", "payload_hash", "publication_mode", "reasoning_tree_ids_by_industry_chain_id", "reasoning_tree_ids_by_tree_key", "counts", "published_at", "imported_at", "replayed")
 }
 
 func TestOpenAPIContractFreezesAnalystSnapshotPublicationV3(t *testing.T) {
@@ -415,7 +431,7 @@ func TestOpenAPIContractFreezesAnalystSnapshotPublicationV3(t *testing.T) {
 	impact := schema(t, document, "ResearchThemeSnapshotImpact")
 	assertRequired(t, impact, "node_key", "display_name", "relation_role", "impact_direction", "impact_summary", "display_order")
 	properties := object(t, impact["properties"], "snapshot impact properties")
-	if _, exists := properties["chain_node_entity_id"]; exists {
+	if _, exists := properties["chain_node_id"]; exists {
 		t.Fatal("analyst_snapshot impact must not expose a formal Entity ID")
 	}
 	node := schema(t, document, "ResearchReasoningTreeSnapshotNode")
@@ -530,10 +546,10 @@ func TestOpenAPIContractFreezesResearchThemeBatchPublicationV1(t *testing.T) {
 	assertStringSet(t, object(t, themeProperties["transmission_stage"], "transmission_stage")["enum"], "identification", "validation", "diffusion", "dampening")
 
 	impact := schema(t, document, "ResearchThemeImportImpact")
-	assertRequired(t, impact, "chain_node_entity_id", "relation_role", "impact_direction", "impact_summary", "display_order")
+	assertRequired(t, impact, "chain_node_id", "relation_role", "impact_direction", "impact_summary", "display_order")
 	lowercaseUUID := schema(t, document, "LowercaseUUID")
 	assertString(t, lowercaseUUID, "pattern", "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
-	assertString(t, object(t, object(t, impact["properties"], "impact properties")["chain_node_entity_id"], "chain_node_entity_id"), "$ref", "#/components/schemas/EntityID")
+	assertString(t, object(t, object(t, impact["properties"], "impact properties")["chain_node_id"], "chain_node_id"), "$ref", "#/components/schemas/EntityID")
 	assertStringSet(t, object(t, object(t, impact["properties"], "impact properties")["relation_role"], "relation_role")["enum"], "driver", "beneficiary", "constraint", "exposure")
 	event := schema(t, document, "ResearchThemeImportEvent")
 	assertRequired(t, event, "event_id", "evidence_role", "supported_claim")
@@ -541,10 +557,10 @@ func TestOpenAPIContractFreezesResearchThemeBatchPublicationV1(t *testing.T) {
 	assertStringSet(t, object(t, object(t, event["properties"], "event properties")["evidence_role"], "evidence_role")["enum"], "driver", "supporting", "contradicting", "context")
 
 	result := schema(t, document, "ResearchThemeImportResult")
-	assertRequired(t, result, "receipt_id", "analysis_batch_id", "payload_hash", "theme_id", "publication_mode", "reasoning_tree_ids_by_industry_chain_entity_id", "reasoning_tree_ids_by_tree_key", "counts", "published_at", "imported_at", "replayed")
+	assertRequired(t, result, "receipt_id", "analysis_batch_id", "payload_hash", "theme_id", "publication_mode", "reasoning_tree_ids_by_industry_chain_id", "reasoning_tree_ids_by_tree_key", "counts", "published_at", "imported_at", "replayed")
 	resultProperties := object(t, result["properties"], "ResearchThemeImportResult properties")
-	if value := object(t, resultProperties["reasoning_tree_ids_by_industry_chain_entity_id"], "reasoning tree IDs")["additionalProperties"]; value == nil {
-		t.Fatal("reasoning_tree_ids_by_industry_chain_entity_id must define UUID map values")
+	if value := object(t, resultProperties["reasoning_tree_ids_by_industry_chain_id"], "reasoning tree IDs")["additionalProperties"]; value == nil {
+		t.Fatal("reasoning_tree_ids_by_industry_chain_id must define UUID map values")
 	}
 }
 

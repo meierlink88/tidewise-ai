@@ -63,14 +63,14 @@ type ResearchThemeItem struct {
 	ReasoningTreeCount        int                   `json:"reasoning_tree_count"`
 }
 type ResearchThemeImpact struct {
-	NodeKey           string  `json:"node_key"`
-	DisplayName       string  `json:"display_name"`
-	ChainNodeEntityID string  `json:"chain_node_entity_id"`
-	Name              string  `json:"name"`
-	RelationRole      string  `json:"relation_role"`
-	ImpactDirection   string  `json:"impact_direction"`
-	ImpactSummary     *string `json:"impact_summary"`
-	DisplayOrder      int     `json:"display_order"`
+	NodeKey         string  `json:"node_key"`
+	DisplayName     string  `json:"display_name"`
+	ChainNodeID     string  `json:"chain_node_id"`
+	Name            string  `json:"name"`
+	RelationRole    string  `json:"relation_role"`
+	ImpactDirection string  `json:"impact_direction"`
+	ImpactSummary   *string `json:"impact_summary"`
+	DisplayOrder    int     `json:"display_order"`
 }
 type ResearchThemeDetailResponse struct {
 	ResearchThemeItem
@@ -92,15 +92,15 @@ type ResearchReasoningTreeListResponse struct {
 	ReasoningTrees []ResearchReasoningTreeSummary `json:"reasoning_trees"`
 }
 type ResearchReasoningTreeSummary struct {
-	TreeKey               string `json:"tree_key"`
-	DisplayName           string `json:"display_name"`
-	ReasoningTreeID       string `json:"reasoning_tree_id"`
-	IndustryChainEntityID string `json:"industry_chain_entity_id"`
-	IndustryChainName     string `json:"industry_chain_name"`
-	Title                 string `json:"title"`
-	DisplayOrder          int    `json:"display_order"`
-	EventCount            int    `json:"event_count"`
-	PublishedAt           string `json:"published_at"`
+	TreeKey           string `json:"tree_key"`
+	DisplayName       string `json:"display_name"`
+	ReasoningTreeID   string `json:"reasoning_tree_id"`
+	IndustryChainID   string `json:"industry_chain_id"`
+	IndustryChainName string `json:"industry_chain_name"`
+	Title             string `json:"title"`
+	DisplayOrder      int    `json:"display_order"`
+	EventCount        int    `json:"event_count"`
+	PublishedAt       string `json:"published_at"`
 }
 type ResearchReasoningTreeDetailResponse struct {
 	ThemeID       string                `json:"theme_id"`
@@ -132,7 +132,7 @@ type ResearchReasoningTreeNode struct {
 	DisplayName                      string                          `json:"display_name"`
 	ID                               string                          `json:"id"`
 	Position                         int                             `json:"position"`
-	ChainNodeEntityID                string                          `json:"chain_node_entity_id"`
+	ChainNodeID                      string                          `json:"chain_node_id"`
 	Name                             string                          `json:"name"`
 	StateSummary                     *string                         `json:"state_summary"`
 	ImpactDirection                  string                          `json:"impact_direction"`
@@ -154,7 +154,7 @@ type ResearchReasoningTree struct {
 	DisplayName               string                            `json:"display_name"`
 	ReasoningTreeID           string                            `json:"reasoning_tree_id"`
 	ThemeID                   string                            `json:"theme_id"`
-	IndustryChainEntityID     string                            `json:"industry_chain_entity_id"`
+	IndustryChainID           string                            `json:"industry_chain_id"`
 	IndustryChainName         string                            `json:"industry_chain_name"`
 	Title                     string                            `json:"title"`
 	DisplayOrder              int                               `json:"display_order"`

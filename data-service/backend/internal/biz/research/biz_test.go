@@ -229,7 +229,7 @@ func TestPublishAcceptsReverseEntityRelationBetweenAdjacentNodes(t *testing.T) {
 func TestPublishRejectsAnalystInferenceRelationOutsideAdjacentNodes(t *testing.T) {
 	aggregate, facts := validBCIAnalystInferenceAggregate(true, 3)
 	edge := facts.GraphEdges[testBCIElectrodeEdgeID]
-	edge.FromChainNodeEntityID = testBCISystemNodeID
+	edge.FromChainNodeID = testBCISystemNodeID
 	facts.GraphEdges[testBCIElectrodeEdgeID] = edge
 	tx := &publicationTransactionStub{facts: facts}
 	service := (&UseCase{publicationStore: publicationStoreStub{tx: tx}, now: time.Now})
@@ -247,7 +247,7 @@ func TestPublishRejectsAnalystInferenceRelationOutsideAdjacentNodes(t *testing.T
 func TestPublishRejectsAnalystInferenceGraphEdgeFromAnotherIndustryChain(t *testing.T) {
 	aggregate, facts := validBCIAnalystInferenceAggregate(true, 3)
 	edge := facts.GraphEdges[testBCITerminalEdgeID]
-	edge.IndustryChainEntityID = testChainID
+	edge.IndustryChainID = testChainID
 	facts.GraphEdges[testBCITerminalEdgeID] = edge
 	tx := &publicationTransactionStub{facts: facts}
 	service := (&UseCase{publicationStore: publicationStoreStub{tx: tx}, now: time.Now})
@@ -502,14 +502,14 @@ func validAggregate() Aggregate {
 			TransmissionStage: "validation", InvestmentGuidanceAction: "focus",
 			InvestmentGuidanceSummary: "Watch supply", TimeHorizonCategory: "short_term",
 			Impacts: []ThemeImpactInput{{
-				ChainNodeEntityID: testNodeID, RelationRole: "driver",
+				ChainNodeID: testNodeID, RelationRole: "driver",
 				ImpactDirection: "positive", DisplayOrder: 1,
 			}},
 			Events: []ThemeEventInput{{EventID: testEventID, EvidenceRole: "driver"}},
 		},
 		ReasoningTrees: []ReasoningTree{{
 			ReasonTreeInput: ReasonTreeInput{
-				IndustryChainEntityID: testChainID, Title: "Wafer chain", DisplayOrder: 1,
+				IndustryChainID: testChainID, Title: "Wafer chain", DisplayOrder: 1,
 				OneLineConclusion: "Supply tightens", ImpactDirection: "positive",
 				ImpactStrength: "medium",
 				Events: []ReasonTreeEventInput{{
@@ -517,7 +517,7 @@ func validAggregate() Aggregate {
 				}},
 			},
 			Nodes: []Node{{
-				Position: 1, ChainNodeEntityID: testNodeID,
+				Position: 1, ChainNodeID: testNodeID,
 				ImpactDirection: "positive", ImpactStrength: "medium",
 				Signals: []Signal{{
 					VariableSignalKey: "market_supply", SignalRole: "primary",
@@ -559,7 +559,7 @@ func validAggregateWithDirectImpact() Aggregate {
 		aggregate.ReasoningTrees[0].Nodes,
 		Node{
 			Position:                      2,
-			ChainNodeEntityID:             testTargetNodeID,
+			ChainNodeID:                   testTargetNodeID,
 			ImpactDirection:               "negative",
 			ImpactStrength:                "medium",
 			IncomingTransmissionTitle:     &incomingTitle,
@@ -602,7 +602,7 @@ func validBCIAnalystInferenceAggregate(reverseEdges bool, nodeCount int) (Aggreg
 	aggregate.Theme.ThemeKey = "bci-demand"
 	aggregate.Theme.Title = "BCI demand"
 	aggregate.Theme.Impacts = nil
-	aggregate.ReasoningTrees[0].IndustryChainEntityID = testBCIChainID
+	aggregate.ReasoningTrees[0].IndustryChainID = testBCIChainID
 	aggregate.ReasoningTrees[0].Title = "BCI system chain"
 	aggregate.ReasoningTrees[0].Nodes = nil
 
@@ -611,16 +611,16 @@ func validBCIAnalystInferenceAggregate(reverseEdges bool, nodeCount int) (Aggreg
 	signalKeys := []string{"market_demand", "terminal_market_demand", "electrode_market_demand"}
 	for position, nodeID := range nodeIDs[:nodeCount] {
 		aggregate.Theme.Impacts = append(aggregate.Theme.Impacts, ThemeImpactInput{
-			ChainNodeEntityID: nodeID,
-			RelationRole:      "exposure",
-			ImpactDirection:   "uncertain",
-			DisplayOrder:      position + 1,
+			ChainNodeID:     nodeID,
+			RelationRole:    "exposure",
+			ImpactDirection: "uncertain",
+			DisplayOrder:    position + 1,
 		})
 		node := Node{
-			Position:          position + 1,
-			ChainNodeEntityID: nodeID,
-			ImpactDirection:   "uncertain",
-			ImpactStrength:    "unknown",
+			Position:        position + 1,
+			ChainNodeID:     nodeID,
+			ImpactDirection: "uncertain",
+			ImpactStrength:  "unknown",
 		}
 		if position == 0 {
 			node.Signals = []Signal{validAggregate().ReasoningTrees[0].Nodes[0].Signals[0]}
@@ -677,8 +677,8 @@ func validBCIAnalystInferenceAggregate(reverseEdges bool, nodeCount int) (Aggreg
 		}
 		facts.GraphEdges[edgeID] = GraphEdgeFact{
 			ReasonTreeGraphEdgeReference: ReasonTreeGraphEdgeReference{
-				ID: edgeID, IndustryChainEntityID: testBCIChainID,
-				FromChainNodeEntityID: fromNodeID, ToChainNodeEntityID: toNodeID,
+				ID: edgeID, IndustryChainID: testBCIChainID,
+				FromChainNodeID: fromNodeID, ToChainNodeID: toNodeID,
 			},
 			TemporalFact: testTemporalFact(),
 		}
@@ -1899,12 +1899,12 @@ func TestServiceMapsReasoningTreeSignalsWithoutChoosingImpactPriority(t *testing
 		ImpactNodeIDs: []string{nodeID},
 		ReasoningTree: ReasoningTreeRecord{
 			ReasoningTreeID: treeID, ThemeID: themeID,
-			IndustryChainEntityID: "ENT44444444-4444-4444-8444-444444444444",
-			IndustryChainName:     "产业链", Title: "Tree", DisplayOrder: 1,
+			IndustryChainID:   "ENT44444444-4444-4444-8444-444444444444",
+			IndustryChainName: "产业链", Title: "Tree", DisplayOrder: 1,
 			OneLineConclusion: "结论", ImpactDirection: "positive", ImpactStrength: "medium",
 			PublishedAt: time.Date(2026, 7, 28, 9, 0, 0, 0, time.UTC),
 			Nodes: []ReasoningTreeNodeRecord{{
-				ID: nodeID, Position: 1, ChainNodeEntityID: nodeID, Name: "节点",
+				ID: nodeID, Position: 1, ChainNodeID: nodeID, Name: "节点",
 				ImpactDirection: "positive", ImpactStrength: "medium",
 				Signals: []SignalRecord{
 					{VariableSignalKey: "primary", SignalRole: "primary", SignalDirection: "increase", DisplaySummary: "主信号", DisplayOrder: 1},

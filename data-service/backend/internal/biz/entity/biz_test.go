@@ -2,7 +2,6 @@ package entity
 
 import (
 	"testing"
-	"time"
 )
 
 const testEntityID = "ENT550e8400-e29b-41d4-a716-446655440000"
@@ -20,16 +19,12 @@ func TestDomainObjectIdentityRequiresPrefixAndUUID(t *testing.T) {
 	}
 }
 
-func TestChainNodeAndThemeProfiles(t *testing.T) {
+func TestThemeProfiles(t *testing.T) {
 	tests := []struct {
 		name    string
 		profile interface{ Validate() error }
 		wantErr bool
 	}{
-		{name: "chain node", profile: ChainNodeProfile{EntityID: "node", Definition: "可独立链接的产业概念"}},
-		{name: "chain node optional boundary", profile: ChainNodeProfile{EntityID: "node", Definition: "可独立链接的产业概念", BoundaryNote: "不含行情标签"}},
-		{name: "chain node blank definition", profile: ChainNodeProfile{EntityID: "node", Definition: " "}, wantErr: true},
-		{name: "chain node blank optional boundary", profile: ChainNodeProfile{EntityID: "node", Definition: "节点", BoundaryNote: " "}, wantErr: true},
 		{name: "theme", profile: ThemeProfile{EntityID: "theme", Definition: "自有投研视角", BoundaryNote: "不等同于产业链节点"}},
 		{name: "theme missing boundary", profile: ThemeProfile{EntityID: "theme", Definition: "自有投研视角"}, wantErr: true},
 	}
@@ -80,8 +75,8 @@ func TestEntityExternalIdentifierValidation(t *testing.T) {
 	}
 }
 
-func TestGenericEntityRejectsIndependentIndustryAndConceptTypes(t *testing.T) {
-	for _, entityType := range []EntityType{EntityTypeIndustry, EntityTypeConcept} {
+func TestGenericEntityRejectsIndependentObjectTypes(t *testing.T) {
+	for _, entityType := range []EntityType{EntityTypeIndustry, EntityTypeConcept, EntityTypeChainNode, EntityTypeIndustryChain} {
 		node := Entity{ID: testEntityID, EntityType: entityType, LayerCode: string(entityType), Name: "人工智能", CanonicalName: "人工智能", Status: StatusActive}
 		if err := node.Validate(); err == nil {
 			t.Fatalf("Entity.Validate(%q) error = nil", entityType)
@@ -89,60 +84,23 @@ func TestGenericEntityRejectsIndependentIndustryAndConceptTypes(t *testing.T) {
 	}
 }
 
-func TestChainNodeProfileKeepsLegacyReviewStatusUnclassified(t *testing.T) {
-	for _, testCase := range []struct {
-		name    string
-		status  ReviewStatus
-		wantErr bool
-	}{
-		{name: "legacy null-equivalent", status: ""},
-		{name: "candidate", status: ReviewStatusCandidate},
-		{name: "approved", status: ReviewStatusApproved},
-		{name: "reviewed is not master data status", status: ReviewStatusReviewed, wantErr: true},
-	} {
-		t.Run(testCase.name, func(t *testing.T) {
-			err := (ChainNodeProfile{EntityID: "node", Definition: "稳定经济节点", ReviewStatus: testCase.status}).Validate()
-			if (err != nil) != testCase.wantErr {
-				t.Fatalf("Validate() error = %v, wantErr %v", err, testCase.wantErr)
-			}
-		})
-	}
-}
-
 func TestIndustryChainMasterDataTypesValidateNewSchemaVocabulary(t *testing.T) {
-	validDate := time.Date(2026, 7, 22, 0, 0, 0, 0, time.UTC)
 	tests := []struct {
 		name    string
 		value   interface{ Validate() error }
 		wantErr bool
 	}{
 		{
-			name: "definition",
-			value: IndustryChainDefinition{
-				EntityID: "chain", Scope: "AI 算力主链", TargetOutput: "可用算力", EndUse: "AI 训练与推理",
-				Geography: "global_with_china_research_focus", PrimaryCountryID: "COUc7cb6173-13d0-5ffe-b12d-fad8b49bed1b",
-				AsOfDate: validDate, ReviewStatus: ReviewStatusCandidate,
-			},
-		},
-		{
-			name: "definition rejects legacy country identity",
-			value: IndustryChainDefinition{
-				EntityID: "chain", Scope: "AI 算力主链", TargetOutput: "可用算力", EndUse: "AI 训练与推理",
-				Geography: "china", PrimaryCountryID: "legacy-country-id", AsOfDate: validDate, ReviewStatus: ReviewStatusCandidate,
-			},
-			wantErr: true,
-		},
-		{
 			name: "membership",
 			value: IndustryChainNodeMembership{
-				IndustryChainEntityID: "chain", ChainNodeEntityID: "node", Position: 1,
+				IndustryChainID: "chain", ChainNodeID: "node", Position: 1,
 				ContextualStage: IndustryChainContextualStageUpstream, ReviewStatus: ReviewStatusApproved, Status: StatusActive,
 			},
 		},
 		{
 			name: "direct graph edge",
 			value: IndustryChainGraphEdge{
-				ID: "edge", IndustryChainEntityID: "chain", FromChainNodeEntityID: "a", ToChainNodeEntityID: "b",
+				ID: "edge", IndustryChainID: "chain", FromChainNodeID: "a", ToChainNodeID: "b",
 				RelationType: ChainNodeRelationInputTo, Mechanism: "A 的产出进入 B", SegmentKind: IndustryChainSegmentDirectCandidate,
 				ReviewStatus: ReviewStatusCandidate, Status: StatusActive,
 			},
@@ -150,7 +108,7 @@ func TestIndustryChainMasterDataTypesValidateNewSchemaVocabulary(t *testing.T) {
 		{
 			name: "legacy stage is rejected",
 			value: IndustryChainNodeMembership{
-				IndustryChainEntityID: "chain", ChainNodeEntityID: "node", Position: 1,
+				IndustryChainID: "chain", ChainNodeID: "node", Position: 1,
 				ContextualStage: IndustryChainContextualStage("infrastructure"), ReviewStatus: ReviewStatusApproved, Status: StatusActive,
 			},
 			wantErr: true,
@@ -158,7 +116,7 @@ func TestIndustryChainMasterDataTypesValidateNewSchemaVocabulary(t *testing.T) {
 		{
 			name: "compressed edge requires omitted step",
 			value: IndustryChainGraphEdge{
-				ID: "edge", IndustryChainEntityID: "chain", FromChainNodeEntityID: "a", ToChainNodeEntityID: "b",
+				ID: "edge", IndustryChainID: "chain", FromChainNodeID: "a", ToChainNodeID: "b",
 				RelationType: ChainNodeRelationDependsOn, Mechanism: "跨环节依赖", SegmentKind: IndustryChainSegmentCompressedCandidate,
 				ReviewStatus: ReviewStatusCandidate, Status: StatusActive,
 			},

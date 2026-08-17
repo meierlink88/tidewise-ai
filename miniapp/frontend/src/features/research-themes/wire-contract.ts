@@ -94,7 +94,7 @@ export function parseResearchThemeWire(value: unknown, asOf?: string): HomeResea
           ? [
               'node_key',
               'display_name',
-              'chain_node_entity_id',
+              'chain_node_id',
               'name',
               'relation_role',
               'impact_direction',
@@ -102,7 +102,7 @@ export function parseResearchThemeWire(value: unknown, asOf?: string): HomeResea
               'display_order'
             ]
           : [
-              'chain_node_entity_id',
+              'chain_node_id',
               'name',
               'relation_role',
               'impact_direction',
@@ -113,11 +113,11 @@ export function parseResearchThemeWire(value: unknown, asOf?: string): HomeResea
       const displayOrder = positiveInteger(impact.display_order);
       if (displayOrder !== index + 1) invalid();
       return {
-        nodeKey: snapshot ? localKey(impact.node_key) : entityID(impact.chain_node_entity_id),
+        nodeKey: snapshot ? localKey(impact.node_key) : entityID(impact.chain_node_id),
         displayName: text(snapshot ? impact.display_name : impact.name),
         chainNodeEntityId: snapshot
-          ? nullableEntityIDString(impact.chain_node_entity_id)
-          : entityID(impact.chain_node_entity_id),
+          ? nullableEntityIDString(impact.chain_node_id)
+          : entityID(impact.chain_node_id),
         name: text(snapshot ? impact.display_name : impact.name),
         relationRole: enumValue(impact.relation_role, relationRoleValues),
         impactDirection: enumValue<ResearchDirection>(impact.impact_direction, directionValues),

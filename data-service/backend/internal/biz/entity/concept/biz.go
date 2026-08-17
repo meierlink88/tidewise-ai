@@ -225,7 +225,7 @@ func validateStringSet(field string, values []string) error {
 }
 
 func cloneConcept(input Concept) Concept {
-	input.Aliases = append([]string(nil), input.Aliases...)
+	input.Aliases = append([]string{}, input.Aliases...)
 	return input
 }
 
@@ -261,6 +261,6 @@ func decodeListCursor(value string) (*ListKey, error) {
 }
 
 func cloneUpdate(input Update) Update {
-	input.Aliases = append([]string(nil), input.Aliases...)
+	input.Aliases = append([]string{}, input.Aliases...)
 	return input
 }

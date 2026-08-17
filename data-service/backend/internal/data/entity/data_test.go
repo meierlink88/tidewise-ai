@@ -3,6 +3,7 @@ package entity
 import (
 	"context"
 	"database/sql"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -11,6 +12,36 @@ import (
 	domain "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
 	postgresfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/postgres"
 )
+
+func TestChainNodeIndustryChainOpenSPGSchemas(t *testing.T) {
+	for fileName, properties := range map[string][]string{
+		"chain-node.schema": {
+			"id(产业链节点标识): Text", "name(产业链节点名称): Text", "aliases(产业链节点别名): Text",
+			"definition(产业链节点定义): Text", "reviewStatus(审核状态): Text", "createdAt(创建时间): Text", "updatedAt(更新时间): Text",
+		},
+		"industry-chain.schema": {
+			"id(产业链标识): Text", "name(产业链名称): Text", "aliases(产业链别名): Text", "scope(产业链范围): Text",
+			"targetOutput(目标产出): Text", "endUse(终端用途): Text", "geography(地域范围): Text", "asOfDate(截至日期): Text",
+			"reviewStatus(审核状态): Text", "reviewNote(审核说明): Text", "technologyRouteQualifier(技术路线限定): Text",
+			"observableVariables(可观察变量): Text", "createdAt(创建时间): Text", "updatedAt(更新时间): Text",
+			"primaryCountry(主要国家): Country", "chainNodes(产业链节点): ChainNode",
+		},
+	} {
+		path, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "doctype", fileName))
+		if err != nil {
+			t.Fatal(err)
+		}
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, property := range properties {
+			if !strings.Contains(string(contents), property) {
+				t.Errorf("%s is missing %q", fileName, property)
+			}
+		}
+	}
+}
 
 func TestResearchGraphIdentityRejectsLegacyUUIDAsOrganization(t *testing.T) {
 	legacyUUID := "6f845f9f-10e2-44dd-b08a-e482e32d3558"
@@ -97,17 +128,11 @@ func TestResearchGraphResolvesIndependentIndustryWithoutShadowEntity(t *testing.
 			'`+industryID+`', '半导体', ARRAY['集成电路'], 'sw', '801000',
 			NULL, ARRAY['801000'], '半导体行业', 'approved'
 		);
-		INSERT INTO entity_nodes (
-			id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
-		) VALUES (
-			'`+chainID+`', 'industry-chain:semiconductor', 'industry_chain', 'industry_chain',
-			'半导体产业链', '半导体产业链', '{}', 'active'
-		);
-		INSERT INTO industry_chain_definitions (
-			entity_id, scope, target_output, end_use, observable_variables,
+		INSERT INTO industry_chain (
+			id, name, aliases, scope, target_output, end_use, observable_variables,
 			geography, as_of_date, review_status
 		) VALUES (
-			'`+chainID+`', '半导体产业链', '芯片', '计算', ARRAY['supply'],
+			'`+chainID+`', '半导体产业链', '{}', '半导体产业链', '芯片', '计算', ARRAY['supply'],
 			'global', CURRENT_DATE, 'approved'
 		);
 		INSERT INTO entity_edges (
@@ -159,9 +184,9 @@ func TestResearchGraphResolvesIndependentIndustryWithoutShadowEntity(t *testing.
 		!strings.Contains(err.Error(), "is still referenced and cannot change identity or be deleted") {
 		t.Fatalf("delete referenced Industry error = %v", err)
 	}
-	if _, err := db.ExecContext(ctx, `DELETE FROM entity_nodes WHERE id = $1`, chainID); err == nil ||
+	if _, err := db.ExecContext(ctx, `DELETE FROM industry_chain WHERE id = $1`, chainID); err == nil ||
 		!strings.Contains(err.Error(), "is still referenced and cannot change identity or be deleted") {
-		t.Fatalf("delete referenced generic Entity error = %v", err)
+		t.Fatalf("delete referenced IndustryChain error = %v", err)
 	}
 	if _, err := db.ExecContext(ctx, `TRUNCATE industry`); err == nil ||
 		!strings.Contains(err.Error(), "still owns referenced facts and cannot be truncated") {
@@ -176,7 +201,7 @@ func TestResearchGraphResolvesIndependentIndustryWithoutShadowEntity(t *testing.
 	}
 }
 
-func TestIndustryConceptPersistenceSchemasStayAligned(t *testing.T) {
+func TestIndependentEntityPersistenceSchemasStayAligned(t *testing.T) {
 	db := openEntityTestDatabase(t)
 	wantColumns := map[string]map[string]string{
 		"industry": {
@@ -187,6 +212,16 @@ func TestIndustryConceptPersistenceSchemasStayAligned(t *testing.T) {
 		"concept": {
 			"id": "NO", "name": "NO", "aliases": "NO", "concept_type": "NO",
 			"definition": "NO", "review_status": "NO", "created_at": "NO", "updated_at": "NO",
+		},
+		"chain_node": {
+			"id": "NO", "name": "NO", "aliases": "NO", "definition": "NO",
+			"review_status": "NO", "created_at": "NO", "updated_at": "NO",
+		},
+		"industry_chain": {
+			"id": "NO", "name": "NO", "aliases": "NO", "scope": "NO", "target_output": "NO",
+			"end_use": "NO", "geography": "NO", "as_of_date": "NO", "review_status": "NO",
+			"review_note": "YES", "created_at": "NO", "updated_at": "NO",
+			"technology_route_qualifier": "YES", "observable_variables": "NO", "primary_country_id": "YES",
 		},
 	}
 	for tableName, want := range wantColumns {
@@ -227,7 +262,8 @@ func TestIndustryConceptPersistenceSchemasStayAligned(t *testing.T) {
 	var legacyTables int
 	if err := db.QueryRowContext(context.Background(), `
 		SELECT count(*) FROM pg_class
-		WHERE oid IN (to_regclass('industry_profiles'), to_regclass('concept_profiles'))`).Scan(&legacyTables); err != nil {
+		WHERE oid IN (to_regclass('industry_profiles'), to_regclass('concept_profiles'),
+		              to_regclass('chain_node_profiles'), to_regclass('industry_chain_definitions'))`).Scan(&legacyTables); err != nil {
 		t.Fatal(err)
 	}
 	if legacyTables != 0 {
@@ -271,26 +307,18 @@ func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 		nodeC  = "ENT20000000-0000-4000-8000-000000000005"
 	)
 	for _, statement := range []string{
-		`INSERT INTO entity_nodes (
-		    id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
-		) VALUES
-		    ('` + chainA + `', 'industry-chain:graph-a', 'industry_chain', 'industry_chain', 'Graph Chain A', 'Graph Chain A', '{}', 'active'),
-		    ('` + chainB + `', 'industry-chain:graph-b', 'industry_chain', 'industry_chain', 'Graph Chain B', 'Graph Chain B', '{}', 'active'),
-		    ('` + nodeA + `', 'chain-node:graph-a', 'chain_node', 'chain_node', 'Graph Node A', 'Graph Node A', '{}', 'active'),
-		    ('` + nodeB + `', 'chain-node:graph-b', 'chain_node', 'chain_node', 'Graph Node B', 'Graph Node B', '{}', 'active'),
-		    ('` + nodeC + `', 'chain-node:graph-c', 'chain_node', 'chain_node', 'Graph Node C', 'Graph Node C', '{}', 'active')`,
-		`INSERT INTO chain_node_profiles (entity_id, definition, boundary_note, review_status) VALUES
-		    ('` + nodeA + `', 'Graph Node A definition', 'Graph Node A boundary', 'approved'),
-		    ('` + nodeB + `', 'Graph Node B definition', 'Graph Node B boundary', 'approved'),
-		    ('` + nodeC + `', 'Graph Node C definition', 'Graph Node C boundary', 'approved')`,
-		`INSERT INTO industry_chain_definitions (
-		    entity_id, scope, target_output, end_use, observable_variables,
+		`INSERT INTO chain_node (id, name, aliases, definition, review_status) VALUES
+		    ('` + nodeA + `', 'Graph Node A', '{}', 'Graph Node A definition', 'approved'),
+		    ('` + nodeB + `', 'Graph Node B', '{}', 'Graph Node B definition', 'approved'),
+		    ('` + nodeC + `', 'Graph Node C', '{}', 'Graph Node C definition', 'approved')`,
+		`INSERT INTO industry_chain (
+		    id, name, aliases, scope, target_output, end_use, observable_variables,
 		    geography, as_of_date, review_status
 		) VALUES
-		    ('` + chainA + `', 'Graph Chain A scope', 'A', 'A use', ARRAY['supply'], 'CN', CURRENT_DATE, 'approved'),
-		    ('` + chainB + `', 'Graph Chain B scope', 'B', 'B use', ARRAY['demand'], 'CN', CURRENT_DATE, 'approved')`,
+		    ('` + chainA + `', 'Graph Chain A', '{}', 'Graph Chain A scope', 'A', 'A use', ARRAY['supply'], 'CN', CURRENT_DATE, 'approved'),
+		    ('` + chainB + `', 'Graph Chain B', '{}', 'Graph Chain B scope', 'B', 'B use', ARRAY['demand'], 'CN', CURRENT_DATE, 'approved')`,
 		`INSERT INTO industry_chain_node_memberships (
-		    industry_chain_entity_id, chain_node_entity_id, position, contextual_stage,
+		    industry_chain_id, chain_node_id, position, contextual_stage,
 		    review_status, status, inclusion_reason, evidence_ids, source_name, source_url, verified_at
 		) VALUES
 		    ('` + chainA + `', '` + nodeA + `', 1, 'upstream', 'approved', 'active', 'A seed', ARRAY['evidence:a'], 'integration', 'artifact://graph-a', now()),
@@ -298,7 +326,7 @@ func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 		    ('` + chainB + `', '` + nodeA + `', 1, 'upstream', 'approved', 'active', 'B seed', ARRAY['evidence:c'], 'integration', 'artifact://graph-b', now()),
 		    ('` + chainB + `', '` + nodeC + `', 2, 'downstream', 'approved', 'active', 'B target', ARRAY['evidence:d'], 'integration', 'artifact://graph-b', now())`,
 		`INSERT INTO industry_chain_graph_edges (
-		    id, industry_chain_entity_id, from_chain_node_entity_id, to_chain_node_entity_id,
+		    id, industry_chain_id, from_chain_node_id, to_chain_node_id,
 		    relation_type, mechanism, segment_kind, review_status, status,
 		    evidence_ids, source_name, source_url, verified_at
 		) VALUES
@@ -331,11 +359,11 @@ func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 			{RelationType: "input_to", Direction: domain.ResearchGraphDirectionOutgoing},
 			{RelationType: "depends_on", Direction: domain.ResearchGraphDirectionOutgoing},
 		},
-		MaxDepth:              5,
-		IndustryChainEntityID: graphStringPointer(chainA),
-		NodeBudget:            10,
-		EdgeBudget:            10,
-		FactPolicy:            domain.ApprovedActiveResearchGraphFactPolicy(),
+		MaxDepth:        5,
+		IndustryChainID: graphStringPointer(chainA),
+		NodeBudget:      10,
+		EdgeBudget:      10,
+		FactPolicy:      domain.ApprovedActiveResearchGraphFactPolicy(),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -343,7 +371,7 @@ func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 	if graph.ActualDepth != 1 ||
 		len(graph.Entities) != 3 ||
 		len(graph.IndustryChains) != 1 ||
-		graph.IndustryChains[0].IndustryChainEntityID != chainA ||
+		graph.IndustryChains[0].IndustryChainID != chainA ||
 		len(graph.IndustryChainMemberships) != 2 ||
 		len(graph.IndustryChainGraphEdges) != 1 ||
 		len(graph.EntityRelations) != 1 {

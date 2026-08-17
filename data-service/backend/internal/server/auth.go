@@ -11,9 +11,11 @@ import (
 	"github.com/go-kratos/kratos/v3/transport"
 
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
+	chainnodeapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/chainnode"
 	conceptapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/concept"
 	countryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/country"
 	industryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/industry"
+	industrychainapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/industrychain"
 	organizationapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/organization"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/eventsemantic"
@@ -41,6 +43,10 @@ const (
 	ScopeIndustryWrite        = "data.industries.write"
 	ScopeConceptRead          = "data.concepts.read"
 	ScopeConceptWrite         = "data.concepts.write"
+	ScopeChainNodeRead        = "data.chain-nodes.read"
+	ScopeChainNodeWrite       = "data.chain-nodes.write"
+	ScopeIndustryChainRead    = "data.industry-chains.read"
+	ScopeIndustryChainWrite   = "data.industry-chains.write"
 	ScopeOrganizationRead     = "data.organizations.read"
 	ScopeOrganizationWrite    = "data.organizations.write"
 	operationHealth           = "data.health"
@@ -160,6 +166,14 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeConceptRead, true
 	case conceptapi.OperationCreate, conceptapi.OperationUpdate:
 		return ScopeConceptWrite, true
+	case chainnodeapi.OperationList, chainnodeapi.OperationGet:
+		return ScopeChainNodeRead, true
+	case chainnodeapi.OperationCreate, chainnodeapi.OperationUpdate:
+		return ScopeChainNodeWrite, true
+	case industrychainapi.OperationList, industrychainapi.OperationGet:
+		return ScopeIndustryChainRead, true
+	case industrychainapi.OperationCreate, industrychainapi.OperationUpdate:
+		return ScopeIndustryChainWrite, true
 	case organizationapi.OperationList, organizationapi.OperationGet, organizationapi.OperationGetCatalog, organizationapi.OperationListMembers:
 		return ScopeOrganizationRead, true
 	case organizationapi.OperationCreate, organizationapi.OperationUpdate, organizationapi.OperationReplaceDomainTags,

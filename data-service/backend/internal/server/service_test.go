@@ -13,9 +13,11 @@ import (
 
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	dataapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
+	chainnodeapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/chainnode"
 	conceptapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/concept"
 	countryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/country"
 	industryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/industry"
+	industrychainapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/industrychain"
 	organizationapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/organization"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/eventsemantic"
@@ -156,7 +158,7 @@ func TestServerEnforcesResearchReadScopeOnResearchRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server, err := NewHTTPServer(testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{}, serverTestEventSemanticService{}, serverTestEvidenceService{}, serverTestRawDocumentService{}, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestOrganizationService{}, authenticator, nil)
+	server, err := NewHTTPServer(testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{}, serverTestEventSemanticService{}, serverTestEvidenceService{}, serverTestRawDocumentService{}, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, authenticator, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,7 +243,7 @@ func TestServerEnforcesDedicatedCountryReadAndWriteScopes(t *testing.T) {
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{},
 		serverTestEventSemanticService{}, serverTestEvidenceService{}, serverTestRawDocumentService{},
-		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestOrganizationService{}, authenticator, nil,
+		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -269,12 +271,16 @@ func TestServerEnforcesDedicatedCountryReadAndWriteScopes(t *testing.T) {
 	}
 }
 
-func TestServerEnforcesDedicatedIndustryAndConceptScopes(t *testing.T) {
+func TestServerEnforcesDedicatedIndependentObjectScopes(t *testing.T) {
 	authenticator, err := NewAuthenticator([]Credential{
 		{Secret: "industry-read-token", Principal: dataapi.Principal{Identity: "industry-reader", Scopes: []string{ScopeIndustryRead}}},
 		{Secret: "industry-write-token", Principal: dataapi.Principal{Identity: "industry-writer", Scopes: []string{ScopeIndustryWrite}}},
 		{Secret: "concept-read-token", Principal: dataapi.Principal{Identity: "concept-reader", Scopes: []string{ScopeConceptRead}}},
 		{Secret: "concept-write-token", Principal: dataapi.Principal{Identity: "concept-writer", Scopes: []string{ScopeConceptWrite}}},
+		{Secret: "chain-node-read-token", Principal: dataapi.Principal{Identity: "chain-node-reader", Scopes: []string{ScopeChainNodeRead}}},
+		{Secret: "chain-node-write-token", Principal: dataapi.Principal{Identity: "chain-node-writer", Scopes: []string{ScopeChainNodeWrite}}},
+		{Secret: "industry-chain-read-token", Principal: dataapi.Principal{Identity: "industry-chain-reader", Scopes: []string{ScopeIndustryChainRead}}},
+		{Secret: "industry-chain-write-token", Principal: dataapi.Principal{Identity: "industry-chain-writer", Scopes: []string{ScopeIndustryChainWrite}}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -282,7 +288,7 @@ func TestServerEnforcesDedicatedIndustryAndConceptScopes(t *testing.T) {
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{},
 		serverTestEventSemanticService{}, serverTestEvidenceService{}, serverTestRawDocumentService{},
-		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestOrganizationService{}, authenticator, nil,
+		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -297,6 +303,12 @@ func TestServerEnforcesDedicatedIndustryAndConceptScopes(t *testing.T) {
 		{method: http.MethodGet, path: dataapi.APIPrefix + "/entities/concepts", token: "concept-read-token", want: http.StatusNoContent},
 		{method: http.MethodPost, path: dataapi.APIPrefix + "/entities/concepts", token: "concept-write-token", want: http.StatusNoContent},
 		{method: http.MethodPost, path: dataapi.APIPrefix + "/entities/concepts", token: "industry-write-token", want: http.StatusForbidden},
+		{method: http.MethodGet, path: dataapi.APIPrefix + "/entities/chain-nodes", token: "chain-node-read-token", want: http.StatusNoContent},
+		{method: http.MethodPost, path: dataapi.APIPrefix + "/entities/chain-nodes", token: "chain-node-write-token", want: http.StatusNoContent},
+		{method: http.MethodGet, path: dataapi.APIPrefix + "/entities/chain-nodes", token: "industry-chain-read-token", want: http.StatusForbidden},
+		{method: http.MethodGet, path: dataapi.APIPrefix + "/entities/industry-chains", token: "industry-chain-read-token", want: http.StatusNoContent},
+		{method: http.MethodPost, path: dataapi.APIPrefix + "/entities/industry-chains", token: "industry-chain-write-token", want: http.StatusNoContent},
+		{method: http.MethodPost, path: dataapi.APIPrefix + "/entities/industry-chains", token: "chain-node-write-token", want: http.StatusForbidden},
 	} {
 		response := httptest.NewRecorder()
 		request := httptest.NewRequest(test.method, test.path, strings.NewReader(`{}`))
@@ -366,6 +378,8 @@ func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
 		country       countryapi.Service
 		industry      industryapi.Service
 		concept       conceptapi.Service
+		chainNode     chainnodeapi.Service
+		industryChain industrychainapi.Service
 		organization  organizationapi.Service
 		auth          *Authenticator
 	}{
@@ -378,11 +392,19 @@ func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
 		{name: "Country API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
 		{name: "Industry API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
 		{name: "Concept API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, organization: serverTestOrganizationService{}, auth: authenticator},
+		{name: "ChainNode API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
+		{name: "IndustryChain API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
 		{name: "Organization API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, auth: authenticator},
 		{name: "authenticator", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, eventSemantic: serverTestEventSemanticService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := NewHTTPServer(testConfig(), test.application, test.research, test.event, test.eventSemantic, test.evidence, test.rawDocument, test.country, test.industry, test.concept, test.organization, test.auth, nil); err == nil {
+			if test.name != "ChainNode API" && test.chainNode == nil {
+				test.chainNode = serverTestChainNodeService{}
+			}
+			if test.name != "IndustryChain API" && test.industryChain == nil {
+				test.industryChain = serverTestIndustryChainService{}
+			}
+			if _, err := NewHTTPServer(testConfig(), test.application, test.research, test.event, test.eventSemantic, test.evidence, test.rawDocument, test.country, test.industry, test.concept, test.chainNode, test.industryChain, test.organization, test.auth, nil); err == nil {
 				t.Fatal("NewHTTPServer() error = nil")
 			}
 		})
@@ -427,6 +449,8 @@ func TestEveryBusinessOperationHasAnAuthenticationScope(t *testing.T) {
 	businessOperations = append(businessOperations, countryapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, industryapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, conceptapi.BusinessOperations()...)
+	businessOperations = append(businessOperations, chainnodeapi.BusinessOperations()...)
+	businessOperations = append(businessOperations, industrychainapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, organizationapi.BusinessOperations()...)
 	for _, operation := range businessOperations {
 		if _, exists := openAPIOperations[operation]; !exists {
@@ -494,7 +518,7 @@ func newTestHTTPServer(config conf.Config, application runtimehealthapi.Service,
 }
 
 func newTestHTTPServerWithEvent(config conf.Config, application runtimehealthapi.Service, eventApplication eventapi.Service, evidenceApplication evidenceapi.Service, authenticator *Authenticator) *kratoshttp.Server {
-	server, err := NewHTTPServer(config, application, researchfixture.Service{}, eventApplication, serverTestEventSemanticService{}, evidenceApplication, serverTestRawDocumentService{}, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestOrganizationService{}, authenticator, nil)
+	server, err := NewHTTPServer(config, application, researchfixture.Service{}, eventApplication, serverTestEventSemanticService{}, evidenceApplication, serverTestRawDocumentService{}, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, authenticator, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -510,6 +534,10 @@ type serverTestCountryService struct{}
 type serverTestIndustryService struct{}
 
 type serverTestConceptService struct{}
+
+type serverTestChainNodeService struct{}
+
+type serverTestIndustryChainService struct{}
 
 type serverTestOrganizationService struct{}
 
@@ -591,6 +619,32 @@ func (serverTestConceptService) Get(context.Context, *conceptapi.GetRequest) (*d
 }
 func (serverTestConceptService) Update(context.Context, *conceptapi.UpdateRequest) (*dataapi.Response[conceptapi.Concept], error) {
 	return serverTestResponse[conceptapi.Concept]()
+}
+
+func (serverTestChainNodeService) Create(context.Context, *chainnodeapi.CreateRequest) (*dataapi.Response[chainnodeapi.ChainNode], error) {
+	return serverTestResponse[chainnodeapi.ChainNode]()
+}
+func (serverTestChainNodeService) List(context.Context, *chainnodeapi.ListRequest) (*dataapi.Response[chainnodeapi.ChainNodeList], error) {
+	return serverTestResponse[chainnodeapi.ChainNodeList]()
+}
+func (serverTestChainNodeService) Get(context.Context, *chainnodeapi.GetRequest) (*dataapi.Response[chainnodeapi.ChainNode], error) {
+	return serverTestResponse[chainnodeapi.ChainNode]()
+}
+func (serverTestChainNodeService) Update(context.Context, *chainnodeapi.UpdateRequest) (*dataapi.Response[chainnodeapi.ChainNode], error) {
+	return serverTestResponse[chainnodeapi.ChainNode]()
+}
+
+func (serverTestIndustryChainService) Create(context.Context, *industrychainapi.CreateRequest) (*dataapi.Response[industrychainapi.IndustryChain], error) {
+	return serverTestResponse[industrychainapi.IndustryChain]()
+}
+func (serverTestIndustryChainService) List(context.Context, *industrychainapi.ListRequest) (*dataapi.Response[industrychainapi.IndustryChainList], error) {
+	return serverTestResponse[industrychainapi.IndustryChainList]()
+}
+func (serverTestIndustryChainService) Get(context.Context, *industrychainapi.GetRequest) (*dataapi.Response[industrychainapi.IndustryChain], error) {
+	return serverTestResponse[industrychainapi.IndustryChain]()
+}
+func (serverTestIndustryChainService) Update(context.Context, *industrychainapi.UpdateRequest) (*dataapi.Response[industrychainapi.IndustryChain], error) {
+	return serverTestResponse[industrychainapi.IndustryChain]()
 }
 
 func (serverTestRawDocumentService) List(context.Context, *rawdocumentapi.ListRequest) (*dataapi.Response[rawdocumentapi.Page], error) {

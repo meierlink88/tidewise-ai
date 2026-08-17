@@ -23,9 +23,9 @@ func TestResearchReasoningTreeRoutesMapDataResultsWithOneDataCall(t *testing.T) 
 		dataResult := usecase.ResearchReasoningTreeList{
 			Theme: usecase.ResearchTheme{ID: "11111111-1111-4111-8111-111111111111", Title: "高速光模块需求验证", AnalysisAsOf: now, WindowStart: now, WindowEnd: now, PublishedAt: now},
 			ReasoningTrees: []usecase.ResearchReasoningTreeSummary{{
-				ReasoningTreeID:       "55555555-5555-4555-8555-555555555555",
-				IndustryChainEntityID: "ENT66666666-6666-4666-8666-666666666666",
-				IndustryChainName:     "高速光模块产业链", Title: "高速光模块", DisplayOrder: 1, PublishedAt: now,
+				ReasoningTreeID:   "55555555-5555-4555-8555-555555555555",
+				IndustryChainID:   "ENT66666666-6666-4666-8666-666666666666",
+				IndustryChainName: "高速光模块产业链", Title: "高速光模块", DisplayOrder: 1, PublishedAt: now,
 			}},
 		}
 		calls := 0

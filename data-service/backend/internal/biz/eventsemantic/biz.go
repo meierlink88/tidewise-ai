@@ -1036,15 +1036,15 @@ type ResolutionAnchor struct {
 }
 
 type ResolutionReceipt struct {
-	RouteID               string `json:"route_id"`
-	RouteContractVersion  string `json:"route_contract_version"`
-	AnchorEntityID        string `json:"anchor_entity_id"`
-	IndustryChainEntityID string `json:"industry_chain_entity_id"`
-	MappingRelationID     string `json:"mapping_relation_id"`
-	TargetEntityID        string `json:"target_entity_id"`
-	MembershipPosition    int    `json:"membership_position"`
-	MembershipUpdatedAt   string `json:"membership_updated_at"`
-	PathFingerprint       string `json:"path_fingerprint"`
+	RouteID              string `json:"route_id"`
+	RouteContractVersion string `json:"route_contract_version"`
+	AnchorEntityID       string `json:"anchor_entity_id"`
+	IndustryChainID      string `json:"industry_chain_id"`
+	MappingRelationID    string `json:"mapping_relation_id"`
+	TargetEntityID       string `json:"target_entity_id"`
+	MembershipPosition   int    `json:"membership_position"`
+	MembershipUpdatedAt  string `json:"membership_updated_at"`
+	PathFingerprint      string `json:"path_fingerprint"`
 }
 
 type ResolutionCandidate struct {

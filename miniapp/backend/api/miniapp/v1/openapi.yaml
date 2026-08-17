@@ -401,11 +401,11 @@ components:
     ResearchThemeImpact:
       type: object
       additionalProperties: false
-      required: [node_key, display_name, chain_node_entity_id, name, relation_role, impact_direction, impact_summary, display_order]
+      required: [node_key, display_name, chain_node_id, name, relation_role, impact_direction, impact_summary, display_order]
       properties:
         node_key: {$ref: '#/components/schemas/ResearchLocalKey'}
         display_name: {type: string}
-        chain_node_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
+        chain_node_id: {type: string, description: Empty for analyst_snapshot publications.}
         name: {type: string}
         relation_role: {type: string}
         impact_direction: {type: string}
@@ -436,12 +436,12 @@ components:
     ReasoningTreeSummary:
       type: object
       additionalProperties: false
-      required: [tree_key, display_name, reasoning_tree_id, industry_chain_entity_id, industry_chain_name, title, display_order, event_count, published_at]
+      required: [tree_key, display_name, reasoning_tree_id, industry_chain_id, industry_chain_name, title, display_order, event_count, published_at]
       properties:
         tree_key: {$ref: '#/components/schemas/ResearchLocalKey'}
         display_name: {type: string}
         reasoning_tree_id: {$ref: '#/components/schemas/UUID'}
-        industry_chain_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
+        industry_chain_id: {type: string, description: Empty for analyst_snapshot publications.}
         industry_chain_name: {type: string}
         title: {type: string}
         display_order: {type: integer}
@@ -492,7 +492,7 @@ components:
         - display_name
         - id
         - position
-        - chain_node_entity_id
+        - chain_node_id
         - name
         - state_summary
         - impact_direction
@@ -513,7 +513,7 @@ components:
         display_name: {type: string}
         id: {$ref: '#/components/schemas/UUID'}
         position: {type: integer}
-        chain_node_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
+        chain_node_id: {type: string, description: Empty for analyst_snapshot publications.}
         name: {type: string}
         state_summary: {type: string, nullable: true}
         impact_direction: {type: string, enum: [positive, negative, mixed, neutral, uncertain]}
@@ -541,7 +541,7 @@ components:
         - display_name
         - reasoning_tree_id
         - theme_id
-        - industry_chain_entity_id
+        - industry_chain_id
         - industry_chain_name
         - title
         - display_order
@@ -565,7 +565,7 @@ components:
         display_name: {type: string}
         reasoning_tree_id: {$ref: '#/components/schemas/UUID'}
         theme_id: {$ref: '#/components/schemas/UUID'}
-        industry_chain_entity_id: {type: string, description: Empty for analyst_snapshot publications.}
+        industry_chain_id: {type: string, description: Empty for analyst_snapshot publications.}
         industry_chain_name: {type: string}
         title: {type: string}
         display_order: {type: integer}

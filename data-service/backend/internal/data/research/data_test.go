@@ -61,7 +61,7 @@ func TestResearchReasoningTreeAdapterRejectsMalformedPersistedRows(t *testing.T)
 		Mapping:   map[string]string{chainID: treeID},
 		Counts:    researchbiz.ReasonTreeCounts{ReasoningTrees: 1, Nodes: 1, SignalAssociations: 1, Receipts: 1},
 		Trees: []ResearchReasoningTreeSummary{{
-			ReasoningTreeID: treeID, TreeKey: chainID, DisplayName: "Chain", IndustryChainEntityID: chainID,
+			ReasoningTreeID: treeID, TreeKey: chainID, DisplayName: "Chain", IndustryChainID: chainID,
 			IndustryChainName: "Chain", Title: "Tree", DisplayOrder: 1, PublishedAt: now,
 		}},
 	}
@@ -79,12 +79,12 @@ func TestResearchReasoningTreeAdapterRejectsMalformedPersistedRows(t *testing.T)
 	}
 	tree := ResearchReasoningTree{
 		ReasoningTreeID: treeID, ThemeID: "RTH44444444-4444-4444-8444-444444444444",
-		TreeKey: chainID, DisplayName: "Chain", IndustryChainEntityID: chainID, IndustryChainName: "Chain",
+		TreeKey: chainID, DisplayName: "Chain", IndustryChainID: chainID, IndustryChainName: "Chain",
 		Title: "Tree", OneLineConclusion: "Conclusion", ImpactDirection: "positive", ImpactStrength: "medium",
 		DisplayOrder: 1, PublishedAt: now,
 		Nodes: []researchbiz.ReasoningTreeNodeRecord{{
 			ID: "RRN55555555-5555-4555-8555-555555555555", NodeKey: chainID, DisplayName: "Node",
-			ChainNodeEntityID: chainID, Name: "Node", Position: 1, ImpactDirection: "positive", ImpactStrength: "medium",
+			ChainNodeID: chainID, Name: "Node", Position: 1, ImpactDirection: "positive", ImpactStrength: "medium",
 			Signals: []researchbiz.SignalRecord{{
 				SignalKey: "signal:one", VariableSignalKey: "signal:one", SignalRole: "primary",
 				SignalDirection: "increase", DisplaySummary: "Signal", DisplayOrder: 1,
@@ -115,7 +115,7 @@ func TestResearchReasoningTreeAdapterRejectsMalformedPersistedRows(t *testing.T)
 	secondNode.ID = "RRN77777777-7777-4777-8777-777777777777"
 	secondNode.NodeKey = "node:second"
 	secondNode.DisplayName = "Second node"
-	secondNode.ChainNodeEntityID = "ENT88888888-8888-4888-8888-888888888888"
+	secondNode.ChainNodeID = "ENT88888888-8888-4888-8888-888888888888"
 	secondNode.Position = 2
 	secondNode.IncomingIndustryChainGraphEdgeID = &incomingID
 	secondNode.IncomingGraphEdge = &researchbiz.GraphEdgeRecord{
@@ -269,7 +269,7 @@ INSERT INTO variable_definitions (
 	}
 	if _, err := db.ExecContext(
 		ctx,
-		`UPDATE entity_nodes SET updated_at = $2 WHERE id = $1::text`,
+		`UPDATE chain_node SET updated_at = $2 WHERE id = $1::text`,
 		testTypedNodeID,
 		now.Add(time.Hour),
 	); err != nil {
@@ -283,7 +283,7 @@ INSERT INTO variable_definitions (
 	}
 	if _, err := db.ExecContext(
 		ctx,
-		`UPDATE entity_nodes SET updated_at = $2 WHERE id = $1::text`,
+		`UPDATE chain_node SET updated_at = $2 WHERE id = $1::text`,
 		testTypedNodeID,
 		now.Add(-time.Hour),
 	); err != nil {
@@ -479,7 +479,7 @@ INSERT INTO variable_definitions (
 	if err != nil {
 		t.Fatalf("read analyst snapshot Reason Tree: %v", err)
 	}
-	if snapshotDetail.ReasoningTree.IndustryChainEntityID != "" ||
+	if snapshotDetail.ReasoningTree.IndustryChainID != "" ||
 		snapshotDetail.ReasoningTree.TreeKey != "tree:typed-snapshot" ||
 		snapshotDetail.ReasoningTree.DisplayName != "利率—住房融资传导路径" ||
 		snapshotDetail.ReasoningTree.Nodes[0].NodeKey != "node:housing-finance" ||
@@ -494,7 +494,7 @@ INSERT INTO variable_definitions (
 		t,
 		ctx,
 		db,
-		published.ReasoningTreeIDsByIndustryChainEntityID[testTypedChainID],
+		published.ReasoningTreeIDsByIndustryChainID[testTypedChainID],
 		snapshotTreeID,
 	)
 
@@ -511,7 +511,7 @@ INSERT INTO variable_definitions (
 	if err != nil {
 		t.Fatalf("publish reverse multi-hop BCI Theme aggregate: %v", err)
 	}
-	bciTreeID := bciPublished.ReasoningTreeIDsByIndustryChainEntityID[testBCIChainID]
+	bciTreeID := bciPublished.ReasoningTreeIDsByIndustryChainID[testBCIChainID]
 	bciDetail, err := readService.GetReasoningTree(ctx, bciPublished.ThemeID, bciTreeID)
 	if err != nil {
 		t.Fatalf("read reverse multi-hop BCI Reason Tree: %v", err)
@@ -530,7 +530,7 @@ INSERT INTO variable_definitions (
 		t.Fatalf("BCI readback nodes = %#v, want three-node path", bciDetail.ReasoningTree.Nodes)
 	}
 	for index, node := range bciDetail.ReasoningTree.Nodes {
-		if node.Position != index+1 || node.ChainNodeEntityID != expectedNodeIDs[index] ||
+		if node.Position != index+1 || node.ChainNodeID != expectedNodeIDs[index] ||
 			!equalOptionalString(node.IncomingIndustryChainGraphEdgeID, expectedEdgeIDs[index]) {
 			t.Fatalf("BCI readback node %d = %#v", index+1, node)
 		}
@@ -549,7 +549,7 @@ INSERT INTO variable_definitions (
 			ThemeKey:        "rollback",
 			ContractVersion: 2,
 			PublicationMode: "formal",
-			ReasoningTreeIDsByIndustryChainEntityID: map[string]string{
+			ReasoningTreeIDsByIndustryChainID: map[string]string{
 				testTypedChainID: "RRT11000000-0000-4000-8000-000000000012",
 			},
 			Counts: researchbiz.Counts{
@@ -735,40 +735,26 @@ func seedBCIReverseGraph(t *testing.T, ctx context.Context, db *sql.DB) {
 		args  []any
 	}{
 		{
-			`INSERT INTO entity_nodes (
-    id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
-) VALUES
-    ($1::text, 'industry-chain:bci-system', 'industry_chain', 'industry_chain',
-     '脑机接口系统产业链', '脑机接口系统产业链', '{}', 'active'),
-    ($2::text, 'chain-node:bci-system', 'chain_node', 'chain_node',
-     '非侵入式脑机接口系统', '非侵入式脑机接口系统', '{}', 'active'),
-    ($3::text, 'chain-node:bci-terminal', 'chain_node', 'chain_node',
-     '脑机接口采集终端', '脑机接口采集终端', '{}', 'active'),
-    ($4::text, 'chain-node:bci-electrode', 'chain_node', 'chain_node',
-     '脑机接口采集电极', '脑机接口采集电极', '{}', 'active')`,
-			[]any{testBCIChainID, testBCISystemNodeID, testBCITerminalNodeID, testBCIElectrodeNodeID},
-		},
-		{
-			`INSERT INTO chain_node_profiles (entity_id, definition, boundary_note, review_status)
+			`INSERT INTO chain_node (id, name, aliases, definition, review_status)
 VALUES
-    ($1::text, '非侵入式脑机接口系统节点', '系统边界', 'approved'),
-    ($2::text, '脑机接口采集终端节点', '终端边界', 'approved'),
-    ($3::text, '脑机接口采集电极节点', '电极边界', 'approved')`,
+	    ($1::text, '非侵入式脑机接口系统', '{}', '非侵入式脑机接口系统节点', 'approved'),
+	    ($2::text, '脑机接口采集终端', '{}', '脑机接口采集终端节点', 'approved'),
+	    ($3::text, '脑机接口采集电极', '{}', '脑机接口采集电极节点', 'approved')`,
 			[]any{testBCISystemNodeID, testBCITerminalNodeID, testBCIElectrodeNodeID},
 		},
 		{
-			`INSERT INTO industry_chain_definitions (
-    entity_id, scope, target_output, end_use, technology_route_qualifier,
-    observable_variables, geography, as_of_date, review_status, review_note
+			`INSERT INTO industry_chain (
+	    id, name, aliases, scope, target_output, end_use, technology_route_qualifier,
+	    observable_variables, geography, as_of_date, review_status, review_note
 ) VALUES (
-    $1::text, '非侵入式脑机接口系统与采集硬件', '脑机接口系统', '康复与人机交互', NULL,
+	    $1::text, '脑机接口系统产业链', '{}', '非侵入式脑机接口系统与采集硬件', '脑机接口系统', '康复与人机交互', NULL,
     ARRAY['市场需求'], '中国', CURRENT_DATE, 'approved', NULL
 )`,
 			[]any{testBCIChainID},
 		},
 		{
 			`INSERT INTO industry_chain_node_memberships (
-    industry_chain_entity_id, chain_node_entity_id, position, contextual_stage,
+    industry_chain_id, chain_node_id, position, contextual_stage,
     review_status, status, inclusion_reason, evidence_ids, source_name, source_url, verified_at
 ) VALUES
     ($1::text, $2::text, 1, 'downstream', 'approved', 'active',
@@ -781,7 +767,7 @@ VALUES
 		},
 		{
 			`INSERT INTO industry_chain_graph_edges (
-    id, industry_chain_entity_id, from_chain_node_entity_id, to_chain_node_entity_id,
+    id, industry_chain_id, from_chain_node_id, to_chain_node_id,
     relation_type, mechanism, condition_note, segment_kind, omitted_step_note,
     review_status, status, evidence_ids, source_name, source_url, verified_at
 ) VALUES
@@ -1154,7 +1140,7 @@ func typedResearchAggregate(now time.Time) researchbiz.Aggregate {
 			InvestmentGuidanceSummary: "Observe accepted supply signal",
 			TimeHorizonCategory:       "short_term",
 			Impacts: []researchbiz.ThemeImpactInput{{
-				ChainNodeEntityID: testTypedNodeID, RelationRole: "driver",
+				ChainNodeID: testTypedNodeID, RelationRole: "driver",
 				ImpactDirection: "negative", DisplayOrder: 1,
 			}},
 			Events: []researchbiz.ThemeEventInput{{
@@ -1163,7 +1149,7 @@ func typedResearchAggregate(now time.Time) researchbiz.Aggregate {
 		},
 		ReasoningTrees: []researchbiz.ReasoningTree{{
 			ReasonTreeInput: researchbiz.ReasonTreeInput{
-				IndustryChainEntityID: testTypedChainID, Title: "Typed chain",
+				IndustryChainID: testTypedChainID, Title: "Typed chain",
 				DisplayOrder: 1, OneLineConclusion: "Supply decreases",
 				ImpactDirection: "negative", ImpactStrength: "medium",
 				InvalidationConditions: []string{"Supply recovers"},
@@ -1175,7 +1161,7 @@ func typedResearchAggregate(now time.Time) researchbiz.Aggregate {
 				}},
 			},
 			Nodes: []researchbiz.Node{{
-				Position: 1, ChainNodeEntityID: testTypedNodeID,
+				Position: 1, ChainNodeID: testTypedNodeID,
 				ImpactDirection: "negative", ImpactStrength: "medium",
 				Signals: []researchbiz.Signal{{
 					VariableSignalKey: "market_supply", SignalRole: "primary",
@@ -1200,31 +1186,31 @@ func bciReverseResearchAggregate(now time.Time) researchbiz.Aggregate {
 	aggregate.Theme.OneLineConclusion = "BCI system demand may propagate to terminal and electrode demand"
 	aggregate.Theme.Impacts = []researchbiz.ThemeImpactInput{
 		{
-			ChainNodeEntityID: testBCISystemNodeID,
-			RelationRole:      "driver",
-			ImpactDirection:   "uncertain",
-			DisplayOrder:      1,
+			ChainNodeID:     testBCISystemNodeID,
+			RelationRole:    "driver",
+			ImpactDirection: "uncertain",
+			DisplayOrder:    1,
 		},
 		{
-			ChainNodeEntityID: testBCITerminalNodeID,
-			RelationRole:      "exposure",
-			ImpactDirection:   "uncertain",
-			DisplayOrder:      2,
+			ChainNodeID:     testBCITerminalNodeID,
+			RelationRole:    "exposure",
+			ImpactDirection: "uncertain",
+			DisplayOrder:    2,
 		},
 		{
-			ChainNodeEntityID: testBCIElectrodeNodeID,
-			RelationRole:      "exposure",
-			ImpactDirection:   "uncertain",
-			DisplayOrder:      3,
+			ChainNodeID:     testBCIElectrodeNodeID,
+			RelationRole:    "exposure",
+			ImpactDirection: "uncertain",
+			DisplayOrder:    3,
 		},
 	}
 	tree := &aggregate.ReasoningTrees[0]
-	tree.IndustryChainEntityID = testBCIChainID
+	tree.IndustryChainID = testBCIChainID
 	tree.Title = "BCI system component chain"
 	tree.OneLineConclusion = aggregate.Theme.OneLineConclusion
 	tree.ImpactDirection = "uncertain"
 	tree.ImpactStrength = "unknown"
-	tree.Nodes[0].ChainNodeEntityID = testBCISystemNodeID
+	tree.Nodes[0].ChainNodeID = testBCISystemNodeID
 	tree.Nodes[0].ImpactDirection = "uncertain"
 	tree.Nodes[0].ImpactStrength = "unknown"
 	tree.Nodes[0].Signals[0].VariableSignalKey = "market_supply"
@@ -1260,7 +1246,7 @@ func bciReverseResearchAggregate(now time.Time) researchbiz.Aggregate {
 		edgeID := step.edgeID
 		tree.Nodes = append(tree.Nodes, researchbiz.Node{
 			Position:                         step.position,
-			ChainNodeEntityID:                step.nodeID,
+			ChainNodeID:                      step.nodeID,
 			ImpactDirection:                  "uncertain",
 			ImpactStrength:                   "unknown",
 			IncomingIndustryChainGraphEdgeID: &edgeID,
@@ -1357,25 +1343,18 @@ func seedResearchV1MasterData(t *testing.T, db *sql.DB) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	for _, statement := range []string{
-		`INSERT INTO entity_nodes (
-		    id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
-		) VALUES
-		    ('` + chainID + `', 'industry-chain:optical-module', 'industry_chain', 'industry_chain',
-		     '高速光模块产业链', '高速光模块产业链', '{}', 'active'),
-		    ('` + nodeID + `', 'chain-node:optical-module', 'chain_node', 'chain_node',
-		     '高速光模块', '高速光模块', '{}', 'active')`,
-		`INSERT INTO chain_node_profiles (
-		    entity_id, definition, boundary_note, review_status
-		) VALUES ('` + nodeID + `', '高速光模块生产节点', '仅覆盖高速光模块', 'approved')`,
-		`INSERT INTO industry_chain_definitions (
-		    entity_id, scope, target_output, end_use, technology_route_qualifier,
+		`INSERT INTO chain_node (
+		    id, name, aliases, definition, review_status
+		) VALUES ('` + nodeID + `', '高速光模块', '{}', '高速光模块生产节点', 'approved')`,
+		`INSERT INTO industry_chain (
+		    id, name, aliases, scope, target_output, end_use, technology_route_qualifier,
 		    observable_variables, geography, as_of_date, review_status, review_note
 		) VALUES (
-		    '` + chainID + `', '高速光模块供需链', '高速光模块', '数据中心互联', NULL,
+		    '` + chainID + `', '高速光模块产业链', '{}', '高速光模块供需链', '高速光模块', '数据中心互联', NULL,
 		    ARRAY['采购数量'], '中国', CURRENT_DATE, 'approved', NULL
 		)`,
 		`INSERT INTO industry_chain_node_memberships (
-		    industry_chain_entity_id, chain_node_entity_id, position, contextual_stage,
+		    industry_chain_id, chain_node_id, position, contextual_stage,
 		    review_status, status, inclusion_reason, evidence_ids, source_name, source_url, verified_at
 		) VALUES (
 		    '` + chainID + `', '` + nodeID + `', 1, 'midstream',

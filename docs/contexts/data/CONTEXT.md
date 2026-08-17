@@ -153,8 +153,17 @@ Entity projection storage。它不改变既有 `/healthz` 或 `/readyz` 合同�
 _Avoid_: Neo4j/Qdrant 健康代理、读取业务事实、把健康检查结果持久化或用于自动修复
 
 **产业链（Industry Chain）**:
-围绕明确目标产出与终端用途，由多个独立经济节点通过投入、组成、技术支撑或依赖形成的有边界、有方向研究子图。
-_Avoid_: Industry、Concept、Chain Node 列表
+围绕明确目标产出与终端用途，由多个独立 ChainNode 通过投入、组成、技术支撑或依赖形成的
+有边界、有方向研究子图。IndustryChain 直接拥有稳定 ID、名称、别名、范围、目标产出、
+终端用途、地域、截至日期、审核、技术路线、可观察变量和审计时间，不使用 `entity_nodes`
+或 definition/profile 表。
+_Avoid_: Industry、Concept、Chain Node 列表、IndustryChain shadow Entity、definition profile
+
+**产业链节点（ChainNode）**:
+产业链中可复用的独立环节事实，直接拥有稳定 ID、名称、别名、定义、审核状态和审计时间。
+ChainNode 不使用 `entity_nodes` 或 profile 表，也不保存边界备注；上中下游位置只属于
+Industry Chain Node Membership。
+_Avoid_: ChainNode Profile、ChainNode shadow Entity、`boundary_note`、节点全局上下游标签
 
 **行业（Industry）**:
 受控分类体系中的独立行业事实，直接拥有稳定 ID、名称、别名、分类体系、行业代码、父级、
@@ -360,7 +369,7 @@ Aggregate 同步发布，不存在独立写入口。请求至少包含一棵 Tre
 _Avoid_: `research-reasoning-tree-imports` 写入口、先 Theme 后 Tree、第二套幂等键
 
 **Reason Tree 身份与回执（Reason Tree Identity and Receipt）**:
-V2 formal Tree 身份由 `theme_id + NUL + industry_chain_entity_id` 确定性生成；V3
+V2 formal Tree 身份由 `theme_id + NUL + industry_chain_id` 确定性生成；V3
 `analyst_snapshot` Tree 身份由 `theme_id + NUL + tree_key` 确定性生成。每个 Theme
 最多一条 Tree 集合回执，保存发布主体、payload hash、对应分支的 Tree identity 映射、
 写入计数和首次发布时间；回执与全部 Tree 子记录同事务提交。
@@ -539,7 +548,7 @@ _Avoid_: Data 聚合 Event 成 Theme、Snapshot/Task 表、Codex 直连 PG/Neo4j
 Data Service 面向 Codex 分析师提供的同步、无状态、幂等只读图谱检索合同。Codex 显式
 指定 seed Entity、每种 Relation 的方向、最大深度、可选 Industry Chain scope 以及
 node/edge budget；Data 只校验引用和预算，并从 PostgreSQL 返回稳定排序、引用完整的
-可达 EntityRelation 与 Industry Chain Graph 子图。`industry_chain_entity_id` 只约束
+可达 EntityRelation 与 Industry Chain Graph 子图。`industry_chain_id` 只约束
 Industry Chain Graph Edge，全局 EntityRelation 仍完全由显式 Relation filter 控制。
 第一版不分页；预算超限整次返回结构化 `429`，不静默截断。Data Adapter 固定从
 PostgreSQL 正式事实构造结果，不切换为 Data-owned Neo4j 投影。
