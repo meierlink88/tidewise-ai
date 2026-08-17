@@ -315,20 +315,6 @@ func (i EntityExternalIdentifier) Validate() error {
 	return nil
 }
 
-type ConceptType string
-
-const (
-	ConceptTypeTechnology       ConceptType = "technology"
-	ConceptTypePolicy           ConceptType = "policy"
-	ConceptTypeApplication      ConceptType = "application"
-	ConceptTypeDemand           ConceptType = "demand"
-	ConceptTypeBusinessModel    ConceptType = "business_model"
-	ConceptTypeCompanyEcosystem ConceptType = "company_ecosystem"
-	ConceptTypeProductEcosystem ConceptType = "product_ecosystem"
-	ConceptTypeEventNarrative   ConceptType = "event_narrative"
-	ConceptTypeMarketTheme      ConceptType = "market_theme"
-)
-
 type IndustryChainContextualStage string
 
 const (
@@ -352,60 +338,6 @@ const (
 	IndustryChainSegmentDirectCandidate     IndustryChainSegmentKind = "direct_candidate"
 	IndustryChainSegmentCompressedCandidate IndustryChainSegmentKind = "compressed_candidate"
 )
-
-type Industry struct {
-	ID                   string
-	Name                 string
-	Aliases              []string
-	ClassificationSystem string
-	IndustryCode         string
-	ParentIndustryID     string
-	HierarchyPathCodes   []string
-	Definition           string
-	ReviewStatus         ReviewStatus
-}
-
-func (industry Industry) Validate() error {
-	if !IsEntityID(industry.ID) ||
-		strings.TrimSpace(industry.Name) == "" ||
-		strings.TrimSpace(industry.ClassificationSystem) == "" ||
-		strings.TrimSpace(industry.IndustryCode) == "" ||
-		strings.TrimSpace(industry.Definition) == "" {
-		return fmt.Errorf("industry identity, name, classification, and definition are required")
-	}
-	if err := validateStringSet("industry aliases", industry.Aliases); err != nil {
-		return err
-	}
-	if industry.ParentIndustryID != "" && (!IsEntityID(industry.ParentIndustryID) || industry.ParentIndustryID == industry.ID) {
-		return fmt.Errorf("industry parent must be a distinct Industry identity")
-	}
-	if len(industry.HierarchyPathCodes) == 0 ||
-		(industry.ParentIndustryID == "" && len(industry.HierarchyPathCodes) != 1) ||
-		(industry.ParentIndustryID != "" && len(industry.HierarchyPathCodes) < 2) {
-		return fmt.Errorf("industry hierarchy path must identify a root or extend a parent")
-	}
-	for _, code := range industry.HierarchyPathCodes {
-		if strings.TrimSpace(code) == "" {
-			return fmt.Errorf("industry hierarchy path contains a blank code")
-		}
-	}
-	if industry.HierarchyPathCodes[len(industry.HierarchyPathCodes)-1] != industry.IndustryCode {
-		return fmt.Errorf("industry hierarchy path must end with industry code")
-	}
-	if !validMasterDataReviewStatus(industry.ReviewStatus) {
-		return fmt.Errorf("unsupported industry review status %q", industry.ReviewStatus)
-	}
-	return nil
-}
-
-type Concept struct {
-	ID           string
-	Name         string
-	Aliases      []string
-	ConceptType  ConceptType
-	Definition   string
-	ReviewStatus ReviewStatus
-}
 
 type IndustryChainDefinition struct {
 	EntityID         string
@@ -511,33 +443,6 @@ func (e IndustryChainGraphEdge) Validate() error {
 	}
 	if !validStatus(e.Status, StatusActive, StatusInactive) {
 		return fmt.Errorf("unsupported industry chain graph status %q", e.Status)
-	}
-	return nil
-}
-
-func (concept Concept) Validate() error {
-	if !IsEntityID(concept.ID) || strings.TrimSpace(concept.Name) == "" || strings.TrimSpace(concept.Definition) == "" {
-		return fmt.Errorf("concept identity, name, and definition are required")
-	}
-	if err := validateStringSet("concept aliases", concept.Aliases); err != nil {
-		return err
-	}
-	if !validStatus(
-		concept.ConceptType,
-		ConceptTypeTechnology,
-		ConceptTypePolicy,
-		ConceptTypeApplication,
-		ConceptTypeDemand,
-		ConceptTypeBusinessModel,
-		ConceptTypeCompanyEcosystem,
-		ConceptTypeProductEcosystem,
-		ConceptTypeEventNarrative,
-		ConceptTypeMarketTheme,
-	) {
-		return fmt.Errorf("unsupported concept type %q", concept.ConceptType)
-	}
-	if !validMasterDataReviewStatus(concept.ReviewStatus) {
-		return fmt.Errorf("unsupported concept review status %q", concept.ReviewStatus)
 	}
 	return nil
 }

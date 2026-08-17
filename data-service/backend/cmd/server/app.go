@@ -12,7 +12,9 @@ import (
 
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	entitybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
+	conceptbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/concept"
 	countrybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/country"
+	industrybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/industry"
 	organizationbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/organization"
 	eventbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/event"
 	eventsemanticbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/eventsemantic"
@@ -24,7 +26,9 @@ import (
 	data "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/dbmigration"
 	entitydata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity"
+	conceptdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/concept"
 	countrydata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/country"
+	industrydata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/industry"
 	organizationdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/organization"
 	eventdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/event"
 	eventsemanticdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/eventsemantic"
@@ -32,7 +36,9 @@ import (
 	rawdocumentdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/rawdocument"
 	researchdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/research"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/server"
+	conceptservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/concept"
 	countryservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/country"
+	industryservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/industry"
 	organizationservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/organization"
 	eventservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/event"
 	eventsemanticservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/eventsemantic"
@@ -118,6 +124,22 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Country use case: %w", err))
 	}
+	industryStore, err := industrydata.NewStore(db)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Industry store: %w", err))
+	}
+	industryUseCase, err := industrybiz.NewUseCase(industryStore)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Industry use case: %w", err))
+	}
+	conceptStore, err := conceptdata.NewStore(db)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Concept store: %w", err))
+	}
+	conceptUseCase, err := conceptbiz.NewUseCase(conceptStore)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Concept use case: %w", err))
+	}
 	organizationStore, err := organizationdata.NewStore(db)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Organization store: %w", err))
@@ -170,11 +192,19 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Country API service: %w", err))
 	}
+	industryApplication, err := industryservice.NewService(industryUseCase)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Industry API service: %w", err))
+	}
+	conceptApplication, err := conceptservice.NewService(conceptUseCase)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Concept API service: %w", err))
+	}
 	organizationApplication, err := organizationservice.NewService(organizationUseCase)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Organization API service: %w", err))
 	}
-	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, eventSemanticApplication, evidenceApplication, rawDocumentApplication, countryApplication, organizationApplication, authenticator, logger)
+	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, eventSemanticApplication, evidenceApplication, rawDocumentApplication, countryApplication, industryApplication, conceptApplication, organizationApplication, authenticator, logger)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure HTTP server: %w", err))
 	}
@@ -202,6 +232,10 @@ func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 				server.ScopeAdminRead,
 				server.ScopeCountryRead,
 				server.ScopeCountryWrite,
+				server.ScopeIndustryRead,
+				server.ScopeIndustryWrite,
+				server.ScopeConceptRead,
+				server.ScopeConceptWrite,
 				server.ScopeOrganizationRead,
 				server.ScopeOrganizationWrite,
 			}},

@@ -26,6 +26,10 @@ func TestBuildAuthenticatorUsesOneDataServiceTokenForAllBusinessScopes(t *testin
 		server.ScopeResearchImport,
 		server.ScopeResearchRead,
 		server.ScopeAdminRead,
+		server.ScopeIndustryRead,
+		server.ScopeIndustryWrite,
+		server.ScopeConceptRead,
+		server.ScopeConceptWrite,
 	})
 }
 

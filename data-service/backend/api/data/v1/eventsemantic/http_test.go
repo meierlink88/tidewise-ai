@@ -15,7 +15,9 @@ import (
 	"github.com/go-kratos/kratos/v3/transport"
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
+	conceptapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/concept"
 	countryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/country"
+	industryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/industry"
 	organizationapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/organization"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	eventsemanticapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/eventsemantic"
@@ -500,7 +502,7 @@ func newEventSemanticHTTPHandler(t *testing.T, application *eventsemanticservice
 	httpServer, err := serverpkg.NewHTTPServer(
 		conf.Config{App: conf.AppConfig{Env: conf.EnvLocal}, Server: conf.ServerConfig{Host: "127.0.0.1", Port: 18082, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10}},
 		semanticTestRuntimeHealthService{}, researchfixture.Service{}, semanticTestEventService{}, application,
-		semanticTestEvidenceService{}, semanticTestRawDocumentService{}, semanticTestCountryService{}, eventSemanticHTTPOrganizationStub{}, authenticator, nil,
+		semanticTestEvidenceService{}, semanticTestRawDocumentService{}, semanticTestCountryService{}, semanticTestIndustryService{}, semanticTestConceptService{}, eventSemanticHTTPOrganizationStub{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -511,6 +513,10 @@ func newEventSemanticHTTPHandler(t *testing.T, application *eventsemanticservice
 type semanticTestEventService struct{}
 
 type semanticTestCountryService struct{}
+
+type semanticTestIndustryService struct{}
+
+type semanticTestConceptService struct{}
 
 func (semanticTestCountryService) Create(context.Context, *countryapi.CreateRequest) (*v1.Response[countryapi.Country], error) {
 	return &v1.Response[countryapi.Country]{Status: http.StatusNoContent}, nil
@@ -530,6 +536,32 @@ func (semanticTestCountryService) Update(context.Context, *countryapi.UpdateRequ
 
 func (semanticTestCountryService) ReplaceRegions(context.Context, *countryapi.ReplaceRegionsRequest) (*v1.Response[countryapi.Country], error) {
 	return &v1.Response[countryapi.Country]{Status: http.StatusNoContent}, nil
+}
+
+func (semanticTestIndustryService) Create(context.Context, *industryapi.CreateRequest) (*v1.Response[industryapi.Industry], error) {
+	return &v1.Response[industryapi.Industry]{Status: http.StatusNoContent}, nil
+}
+func (semanticTestIndustryService) List(context.Context, *industryapi.ListRequest) (*v1.Response[industryapi.IndustryList], error) {
+	return &v1.Response[industryapi.IndustryList]{Status: http.StatusNoContent}, nil
+}
+func (semanticTestIndustryService) Get(context.Context, *industryapi.GetRequest) (*v1.Response[industryapi.Industry], error) {
+	return &v1.Response[industryapi.Industry]{Status: http.StatusNoContent}, nil
+}
+func (semanticTestIndustryService) Update(context.Context, *industryapi.UpdateRequest) (*v1.Response[industryapi.Industry], error) {
+	return &v1.Response[industryapi.Industry]{Status: http.StatusNoContent}, nil
+}
+
+func (semanticTestConceptService) Create(context.Context, *conceptapi.CreateRequest) (*v1.Response[conceptapi.Concept], error) {
+	return &v1.Response[conceptapi.Concept]{Status: http.StatusNoContent}, nil
+}
+func (semanticTestConceptService) List(context.Context, *conceptapi.ListRequest) (*v1.Response[conceptapi.ConceptList], error) {
+	return &v1.Response[conceptapi.ConceptList]{Status: http.StatusNoContent}, nil
+}
+func (semanticTestConceptService) Get(context.Context, *conceptapi.GetRequest) (*v1.Response[conceptapi.Concept], error) {
+	return &v1.Response[conceptapi.Concept]{Status: http.StatusNoContent}, nil
+}
+func (semanticTestConceptService) Update(context.Context, *conceptapi.UpdateRequest) (*v1.Response[conceptapi.Concept], error) {
+	return &v1.Response[conceptapi.Concept]{Status: http.StatusNoContent}, nil
 }
 
 type semanticTestRuntimeHealthService struct{}
