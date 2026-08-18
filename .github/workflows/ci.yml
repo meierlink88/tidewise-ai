@@ -46,6 +46,10 @@ jobs:
         if: steps.risks.outputs.architecture == 'true'
         run: bash scripts/ci/smoke-uat-deploy-bundle.sh
 
+      - name: Verify UAT Neo4j adoption contract
+        if: steps.risks.outputs.uat_neo4j == 'true'
+        run: bash scripts/ci/verify-uat-neo4j-contract.sh
+
   data:
     name: Data Service
     runs-on: ubuntu-latest
