@@ -48,7 +48,6 @@ cleanup() {
 trap cleanup EXIT
 
 docker network create "$COMPOSE_NETWORK_NAME" >/dev/null
-"${compose[@]}" create --no-build data-migrate >/dev/null
 docker run -d --name "$data_postgres_fixture" --network "$COMPOSE_NETWORK_NAME" \
   -e POSTGRES_USER=tidewise \
   -e "POSTGRES_PASSWORD=${TIDEWISW_DB_PASSWORD}" \
@@ -76,6 +75,10 @@ curl --fail --silent "http://127.0.0.1:${qdrant_fixture_port}/readyz" >/dev/null
 "${compose[@]}" run --rm --no-deps \
   -e "PGOPTIONS=-c tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified -c tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified -c tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified" \
   data-migrate >/dev/null
+if [[ -n "$("${compose[@]}" ps -a -q data-migrate)" ]]; then
+  echo "Data migration container was retained after the ephemeral run" >&2
+  exit 1
+fi
 "${compose[@]}" run --rm --no-deps agentrun-migrate >/dev/null
 printf '%s' 'compose-smoke-deepseek-key' | "${compose[@]}" run --rm --no-deps -T \
   --entrypoint /app/agentrun-config agentrun \

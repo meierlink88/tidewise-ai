@@ -42,19 +42,20 @@ Required application inputs are explicit: Data uses `TIDEWISE_DB_HOST` and
 built from `agent-run/backend`.
 
 Build and start the five Tidewise AI application services. This first ensures existing middleware
-containers are running with `--no-recreate`, so unchanged infrastructure is not redeployed:
+containers are running with `--no-recreate`, builds the candidate Data image, applies its migration
+ledger in an ephemeral `docker compose run --rm` container, and only then starts application
+services:
 
 ```bash
 npm run runtime:up
 ```
 
-Data and AgentRun migrations run as one-shot dependency services before their servers. AgentRun
-then publishes the code-owned current Agent Versions through a separate one-shot data operation.
-A failed migration or Agent Version publication prevents the dependent service from starting. Normal shutdown preserves the
-service-owned Artifact volume and never stops infrastructure, Reason Server or Agent OS:
-
-`data-migrate` is expected to exit successfully after applying the Data migration ledger;
-`data-service` is the long-running Data API container.
+Data migration is an explicit pre-start run and does not create or retain a `data-migrate`
+container. AgentRun keeps its existing Compose dependency chain: `agentrun-migrate` runs once,
+then `agentrun-agent-version` publishes the code-owned current Agent Versions before the AgentRun
+server starts. Any failed pre-start operation stops the canonical npm command before its dependent
+application startup. Normal shutdown preserves the service-owned Artifact volume and never stops
+infrastructure, Reason Server or Agent OS.
 
 ```bash
 npm run runtime:down
@@ -92,7 +93,8 @@ Application-to-application traffic uses Compose DNS (`data`, `agentrun`, `miniap
 
 Docker Desktop shows the long-running application containers as `admin-portal-web`,
 `admin-portal-service`, `miniapp-service`, `data-service`, and `agentrun-service`. One-shot
-containers use `data-migrate`, `agentrun-migrate`, and `agentrun-agent-version`.
+AgentRun containers use `agentrun-migrate` and `agentrun-agent-version`; the transient Data
+migration container is automatically removed.
 
 ## Backend services
 
@@ -139,10 +141,11 @@ PostgreSQL, Neo4j or Qdrant. In API mode, start the Miniapp Backend separately w
 
 ## Data operations
 
-Apply migrations explicitly when needed; normal stack startup already performs this step:
+Apply migrations explicitly when needed; normal npm startup commands already build the candidate
+Data image and perform this step before starting services:
 
 ```bash
-docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm data-migrate
+npm run runtime:migrate:data
 ```
 
 PostgreSQL remains the Data fact source. Data no longer seeds Entity packages or writes Neo4j/Qdrant
@@ -174,7 +177,8 @@ in YAML, command arguments, logs or committed environment files.
 
 ## Failure diagnosis
 
-- `data-migrate`, `agentrun-migrate` or `agentrun-agent-version` failed: inspect the one-shot container logs before restarting.
+- Data migration failed: inspect the `runtime:migrate:data` command output; its ephemeral container is removed automatically.
+- `agentrun-migrate` or `agentrun-agent-version` failed: inspect the one-shot container logs before restarting.
 - `pending migrations exist`: rebuild the image and rerun the owning migration service.
 - `configuration_not_ready`: configure the required AgentRun Model Provider/Connector records.
 - Admin CORS failure: `ADMIN_ALLOWED_ORIGIN` must match the mapped Admin Web origin, normally
