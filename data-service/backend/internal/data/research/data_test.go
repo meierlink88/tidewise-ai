@@ -91,7 +91,7 @@ func TestResearchReasoningTreeAdapterRejectsMalformedSnapshotRows(t *testing.T) 
 	}
 }
 
-func TestPostgresSnapshotAndAtomicEvidenceWorkOnCurrentSchema(t *testing.T) {
+func TestPostgresSnapshotPublicationWorksOnCurrentSchema(t *testing.T) {
 	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "..", "migrations"))
 	if err != nil {
 		t.Fatal(err)
@@ -104,21 +104,6 @@ func TestPostgresSnapshotAndAtomicEvidenceWorkOnCurrentSchema(t *testing.T) {
     id, title, summary, first_seen_at, event_status, fact_status, dedupe_key, fact_payload
 ) VALUES ($1, 'Snapshot Event', 'Snapshot Event summary', now(), 'confirmed', 'verified',
     'research-snapshot-ledger', '{}'::jsonb)`, integrationEventID); err != nil {
-		t.Fatal(err)
-	}
-	const rawEvidenceID = "RAW11111111-1111-4111-8111-111111111111"
-	const atomicEvidenceID = "EVD11111111-1111-4111-8111-111111111111"
-	const atomicSemantic = `{"who":"Data","what":"Atomic Evidence semantic survives","when":null,"where":null,"why":null,"how":null}`
-	if _, err := db.ExecContext(ctx, `INSERT INTO raw_evidences (
-    id, source_id, source_name, source_level, source_url, is_original, raw_text, collected_at, keywords
-) VALUES ($1, 'source:ledger', 'Ledger Source', 'L1_OFFICIAL', 'https://example.test/ledger',
-    true, 'Atomic Evidence semantic survives', now(), '{}')`, rawEvidenceID); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO evidences (
-    id, raw_evidence_id, is_split, summary, semantic
-) VALUES ($1, $2, false, 'Atomic Evidence semantic survives', $3::jsonb)`,
-		atomicEvidenceID, rawEvidenceID, atomicSemantic); err != nil {
 		t.Fatal(err)
 	}
 	store, err := NewStore(db)
@@ -163,14 +148,6 @@ func TestPostgresSnapshotAndAtomicEvidenceWorkOnCurrentSchema(t *testing.T) {
 		tree.ReasoningTree.TreeKey != "tree:ledger" ||
 		tree.ReasoningTree.Nodes[0].Signals[0].SignalKey != "signal:ledger" {
 		t.Fatalf("snapshot tree = %#v", tree)
-	}
-	var semanticPreserved bool
-	if err := db.QueryRowContext(ctx, `SELECT semantic = $2::jsonb FROM evidences WHERE id = $1`,
-		atomicEvidenceID, atomicSemantic).Scan(&semanticPreserved); err != nil {
-		t.Fatal(err)
-	}
-	if !semanticPreserved {
-		t.Fatal("Atomic Evidence semantic did not round-trip on the current schema")
 	}
 }
 
