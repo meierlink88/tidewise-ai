@@ -48,10 +48,12 @@ pre_data2_sha="${state_dir}/pre-data2.sha"
 candidate_services_started=false
 rollback_snapshot_ready=false
 cutover_migration_started=false
+cutover_recovery_phase=""
 interrupted_state_recovery_mode=""
 committed_cutover_recovery=false
 host_base_url="${UAT_HOST_BASE_URL:-http://127.0.0.1}"
 event_semantic_qdrant_url="http://qdrant:6333"
+application_services=(data agentrun miniapp adminportal admin)
 
 test -d "$state_dir"
 test -w "$state_dir"
@@ -85,6 +87,19 @@ write_data2_cutover_marker() {
 data2_cutover_marker_value() {
   local key="$1"
   sed -n "s/^${key}=//p" "$data2_cutover_marker" | tail -n 1
+}
+
+application_container_ids() {
+  local include_stopped="$1"
+  local service="$2"
+  local -a docker_ps=(docker ps)
+  if [ "$include_stopped" = true ]; then
+    docker_ps+=(--all)
+  fi
+  "${docker_ps[@]}" \
+    --filter label=com.docker.compose.project=tidewise-uat \
+    --filter "label=com.docker.compose.service=${service}" \
+    --quiet
 }
 
 write_release_state_marker() {
@@ -597,6 +612,17 @@ if [ "$deployment_mode" = tidewise_2_cutover ]; then
       echo "FAIL data2-cutover-gate: recovery marker belongs to another release" >&2
       exit 1
     fi
+    cutover_recovery_phase="$(data2_cutover_marker_value phase)"
+    case "$cutover_recovery_phase" in
+      prepared|services-stopped) ;;
+      migration-started|data-migrated)
+        cutover_migration_started=true
+        ;;
+      *)
+        echo "FAIL data2-cutover-gate: recovery marker has an invalid phase" >&2
+        exit 1
+        ;;
+    esac
     if ! python3 - "$data_current_version" "$data_pending_versions" "$empty_data_schema_rebuild_requested" <<'PY'
 import sys
 
@@ -662,25 +688,23 @@ fi
 
 if [ "$deployment_mode" = tidewise_2_cutover ]; then
   trap recover_failed_deployment EXIT
-  write_data2_cutover_marker prepared
+  if [ "$cutover_migration_started" != true ]; then
+    write_data2_cutover_marker prepared
+  fi
   current_release_compose=("${compose_command[@]}" --env-file "$current_runtime" --env-file "$current_images" -f "$current_compose")
   "${current_release_compose[@]}" stop
-  for service in data agentrun miniapp adminportal admin; do
-    if ! running_container_ids="$(docker ps \
-      --filter label=com.docker.compose.project=tidewise-uat \
-      --filter "label=com.docker.compose.service=${service}" \
-      --filter status=running \
-      --quiet)"; then
+  for service in "${application_services[@]}"; do
+    if ! application_container_ids="$(application_container_ids true "$service")"; then
       echo "FAIL application-write-stop: unable to inspect ${service} containers before enforced stop" >&2
       exit 1
     fi
-    if [ -n "$running_container_ids" ]; then
-      while IFS= read -r running_container_id; do
-        if [ -n "$running_container_id" ] && ! docker stop "$running_container_id" >/dev/null; then
-          echo "FAIL application-write-stop: unable to stop ${service} container ${running_container_id}" >&2
+    if [ -n "$application_container_ids" ]; then
+      while IFS= read -r application_container_id; do
+        if [ -n "$application_container_id" ] && ! docker stop "$application_container_id" >/dev/null; then
+          echo "FAIL application-write-stop: unable to stop ${service} container ${application_container_id}" >&2
           exit 1
         fi
-      done <<< "$running_container_ids"
+      done <<< "$application_container_ids"
     fi
   done
   if ! running_services="$("${current_release_compose[@]}" ps --status running --services)"; then
@@ -691,12 +715,8 @@ if [ "$deployment_mode" = tidewise_2_cutover ]; then
     echo "FAIL application-write-stop: one or more current UAT services are still running" >&2
     exit 1
   fi
-  for service in data agentrun miniapp adminportal admin; do
-    if ! running_container_ids="$(docker ps \
-      --filter label=com.docker.compose.project=tidewise-uat \
-      --filter "label=com.docker.compose.service=${service}" \
-      --filter status=running \
-      --quiet)"; then
+  for service in "${application_services[@]}"; do
+    if ! running_container_ids="$(application_container_ids false "$service")"; then
       echo "FAIL application-write-stop: unable to inspect ${service} containers" >&2
       exit 1
     fi
@@ -705,10 +725,14 @@ if [ "$deployment_mode" = tidewise_2_cutover ]; then
       exit 1
     fi
   done
-  write_data2_cutover_marker services-stopped
+  if [ "$cutover_migration_started" != true ]; then
+    write_data2_cutover_marker services-stopped
+  fi
   echo "PASS application-write-stop"
-  cutover_migration_started=true
-  write_data2_cutover_marker migration-started
+  if [ "$cutover_migration_started" != true ]; then
+    cutover_migration_started=true
+    write_data2_cutover_marker migration-started
+  fi
   if [ "$empty_data_schema_rebuild_requested" = true ]; then
     "${candidate_compose[@]}" run --rm --no-deps \
       -e TIDEWISE_EMPTY_DATA_SCHEMA_REBUILD_CONFIRMED=issue-266-data-only \

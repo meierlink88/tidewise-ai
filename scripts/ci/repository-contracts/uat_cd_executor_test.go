@@ -795,6 +795,37 @@ func TestUATDeployExecutorFailsClosedWhenWriterStopCannotBeProved(t *testing.T) 
 	}
 }
 
+func TestUATDeployExecutorNeverRestartsOldImagesWhenRecoveryWriterStopFails(t *testing.T) {
+	for _, markerPhase := range []string{"migration-started", "data-migrated"} {
+		t.Run(markerPhase, func(t *testing.T) {
+			result := runDeployFixture(t, deployFixtureOptions{
+				currentRelease:          true,
+				deploymentMode:          "tidewise_2_cutover",
+				destructiveConfirmed:    true,
+				backupConfirmed:         true,
+				cutoverMarkerPhase:      markerPhase,
+				migrationReport:         data2CutoverPendingReport(),
+				migrationApplyReport:    `{"current_version":"58","pending":[],"applied":[],"remaining":[]}`,
+				failRunningServiceProbe: true,
+			})
+			if result.err == nil || !strings.Contains(result.output, "FAIL application-write-stop") {
+				t.Fatalf("failed recovery writer-stop inspection did not block cutover: err=%v output=%s", result.err, result.output)
+			}
+			dockerLog, err := os.ReadFile(result.dockerLog)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, line := range strings.Split(string(dockerLog), "\n") {
+				if strings.Contains(line, "resolved-data-image=fixture/data:"+previousFixtureSHA) && strings.Contains(line, " up ") {
+					t.Fatalf("post-migration recovery failure restarted the old Data image: %s", dockerLog)
+				}
+			}
+			marker := filepath.Join(result.root, "state", "tidewise-2-cutover-in-progress")
+			assertFileContains(t, marker, "phase="+markerPhase)
+		})
+	}
+}
+
 func TestUATDeployExecutorBlocksNormalModeWhileData2RecoveryMarkerExists(t *testing.T) {
 	result := runDeployFixture(t, deployFixtureOptions{
 		currentRelease:     true,
@@ -876,6 +907,34 @@ func TestUATDeployExecutorStopsOrphanedCutoverWriterBeforeEmptySchemaRecovery(t 
 	}
 }
 
+func TestUATDeployExecutorStopsRestartingCutoverWriterBeforeEmptySchemaRecovery(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:                  true,
+		deploymentMode:                  "tidewise_2_cutover",
+		destructiveConfirmed:            true,
+		backupConfirmed:                 true,
+		rebuildEmptyDataSchema:          true,
+		cutoverMarkerPhase:              "migration-started",
+		migrationReport:                 data2EmptySchemaPendingReport(),
+		migrationApplyReport:            `{"current_version":"58","pending":[],"applied":[],"remaining":[]}`,
+		orphanedRestartingCutoverWriter: true,
+	})
+	if result.err != nil {
+		t.Fatalf("empty-schema recovery did not stop the restarting cutover writer: %v\n%s", result.err, result.output)
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logText := string(dockerLog)
+	writerProbe := strings.Index(logText, "ps --all --filter label=com.docker.compose.project=tidewise-uat")
+	writerStop := strings.Index(logText, "stop restarting-cutover-writer")
+	rebuild := strings.Index(logText, "dbmigrate -apply -target-version 58 -rebuild-empty-schema")
+	if writerProbe < 0 || writerStop < 0 || rebuild < 0 || writerProbe > writerStop || writerStop > rebuild {
+		t.Fatalf("recovery must enumerate and stop the restarting writer before rebuilding Data: %s", logText)
+	}
+}
+
 func TestUATDeployExecutorRejectsEmptyDataSchemaRebuildWithoutRecoveryMarker(t *testing.T) {
 	result := runDeployFixture(t, deployFixtureOptions{
 		currentRelease:         true,
@@ -953,33 +1012,34 @@ const (
 )
 
 type deployFixtureOptions struct {
-	currentRelease             bool
-	currentReleaseCandidate    bool
-	expectedCurrentSHA         string
-	expectedCurrentMissing     bool
-	releaseStateWritePhase     string
-	invalidCurrentRelease      bool
-	failFirstUp                bool
-	failEveryUp                bool
-	failFirstCurl              bool
-	failEveryCurl              bool
-	migrationReport            string
-	migrationApplyReport       string
-	agentrunMigrationReport    string
-	migrationRisk              string
-	migrationScope             string
-	agentrunMigrationScope     string
-	backupConfirmed            bool
-	deploymentMode             string
-	destructiveConfirmed       bool
-	cutoverMarkerPhase         string
-	failRunningServiceProbe    bool
-	rebuildEmptyDataSchema     bool
-	orphanedCutoverWriter      bool
-	failArtifactProbe          bool
-	failExternalQdrant         bool
-	failAgentVersionWithdrawal bool
-	legacyQdrantSnapshot       bool
+	currentRelease                  bool
+	currentReleaseCandidate         bool
+	expectedCurrentSHA              string
+	expectedCurrentMissing          bool
+	releaseStateWritePhase          string
+	invalidCurrentRelease           bool
+	failFirstUp                     bool
+	failEveryUp                     bool
+	failFirstCurl                   bool
+	failEveryCurl                   bool
+	migrationReport                 string
+	migrationApplyReport            string
+	agentrunMigrationReport         string
+	migrationRisk                   string
+	migrationScope                  string
+	agentrunMigrationScope          string
+	backupConfirmed                 bool
+	deploymentMode                  string
+	destructiveConfirmed            bool
+	cutoverMarkerPhase              string
+	failRunningServiceProbe         bool
+	rebuildEmptyDataSchema          bool
+	orphanedCutoverWriter           bool
+	orphanedRestartingCutoverWriter bool
+	failArtifactProbe               bool
+	failExternalQdrant              bool
+	failAgentVersionWithdrawal      bool
+	legacyQdrantSnapshot            bool
 }
 
 type deployFixtureResult struct {
@@ -1013,8 +1073,12 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	curlCount := filepath.Join(temp, "curl-count")
 	curlLog := filepath.Join(temp, "curl.log")
 	orphanedWriter := filepath.Join(temp, "orphaned-cutover-writer")
+	restartingWriter := filepath.Join(temp, "restarting-cutover-writer")
 	if options.orphanedCutoverWriter {
 		writeFixture(t, orphanedWriter, "running\n")
+	}
+	if options.orphanedRestartingCutoverWriter {
+		writeFixture(t, restartingWriter, "restarting\n")
 	}
 	writeFixture(t, runtimeEnv, "ADMIN_SERVICE_TOKEN=fixture-admin-secret\nAGENTRUN_SERVICE_TOKEN=fixture-agentrun-secret\nEMBEDDING_API_KEY="+fixtureEmbeddingCredential()+"\n")
 	writeFixture(t, imagesEnv, "DATA_IMAGE=fixture/data:"+fixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+fixtureSHA+"\nAGENTRUN_IMAGE=fixture/agentrun:"+fixtureSHA+"\n")
@@ -1145,13 +1209,19 @@ case " $* " in
 	  *" stop orphaned-cutover-writer "*)
 	    rm -f "$FAKE_ORPHANED_WRITER"
 	    ;;
+	  *" stop restarting-cutover-writer "*)
+	    rm -f "$FAKE_RESTARTING_WRITER"
+	    ;;
 	  *" ps --status running --services "*)
 	    if [ -f "$FAKE_ORPHANED_WRITER" ]; then echo data; fi
 	    ;;
-	  *" ps --filter label=com.docker.compose.project=tidewise-uat "*)
+	  *" ps "*" label=com.docker.compose.project=tidewise-uat "*)
 	    if [ "${FAKE_FAIL_RUNNING_SERVICE_PROBE:-false}" = true ]; then exit 1; fi
 	    if [ -f "$FAKE_ORPHANED_WRITER" ] && printf '%s\n' " $* " | grep -q 'label=com.docker.compose.service=data'; then
 	      echo orphaned-cutover-writer
+	    fi
+	    if [ -f "$FAKE_RESTARTING_WRITER" ] && printf '%s\n' " $* " | grep -q ' --all ' && printf '%s\n' " $* " | grep -q 'label=com.docker.compose.service=data'; then
+	      echo restarting-cutover-writer
 	    fi
 	    ;;
 	  *" config --services "*)
@@ -1268,6 +1338,7 @@ exit 0
 		"FAKE_FAIL_AGENT_VERSION_WITHDRAWAL="+boolText(options.failAgentVersionWithdrawal),
 		"FAKE_FAIL_RUNNING_SERVICE_PROBE="+boolText(options.failRunningServiceProbe),
 		"FAKE_ORPHANED_WRITER="+orphanedWriter,
+		"FAKE_RESTARTING_WRITER="+restartingWriter,
 		"DATA_IMAGE=fixture/data:"+fixtureSHA,
 		"MINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA,
 		"ADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA,
