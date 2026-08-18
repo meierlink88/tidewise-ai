@@ -124,40 +124,7 @@ install -m 0644 -o root -g neo4j \
   "$gds_source" \
   "$neo4j_plugins/neo4j-graph-data-science-${gds_version}.jar"
 
-CONFIG_PATH="$neo4j_config/neo4j.conf" \
-FRAGMENT_PATH="$script_dir/neo4j.conf.fragment" \
-python3 - <<'PY'
-import os
-from pathlib import Path
-
-config_path = Path(os.environ["CONFIG_PATH"])
-fragment_path = Path(os.environ["FRAGMENT_PATH"])
-managed_keys = {
-    line.split("=", 1)[0]
-    for line in fragment_path.read_text().splitlines()
-    if line and not line.startswith("#") and "=" in line
-}
-kept = []
-inside_managed_block = False
-for line in config_path.read_text().splitlines():
-    if line == "# BEGIN TIDEWISE UAT NEO4J":
-        inside_managed_block = True
-        continue
-    if line == "# END TIDEWISE UAT NEO4J":
-        inside_managed_block = False
-        continue
-    if inside_managed_block:
-        continue
-    key = line.split("=", 1)[0].strip() if "=" in line else ""
-    if key in managed_keys:
-        continue
-    kept.append(line)
-text = "\n".join(kept).rstrip() + "\n\n" + fragment_path.read_text().strip() + "\n"
-temporary = config_path.with_suffix(".conf.tidewise-new")
-temporary.write_text(text)
-temporary.chmod(0o640)
-temporary.replace(config_path)
-PY
+apply_neo4j_config_fragment "$neo4j_config/neo4j.conf" "$script_dir/neo4j.conf.fragment"
 chown root:neo4j "$neo4j_config/neo4j.conf"
 install -m 0640 -o root -g neo4j /dev/null "$neo4j_config/apoc.conf"
 printf '%s\n' \

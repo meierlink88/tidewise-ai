@@ -5,6 +5,76 @@ validate_neo4j_backup_target() {
   [[ "$target" =~ ^/opt/tidewise/neo4j-uat/backups/[0-9]{8}T[0-9]{6}Z$ ]]
 }
 
+validate_neo4j_access_backup_target() {
+  local target="$1"
+  [[ "$target" =~ ^/opt/tidewise/neo4j-uat/access-backups/[0-9]{8}T[0-9]{6}Z$ ]]
+}
+
+normalize_neo4j_listener_endpoints() {
+  sed -E \
+    -e 's/^\[::ffff:0\.0\.0\.0\]:((7474|7687))$/0.0.0.0:\1/' \
+    -e 's/^\[::\]:((7474|7687))$/0.0.0.0:\1/' \
+    -e 's/^\*:((7474|7687))$/0.0.0.0:\1/' |
+    LC_ALL=C sort
+}
+
+apply_neo4j_config_fragment() {
+  local config_path="$1"
+  local fragment_path="$2"
+
+  CONFIG_PATH="$config_path" FRAGMENT_PATH="$fragment_path" python3 - <<'PY'
+import os
+from pathlib import Path
+
+config_path = Path(os.environ["CONFIG_PATH"])
+fragment_path = Path(os.environ["FRAGMENT_PATH"])
+managed_keys = {
+    line.split("=", 1)[0]
+    for line in fragment_path.read_text().splitlines()
+    if line and not line.startswith("#") and "=" in line
+}
+kept = []
+inside_managed_block = False
+for line in config_path.read_text().splitlines():
+    if line == "# BEGIN TIDEWISE UAT NEO4J":
+        inside_managed_block = True
+        continue
+    if line == "# END TIDEWISE UAT NEO4J":
+        inside_managed_block = False
+        continue
+    if inside_managed_block:
+        continue
+    key = line.split("=", 1)[0].strip() if "=" in line else ""
+    if key in managed_keys:
+        continue
+    kept.append(line)
+text = "\n".join(kept).rstrip() + "\n\n" + fragment_path.read_text().strip() + "\n"
+temporary = config_path.with_suffix(".conf.tidewise-new")
+temporary.write_text(text)
+temporary.chmod(0o640)
+temporary.replace(config_path)
+PY
+}
+
+restore_neo4j_config() {
+  local config_path="$1"
+  local backup_path="$2"
+  local restore_path="${config_path}.tidewise-restore"
+
+  [ -f "$backup_path" ] || {
+    echo "FAIL rollback: missing $backup_path" >&2
+    return 1
+  }
+  [ ! -e "$restore_path" ] || {
+    echo "FAIL rollback: recovery target already exists: $restore_path" >&2
+    return 1
+  }
+  systemctl stop neo4j || return 1
+  cp -a "$backup_path" "$restore_path" || return 1
+  mv "$restore_path" "$config_path" || return 1
+  systemctl start neo4j
+}
+
 restore_neo4j_files() {
   local data_dir="$1"
   local config_dir="$2"

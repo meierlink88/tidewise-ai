@@ -4,8 +4,15 @@ set -Eeuo pipefail
 
 compose_file=infra/uat-infra/docker-compose.yaml
 example_env=infra/uat-infra/.env.example
+deploy_script=infra/uat-infra/deploy.sh
 run_suffix="${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-$$}"
 [[ "$run_suffix" =~ ^[A-Za-z0-9_-]+$ ]] || { echo "invalid smoke run suffix" >&2; exit 1; }
+grep -q 'compose_for "$runtime_env" "$compose_file" restart minio' "$deploy_script"
+if grep -Eq '^compose_for .* restart .*mysql' "$deploy_script"; then
+  echo "UAT infrastructure deployment must not restart MySQL" >&2
+  exit 1
+fi
+grep -q 'tidewise-infra-uat-mysql-1' "$deploy_script"
 network="tidewise-uat-infra-smoke-${run_suffix}"
 mysql_container="tidewise-uat-mysql-smoke-${run_suffix}"
 minio_container="tidewise-uat-minio-smoke-${run_suffix}"
@@ -18,6 +25,37 @@ minio_access_key="smoke$(python3 -c 'import secrets; print(secrets.token_hex(6))
 minio_secret_key="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
 
 compose_json="$(docker compose --env-file "$example_env" -f "$compose_file" config --format json)"
+COMPOSE_JSON="$compose_json" python3 - <<'PY'
+import json
+import os
+
+config = json.loads(os.environ["COMPOSE_JSON"])
+mysql_ports = config["services"]["mysql"]["ports"]
+minio_ports = config["services"]["minio"]["ports"]
+assert mysql_ports == [{
+    "mode": "ingress",
+    "target": 3306,
+    "published": "3306",
+    "protocol": "tcp",
+    "host_ip": "127.0.0.1",
+}]
+assert minio_ports == [
+    {
+        "mode": "ingress",
+        "target": 9000,
+        "published": "9000",
+        "protocol": "tcp",
+        "host_ip": "127.0.0.1",
+    },
+    {
+        "mode": "ingress",
+        "target": 9001,
+        "published": "9001",
+        "protocol": "tcp",
+        "host_ip": "0.0.0.0",
+    },
+]
+PY
 mysql_image="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["services"]["mysql"]["image"])' <<<"$compose_json")"
 minio_image="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["services"]["minio"]["image"])' <<<"$compose_json")"
 [[ "$mysql_image" =~ @sha256:[0-9a-f]{64}$ ]]

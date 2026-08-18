@@ -17,6 +17,7 @@ previous_compose="$state_dir/previous.compose.yaml"
 previous_sha="$state_dir/previous.sha"
 rollback_in_progress=false
 unowned_containers=(
+  tidewise-infra-uat-mysql-1
   tidewise-uat-data-1
   tidewise-uat-miniapp-1
   tidewise-uat-adminportal-1
@@ -41,6 +42,7 @@ verify_release() {
   local file="$2"
   compose_for "$env_file" "$file" exec -T -e MYSQL_PWD="$OPENSPG_MYSQL_ROOT_PASSWORD" mysql mysqladmin ping -h 127.0.0.1 --silent >/dev/null
   compose_for "$env_file" "$file" exec -T minio mc ready local >/dev/null
+  curl --fail --silent --show-error http://127.0.0.1:9001/ >/dev/null
   compose_for "$env_file" "$file" exec -T mysql getent hosts mysql >/dev/null
   docker run --rm --network tidewise-uat \
     -e MINIO_ROOT_USER -e MINIO_ROOT_PASSWORD --entrypoint sh \
@@ -172,7 +174,7 @@ cleanup_canary
 trap - EXIT
 echo "PASS raw-evidence-authenticated-write-read-delete-public-read-anonymous-write-denied"
 
-compose_for "$runtime_env" "$compose_file" restart mysql minio
+compose_for "$runtime_env" "$compose_file" restart minio
 compose_for "$runtime_env" "$compose_file" up -d --wait --wait-timeout 180 mysql minio
 verify_release "$runtime_env" "$compose_file"
 "${mc_exec[@]}" alias set root http://127.0.0.1:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null
@@ -181,7 +183,7 @@ verify_release "$runtime_env" "$compose_file"
 compose_for "$runtime_env" "$compose_file" exec -T -e MYSQL_PWD="$OPENSPG_MYSQL_ROOT_PASSWORD" mysql \
   mysql -NBe "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='openspg'" \
   | grep -qx openspg
-echo "PASS mysql-minio-restart-persistence"
+echo "PASS minio-restart-and-mysql-persistence"
 
 verify_unowned_services
 unowned_after="$(unowned_fingerprint)"
