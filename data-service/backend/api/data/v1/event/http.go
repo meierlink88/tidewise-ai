@@ -13,6 +13,11 @@ func RegisterHTTPServer(server *kratoshttp.Server, application Service) {
 
 func listHandler(application Service) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
+		for name := range ctx.Request().URL.Query() {
+			if !allowedListQueryParameter(name) {
+				return v1.NewPublicError(v1.StatusBadRequest, ErrorInvalidRequest, "unsupported Event query parameter", nil)
+			}
+		}
 		query := ctx.Query()
 		request := &ListRequest{
 			Title: query.Get("title"), Modality: query.Get("modality"), Status: query.Get("status"),
@@ -23,5 +28,14 @@ func listHandler(application Service) kratoshttp.HandlerFunc {
 		return v1.Call(ctx, OperationListAdminEvents, request, func(callContext context.Context) (*v1.Response[Page], error) {
 			return application.ListEvents(callContext, request)
 		})
+	}
+}
+
+func allowedListQueryParameter(name string) bool {
+	switch name {
+	case "title", "modality", "status", "occurred_from", "occurred_to", "announced_from", "announced_to", "page", "page_size":
+		return true
+	default:
+		return false
 	}
 }

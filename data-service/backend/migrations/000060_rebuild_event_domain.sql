@@ -140,6 +140,15 @@ AS $$
 DECLARE
     affected_event_id TEXT;
 BEGIN
+    IF TG_TABLE_NAME = 'event_evidence_links'
+       AND TG_OP = 'UPDATE'
+       AND OLD.event_id IS DISTINCT FROM NEW.event_id
+       AND EXISTS (SELECT 1 FROM events WHERE id = OLD.event_id)
+       AND NOT EXISTS (SELECT 1 FROM event_evidence_links WHERE event_id = OLD.event_id) THEN
+        RAISE EXCEPTION USING
+            ERRCODE = '23514',
+            MESSAGE = 'Event requires at least one Event Evidence Link';
+    END IF;
     IF TG_TABLE_NAME = 'events' THEN
         affected_event_id := CASE WHEN TG_OP = 'DELETE' THEN OLD.id ELSE NEW.id END;
     ELSE

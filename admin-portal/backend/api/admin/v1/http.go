@@ -26,6 +26,11 @@ func getRuntimeHealthHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {
 
 func listEventsHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
+		for name := range ctx.Request().URL.Query() {
+			if !allowedEventQueryParameter(name) {
+				return NewHTTPError(http.StatusBadRequest, "INVALID_REQUEST", "unsupported Event query parameter")
+			}
+		}
 		page, pageSize, err := parsePage(ctx, 50)
 		if err != nil {
 			return err
@@ -39,6 +44,15 @@ func listEventsHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {
 		return call(ctx, OperationListEvents, request, func(callContext context.Context) (any, error) {
 			return service.ListEvents(callContext, request)
 		})
+	}
+}
+
+func allowedEventQueryParameter(name string) bool {
+	switch name {
+	case "title", "modality", "status", "occurred_from", "occurred_to", "announced_from", "announced_to", "page", "page_size":
+		return true
+	default:
+		return false
 	}
 }
 

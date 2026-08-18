@@ -103,10 +103,12 @@ func event(value biz.Event) v1.Event {
 		Modality: string(value.Modality), Status: string(value.Status),
 	}
 	if value.OccurredAt != nil {
-		response.OccurredAt = value.OccurredAt.Format(time.RFC3339)
+		formatted := value.OccurredAt.Format(time.RFC3339)
+		response.OccurredAt = &formatted
 	}
 	if value.AnnouncedAt != nil {
-		response.AnnouncedAt = value.AnnouncedAt.Format(time.RFC3339)
+		formatted := value.AnnouncedAt.Format(time.RFC3339)
+		response.AnnouncedAt = &formatted
 	}
 	return response
 }

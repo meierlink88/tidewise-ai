@@ -104,6 +104,34 @@ func TestHTTPClientRejectsMalformedSuccessEnvelope(t *testing.T) {
 	assertDataUnavailable(t, err)
 }
 
+func TestHTTPClientRejectsEventContractDrift(t *testing.T) {
+	t.Parallel()
+	valid := `{"request_id":"data-req","result":{"items":[{"id":"EVT22222222-2222-5222-8222-222222222222","title":"event","summary":"summary","semantic":{"who":null,"what":"fact","when":null,"where":null,"why":null,"how":null},"modality":"FACT","occurred_at":null,"announced_at":null,"status":"ACTIVE"}],"total":1,"page":1,"page_size":50}}`
+	for _, test := range []struct {
+		name    string
+		payload string
+	}{
+		{name: "missing semantic", payload: strings.Replace(valid, `,"semantic":{"who":null,"what":"fact","when":null,"where":null,"why":null,"how":null}`, "", 1)},
+		{name: "missing semantic key", payload: strings.Replace(valid, `,"how":null`, "", 1)},
+		{name: "extra semantic key", payload: strings.Replace(valid, `,"how":null`, `,"how":null,"extra":null`, 1)},
+		{name: "missing nullable time", payload: strings.Replace(valid, `,"occurred_at":null`, "", 1)},
+		{name: "wrong ID", payload: strings.Replace(valid, "EVT22222222-2222-5222-8222-222222222222", "not-an-event", 1)},
+		{name: "blank title", payload: strings.Replace(valid, `"title":"event"`, `"title":" "`, 1)},
+		{name: "oversized page", payload: strings.Replace(valid, `"page_size":50`, `"page_size":101`, 1)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				_, _ = writer.Write([]byte(test.payload))
+			}))
+			defer server.Close()
+			client := newTestClient(t, server.URL, server.Client(), "token")
+			_, err := client.ListEvents(context.Background(), biz.EventListQuery{})
+			assertDataUnavailable(t, err)
+		})
+	}
+}
+
 func TestHTTPClientClassifiesFailuresWithoutLeakingSecrets(t *testing.T) {
 	t.Parallel()
 	for _, test := range []struct {

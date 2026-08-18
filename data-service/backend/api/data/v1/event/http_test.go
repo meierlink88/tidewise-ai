@@ -2,6 +2,7 @@ package event_test
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -52,6 +53,30 @@ func TestHTTPExposesOnlyRetainedEventListRoute(t *testing.T) {
 		if response.Code != http.StatusNotFound {
 			t.Fatalf("retired %s %s status = %d", retired.method, retired.path, response.Code)
 		}
+	}
+}
+
+func TestHTTPRejectsRetiredOrUnknownEventFilters(t *testing.T) {
+	service := new(capturingService)
+	server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(func(writer http.ResponseWriter, _ *http.Request, err error) {
+		var public *v1.PublicError
+		if errors.As(err, &public) {
+			writer.WriteHeader(public.Status)
+			return
+		}
+		writer.WriteHeader(http.StatusInternalServerError)
+	}))
+	eventapi.RegisterHTTPServer(server, service)
+
+	for _, query := range []string{"event_status=confirmed", "fact_status=verified", "event_time_from=2026-08-18T00%3A00%3A00Z", "tag=macro"} {
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, v1.APIPrefix+"/events?"+query, nil))
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("query %q status = %d, body = %s", query, response.Code, response.Body.String())
+		}
+	}
+	if service.request != nil {
+		t.Fatalf("rejected query reached Event service: %#v", service.request)
 	}
 }
 

@@ -59,8 +59,8 @@ type Event struct {
 	Summary     string        `json:"summary"`
 	Semantic    EventSemantic `json:"semantic"`
 	Modality    string        `json:"modality"`
-	OccurredAt  string        `json:"occurred_at,omitempty"`
-	AnnouncedAt string        `json:"announced_at,omitempty"`
+	OccurredAt  *string       `json:"occurred_at"`
+	AnnouncedAt *string       `json:"announced_at"`
 	Status      string        `json:"status"`
 }
 

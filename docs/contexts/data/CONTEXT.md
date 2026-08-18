@@ -9,12 +9,11 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 - Entity 事实、独立 Object 事实、Object Schema、产业链节点及关系、
   Index 等正式事实。
 - 完整 Raw Evidence、阅读辅助 Keywords、原子 Evidence 及其确定性正式身份。
-- 正式 Event、被 Event 引用的轻量 Evidence Record 及其证据关联。
+- 正式 Event、Event 与 Atomic Evidence 的证据关联，以及 Event-owned Actor/Asset 关系快照。
 - Research Theme、Theme Impact、Reason Tree 及其关联数据。
 - PostgreSQL schema、migration 和 repository。
 - 采集/清洗执行方使用的 Raw Evidence 与 Evidence Publication API、自然身份收敛、
   正式身份响应和事务规则。
-- 外部发布方使用的既有 Event Publication API、自然身份收敛、receipt 和事务规则。
 - 面向 Miniapp/Admin Application Backend Service 的版本化 REST API。
 - Data Service 自身的只读运行健康状态。
 - Data Application 内数据库无关的 Domain Object ID 技术原语与格式合同。

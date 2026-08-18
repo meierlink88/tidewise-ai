@@ -3,7 +3,7 @@
 ## Purpose
 
 Admin Portal 是管理产品，由 Admin Portal Frontend 和 Admin Application Backend Service
-组成。当前只提供 Data-owned 原始采集数据与 Event 的查询入口。
+组成。当前只提供 Data-owned Event 的管理查询入口。
 
 ## Dependency Rule
 
@@ -12,9 +12,9 @@ Backend Service 只通过 Data 的版本化 REST API 读取事实，不访问下
 
 ## Language
 
-**数据采集中心（Data Ingestion Center）**：
-面向管理员查询 Data 已接纳的轻量原始文档与正式 Event。两个列表保留各自的查询、分页、
-加载、错误与空状态，不承载采集执行、调度或配置控制面。
+**事件中心（Event Center）**：
+面向管理员查询 Data 已接纳的正式 Event。列表提供查询、分页、加载、错误与空状态，
+不承载 Event 写入、采集执行、调度或配置控制面。
 _Avoid_: 浏览器直连 Data、在 Admin 保存 Data 事实、把列表扩展成外部 Agent 控制台
 
 **运行时健康（Runtime Health）**：

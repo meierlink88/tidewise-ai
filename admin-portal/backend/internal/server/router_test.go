@@ -140,8 +140,25 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 	if envelope.RequestID != "admin-request-event" || response.Header().Get(data.RequestIDHeader) != envelope.RequestID {
 		t.Fatalf("request IDs = %q/%q", envelope.RequestID, response.Header().Get(data.RequestIDHeader))
 	}
-	if body.Total != 1 || len(body.Items) != 1 || body.Items[0].Status != "ACTIVE" || body.Items[0].AnnouncedAt != announcedAt.Format(time.RFC3339) || body.Items[0].Semantic.What == nil || *body.Items[0].Semantic.What != what {
+	if body.Total != 1 || len(body.Items) != 1 || body.Items[0].Status != "ACTIVE" || body.Items[0].AnnouncedAt == nil || *body.Items[0].AnnouncedAt != announcedAt.Format(time.RFC3339) || body.Items[0].Semantic.What == nil || *body.Items[0].Semantic.What != what {
 		t.Fatalf("response = %#v", body)
+	}
+}
+
+func TestEventsAPIAlwaysEmitsNullableTimeFields(t *testing.T) {
+	client := &biz.FakeDataServiceRepo{ListEventsFunc: func(context.Context, biz.EventListQuery) (biz.EventPage, error) {
+		return biz.EventPage{Items: []biz.Event{{
+			ID: "EVT00000000-0000-5000-8000-000000000001", Title: "无时间事件", Summary: "摘要",
+			Modality: biz.EventModalityFact, Status: biz.EventLifecycleActive,
+		}}, Total: 1, Page: 1, PageSize: 50}, nil
+	}}
+	router := NewRouter(testConfig(), biz.NewService(client, nil), "secret")
+	response := performJSONRequest(t, router, http.MethodGet, "/api/admin/v1/events", nil, "secret", "admin-null-times")
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"occurred_at":null`) || !strings.Contains(response.Body.String(), `"announced_at":null`) {
+		t.Fatalf("nullable time fields are not explicit: %s", response.Body.String())
 	}
 }
 
