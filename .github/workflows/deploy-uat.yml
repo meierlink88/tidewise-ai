@@ -8,20 +8,21 @@ on:
         required: false
         type: string
       deployment_mode:
-        description: Use normal for ongoing releases; tidewise_2_cutover is the bounded Data migration 44-58 cutover.
+        description: Use normal for ongoing releases; cutover modes are bounded to Data migrations 44-58 or 59.
         required: true
         default: normal
         type: choice
         options:
           - normal
           - tidewise_2_cutover
+          - data_59_cutover
       confirm_high_risk_backup:
         description: Confirm a current RDS recovery point for high-risk migrations.
         required: false
         default: false
         type: boolean
       confirm_destructive_data_change:
-        description: Confirm the Tidewise AI 2.0 cutover may irreversibly rewrite or clear incompatible Data records.
+        description: Confirm the bounded cutover may irreversibly rewrite or clear incompatible Data records.
         required: false
         default: false
         type: boolean
@@ -134,6 +135,10 @@ jobs:
           pre_data2_sha="${state_dir}/pre-data2.sha"
           pre_data2_images="${state_dir}/pre-data2.images.env"
           pre_data2_compose="${state_dir}/pre-data2.compose.yaml"
+          pre_data59_runtime="${DEPLOY_ROOT}/pre-data59.runtime.env"
+          pre_data59_sha="${state_dir}/pre-data59.sha"
+          pre_data59_images="${state_dir}/pre-data59.images.env"
+          pre_data59_compose="${state_dir}/pre-data59.compose.yaml"
           state_fingerprint() {
             for path in "$runtime_file" "$sha_file" "$images_file" "$compose_file" "$write_marker" "$cutover_marker"; do
               if [ -e "$path" ]; then
@@ -145,8 +150,8 @@ jobs:
           }
           echo "available=false" >> "$GITHUB_OUTPUT"
           echo "state_fingerprint=$(state_fingerprint)" >> "$GITHUB_OUTPUT"
-          if [ -e "$cutover_marker" ] && [ "$DEPLOYMENT_MODE" != tidewise_2_cutover ]; then
-            echo "A Tidewise AI 2.0 cutover recovery marker blocks ordinary UAT deployment." >&2
+          if [ -e "$cutover_marker" ] && [ "$DEPLOYMENT_MODE" != tidewise_2_cutover ] && [ "$DEPLOYMENT_MODE" != data_59_cutover ]; then
+            echo "A bounded Data cutover recovery marker blocks ordinary UAT deployment." >&2
             exit 1
           fi
           if [ -e "$write_marker" ]; then
@@ -157,7 +162,13 @@ jobs:
               images_file="$pre_data2_images"
               compose_file="$pre_data2_compose"
               echo "Using the archived pre-Data-2.0 release as the interrupted cutover recovery baseline."
-            elif [ "$DEPLOYMENT_MODE" = tidewise_2_cutover ] && [ "$recovery_mode" = committed ]; then
+            elif [ "$DEPLOYMENT_MODE" = data_59_cutover ] && [ "$recovery_mode" = pre-data59 ]; then
+              runtime_file="$pre_data59_runtime"
+              sha_file="$pre_data59_sha"
+              images_file="$pre_data59_images"
+              compose_file="$pre_data59_compose"
+              echo "Using the archived pre-Data-59 release as the interrupted cutover recovery baseline."
+            elif [[ "$DEPLOYMENT_MODE" =~ ^(tidewise_2_cutover|data_59_cutover)$ ]] && [ "$recovery_mode" = committed ]; then
               echo "Using the committed candidate release as the interrupted cutover recovery baseline."
             else
               echo "Previous UAT release has an interrupted state write; full deployment required."
@@ -237,7 +248,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ "$DEPLOYMENT_MODE" = tidewise_2_cutover ]; then
+          if [[ "$DEPLOYMENT_MODE" =~ ^(tidewise_2_cutover|data_59_cutover)$ ]]; then
             plan="$(printf '%s\n' \
               'deploy_all=true' \
               'deploy_data=true' \
@@ -245,7 +256,7 @@ jobs:
               'deploy_miniapp=true' \
               'deploy_adminportal=true' \
               'deploy_admin=true' \
-              'scope_reason=tidewise_2_cutover')"
+              "scope_reason=${DEPLOYMENT_MODE}")"
           else
             plan="$(.uat-control/infra/uat/plan-service-release.sh "$CURRENT_RELEASE_SHA" "$TARGET_RELEASE_SHA")"
           fi

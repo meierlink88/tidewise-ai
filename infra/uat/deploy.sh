@@ -45,10 +45,26 @@ pre_data2_runtime="${deployment_root}/pre-data2.runtime.env"
 pre_data2_images="${state_dir}/pre-data2.images.env"
 pre_data2_compose="${state_dir}/pre-data2.compose.yaml"
 pre_data2_sha="${state_dir}/pre-data2.sha"
+pre_data59_runtime="${deployment_root}/pre-data59.runtime.env"
+pre_data59_images="${state_dir}/pre-data59.images.env"
+pre_data59_compose="${state_dir}/pre-data59.compose.yaml"
+pre_data59_sha="${state_dir}/pre-data59.sha"
 candidate_services_started=false
 rollback_snapshot_ready=false
 cutover_migration_started=false
 cutover_recovery_phase=""
+bounded_data_cutover=false
+cutover_target_version=""
+cutover_target_version_padded=""
+cutover_initial_current_version=""
+cutover_initial_pending_versions=""
+cutover_recovery_minimum_version=""
+cutover_gate_name=""
+cutover_release_state_mode=""
+cutover_checkpoint_runtime=""
+cutover_checkpoint_images=""
+cutover_checkpoint_compose=""
+cutover_checkpoint_sha=""
 interrupted_state_recovery_mode=""
 committed_cutover_recovery=false
 host_base_url="${UAT_HOST_BASE_URL:-http://127.0.0.1}"
@@ -59,9 +75,37 @@ test -d "$state_dir"
 test -w "$state_dir"
 
 case "$deployment_mode" in
-  normal|tidewise_2_cutover) ;;
+  normal) ;;
+  tidewise_2_cutover)
+    bounded_data_cutover=true
+    cutover_target_version=58
+    cutover_target_version_padded=000058
+    cutover_initial_current_version=000044
+    cutover_initial_pending_versions=000045,000046,000047,000048,000049,000050,000051,000052,000053,000054,000055,000056,000057,000058
+    cutover_recovery_minimum_version=44
+    cutover_gate_name=data2
+    cutover_release_state_mode=pre-data2
+    cutover_checkpoint_runtime="$pre_data2_runtime"
+    cutover_checkpoint_images="$pre_data2_images"
+    cutover_checkpoint_compose="$pre_data2_compose"
+    cutover_checkpoint_sha="$pre_data2_sha"
+    ;;
+  data_59_cutover)
+    bounded_data_cutover=true
+    cutover_target_version=59
+    cutover_target_version_padded=000059
+    cutover_initial_current_version=000058
+    cutover_initial_pending_versions=000059
+    cutover_recovery_minimum_version=58
+    cutover_gate_name=data59
+    cutover_release_state_mode=pre-data59
+    cutover_checkpoint_runtime="$pre_data59_runtime"
+    cutover_checkpoint_images="$pre_data59_images"
+    cutover_checkpoint_compose="$pre_data59_compose"
+    cutover_checkpoint_sha="$pre_data59_sha"
+    ;;
   *)
-    echo "FAIL deployment-mode-gate: DEPLOYMENT_MODE must be normal or tidewise_2_cutover" >&2
+    echo "FAIL deployment-mode-gate: DEPLOYMENT_MODE must be normal, tidewise_2_cutover, or data_59_cutover" >&2
     exit 1
     ;;
 esac
@@ -77,6 +121,7 @@ write_data2_cutover_marker() {
   {
     printf 'release_sha=%s\n' "$release_sha"
     printf 'phase=%s\n' "$phase"
+    printf 'target_version=%s\n' "$cutover_target_version"
   } > "$temporary_marker"
   chmod 0640 "$temporary_marker"
   sync "$temporary_marker"
@@ -87,6 +132,12 @@ write_data2_cutover_marker() {
 data2_cutover_marker_value() {
   local key="$1"
   sed -n "s/^${key}=//p" "$data2_cutover_marker" | tail -n 1
+}
+
+data2_cutover_marker_target_version() {
+  local target_version
+  target_version="$(data2_cutover_marker_value target_version)"
+  printf '%s\n' "${target_version:-58}"
 }
 
 application_container_ids() {
@@ -144,6 +195,16 @@ restore_interrupted_release_state() {
       install -m 0640 "$pre_data2_compose" "$current_compose"
       install -m 0640 "$pre_data2_sha" "$current_sha"
       ;;
+    pre-data59)
+      if [ ! -s "$pre_data59_runtime" ] || [ ! -s "$pre_data59_images" ] || [ ! -s "$pre_data59_compose" ] || [ ! -s "$pre_data59_sha" ]; then
+        echo "FAIL release-state-recovery: pre-Data-59 snapshot is incomplete" >&2
+        return 1
+      fi
+      install -m 0600 "$pre_data59_runtime" "$current_runtime"
+      install -m 0640 "$pre_data59_images" "$current_images"
+      install -m 0640 "$pre_data59_compose" "$current_compose"
+      install -m 0640 "$pre_data59_sha" "$current_sha"
+      ;;
     none)
       rm -f "$current_runtime" "$current_images" "$current_compose" "$current_sha"
       ;;
@@ -177,7 +238,7 @@ current_release_state_fingerprint() {
 
 verify_planned_release_state() {
   local recovered_cutover_state=false
-  if [ "$deployment_mode" = tidewise_2_cutover ] && [[ "$interrupted_state_recovery_mode" =~ ^(pre-data2|committed)$ ]]; then
+  if [ "$bounded_data_cutover" = true ] && [[ "$interrupted_state_recovery_mode" =~ ^(pre-data2|pre-data59|committed)$ ]]; then
     recovered_cutover_state=true
   fi
   if [ "$recovered_cutover_state" != true ] && [ "$(current_release_state_fingerprint)" != "$expected_current_state_fingerprint" ]; then
@@ -219,20 +280,21 @@ if [ -f "$release_state_write_marker" ]; then
   restore_interrupted_release_state
 fi
 verify_planned_release_state
-if [ "$deployment_mode" = tidewise_2_cutover ] && [ "$interrupted_state_recovery_mode" = committed ]; then
+if [ "$bounded_data_cutover" = true ] && [ "$interrupted_state_recovery_mode" = committed ]; then
   if [ ! -s "$data2_cutover_marker" ] || \
     [ "$(data2_cutover_marker_value release_sha)" != "$release_sha" ] || \
-    [ "$(data2_cutover_marker_value phase)" != data-migrated ]; then
-    echo "FAIL data2-cutover-committed-recovery: matching data-migrated cutover marker is required" >&2
+    [ "$(data2_cutover_marker_value phase)" != data-migrated ] || \
+    [ "$(data2_cutover_marker_target_version)" != "$cutover_target_version" ]; then
+    echo "FAIL ${cutover_gate_name}-cutover-committed-recovery: matching data-migrated cutover marker is required" >&2
     exit 1
   fi
   if [ "$(sed -n '1p' "$current_sha")" != "$release_sha" ]; then
-    echo "FAIL data2-cutover-committed-recovery: committed release SHA does not match the requested release" >&2
+    echo "FAIL ${cutover_gate_name}-cutover-committed-recovery: committed release SHA does not match the requested release" >&2
     exit 1
   fi
   for image_key in DATA_IMAGE MINIAPP_IMAGE ADMINPORTAL_IMAGE ADMIN_IMAGE AGENTRUN_IMAGE; do
     if [[ "$(current_image_value "$image_key")" != *":${release_sha}" ]]; then
-      echo "FAIL data2-cutover-committed-recovery: ${image_key} is not the committed cutover image" >&2
+      echo "FAIL ${cutover_gate_name}-cutover-committed-recovery: ${image_key} is not the committed cutover image" >&2
       exit 1
     fi
   done
@@ -402,22 +464,22 @@ recover_failed_deployment() {
   local exit_status=$?
   trap - EXIT
   if [ "$exit_status" -ne 0 ]; then
-    if [ "$deployment_mode" = tidewise_2_cutover ]; then
+    if [ "$bounded_data_cutover" = true ]; then
       if [ -e "$agent_version_publication_marker" ]; then
         withdraw_candidate_agent_versions || true
       fi
       if [ "$cutover_migration_started" = true ]; then
         if ! "${candidate_compose[@]}" stop; then
-          echo "FAIL data2-cutover-recovery: candidate application services could not be stopped" >&2
+          echo "FAIL ${cutover_gate_name}-cutover-recovery: candidate application services could not be stopped" >&2
         fi
-        echo "FAIL data2-cutover-recovery: database may be mutated; old application images remain stopped and marker is retained" >&2
+        echo "FAIL ${cutover_gate_name}-cutover-recovery: database may be mutated; old application images remain stopped and marker is retained" >&2
       elif [ -e "$data2_cutover_marker" ]; then
         if rollback_current_release; then
           rm -f "$data2_cutover_marker"
           sync -f "$state_dir"
-          echo "PASS data2-cutover-pre-migration-rollback" >&2
+          echo "PASS ${cutover_gate_name}-cutover-pre-migration-rollback" >&2
         else
-          echo "FAIL data2-cutover-pre-migration-rollback: marker retained" >&2
+          echo "FAIL ${cutover_gate_name}-cutover-pre-migration-rollback: marker retained" >&2
         fi
       fi
       exit "$exit_status"
@@ -590,26 +652,30 @@ if [ -n "$blocked_pending" ] || [ -n "$agentrun_blocked_pending" ]; then
 fi
 echo "PASS migration-release-gate"
 
-if [ "$deployment_mode" = tidewise_2_cutover ]; then
+if [ "$bounded_data_cutover" = true ]; then
   if [ "$expected_current_available" != true ]; then
-    echo "FAIL data2-cutover-gate: a complete repository-managed current UAT release is required" >&2
+    echo "FAIL ${cutover_gate_name}-cutover-gate: a complete repository-managed current UAT release is required" >&2
     exit 1
   fi
   if [ "$destructive_data_change_confirmed" != true ]; then
-    echo "FAIL data2-cutover-gate: confirm_destructive_data_change=true is required" >&2
+    echo "FAIL ${cutover_gate_name}-cutover-gate: confirm_destructive_data_change=true is required" >&2
     exit 1
   fi
   if [ "$backup_confirmed" != true ]; then
-    echo "FAIL data2-cutover-gate: confirm_high_risk_backup=true is required" >&2
+    echo "FAIL ${cutover_gate_name}-cutover-gate: confirm_high_risk_backup=true is required" >&2
     exit 1
   fi
   if [ "$agentrun_rollback_target_version" != 015 ] || [ -n "$agentrun_pending_versions" ]; then
-    echo "FAIL data2-cutover-gate: AgentRun must already be at migration 015 with no pending migrations" >&2
+    echo "FAIL ${cutover_gate_name}-cutover-gate: AgentRun must already be at migration 015 with no pending migrations" >&2
     exit 1
   fi
   if [ -e "$data2_cutover_marker" ]; then
     if [ "$(data2_cutover_marker_value release_sha)" != "$release_sha" ]; then
-      echo "FAIL data2-cutover-gate: recovery marker belongs to another release" >&2
+      echo "FAIL ${cutover_gate_name}-cutover-gate: recovery marker belongs to another release" >&2
+      exit 1
+    fi
+    if [ "$(data2_cutover_marker_target_version)" != "$cutover_target_version" ]; then
+      echo "FAIL ${cutover_gate_name}-cutover-gate: recovery marker belongs to another target version" >&2
       exit 1
     fi
     cutover_recovery_phase="$(data2_cutover_marker_value phase)"
@@ -619,32 +685,45 @@ if [ "$deployment_mode" = tidewise_2_cutover ]; then
         cutover_migration_started=true
         ;;
       *)
-        echo "FAIL data2-cutover-gate: recovery marker has an invalid phase" >&2
+        echo "FAIL ${cutover_gate_name}-cutover-gate: recovery marker has an invalid phase" >&2
         exit 1
         ;;
     esac
-    if ! python3 - "$data_current_version" "$data_pending_versions" "$empty_data_schema_rebuild_requested" <<'PY'
+    recovery_minimum_version="$cutover_recovery_minimum_version"
+    if [ "$empty_data_schema_rebuild_requested" = true ]; then
+      recovery_minimum_version=0
+    fi
+    if ! python3 - "$data_current_version" "$data_pending_versions" "$recovery_minimum_version" "$cutover_target_version" <<'PY'
 import sys
 
 current = int(sys.argv[1])
 pending = [int(version) for version in sys.argv[2].split(",") if version]
-minimum = 0 if sys.argv[3] == "true" else 44
-if current < minimum or current > 58 or pending != list(range(current + 1, 59)):
+minimum = int(sys.argv[3])
+target = int(sys.argv[4])
+if current < minimum or current > target or pending != list(range(current + 1, target + 1)):
     raise SystemExit(1)
 PY
     then
-      echo "FAIL data2-cutover-gate: recovery state is not a contiguous migration suffix ending at 58" >&2
+      echo "FAIL ${cutover_gate_name}-cutover-gate: recovery state is not a contiguous migration suffix ending at ${cutover_target_version}" >&2
       exit 1
     fi
-    echo "PASS data2-cutover-recovery-gate"
+    if [[ "$cutover_recovery_phase" =~ ^(prepared|services-stopped)$ ]] && \
+      { [ "$data_current_version" != "$cutover_initial_current_version" ] || [ "$data_pending_versions" != "$cutover_initial_pending_versions" ]; }; then
+      cutover_migration_started=true
+      cutover_recovery_phase=migration-started
+      trap recover_failed_deployment EXIT
+      write_data2_cutover_marker migration-started
+      echo "PASS ${cutover_gate_name}-cutover-recovery-phase-reconciled"
+    fi
+    echo "PASS ${cutover_gate_name}-cutover-recovery-gate"
   elif [ "$empty_data_schema_rebuild_requested" = true ]; then
-    echo "FAIL data2-cutover-gate: empty Data schema rebuild requires an existing cutover recovery marker" >&2
+    echo "FAIL ${cutover_gate_name}-cutover-gate: empty Data schema rebuild requires an existing cutover recovery marker" >&2
     exit 1
-  elif [ "$data_current_version" != 000044 ] || [ "$data_pending_versions" != 000045,000046,000047,000048,000049,000050,000051,000052,000053,000054,000055,000056,000057,000058 ]; then
-    echo "FAIL data2-cutover-gate: initial cutover requires Data migration 44 with the exact pending range 45-58" >&2
+  elif [ "$data_current_version" != "$cutover_initial_current_version" ] || [ "$data_pending_versions" != "$cutover_initial_pending_versions" ]; then
+    echo "FAIL ${cutover_gate_name}-cutover-gate: initial cutover requires Data migration ${cutover_initial_current_version#000} with the exact pending range ${cutover_initial_pending_versions}" >&2
     exit 1
   fi
-  echo "PASS data2-cutover-gate"
+  echo "PASS ${cutover_gate_name}-cutover-gate"
 else
   if [ -e "$data2_cutover_marker" ]; then
     echo "FAIL data2-cutover-recovery: ordinary deployment is blocked while a cutover marker exists" >&2
@@ -669,24 +748,24 @@ if [ "$agentrun_rollback_compatibility_required" = true ] && ! [[ "$agentrun_rol
 fi
 
 if [ "$committed_cutover_recovery" = true ]; then
-  if [ "$data_current_version" != 000058 ] || [ -n "$data_pending_versions" ]; then
-    echo "FAIL data2-cutover-committed-recovery: Data must be at migration 58 with no pending migrations" >&2
+  if [ "$data_current_version" != "$cutover_target_version_padded" ] || [ -n "$data_pending_versions" ]; then
+    echo "FAIL ${cutover_gate_name}-cutover-committed-recovery: Data must be at migration ${cutover_target_version} with no pending migrations" >&2
     exit 1
   fi
   if ! verify_services "$runtime_env" "${candidate_compose[@]}"; then
     if ! "${candidate_compose[@]}" stop; then
-      echo "FAIL data2-cutover-committed-recovery: candidate application services could not be stopped" >&2
+      echo "FAIL ${cutover_gate_name}-cutover-committed-recovery: candidate application services could not be stopped" >&2
     fi
-    echo "FAIL data2-cutover-committed-recovery: committed candidate is not healthy; cutover marker retained" >&2
+    echo "FAIL ${cutover_gate_name}-cutover-committed-recovery: committed candidate is not healthy; cutover marker retained" >&2
     exit 1
   fi
   rm -f "$agentrun_rollback_marker" "$agent_version_publication_marker" "$data2_cutover_marker"
   sync -f "$state_dir"
-  echo "PASS data2-cutover-committed-recovery"
+  echo "PASS ${cutover_gate_name}-cutover-committed-recovery"
   exit 0
 fi
 
-if [ "$deployment_mode" = tidewise_2_cutover ]; then
+if [ "$bounded_data_cutover" = true ]; then
   trap recover_failed_deployment EXIT
   if [ "$cutover_migration_started" != true ]; then
     write_data2_cutover_marker prepared
@@ -737,27 +816,27 @@ if [ "$deployment_mode" = tidewise_2_cutover ]; then
     "${candidate_compose[@]}" run --rm --no-deps \
       -e TIDEWISE_EMPTY_DATA_SCHEMA_REBUILD_CONFIRMED=issue-266-data-only \
       -e "PGOPTIONS=-c tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified -c tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified -c tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified" \
-      data /usr/local/bin/dbmigrate -apply -target-version 58 -rebuild-empty-schema > "$data2_apply_report_file"
+      data /usr/local/bin/dbmigrate -apply -target-version "$cutover_target_version" -rebuild-empty-schema > "$data2_apply_report_file"
   else
-    "${candidate_compose[@]}" run --rm --no-deps data /usr/local/bin/dbmigrate -apply -target-version 58 > "$data2_apply_report_file"
+    "${candidate_compose[@]}" run --rm --no-deps data /usr/local/bin/dbmigrate -apply -target-version "$cutover_target_version" > "$data2_apply_report_file"
   fi
   "${candidate_compose[@]}" run --rm --no-deps data /usr/local/bin/dbmigrate > "$report_file"
-  if ! python3 - "$report_file" <<'PY'
+  if ! python3 - "$report_file" "$cutover_target_version_padded" <<'PY'
 import json
 import pathlib
 import sys
 
 report = json.loads(pathlib.Path(sys.argv[1]).read_text())
 current = str(report.get("current_version") or "").zfill(6)
-if current != "000058" or report.get("pending") or report.get("remaining"):
+if current != sys.argv[2] or report.get("pending") or report.get("remaining"):
     raise SystemExit(1)
 PY
   then
-    echo "FAIL data2-target-version: Data did not reach migration 58 with no pending migrations" >&2
+    echo "FAIL ${cutover_gate_name}-target-version: Data did not reach migration ${cutover_target_version} with no pending migrations" >&2
     exit 1
   fi
   write_data2_cutover_marker data-migrated
-  echo "PASS data2-target-version"
+  echo "PASS ${cutover_gate_name}-target-version"
 else
   "${candidate_compose[@]}" run --rm --no-deps data /usr/local/bin/dbmigrate -apply > "$report_file"
 fi
@@ -801,13 +880,13 @@ echo "PASS migration-apply"
 echo "PASS agent-version-publication"
 
 if ! "${candidate_compose[@]}" up -d --wait --wait-timeout 120; then
-  if [ "$deployment_mode" != tidewise_2_cutover ] && [ "$candidate_services_started" != true ]; then
+  if [ "$bounded_data_cutover" != true ] && [ "$candidate_services_started" != true ]; then
     rollback_current_release
   fi
   exit 1
 fi
 if ! verify_services "$runtime_env" "${candidate_compose[@]}"; then
-  if [ "$deployment_mode" != tidewise_2_cutover ] && [ "$candidate_services_started" != true ]; then
+  if [ "$bounded_data_cutover" != true ] && [ "$candidate_services_started" != true ]; then
     rollback_current_release
   fi
   exit 1
@@ -815,11 +894,11 @@ fi
 candidate_services_started=true
 trap recover_failed_deployment EXIT
 
-if [ "$deployment_mode" = tidewise_2_cutover ]; then
-  install -m 0600 "$current_runtime" "$pre_data2_runtime"
-  install -m 0640 "$current_images" "$pre_data2_images"
-  install -m 0640 "$current_compose" "$pre_data2_compose"
-  install -m 0640 "$current_sha" "$pre_data2_sha"
+if [ "$bounded_data_cutover" = true ]; then
+  install -m 0600 "$current_runtime" "$cutover_checkpoint_runtime"
+  install -m 0640 "$current_images" "$cutover_checkpoint_images"
+  install -m 0640 "$current_compose" "$cutover_checkpoint_compose"
+  install -m 0640 "$current_sha" "$cutover_checkpoint_sha"
   rm -f "$previous_runtime" "$previous_images" "$previous_compose" "$previous_sha"
 elif [ "$expected_current_available" = true ]; then
   install -m 0600 "$current_runtime" "$previous_runtime"
@@ -828,8 +907,8 @@ elif [ "$expected_current_available" = true ]; then
   install -m 0640 "$current_sha" "$previous_sha"
   rollback_snapshot_ready=true
 fi
-if [ "$deployment_mode" = tidewise_2_cutover ]; then
-  write_release_state_marker pre-data2
+if [ "$bounded_data_cutover" = true ]; then
+  write_release_state_marker "$cutover_release_state_mode"
 elif [ "$rollback_snapshot_ready" = true ]; then
   write_release_state_marker previous
 else
@@ -849,7 +928,7 @@ sync -f "$state_dir"
 agentrun_rollback_compatibility_required=false
 rm -f "$release_state_write_marker"
 sync -f "$state_dir"
-if [ "$deployment_mode" = tidewise_2_cutover ]; then
+if [ "$bounded_data_cutover" = true ]; then
   rm -f "$data2_cutover_marker"
   sync -f "$state_dir"
 fi
