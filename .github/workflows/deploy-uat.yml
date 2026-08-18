@@ -7,8 +7,26 @@ on:
         description: Optional full commit SHA from main. Defaults to the latest main commit.
         required: false
         type: string
+      deployment_mode:
+        description: Use normal for ongoing releases; tidewise_2_cutover is the bounded Data migration 44-58 cutover.
+        required: true
+        default: normal
+        type: choice
+        options:
+          - normal
+          - tidewise_2_cutover
       confirm_high_risk_backup:
-        description: Confirm an RDS recovery point for high-risk schema migrations; data publication is never allowed here.
+        description: Confirm a current RDS recovery point for high-risk migrations.
+        required: false
+        default: false
+        type: boolean
+      confirm_destructive_data_change:
+        description: Confirm the Tidewise AI 2.0 cutover may irreversibly rewrite or clear incompatible Data records.
+        required: false
+        default: false
+        type: boolean
+      rebuild_empty_data_schema:
+        description: Recovery-only fallback after a marked cutover failure; rebuilds Data schema and data, never AgentRun or Qdrant.
         required: false
         default: false
         type: boolean
@@ -101,6 +119,7 @@ jobs:
         id: current
         env:
           DEPLOY_ROOT: /opt/tidewise/uat
+          DEPLOYMENT_MODE: ${{ inputs.deployment_mode }}
         shell: bash
         run: |
           set -euo pipefail
@@ -110,8 +129,13 @@ jobs:
           images_file="${state_dir}/current.images.env"
           compose_file="${state_dir}/current.compose.yaml"
           write_marker="${state_dir}/release-state-write-in-progress"
+          cutover_marker="${state_dir}/tidewise-2-cutover-in-progress"
+          pre_data2_runtime="${DEPLOY_ROOT}/pre-data2.runtime.env"
+          pre_data2_sha="${state_dir}/pre-data2.sha"
+          pre_data2_images="${state_dir}/pre-data2.images.env"
+          pre_data2_compose="${state_dir}/pre-data2.compose.yaml"
           state_fingerprint() {
-            for path in "$runtime_file" "$sha_file" "$images_file" "$compose_file" "$write_marker"; do
+            for path in "$runtime_file" "$sha_file" "$images_file" "$compose_file" "$write_marker" "$cutover_marker"; do
               if [ -e "$path" ]; then
                 sha256sum "$path"
               else
@@ -121,9 +145,24 @@ jobs:
           }
           echo "available=false" >> "$GITHUB_OUTPUT"
           echo "state_fingerprint=$(state_fingerprint)" >> "$GITHUB_OUTPUT"
+          if [ -e "$cutover_marker" ] && [ "$DEPLOYMENT_MODE" != tidewise_2_cutover ]; then
+            echo "A Tidewise AI 2.0 cutover recovery marker blocks ordinary UAT deployment." >&2
+            exit 1
+          fi
           if [ -e "$write_marker" ]; then
-            echo "Previous UAT release has an interrupted state write; full deployment required."
-            exit 0
+            recovery_mode="$(sed -n '1p' "$write_marker")"
+            if [ "$DEPLOYMENT_MODE" = tidewise_2_cutover ] && [ "$recovery_mode" = pre-data2 ]; then
+              runtime_file="$pre_data2_runtime"
+              sha_file="$pre_data2_sha"
+              images_file="$pre_data2_images"
+              compose_file="$pre_data2_compose"
+              echo "Using the archived pre-Data-2.0 release as the interrupted cutover recovery baseline."
+            elif [ "$DEPLOYMENT_MODE" = tidewise_2_cutover ] && [ "$recovery_mode" = committed ]; then
+              echo "Using the committed candidate release as the interrupted cutover recovery baseline."
+            else
+              echo "Previous UAT release has an interrupted state write; full deployment required."
+              exit 0
+            fi
           fi
           if [ ! -s "$runtime_file" ] || [ ! -s "$sha_file" ] || [ ! -s "$images_file" ] || [ ! -s "$compose_file" ]; then
             echo "No complete previous UAT release state; full deployment required."
@@ -194,10 +233,22 @@ jobs:
         env:
           CURRENT_RELEASE_SHA: ${{ needs.current-release.outputs.commit_sha }}
           TARGET_RELEASE_SHA: ${{ needs.resolve-release.outputs.commit_sha }}
+          DEPLOYMENT_MODE: ${{ inputs.deployment_mode }}
         shell: bash
         run: |
           set -euo pipefail
-          plan="$(.uat-control/infra/uat/plan-service-release.sh "$CURRENT_RELEASE_SHA" "$TARGET_RELEASE_SHA")"
+          if [ "$DEPLOYMENT_MODE" = tidewise_2_cutover ]; then
+            plan="$(printf '%s\n' \
+              'deploy_all=true' \
+              'deploy_data=true' \
+              'deploy_agentrun=true' \
+              'deploy_miniapp=true' \
+              'deploy_adminportal=true' \
+              'deploy_admin=true' \
+              'scope_reason=tidewise_2_cutover')"
+          else
+            plan="$(.uat-control/infra/uat/plan-service-release.sh "$CURRENT_RELEASE_SHA" "$TARGET_RELEASE_SHA")"
+          fi
           printf '%s\n' "$plan" >> "$GITHUB_OUTPUT"
           {
             echo "### UAT service deployment plan"
@@ -442,6 +493,9 @@ jobs:
       AGENTRUN_SERVICE_TOKEN: ${{ secrets.AGENTRUN_SERVICE_TOKEN }}
       EMBEDDING_API_KEY: ${{ secrets.EMBEDDING_API_KEY }}
       HIGH_RISK_BACKUP_CONFIRMED: ${{ inputs.confirm_high_risk_backup }}
+      DEPLOYMENT_MODE: ${{ inputs.deployment_mode }}
+      DESTRUCTIVE_DATA_CHANGE_CONFIRMED: ${{ inputs.confirm_destructive_data_change }}
+      EMPTY_DATA_SCHEMA_REBUILD_REQUESTED: ${{ inputs.rebuild_empty_data_schema }}
     steps:
       - name: Login to SWR with pull credentials
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -546,7 +600,7 @@ jobs:
           docker compose --env-file "${{ steps.runtime.outputs.runtime_env }}" --env-file "${{ steps.runtime.outputs.images_env }}" -f "${{ steps.bundle.outputs.compose_file }}" pull
           echo "PASS swr-login-and-image-pull"
 
-      - name: Apply schema migrations and deploy the complete release unit
+      - name: Apply approved migrations and deploy the complete release unit
         shell: bash
         env:
           RUNTIME_ENV: ${{ steps.runtime.outputs.runtime_env }}

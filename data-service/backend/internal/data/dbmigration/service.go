@@ -28,6 +28,9 @@ type Executor interface {
 type ServiceOptions struct {
 	AutoApply     bool
 	TargetVersion string
+	// RebuildEmptySchema is reserved for the explicitly confirmed UAT Data-only
+	// recovery path. Generic Service.Check callers must leave it false.
+	RebuildEmptySchema bool
 }
 
 type ServiceReport struct {
