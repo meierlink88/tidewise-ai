@@ -5,10 +5,10 @@ service-owned operational commands. Host-native `go run` and Vite service hostin
 entrypoints. Miniapp Frontend is not a service; its repository-pinned Taro build/watch commands run
 directly and hand platform output to the native developer tools.
 
-The `tidewise-app` stack contains Data, AgentRun, Miniapp Backend, Admin Backend and Admin Web.
+The `tidewise-app` stack contains Data, Miniapp Backend, Admin Backend and Admin Web.
 Reason Server and Agent OS join the same Docker Desktop project only when started from their own
 repositories. The independently operated `tidewise-infra` stack contains PostgreSQL, MySQL, Neo4j,
-MinIO and Qdrant. Both projects use the `tidewise-local` network. Data, AgentRun and Agent OS keep
+MinIO and Qdrant. Both projects use the `tidewise-local` network. Data and Agent OS keep
 independent PostgreSQL databases and roles; sharing the engine does not share data ownership.
 
 ## Start and stop
@@ -36,12 +36,9 @@ npm run infra:status
 ```
 
 Required application inputs are explicit: Data uses `TIDEWISE_DB_HOST` and
-`TIDEWISW_DB_PASSWORD`; AgentRun uses `AGENTRUN_DB_HOST`, `AGENTRUN_DB_PASSWORD`,
-`AGENTRUN_QDRANT_URL`, `QDRANT_API_KEY` and `EMBEDDING_API_KEY`. Service identities use
-`DATA_SERVICE_TOKEN`, `AGENTRUN_SERVICE_TOKEN` and `ADMIN_SERVICE_TOKEN`. The AgentRun image is
-built from `agent-run/backend`.
+`TIDEWISW_DB_PASSWORD`. Service identities use `DATA_SERVICE_TOKEN` and `ADMIN_SERVICE_TOKEN`.
 
-Build and start the five Tidewise AI application services. This first ensures existing middleware
+Build and start the four Tidewise AI application services. This first ensures existing middleware
 containers are running with `--no-recreate`, builds the candidate Data image, applies its migration
 ledger in an ephemeral `docker compose run --rm` container, and only then starts application
 services:
@@ -51,11 +48,8 @@ npm run runtime:up
 ```
 
 Data migration is an explicit pre-start run and does not create or retain a `data-migrate`
-container. AgentRun keeps its existing Compose dependency chain: `agentrun-migrate` runs once,
-then `agentrun-agent-version` publishes the code-owned current Agent Versions before the AgentRun
-server starts. Any failed pre-start operation stops the canonical npm command before its dependent
-application startup. Normal shutdown preserves the service-owned Artifact volume and never stops
-infrastructure, Reason Server or Agent OS.
+container. Any failed pre-start operation stops the canonical npm command before its dependent
+application startup. Normal shutdown never stops infrastructure, Reason Server or Agent OS.
 
 ```bash
 npm run runtime:down
@@ -84,17 +78,15 @@ npm run runtime:logs
 | Miniapp Backend    | `http://127.0.0.1:9012`  |
 | Admin Backend      | `http://127.0.0.1:9013`  |
 | Admin Web          | `http://127.0.0.1:9014`  |
-| AgentRun           | `http://127.0.0.1:9080`  |
 | Miniapp H5 profile | `http://127.0.0.1:10086` |
 
-Application-to-application traffic uses Compose DNS (`data`, `agentrun`, `miniapp`,
-`adminportal`). Applications reach local infrastructure through `postgres`, `qdrant`, `mysql`,
+Application-to-application traffic uses Compose DNS (`data`, `miniapp`, `adminportal`).
+Applications reach local infrastructure through `postgres`, `qdrant`, `mysql`,
 `neo4j` and `minio` on the shared network.
 
 Docker Desktop shows the long-running application containers as `admin-portal-web`,
-`admin-portal-service`, `miniapp-service`, `data-service`, and `agentrun-service`. One-shot
-AgentRun containers use `agentrun-migrate` and `agentrun-agent-version`; the transient Data
-migration container is automatically removed.
+`admin-portal-service`, `miniapp-service`, and `data-service`. The transient Data migration
+container is automatically removed.
 
 ## Backend services
 
@@ -102,14 +94,13 @@ Start or rebuild one backend with its declared dependencies:
 
 ```bash
 npm run backend:dev:data
-npm run backend:dev:agentrun
 npm run backend:dev:miniapp
 npm run backend:dev:admin
 ```
 
 All Backend images read one service-owned YAML per environment from `/app/configs`. Secrets come
-only from `infra/local/.env.local`. Miniapp/Admin BFF containers never receive Data or AgentRun
-database credentials.
+only from `infra/local/.env.local`. Miniapp/Admin BFF containers never receive Data database
+credentials.
 
 ## Admin Web
 
@@ -149,38 +140,12 @@ npm run runtime:migrate:data
 ```
 
 PostgreSQL remains the Data fact source. Data no longer seeds Entity packages or writes Neo4j/Qdrant
-projections. AgentRun's existing Qdrant reader remains configured, but its projection-dependent
-workflow stays paused until a new projection owner is approved.
-
-## AgentRun operations
-
-The infrastructure owner must create the AgentRun database identity before startup. Compose applies
-AgentRun-owned migrations and then starts AgentRun. Run AgentRun-owned commands from the same image
-and persistent Artifact volume:
-
-```bash
-docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml \
-  run --rm agentrun-migrate --check-only
-
-docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml \
-  run --rm agentrun-agent-version
-
-docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml \
-  run --rm --no-deps --entrypoint /app/agentrun-config agentrun check
-
-docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml \
-  run --rm --no-deps --entrypoint /app/agentrun-artifacts agentrun verify-index --root /app/data
-```
-
-Provider keys should be piped to `/app/agentrun-config ... --api-key-stdin`; they must not be placed
-in YAML, command arguments, logs or committed environment files.
+projections.
 
 ## Failure diagnosis
 
 - Data migration failed: inspect the `runtime:migrate:data` command output; its ephemeral container is removed automatically.
-- `agentrun-migrate` or `agentrun-agent-version` failed: inspect the one-shot container logs before restarting.
 - `pending migrations exist`: rebuild the image and rerun the owning migration service.
-- `configuration_not_ready`: configure the required AgentRun Model Provider/Connector records.
 - Admin CORS failure: `ADMIN_ALLOWED_ORIGIN` must match the mapped Admin Web origin, normally
   `http://127.0.0.1:9014`.
 - Miniapp output missing: inspect the selected profile logs and confirm the host `dist` mount is

@@ -14,7 +14,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 - PostgreSQL schema、migration 和 repository。
 - 采集/清洗执行方使用的 Raw Evidence 与 Evidence Publication API、自然身份收敛、
   正式身份响应和事务规则。
-- AgentRun 使用的既有 Event Publication API、自然身份收敛、receipt 和事务规则。
+- 外部发布方使用的既有 Event Publication API、自然身份收敛、receipt 和事务规则。
 - 面向 Miniapp/Admin Application Backend Service 的版本化 REST API。
 - Data Service 自身的只读运行健康状态。
 - Data Application 内数据库无关的 Domain Object ID 技术原语与格式合同。
@@ -34,15 +34,15 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 
 ## Acquisition And Agent Boundary
 
-Data 拥有正式 Raw Evidence、Evidence 及发布合同；AgentOS 或退役前的 AgentRun 只拥有
+Data 拥有正式 Raw Evidence、Evidence 及发布合同；外部 Agent OS 只拥有
 采集、关键词生成、清洗和语义提取执行。执行方必须通过 Data 的版本化 API 发布，不直接
-访问 Data 数据库。Data 不反向调用、不 import、也不读取 AgentOS/AgentRun 数据库或本地
+访问 Data 数据库。Data 不反向调用、不 import、也不读取外部 Agent OS 数据库或本地
 Artifact。Source Catalog 和采集控制面是否迁入 Data 属于独立需求，不由本次 Evidence
 Publication 恢复。
 
 既有 Event Publication 的轻量 `raw_documents` 与 `event_sources` 继续服务现有 Event
 业务；它们不是 Raw Evidence 或原子 Evidence，不与新表共享身份、外键或发布事务。
-AgentRun 运行时下架、旧 `tidewise_ai_server` 数据搬迁和历史 8/19 行回填不在本次范围。
+已退役运行时的旧数据库与本地数据已从当前工程边界移除；历史 Data 事实仍按现有合同读取。
 
 ## Language
 
@@ -93,7 +93,7 @@ Data 正式保存的一份完整原始采集材料，以 `RAW + canonical lowerc
 零 Evidence 作为正式清洗结果。
 Data 还为新建 Raw Evidence 保存数据库生成的内部 `created_at`；发布方不提交，发布 API
 不返回，历史行不回填。
-_Avoid_: Event Evidence Record、AgentRun Artifact、Raw Document、只含摘录的证据链接
+_Avoid_: Event Evidence Record、外部执行 Artifact、Raw Document、只含摘录的证据链接
 
 **Raw Evidence Keywords**:
 发布方随 Raw Evidence 提交的有序阅读辅助字符串列表，顺序表达重要性。其内容规则由
@@ -201,16 +201,16 @@ _Avoid_: AI 自由关系字符串、无语义的 related_to
 活动的 Chain Node，也不等同于标准化可交易的 Commodity。
 _Avoid_: Chain Node、Commodity、Technology、产品名称 Mention
 
-**Legacy AgentRun Artifact**:
-既有 Event Publication 链路中由 AgentRun 采集执行生成的不可变原始文档对象。Data 不读取
+**Legacy Publisher Artifact**:
+既有 Event Publication 链路中由历史发布方采集执行生成的不可变原始文档对象。Data 不读取
 该遗留执行方的数据库或 Artifact 存储位置；新的完整原始材料通过 Raw Evidence
 Publication 进入 Data，并不复用该遗留对象。
 _Avoid_: Data Raw Document、Event Evidence Record、Data 原始语料
 
 **Event Evidence Record**:
-Data 仅在正式 Event 引用了 AgentRun Artifact 时接纳的轻量证据文档记录，保存 Artifact 身份、内容 SHA-256、AgentRun 稳定 `source_ref`、来源快照和必要时间元数据，不保存完整正文或 Artifact 存储位置。`source_ref` 只是无外键的外部来源引用，Data 不维护其 Source 主数据。内容 SHA-256 只用于检测同一 Artifact 身份是否发生内容漂移，不表示 Data 已读取原文或验证来源真实性。来源快照可保留公开 `source_url` 用于证据归因，允许没有公开地址的来源为空；该地址不是 AgentRun Artifact 的内部位置，Data 不主动访问或校验。一个记录可以支持多个 Event，一个 Event 也可以引用多个记录。
+Data 仅在正式 Event 引用了外部 Artifact 时接纳的轻量证据文档记录，保存 Artifact 身份、内容 SHA-256、稳定 `source_ref`、来源快照和必要时间元数据，不保存完整正文或 Artifact 存储位置。`source_ref` 只是无外键的外部来源引用，Data 不维护其 Source 主数据。内容 SHA-256 只用于检测同一 Artifact 身份是否发生内容漂移，不表示 Data 已读取原文或验证来源真实性。来源快照可保留公开 `source_url` 用于证据归因，允许没有公开地址的来源为空；该地址不是外部 Artifact 的内部位置，Data 不主动访问或校验。一个记录可以支持多个 Event，一个 Event 也可以引用多个记录。
 V3 接纳字段只包含必填的 `artifact_id`、`content_sha256`、`source_ref`、`source_name`、`source_type`、`title`、`collected_at`，以及可选的 `source_url`、`published_at`、`language`、`mime_type`。`content_text`、Artifact URI、采集通道、采集状态、内容层级和独立来源外部 ID 不属于 V3 合同。
-`source_type` 是由 AgentRun Source Catalog 治理的非空快照字符串，Data 只校验非空和长度，不维护对应枚举或主数据。
+`source_type` 是由外部发布方治理的非空快照字符串，Data 只校验非空和长度，不维护对应枚举或主数据。
 _Avoid_: 完整 Raw Document、采集缓存、未产生 Event 的文档
 
 **Event Evidence Link**:
@@ -224,28 +224,28 @@ _Avoid_: 待审核 Tag、未知或停用 Tag、静默覆盖已有分配依据
 
 **Event Tag Catalog**:
 Data PostgreSQL 拥有的唯一当前 Event 分类主数据集合，包含稳定 Tag ID、kind、code、名称和
-启停状态。V1 不提供 Catalog 历史、版本、revision 或内容 hash；AgentRun 每次分类通过 Data
+启停状态。V1 不提供 Catalog 历史、版本、revision 或内容 hash；外部发布方每次分类通过 Data
 只读合同取得当前 active Tag，校验 wire 字段、受控 kind、稳定排序和重复身份后使用。Event
 Publication 仍由 Data 根据 PostgreSQL 当前 Tag 校验 ID、kind、code 和 active 状态。
-_Avoid_: AgentRun 自建或持久化 Tag Catalog 副本、Catalog 版本身份、对 JSON 字节重复计算 hash、在 Prompt 或 YAML 中复制 Tag ID、模型创造 Tag
+_Avoid_: 外部发布方自建或持久化 Tag Catalog 副本、Catalog 版本身份、对 JSON 字节重复计算 hash、在 Prompt 或 YAML 中复制 Tag ID、模型创造 Tag
 
 **Event Publication Batch**:
-AgentRun 将一至十个已完成提取与审核、状态固定为 `confirmed + verified` 的原子 Event，连同其共享 Event Evidence Record、证据关联、Tag、Review 和提取血缘，按照 Data 定义的严格同步合同整批原子提交为正式事实；候选、未验证或拒绝 Event 不进入 Data，任一成员失败时整批不可见。
+外部发布方将一至十个已完成提取与审核、状态固定为 `confirmed + verified` 的原子 Event，连同其共享 Event Evidence Record、证据关联、Tag、Review 和提取血缘，按照 Data 定义的严格同步合同整批原子提交为正式事实；候选、未验证或拒绝 Event 不进入 Data，任一成员失败时整批不可见。
 每个 Event 独立提交必填的 `review_id`、`evidence_grade` 和非空 `reasons`；V3 不重复提交审核决定、Event/Fact 状态或组件版本，Data 统一写入 `confirmed + verified`。
 V3 在批次顶层提交去重后的 `raw_documents`，各 Event 通过 `artifact_id` 引用共享证据。每个 Event 至少引用一个已声明 Artifact；每个顶层 Artifact 也必须至少被一个 Event 引用，未知或重复 Artifact 身份均使整批失败。
 Data 在写事务前返回所有当前可确定的合同、枚举、Tag 和引用错误；自然身份内容冲突单独返回冲突错误。任一错误均阻止整个批次和 Receipt 落库，不允许部分成功。
 _Avoid_: 独立 Raw Document 导入、Agent 直写数据库、先存全文后补 Event
 
 **Event Import Receipt**:
-Data 为每次成功 Event Publication Batch 生成的不可变审计凭证，记录调用主体、`package_id`、正式事实身份、`extractor_execution_id`、`extractor_agent_version`、每个 Artifact 对应的 `collector_execution_id` 和导入时间。以上执行血缘均为必填；Prompt、模型和 Profile 版本仍由 AgentRun 保存。Receipt 不承担请求幂等、重放判断或异步状态查询职责；失败事务不生成 Receipt。
-`package_id` 只是 AgentRun 提供的审计关联编号，不唯一且不参与事实复用；相同 package 可以产生多个成功 Receipt，每次成功调用均由 Data 生成新的 `receipt_id`。
-Event Publication 必须通过 Data 唯一的内部 Bearer service token 鉴权；Token 只存在于运行环境，不进入数据库。Data 将该凭据解析为稳定的 Data 内部 trust-domain `caller_subject` 写入 Receipt，不区分 AgentRun、Miniapp 或 Admin 等消费者。Event 的消费者级审计由必填 Collector/Extractor 执行血缘承担，与 Source、采集通道或 Artifact 来源无关。本期明确不提供 Data API 的逐消费者 token、scope 隔离或逐消费者 Receipt 主体。
+Data 为每次成功 Event Publication Batch 生成的不可变审计凭证，记录调用主体、`package_id`、正式事实身份、`extractor_execution_id`、`extractor_agent_version`、每个 Artifact 对应的 `collector_execution_id` 和导入时间。以上执行血缘均为必填；Prompt、模型和 Profile 版本由外部发布方保存。Receipt 不承担请求幂等、重放判断或异步状态查询职责；失败事务不生成 Receipt。
+`package_id` 只是外部发布方提供的审计关联编号，不唯一且不参与事实复用；相同 package 可以产生多个成功 Receipt，每次成功调用均由 Data 生成新的 `receipt_id`。
+Event Publication 必须通过 Data 唯一的内部 Bearer service token 鉴权；Token 只存在于运行环境，不进入数据库。Data 将该凭据解析为稳定的 Data 内部 trust-domain `caller_subject` 写入 Receipt，不区分具体消费者。Event 的消费者级审计由必填 Collector/Extractor 执行血缘承担，与 Source、采集通道或 Artifact 来源无关。本期明确不提供 Data API 的逐消费者 token、scope 隔离或逐消费者 Receipt 主体。
 V3 Receipt 存储在专用 `event_publication_receipts`。旧独立 Raw Document 导入和单 Event V1 导入退出后，其 `raw_document_import_receipts`、`event_import_receipts` 及专属数据库触发器/函数连同历史审计记录物理移除；该清理不得删除正式 Event、Event Evidence Record 或 Event Evidence Link。
 每次成功调用均创建 Receipt 并返回 `201 Created`，响应包含 `receipt_id`、`package_id`、`imported_at`、Dedupe Key 到 Event ID 的 created/reused 映射、Artifact ID 到 Raw Document ID 的 created/reused 映射，以及 Event、Raw Document、Event Source、Event Tag 的 created/reused 分类计数；不返回 payload hash、replayed 或异步任务状态。
 _Avoid_: Idempotency Record、Import Job、失败占位记录
 
 **Event Dedupe Key**:
-AgentRun 为一个原子 Event 提交的稳定唯一业务身份，对应 Data 中唯一的 Event 事实；Data 的 Event UUID 是独立数据库身份。相同 Dedupe Key 不得对应不同核心事实，事实修订必须使用新的 Dedupe Key。
+外部发布方为一个原子 Event 提交的稳定唯一业务身份，对应 Data 中唯一的 Event 事实；Data 的 Event UUID 是独立数据库身份。相同 Dedupe Key 不得对应不同核心事实，事实修订必须使用新的 Dedupe Key。
 _Avoid_: Event UUID、Import Idempotency Key、可覆盖的事件名称
 
 **Event 事实收敛（Event Fact Convergence）**:

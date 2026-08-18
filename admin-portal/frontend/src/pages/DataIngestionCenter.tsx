@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import {
   loadEvents,
   loadRawDocuments,
@@ -19,16 +19,14 @@ import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
-import CollectorConfiguration from './CollectorConfiguration';
 
-type ActiveTab = 'raw' | 'events' | 'collector';
+type ActiveTab = 'raw' | 'events';
 
 const pageSize = 50;
 
 const tabItems: { id: ActiveTab; label: string }[] = [
   { id: 'raw', label: '原始数据' },
-  { id: 'events', label: '全球事件' },
-  { id: 'collector', label: '采集器配置' }
+  { id: 'events', label: '全球事件' }
 ];
 
 const primaryTabsListClassName =
@@ -36,13 +34,7 @@ const primaryTabsListClassName =
 const primaryTabClassName =
   'relative h-full flex-none rounded-none border-0 px-4 py-0 text-xs font-medium shadow-none after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-transparent data-[state=active]:border-0 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:after:bg-primary';
 
-export default function DataIngestionCenter({
-  token,
-  onOpenMonitoring
-}: {
-  token: string;
-  onOpenMonitoring?: () => void;
-}) {
+export default function DataIngestionCenter({ token }: { token: string }) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('raw');
   const [rawTitle, setRawTitle] = useState('');
   const [rawQuery, setRawQuery] = useState<RawDocumentQuery>({ page: 1, title: '' });
@@ -235,36 +227,14 @@ export default function DataIngestionCenter({
 
   return (
     <Tabs
-      className='grid h-full min-h-0 w-full grid-rows-[auto_auto_minmax(0,1fr)] gap-3'
+      className='grid h-full min-h-0 w-full grid-rows-[auto_minmax(0,1fr)] gap-3'
       onValueChange={(value) => isActiveTab(value) && setActiveTab(value)}
       value={activeTab}
     >
       <div>
         <span className='page-eyebrow'>Data operations</span>
         <h2 className='page-title'>数据采集中心</h2>
-        <p className='page-description'>查询原始数据和全球事件，并管理采集 Agent 配置。</p>
-      </div>
-
-      <div className='flex items-center justify-between gap-4 rounded-lg border border-running-border bg-running-subtle px-4 py-3 max-sm:items-start'>
-        <div className='min-w-0'>
-          <strong className='block text-xs font-semibold text-running-foreground'>
-            执行记录已统一到监控中心
-          </strong>
-          <span className='mt-1 block text-[0.6875rem] leading-4 text-running-foreground/90'>
-            采集器配置只保留调度、模型和连接器配置，避免同一执行事实出现两个入口。
-          </span>
-        </div>
-        {onOpenMonitoring ? (
-          <Button
-            className='shrink-0 bg-card max-sm:size-8 max-sm:px-0'
-            onClick={onOpenMonitoring}
-            size='sm'
-            variant='outline'
-          >
-            <span className='max-sm:sr-only'>前往监控中心</span>
-            <ArrowRight aria-hidden='true' className='size-3.5' />
-          </Button>
-        ) : null}
+        <p className='page-description'>查询原始采集数据和全球事件。</p>
       </div>
 
       <Card className='flex h-full min-h-0 flex-col gap-0 overflow-hidden py-0 shadow-xs'>
@@ -277,7 +247,7 @@ export default function DataIngestionCenter({
         </TabsList>
 
         <div className='flex min-h-0 flex-1 flex-col overflow-hidden'>
-          {error && activeTab !== 'collector' ? (
+          {error ? (
             <div className='px-4 pt-4'>
               <StatusAlert
                 actionDisabled={loading}
@@ -432,14 +402,6 @@ export default function DataIngestionCenter({
                 onPageChange={(page) => setEventQuery((current) => ({ ...current, page }))}
               />
             </div>
-          </TabsContent>
-
-          <TabsContent
-            aria-label='采集器配置'
-            className='min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]'
-            value='collector'
-          >
-            {activeTab === 'collector' ? <CollectorConfiguration token={token} /> : null}
           </TabsContent>
         </div>
       </Card>

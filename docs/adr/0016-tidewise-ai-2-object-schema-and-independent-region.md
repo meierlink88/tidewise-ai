@@ -2,6 +2,7 @@
 status: accepted
 date: 2026-08-13
 supersedes_in_part: 0010-event-semantic-entity-first-cross-type-resolution.md, 0013-data-entity-domain-and-projection-retirement.md
+superseded_in_part_by: 0027-retire-agent-run.md
 ---
 
 # Tidewise AI 2.0 Object Schema 与独立 Region 事实

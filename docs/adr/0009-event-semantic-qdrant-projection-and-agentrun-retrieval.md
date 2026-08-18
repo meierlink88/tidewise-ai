@@ -1,5 +1,6 @@
 ---
-status: accepted
+status: superseded
+superseded_by: 0027-retire-agent-run.md
 date: 2026-08-01
 supersedes: 0008-bounded-data-owned-event-semantic-resolution.md
 ---

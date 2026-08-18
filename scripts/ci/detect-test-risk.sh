@@ -7,7 +7,7 @@ set -euo pipefail
 
 scope="${1:-}"
 case "$scope" in
-  data | miniapp | adminportal | agentrun | repository) ;;
+  data | miniapp | adminportal | repository) ;;
   *)
     echo "unsupported test-risk scope: ${scope:-<empty>}" >&2
     exit 2
@@ -102,7 +102,7 @@ case "$scope" in
     if matches '^admin-portal/backend/internal/data/' || matches "$shared_go"; then
       data=true
     fi
-    if matches '^admin-portal/backend/(api/|internal/data/)|^(data-service|agent-run)/backend/api/' || matches "$shared_go"; then
+    if matches '^admin-portal/backend/(api/|internal/data/)|^data-service/backend/api/' || matches "$shared_go"; then
       provider_consumer=true
     fi
     if matches '^admin-portal/backend/(cmd/server/|configs/|internal/conf/|internal/server/)' || matches "$shared_go"; then
@@ -112,28 +112,8 @@ case "$scope" in
       container=true
     fi
     ;;
-  agentrun)
-    if matches '^agent-run/backend/(api/|cmd/|configs/|internal/|migrations/)' || matches "$shared_go"; then
-      default=true
-    fi
-    if matches '^agent-run/backend/(internal/data/|migrations/)' || matches "$shared_go"; then
-      data=true
-    fi
-    if matches '^agent-run/backend/(migrations/|internal/data/postgres/migrations(\.go|/))' || matches "$shared_go"; then
-      migration=true
-    fi
-    if matches '^agent-run/backend/(cmd/server/|configs/|internal/conf/|internal/server/)' || matches "$shared_go"; then
-      conf_lifecycle=true
-    fi
-    if matches '^agent-run/backend/(api/|internal/data/connectors/|internal/data/modelprovider/)|^admin-portal/backend/(api/|internal/data/)|^admin-portal/frontend/(Dockerfile|nginx/)' || matches "$shared_go"; then
-      provider_consumer=true
-    fi
-    if matches '^agent-run/backend/Dockerfile$|^scripts/ci/smoke-agentrun-artifact-permissions\.sh$' || matches "$container_assets"; then
-      container=true
-    fi
-    ;;
   repository)
-    if matches '^(go\.mod|go\.sum|AGENTS\.md|CONTEXT-MAP\.md)$|^(data-service|miniapp|admin-portal|agent-run)/backend/.*\.go$|^docs/(agents/|adr/|contexts/|development-standards/)|^infra/uat/|^scripts/ci/|^\.github/workflows/'; then
+    if matches '^(go\.mod|go\.sum|AGENTS\.md|CONTEXT-MAP\.md)$|^(data-service|miniapp|admin-portal)/backend/.*\.go$|^docs/(agents/|adr/|contexts/|development-standards/)|^infra/uat/|^scripts/ci/|^\.github/workflows/'; then
       architecture=true
     fi
     ;;

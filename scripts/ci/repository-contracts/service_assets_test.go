@@ -23,7 +23,7 @@ func TestActiveRepositoryRetiresEconomyEntityModel(t *testing.T) {
 		regexp.MustCompile(`Primary` + `Economy`),
 		regexp.MustCompile(`Registration` + `Economy`),
 	}
-	for _, root := range []string{"data-service", "miniapp", "admin-portal", "agent-run", "scripts", "infra"} {
+	for _, root := range []string{"data-service", "miniapp", "admin-portal", "scripts", "infra"} {
 		err := filepath.WalkDir(filepath.Join(repoRoot, root), func(path string, entry os.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				return walkErr
@@ -165,26 +165,6 @@ func TestDataImageExcludesRetiredEventSemanticProjection(t *testing.T) {
 	}
 }
 
-func TestAgentRunImageCarriesEventSemanticHistoryMaintenanceCommands(t *testing.T) {
-	repoRoot := repositoryRoot()
-	agentrunDockerfile := readContractFile(t, filepath.Join(
-		repoRoot,
-		"agent-run",
-		"backend",
-		"Dockerfile",
-	))
-	for _, required := range []string{
-		"-o /out/agentrun-event-semantic-history ./agent-run/backend/cmd/event-semantic-history",
-		"COPY --from=build /out/agentrun-event-semantic-history /app/agentrun-event-semantic-history",
-		"-o /out/agentrun-agent-version ./agent-run/backend/cmd/agent-version",
-		"COPY --from=build /out/agentrun-agent-version /app/agentrun-agent-version",
-	} {
-		if !strings.Contains(agentrunDockerfile, required) {
-			t.Fatalf("AgentRun runtime image missing Event Semantic history contract %q", required)
-		}
-	}
-}
-
 func TestApplicationRootsAreCanonical(t *testing.T) {
 	repoRoot := repositoryRoot()
 	legacyDataRoot := "analyse-" + "data-service"
@@ -194,7 +174,6 @@ func TestApplicationRootsAreCanonical(t *testing.T) {
 		"admin-portal/frontend",
 		"admin-portal/backend",
 		"data-service/backend",
-		"agent-run/backend",
 	} {
 		info, err := os.Lstat(filepath.Join(repoRoot, filepath.FromSlash(path)))
 		if err != nil {
@@ -215,7 +194,7 @@ func TestActiveRepositoryContractsDoNotReferenceLegacyDataServiceRoot(t *testing
 	repoRoot := repositoryRoot()
 	legacyDataRoot := "analyse-" + "data-service"
 	paths := []string{
-		".github", "admin-portal", "agent-run", "contracts", "data-service", "infra", "miniapp", "scripts",
+		".github", "admin-portal", "data-service", "infra", "miniapp", "scripts",
 		"AGENTS.md", "CONTEXT-MAP.md", "package.json", "package-lock.json",
 		"docs/agents/domain.md", "docs/contexts", "docs/development-standards",
 	}
@@ -285,10 +264,10 @@ func TestLocalComposeOwnsOnlyApplicationServices(t *testing.T) {
 	for _, required := range []string{
 		"name: tidewise-app",
 		"  data:", "  data-migrate:", "  miniapp:",
-		"  adminportal:", "  admin:", "  agentrun:", "  agentrun-migrate:", "  agentrun-agent-version:",
+		"  adminportal:", "  admin:",
 		"context: ../..",
 		"data-service/backend/Dockerfile", "miniapp/backend/Dockerfile",
-		"admin-portal/backend/Dockerfile", "admin-portal/frontend/Dockerfile", "agent-run/backend/Dockerfile",
+		"admin-portal/backend/Dockerfile", "admin-portal/frontend/Dockerfile",
 		"tidewise-local", "external: true", "/healthz", "/readyz",
 	} {
 		if !strings.Contains(text, required) {
@@ -319,22 +298,10 @@ func TestLocalComposeOwnsOnlyApplicationServices(t *testing.T) {
 			t.Fatalf("Data compose service retains retired graph projection dependency %q", forbidden)
 		}
 	}
-	agentrun := composeServiceSection(t, text, "agentrun")
-	for _, required := range []string{"AGENTRUN_CONFIG_DIR: /app/configs", "AGENTRUN_DB_HOST", "AGENTRUN_QDRANT_URL", "AGENTRUN_DB_PASSWORD", "AGENTRUN_SERVICE_TOKEN", "DATA_SERVICE_TOKEN", "EMBEDDING_API_KEY", "QDRANT_API_KEY", "agentrun_artifacts"} {
-		if !strings.Contains(agentrun, required) {
-			t.Fatalf("AgentRun compose service missing %q", required)
-		}
-	}
 	dataComposeConfig := readContractFile(t, filepath.Join(repoRoot, "data-service", "backend", "configs", "config.local.yaml"))
-	agentRunComposeConfig := readContractFile(t, filepath.Join(repoRoot, "agent-run", "backend", "configs", "config.dev.yaml"))
-	for service, config := range map[string]string{"Data": dataComposeConfig, "AgentRun": agentRunComposeConfig} {
+	for service, config := range map[string]string{"Data": dataComposeConfig} {
 		if !strings.Contains(config, "host: postgres") {
 			t.Fatalf("%s local config must use shared infrastructure DNS", service)
-		}
-	}
-	for _, required := range []string{"base_url: http://data:9011", "qdrant_url: http://qdrant:6333"} {
-		if !strings.Contains(agentRunComposeConfig, required) {
-			t.Fatalf("AgentRun local config missing %q", required)
 		}
 	}
 	if !strings.Contains(data, "TIDEWISE_CONFIG_DIR: /app/configs") {
@@ -342,7 +309,6 @@ func TestLocalComposeOwnsOnlyApplicationServices(t *testing.T) {
 	}
 	for _, path := range []string{
 		"data-service/backend/configs/compose",
-		"agent-run/backend/configs/compose",
 	} {
 		if _, err := os.Stat(filepath.Join(repoRoot, filepath.FromSlash(path))); !errors.Is(err, os.ErrNotExist) {
 			t.Fatalf("Docker-only runtime retains duplicate config tree %q", path)
@@ -399,18 +365,14 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		"go-version-file: go.mod",
 		"cache-dependency-path: go.sum",
 		"go test ./data-service/backend/api/data/v1 ./miniapp/backend/internal/data",
-		"go test ./data-service/backend/api/data/v1 ./agent-run/backend/api/agentrun/v1 ./admin-portal/backend/internal/data",
+		"go test ./data-service/backend/api/data/v1 ./admin-portal/backend/internal/data",
 		"go test ./scripts/ci/repository-contracts -count=1",
 		"go build -o /tmp/data-service ./data-service/backend/cmd/server",
 		"go build -o /tmp/miniapp-service ./miniapp/backend/cmd/server",
 		"go build -o /tmp/adminportal-service ./admin-portal/backend/cmd/server",
-		"go build -o /tmp/agentrun ./agent-run/backend/cmd/server",
 		"-f data-service/backend/Dockerfile",
 		"-f miniapp/backend/Dockerfile",
 		"-f admin-portal/backend/Dockerfile",
-		"-f agent-run/backend/Dockerfile",
-		"Test AgentRun Biz, API and Eino seams",
-		"Test AgentRun Data, migration and provider boundaries",
 		"docker compose --env-file infra/local/.env.example -f infra/local/docker-compose.yaml config --quiet",
 		"docker compose --env-file infra/local/.env.example -f infra/local/docker-compose.infra.yaml config --quiet",
 		"docker compose --env-file infra/uat/.env.example -f infra/uat/docker-compose.yaml config --quiet",
@@ -431,7 +393,7 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	if strings.Contains(text, "docker build -f Dockerfile") {
 		t.Fatal("CI must not consume the legacy backend Dockerfile")
 	}
-	for _, job := range []string{"governance", "data", "miniapp", "adminportal", "agentrun", "security"} {
+	for _, job := range []string{"governance", "data", "miniapp", "adminportal", "security"} {
 		if strings.Count(text, "\n  "+job+":") != 1 {
 			t.Fatalf("CI must expose exactly one top-level %s job", job)
 		}
@@ -439,51 +401,6 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	if strings.Contains(text, "\n  changes:") || strings.Contains(text, "needs: changes") {
 		t.Fatal("application path detection must stay inside each application job")
 	}
-	if strings.Contains(text, "\n  agentrun-postgres:") {
-		t.Fatal("AgentRun PostgreSQL verification must stay inside the AgentRun job")
-	}
-	for _, required := range []string{
-		"name: Data Service",
-		"name: Repository Governance",
-		"name: Miniapp",
-		"name: Admin Portal",
-		"name: AgentRun",
-		"bash scripts/ci/detect-app-change.sh data",
-		"bash scripts/ci/detect-app-change.sh miniapp",
-		"bash scripts/ci/detect-app-change.sh adminportal",
-		"bash scripts/ci/detect-app-change.sh agentrun",
-		"POSTGRES_DB: tidewise_ai_server_test",
-		"Test AgentRun Data, migration and provider boundaries",
-		"Build Data and Admin Portal images for AgentRun smoke",
-	} {
-		if !strings.Contains(text, required) {
-			t.Fatalf("unified AgentRun CI job missing %q", required)
-		}
-	}
-
-	agentRunSmokeContents, err := os.ReadFile(filepath.Join(
-		repoRoot, "scripts", "ci", "smoke-admin-agentrun-compose.sh",
-	))
-	if err != nil {
-		t.Fatalf("read Admin Portal to AgentRun Compose smoke script: %v", err)
-	}
-	agentRunSmoke := string(agentRunSmokeContents)
-	for _, required := range []string{
-		"data-migrate",
-		"agentrun-migrate",
-		"DATA_SERVICE_IMAGE=\"tidewise-data:ci\"",
-		"AGENTRUN_SERVICE_IMAGE=\"tidewise-agentrun:ci\"",
-		"ADMIN_SERVICE_IMAGE=\"tidewise-adminportal:ci\"",
-		"ADMIN_WEB_IMAGE=\"tidewise-admin:ci\"",
-		"TIDEWISE_SMOKE_AGENTRUN_DATA_PORT",
-		"TIDEWISE_SMOKE_ADMIN_WEB_PORT",
-		"http://127.0.0.1:${ADMIN_WEB_PORT}/api/admin/v1/model-providers",
-	} {
-		if !strings.Contains(agentRunSmoke, required) {
-			t.Fatalf("Admin Portal to AgentRun Compose smoke script missing %q", required)
-		}
-	}
-
 	smokeContents, err := os.ReadFile(filepath.Join(repoRoot, "scripts", "ci", "smoke-miniapp-data-compose.sh"))
 	if err != nil {
 		t.Fatalf("read Miniapp Compose smoke script: %v", err)

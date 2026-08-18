@@ -11,8 +11,6 @@ security:
 tags:
   - name: Operations
   - name: Admin data
-  - name: AgentRun management
-  - name: Monitoring
 paths:
   /healthz:
     get:
@@ -25,8 +23,7 @@ paths:
           description: 进程存活
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/HealthResponse'
+              schema: { $ref: '#/components/schemas/HealthResponse' }
   /readyz:
     get:
       tags: [Operations]
@@ -38,445 +35,90 @@ paths:
           description: 服务配置就绪
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ReadinessResponse'
+              schema: { $ref: '#/components/schemas/ReadinessResponse' }
   /api/admin/v1/raw-documents:
     get:
       tags: [Admin data]
       operationId: listAdminPortalRawDocuments
       summary: 获取已接纳的轻量证据文档分页
       parameters:
-        - $ref: '#/components/parameters/RequestID'
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/PageSize'
-        - name: title
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: source_ref
-          in: query
-          required: false
-          schema:
-            type: string
+        - { $ref: '#/components/parameters/RequestID' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { name: title, in: query, required: false, schema: { type: string } }
+        - { name: source_ref, in: query, required: false, schema: { type: string } }
       responses:
-        '200':
-          $ref: '#/components/responses/RawDocumentPageSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
+        '200': { $ref: '#/components/responses/RawDocumentPageSuccess' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /api/admin/v1/events:
     get:
       tags: [Admin data]
       operationId: listAdminPortalEvents
       summary: 获取正式 Event 分页
       parameters:
-        - $ref: '#/components/parameters/RequestID'
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/PageSize'
-        - name: title
-          in: query
-          required: false
-          schema:
-            type: string
-        - name: event_status
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/EventStatus'
-        - name: fact_status
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/FactStatus'
-        - name: event_time_from
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/UTCTimestamp'
-        - name: event_time_to
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/UTCTimestamp'
-        - name: first_seen_from
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/UTCTimestamp'
-        - name: first_seen_to
-          in: query
-          required: false
-          schema:
-            $ref: '#/components/schemas/UTCTimestamp'
+        - { $ref: '#/components/parameters/RequestID' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+        - { name: title, in: query, required: false, schema: { type: string } }
+        - {
+            name: event_status,
+            in: query,
+            required: false,
+            schema: { $ref: '#/components/schemas/EventStatus' }
+          }
+        - {
+            name: fact_status,
+            in: query,
+            required: false,
+            schema: { $ref: '#/components/schemas/FactStatus' }
+          }
+        - {
+            name: event_time_from,
+            in: query,
+            required: false,
+            schema: { $ref: '#/components/schemas/UTCTimestamp' }
+          }
+        - {
+            name: event_time_to,
+            in: query,
+            required: false,
+            schema: { $ref: '#/components/schemas/UTCTimestamp' }
+          }
+        - {
+            name: first_seen_from,
+            in: query,
+            required: false,
+            schema: { $ref: '#/components/schemas/UTCTimestamp' }
+          }
+        - {
+            name: first_seen_to,
+            in: query,
+            required: false,
+            schema: { $ref: '#/components/schemas/UTCTimestamp' }
+          }
       responses:
-        '200':
-          $ref: '#/components/responses/EventPageSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-  /api/admin/v1/agent-schedules/{agent_key}:
-    parameters:
-      - $ref: '#/components/parameters/AgentKey'
-    get:
-      tags: [AgentRun management]
-      operationId: getAdminPortalAgentSchedule
-      summary: 获取 Agent 定时任务配置
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-      responses:
-        '200':
-          $ref: '#/components/responses/AgentScheduleSuccess'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-    put:
-      tags: [AgentRun management]
-      operationId: saveAdminPortalAgentSchedule
-      summary: 保存 Agent 定时策略和输入配置
-      description: 首次保存创建为停止状态；后续保存不改变启停状态。
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AgentScheduleSaveInput'
-      responses:
-        '200':
-          $ref: '#/components/responses/AgentScheduleSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-    patch:
-      tags: [AgentRun management]
-      operationId: setAdminPortalAgentScheduleEnabled
-      summary: 独立启动或停止 Agent 定时任务
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AgentScheduleEnabledInput'
-      responses:
-        '200':
-          $ref: '#/components/responses/AgentScheduleSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-  /api/admin/v1/agent-statuses:
-    get:
-      tags: [AgentRun management]
-      operationId: listAdminPortalAgentStatuses
-      summary: 获取已注册 Agent 的当前运行状态
-      description: 只返回 Agent 标识、当前版本、是否工作、当前执行状态和更新时间，不暴露执行详情。
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-      responses:
-        '200':
-          $ref: '#/components/responses/AgentStatusListSuccess'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
+        '200': { $ref: '#/components/responses/EventPageSuccess' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /api/admin/v1/runtime-health:
     get:
-      tags: [Monitoring]
+      tags: [Operations]
       operationId: getAdminPortalRuntimeHealth
-      summary: 获取统一运行环境健康状态
-      description: 并发聚合 Data 与 AgentRun Provider；下游部分失败仍返回 200 和安全的服务级状态。
+      summary: 获取 Admin Portal 与 Data Service 的运行时健康状态
       parameters:
-        - $ref: '#/components/parameters/RequestID'
+        - { $ref: '#/components/parameters/RequestID' }
       responses:
-        '200':
-          $ref: '#/components/responses/RuntimeHealthSuccess'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalError'
-  /api/admin/v1/monitoring/summary:
-    get:
-      tags: [AgentRun management]
-      operationId: getAdminPortalMonitoringSummary
-      summary: 获取三类执行监控摘要和业务产出聚合
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-        - $ref: '#/components/parameters/MonitoringWindow'
-      responses:
-        '200':
-          $ref: '#/components/responses/MonitoringSummarySuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-  /api/admin/v1/monitoring/collector-executions:
-    get:
-      tags: [AgentRun management]
-      operationId: listAdminPortalCollectorMonitoring
-      summary: 获取事件采集执行监控明细
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-        - $ref: '#/components/parameters/MonitoringWindow'
-        - $ref: '#/components/parameters/MonitoringState'
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/MonitoringPageSize'
-      responses:
-        '200':
-          $ref: '#/components/responses/CollectorMonitoringPageSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-  /api/admin/v1/monitoring/artifact-extractions:
-    get:
-      tags: [AgentRun management]
-      operationId: listAdminPortalArtifactMonitoring
-      summary: 获取 Event 提取执行监控明细
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-        - $ref: '#/components/parameters/MonitoringWindow'
-        - $ref: '#/components/parameters/MonitoringState'
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/MonitoringPageSize'
-      responses:
-        '200':
-          $ref: '#/components/responses/ArtifactMonitoringPageSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-  /api/admin/v1/monitoring/semantic-work-items:
-    get:
-      tags: [AgentRun management]
-      operationId: listAdminPortalSemanticMonitoring
-      summary: 获取事件语义执行监控明细
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-        - $ref: '#/components/parameters/MonitoringWindow'
-        - $ref: '#/components/parameters/MonitoringState'
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/MonitoringPageSize'
-      responses:
-        '200':
-          $ref: '#/components/responses/SemanticMonitoringPageSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-  /api/admin/v1/model-providers:
-    get:
-      tags: [AgentRun management]
-      operationId: listAdminPortalModelProviders
-      summary: 获取已注册模型配置
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-      responses:
-        '200':
-          $ref: '#/components/responses/ModelProviderListSuccess'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-  /api/admin/v1/model-providers/{provider_key}:
-    parameters:
-      - $ref: '#/components/parameters/ProviderKey'
-    get:
-      tags: [AgentRun management]
-      operationId: getAdminPortalModelProvider
-      summary: 获取单个已注册模型配置
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-      responses:
-        '200':
-          $ref: '#/components/responses/ModelProviderSuccess'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-    patch:
-      tags: [AgentRun management]
-      operationId: updateAdminPortalModelProvider
-      summary: 更新已注册模型配置
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ModelProviderPatchInput'
-      responses:
-        '200':
-          $ref: '#/components/responses/ModelProviderSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-  /api/admin/v1/connectors:
-    get:
-      tags: [AgentRun management]
-      operationId: listAdminPortalConnectors
-      summary: 获取已注册连接器配置
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-      responses:
-        '200':
-          $ref: '#/components/responses/ConnectorListSuccess'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-  /api/admin/v1/connectors/{connector_key}:
-    parameters:
-      - $ref: '#/components/parameters/ConnectorKey'
-    get:
-      tags: [AgentRun management]
-      operationId: getAdminPortalConnector
-      summary: 获取单个已注册连接器配置
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-      responses:
-        '200':
-          $ref: '#/components/responses/ConnectorSuccess'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-    patch:
-      tags: [AgentRun management]
-      operationId: updateAdminPortalConnector
-      summary: 更新已注册连接器配置
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ConnectorPatchInput'
-      responses:
-        '200':
-          $ref: '#/components/responses/ConnectorSuccess'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
+        '200': { $ref: '#/components/responses/RuntimeHealthSuccess' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
 components:
   securitySchemes:
     AdminBearer:
@@ -490,966 +132,214 @@ components:
       in: header
       required: false
       description: 可选 caller request id；缺失或不合法时由 Admin Portal Service 生成。
-      schema:
-        type: string
-        minLength: 1
-        maxLength: 128
+      schema: { type: string, minLength: 1, maxLength: 128 }
     Page:
-      name: page
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 1
-        default: 1
+      { name: page, in: query, required: false, schema: { type: integer, minimum: 1, default: 1 } }
     PageSize:
-      name: page_size
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 50
-    MonitoringWindow:
-      name: window
-      in: query
-      required: false
-      schema:
-        $ref: '#/components/schemas/MonitoringWindow'
-    MonitoringState:
-      name: state
-      in: query
-      required: false
-      schema:
-        $ref: '#/components/schemas/MonitoringStateFilter'
-    MonitoringPageSize:
-      name: page_size
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 100
-        default: 20
-    AgentKey:
-      name: agent_key
-      in: path
-      required: true
-      schema:
-        type: string
-        minLength: 1
-        example: collector
-    ProviderKey:
-      name: provider_key
-      in: path
-      required: true
-      schema:
-        type: string
-        minLength: 1
-        example: deepseek
-    ConnectorKey:
-      name: connector_key
-      in: path
-      required: true
-      schema:
-        type: string
-        minLength: 1
+      {
+        name: page_size,
+        in: query,
+        required: false,
+        schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      }
   headers:
     RequestID:
       required: true
       description: 与响应 body 中 request_id 一致。
-      schema:
-        type: string
-        minLength: 1
-        maxLength: 128
+      schema: { type: string, minLength: 1, maxLength: 128 }
   responses:
     RawDocumentPageSuccess:
       description: 轻量证据文档分页
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
+      headers: { X-Request-ID: { $ref: '#/components/headers/RequestID' } }
       content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/RawDocumentPageEnvelope'
+        { application/json: { schema: { $ref: '#/components/schemas/RawDocumentPageEnvelope' } } }
     EventPageSuccess:
       description: Event 分页
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/EventPageEnvelope'
-    AgentScheduleSuccess:
-      description: Agent 定时任务配置
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/AgentScheduleEnvelope'
-    AgentStatusListSuccess:
-      description: 已注册 Agent 的当前运行状态列表
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/AgentStatusListEnvelope'
+      headers: { X-Request-ID: { $ref: '#/components/headers/RequestID' } }
+      content: { application/json: { schema: { $ref: '#/components/schemas/EventPageEnvelope' } } }
     RuntimeHealthSuccess:
-      description: 统一运行环境健康状态；部分失败由 result.status=degraded 表达
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
+      description: Data Service 运行时健康状态；依赖失败由 result.status=degraded 表达
+      headers: { X-Request-ID: { $ref: '#/components/headers/RequestID' } }
       content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/RuntimeHealthEnvelope'
-    MonitoringSummarySuccess:
-      description: AgentRun 执行监控摘要
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/MonitoringSummaryEnvelope'
-    CollectorMonitoringPageSuccess:
-      description: 事件采集执行监控分页
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/CollectorMonitoringPageEnvelope'
-    ArtifactMonitoringPageSuccess:
-      description: Event 提取执行监控分页
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ArtifactMonitoringPageEnvelope'
-    SemanticMonitoringPageSuccess:
-      description: 事件语义执行监控分页
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/SemanticMonitoringPageEnvelope'
-    ModelProviderListSuccess:
-      description: 已注册模型配置列表
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ModelProviderListEnvelope'
-    ModelProviderSuccess:
-      description: 已更新模型配置
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ModelProviderEnvelope'
-    ConnectorListSuccess:
-      description: 已注册连接器配置列表
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ConnectorListEnvelope'
-    ConnectorSuccess:
-      description: 已更新连接器配置
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ConnectorEnvelope'
+        { application/json: { schema: { $ref: '#/components/schemas/RuntimeHealthEnvelope' } } }
     BadRequest:
       description: 查询参数不合法
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
+      headers: { X-Request-ID: { $ref: '#/components/headers/RequestID' } }
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
     Unauthorized:
       description: Admin bearer token 缺失或无效
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
+      headers: { X-Request-ID: { $ref: '#/components/headers/RequestID' } }
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
     Forbidden:
       description: 调用来源不被允许
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
-    NotFound:
-      description: AgentRun 资源不存在
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
-    Conflict:
-      description: AgentRun 拒绝冲突修改
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
+      headers: { X-Request-ID: { $ref: '#/components/headers/RequestID' } }
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
     InternalError:
       description: Admin Portal Service 内部错误
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
+      headers: { X-Request-ID: { $ref: '#/components/headers/RequestID' } }
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
     ServiceUnavailable:
       description: Admin Portal Service 尚未完成运行配置
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
+      headers: { X-Request-ID: { $ref: '#/components/headers/RequestID' } }
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
   schemas:
-    UTCTimestamp:
-      type: string
-      format: date-time
-      description: UTC RFC3339 timestamp。
+    UTCTimestamp: { type: string, format: date-time, description: UTC RFC3339 timestamp。 }
     HealthResponse:
       type: object
       additionalProperties: false
       required: [status, service, environment]
       properties:
-        status:
-          type: string
-          enum: [ok]
-        service:
-          type: string
-        environment:
-          type: string
+        status: { type: string, enum: [ok] }
+        service: { type: string }
+        environment: { type: string }
     ReadinessResponse:
       type: object
       additionalProperties: false
       required: [status, service, environment, checks]
       properties:
-        status:
-          type: string
-          enum: [ready]
-        service:
-          type: string
-        environment:
-          type: string
-        checks:
-          type: object
-          additionalProperties:
-            type: string
+        status: { type: string, enum: [ready] }
+        service: { type: string }
+        environment: { type: string }
+        checks: { type: object, additionalProperties: { type: string } }
     ErrorDetail:
       type: object
       additionalProperties: false
       required: [code, message, details]
       properties:
-        code:
-          type: string
-        message:
-          type: string
-        details:
-          type: object
-          additionalProperties: true
+        code: { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
     ErrorEnvelope:
       type: object
       additionalProperties: false
       required: [error, request_id]
       properties:
-        error:
-          $ref: '#/components/schemas/ErrorDetail'
-        request_id:
-          type: string
+        error: { $ref: '#/components/schemas/ErrorDetail' }
+        request_id: { type: string }
     RawDocumentPageEnvelope:
       type: object
       additionalProperties: false
       required: [request_id, result]
       properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/RawDocumentPage'
+        request_id: { type: string }
+        result: { $ref: '#/components/schemas/RawDocumentPage' }
     EventPageEnvelope:
       type: object
       additionalProperties: false
       required: [request_id, result]
       properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/EventPage'
-    AgentScheduleEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/AgentSchedule'
-    AgentStatusListEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/AgentStatusList'
+        request_id: { type: string }
+        result: { $ref: '#/components/schemas/EventPage' }
     RuntimeHealthEnvelope:
       type: object
       additionalProperties: false
       required: [request_id, result]
       properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/RuntimeHealth'
-    MonitoringSummaryEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/MonitoringSummary'
-    CollectorMonitoringPageEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/CollectorMonitoringPage'
-    ArtifactMonitoringPageEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/ArtifactMonitoringPage'
-    SemanticMonitoringPageEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/SemanticMonitoringPage'
-    ModelProviderListEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/ModelProviderList'
-    ModelProviderEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/ModelProviderConfiguration'
-    ConnectorListEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/ConnectorList'
-    ConnectorEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/ConnectorConfiguration'
+        request_id: { type: string }
+        result: { $ref: '#/components/schemas/RuntimeHealth' }
     RawDocumentPage:
       type: object
       additionalProperties: false
       required: [items, total, page, page_size]
       properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/RawDocument'
-        total:
-          type: integer
-          minimum: 0
-        page:
-          type: integer
-          minimum: 1
-        page_size:
-          type: integer
-          minimum: 1
+        items: { type: array, items: { $ref: '#/components/schemas/RawDocument' } }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        page_size: { type: integer, minimum: 1 }
     RawDocument:
       type: object
       additionalProperties: false
       required:
-        - id
-        - contract_version
-        - ingest_channel
-        - source_type
-        - source_name
-        - source_url
-        - title
-        - content_text
-        - raw_object_uri
-        - raw_mime_type
-        - language
-        - collected_at
-        - ingest_status
-        - content_sha256
+        [
+          id,
+          contract_version,
+          ingest_channel,
+          source_type,
+          source_name,
+          source_url,
+          title,
+          content_text,
+          raw_object_uri,
+          raw_mime_type,
+          language,
+          collected_at,
+          ingest_status,
+          content_sha256
+        ]
       properties:
-        id:
-          type: string
-        contract_version:
-          type: integer
-        artifact_id:
-          type: string
-        source_ref:
-          type: string
-        ingest_channel:
-          type: string
-        source_type:
-          type: string
-        source_name:
-          type: string
-        source_url:
-          type: string
-          format: uri
-        source_external_id:
-          type: string
-        title:
-          type: string
-        content_text:
-          type: string
-        raw_object_uri:
-          type: string
-        raw_mime_type:
-          type: string
-        language:
-          type: string
-        published_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-        collected_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-        ingest_status:
-          type: string
-        content_sha256:
-          type: string
-          pattern: '^[0-9a-f]{64}$'
+        id: { type: string }
+        contract_version: { type: integer }
+        artifact_id: { type: string }
+        source_ref: { type: string }
+        ingest_channel: { type: string }
+        source_type: { type: string }
+        source_name: { type: string }
+        source_url: { type: string, format: uri }
+        source_external_id: { type: string }
+        title: { type: string }
+        content_text: { type: string }
+        raw_object_uri: { type: string }
+        raw_mime_type: { type: string }
+        language: { type: string }
+        published_at: { $ref: '#/components/schemas/UTCTimestamp' }
+        collected_at: { $ref: '#/components/schemas/UTCTimestamp' }
+        ingest_status: { type: string }
+        content_sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
     EventPage:
       type: object
       additionalProperties: false
       required: [items, total, page, page_size]
       properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/Event'
-        total:
-          type: integer
-          minimum: 0
-        page:
-          type: integer
-          minimum: 1
-        page_size:
-          type: integer
-          minimum: 1
+        items: { type: array, items: { $ref: '#/components/schemas/Event' } }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        page_size: { type: integer, minimum: 1 }
     Event:
       type: object
       additionalProperties: false
       required: [id, title, summary, first_seen_at, event_status, fact_status, dedupe_key]
       properties:
-        id:
-          type: string
-        title:
-          type: string
-        summary:
-          type: string
-        event_time:
-          $ref: '#/components/schemas/UTCTimestamp'
-        first_seen_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-        knowable_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-        event_status:
-          $ref: '#/components/schemas/EventStatus'
-        fact_status:
-          $ref: '#/components/schemas/FactStatus'
-        dedupe_key:
-          type: string
-    AgentSchedule:
-      type: object
-      additionalProperties: false
-      required:
-        - schedule_id
-        - agent_key
-        - agent_version
-        - schedule_type
-        - input
-        - enabled
-        - created_at
-        - updated_at
-      properties:
-        schedule_id:
-          type: string
-        agent_key:
-          type: string
-          minLength: 1
-          example: collector
-        agent_version:
-          type: string
-          minLength: 1
-          example: collector.v1
-        schedule_type:
-          $ref: '#/components/schemas/ScheduleType'
-        cron_expression:
-          type: string
-        daily_times:
-          type: array
-          items:
-            type: string
-            pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
-        input:
-          type: object
-          additionalProperties: true
-        enabled:
-          type: boolean
-        last_triggered_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-        next_run_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-        created_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-        updated_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-    AgentScheduleSaveInput:
-      type: object
-      additionalProperties: false
-      required: [agent_version, schedule_type, input]
-      properties:
-        agent_version:
-          type: string
-          minLength: 1
-          example: collector.v1
-        schedule_type:
-          $ref: '#/components/schemas/ScheduleType'
-        cron_expression:
-          type: string
-        daily_times:
-          type: array
-          items:
-            type: string
-            pattern: '^(?:[01][0-9]|2[0-3]):[0-5][0-9]$'
-        input:
-          type: object
-          additionalProperties: true
-    AgentScheduleEnabledInput:
-      type: object
-      additionalProperties: false
-      required: [enabled]
-      properties:
-        enabled:
-          type: boolean
-    ScheduleType:
-      type: string
-      enum: [daily, cron]
-    RuntimeHealthStatus:
-      type: string
-      enum: [ready, degraded, down, unknown]
-    RuntimeHealthReasonCode:
-      type: string
-      enum: [timeout, unreachable, not_ready, collection_unhealthy, authentication_failed, invalid_response]
-    RuntimeHealthService:
-      type: object
-      additionalProperties: false
-      required: [key, display_name, status, checked_at]
-      properties:
-        key:
-          type: string
-          enum: [data, agentrun, qdrant]
-        display_name:
-          type: string
-          enum: [Data Service, AgentRun, Qdrant]
-        status:
-          $ref: '#/components/schemas/RuntimeHealthStatus'
-        checked_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-        latency_ms:
-          type: integer
-          format: int64
-          minimum: 0
-          nullable: true
-        reason_code:
-          allOf:
-            - $ref: '#/components/schemas/RuntimeHealthReasonCode'
-          nullable: true
+        id: { type: string }
+        title: { type: string }
+        summary: { type: string }
+        event_time: { $ref: '#/components/schemas/UTCTimestamp' }
+        first_seen_at: { $ref: '#/components/schemas/UTCTimestamp' }
+        knowable_at: { $ref: '#/components/schemas/UTCTimestamp' }
+        event_status: { $ref: '#/components/schemas/EventStatus' }
+        fact_status: { $ref: '#/components/schemas/FactStatus' }
+        dedupe_key: { type: string }
     RuntimeHealth:
       type: object
       additionalProperties: false
       required: [status, checked_at, services]
       properties:
-        status:
-          type: string
-          enum: [ready, degraded]
-        checked_at:
-          $ref: '#/components/schemas/UTCTimestamp'
+        status: { type: string, enum: [ready, degraded] }
+        checked_at: { $ref: '#/components/schemas/UTCTimestamp' }
         services:
-          type: array
-          minItems: 3
-          maxItems: 3
-          items:
-            $ref: '#/components/schemas/RuntimeHealthService'
-    AgentStatusList:
+          {
+            type: array,
+            minItems: 1,
+            maxItems: 1,
+            items: { $ref: '#/components/schemas/RuntimeHealthService' }
+          }
+    RuntimeHealthService:
       type: object
       additionalProperties: false
-      required: [items]
+      required: [key, display_name, status, checked_at]
       properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/AgentStatus'
-    AgentStatus:
-      type: object
-      additionalProperties: false
-      required:
-        - agent_key
-        - display_name
-        - current_version
-        - is_working
-        - current_execution_status
-        - updated_at
-      properties:
-        agent_key:
-          type: string
-          minLength: 1
-        display_name:
-          type: string
-          minLength: 1
-        current_version:
-          type: string
-          minLength: 1
-        is_working:
-          type: boolean
-        current_execution_status:
-          type: string
-          minLength: 1
-        updated_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-    MonitoringWindow:
-      type: string
-      enum: [1h, 6h, 12h, 24h]
-    MonitoringStateFilter:
-      type: string
-      default: all
-      enum: [all, success, running, failure]
-    MonitoringState:
-      type: string
-      enum: [success, running, failure]
-    MonitoringCounts:
-      type: object
-      additionalProperties: false
-      required: [success, running, failure]
-      properties:
-        success: { type: integer, minimum: 0 }
-        running: { type: integer, minimum: 0 }
-        failure: { type: integer, minimum: 0 }
-    MonitoringSummary:
-      type: object
-      additionalProperties: false
-      required:
-        [
-          window,
-          generated_at,
-          collector,
-          artifact_extraction,
-          semantic,
-          collector_raw_results,
-          collector_merged_results,
-          collector_accepted_artifacts,
-          artifact_published,
-          artifact_no_events,
-          artifact_formal_events,
-          semantic_submissions,
-          semantic_accepted_candidates,
-          semantic_rejected_candidates
-        ]
-      properties:
-        window: { $ref: '#/components/schemas/MonitoringWindow' }
-        generated_at: { $ref: '#/components/schemas/UTCTimestamp' }
-        collector: { $ref: '#/components/schemas/MonitoringCounts' }
-        artifact_extraction: { $ref: '#/components/schemas/MonitoringCounts' }
-        semantic: { $ref: '#/components/schemas/MonitoringCounts' }
-        collector_raw_results: { type: integer, minimum: 0 }
-        collector_merged_results: { type: integer, minimum: 0 }
-        collector_accepted_artifacts: { type: integer, minimum: 0 }
-        artifact_published: { type: integer, minimum: 0 }
-        artifact_no_events: { type: integer, minimum: 0 }
-        artifact_formal_events: { type: integer, minimum: 0 }
-        semantic_submissions: { type: integer, minimum: 0 }
-        semantic_accepted_candidates: { type: integer, minimum: 0 }
-        semantic_rejected_candidates: { type: integer, minimum: 0 }
-    CollectorMonitoringPage:
-      allOf:
-        - $ref: '#/components/schemas/MonitoringPage'
-        - type: object
-          required: [items]
-          properties:
-            items:
-              type: array
-              items: { $ref: '#/components/schemas/CollectorMonitoringItem' }
-    ArtifactMonitoringPage:
-      allOf:
-        - $ref: '#/components/schemas/MonitoringPage'
-        - type: object
-          required: [items]
-          properties:
-            items:
-              type: array
-              items: { $ref: '#/components/schemas/ArtifactMonitoringItem' }
-    SemanticMonitoringPage:
-      allOf:
-        - $ref: '#/components/schemas/MonitoringPage'
-        - type: object
-          required: [items]
-          properties:
-            items:
-              type: array
-              items: { $ref: '#/components/schemas/SemanticMonitoringItem' }
-    MonitoringPage:
-      type: object
-      additionalProperties: false
-      required: [window, generated_at, page, page_size, total_items, total_pages]
-      properties:
-        window: { $ref: '#/components/schemas/MonitoringWindow' }
-        generated_at: { $ref: '#/components/schemas/UTCTimestamp' }
-        page: { type: integer, minimum: 1 }
-        page_size: { type: integer, minimum: 1, maximum: 100 }
-        total_items: { type: integer, minimum: 0 }
-        total_pages: { type: integer, minimum: 0 }
-    CollectorMonitoringItem:
-      type: object
-      additionalProperties: false
-      required:
-        [
-          execution_id,
-          state,
-          raw_status,
-          trigger_source,
-          raw_results,
-          merged_results,
-          accepted_artifacts
-        ]
-      properties:
-        execution_id: { type: string }
-        state: { $ref: '#/components/schemas/MonitoringState' }
-        raw_status: { type: string }
-        trigger_source: { type: string }
-        started_at: { $ref: '#/components/schemas/UTCTimestamp' }
-        completed_at: { $ref: '#/components/schemas/UTCTimestamp' }
-        duration_ms: { type: integer, format: int64, minimum: 0 }
-        raw_results: { type: integer, minimum: 0 }
-        merged_results: { type: integer, minimum: 0 }
-        accepted_artifacts: { type: integer, minimum: 0 }
-        error_code: { type: string }
-    ArtifactMonitoringItem:
-      type: object
-      additionalProperties: false
-      required:
-        [
-          extraction_key,
-          artifact_id,
-          collector_execution_id,
-          state,
-          raw_status,
-          updated_at,
-          event_candidates,
-          acknowledged_journals,
-          total_journals
-        ]
-      properties:
-        extraction_key: { type: string }
-        artifact_id: { type: string }
-        collector_execution_id: { type: string }
-        state: { $ref: '#/components/schemas/MonitoringState' }
-        raw_status: { type: string }
-        updated_at: { $ref: '#/components/schemas/UTCTimestamp' }
-        started_at: { $ref: '#/components/schemas/UTCTimestamp' }
-        completed_at: { $ref: '#/components/schemas/UTCTimestamp' }
-        duration_ms: { type: integer, format: int64, minimum: 0 }
-        event_candidates: { type: integer, minimum: 0 }
-        acknowledged_journals: { type: integer, minimum: 0 }
-        total_journals: { type: integer, minimum: 0 }
-        error_code: { type: string }
-    SemanticMonitoringItem:
-      type: object
-      additionalProperties: false
-      required:
-        [
-          work_item_id,
-          event_id,
-          trigger_source,
-          state,
-          raw_status,
-          updated_at,
-          attempt_count,
-          max_attempts,
-          accepted_candidates,
-          rejected_candidates
-        ]
-      properties:
-        work_item_id: { type: string }
-        event_id: { type: string }
-        trigger_source: { type: string }
-        state: { $ref: '#/components/schemas/MonitoringState' }
-        raw_status: { type: string }
-        updated_at: { $ref: '#/components/schemas/UTCTimestamp' }
-        started_at: { $ref: '#/components/schemas/UTCTimestamp' }
-        completed_at: { $ref: '#/components/schemas/UTCTimestamp' }
-        duration_ms: { type: integer, format: int64, minimum: 0 }
-        attempt_count: { type: integer, minimum: 0 }
-        max_attempts: { type: integer, minimum: 0 }
-        accepted_candidates: { type: integer, minimum: 0 }
-        rejected_candidates: { type: integer, minimum: 0 }
-        error_code: { type: string }
-    ModelProviderList:
-      type: object
-      additionalProperties: false
-      required: [items]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/ModelProviderConfiguration'
-    ModelProviderConfiguration:
-      type: object
-      additionalProperties: false
-      required: [provider_key, base_url, model, configured, key_configured]
-      properties:
-        provider_key:
-          type: string
-          minLength: 1
-          example: deepseek
-        base_url:
-          type: string
-          format: uri
-        model:
-          type: string
-        configured:
-          type: boolean
-        key_configured:
-          type: boolean
-        masked_key:
-          type: string
-        updated_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-    ModelProviderPatchInput:
-      type: object
-      additionalProperties: false
-      minProperties: 1
-      properties:
-        base_url:
-          type: string
-          format: uri
-        model:
-          type: string
-        api_key:
-          type: string
-          description: 空字符串保持原密钥，非空值替换密钥。
-    ConnectorList:
-      type: object
-      additionalProperties: false
-      required: [items]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/ConnectorConfiguration'
-    ConnectorConfiguration:
-      type: object
-      additionalProperties: false
-      required: [connector_key, base_url, configured, key_configured]
-      properties:
-        connector_key:
-          type: string
-        base_url:
-          type: string
-          format: uri
-        configured:
-          type: boolean
-        key_configured:
-          type: boolean
-        masked_key:
-          type: string
-        updated_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-    ConnectorPatchInput:
-      type: object
-      additionalProperties: false
-      minProperties: 1
-      properties:
-        base_url:
-          type: string
-          format: uri
-        api_key:
-          type: string
-          description: 缺失保持原密钥，空字符串明确清除，非空值替换。
-    EventStatus:
-      type: string
-      enum: [candidate, confirmed, rejected]
-    FactStatus:
-      type: string
-      enum: [unverified, verified, disputed]
+        key: { type: string, enum: [data] }
+        display_name: { type: string, enum: [Data Service] }
+        status: { $ref: '#/components/schemas/RuntimeHealthStatus' }
+        checked_at: { $ref: '#/components/schemas/UTCTimestamp' }
+        latency_ms: { type: integer, format: int64, minimum: 0, nullable: true }
+        reason_code:
+          allOf: [{ $ref: '#/components/schemas/RuntimeHealthReasonCode' }]
+          nullable: true
+    RuntimeHealthStatus: { type: string, enum: [ready, degraded, down, unknown] }
+    RuntimeHealthReasonCode:
+      {
+        type: string,
+        enum: [timeout, unreachable, not_ready, authentication_failed, invalid_response]
+      }
+    EventStatus: { type: string, enum: [candidate, confirmed, rejected] }
+    FactStatus: { type: string, enum: [unverified, verified, disputed] }

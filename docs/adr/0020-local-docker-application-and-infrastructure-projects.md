@@ -1,5 +1,6 @@
 ---
 status: accepted
+superseded_in_part: 0027-retire-agent-run.md
 ---
 
 # Separate local Docker application and infrastructure projects

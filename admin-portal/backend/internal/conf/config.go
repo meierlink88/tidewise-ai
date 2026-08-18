@@ -13,7 +13,6 @@ import (
 )
 
 const DataServiceTimeout = 5 * time.Second
-const AgentRunTimeout = 5 * time.Second
 const ServiceName = "adminportal"
 const ServiceVersion = "1.0.0"
 
@@ -43,12 +42,6 @@ type DataServiceRuntimeConfig struct {
 	Timeout       time.Duration
 }
 
-type AgentRunRuntimeConfig struct {
-	BaseURL      string
-	ServiceToken string
-	Timeout      time.Duration
-}
-
 // RuntimeConfig contains only Admin process, browser authentication, and
 // downstream API settings. It cannot carry PostgreSQL or migration configuration.
 type RuntimeConfig struct {
@@ -57,7 +50,6 @@ type RuntimeConfig struct {
 	AdminToken    string
 	AllowedOrigin string
 	DataService   DataServiceRuntimeConfig
-	AgentRun      AgentRunRuntimeConfig
 }
 
 func LoadRuntimeConfig() (RuntimeConfig, error) {
@@ -93,11 +85,6 @@ func LoadRuntimeConfig() (RuntimeConfig, error) {
 			IdentityToken: strings.TrimSpace(os.Getenv("DATA_SERVICE_TOKEN")),
 			Timeout:       DataServiceTimeout,
 		},
-		AgentRun: AgentRunRuntimeConfig{
-			BaseURL:      strings.TrimSpace(os.Getenv("AGENTRUN_BASE_URL")),
-			ServiceToken: strings.TrimSpace(os.Getenv("AGENTRUN_SERVICE_TOKEN")),
-			Timeout:      AgentRunTimeout,
-		},
 	}
 	if runtime.AdminToken == "" {
 		return RuntimeConfig{}, fmt.Errorf("ADMIN_SERVICE_TOKEN is required")
@@ -110,12 +97,6 @@ func LoadRuntimeConfig() (RuntimeConfig, error) {
 	}
 	if runtime.DataService.IdentityToken == "" {
 		return RuntimeConfig{}, fmt.Errorf("DATA_SERVICE_TOKEN is required")
-	}
-	if runtime.AgentRun.BaseURL == "" {
-		return RuntimeConfig{}, fmt.Errorf("AGENTRUN_BASE_URL is required")
-	}
-	if runtime.AgentRun.ServiceToken == "" {
-		return RuntimeConfig{}, fmt.Errorf("AGENTRUN_SERVICE_TOKEN is required")
 	}
 	return runtime, nil
 }

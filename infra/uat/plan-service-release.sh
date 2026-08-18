@@ -8,15 +8,13 @@ target_sha="${2:-}"
 print_plan() {
   local deploy_all="$1"
   local deploy_data="$2"
-  local deploy_agentrun="$3"
-  local deploy_miniapp="$4"
-  local deploy_adminportal="$5"
-  local deploy_admin="$6"
-  local reason="$7"
+  local deploy_miniapp="$3"
+  local deploy_adminportal="$4"
+  local deploy_admin="$5"
+  local reason="$6"
   printf '%s\n' \
     "deploy_all=${deploy_all}" \
     "deploy_data=${deploy_data}" \
-    "deploy_agentrun=${deploy_agentrun}" \
     "deploy_miniapp=${deploy_miniapp}" \
     "deploy_adminportal=${deploy_adminportal}" \
     "deploy_admin=${deploy_admin}" \
@@ -24,7 +22,7 @@ print_plan() {
 }
 
 print_full_plan() {
-  print_plan true true true true true true "$1"
+  print_plan true true true true true "$1"
   exit 0
 }
 
@@ -42,7 +40,6 @@ if ! git merge-base --is-ancestor "$base_sha" "$target_sha"; then
 fi
 
 deploy_data=false
-deploy_agentrun=false
 deploy_miniapp=false
 deploy_adminportal=false
 deploy_admin=false
@@ -53,7 +50,6 @@ while IFS= read -r -d '' path; do
   changed=true
   case "$path" in
     data-service/*) deploy_data=true ;;
-    agent-run/*) deploy_agentrun=true ;;
     miniapp/backend/*) deploy_miniapp=true ;;
     admin-portal/backend/*) deploy_adminportal=true ;;
     admin-portal/frontend/*) deploy_admin=true ;;
@@ -71,7 +67,6 @@ fi
 print_plan \
   false \
   "$deploy_data" \
-  "$deploy_agentrun" \
   "$deploy_miniapp" \
   "$deploy_adminportal" \
   "$deploy_admin" \

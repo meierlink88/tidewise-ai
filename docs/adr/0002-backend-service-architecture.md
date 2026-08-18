@@ -1,5 +1,6 @@
 ---
 status: accepted
+superseded_in_part: 0027-retire-agent-run.md
 ---
 
 # 使用 Application Backend Service 与 Domain Service 两层架构

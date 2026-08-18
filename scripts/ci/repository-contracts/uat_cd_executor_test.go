@@ -16,7 +16,7 @@ func TestUATServiceReleasePlannerUsesLastSuccessfulReleaseRange(t *testing.T) {
 	runGitFixture(t, repository, "config", "user.email", "uat-planner@example.test")
 	runGitFixture(t, repository, "config", "user.name", "UAT Planner")
 	for _, directory := range []string{
-		"data-service", "agent-run", "miniapp/backend",
+		"data-service", "miniapp/backend",
 		"admin-portal/backend", "admin-portal/frontend", "docs",
 	} {
 		if err := os.MkdirAll(filepath.Join(repository, directory), 0o750); err != nil {
@@ -25,7 +25,6 @@ func TestUATServiceReleasePlannerUsesLastSuccessfulReleaseRange(t *testing.T) {
 	}
 
 	writeFixture(t, filepath.Join(repository, "data-service", "service.go"), "data-v1\n")
-	writeFixture(t, filepath.Join(repository, "agent-run", "service.go"), "agentrun-v1\n")
 	writeFixture(t, filepath.Join(repository, "miniapp", "backend", "service.go"), "miniapp-v1\n")
 	writeFixture(t, filepath.Join(repository, "admin-portal", "backend", "service.go"), "admin-backend-v1\n")
 	writeFixture(t, filepath.Join(repository, "admin-portal", "frontend", "app.ts"), "admin-frontend-v1\n")
@@ -35,16 +34,16 @@ func TestUATServiceReleasePlannerUsesLastSuccessfulReleaseRange(t *testing.T) {
 	writeFixture(t, filepath.Join(repository, "data-service", "service.go"), "data-v2\n")
 	dataCommit := commitGitFixture(t, repository, "data")
 	assertServicePlan(t, repository, base, dataCommit, map[string]string{
-		"deploy_all": "false", "deploy_data": "true", "deploy_agentrun": "false",
+		"deploy_all": "false", "deploy_data": "true",
 		"deploy_miniapp": "false", "deploy_adminportal": "false", "deploy_admin": "false",
 	})
 
-	writeFixture(t, filepath.Join(repository, "agent-run", "service.go"), "agentrun-v2\n")
+	writeFixture(t, filepath.Join(repository, "miniapp", "backend", "service.go"), "miniapp-v2\n")
 	writeFixture(t, filepath.Join(repository, "admin-portal", "frontend", "app.ts"), "admin-frontend-v2\n")
-	multipleCommit := commitGitFixture(t, repository, "agentrun and admin frontend")
+	multipleCommit := commitGitFixture(t, repository, "miniapp and admin frontend")
 	assertServicePlan(t, repository, dataCommit, multipleCommit, map[string]string{
-		"deploy_all": "false", "deploy_data": "false", "deploy_agentrun": "true",
-		"deploy_miniapp": "false", "deploy_adminportal": "false", "deploy_admin": "true",
+		"deploy_all": "false", "deploy_data": "false",
+		"deploy_miniapp": "true", "deploy_adminportal": "false", "deploy_admin": "true",
 	})
 
 	writeFixture(t, filepath.Join(repository, "docs", "architecture.md"), "docs-v2\n")
@@ -62,7 +61,7 @@ func TestUATServiceReleasePlannerUsesLastSuccessfulReleaseRange(t *testing.T) {
 func assertFullServicePlan(t *testing.T, repository, base, target string) {
 	t.Helper()
 	assertServicePlan(t, repository, base, target, map[string]string{
-		"deploy_all": "true", "deploy_data": "true", "deploy_agentrun": "true",
+		"deploy_all": "true", "deploy_data": "true",
 		"deploy_miniapp": "true", "deploy_adminportal": "true", "deploy_admin": "true",
 	})
 }
@@ -117,7 +116,7 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	if result.err != nil {
 		t.Fatalf("deploy success fixture failed: %v\n%s", result.err, result.output)
 	}
-	for _, want := range []string{"PASS deployment-lock", "PASS external-qdrant-ready", "PASS agentrun-artifact-write", "PASS migration-scope-gate", "PASS migration-apply", "PASS agent-version-publication", "PASS bff-to-service-read-paths", "PASS release-state-recorded"} {
+	for _, want := range []string{"PASS deployment-lock", "PASS migration-scope-gate", "PASS migration-apply", "PASS bff-to-service-read-paths", "PASS release-state-recorded"} {
 		if !strings.Contains(result.output, want) {
 			t.Fatalf("deploy output missing %q: %s", want, result.output)
 		}
@@ -127,7 +126,6 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	}
 	assertFileContent(t, filepath.Join(result.root, "state", "current.sha"), fixtureSHA)
 	assertFileContains(t, filepath.Join(result.root, "state", "current.images.env"), "fixture/data:"+fixtureSHA)
-	assertFileContains(t, filepath.Join(result.root, "state", "current.images.env"), "fixture/agentrun:"+fixtureSHA)
 	images, err := os.ReadFile(filepath.Join(result.root, "state", "current.images.env"))
 	if err != nil {
 		t.Fatal(err)
@@ -142,7 +140,7 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	for _, want := range []string{
 		"http://127.0.0.1:9012/healthz",
 		"http://127.0.0.1:9012/api/miniapp/v1/research/themes?limit=1",
-		"http://127.0.0.1:9014/api/admin/v1/model-providers",
+		"http://127.0.0.1:9014/api/admin/v1/events?page=1&page_size=1",
 	} {
 		if !strings.Contains(string(curlLog), want) {
 			t.Fatalf("host verification missing %q: %s", want, curlLog)
@@ -150,39 +148,6 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	}
 	if strings.Contains(string(curlLog), "uat.example.test") {
 		t.Fatalf("deployment attempted unsupported public-IP hairpin verification: %s", curlLog)
-	}
-	dockerLog, err := os.ReadFile(result.dockerLog)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(dockerLog), "http://127.0.0.1:9080/readyz") {
-		t.Fatalf("deployment did not enforce AgentRun readiness: %s", dockerLog)
-	}
-	artifactProbe := strings.Index(string(dockerLog), "/app/data/.uat-write-probe")
-	externalQdrantProbe := strings.Index(string(dockerLog), "http://qdrant:6333/collections")
-	migrationPreflight := strings.Index(string(dockerLog), "/usr/local/bin/dbmigrate")
-	if externalQdrantProbe < 0 || artifactProbe < 0 || migrationPreflight < 0 ||
-		externalQdrantProbe > artifactProbe || artifactProbe > migrationPreflight {
-		t.Fatalf("external Qdrant and AgentRun Artifact probes must run before migrations: %s", dockerLog)
-	}
-}
-
-func TestUATDeployExecutorStopsBeforeDatabaseWorkWhenExternalQdrantIsUnavailable(t *testing.T) {
-	result := runDeployFixture(t, deployFixtureOptions{failExternalQdrant: true})
-	if result.err == nil {
-		t.Fatal("unavailable external Qdrant fixture unexpectedly succeeded")
-	}
-	dockerLog, err := os.ReadFile(result.dockerLog)
-	if err != nil {
-		t.Fatal(err)
-	}
-	logText := string(dockerLog)
-	if !strings.Contains(logText, "http://qdrant:6333/collections") {
-		t.Fatalf("deployment did not probe external Qdrant: %s", logText)
-	}
-	if strings.Contains(logText, "/app/data/.uat-write-probe") ||
-		strings.Contains(logText, "/usr/local/bin/dbmigrate") {
-		t.Fatalf("deployment performed protected work after external Qdrant probe failed: %s", logText)
 	}
 }
 
@@ -198,8 +163,7 @@ func TestUATDeployExecutorStopsBeforeDatabaseWorkWhenPlannedReleaseStateDrifts(t
 	if err != nil && !os.IsNotExist(err) {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(dockerLog), "http://qdrant:6333/collections") ||
-		strings.Contains(string(dockerLog), "/usr/local/bin/dbmigrate") {
+	if strings.Contains(string(dockerLog), "/usr/local/bin/dbmigrate") {
 		t.Fatalf("deployment performed protected work after release-state drift: %s", dockerLog)
 	}
 }
@@ -227,6 +191,7 @@ func TestUATDeployExecutorReplacesUnchangedInvalidCurrentReleaseWithFullDeployme
 		currentRelease:         true,
 		invalidCurrentRelease:  true,
 		expectedCurrentMissing: true,
+		legacyAgentRunMarkers:  true,
 	})
 	if result.err != nil {
 		t.Fatalf("unchanged invalid current release did not allow full replacement: %v\n%s", result.err, result.output)
@@ -236,6 +201,14 @@ func TestUATDeployExecutorReplacesUnchangedInvalidCurrentReleaseWithFullDeployme
 		t.Fatalf("invalid state replacement missed release-state evidence: %s", result.output)
 	}
 	assertFileContent(t, filepath.Join(result.root, "state", "current.sha"), fixtureSHA)
+	for _, retiredMarker := range []string{
+		"agentrun-010-rollback-required",
+		"agentrun-agent-version-publication.json",
+	} {
+		if _, err := os.Stat(filepath.Join(result.root, "state", retiredMarker)); !os.IsNotExist(err) {
+			t.Fatalf("retired AgentRun release marker %q survived replacement: %v", retiredMarker, err)
+		}
+	}
 }
 
 func TestUATDeployExecutorDoesNotRollbackToUnavailableInvalidRelease(t *testing.T) {
@@ -267,23 +240,6 @@ func TestUATDeployExecutorTreatsNullPendingAsNoMigrations(t *testing.T) {
 	}
 }
 
-func TestUATDeployExecutorStopsBeforeMigrationWhenAgentRunArtifactIsNotWritable(t *testing.T) {
-	result := runDeployFixture(t, deployFixtureOptions{failArtifactProbe: true})
-	if result.err == nil {
-		t.Fatal("unwritable AgentRun Artifact fixture unexpectedly succeeded")
-	}
-	dockerLog, err := os.ReadFile(result.dockerLog)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(dockerLog), "/app/data/.uat-write-probe") {
-		t.Fatalf("deployment did not attempt the AgentRun Artifact write probe: %s", dockerLog)
-	}
-	if strings.Contains(string(dockerLog), "/usr/local/bin/dbmigrate") {
-		t.Fatalf("deployment started migration after the AgentRun Artifact write probe failed: %s", dockerLog)
-	}
-}
-
 func TestUATDeployExecutorRestoresCurrentReleaseAfterCandidateHealthFailure(t *testing.T) {
 	result := runDeployFixture(t, deployFixtureOptions{currentRelease: true, failFirstUp: true})
 	if result.err == nil {
@@ -303,84 +259,6 @@ func TestUATDeployExecutorRestoresCurrentReleaseAfterCandidateHealthFailure(t *t
 	if strings.Contains(string(dockerLog), "exec -T qdrant") ||
 		strings.Contains(string(dockerLog), " up -d --wait --wait-timeout 120 qdrant ") {
 		t.Fatalf("rollback attempted to manage independently operated Qdrant: %s", dockerLog)
-	}
-	if !strings.Contains(string(dockerLog), "withdraw-publication") {
-		t.Fatalf("rollback did not withdraw the candidate Agent Version publication: %s", dockerLog)
-	}
-}
-
-func TestUATDeployExecutorRefusesImageRollbackWhenCandidateAgentVersionIsReferenced(t *testing.T) {
-	result := runDeployFixture(t, deployFixtureOptions{
-		currentRelease:             true,
-		failFirstUp:                true,
-		failAgentVersionWithdrawal: true,
-	})
-	if result.err == nil || !strings.Contains(result.output, "FAIL agent-version-withdrawal") {
-		t.Fatalf("referenced candidate Agent Version did not fail rollback safely: %v\n%s", result.err, result.output)
-	}
-	if strings.Contains(result.output, "PASS rollback: previous complete release restored") {
-		t.Fatalf("unsafe image-only rollback was reported as successful: %s", result.output)
-	}
-}
-
-func TestUATDeployExecutorPreparesPost010AgentRunRollback(t *testing.T) {
-	report := `{"current_version":"010","pending":[{"version":"011"},{"version":"012"},{"version":"013"},{"version":"014"}],"applied":[]}`
-	result := runDeployFixture(t, deployFixtureOptions{
-		currentRelease:          true,
-		failFirstUp:             true,
-		agentrunMigrationReport: report,
-	})
-	if result.err == nil {
-		t.Fatal("candidate failure fixture unexpectedly succeeded")
-	}
-	if !strings.Contains(result.output, "PASS agentrun-previous-release-database-compatibility") ||
-		!strings.Contains(result.output, "PASS rollback: previous complete release restored") {
-		t.Fatalf("AgentRun rollback compatibility was not prepared: %s", result.output)
-	}
-	dockerLog, err := os.ReadFile(result.dockerLog)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(dockerLog), "--prepare-previous-release-rollback --previous-release-version 010") {
-		t.Fatalf("rollback did not invoke AgentRun compatibility preparation: %s", dockerLog)
-	}
-}
-
-func TestUATDeployExecutorPreservesPreviousPartialAgentRunMigrationVersion(t *testing.T) {
-	report := `{"current_version":"013","pending":[{"version":"014"}],"applied":[]}`
-	result := runDeployFixture(t, deployFixtureOptions{
-		currentRelease:          true,
-		failFirstUp:             true,
-		agentrunMigrationReport: report,
-	})
-	if result.err == nil {
-		t.Fatal("candidate failure fixture unexpectedly succeeded")
-	}
-	dockerLog, err := os.ReadFile(result.dockerLog)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(dockerLog), "--prepare-previous-release-rollback --previous-release-version 013") {
-		t.Fatalf("rollback did not preserve the previous migration target: %s", dockerLog)
-	}
-}
-
-func TestUATDeployExecutorPreservesPreviousAgentRunMigrationVersion014(t *testing.T) {
-	report := `{"current_version":"014","pending":[{"version":"015"}],"applied":[]}`
-	result := runDeployFixture(t, deployFixtureOptions{
-		currentRelease:          true,
-		failFirstUp:             true,
-		agentrunMigrationReport: report,
-	})
-	if result.err == nil {
-		t.Fatal("candidate failure fixture unexpectedly succeeded")
-	}
-	dockerLog, err := os.ReadFile(result.dockerLog)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(dockerLog), "--prepare-previous-release-rollback --previous-release-version 014") {
-		t.Fatalf("rollback did not preserve AgentRun migration target 014: %s", dockerLog)
 	}
 }
 
@@ -537,14 +415,6 @@ func TestUATDeployExecutorBlocksDataPublicationMigrationsBeforeApply(t *testing.
 				backupConfirmed: true,
 			},
 		},
-		{
-			name: "AgentRun data migration",
-			options: deployFixtureOptions{
-				agentrunMigrationReport: `{"current_version":"014","pending":[{"version":"015"}],"applied":[]}`,
-				agentrunMigrationScope:  "data",
-				backupConfirmed:         true,
-			},
-		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -595,7 +465,7 @@ func TestUATDeployExecutorRunsBoundedData2CutoverWithAllWritersStopped(t *testin
 	logText := string(dockerLog)
 	stop := strings.Index(logText, " stop ")
 	apply := strings.Index(logText, "dbmigrate -apply -target-version 58")
-	start := strings.Index(logText, " up -d --wait --wait-timeout 120")
+	start := strings.Index(logText, " up -d --remove-orphans --wait --wait-timeout 120")
 	if stop < 0 || apply < 0 || start < 0 || stop > apply || apply > start {
 		t.Fatalf("cutover must stop writers before the bounded migration and start candidates afterward: %s", logText)
 	}
@@ -635,7 +505,7 @@ func TestUATDeployExecutorRunsBoundedData59CutoverWithAllWritersStopped(t *testi
 	logText := string(dockerLog)
 	stop := strings.Index(logText, " stop ")
 	apply := strings.Index(logText, "dbmigrate -apply -target-version 59")
-	start := strings.Index(logText, " up -d --wait --wait-timeout 120")
+	start := strings.Index(logText, " up -d --remove-orphans --wait --wait-timeout 120")
 	if stop < 0 || apply < 0 || start < 0 || stop > apply || apply > start {
 		t.Fatalf("Data 59 cutover must stop writers before migration and start candidates afterward: %s", logText)
 	}
@@ -1082,7 +952,7 @@ func TestUATDeployExecutorRebuildsOnlyDataSchemaAsExplicitCutoverFallback(t *tes
 			t.Fatalf("fallback omitted historical empty-schema authorization %q: %s", authorization, logText)
 		}
 	}
-	if strings.Contains(logText, "agentrun-migrate -rebuild") || strings.Contains(logText, "qdrant") && strings.Contains(logText, " down ") {
+	if strings.Contains(logText, "qdrant") && strings.Contains(logText, " down ") {
 		t.Fatalf("Data fallback attempted to rebuild independently owned runtime state: %s", logText)
 	}
 }
@@ -1234,10 +1104,8 @@ type deployFixtureOptions struct {
 	failEveryCurl                   bool
 	migrationReport                 string
 	migrationApplyReport            string
-	agentrunMigrationReport         string
 	migrationRisk                   string
 	migrationScope                  string
-	agentrunMigrationScope          string
 	backupConfirmed                 bool
 	deploymentMode                  string
 	destructiveConfirmed            bool
@@ -1248,10 +1116,8 @@ type deployFixtureOptions struct {
 	rebuildEmptyDataSchema          bool
 	orphanedCutoverWriter           bool
 	orphanedRestartingCutoverWriter bool
-	failArtifactProbe               bool
-	failExternalQdrant              bool
-	failAgentVersionWithdrawal      bool
 	legacyQdrantSnapshot            bool
+	legacyAgentRunMarkers           bool
 }
 
 type deployFixtureResult struct {
@@ -1279,7 +1145,6 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	imagesEnv := filepath.Join(temp, "candidate.images.env")
 	compose := filepath.Join(temp, "compose.yaml")
 	manifest := filepath.Join(temp, "migration-risk.tsv")
-	agentrunManifest := filepath.Join(temp, "agentrun-migration-risk.tsv")
 	dockerLog := filepath.Join(temp, "docker.log")
 	upCount := filepath.Join(temp, "up-count")
 	curlCount := filepath.Join(temp, "curl-count")
@@ -1292,10 +1157,14 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	if options.orphanedRestartingCutoverWriter {
 		writeFixture(t, restartingWriter, "restarting\n")
 	}
-	writeFixture(t, runtimeEnv, "ADMIN_SERVICE_TOKEN=fixture-admin-secret\nAGENTRUN_SERVICE_TOKEN=fixture-agentrun-secret\nEMBEDDING_API_KEY="+fixtureEmbeddingCredential()+"\n")
-	writeFixture(t, imagesEnv, "DATA_IMAGE=fixture/data:"+fixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+fixtureSHA+"\nAGENTRUN_IMAGE=fixture/agentrun:"+fixtureSHA+"\n")
-	composeContent := "name: tidewise-uat\nservices:\n  data: {}\n  agentrun: {}\n  miniapp: {}\n  adminportal: {}\n  admin: {}\n"
+	writeFixture(t, runtimeEnv, "ADMIN_SERVICE_TOKEN=fixture-admin-secret\n")
+	writeFixture(t, imagesEnv, "DATA_IMAGE=fixture/data:"+fixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+fixtureSHA+"\n")
+	composeContent := "name: tidewise-uat\nservices:\n  data: {}\n  miniapp: {}\n  adminportal: {}\n  admin: {}\n"
 	writeFixture(t, compose, composeContent)
+	if options.legacyAgentRunMarkers {
+		writeFixture(t, filepath.Join(state, "agentrun-010-rollback-required"), "legacy rollback state\n")
+		writeFixture(t, filepath.Join(state, "agentrun-agent-version-publication.json"), "{}\n")
+	}
 	migrationRisk := options.migrationRisk
 	if migrationRisk == "" {
 		migrationRisk = "high"
@@ -1303,10 +1172,6 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	migrationScope := options.migrationScope
 	if migrationScope == "" {
 		migrationScope = "schema"
-	}
-	agentrunMigrationScope := options.agentrunMigrationScope
-	if agentrunMigrationScope == "" {
-		agentrunMigrationScope = "schema"
 	}
 	manifestRows := ""
 	for version := 1; version <= 59; version++ {
@@ -1342,8 +1207,6 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		manifestRows += fmt.Sprintf("%06d\t%s\t%s\t%s\n", version, risk, scope, reason)
 	}
 	writeFixture(t, manifest, manifestRows)
-	writeFixture(t, agentrunManifest, "001\tnormal\tschema\tfixture AgentRun migration\n002\tnormal\tschema\tfixture AgentRun migration\n003\tnormal\tschema\tfixture AgentRun migration\n004\tnormal\tschema\tfixture AgentRun migration\n005\tnormal\tschema\tfixture AgentRun migration\n006\tnormal\tschema\tfixture AgentRun migration\n007\tnormal\tschema\tfixture AgentRun migration\n008\tnormal\tschema\tfixture AgentRun migration\n009\tnormal\tschema\tfixture AgentRun migration\n010\tnormal\tschema\tfixture AgentRun migration\n011\tnormal\tschema\tfixture AgentRun migration\n012\tnormal\tschema\tfixture AgentRun migration\n013\tnormal\tschema\tfixture AgentRun migration\n014\tnormal\tschema\tfixture AgentRun migration\n015\tnormal\t"+agentrunMigrationScope+"\tfixture AgentRun migration\n")
-
 	if options.currentRelease {
 		writeFixture(t, filepath.Join(root, "runtime.env"), "ADMIN_SERVICE_TOKEN=previous-admin-secret\n")
 		currentReleaseSHA := previousFixtureSHA
@@ -1353,8 +1216,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		currentImages := "DATA_IMAGE=fixture/data:" + currentReleaseSHA + "\n" +
 			"MINIAPP_IMAGE=fixture/miniapp:" + currentReleaseSHA + "\n" +
 			"ADMINPORTAL_IMAGE=fixture/adminportal:" + currentReleaseSHA + "\n" +
-			"ADMIN_IMAGE=fixture/admin:" + currentReleaseSHA + "\n" +
-			"AGENTRUN_IMAGE=fixture/agentrun:" + currentReleaseSHA + "\n"
+			"ADMIN_IMAGE=fixture/admin:" + currentReleaseSHA + "\n"
 		currentCompose := composeContent
 		if options.legacyQdrantSnapshot {
 			currentCompose += "  qdrant: {}\n"
@@ -1377,13 +1239,13 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		writeFixture(t, filepath.Join(state, "release-state-write-in-progress"), options.releaseStateWritePhase+"\n")
 		if options.releaseStateWritePhase == "pre-data2" {
 			writeFixture(t, filepath.Join(root, "pre-data2.runtime.env"), "ADMIN_SERVICE_TOKEN=previous-admin-secret\n")
-			writeFixture(t, filepath.Join(state, "pre-data2.images.env"), "DATA_IMAGE=fixture/data:"+previousFixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+previousFixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+previousFixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+previousFixtureSHA+"\nAGENTRUN_IMAGE=fixture/agentrun:"+previousFixtureSHA+"\n")
+			writeFixture(t, filepath.Join(state, "pre-data2.images.env"), "DATA_IMAGE=fixture/data:"+previousFixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+previousFixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+previousFixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+previousFixtureSHA+"\n")
 			writeFixture(t, filepath.Join(state, "pre-data2.compose.yaml"), composeContent)
 			writeFixture(t, filepath.Join(state, "pre-data2.sha"), previousFixtureSHA+"\n")
 		}
 		if options.releaseStateWritePhase == "pre-data59" {
 			writeFixture(t, filepath.Join(root, "pre-data59.runtime.env"), "ADMIN_SERVICE_TOKEN=previous-admin-secret\n")
-			writeFixture(t, filepath.Join(state, "pre-data59.images.env"), "DATA_IMAGE=fixture/data:"+previousFixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+previousFixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+previousFixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+previousFixtureSHA+"\nAGENTRUN_IMAGE=fixture/agentrun:"+previousFixtureSHA+"\n")
+			writeFixture(t, filepath.Join(state, "pre-data59.images.env"), "DATA_IMAGE=fixture/data:"+previousFixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+previousFixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+previousFixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+previousFixtureSHA+"\n")
 			writeFixture(t, filepath.Join(state, "pre-data59.compose.yaml"), composeContent)
 			writeFixture(t, filepath.Join(state, "pre-data59.sha"), previousFixtureSHA+"\n")
 		}
@@ -1406,11 +1268,6 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		applyReport = report
 	}
 	writeFixture(t, filepath.Join(temp, "migration-apply.json"), applyReport+"\n")
-	agentrunReport := options.agentrunMigrationReport
-	if agentrunReport == "" {
-		agentrunReport = `{"current_version":"015","pending":[],"applied":[]}`
-	}
-	writeFixture(t, filepath.Join(temp, "agentrun-migration.json"), agentrunReport+"\n")
 	writeExecutable(t, filepath.Join(bin, "curl"), `#!/bin/sh
 set -eu
 echo " $* " >> "$FAKE_CURL_LOG"
@@ -1476,12 +1333,8 @@ case " $* " in
 	      previous="$argument"
 	    done
 	    if [ -n "$compose_file" ] && grep -q 'qdrant:' "$compose_file"; then echo qdrant; fi
-	    printf 'data\nagentrun\nminiapp\nadminportal\nadmin\n'
+	    printf 'data\nminiapp\nadminportal\nadmin\n'
     ;;
-  *"/app/data/.uat-write-probe."*)
-    if [ "${FAKE_FAIL_ARTIFACT_PROBE:-false}" = true ]; then exit 1; fi
-    ;;
-  *" --check-only "*) cat "$FAKE_AGENTRUN_MIGRATION_REPORT" ;;
 	  *" run "*" /usr/local/bin/dbmigrate -apply -target-version 58 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 59 "*)
 	    touch "$FAKE_CUTOVER_APPLIED"
 	    cat "$FAKE_MIGRATION_APPLY_REPORT"
@@ -1489,16 +1342,6 @@ case " $* " in
   *" run "*" /usr/local/bin/dbmigrate "*)
 	    if [ -f "$FAKE_CUTOVER_APPLIED" ]; then cat "$FAKE_MIGRATION_APPLY_REPORT"; else cat "$FAKE_MIGRATION_REPORT"; fi
 	    ;;
-	  *" publish-current "*) printf '{"added":[{"agent_key":"event-semantic-enricher","version":"event-semantic-enricher.v4"}]}\n' ;;
-	  *" withdraw-publication "*)
-	    if [ "${FAKE_FAIL_AGENT_VERSION_WITHDRAWAL:-false}" = true ]; then exit 1; fi
-	    echo "AgentRun candidate Agent Versions are withdrawn"
-	    ;;
-	  *"http://qdrant:6333/collections "*)
-	    if [ "${FAKE_FAIL_EXTERNAL_QDRANT:-false}" = true ]; then exit 1; fi
-	    printf '{"result":{"collections":[]}}\n'
-	    ;;
-  *" run "*" agentrun "*) echo "AgentRun database migrations are current" ;;
 	  *" up "*)
     count=0
     if [ -f "$FAKE_UP_COUNT" ]; then count="$(cat "$FAKE_UP_COUNT")"; fi
@@ -1525,7 +1368,6 @@ exit 0
 	expectedMiniappImage := ""
 	expectedAdminportalImage := ""
 	expectedAdminImage := ""
-	expectedAgentrunImage := ""
 	if expectedAvailable {
 		expectedImageSHA := previousFixtureSHA
 		if options.currentReleaseCandidate {
@@ -1535,7 +1377,6 @@ exit 0
 		expectedMiniappImage = "fixture/miniapp:" + expectedImageSHA
 		expectedAdminportalImage = "fixture/adminportal:" + expectedImageSHA
 		expectedAdminImage = "fixture/admin:" + expectedImageSHA
-		expectedAgentrunImage = "fixture/agentrun:" + expectedImageSHA
 	}
 	cmd.Env = append(os.Environ(),
 		"PATH="+bin+":"+os.Getenv("PATH"),
@@ -1550,18 +1391,14 @@ exit 0
 		"EXPECTED_CURRENT_MINIAPP_IMAGE="+expectedMiniappImage,
 		"EXPECTED_CURRENT_ADMINPORTAL_IMAGE="+expectedAdminportalImage,
 		"EXPECTED_CURRENT_ADMIN_IMAGE="+expectedAdminImage,
-		"EXPECTED_CURRENT_AGENTRUN_IMAGE="+expectedAgentrunImage,
 		"UAT_PUBLIC_BASE_URL=http://uat.example.test",
 		"TIDEWISW_DB_PASSWORD=fixture-db-secret",
-		"AGENTRUN_DB_PASSWORD=fixture-agentrun-db-secret",
 		"COMPOSE_FILE="+compose,
 		"MIGRATION_RISK_MANIFEST="+manifest,
-		"AGENTRUN_MIGRATION_RISK_MANIFEST="+agentrunManifest,
 		"HIGH_RISK_BACKUP_CONFIRMED="+boolText(options.backupConfirmed),
 		"DEPLOYMENT_MODE="+options.deploymentMode,
 		"DESTRUCTIVE_DATA_CHANGE_CONFIRMED="+boolText(options.destructiveConfirmed),
 		"EMPTY_DATA_SCHEMA_REBUILD_REQUESTED="+boolText(options.rebuildEmptyDataSchema),
-		"EMBEDDING_API_KEY="+fixtureEmbeddingCredential(),
 		"RUNNER_TEMP="+temp,
 		"GITHUB_RUN_ID=fixture",
 		"GITHUB_STEP_SUMMARY="+filepath.Join(temp, "summary.md"),
@@ -1569,7 +1406,6 @@ exit 0
 		"FAKE_MIGRATION_REPORT="+filepath.Join(temp, "migration.json"),
 		"FAKE_MIGRATION_APPLY_REPORT="+filepath.Join(temp, "migration-apply.json"),
 		"FAKE_CUTOVER_APPLIED="+filepath.Join(temp, "cutover-applied"),
-		"FAKE_AGENTRUN_MIGRATION_REPORT="+filepath.Join(temp, "agentrun-migration.json"),
 		"FAKE_UP_COUNT="+upCount,
 		"FAKE_FAIL_FIRST_UP="+boolText(options.failFirstUp),
 		"FAKE_FAIL_EVERY_UP="+boolText(options.failEveryUp),
@@ -1577,9 +1413,6 @@ exit 0
 		"FAKE_CURL_LOG="+curlLog,
 		"FAKE_FAIL_FIRST_CURL="+boolText(options.failFirstCurl),
 		"FAKE_FAIL_EVERY_CURL="+boolText(options.failEveryCurl),
-		"FAKE_FAIL_ARTIFACT_PROBE="+boolText(options.failArtifactProbe),
-		"FAKE_FAIL_EXTERNAL_QDRANT="+boolText(options.failExternalQdrant),
-		"FAKE_FAIL_AGENT_VERSION_WITHDRAWAL="+boolText(options.failAgentVersionWithdrawal),
 		"FAKE_FAIL_RUNNING_SERVICE_PROBE="+boolText(options.failRunningServiceProbe),
 		"FAKE_FAIL_CUTOVER_MARKER_SYNC="+boolText(options.failCutoverMarkerSync),
 		"FAKE_ORPHANED_WRITER="+orphanedWriter,
@@ -1588,7 +1421,6 @@ exit 0
 		"MINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA,
 		"ADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA,
 		"ADMIN_IMAGE=fixture/admin:"+fixtureSHA,
-		"AGENTRUN_IMAGE=fixture/agentrun:"+fixtureSHA,
 	)
 	output, err := cmd.CombinedOutput()
 	return deployFixtureResult{root: root, dockerLog: dockerLog, curlLog: curlLog, output: string(output), err: err}
@@ -1661,14 +1493,6 @@ func boolText(value bool) string {
 		return "true"
 	}
 	return "false"
-}
-
-func fixtureNeo4jCredential() string {
-	return strings.Join([]string{"fixture", "neo4j", "credential"}, "-")
-}
-
-func fixtureEmbeddingCredential() string {
-	return strings.Join([]string{"fixture", "embedding", "credential"}, "-")
 }
 
 func conditionalValue(condition bool, value string) string {

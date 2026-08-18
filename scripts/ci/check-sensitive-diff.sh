@@ -21,9 +21,9 @@ git -C "$repo_root" diff --check "$base_sha" "$head_sha"
 git -C "$repo_root" diff --name-only "$base_sha" "$head_sha" >"$changed_paths"
 
 if grep -Eq \
-  '^agent-run/backend/(data|\.reference)(/|$)|(^|/)\.env$|(^|/)(\.DS_Store|midscene_run)(/|$)' \
+  '(^|/)\.env$|(^|/)(\.DS_Store|midscene_run)(/|$)' \
   "$changed_paths"; then
-  echo "Diff contains a forbidden AgentRun runtime, credential, or reference path" >&2
+  echo "Diff contains a forbidden runtime, credential, or reference path" >&2
   exit 1
 fi
 

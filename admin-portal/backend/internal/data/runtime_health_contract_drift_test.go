@@ -15,7 +15,6 @@ func TestProviderRuntimeHealthFixturesMatchAdminConsumer(t *testing.T) {
 		expected []biz.RuntimeServiceKey
 	}{
 		{path: []string{"data-service", "backend", "api", "data", "v1", "runtimehealth", "testdata", "runtime-health.json"}, expected: []biz.RuntimeServiceKey{biz.RuntimeServiceData}},
-		{path: []string{"agent-run", "backend", "api", "agentrun", "v1", "testdata", "runtime-health.json"}, expected: []biz.RuntimeServiceKey{biz.RuntimeServiceAgentRun, biz.RuntimeServiceQdrant}},
 	}
 	for _, fixture := range fixtures {
 		path := filepath.Join(append([]string{"..", "..", "..", ".."}, fixture.path...)...)
@@ -29,7 +28,7 @@ func TestProviderRuntimeHealthFixturesMatchAdminConsumer(t *testing.T) {
 		if err := json.Unmarshal(payload, &envelope); err != nil {
 			t.Fatalf("decode provider fixture %s: %v", path, err)
 		}
-		if _, err := envelope.Result.toBiz(fixture.expected); err != nil {
+		if _, err := envelope.Result.toBiz(); err != nil {
 			t.Fatalf("map provider fixture %s: %v", path, err)
 		}
 	}

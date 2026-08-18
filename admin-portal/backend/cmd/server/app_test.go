@@ -25,9 +25,6 @@ func TestBuildAdminAppComposesKratosApplicationWithoutStartingNetwork(t *testing
 		DataService: conf.DataServiceRuntimeConfig{
 			BaseURL: "http://127.0.0.1:18081", IdentityToken: "test-token", Timeout: time.Second,
 		},
-		AgentRun: conf.AgentRunRuntimeConfig{
-			BaseURL: "http://127.0.0.1:18080", ServiceToken: "agent-token", Timeout: time.Second,
-		},
 	}, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)

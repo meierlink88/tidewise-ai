@@ -6,10 +6,7 @@ import (
 	"time"
 )
 
-const (
-	runtimeHealthTotalBudget    = 3 * time.Second
-	runtimeHealthProviderBudget = 1500 * time.Millisecond
-)
+const runtimeHealthProviderBudget = 1500 * time.Millisecond
 
 type RuntimeStatus string
 
@@ -26,18 +23,13 @@ const (
 	RuntimeReasonTimeout              RuntimeReasonCode = "timeout"
 	RuntimeReasonUnreachable          RuntimeReasonCode = "unreachable"
 	RuntimeReasonNotReady             RuntimeReasonCode = "not_ready"
-	RuntimeReasonCollectionUnhealthy  RuntimeReasonCode = "collection_unhealthy"
 	RuntimeReasonAuthenticationFailed RuntimeReasonCode = "authentication_failed"
 	RuntimeReasonInvalidResponse      RuntimeReasonCode = "invalid_response"
 )
 
 type RuntimeServiceKey string
 
-const (
-	RuntimeServiceData     RuntimeServiceKey = "data"
-	RuntimeServiceAgentRun RuntimeServiceKey = "agentrun"
-	RuntimeServiceQdrant   RuntimeServiceKey = "qdrant"
-)
+const RuntimeServiceData RuntimeServiceKey = "data"
 
 type RuntimeHealthService struct {
 	Key         RuntimeServiceKey
@@ -69,81 +61,39 @@ type RuntimeHealthProviderError struct {
 
 func (e *RuntimeHealthProviderError) Error() string { return "runtime health provider unavailable" }
 
-type providerResult struct {
-	name   string
-	health ProviderRuntimeHealth
-	err    error
-}
-
 func (s *Service) GetRuntimeHealth(ctx context.Context) RuntimeHealth {
-	totalContext, cancel := context.WithTimeout(ctx, runtimeHealthTotalBudget)
-	defer cancel()
-	results := make(chan providerResult, 2)
-	go callRuntimeProvider(totalContext, "data", s.dataHealth, results)
-	go callRuntimeProvider(totalContext, "agentrun", s.agentRunHealth, results)
-
-	providers := map[string]providerResult{
-		"data":     {name: "data", err: &RuntimeHealthProviderError{ReasonCode: RuntimeReasonTimeout}},
-		"agentrun": {name: "agentrun", err: &RuntimeHealthProviderError{ReasonCode: RuntimeReasonTimeout}},
+	checkedAt := time.Now().UTC()
+	if s != nil && s.now != nil {
+		checkedAt = s.now().UTC()
 	}
-collect:
-	for received := 0; received < 2; received++ {
-		select {
-		case result := <-results:
-			providers[result.name] = result
-		case <-totalContext.Done():
-			break collect
-		}
+	service := RuntimeHealthService{
+		Key: RuntimeServiceData, DisplayName: RuntimeServiceData.DisplayName(),
+		Status: RuntimeStatusUnknown, CheckedAt: checkedAt, ReasonCode: RuntimeReasonNotReady,
+	}
+	if s == nil || s.dataHealth == nil {
+		return RuntimeHealth{Status: RuntimeStatusDegraded, CheckedAt: checkedAt, Services: []RuntimeHealthService{service}}
 	}
 
-	checkedAt := s.now().UTC()
-	serviceByKey := make(map[RuntimeServiceKey]RuntimeHealthService, 3)
-	mergeProvider(serviceByKey, providers["data"], []RuntimeServiceKey{RuntimeServiceData}, checkedAt)
-	mergeProvider(serviceByKey, providers["agentrun"], []RuntimeServiceKey{RuntimeServiceAgentRun, RuntimeServiceQdrant}, checkedAt)
-	order := []RuntimeServiceKey{RuntimeServiceData, RuntimeServiceAgentRun, RuntimeServiceQdrant}
-	services := make([]RuntimeHealthService, 0, len(order))
-	status := RuntimeStatusReady
-	for _, key := range order {
-		item := serviceByKey[key]
-		services = append(services, item)
-		if item.Status != RuntimeStatusReady {
-			status = RuntimeStatusDegraded
-		}
-	}
-	return RuntimeHealth{Status: status, CheckedAt: checkedAt, Services: services}
-}
-
-func callRuntimeProvider(ctx context.Context, name string, provider RuntimeHealthProvider, results chan<- providerResult) {
-	if provider == nil {
-		results <- providerResult{name: name, err: &RuntimeHealthProviderError{ReasonCode: RuntimeReasonNotReady}}
-		return
-	}
 	providerContext, cancel := context.WithTimeout(ctx, runtimeHealthProviderBudget)
 	defer cancel()
-	health, err := provider.GetRuntimeHealth(providerContext)
+	health, err := s.dataHealth.GetRuntimeHealth(providerContext)
 	if err == nil && providerContext.Err() != nil {
 		err = providerContext.Err()
 	}
-	results <- providerResult{name: name, health: health, err: err}
-}
-
-func mergeProvider(target map[RuntimeServiceKey]RuntimeHealthService, result providerResult, expected []RuntimeServiceKey, checkedAt time.Time) {
-	reason := providerFailureReason(result.err)
-	if reason == "" && !validProviderHealth(result.health, expected) {
-		reason = RuntimeReasonInvalidResponse
+	if reason := providerFailureReason(err); reason != "" {
+		service.ReasonCode = reason
+		return RuntimeHealth{Status: RuntimeStatusDegraded, CheckedAt: checkedAt, Services: []RuntimeHealthService{service}}
 	}
-	if reason != "" {
-		for _, key := range expected {
-			target[key] = RuntimeHealthService{
-				Key: key, DisplayName: key.DisplayName(), Status: RuntimeStatusUnknown,
-				CheckedAt: checkedAt, ReasonCode: reason,
-			}
-		}
-		return
+	if !validProviderHealth(health) {
+		service.ReasonCode = RuntimeReasonInvalidResponse
+		return RuntimeHealth{Status: RuntimeStatusDegraded, CheckedAt: checkedAt, Services: []RuntimeHealthService{service}}
 	}
-	for _, item := range result.health.Services {
-		target[item.Key] = item
+	service = health.Services[0]
+	status := RuntimeStatusReady
+	if service.Status != RuntimeStatusReady {
+		status = RuntimeStatusDegraded
 	}
+	return RuntimeHealth{Status: status, CheckedAt: checkedAt, Services: []RuntimeHealthService{service}}
 }
 
 func providerFailureReason(err error) RuntimeReasonCode {
@@ -160,49 +110,29 @@ func providerFailureReason(err error) RuntimeReasonCode {
 	return RuntimeReasonUnreachable
 }
 
-func validProviderHealth(health ProviderRuntimeHealth, expected []RuntimeServiceKey) bool {
-	if health.CheckedAt.IsZero() || len(health.Services) != len(expected) {
-		return false
-	}
-	seen := make(map[RuntimeServiceKey]bool, len(expected))
-	for _, item := range health.Services {
-		if item.CheckedAt.IsZero() || item.DisplayName != item.Key.DisplayName() || !item.Key.Valid() || !item.Status.Valid() ||
-			item.Status == RuntimeStatusReady && item.ReasonCode != "" ||
-			item.Status != RuntimeStatusReady && !item.ReasonCode.Valid() {
-			return false
-		}
-		seen[item.Key] = true
-	}
-	for _, key := range expected {
-		if !seen[key] {
-			return false
-		}
-	}
-	return true
+func validProviderHealth(health ProviderRuntimeHealth) bool {
+	return len(health.Services) == 1 && health.Services[0].Key == RuntimeServiceData &&
+		health.Services[0].DisplayName == RuntimeServiceData.DisplayName() &&
+		health.Services[0].Status.Valid() && health.Services[0].CheckedAt.Equal(health.CheckedAt) &&
+		(health.Services[0].ReasonCode == "" || health.Services[0].ReasonCode.Valid())
 }
 
 func (status RuntimeStatus) Valid() bool {
-	return status == RuntimeStatusReady || status == RuntimeStatusDegraded || status == RuntimeStatusDown || status == RuntimeStatusUnknown
+	return status == RuntimeStatusReady || status == RuntimeStatusDegraded ||
+		status == RuntimeStatusDown || status == RuntimeStatusUnknown
 }
 
 func (reason RuntimeReasonCode) Valid() bool {
-	return reason == RuntimeReasonTimeout || reason == RuntimeReasonUnreachable || reason == RuntimeReasonNotReady ||
-		reason == RuntimeReasonCollectionUnhealthy || reason == RuntimeReasonAuthenticationFailed || reason == RuntimeReasonInvalidResponse
+	return reason == RuntimeReasonTimeout || reason == RuntimeReasonUnreachable ||
+		reason == RuntimeReasonNotReady || reason == RuntimeReasonAuthenticationFailed ||
+		reason == RuntimeReasonInvalidResponse
 }
 
-func (key RuntimeServiceKey) Valid() bool {
-	return key == RuntimeServiceData || key == RuntimeServiceAgentRun || key == RuntimeServiceQdrant
-}
+func (key RuntimeServiceKey) Valid() bool { return key == RuntimeServiceData }
 
 func (key RuntimeServiceKey) DisplayName() string {
-	switch key {
-	case RuntimeServiceData:
+	if key == RuntimeServiceData {
 		return "Data Service"
-	case RuntimeServiceAgentRun:
-		return "AgentRun"
-	case RuntimeServiceQdrant:
-		return "Qdrant"
-	default:
-		return ""
 	}
+	return ""
 }

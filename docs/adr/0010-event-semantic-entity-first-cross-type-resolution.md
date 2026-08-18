@@ -2,6 +2,7 @@
 status: accepted
 date: 2026-08-02
 supersedes_in_part: 0009-event-semantic-qdrant-projection-and-agentrun-retrieval.md
+superseded_in_part_by: 0027-retire-agent-run.md
 ---
 
 # Event Semantic 采用 Entity-first 跨类型解析与候选级隔离

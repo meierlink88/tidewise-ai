@@ -6,7 +6,6 @@ deployment_root="${DEPLOY_ROOT:?DEPLOY_ROOT is required}"
 expected_runner="${UAT_RUNNER_NAME:?UAT_RUNNER_NAME is required}"
 swr_registry="${SWR_REGISTRY:?SWR_REGISTRY is required}"
 public_base_url="${UAT_PUBLIC_BASE_URL:?UAT_PUBLIC_BASE_URL is required}"
-agentrun_artifact_gid="10001"
 
 pass() {
   echo "PASS $1"
@@ -82,21 +81,9 @@ def database_config(path):
         raise SystemExit(f"FAIL rds-config: {path} requires ssl_mode=require")
     return values
 
-paths = (
-    "data-service/backend/configs/config.uat.yaml",
-    "agent-run/backend/configs/config.uat.yaml",
-)
-endpoints = [database_config(path) for path in paths]
-data_endpoint, agentrun_endpoint = endpoints
-if agentrun_endpoint["name"] != "tidewise_ai_server":
-    raise SystemExit("FAIL rds-config: AgentRun database must be tidewise_ai_server")
-if data_endpoint["name"] == agentrun_endpoint["name"]:
-    raise SystemExit("FAIL rds-config: Data and AgentRun must use different database names")
-if data_endpoint["user"] == agentrun_endpoint["user"]:
-    raise SystemExit("FAIL rds-config: Data and AgentRun must use different database users")
-for endpoint in endpoints:
-    with socket.create_connection((endpoint["host"], int(endpoint["port"])), timeout=10):
-        pass
+data_endpoint = database_config("data-service/backend/configs/config.uat.yaml")
+with socket.create_connection((data_endpoint["host"], int(data_endpoint["port"])), timeout=10):
+    pass
 
 public_endpoint = urlparse(os.environ["UAT_PUBLIC_BASE_URL"])
 if public_endpoint.scheme != "http" or not public_endpoint.hostname:
@@ -104,16 +91,8 @@ if public_endpoint.scheme != "http" or not public_endpoint.hostname:
 if public_endpoint.port or public_endpoint.path not in ("", "/") or public_endpoint.query or public_endpoint.fragment:
     raise SystemExit("FAIL public-base-url: port, path, query, and fragment are not allowed")
 PY
-pass data-and-agentrun-rds-private-tcp-and-config
+pass data-rds-private-tcp-and-config
 pass public-base-url
-
-artifact_dir="${AGENTRUN_ARTIFACT_DIR:-${deployment_root}/agentrun-artifacts}"
-[ -d "$artifact_dir" ] || fail agentrun-artifact-directory "$artifact_dir is missing"
-[ -w "$artifact_dir" ] || fail agentrun-artifact-directory "$artifact_dir is not writable"
-[ "$(stat -c '%U' "$artifact_dir")" = tidewise-deploy ] || fail agentrun-artifact-directory "$artifact_dir owner must be tidewise-deploy"
-[ "$(stat -c '%g' "$artifact_dir")" = "$agentrun_artifact_gid" ] || fail agentrun-artifact-directory "$artifact_dir group must use GID $agentrun_artifact_gid"
-[ "$(stat -c '%a' "$artifact_dir")" = 2770 ] || fail agentrun-artifact-directory "$artifact_dir mode must be 2770"
-pass agentrun-artifact-directory
 
 for port in 9012 9014; do
   container_ids="$(docker ps --filter "publish=$port" --format '{{.ID}}')"

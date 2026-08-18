@@ -1,5 +1,6 @@
 ---
-status: accepted
+status: superseded
+superseded_by: 0027-retire-agent-run.md
 superseded_in_part: 0011-data-owns-raw-evidence-and-evidence-publication.md
 ---
 

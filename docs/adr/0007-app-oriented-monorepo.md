@@ -2,6 +2,7 @@
 status: accepted
 date: 2026-07-25
 superseded_in_part: 0013-data-entity-domain-and-projection-retirement.md
+also_superseded_in_part: 0027-retire-agent-run.md
 ---
 
 # 按应用垂直组织 Tidewise AI Monorepo

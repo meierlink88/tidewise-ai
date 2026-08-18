@@ -1,4 +1,4 @@
-import { Database, Radio, ScanLine } from 'lucide-react';
+import { Database, Radio } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -12,7 +12,7 @@ import {
   useSidebar
 } from '../ui/sidebar';
 
-export type AdminPage = 'data-ingestion' | 'monitoring';
+export type AdminPage = 'data-ingestion';
 
 interface AdminNavigationProps {
   currentPage: AdminPage;
@@ -26,12 +26,6 @@ const navigationItems = [
     label: '采集中心',
     meta: 'Today',
     icon: Database
-  },
-  {
-    key: 'monitoring',
-    label: '监控中心',
-    meta: 'Live',
-    icon: ScanLine
   }
 ] satisfies Array<{
   key: AdminPage;

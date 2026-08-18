@@ -126,8 +126,7 @@ Resource model。
 
 - 所有浏览器请求继续通过 `src/api` 下的 typed Adapter 发往 Admin Backend。
 - TanStack Query key 必须稳定并反映 Backend resource/parameters，不包含明文 secret。
-- Mutation 成功后的 invalidation 或本地更新必须显式，不得把乐观更新用于不可安全回滚的
-  Schedule、Provider 或 Connector 操作。
+- Mutation 成功后的 invalidation 或本地更新必须显式，不得把乐观更新用于不可安全回滚的操作。
 - TanStack Table 的 server-side pagination/sort/filter 必须映射现有合同；不同时启用会
   产生冲突的 client-side 与 server-side 排序或分页。
 - Form default value、dirty/reset 和 Backend error mapping 必须显式。
