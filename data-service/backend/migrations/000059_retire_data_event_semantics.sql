@@ -159,6 +159,62 @@ DROP TABLE
     variable_definitions,
     product_profiles;
 
+-- Independent Data objects still participate in polymorphic EntityRelation,
+-- external-identifier, and redirect references. Keep their delete/update and
+-- truncate guards, but remove the retired Event Semantic reference sources.
+-- +goose StatementBegin
+CREATE OR REPLACE FUNCTION protect_data_object_references()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    PERFORM pg_advisory_xact_lock(hashtextextended(OLD.id, 0));
+    IF EXISTS (SELECT 1 FROM entity_edges WHERE from_entity_id = OLD.id OR to_entity_id = OLD.id)
+       OR EXISTS (SELECT 1 FROM entity_external_identifiers WHERE entity_id = OLD.id)
+       OR EXISTS (
+           SELECT 1 FROM entity_redirects
+           WHERE source_entity_id = OLD.id OR target_entity_id = OLD.id
+       ) THEN
+        RAISE EXCEPTION 'Data object % is still referenced and cannot change identity or be deleted', OLD.id;
+    END IF;
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+-- +goose StatementEnd
+
+-- +goose StatementBegin
+CREATE OR REPLACE FUNCTION protect_data_object_truncate()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    has_references BOOLEAN;
+BEGIN
+    EXECUTE format($query$
+        SELECT EXISTS (
+            WITH references_to_objects(id) AS (
+                SELECT from_entity_id FROM entity_edges
+                UNION ALL SELECT to_entity_id FROM entity_edges
+                UNION ALL SELECT entity_id FROM entity_external_identifiers
+                UNION ALL SELECT source_entity_id FROM entity_redirects
+                UNION ALL SELECT target_entity_id FROM entity_redirects
+            )
+            SELECT 1
+            FROM references_to_objects reference
+            JOIN %I owner ON owner.id = reference.id
+        )
+    $query$, TG_TABLE_NAME) INTO has_references;
+    IF has_references THEN
+        RAISE EXCEPTION 'Data object table % still owns referenced facts and cannot be truncated', TG_TABLE_NAME;
+    END IF;
+    RETURN NULL;
+END;
+$$;
+-- +goose StatementEnd
+
 DROP FUNCTION event_semantic_measurement_evidence_ids_compat();
 
 CREATE TRIGGER trg_research_theme_receipts_immutable
