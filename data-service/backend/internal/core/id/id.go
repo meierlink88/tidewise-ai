@@ -38,15 +38,8 @@ const (
 	ChainNodePhysicalConstraint       Kind = "CPC"
 	ChainNodeRelation                 Kind = "CNR"
 	CountryRegionLink                 Kind = "CRL"
-	DirectImpactAssertion             Kind = "DIA"
 	EntityExternalIdentifier          Kind = "EEI"
-	EventEntityLink                   Kind = "ENL"
 	EventPublicationReceipt           Kind = "EPR"
-	EventSemanticCandidateSnapshot    Kind = "ECS"
-	EventSemanticContextLease         Kind = "SCL"
-	EventSemanticResolutionBinding    Kind = "ERB"
-	EventSemanticReviewSnapshot       Kind = "ERS"
-	EventSemanticSubmission           Kind = "ESS"
 	EventEvidenceLink                 Kind = "EEL"
 	EventTagDefinition                Kind = "ETD"
 	EventTagAssignment                Kind = "ETA"
@@ -60,8 +53,6 @@ const (
 	ResearchReasoningTree             Kind = "RRT"
 	ResearchThemeReceipt              Kind = "RTI"
 	ResearchTheme                     Kind = "RTH"
-	VariableSignalMeasurement         Kind = "VSM"
-	VariableSignal                    Kind = "VSG"
 )
 
 var (
@@ -162,13 +153,11 @@ func registered(kind Kind) bool {
 	switch kind {
 	case Entity, Industry, Concept, ChainNode, IndustryChain, EntityRelation, Country, Region, Organization, OrganizationCategory, OrganizationFunction, OrganizationDomainTag,
 		OrganizationDomainTagLink, RawEvidence, Evidence, EvidenceCategory, RawEvidenceCategoryLink,
-		ChainNodePhysicalConstraint, ChainNodeRelation, CountryRegionLink, DirectImpactAssertion,
-		EntityExternalIdentifier, EventEntityLink, EventPublicationReceipt, EventSemanticCandidateSnapshot,
-		EventSemanticContextLease, EventSemanticResolutionBinding, EventSemanticReviewSnapshot,
-		EventSemanticSubmission, EventEvidenceLink, EventTagDefinition, EventTagAssignment, Event,
+		ChainNodePhysicalConstraint, ChainNodeRelation, CountryRegionLink,
+		EntityExternalIdentifier, EventPublicationReceipt, EventEvidenceLink, EventTagDefinition, EventTagAssignment, Event,
 		IndustryChainGraphEdge, IndustryRelationshipImportReceipt, OrganizationMembership,
 		EventEvidenceRecord, ResearchReasoningTreeReceipt, ResearchReasoningTreeNode, ResearchReasoningTree,
-		ResearchThemeReceipt, ResearchTheme, VariableSignalMeasurement, VariableSignal:
+		ResearchThemeReceipt, ResearchTheme:
 		return true
 	default:
 		return false

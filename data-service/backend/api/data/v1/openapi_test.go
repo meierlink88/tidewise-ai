@@ -34,13 +34,6 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/raw-documents":                                                  {method: "get", operationID: "listAdminRawDocuments", driftAnchor: "data.v1.listAdminRawDocuments", scope: "data.admin.read"},
 		namespace + "/events":                                                         {method: "get", operationID: "listAdminEvents", driftAnchor: "data.v1.listAdminEvents", scope: "data.admin.read"},
 		namespace + "/runtime-health":                                                 {method: "get", operationID: "getDataRuntimeHealth", driftAnchor: "data.v1.getRuntimeHealth", scope: "data.admin.read"},
-		namespace + "/event-semantics/eligible-events":                                {method: "get", operationID: "listEligibleEventSemanticEvents", driftAnchor: "data.v1.listEligibleEventSemanticEvents", scope: "data.event-semantics.read"},
-		namespace + "/event-semantics/context-leases":                                 {method: "post", operationID: "createEventSemanticContextLease", driftAnchor: "data.v1.createEventSemanticContextLease", scope: "data.event-semantics.write"},
-		namespace + "/event-semantics/context-leases/{context_lease_id}/context":      {method: "get", operationID: "getEventSemanticContext", driftAnchor: "data.v1.getEventSemanticContext", scope: "data.event-semantics.read"},
-		namespace + "/event-semantics/submissions":                                    {method: "post", operationID: "createEventSemanticSubmission", driftAnchor: "data.v1.createEventSemanticSubmission", scope: "data.event-semantics.write"},
-		namespace + "/event-semantics/submissions/{submission_id}/reviews":            {method: "post", operationID: "submitEventSemanticReview", driftAnchor: "data.v1.submitEventSemanticReview", scope: "data.event-semantics.write"},
-		namespace + "/events/{event_id}/semantics":                                    {method: "get", operationID: "getEventSemantics", driftAnchor: "data.v1.getEventSemantics", scope: "data.event-semantics.read"},
-		namespace + "/research-analysis-context":                                      {method: "get", operationID: "listResearchAnalysisContext", driftAnchor: "data.v1.listResearchAnalysisContext", scope: "data.research.read"},
 		namespace + "/research-graph:search":                                          {method: "post", operationID: "searchResearchGraph", driftAnchor: "data.v1.searchResearchGraph", scope: "data.research.read"},
 		namespace + "/reviewed-event-imports":                                         {method: "post", operationID: "publishReviewedEvents", driftAnchor: "data.v1.publishReviewedEvents", scope: "data.reviewed-events.import"},
 		namespace + "/raw-evidence-publications":                                      {method: "post", operationID: "publishRawEvidence", driftAnchor: "data.v1.publishRawEvidence", scope: "data.raw-evidences.import"},
@@ -110,6 +103,32 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 	}
 }
 
+func TestOpenAPIContractDoesNotPublishRetiredEventSemanticContracts(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	for _, path := range []string{
+		namespace + "/event-semantics/eligible-events",
+		namespace + "/event-semantics/context-leases",
+		namespace + "/event-semantics/context-leases/{context_lease_id}/context",
+		namespace + "/event-semantics/submissions",
+		namespace + "/event-semantics/submissions/{submission_id}/reviews",
+		namespace + "/events/{event_id}/semantics",
+		namespace + "/research-analysis-context",
+	} {
+		if _, exists := paths[path]; exists {
+			t.Errorf("retired path %q remains in the Data contract", path)
+		}
+	}
+
+	schemas := object(t, object(t, document["components"], "components")["schemas"], "schemas")
+	for name := range schemas {
+		if strings.HasPrefix(name, "EventSemantic") || strings.HasPrefix(name, "ResearchAnalysis") ||
+			strings.Contains(name, "VariableSignal") || strings.Contains(name, "DirectImpact") {
+			t.Errorf("retired schema %q remains in the Data contract", name)
+		}
+	}
+}
+
 func TestOpenAPIContractFreezesCountryWriteOperations(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
@@ -148,9 +167,6 @@ func TestOpenAPIContractFreezesIndustryAndConceptWriteOperations(t *testing.T) {
 	assertRequired(t, schema(t, document, "Concept"), "id", "name", "aliases", "concept_type", "definition", "review_status", "created_at", "updated_at")
 	assertRequired(t, schema(t, document, "ChainNode"), "id", "name", "aliases", "definition", "review_status", "created_at", "updated_at")
 	assertRequired(t, schema(t, document, "IndustryChain"), "id", "name", "aliases", "scope", "target_output", "end_use", "geography", "primary_country_id", "as_of_date", "review_status", "review_note", "technology_route_qualifier", "observable_variables", "created_at", "updated_at")
-	directImpactProperties := object(t, schema(t, document, "ResearchAnalysisDirectImpact")["properties"], "ResearchAnalysisDirectImpact properties")
-	targetIdentity := object(t, directImpactProperties["target_entity_id"], "ResearchAnalysisDirectImpact target_entity_id")
-	assertString(t, targetIdentity, "$ref", "#/components/schemas/ObjectID")
 }
 
 func TestOpenAPIContractFreezesIndustryAndConceptKeysetPagination(t *testing.T) {
@@ -197,20 +213,9 @@ func TestOpenAPICreateContractsDoNotAcceptSystemOwnedPrimaryKeys(t *testing.T) {
 		"EventPublicationEvent":                   {"id", "event_id"},
 		"EventPublicationEvidence":                {"id", "event_evidence_link_id"},
 		"EventPublicationTag":                     {"id", "event_tag_assignment_id"},
-		"EventSemanticContextLeaseRequest":        {"id", "context_lease_id"},
-		"EventSemanticSubmissionRequest":          {"id", "submission_id", "candidate_snapshot_id"},
-		"EventSemanticEntityLinkCandidate":        {"id", "event_entity_link_id", "resolution_binding_id"},
-		"EventSemanticVariableSignalCandidate":    {"id", "variable_signal_id"},
-		"EventSemanticMeasurement":                {"id", "measurement_id"},
-		"EventSemanticReviewRequest":              {"id", "review_snapshot_id", "resolution_binding_id"},
-		"EventSemanticReviewItem":                 {"id", "record_id"},
 		"ResearchThemeImportRequest":              {"id", "receipt_id", "theme_id", "reasoning_tree_receipt_id"},
-		"ResearchThemeSnapshotImportRequest":      {"id", "receipt_id", "theme_id", "reasoning_tree_receipt_id"},
-		"ResearchThemeImportItem":                 {"id", "theme_id"},
 		"ResearchThemeSnapshotItem":               {"id", "theme_id"},
-		"ResearchReasoningTreeImportItem":         {"id", "reasoning_tree_id"},
 		"ResearchReasoningTreeSnapshotImportItem": {"id", "reasoning_tree_id"},
-		"ResearchReasoningTreeImportNode":         {"id", "node_id"},
 		"ResearchReasoningTreeSnapshotNode":       {"id", "node_id"},
 	} {
 		properties := object(t, schema(t, document, schemaName)["properties"], schemaName+" properties")
@@ -269,37 +274,6 @@ func TestOpenAPIContractFreezesOrganizationNullsErrorsAndRequestIDs(t *testing.T
 	assertRequired(t, schema(t, document, "OrganizationCategory"), "id", "code", "name_zh")
 	assertRequired(t, schema(t, document, "OrganizationFunction"), "id", "code", "name_zh")
 	assertRequired(t, schema(t, document, "OrganizationDomainTag"), "id", "code", "function_code", "name_zh")
-}
-
-func TestEventSemanticManifestReadersDeclareRequestIDAndContextDrift(t *testing.T) {
-	document := loadContract(t)
-	paths := object(t, document["paths"], "paths")
-	operations := map[string]string{
-		namespace + "/event-semantics/context-leases/{context_lease_id}/context": "get",
-	}
-	for path, method := range operations {
-		operation := object(t, object(t, paths[path], path)[method], method+" "+path)
-		parameters := array(t, operation["parameters"], path+" parameters")
-		if stringValue(t, object(t, parameters[0], "request ID parameter")["$ref"], "$ref") != "#/components/parameters/RequestID" {
-			t.Fatalf("%s %s must accept the unified X-Request-ID parameter first: %v", method, path, parameters)
-		}
-		responses := object(t, operation["responses"], path+" responses")
-		drift := object(t, responses["409"], "409 response")
-		if stringValue(t, drift["$ref"], "$ref") != "#/components/responses/EventSemanticContextDrift" {
-			t.Fatalf("%s %s 409 response = %v", method, path, drift)
-		}
-	}
-	detail := schema(t, document, "EventSemanticContextDriftErrorDetail")
-	code := object(t, object(t, detail["properties"], "drift properties")["code"], "drift code")
-	assertStringSet(t, code["enum"], "EVENT_SEMANTIC_CONTEXT_DRIFT")
-}
-
-func TestEventSemanticV3ReviewCandidateTypesExcludeDirectImpact(t *testing.T) {
-	document := loadContract(t)
-	reviewItem := schema(t, document, "EventSemanticReviewItem")
-	properties := object(t, reviewItem["properties"], "EventSemanticReviewItem properties")
-	candidateType := object(t, properties["candidate_type"], "candidate_type")
-	assertStringSet(t, candidateType["enum"], "entity_link", "variable_signal")
 }
 
 func TestOpenAPIContractFreezesActiveEventTagCatalog(t *testing.T) {
@@ -369,7 +343,7 @@ func TestOpenAPIContractFreezesResearchReasoningTreeReadV1(t *testing.T) {
 	tree := schema(t, document, "ResearchReasoningTree")
 	assertRequired(t, tree,
 		"tree_key", "display_name",
-		"reasoning_tree_id", "theme_id", "industry_chain_id", "industry_chain_name", "title",
+		"reasoning_tree_id", "theme_id", "title",
 		"display_order", "one_line_conclusion", "fact_summary", "transmission_summary",
 		"impact_direction", "impact_strength", "impact_summary", "conclusion_boundary_summary",
 		"support_summary", "counter_summary", "invalidation_conditions", "checkpoints",
@@ -378,58 +352,18 @@ func TestOpenAPIContractFreezesResearchReasoningTreeReadV1(t *testing.T) {
 	node := schema(t, document, "ResearchReasoningTreeNode")
 	assertRequired(t, node,
 		"node_key", "display_name",
-		"id", "position", "chain_node_id", "name", "state_summary", "impact_direction",
+		"id", "position", "state_summary", "impact_direction",
 		"impact_strength", "impact_summary", "reasoning_basis_summary", "evidence_gap_summary",
-		"incoming_industry_chain_graph_edge_id", "incoming_transmission_title",
-		"incoming_transmission_mechanism", "incoming_condition_summary", "incoming_graph_edge",
+		"incoming_transmission_title", "incoming_transmission_mechanism", "incoming_condition_summary",
 		"signals", "primary_signal", "signal_display_summary",
 	)
 	detail := schema(t, document, "ResearchReasoningTreeDetail")
 	assertRequired(t, detail, "theme_id", "theme_key", "publication_mode", "publication_contract_version", "impact_node_ids", "reasoning_tree")
 }
 
-func TestOpenAPIContractFreezesAtomicResearchPublicationV2(t *testing.T) {
+func TestOpenAPIContractFreezesSnapshotOnlyResearchPublication(t *testing.T) {
 	document := loadContract(t)
-	paths := object(t, document["paths"], "paths")
-	if _, exists := paths[namespace+"/research-reasoning-tree-imports"]; exists {
-		t.Fatal("Reason Tree must not have an independent publication endpoint")
-	}
-	operation := object(t, object(t, paths[namespace+"/research-theme-imports"], "research Theme import path")["post"], "research Theme import operation")
-	assertString(t, operation, "x-canonicalization", "rfc8785-sha256")
-	assertString(t, operation, "x-atomicity", "one-theme-and-all-reason-trees-single-postgresql-transaction")
-	assertString(t, operation, "x-receipt-schema", "research_theme_import_receipts")
-	assertString(t, operation, "x-retry-policy", "idempotent-with-analysis-batch-id")
-
-	request := schema(t, document, "ResearchThemeImportRequest")
-	assertRequired(t, request, "analysis_batch_id", "analysis_as_of", "discovery_window_start", "discovery_window_end", "theme", "reasoning_trees")
-	tree := schema(t, document, "ResearchReasoningTreeImportItem")
-	assertRequired(t, tree,
-		"industry_chain_id", "title", "display_order", "one_line_conclusion", "fact_summary",
-		"transmission_summary", "impact_direction", "impact_strength", "impact_summary",
-		"conclusion_boundary_summary", "support_summary", "counter_summary",
-		"invalidation_conditions", "checkpoints", "events", "nodes",
-	)
-	node := schema(t, document, "ResearchReasoningTreeImportNode")
-	assertRequired(t, node,
-		"position", "chain_node_id", "state_summary", "impact_direction", "impact_strength",
-		"impact_summary", "reasoning_basis_summary", "evidence_gap_summary",
-		"incoming_industry_chain_graph_edge_id", "incoming_transmission_title",
-		"incoming_transmission_mechanism", "incoming_condition_summary", "incoming_lineage", "signals",
-	)
-	signal := schema(t, document, "ResearchReasoningTreeImportSignal")
-	assertRequired(t, signal, "variable_signal_key", "signal_role", "signal_direction", "display_summary", "display_order", "lineage")
-	assertRequired(t, schema(t, document, "ResearchReasoningTreeSignalLineage"),
-		"source_kind", "variable_signal_id", "semantic_submission_id", "evidence_id", "evidence_hash",
-		"upstream_variable_signal_id", "upstream_direct_impact_assertion_id", "entity_relation_id",
-		"industry_chain_graph_edge_id",
-	)
-	result := schema(t, document, "ResearchThemeImportResult")
-	assertRequired(t, result, "receipt_id", "analysis_batch_id", "theme_id", "payload_hash", "publication_mode", "reasoning_tree_ids_by_industry_chain_id", "reasoning_tree_ids_by_tree_key", "counts", "published_at", "imported_at", "replayed")
-}
-
-func TestOpenAPIContractFreezesAnalystSnapshotPublicationV3(t *testing.T) {
-	document := loadContract(t)
-	snapshot := schema(t, document, "ResearchThemeSnapshotImportRequest")
+	snapshot := schema(t, document, "ResearchThemeImportRequest")
 	assertRequired(t, snapshot, "publication_mode", "analysis_batch_id", "analysis_as_of", "discovery_window_start", "discovery_window_end", "theme", "reasoning_trees")
 	impact := schema(t, document, "ResearchThemeSnapshotImpact")
 	assertRequired(t, impact, "node_key", "display_name", "relation_role", "impact_direction", "impact_summary", "display_order")
@@ -443,39 +377,6 @@ func TestOpenAPIContractFreezesAnalystSnapshotPublicationV3(t *testing.T) {
 	assertRequired(t, signal, "signal_key", "display_summary", "role", "display_order", "variable_name", "direction")
 	if _, exists := object(t, signal["properties"], "snapshot signal properties")["variable_signal_id"]; exists {
 		t.Fatal("analyst_snapshot signal must not expose a formal VariableSignal ID")
-	}
-}
-
-func TestOpenAPIContractFreezesCorrectedResearchAnalysisContextV1(t *testing.T) {
-	document := loadContract(t)
-	contextSchema := schema(t, document, "ResearchAnalysisContext")
-	assertRequired(t, contextSchema,
-		"contract_version", "tbox_contract_version", "temporal_semantics", "temporal_limitation",
-		"event_page_fingerprint", "reference_closure_fingerprint", "discovery_window_start",
-		"discovery_window_end", "analysis_as_of", "event_semantic_bundles",
-		"dictionaries", "has_more",
-	)
-	contextProperties := object(t, contextSchema["properties"], "ResearchAnalysisContext properties")
-	assertStringSet(t, object(t, contextProperties["contract_version"], "contract_version")["enum"], "research-analysis-context.v1")
-	if _, exists := contextProperties["dictionary_fingerprint"]; exists {
-		t.Fatal("corrected Research Analysis Context v1 must not expose the global dictionary fingerprint")
-	}
-	paths := object(t, document["paths"], "paths")
-	operation := object(t, object(t, paths[namespace+"/research-analysis-context"], "Analysis Context path")["get"], "Analysis Context operation")
-	responses := object(t, operation["responses"], "Analysis Context responses")
-	assertString(t, object(t, responses["409"], "Analysis Context 409"), "$ref", "#/components/responses/ResearchAnalysisContextInconsistent")
-	dictionaries := schema(t, document, "ResearchAnalysisDictionaries")
-	assertRequired(t, dictionaries,
-		"entities", "relation_definitions", "entity_relations", "industry_chains",
-		"industry_chain_memberships", "industry_chain_graph_edges",
-		"variable_definitions",
-		"direct_transmission_rules", "acceptance_policies",
-	)
-	if _, exists := object(t, dictionaries["properties"], "ResearchAnalysisDictionaries properties")["entity_type_definitions"]; exists {
-		t.Fatal("Research Analysis Context must not expose retired database Entity Type Definitions")
-	}
-	if additional, ok := dictionaries["additionalProperties"].(bool); !ok || additional {
-		t.Fatalf("ResearchAnalysisDictionaries additionalProperties = %#v, want false", dictionaries["additionalProperties"])
 	}
 }
 
@@ -510,61 +411,6 @@ func TestOpenAPIContractFreezesControlledResearchGraphSearchV1(t *testing.T) {
 	)
 	details := schema(t, document, "ResearchResourceLimitDetails")
 	assertRequired(t, details, "component", "retry_guidance")
-}
-
-func TestOpenAPIContractFreezesResearchThemeBatchPublicationV1(t *testing.T) {
-	document := loadContract(t)
-	paths := object(t, document["paths"], "paths")
-	operation := object(t, object(t, paths[namespace+"/research-theme-imports"], "research Theme import path")["post"], "research Theme import operation")
-	assertString(t, operation, "x-canonicalization", "rfc8785-sha256")
-	assertString(t, operation, "x-atomicity", "one-theme-and-all-reason-trees-single-postgresql-transaction")
-	assertString(t, operation, "x-receipt-schema", "research_theme_import_receipts")
-	assertString(t, operation, "x-retry-policy", "idempotent-with-analysis-batch-id")
-
-	request := schema(t, document, "ResearchThemeImportRequest")
-	assertRequired(t, request, "analysis_batch_id", "analysis_as_of", "discovery_window_start", "discovery_window_end", "theme", "reasoning_trees")
-	properties := object(t, request["properties"], "ResearchThemeImportRequest properties")
-	for _, forbidden := range []string{"idempotency_key", "publisher_subject", "published_at", "confidence", "market_confirmation"} {
-		if _, exists := properties[forbidden]; exists {
-			t.Fatalf("ResearchThemeImportRequest must not expose %q", forbidden)
-		}
-	}
-	reasoningTrees := object(t, properties["reasoning_trees"], "reasoning_trees")
-	assertInt(t, reasoningTrees, "minItems", 1)
-
-	theme := schema(t, document, "ResearchThemeImportItem")
-	assertRequired(t, theme,
-		"theme_key", "title", "one_line_conclusion", "conclusion_direction", "impact_strength",
-		"attention_level", "conclusion_status", "transmission_stage", "investment_guidance_action",
-		"investment_guidance_summary", "time_horizon_category", "time_horizon_summary",
-		"transmission_summary", "checkpoint_summary", "risk_summary", "impacts", "events",
-	)
-	themeProperties := object(t, theme["properties"], "ResearchThemeImportItem properties")
-	for _, forbidden := range []string{"id", "event_ids", "chain_node_ids", "indices", "index_entity_ids", "confidence", "causal_chain", "research_direction", "confirmation_conditions"} {
-		if _, exists := themeProperties[forbidden]; exists {
-			t.Fatalf("ResearchThemeImportItem must not expose %q", forbidden)
-		}
-	}
-	assertString(t, object(t, themeProperties["theme_key"], "theme_key"), "pattern", "^[a-z0-9][a-z0-9._:-]{0,127}$")
-	assertStringSet(t, object(t, themeProperties["transmission_stage"], "transmission_stage")["enum"], "identification", "validation", "diffusion", "dampening")
-
-	impact := schema(t, document, "ResearchThemeImportImpact")
-	assertRequired(t, impact, "chain_node_id", "relation_role", "impact_direction", "impact_summary", "display_order")
-	lowercaseUUID := schema(t, document, "LowercaseUUID")
-	assertString(t, lowercaseUUID, "pattern", "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
-	assertString(t, object(t, object(t, impact["properties"], "impact properties")["chain_node_id"], "chain_node_id"), "$ref", "#/components/schemas/ChainNodeID")
-	assertStringSet(t, object(t, object(t, impact["properties"], "impact properties")["relation_role"], "relation_role")["enum"], "driver", "beneficiary", "constraint", "exposure")
-	event := schema(t, document, "ResearchThemeImportEvent")
-	assertRequired(t, event, "event_id", "evidence_role", "supported_claim")
-	assertString(t, object(t, object(t, event["properties"], "event properties")["event_id"], "event_id"), "$ref", "#/components/schemas/EventID")
-	assertStringSet(t, object(t, object(t, event["properties"], "event properties")["evidence_role"], "evidence_role")["enum"], "driver", "supporting", "contradicting", "context")
-
-	result := schema(t, document, "ResearchThemeImportResult")
-	assertRequired(t, result, "receipt_id", "analysis_batch_id", "payload_hash", "theme_id", "publication_mode", "reasoning_tree_ids_by_industry_chain_id", "reasoning_tree_ids_by_tree_key", "counts", "published_at", "imported_at", "replayed")
-	resultProperties := object(t, result["properties"], "ResearchThemeImportResult properties")
-	if value := object(t, resultProperties["reasoning_tree_ids_by_industry_chain_id"], "reasoning tree IDs")["additionalProperties"]; value == nil {
-		t.Fatal("reasoning_tree_ids_by_industry_chain_id must define UUID map values")
-	}
 }
 
 func TestOpenAPIContractFreezesBearerIdentityRequestIDAndStructuredErrors(t *testing.T) {

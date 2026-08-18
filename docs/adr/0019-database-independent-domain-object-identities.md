@@ -36,16 +36,12 @@ Data 各领域曾并存裸 UUID、`PREFIX_ + code`、固定短码和非 UUID 自
 `OCA` Organization Category、`OFN` Organization Function、`ODT` Organization Domain Tag、
 `ODL` Organization Domain Tag Link、
 `RAW` Raw Evidence、`EVD` Evidence、`EVC` Evidence Category、`RCL` Raw Evidence Category Link、`CPC` Chain Node Physical
-Constraint、`CNR` Chain Node Relation、`CRL` Country Region Link、`DIA` Direct Impact
-Assertion、`EEI` Entity External Identifier、`ENL` Event Entity Link、`EPR` Event
-Publication Receipt、`ECS` Event Semantic Candidate Snapshot、`SCL` Event Semantic Context
-Lease、`ERB` Event Semantic Resolution Binding、`ERS` Event Semantic Review Snapshot、`ESS`
-Event Semantic Submission、`EEL` Event Evidence Link、`ETD` Event Tag Definition、`ETA`
+Constraint、`CNR` Chain Node Relation、`CRL` Country Region Link、`EEI` Entity External Identifier、
+`EPR` Event Publication Receipt、`EEL` Event Evidence Link、`ETD` Event Tag Definition、`ETA`
 Event Tag Assignment、`EVT` Event、`IGE` Industry Chain Graph Edge、`IRI` Industry Relationship
 Import Receipt、`OMB` Organization Membership、`EER` Event Evidence Record、`RRI` Research
 Reasoning Tree Import Receipt、`RRN` Research Reasoning Tree Node、`RRT` Research Reasoning Tree、
-`RTI` Research Theme Import Receipt、`RTH` Research Theme、`VSM` Variable Signal Measurement、
-`VSG` Variable Signal。
+`RTI` Research Theme Import Receipt、`RTH` Research Theme。
 
 ## 切换与回滚
 
@@ -65,3 +61,7 @@ Issue #253 通过 forward-only migration `000054` 补齐 Organization Function �
 Issue #265 通过 forward-only migration `000058` 将已经独立的 Industry、Concept、ChainNode
 和 IndustryChain 从历史共享 `ENT` 身份切换到 `IND`、`CON`、`CND` 和 `ICH`，保留 canonical
 UUID 后缀并同步改写全部支持引用。普通 Entity 继续使用 `ENT`；四类独立对象不接受旧前缀。
+
+Issue #267 通过 forward-only migration `000059` 退役 Data-owned Event Semantic 与
+Variable Signal 持久化，因此从当前注册表删除 `DIA`、`ENL`、`ECS`、`SCL`、`ERB`、
+`ERS`、`ESS`、`VSM` 和 `VSG`。历史 migration 中的旧前缀仍是不可改写的账本事实。

@@ -44,14 +44,14 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 - **历史主题**：今日之前 30 个完整上海自然日的已发布研究主题，不包含今日。
 - **主题卡片**：主题列表中呈现一条研究主题的界面单元，不拥有独立业务事实。
 - **主题跟踪**：用户选择持续关注某个研究主题的产品行为；“跟踪中”数量是当前用户已跟踪的主题数，不是 Research Theme 的事实属性。
-- **主题影响（Theme Impact）**：Theme 的有序关注对象集合，节点之间没有主次。V2 formal
-  数据可用正式 Chain Node ID；V3 `analyst_snapshot` 使用 aggregate-local `node_key` 与
-  publication-time `display_name`。首页按 Data 稳定顺序展示名称及由 `impact_direction`
+- **主题影响（Theme Impact）**：Theme 的有序关注对象集合，节点之间没有主次。
+  `analyst_snapshot` 使用 aggregate-local `node_key` 与 publication-time `display_name`。
+  首页按 Data 稳定顺序展示名称及由 `impact_direction`
   机械映射的机会/风险/不确定判断，不展示 `relation_role`、`impact_summary` 或变量状态。
 - **影响路径页**：从首页 Theme 卡片进入的研究依据页。一个 Theme 页面可包含多棵 Reason
-  Tree；V2 Tree 对应正式 Industry Chain，V3 Tree 对应分析师命名的产业、宏观、估值或
-  商业模式传导路径，页面统一通过 Tab 切换。
-- **产品可见主题**：按 Theme 查询合同处于发布窗口内的 Research Theme。新 V2/V3
+  Tree；每棵 Tree 对应分析师命名的产业、宏观、估值或商业模式传导路径，页面统一通过
+  Tab 切换。
+- **产品可见主题**：按 Theme 查询合同处于发布窗口内的 Research Theme。新
   publication 都原子包含 1..N 棵 Reason Tree；历史零 Tree Theme 仍可读，并由影响路径页
   展示“影响路径暂未生成”。
 
@@ -86,8 +86,8 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 - Miniapp BFF 将两个请求分别一对一代理到对应 Data API，并映射成页面可直接渲染的 DTO。
 - BFF 成功响应直接使用 Data envelope 的 `result` 内容，不向小程序返回 Data `request_id/result` 外壳。
 - BFF 保留每棵树的单一 `events` 数组、Tree 摘要、节点和 Variable Signal 展示快照，不拼接、推断或重排研究语义。
-- BFF 对 V3 使用 `tree_key`、`node_key`、`signal_key` 与发布时 display snapshot；formal UUID
-  在 snapshot 数据中可为空且不得成为展示门禁。V1/V2 formal 数据继续按原身份 dual-read。
+- BFF 使用 `tree_key`、`node_key`、`signal_key` 与发布时 display snapshot；不读取或补造
+  已退役的 formal UUID。
 - BFF 不为一次请求扇出多个 Tree 查询，不访问 PostgreSQL/Neo4j，不补写或推断研究内容。
 - BFF 对 Theme 不存在、Theme 尚未发布推理树、Tree 不属于该 Theme 三种 `404` 状态分别返回 `RESEARCH_THEME_NOT_FOUND`、`RESEARCH_REASONING_TREES_NOT_FOUND`、`RESEARCH_REASONING_TREE_NOT_FOUND`；它们是 Miniapp 的稳定错误语义，不透传 Data 的 request ID 或错误外壳。
 - 现有 Theme 详情 API 保持不变。
@@ -113,12 +113,12 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 ## Reasoning Tree Page Presentation
 
 - 页面视觉与交互唯一基准为 `prototype/theme-direct-impact-investment-outlook-prototype.html`；原型业务文本仅为样例，正式页面全部由 API 数据生成。
-- Reason Tree Tab 使用 Data 返回的 Tree `display_name`；V2 可来自正式产业链名称，V3
-  直接使用分析师发布的路径名称。切换 Tab 后滚动到新树内容顶部，只复用数据缓存，不保存每个 Tab 的历史阅读位置。
+- Reason Tree Tab 使用 Data 返回的 Tree `display_name`，直接展示分析师发布的路径名称。
+  切换 Tab 后滚动到新树内容顶部，只复用数据缓存，不保存每个 Tab 的历史阅读位置。
 - 原子事件按 BFF 稳定顺序全部展示，不折叠；每条显示标题、摘要和可用时间，不展示内部证据角色。
 - 当前支持与当前反证是 Tree 级结论性描述；无反证时保留卡片并显示“当前暂无明确反证”。
 - 推理路径使用横向 ScrollView 展示全部紧凑节点与箭头，默认选择最大 `position` 节点；
-  选择节点只更新下方单个详情面板。V3 节点名称、变量名称和变量状态均直接使用发布时
+  选择节点只更新下方单个详情面板。节点名称、变量名称和变量状态均直接使用发布时
   display snapshot，不要求存在正式 Entity、VariableDefinition 或 VariableSignal。
 - 紧凑节点只展示节点序号、Data 返回的节点 `display_name`、primary Signal
   `display_summary`、机会/风险/不确定判断和影响强度，不展示第二个 Signal、数据缺口或选择状态文案。
@@ -127,8 +127,8 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 - 页面不展示“直接影响节点”“后续推导节点”“直接/间接”“信号入口”“路径节点”“结果节点”“变量信号”“推导依据”“数据缺口”或派生的节点路由标签。
 - “判断边界”只展示 `conclusion_boundary_summary`；“后续验证”按分析师顺序展示完整 `checkpoints[].summary`，不与 `invalidation_conditions` 按索引组合。
 - 所有已展示的研究文本自然换行并完整展示，不使用省略号截断；未展示的依据、缺口和
-  失效条件继续保留在现有合同中。V1/V2 formal 的强血缘继续 dual-read；V3 只保留调用方
-  实际提交的可选 Evidence 引用，不为展示补造 formal lineage。
+  失效条件继续保留在现有合同中。只保留调用方实际提交的可选 Evidence 引用，不为展示
+  补造 formal lineage。
 
 ## Frontend Mock Policy
 

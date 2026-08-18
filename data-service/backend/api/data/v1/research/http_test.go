@@ -15,10 +15,8 @@ import (
 )
 
 type httpStub struct {
-	analysisContextRequest *ResearchAnalysisContextRequest
-	graphRequest           *ResearchGraphSearchRequest
-	analysisDeadline       time.Time
-	themeReadDeadline      time.Time
+	graphRequest      *ResearchGraphSearchRequest
+	themeReadDeadline time.Time
 }
 
 func TestHTTPRegistersTheCompleteExistingResearchContract(t *testing.T) {
@@ -35,7 +33,6 @@ func TestHTTPRegistersTheCompleteExistingResearchContract(t *testing.T) {
 		{http.MethodGet, v1.APIPrefix + "/research/themes/theme-id", ""},
 		{http.MethodGet, v1.APIPrefix + "/research/themes/theme-id/reasoning-trees", ""},
 		{http.MethodGet, v1.APIPrefix + "/research/themes/theme-id/reasoning-trees/tree-id", ""},
-		{http.MethodGet, v1.APIPrefix + "/research-analysis-context", ""},
 		{http.MethodPost, v1.APIPrefix + "/research-graph:search", `{}`},
 	}
 	for _, route := range routes {
@@ -69,48 +66,15 @@ func (*httpStub) GetResearchReasoningTree(context.Context, *ReasoningTreeDetailR
 	return nil, nil
 }
 
-func (s *httpStub) ListResearchAnalysisContext(ctx context.Context, request *ResearchAnalysisContextRequest) (*v1.Response[ResearchAnalysisContext], error) {
-	s.analysisContextRequest = request
-	s.analysisDeadline, _ = ctx.Deadline()
-	return &v1.Response[ResearchAnalysisContext]{Status: v1.StatusOK, Result: ResearchAnalysisContext{
-		ContractVersion: "research-analysis-context.v1",
-		AnalysisAsOf:    request.AnalysisAsOf,
-	}}, nil
-}
-
 func (s *httpStub) SearchResearchGraph(_ context.Context, request *ResearchGraphSearchRequest) (*v1.Response[ResearchGraphSearchResult], error) {
 	s.graphRequest = request
 	return &v1.Response[ResearchGraphSearchResult]{Status: v1.StatusOK, Result: ResearchGraphSearchResult{
 		ContractVersion: "research-graph-search.v1", AnalysisAsOf: request.AnalysisAsOf,
-		Entities: []ResearchAnalysisEntity{}, RelationDefinitions: []ResearchAnalysisRelationDefinition{},
-		EntityRelations: []ResearchAnalysisEntityRelation{}, IndustryChains: []ResearchAnalysisIndustryChain{},
-		IndustryChainMemberships: []ResearchAnalysisIndustryChainMembership{},
-		IndustryChainGraphEdges:  []ResearchAnalysisIndustryChainGraphEdge{},
+		Entities: []ResearchGraphEntity{}, RelationDefinitions: []ResearchGraphRelationDefinition{},
+		EntityRelations: []ResearchGraphEntityRelation{}, IndustryChains: []ResearchGraphIndustryChain{},
+		IndustryChainMemberships: []ResearchGraphIndustryChainMembership{},
+		IndustryChainGraphEdges:  []ResearchGraphIndustryChainGraphEdge{},
 	}}, nil
-}
-
-func TestAnalysisContextHTTPBindsTheExistingResearchContract(t *testing.T) {
-	application := &httpStub{}
-	server := kratoshttp.NewServer()
-	RegisterHTTPServer(server, application)
-	request := httptest.NewRequest(
-		http.MethodGet,
-		v1.APIPrefix+"/research-analysis-context"+
-			"?discovery_window_start=2026-07-28T00%3A00%3A00Z"+
-			"&discovery_window_end=2026-07-29T00%3A00%3A00Z"+
-			"&analysis_as_of=2026-07-29T00%3A00%3A00Z&page_size=20",
-		nil,
-	)
-	recorder := httptest.NewRecorder()
-
-	server.ServeHTTP(recorder, request)
-
-	if recorder.Code != http.StatusOK || application.analysisContextRequest == nil ||
-		application.analysisContextRequest.PageSize != 20 ||
-		application.analysisContextRequest.DiscoveryWindowStart != "2026-07-28T00:00:00Z" ||
-		application.analysisDeadline.IsZero() || time.Until(application.analysisDeadline) > HeavyExecutionBudget {
-		t.Fatalf("status=%d request=%#v body=%s", recorder.Code, application.analysisContextRequest, recorder.Body)
-	}
 }
 
 func TestResearchThemeReadHTTPAppliesFiveSecondBudget(t *testing.T) {
@@ -122,24 +86,6 @@ func TestResearchThemeReadHTTPAppliesFiveSecondBudget(t *testing.T) {
 	remaining := time.Until(application.themeReadDeadline)
 	if recorder.Code != http.StatusOK || application.themeReadDeadline.IsZero() || remaining <= 0 || remaining > ReadExecutionBudget {
 		t.Fatalf("status=%d read deadline remaining=%s", recorder.Code, remaining)
-	}
-}
-
-func TestAnalysisContextHTTPRejectsMissingUnknownAndRepeatedQueryParameters(t *testing.T) {
-	valid := v1.APIPrefix + "/research-analysis-context?discovery_window_start=2026-07-28T00%3A00%3A00Z&discovery_window_end=2026-07-29T00%3A00%3A00Z&analysis_as_of=2026-07-29T00%3A00%3A00Z&page_size=20"
-	for _, target := range []string{
-		v1.APIPrefix + "/research-analysis-context?analysis_as_of=2026-07-29T00%3A00%3A00Z&page_size=20",
-		valid + "&invented=true",
-		valid + "&page_size=30",
-	} {
-		application := &httpStub{}
-		server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(publicErrorStatusEncoder(t)))
-		RegisterHTTPServer(server, application)
-		recorder := httptest.NewRecorder()
-		server.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, target, nil))
-		if recorder.Code != http.StatusBadRequest || application.analysisContextRequest != nil {
-			t.Fatalf("target=%s status=%d request=%#v", target, recorder.Code, application.analysisContextRequest)
-		}
 	}
 }
 
@@ -222,7 +168,7 @@ func TestResearchThemeBindingRejectsDuplicateAndUnknownFieldsWithPath(t *testing
 }
 
 func TestResearchThemeBindingAcceptsIsolatedAnalystSnapshotAndRejectsFormalIDs(t *testing.T) {
-	request := ResearchThemeSnapshotImportRequest{
+	request := ResearchThemeImportRequest{
 		PublicationMode: "analyst_snapshot", AnalysisBatchID: "batch-snapshot",
 		AnalysisAsOf: "2026-08-03T11:00:00Z", DiscoveryWindowStart: "2026-08-03T03:00:00Z",
 		DiscoveryWindowEnd: "2026-08-03T07:00:00Z",
@@ -251,7 +197,7 @@ func TestResearchThemeBindingAcceptsIsolatedAnalystSnapshotAndRejectsFormalIDs(t
 		t.Fatal(err)
 	}
 	decoded, err := decodeResearchThemeImport(payload)
-	if err != nil || decoded.Snapshot == nil {
+	if err != nil || decoded == nil {
 		t.Fatalf("decode analyst_snapshot = %#v, %v", decoded, err)
 	}
 
@@ -262,20 +208,7 @@ func TestResearchThemeBindingAcceptsIsolatedAnalystSnapshotAndRejectsFormalIDs(t
 	}
 }
 
-func TestResearchThemeBindingRequiresAtomicTreeAndLineageShape(t *testing.T) {
-	payload := `{"analysis_batch_id":"batch","analysis_as_of":"2026-07-29T00:00:00Z","discovery_window_start":"2026-07-28T00:00:00Z","discovery_window_end":"2026-07-29T00:00:00Z","theme":{},"reasoning_trees":[{"industry_chain_id":"ICH22222222-2222-4222-8222-222222222222"}]}`
-	_, err := decodeResearchThemeImport([]byte(payload))
-	publicError, ok := err.(*v1.PublicError)
-	if !ok {
-		t.Fatalf("error = %T %v, want *v1.PublicError", err, err)
-	}
-	details, ok := publicError.Details.(map[string]any)
-	if !ok || details["path"] != "reasoning_trees[0].title" {
-		t.Fatalf("details = %#v", publicError.Details)
-	}
-}
-
-func TestResearchThemeBindingAcceptsAtomicAggregateShape(t *testing.T) {
+func TestResearchThemeBindingRejectsRetiredFormalAggregateShape(t *testing.T) {
 	payload := `{
 		"analysis_batch_id":"batch","analysis_as_of":"2026-07-02T00:00:00Z",
 		"discovery_window_start":"2026-07-01T00:00:00Z","discovery_window_end":"2026-07-02T00:00:00Z",
@@ -295,7 +228,7 @@ func TestResearchThemeBindingAcceptsAtomicAggregateShape(t *testing.T) {
 			}]
 		}]
 	}`
-	if _, err := decodeResearchThemeImport([]byte(payload)); err != nil {
-		t.Fatalf("decode atomic aggregate: %#v", err)
+	if _, err := decodeResearchThemeImport([]byte(payload)); err == nil {
+		t.Fatal("retired formal Research aggregate was accepted")
 	}
 }

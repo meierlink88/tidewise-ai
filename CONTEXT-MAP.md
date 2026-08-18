@@ -10,7 +10,7 @@ API 协作的边界。
 | ------------ | --------------- | -------------------------------------------------------- | -------------------------------------- |
 | Miniapp      | 产品系统        | `miniapp/frontend` 与 `miniapp/backend`                  | `docs/contexts/miniapp/CONTEXT.md`     |
 | Admin Portal | 产品系统        | `admin-portal/frontend` 与 `admin-portal/backend`        | `docs/contexts/adminportal/CONTEXT.md` |
-| Data         | 领域系统        | `data-service/backend`、数据事实、导入和查询能力 | `docs/contexts/data/CONTEXT.md`        |
+| Data         | 领域系统        | `data-service/backend`、事实、snapshot Research 导入和查询 | `docs/contexts/data/CONTEXT.md`        |
 | AgentRun     | 遗留 Agent 平台 | `agent-run/backend`、待独立退役的执行与 Artifact 能力    | `docs/contexts/agentrun/CONTEXT.md`    |
 
 `data-service` 是工程应用名，领域术语仍为 Data Domain Service。AgentRun 的既有
@@ -69,6 +69,7 @@ Data Domain Service
 - `docs/adr/0015-retire-root-shared-test-fixtures.md`
 - `docs/adr/0020-local-docker-application-and-infrastructure-projects.md`
 - `docs/adr/0021-simplify-atomic-evidence-semantics.md`
+- `docs/adr/0026-retire-data-event-semantic-and-formal-research.md`
 
 ## Runtime
 

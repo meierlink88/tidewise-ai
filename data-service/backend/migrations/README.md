@@ -62,6 +62,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000058_assign_independent_object_id_prefixes.sql`：保留四类独立对象的 canonical UUID 后缀，
   将 Industry、Concept、ChainNode、IndustryChain 的历史 `ENT` 前缀分别切换为
   `IND`、`CON`、`CND`、`ICH`，并同步改写全部直接、多态和 JSONB 引用。
+- `000059_retire_data_event_semantics.sql`：删除 Data-owned Event Semantic/Variable Signal
+  能力和持久化，并在语义表之前删除依赖它们的 formal Research 行；保留
+  `analyst_snapshot` Research 及 Atomic Evidence `semantic`。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -141,6 +144,14 @@ migration 后才执行 apply。执行后确认 ledger 为 `58`，四类 owner �
 `IND`/`CON`/`CND`/`ICH`，所有 UUID 后缀、事实数量和内容保持一致，直接外键、多态引用、
 Research 与 JSONB 回执无旧身份或孤儿。旧应用不兼容新前缀；回滚必须同时恢复 migration
 58 前快照和上一版应用，不运行 down migration。
+
+`000059` 是 Issue #267 授权的零兼容破坏性切换。操作员必须停止 Data 与相关上游写入者、
+确认 PostgreSQL 恢复点，并用候选镜像 check-only；只有确认 `000059` 是唯一 pending
+migration 后才执行 apply。执行后确认 ledger 为 `59`，所有 Event Semantic、Variable
+Signal、Direct Impact 与相关 definition/policy/catalog 表均不存在，formal/lineage Research
+行已删除，既有 `analyst_snapshot` 可重放、读取且引用完整，Atomic Evidence `semantic`
+保持原合同。旧应用不兼容新 schema；回滚必须同时恢复 migration 59 前快照和上一版应用，
+不运行 down migration。
 
 Data 不再提供 `source-seed` 或维护 `source_catalogs`，既有 Event Publication 仍只通过
 `POST /api/data/v1/reviewed-event-imports` 连同轻量 Event 证据原子接纳；历史
