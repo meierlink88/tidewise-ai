@@ -665,6 +665,24 @@ if [ "$deployment_mode" = tidewise_2_cutover ]; then
   write_data2_cutover_marker prepared
   current_release_compose=("${compose_command[@]}" --env-file "$current_runtime" --env-file "$current_images" -f "$current_compose")
   "${current_release_compose[@]}" stop
+  for service in data agentrun miniapp adminportal admin; do
+    if ! running_container_ids="$(docker ps \
+      --filter label=com.docker.compose.project=tidewise-uat \
+      --filter "label=com.docker.compose.service=${service}" \
+      --filter status=running \
+      --quiet)"; then
+      echo "FAIL application-write-stop: unable to inspect ${service} containers before enforced stop" >&2
+      exit 1
+    fi
+    if [ -n "$running_container_ids" ]; then
+      while IFS= read -r running_container_id; do
+        if [ -n "$running_container_id" ] && ! docker stop "$running_container_id" >/dev/null; then
+          echo "FAIL application-write-stop: unable to stop ${service} container ${running_container_id}" >&2
+          exit 1
+        fi
+      done <<< "$running_container_ids"
+    fi
+  done
   if ! running_services="$("${current_release_compose[@]}" ps --status running --services)"; then
     echo "FAIL application-write-stop: unable to inspect current Compose services" >&2
     exit 1
