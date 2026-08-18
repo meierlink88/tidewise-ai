@@ -37,18 +37,17 @@ func TestOpenAPIContractMatchesMiniappTypedClient(t *testing.T) {
 	}
 
 	for schemaName, dataType := range map[string]reflect.Type{
-		"ResearchThemeCollection":        reflect.TypeOf(wireResearchThemePage{}),
-		"ResearchThemeSummary":           reflect.TypeOf(wireResearchTheme{}),
-		"ResearchThemeDetail":            reflect.TypeOf(wireResearchThemeDetail{}),
-		"ResearchThemeImpact":            reflect.TypeOf(wireResearchThemeImpact{}),
-		"ResearchEvent":                  reflect.TypeOf(wireResearchEvent{}),
-		"ResearchReasoningTreeSummary":   reflect.TypeOf(wireResearchReasoningTreeSummary{}),
-		"ResearchReasoningTreeList":      reflect.TypeOf(wireResearchReasoningTreeList{}),
-		"ResearchReasoningTreeGraphEdge": reflect.TypeOf(wireResearchGraphEdge{}),
-		"ResearchReasoningTreeSignal":    reflect.TypeOf(wireResearchSignal{}),
-		"ResearchReasoningTreeNode":      reflect.TypeOf(wireResearchReasoningTreeNode{}),
-		"ResearchReasoningTree":          reflect.TypeOf(wireResearchReasoningTree{}),
-		"ResearchReasoningTreeDetail":    reflect.TypeOf(wireResearchReasoningTreeDetail{}),
+		"ResearchThemeCollection":      reflect.TypeOf(wireResearchThemePage{}),
+		"ResearchThemeSummary":         reflect.TypeOf(wireResearchTheme{}),
+		"ResearchThemeDetail":          reflect.TypeOf(wireResearchThemeDetail{}),
+		"ResearchThemeImpact":          reflect.TypeOf(wireResearchThemeImpact{}),
+		"ResearchEvent":                reflect.TypeOf(wireResearchEvent{}),
+		"ResearchReasoningTreeSummary": reflect.TypeOf(wireResearchReasoningTreeSummary{}),
+		"ResearchReasoningTreeList":    reflect.TypeOf(wireResearchReasoningTreeList{}),
+		"ResearchReasoningTreeSignal":  reflect.TypeOf(wireResearchSignal{}),
+		"ResearchReasoningTreeNode":    reflect.TypeOf(wireResearchReasoningTreeNode{}),
+		"ResearchReasoningTree":        reflect.TypeOf(wireResearchReasoningTree{}),
+		"ResearchReasoningTreeDetail":  reflect.TypeOf(wireResearchReasoningTreeDetail{}),
 	} {
 		assertDTOJSONFieldsMatchSchema(t, document, schemaName, dataType)
 	}

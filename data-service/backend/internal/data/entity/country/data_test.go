@@ -10,7 +10,6 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
-	eventsemanticdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/eventsemantic"
 	postgresfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/postgres"
 )
 
@@ -206,18 +205,6 @@ INSERT INTO direct_impact_assertions (
 			t.Fatalf("%s count = %d, want 0", label, count)
 		}
 	}
-	eventSemanticStore, err := eventsemanticdata.NewStore(db)
-	if err != nil {
-		t.Fatal(err)
-	}
-	semanticResult, err := eventSemanticStore.GetEventSemantics(ctx, eventID)
-	if err != nil {
-		t.Fatalf("read Event Semantics after Economy cutover: %v", err)
-	}
-	if len(semanticResult.Submissions) != 0 {
-		t.Fatalf("retired Event Semantic submissions = %#v", semanticResult.Submissions)
-	}
-
 	if _, err := db.ExecContext(ctx, `INSERT INTO countries (id, code, name, name_en)
 VALUES ('COU_TST', 'TST', '测试国', 'Test Country')`); err != nil {
 		t.Fatal(err)
