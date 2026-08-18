@@ -20,7 +20,8 @@ UAT 由 GitHub Actions 手工发布到华为云 ECS，运行时数据库使用�
   检查和失败时的整套镜像回退。
 - Workflow 默认使用 `normal` 模式。一次性的 `tidewise_2_cutover` 模式只用于把既有
   Data migration `44` 原子推进到 `58`，并强制构建和发布四个 Tidewise AI 服务；完成后
-  `data_59_cutover` 以同一停写和恢复合同把 Data 从 `58` 推进到 `59`。两种有界切换完成后，
+  `data_59_cutover` 以同一停写和恢复合同把 Data 从 `58` 推进到 `59`，
+  `data_60_cutover` 再以同等门禁重建 Event 领域。有界切换完成后，
   后续迭代继续使用同一个 workflow 的默认 `normal` 模式。
 
 服务目录与部署映射固定为：
@@ -182,9 +183,17 @@ migration 59 开始后，失败恢复只允许相同目标 SHA 和目标版本 `
 后续 release 回到 `normal` 的 schema-only 合同。该边界实现 ADR 0026 的零 mixed-version发布
 和快照回滚要求，不把普通部署放宽为可以执行任意 `data`/`mixed` migration。
 
+### Data migration 60 Event 有界切换
+
+`data_60_cutover` 只接受 Data 当前 migration `59` 且唯一 pending migration 为 `60`。
+该模式要求 RDS 恢复点和破坏性 Data 变更双重确认，强制构建四服务 release unit，
+并在 `dbmigrate -apply -target-version 60` 前停止且证明全部应用与 one-off/restarting
+容器不再运行。迁移开始后只允许同 SHA、目标版本 `60` 的 forward recovery，并使用
+独立 `pre-data60.*` 检查点。该边界实现 ADR 0028 的零 mixed-version 和快照回滚要求。
+
 ### AgentRun 一次性退役清理
 
-只有 UAT Data ledger 已到 `59`、无 pending migration，且不存在 cutover/recovery
+只有 UAT Data ledger 已到当前目标（现为 `60`）、无 pending migration，且不存在 cutover/recovery
 marker 时才可开始。先停止并证明 AgentRun 及 one-shot 容器不再运行，再由 RDS
 管理员核对确切目标后删除 `tidewise_ai_server` database 和 AgentRun 专用 role；不得
 删除共享 RDS engine 或任何 Data database/role。随后删除
@@ -237,5 +246,6 @@ Miniapp 客户端地址和 Admin CORS 配置。发布完成后应从 ECS 外部�
    恢复且确认历史 Data 不兼容时才勾选 `rebuild_empty_data_schema`。切换成功后的日常
    迭代保持默认 `normal`。若唯一 pending 是 migration `59`，按 ADR 0026 选择
    `data_59_cutover` 并勾选两个确认项。如普通 check-only 报告包含高风险 Schema migration，
-   核验恢复点后重新勾选 `confirm_high_risk_backup` 执行。
+   核验恢复点后重新勾选 `confirm_high_risk_backup` 执行。当唯一 pending 为 migration
+   `60` 时，按 ADR 0028 选择 `data_60_cutover` 并勾选两个确认项。
 7. 检查 Actions deployment plan、受影响业务镜像、完整四服务 release state、代表性 BFF→Data 读取以及 `state/current.sha`、`state/previous.sha`。

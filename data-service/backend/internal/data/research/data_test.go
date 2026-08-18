@@ -7,12 +7,14 @@ import (
 	"testing"
 	"time"
 
+	eventbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/event"
+	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
 	researchbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/research"
 	entitydata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity"
+	eventdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/event"
+	evidencedata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/evidence"
 	postgresfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/postgres"
 )
-
-const integrationEventID = "EVT11111111-1111-4111-8111-111111111111"
 
 func TestResearchThemeAdapterRejectsMalformedPersistedRows(t *testing.T) {
 	now := time.Date(2026, 8, 12, 8, 0, 0, 0, time.UTC)
@@ -100,10 +102,44 @@ func TestPostgresSnapshotPublicationWorksOnCurrentSchema(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if _, err := db.ExecContext(ctx, `INSERT INTO events (
-    id, title, summary, first_seen_at, event_status, fact_status, dedupe_key, fact_payload
-) VALUES ($1, 'Snapshot Event', 'Snapshot Event summary', now(), 'confirmed', 'verified',
-    'research-snapshot-ledger', '{}'::jsonb)`, integrationEventID); err != nil {
+	evidenceStore, err := evidencedata.NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	evidenceUseCase, err := evidencebiz.NewUseCase(evidenceStore)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publishedAt := time.Now().UTC().Add(-2 * time.Hour)
+	raw, err := evidenceUseCase.PublishRawEvidence(ctx, evidencebiz.RawEvidence{
+		PublicationKey: "research-snapshot-ledger", SourceID: "SRC_research_snapshot", SourceName: "Research Source",
+		SourceLevel: evidencebiz.SourceLevelOfficial, SourceURL: "https://example.test/research", IsOriginal: true,
+		RawText: "Research snapshot source.", PublishedAt: &publishedAt, CollectedAt: publishedAt.Add(time.Minute),
+		Keywords: []string{"research"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	evidence, err := evidenceUseCase.PublishEvidence(ctx, raw.ID, []evidencebiz.Evidence{{
+		Summary: "Research snapshot evidence.", Semantic: evidencebiz.Semantic{What: "supports a Research snapshot"},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	eventStore, err := eventdata.NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	eventUseCase, err := eventbiz.NewUseCase(eventStore)
+	if err != nil {
+		t.Fatal(err)
+	}
+	event, err := eventUseCase.Create(ctx, eventbiz.CreateInput{
+		Title: "Snapshot Event", Summary: "Snapshot Event summary.", Semantic: eventbiz.Semantic{},
+		Modality: eventbiz.ModalityFact,
+		Evidence: []eventbiz.EvidenceLinkInput{{EvidenceID: evidence.IDs[0], ContributionWeight: 1}},
+	})
+	if err != nil {
 		t.Fatal(err)
 	}
 	store, err := NewStore(db)
@@ -119,6 +155,10 @@ func TestPostgresSnapshotPublicationWorksOnCurrentSchema(t *testing.T) {
 		t.Fatal(err)
 	}
 	aggregate := integrationSnapshotAggregate(time.Now().UTC().Truncate(time.Second))
+	aggregate.Theme.Events[0].EventID = event.Event.ID
+	aggregate.Theme.Events[0].EvidenceIDs = []string{event.Evidence[0].ID}
+	aggregate.ReasoningTrees[0].Events[0].EventID = event.Event.ID
+	aggregate.ReasoningTrees[0].Events[0].EvidenceIDs = []string{event.Evidence[0].ID}
 	first, err := useCase.PublishSnapshot(ctx, "integration-analyst", aggregate)
 	if err != nil {
 		t.Fatal(err)
@@ -167,13 +207,13 @@ func integrationSnapshotAggregate(asOf time.Time) researchbiz.SnapshotAggregate 
 				NodeKey: "node:ledger", DisplayName: "Ledger Node", RelationRole: "driver",
 				ImpactDirection: "positive", DisplayOrder: 1,
 			}},
-			Events: []researchbiz.SnapshotEvent{{EventID: integrationEventID, EvidenceRole: "driver"}},
+			Events: []researchbiz.SnapshotEvent{{EventID: "EVT11111111-1111-4111-8111-111111111111", EvidenceRole: "driver"}},
 		},
 		ReasoningTrees: []researchbiz.SnapshotReasoningTree{{
 			TreeKey: "tree:ledger", DisplayName: "Ledger Tree", Title: "Ledger Tree",
 			DisplayOrder: 1, OneLineConclusion: "Snapshot reasoning", ImpactDirection: "positive",
 			ImpactStrength: "medium", InvalidationConditions: []string{}, Checkpoints: []researchbiz.ReasonTreeCheckpoint{},
-			Events: []researchbiz.SnapshotTreeEvent{{EventID: integrationEventID, EvidenceRole: "driver", DisplayOrder: 1}},
+			Events: []researchbiz.SnapshotTreeEvent{{EventID: "EVT11111111-1111-4111-8111-111111111111", EvidenceRole: "driver", DisplayOrder: 1}},
 			Nodes: []researchbiz.SnapshotNode{{
 				NodeKey: "node:ledger", DisplayName: "Ledger Node", Position: 1,
 				ImpactDirection: "positive", ImpactStrength: "medium",

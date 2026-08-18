@@ -92,10 +92,10 @@ COALESCE((
 		'evidence_ids', association.evidence_ids,
         'title', event.title,
         'summary', event.summary,
-        'event_time', event.event_time,
+        'event_time', event.occurred_at,
         'evidence_role', association.evidence_role,
         'supported_claim', association.supported_claim
-    ) ORDER BY event.event_time DESC NULLS LAST, event.id)
+    ) ORDER BY event.occurred_at DESC NULLS LAST, event.id)
     FROM research_theme_events association
     JOIN events event ON event.id = association.event_id
     WHERE association.theme_id = t.id
@@ -353,7 +353,7 @@ SELECT theme.theme_key, receipt.publication_mode, receipt.publication_contract_v
        COALESCE((
            SELECT jsonb_agg(jsonb_build_object(
                'event_id', event.id, 'evidence_ids', association.evidence_ids,
-               'title', event.title, 'summary', event.summary, 'event_time', event.event_time,
+               'title', event.title, 'summary', event.summary, 'event_time', event.occurred_at,
                'evidence_role', association.evidence_role, 'display_order', association.display_order
            ) ORDER BY association.display_order)
            FROM research_reasoning_tree_events association

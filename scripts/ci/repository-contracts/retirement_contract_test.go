@@ -9,12 +9,12 @@ import (
 
 func TestAdminContractRetainsDataListsAndRejectsRetiredRoutes(t *testing.T) {
 	content := readContractFile(t, "../../../admin-portal/backend/api/admin/v1/openapi.yaml")
-	for _, retained := range []string{"/api/admin/v1/raw-documents:", "/api/admin/v1/events:", "/api/admin/v1/runtime-health:"} {
+	for _, retained := range []string{"/api/admin/v1/events:", "/api/admin/v1/runtime-health:"} {
 		if !strings.Contains(content, retained) {
 			t.Fatalf("Admin OpenAPI missing %q", retained)
 		}
 	}
-	for _, retired := range []string{"agent-schedules", "agent-statuses", "/monitoring/", "model-providers", "/connectors"} {
+	for _, retired := range []string{"agent-schedules", "agent-statuses", "/monitoring/", "model-providers", "/connectors", "/raw-documents"} {
 		if strings.Contains(content, retired) {
 			t.Fatalf("Admin OpenAPI still publishes %q", retired)
 		}

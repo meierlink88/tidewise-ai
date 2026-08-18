@@ -124,8 +124,14 @@ func (t *publicationTransaction) ReferenceFacts(
 }
 
 func (t *publicationTransaction) events(ctx context.Context, ids []string) (map[string]researchbiz.EventFact, error) {
-	rows, err := t.tx.QueryContext(ctx, `SELECT id::text, COALESCE(knowable_at, first_seen_at)
-FROM events WHERE id = ANY($1::text[])`, ids)
+	rows, err := t.tx.QueryContext(ctx, `SELECT event.id,
+       MIN(GREATEST(COALESCE(raw.published_at, raw.collected_at), raw.collected_at))
+FROM events event
+JOIN event_evidence_links link ON link.event_id = event.id
+JOIN evidences evidence ON evidence.id = link.evidence_id
+JOIN raw_evidences raw ON raw.id = evidence.raw_evidence_id
+WHERE event.id = ANY($1::text[]) AND event.status = 'ACTIVE'
+GROUP BY event.id`, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -142,12 +148,12 @@ FROM events WHERE id = ANY($1::text[])`, ids)
 }
 
 func (t *publicationTransaction) evidences(ctx context.Context, ids []string) (map[string]researchbiz.EvidenceFact, error) {
-	rows, err := t.tx.QueryContext(ctx, `SELECT source.id::text, source.event_id::text,
-       source.evidence_hash,
-       GREATEST(COALESCE(document.published_at, document.collected_at), document.collected_at)
-FROM event_sources source
-JOIN raw_documents document ON document.id = source.raw_document_id
-WHERE source.id = ANY($1::text[])`, ids)
+	rows, err := t.tx.QueryContext(ctx, `SELECT link.id, link.event_id,
+       GREATEST(COALESCE(raw.published_at, raw.collected_at), raw.collected_at)
+FROM event_evidence_links link
+JOIN evidences evidence ON evidence.id = link.evidence_id
+JOIN raw_evidences raw ON raw.id = evidence.raw_evidence_id
+WHERE link.id = ANY($1::text[])`, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +161,7 @@ WHERE source.id = ANY($1::text[])`, ids)
 	result := make(map[string]researchbiz.EvidenceFact)
 	for rows.Next() {
 		var value researchbiz.EvidenceFact
-		if err := rows.Scan(&value.ID, &value.EventID, &value.Hash, &value.KnowledgeAvailableAt); err != nil {
+		if err := rows.Scan(&value.ID, &value.EventID, &value.KnowledgeAvailableAt); err != nil {
 			return nil, err
 		}
 		result[value.ID] = value

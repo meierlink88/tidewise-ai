@@ -29,7 +29,6 @@ func TestEveryAdminEndpointExecutesKratosMiddleware(t *testing.T) {
 		path      string
 		operation string
 	}{
-		{APIPrefix + "/raw-documents", OperationListRawDocuments},
 		{APIPrefix + "/events", OperationListEvents},
 		{APIPrefix + "/runtime-health", OperationGetRuntimeHealth},
 	} {
@@ -50,6 +49,7 @@ func TestRetiredManagementRoutesAreNotRegistered(t *testing.T) {
 		APIPrefix + "/monitoring/summary",
 		APIPrefix + "/model-providers",
 		APIPrefix + "/connectors",
+		APIPrefix + "/raw-documents",
 	} {
 		response := httptest.NewRecorder()
 		server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
@@ -59,11 +59,26 @@ func TestRetiredManagementRoutesAreNotRegistered(t *testing.T) {
 	}
 }
 
+func TestEventListRejectsRetiredOrUnknownFilters(t *testing.T) {
+	server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(func(writer http.ResponseWriter, _ *http.Request, err error) {
+		if public, ok := PublicError(err); ok {
+			writer.WriteHeader(public.Status())
+			return
+		}
+		writer.WriteHeader(http.StatusInternalServerError)
+	}))
+	RegisterAdminHTTPServer(server, stubAdminHTTPServer{})
+	for _, query := range []string{"event_status=confirmed", "fact_status=verified", "first_seen_from=2026-08-18T00%3A00%3A00Z", "tag=macro"} {
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, APIPrefix+"/events?"+query, nil))
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("query %q status=%d, want 400", query, response.Code)
+		}
+	}
+}
+
 type stubAdminHTTPServer struct{}
 
-func (stubAdminHTTPServer) ListRawDocuments(context.Context, *ListRawDocumentsRequest) (*RawDocumentListResponse, error) {
-	return &RawDocumentListResponse{}, nil
-}
 func (stubAdminHTTPServer) ListEvents(context.Context, *ListEventsRequest) (*EventListResponse, error) {
 	return &EventListResponse{}, nil
 }

@@ -1,13 +1,5 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
-import {
-  loadEvents,
-  loadRawDocuments,
-  type EventItem,
-  type EventQuery,
-  type RawDocumentItem,
-  type RawDocumentQuery
-} from '../api/dataIngestion';
+import { loadEvents, type EventItem, type EventQuery } from '../api/dataIngestion';
 import { DataTable, type DataTableColumn } from '../components/admin/data-table';
 import { OverflowTooltip } from '../components/admin/overflow-tooltip';
 import { Pagination } from '../components/admin/pagination';
@@ -18,41 +10,19 @@ import { Field } from '../components/ui/Field';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
 import { StatusBadge } from '../components/ui/StatusBadge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/Tabs';
-
-type ActiveTab = 'raw' | 'events';
 
 const pageSize = 50;
 
-const tabItems: { id: ActiveTab; label: string }[] = [
-  { id: 'raw', label: '原始数据' },
-  { id: 'events', label: '全球事件' }
-];
-
-const primaryTabsListClassName =
-  'h-11 w-full shrink-0 justify-start rounded-none border-b bg-transparent p-0';
-const primaryTabClassName =
-  'relative h-full flex-none rounded-none border-0 px-4 py-0 text-xs font-medium shadow-none after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-transparent data-[state=active]:border-0 data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none data-[state=active]:after:bg-primary';
-
 export default function DataIngestionCenter({ token }: { token: string }) {
-  const [activeTab, setActiveTab] = useState<ActiveTab>('raw');
-  const [rawTitle, setRawTitle] = useState('');
-  const [rawQuery, setRawQuery] = useState<RawDocumentQuery>({ page: 1, title: '' });
-  const [rawPage, setRawPage] = useState({
-    items: [] as RawDocumentItem[],
-    total: 0,
-    page: 1,
-    page_size: pageSize
-  });
-  const [eventTitle, setEventTitle] = useState('');
-  const [eventStatus, setEventStatus] = useState('');
-  const [factStatus, setFactStatus] = useState('');
-  const [eventTimeFrom, setEventTimeFrom] = useState('');
-  const [eventTimeTo, setEventTimeTo] = useState('');
-  const [firstSeenFrom, setFirstSeenFrom] = useState('');
-  const [firstSeenTo, setFirstSeenTo] = useState('');
-  const [eventQuery, setEventQuery] = useState<EventQuery>({ page: 1, title: '' });
-  const [eventPage, setEventPage] = useState({
+  const [title, setTitle] = useState('');
+  const [modality, setModality] = useState('');
+  const [status, setStatus] = useState('');
+  const [occurredFrom, setOccurredFrom] = useState('');
+  const [occurredTo, setOccurredTo] = useState('');
+  const [announcedFrom, setAnnouncedFrom] = useState('');
+  const [announcedTo, setAnnouncedTo] = useState('');
+  const [query, setQuery] = useState<EventQuery>({ page: 1, title: '' });
+  const [page, setPage] = useState({
     items: [] as EventItem[],
     total: 0,
     page: 1,
@@ -65,100 +35,16 @@ export default function DataIngestionCenter({ token }: { token: string }) {
     let active = true;
     setLoading(true);
     setError('');
-    loadRawDocuments(token, rawQuery)
-      .then((page) => {
-        if (active) {
-          setRawPage(page);
-        }
-      })
-      .catch((loadError) => {
-        if (active) {
-          setError(errorText(loadError));
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
-      });
+    loadEvents(token, query)
+      .then((result) => active && setPage(result))
+      .catch((loadError) => active && setError(errorText(loadError)))
+      .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
-  }, [rawQuery, token]);
+  }, [query, token]);
 
-  useEffect(() => {
-    if (activeTab !== 'events') {
-      return;
-    }
-    let active = true;
-    setLoading(true);
-    setError('');
-    loadEvents(token, eventQuery)
-      .then((page) => {
-        if (active) {
-          setEventPage(page);
-        }
-      })
-      .catch((loadError) => {
-        if (active) {
-          setError(errorText(loadError));
-        }
-      })
-      .finally(() => {
-        if (active) {
-          setLoading(false);
-        }
-      });
-    return () => {
-      active = false;
-    };
-  }, [activeTab, eventQuery, token]);
-
-  const rawColumns = useMemo<DataTableColumn<RawDocumentItem>[]>(
-    () => [
-      {
-        cellClassName: 'max-w-0',
-        headerClassName: 'w-[30%]',
-        key: 'title',
-        header: '标题',
-        render: (item) => <OverflowTooltip className='font-semibold' value={item.title || '-'} />
-      },
-      {
-        cellClassName: 'max-w-0',
-        headerClassName: 'w-[14%]',
-        key: 'source',
-        header: '来源',
-        render: (item) => <OverflowTooltip value={item.source_name || '-'} />
-      },
-      {
-        cellClassName: 'max-w-0',
-        headerClassName: 'w-[28%]',
-        key: 'reference',
-        header: '证据引用',
-        render: (item) => {
-          const reference = item.source_ref || item.ingest_channel || '-';
-          return <OverflowTooltip className='font-mono text-xs' value={reference} />;
-        }
-      },
-      {
-        headerClassName: 'w-[12%]',
-        key: 'status',
-        header: '状态',
-        render: (item) => (
-          <StatusBadge tone={statusTone(item.ingest_status)}>{item.ingest_status}</StatusBadge>
-        )
-      },
-      {
-        headerClassName: 'w-[16%]',
-        key: 'collected',
-        header: '采集时间',
-        render: (item) => formatDateTime(item.collected_at)
-      }
-    ],
-    []
-  );
-
-  const eventColumns = useMemo<DataTableColumn<EventItem>[]>(
+  const columns = useMemo<DataTableColumn<EventItem>[]>(
     () => [
       {
         cellClassName: 'max-w-0',
@@ -169,291 +55,177 @@ export default function DataIngestionCenter({ token }: { token: string }) {
       },
       {
         headerClassName: 'w-[12%]',
+        key: 'modality',
+        header: '模态',
+        render: (item) => item.modality
+      },
+      {
+        headerClassName: 'w-[14%]',
         key: 'status',
-        header: '事件状态',
-        render: (item) => (
-          <StatusBadge tone={statusTone(item.event_status)}>{item.event_status}</StatusBadge>
-        )
+        header: '状态',
+        render: (item) => <StatusBadge tone={statusTone(item.status)}>{item.status}</StatusBadge>
       },
       {
-        headerClassName: 'w-[12%]',
-        key: 'fact',
-        header: '事实状态',
-        render: (item) => item.fact_status
+        headerClassName: 'w-[20%]',
+        key: 'occurred_at',
+        header: '发生时间',
+        render: (item) => (item.occurred_at ? formatDateTime(item.occurred_at) : '-')
       },
       {
-        headerClassName: 'w-[21%]',
-        key: 'event_time',
-        header: '事件时间',
-        render: (item) => (item.event_time ? formatDateTime(item.event_time) : '-')
-      },
-      {
-        headerClassName: 'w-[21%]',
-        key: 'first_seen',
-        header: '首次发现',
-        render: (item) => formatDateTime(item.first_seen_at)
+        headerClassName: 'w-[20%]',
+        key: 'announced_at',
+        header: '公布时间',
+        render: (item) => (item.announced_at ? formatDateTime(item.announced_at) : '-')
       }
     ],
     []
   );
 
-  const submitRawSearch = (event: FormEvent) => {
+  const submitSearch = (event: FormEvent) => {
     event.preventDefault();
-    setRawQuery({ page: 1, title: rawTitle });
-  };
-
-  const submitEventSearch = (event: FormEvent) => {
-    event.preventDefault();
-    setEventQuery({
+    setQuery({
       page: 1,
-      title: eventTitle,
-      event_status: eventStatus || undefined,
-      fact_status: factStatus || undefined,
-      event_time_from: toRFC3339(eventTimeFrom),
-      event_time_to: toRFC3339(eventTimeTo),
-      first_seen_from: toRFC3339(firstSeenFrom),
-      first_seen_to: toRFC3339(firstSeenTo)
+      title,
+      modality: modality || undefined,
+      status: status || undefined,
+      occurred_from: toRFC3339(occurredFrom),
+      occurred_to: toRFC3339(occurredTo),
+      announced_from: toRFC3339(announcedFrom),
+      announced_to: toRFC3339(announcedTo)
     });
   };
 
-  const retryCurrentData = () => {
-    setError('');
-    if (activeTab === 'events') {
-      setEventQuery((current) => ({ ...current }));
-      return;
-    }
-    setRawQuery((current) => ({ ...current }));
-  };
-
   return (
-    <Tabs
-      className='grid h-full min-h-0 w-full grid-rows-[auto_minmax(0,1fr)] gap-3'
-      onValueChange={(value) => isActiveTab(value) && setActiveTab(value)}
-      value={activeTab}
-    >
+    <div className='grid h-full min-h-0 w-full grid-rows-[auto_minmax(0,1fr)] gap-3'>
       <div>
         <span className='page-eyebrow'>Data operations</span>
-        <h2 className='page-title'>数据采集中心</h2>
-        <p className='page-description'>查询原始采集数据和全球事件。</p>
+        <h2 className='page-title'>事件中心</h2>
+        <p className='page-description'>查询标准化事件。证据通过 Event Evidence Link 关联。</p>
       </div>
-
-      <Card className='flex h-full min-h-0 flex-col gap-0 overflow-hidden py-0 shadow-xs'>
-        <TabsList aria-label='数据采集中心标签' className={primaryTabsListClassName}>
-          {tabItems.map((item) => (
-            <TabsTrigger className={primaryTabClassName} key={item.id} value={item.id}>
-              {item.label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        <div className='flex min-h-0 flex-1 flex-col overflow-hidden'>
-          {error ? (
-            <div className='px-4 pt-4'>
-              <StatusAlert
-                actionDisabled={loading}
-                actionLabel={loading ? '重试中…' : '重试'}
-                onAction={retryCurrentData}
-                tone='destructive'
-              >
-                {error}
-              </StatusAlert>
-            </div>
-          ) : null}
-
-          <TabsContent
-            aria-label='全球政经原始数据列表'
-            className='grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-3 overflow-y-auto p-4 [scrollbar-gutter:stable]'
-            value='raw'
+      <Card className='flex h-full min-h-0 flex-col gap-3 overflow-y-auto p-4 shadow-xs'>
+        {error ? (
+          <StatusAlert
+            actionDisabled={loading}
+            actionLabel={loading ? '重试中…' : '重试'}
+            onAction={() => setQuery((current) => ({ ...current }))}
+            tone='destructive'
           >
-            <form
-              className='grid items-end gap-3 [&>div]:gap-1.5 [&_input]:text-xs [&_label]:text-xs [&_label]:text-muted-foreground sm:grid-cols-[minmax(13.75rem,1fr)_auto]'
-              onSubmit={submitRawSearch}
-            >
-              <Field controlId='raw-title-search' label='原始数据标题搜索'>
-                <div className='relative'>
-                  <Search
-                    aria-hidden='true'
-                    className='absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground'
-                  />
-                  <Input
-                    aria-label='原始数据标题搜索'
-                    className='pl-9'
-                    id='raw-title-search'
-                    onChange={(event) => setRawTitle(event.target.value)}
-                    value={rawTitle}
-                  />
-                </div>
-              </Field>
-              <Button className='text-xs' size='sm' type='submit'>
-                搜索原始数据
-              </Button>
-            </form>
-            <DataTable
-              className='h-full'
-              columns={rawColumns}
-              emptyText={loading ? '正在加载原始数据' : '暂无原始数据'}
-              getRowKey={(item) => item.id}
-              items={rawPage.items}
-              scrollAreaLabel='原始数据表格滚动区域'
-              tableClassName='min-w-[720px] table-fixed text-xs [&_td]:py-2.5 [&_th]:h-9'
+            {error}
+          </StatusAlert>
+        ) : null}
+        <form
+          className='grid items-end gap-3 [&>div]:gap-1.5 [&_input]:text-xs [&_label]:text-xs [&_label]:text-muted-foreground [&_[role=combobox]]:text-xs sm:grid-cols-2 lg:grid-cols-4'
+          onSubmit={submitSearch}
+        >
+          <Field label='事件标题搜索'>
+            <Input
+              aria-label='事件标题搜索'
+              onChange={(event) => setTitle(event.target.value)}
+              value={title}
             />
-            <div className='[&>div]:pt-1 [&>div]:text-xs [&_button]:h-8 [&_button]:text-xs'>
-              <Pagination
-                page={rawPage.page}
-                pageSize={rawPage.page_size}
-                total={rawPage.total}
-                onPageChange={(page) => setRawQuery((current) => ({ ...current, page }))}
-              />
-            </div>
-          </TabsContent>
-
-          <TabsContent
-            aria-label='全球事件列表'
-            className='grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-3 overflow-y-auto p-4 [scrollbar-gutter:stable]'
-            value='events'
-          >
-            <form
-              className='grid items-end gap-3 [&>div]:gap-1.5 [&_input]:text-xs [&_label]:text-xs [&_label]:text-muted-foreground [&_[role=combobox]]:text-xs sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[repeat(auto-fit,minmax(9rem,1fr))]'
-              onSubmit={submitEventSearch}
-            >
-              <Field label='事件标题搜索'>
-                <Input
-                  aria-label='事件标题搜索'
-                  onChange={(event) => setEventTitle(event.target.value)}
-                  value={eventTitle}
-                />
-              </Field>
-              <Field label='事件状态'>
-                <Select
-                  ariaLabel='事件状态'
-                  onValueChange={(value) => setEventStatus(value === 'all' ? '' : value)}
-                  options={[
-                    { label: '全部', value: 'all' },
-                    { label: '候选', value: 'candidate' },
-                    { label: '已确认', value: 'confirmed' },
-                    { label: '已归档', value: 'archived' }
-                  ]}
-                  value={eventStatus || 'all'}
-                />
-              </Field>
-              <Field label='事实状态'>
-                <Select
-                  ariaLabel='事实状态'
-                  onValueChange={(value) => setFactStatus(value === 'all' ? '' : value)}
-                  options={[
-                    { label: '全部', value: 'all' },
-                    { label: '未核验', value: 'unverified' },
-                    { label: '已核验', value: 'verified' },
-                    { label: '有争议', value: 'disputed' }
-                  ]}
-                  value={factStatus || 'all'}
-                />
-              </Field>
-              <Field label='事件时间开始'>
-                <Input
-                  aria-label='事件时间开始'
-                  onChange={(event) => setEventTimeFrom(event.target.value)}
-                  type='datetime-local'
-                  value={eventTimeFrom}
-                />
-              </Field>
-              <Field label='事件时间结束'>
-                <Input
-                  aria-label='事件时间结束'
-                  onChange={(event) => setEventTimeTo(event.target.value)}
-                  type='datetime-local'
-                  value={eventTimeTo}
-                />
-              </Field>
-              <Field label='首次发现开始'>
-                <Input
-                  aria-label='首次发现开始'
-                  onChange={(event) => setFirstSeenFrom(event.target.value)}
-                  type='datetime-local'
-                  value={firstSeenFrom}
-                />
-              </Field>
-              <Field label='首次发现结束'>
-                <Input
-                  aria-label='首次发现结束'
-                  onChange={(event) => setFirstSeenTo(event.target.value)}
-                  type='datetime-local'
-                  value={firstSeenTo}
-                />
-              </Field>
-              <Button className='text-xs' size='sm' type='submit'>
-                搜索事件
-              </Button>
-            </form>
-            <DataTable
-              className='h-full'
-              columns={eventColumns}
-              emptyText={loading ? '正在加载全球事件' : '暂无全球事件'}
-              getRowKey={(item) => item.id}
-              items={eventPage.items}
-              scrollAreaLabel='全球事件表格滚动区域'
-              tableClassName='min-w-[720px] table-fixed text-xs [&_td]:py-2.5 [&_th]:h-9'
+          </Field>
+          <Field label='模态'>
+            <Select
+              ariaLabel='模态'
+              onValueChange={(value) => setModality(value === 'all' ? '' : value)}
+              options={[
+                { label: '全部', value: 'all' },
+                { label: '事实', value: 'FACT' },
+                { label: '计划', value: 'PLAN' },
+                { label: '推测', value: 'SPEC' }
+              ]}
+              value={modality || 'all'}
             />
-            <div className='[&>div]:pt-1 [&>div]:text-xs [&_button]:h-8 [&_button]:text-xs'>
-              <Pagination
-                page={eventPage.page}
-                pageSize={eventPage.page_size}
-                total={eventPage.total}
-                onPageChange={(page) => setEventQuery((current) => ({ ...current, page }))}
-              />
-            </div>
-          </TabsContent>
-        </div>
+          </Field>
+          <Field label='状态'>
+            <Select
+              ariaLabel='状态'
+              onValueChange={(value) => setStatus(value === 'all' ? '' : value)}
+              options={[
+                { label: '全部', value: 'all' },
+                { label: '活跃', value: 'ACTIVE' },
+                { label: '已废弃', value: 'DEPRECATED' },
+                { label: '已归档', value: 'ARCHIVED' }
+              ]}
+              value={status || 'all'}
+            />
+          </Field>
+          <Field label='发生时间开始'>
+            <Input
+              aria-label='发生时间开始'
+              onChange={(event) => setOccurredFrom(event.target.value)}
+              type='datetime-local'
+              value={occurredFrom}
+            />
+          </Field>
+          <Field label='发生时间结束'>
+            <Input
+              aria-label='发生时间结束'
+              onChange={(event) => setOccurredTo(event.target.value)}
+              type='datetime-local'
+              value={occurredTo}
+            />
+          </Field>
+          <Field label='公布时间开始'>
+            <Input
+              aria-label='公布时间开始'
+              onChange={(event) => setAnnouncedFrom(event.target.value)}
+              type='datetime-local'
+              value={announcedFrom}
+            />
+          </Field>
+          <Field label='公布时间结束'>
+            <Input
+              aria-label='公布时间结束'
+              onChange={(event) => setAnnouncedTo(event.target.value)}
+              type='datetime-local'
+              value={announcedTo}
+            />
+          </Field>
+          <Button className='text-xs' size='sm' type='submit'>
+            搜索事件
+          </Button>
+        </form>
+        <DataTable
+          className='h-full'
+          columns={columns}
+          emptyText={loading ? '正在加载事件' : '暂无事件'}
+          getRowKey={(item) => item.id}
+          items={page.items}
+          scrollAreaLabel='事件表格滚动区域'
+          tableClassName='min-w-[720px] table-fixed text-xs [&_td]:py-2.5 [&_th]:h-9'
+        />
+        <Pagination
+          page={page.page}
+          pageSize={page.page_size}
+          total={page.total}
+          onPageChange={(nextPage) => setQuery((current) => ({ ...current, page: nextPage }))}
+        />
       </Card>
-    </Tabs>
+    </div>
   );
 }
 
 function errorText(error: unknown): string {
   const message = error instanceof Error ? error.message.trim() : '';
-  if (
-    !message ||
+  return !message ||
     /internal server error|admin api returned|request failed with status/i.test(message)
-  ) {
-    return '数据加载失败，请稍后重试。';
-  }
-  return message;
+    ? '数据加载失败，请稍后重试。'
+    : message;
 }
 
 function formatDateTime(value: string): string {
-  return new Date(value).toLocaleString('zh-CN', {
-    hour12: false,
-    timeZone: 'Asia/Shanghai'
-  });
+  return new Date(value).toLocaleString('zh-CN', { hour12: false, timeZone: 'Asia/Shanghai' });
 }
 
 function statusTone(status: string): 'success' | 'danger' | 'neutral' {
-  if (
-    status === 'succeeded' ||
-    status === 'active' ||
-    status === 'confirmed' ||
-    status === 'verified' ||
-    status === 'collected'
-  ) {
-    return 'success';
-  }
-  if (status === 'failed' || status === 'disabled' || status === 'disputed') {
-    return 'danger';
-  }
+  if (status === 'ACTIVE') return 'success';
+  if (status === 'DEPRECATED') return 'danger';
   return 'neutral';
 }
 
 function toRFC3339(value: string): string | undefined {
-  if (!value) {
-    return undefined;
-  }
+  if (!value) return undefined;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return undefined;
-  }
-  return date.toISOString();
-}
-
-function isActiveTab(value: string): value is ActiveTab {
-  return tabItems.some((item) => item.id === value);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }

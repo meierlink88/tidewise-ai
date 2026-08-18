@@ -19,10 +19,8 @@ func TestBuildAuthenticatorUsesOneDataServiceTokenForAllBusinessScopes(t *testin
 		t.Fatal(err)
 	}
 	assertPrincipal(t, authenticator, "data-service-token", "tidewise-internal-service", []string{
-		server.ScopeReviewedEventImport,
 		server.ScopeRawEvidenceRead,
 		server.ScopeEvidenceCategoryRead,
-		server.ScopeEventTagRead,
 		server.ScopeResearchImport,
 		server.ScopeResearchRead,
 		server.ScopeAdminRead,

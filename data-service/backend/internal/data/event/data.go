@@ -3,14 +3,12 @@ package event
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"math/big"
+	"math"
 	"strings"
 	"time"
 
@@ -20,136 +18,6 @@ import (
 
 type Store struct{ db *sql.DB }
 
-func (s Store) ListResearchEvents(ctx context.Context, query eventbiz.ResearchEventQuery) (eventbiz.ResearchEventPage, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT
-    jsonb_build_object(
-        'id', event.id,
-        'title', event.title,
-        'summary', event.summary,
-        'occurred_at', event.event_time,
-        'first_seen_at', event.first_seen_at,
-        'knowledge_available_at', COALESCE(event.knowable_at, event.first_seen_at),
-        'event_status', event.event_status,
-        'fact_status', event.fact_status
-    ),
-    COALESCE((
-        SELECT jsonb_agg(jsonb_build_object(
-            'evidence_id', source.id,
-            'evidence_hash', source.evidence_hash,
-            'evidence_statement', source.evidence_statement,
-            'source_level', source.source_level,
-            'relation', source.evidence_relation,
-            'supports_fields', source.supports_fields,
-            'raw_document_id', document.id,
-            'source_name', document.source_name,
-            'source_type', document.source_type,
-            'source_url', document.source_url,
-            'title', document.title,
-            'published_at', document.published_at,
-            'first_seen_at', document.collected_at,
-            'knowledge_available_at', GREATEST(COALESCE(document.published_at, document.collected_at), document.collected_at),
-            'accepted_at', source.created_at,
-            'statement_source', COALESCE(NULLIF(event.fact_payload ->> 'statement_source', ''), '')
-        ) ORDER BY source.created_at, source.id)
-        FROM event_sources source
-        JOIN raw_documents document ON document.id = source.raw_document_id
-        WHERE source.event_id = event.id
-          AND GREATEST(COALESCE(document.published_at, document.collected_at), document.collected_at) <= $3
-          AND source.created_at <= $3
-    ), '[]'::jsonb),
-    COALESCE(event.knowable_at, event.first_seen_at)
-FROM events event
-WHERE event.event_status = 'confirmed'
-  AND event.fact_status = 'verified'
-  AND COALESCE(event.knowable_at, event.first_seen_at) >= $1
-  AND COALESCE(event.knowable_at, event.first_seen_at) < $2
-  AND COALESCE(event.knowable_at, event.first_seen_at) <= $3
-  AND ($4::timestamptz IS NULL OR (COALESCE(event.knowable_at, event.first_seen_at), event.id) > ($4::timestamptz, $5::text))
-ORDER BY COALESCE(event.knowable_at, event.first_seen_at), event.id
-LIMIT $6`, query.DiscoveryWindowStart, query.DiscoveryWindowEnd, query.AnalysisAsOf,
-		query.AfterKnowledgeAvailableAt, nullResearchEventID(query.AfterEventID), query.PageSize+1)
-	if err != nil {
-		return eventbiz.ResearchEventPage{}, fmt.Errorf("query Research Events: %w", err)
-	}
-	defer rows.Close()
-	page := eventbiz.ResearchEventPage{Events: make([]eventbiz.ResearchEventRecord, 0, query.PageSize+1)}
-	for rows.Next() {
-		var eventPayload, evidencePayload []byte
-		var record eventbiz.ResearchEventRecord
-		if err := rows.Scan(&eventPayload, &evidencePayload, &record.KnowledgeAvailableAt); err != nil {
-			return eventbiz.ResearchEventPage{}, fmt.Errorf("scan Research Event: %w", err)
-		}
-		if err := strictDecodeResearchEvent(eventPayload, &record.Event); err != nil {
-			return eventbiz.ResearchEventPage{}, err
-		}
-		if err := strictDecodeResearchEvent(evidencePayload, &record.Evidence); err != nil {
-			return eventbiz.ResearchEventPage{}, err
-		}
-		if err := validateResearchEventRecord(record); err != nil {
-			return eventbiz.ResearchEventPage{}, err
-		}
-		page.Events = append(page.Events, record)
-	}
-	if err := rows.Err(); err != nil {
-		return eventbiz.ResearchEventPage{}, fmt.Errorf("iterate Research Events: %w", err)
-	}
-	page.HasMore = len(page.Events) > query.PageSize
-	if page.HasMore {
-		page.Events = page.Events[:query.PageSize]
-	}
-	return page, nil
-}
-
-func strictDecodeResearchEvent(payload []byte, target any) error {
-	decoder := json.NewDecoder(bytes.NewReader(payload))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(target); err != nil {
-		return fmt.Errorf("decode persisted Research Event projection: %w", err)
-	}
-	if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
-		return errors.New("decode persisted Research Event projection: trailing JSON value")
-	}
-	return nil
-}
-
-func validateResearchEventRecord(record eventbiz.ResearchEventRecord) error {
-	if !coreid.Is(record.Event.ID, coreid.Event) || strings.TrimSpace(record.Event.Title) == "" || strings.TrimSpace(record.Event.Summary) == "" ||
-		record.Event.FirstSeenAt.IsZero() || record.Event.KnowledgeAvailableAt.IsZero() ||
-		record.KnowledgeAvailableAt.IsZero() || !record.Event.KnowledgeAvailableAt.Equal(record.KnowledgeAvailableAt) ||
-		record.Event.EventStatus != string(eventbiz.EventStatusConfirmed) ||
-		record.Event.FactStatus != string(eventbiz.FactStatusVerified) {
-		return errors.New("persisted Research Event violates invariants")
-	}
-	seen := make(map[string]struct{}, len(record.Evidence))
-	for _, evidence := range record.Evidence {
-		stored := eventbiz.StoredEventEvidenceLink{
-			ID: evidence.EvidenceID, EventID: record.Event.ID, RawDocumentID: evidence.RawDocumentID,
-			SourceLevel: evidence.SourceLevel, EvidenceRelation: eventbiz.EvidenceRelation(evidence.Relation),
-			EvidenceStatement: evidence.Statement, EvidenceHash: evidence.EvidenceHash,
-			SupportsFields: evidence.SupportsFields,
-		}
-		if err := validateStoredEvidenceLink(stored, record.Event.ID, evidence.RawDocumentID); err != nil ||
-			!coreid.Is(evidence.RawDocumentID, coreid.EventEvidenceRecord) || strings.TrimSpace(evidence.SourceName) == "" ||
-			strings.TrimSpace(evidence.SourceType) == "" || strings.TrimSpace(evidence.Title) == "" ||
-			evidence.FirstSeenAt.IsZero() || evidence.KnowledgeAvailableAt.IsZero() || evidence.AcceptedAt.IsZero() ||
-			evidence.KnowledgeAvailableAt.Before(record.KnowledgeAvailableAt) {
-			return errors.New("persisted Research Evidence violates invariants")
-		}
-		if _, duplicate := seen[evidence.EvidenceID]; duplicate {
-			return errors.New("persisted Research Evidence contains a duplicate")
-		}
-		seen[evidence.EvidenceID] = struct{}{}
-	}
-	return nil
-}
-
-func nullResearchEventID(value string) any {
-	if value == "" {
-		return nil
-	}
-	return value
-}
-
 func NewStore(db *sql.DB) (Store, error) {
 	if db == nil {
 		return Store{}, errors.New("Event database is required")
@@ -157,231 +25,309 @@ func NewStore(db *sql.DB) (Store, error) {
 	return Store{db: db}, nil
 }
 
-func (s Store) ListActiveTags(ctx context.Context) ([]eventbiz.EventTag, error) {
-	rows, err := s.db.QueryContext(ctx, `
-SELECT id::text, tag_kind, code, name, is_active
-FROM event_tag_defs
-WHERE is_active
-ORDER BY tag_kind, code, id`)
+func (s Store) CreateEvent(ctx context.Context, aggregate eventbiz.Aggregate) (resultErr error) {
+	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("query active Event Tag Catalog: %w", err)
+		return fmt.Errorf("begin Event create transaction: %w", err)
 	}
-	defer rows.Close()
-	tags := make([]eventbiz.EventTag, 0)
+	defer func() {
+		if resultErr != nil {
+			rollbackErr := tx.Rollback()
+			if !errors.Is(rollbackErr, sql.ErrTxDone) {
+				resultErr = errors.Join(resultErr, rollbackErr)
+			}
+		}
+	}()
+	semantic, err := json.Marshal(aggregate.Event.Semantic)
+	if err != nil {
+		return fmt.Errorf("encode Event semantic: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO events (
+    id, title, summary, semantic, modality, occurred_at, announced_at, status
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+		aggregate.Event.ID, aggregate.Event.Title, aggregate.Event.Summary, semantic,
+		aggregate.Event.Modality, nullableTime(aggregate.Event.OccurredAt),
+		nullableTime(aggregate.Event.AnnouncedAt), aggregate.Event.Status,
+	); err != nil {
+		return fmt.Errorf("insert Event %q: %w", aggregate.Event.ID, err)
+	}
+	for _, link := range aggregate.Evidence {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO event_evidence_links (
+    id, event_id, evidence_id, contribution_weight
+) VALUES ($1,$2,$3,$4)`, link.ID, link.EventID, link.EvidenceID, link.ContributionWeight); err != nil {
+			return fmt.Errorf("insert Event Evidence Link %q: %w", link.ID, err)
+		}
+	}
+	for _, link := range aggregate.Actors {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO event_actor_links (
+    id, event_id, actor_id, actor_type, actor_name, relation_type, relation_strength, confidence
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, link.ID, link.EventID, link.ActorID,
+			nullableActorType(link.ActorType), nullableString(link.ActorName), link.RelationType,
+			nullableFloat(link.RelationStrength), link.Confidence); err != nil {
+			return fmt.Errorf("insert Event Actor Link %q: %w", link.ID, err)
+		}
+	}
+	for _, link := range aggregate.Assets {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO event_asset_links (
+    id, event_id, asset_id, asset_type, asset_name, impact_direction, impact_magnitude
+) VALUES ($1,$2,$3,$4,$5,$6,$7)`, link.ID, link.EventID, link.AssetID,
+			nullableAssetType(link.AssetType), nullableString(link.AssetName), link.ImpactDirection,
+			nullableFloat(link.ImpactMagnitude)); err != nil {
+			return fmt.Errorf("insert Event Asset Link %q: %w", link.ID, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit Event create transaction: %w", err)
+	}
+	return nil
+}
+
+func (s Store) EventByID(ctx context.Context, eventID string) (eventbiz.Aggregate, error) {
+	var aggregate eventbiz.Aggregate
+	var semantic []byte
+	var occurredAt, announcedAt sql.NullTime
+	err := s.db.QueryRowContext(ctx, `SELECT id, title, summary, semantic, modality, occurred_at, announced_at, status
+FROM events WHERE id = $1`, eventID).Scan(
+		&aggregate.Event.ID, &aggregate.Event.Title, &aggregate.Event.Summary, &semantic,
+		&aggregate.Event.Modality, &occurredAt, &announcedAt, &aggregate.Event.Status,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return eventbiz.Aggregate{}, eventbiz.ErrEventNotFound
+	}
+	if err != nil {
+		return eventbiz.Aggregate{}, fmt.Errorf("read Event %q: %w", eventID, err)
+	}
+	if err := decodeSemantic(semantic, &aggregate.Event.Semantic); err != nil {
+		return eventbiz.Aggregate{}, fmt.Errorf("read Event semantic invariant: %w", err)
+	}
+	aggregate.Event.OccurredAt = nullTimePointer(occurredAt)
+	aggregate.Event.AnnouncedAt = nullTimePointer(announcedAt)
+	if err := validatePersistedEvent(aggregate.Event); err != nil {
+		return eventbiz.Aggregate{}, fmt.Errorf("read Event invariant: %w", err)
+	}
+
+	rows, err := s.db.QueryContext(ctx, `SELECT id, event_id, evidence_id, contribution_weight
+FROM event_evidence_links WHERE event_id = $1 ORDER BY id`, eventID)
+	if err != nil {
+		return eventbiz.Aggregate{}, fmt.Errorf("query Event Evidence Links: %w", err)
+	}
 	for rows.Next() {
-		var tag eventbiz.EventTag
-		if err := rows.Scan(&tag.ID, &tag.Kind, &tag.Code, &tag.Name, &tag.Active); err != nil {
-			return nil, fmt.Errorf("scan active Event Tag Catalog: %w", err)
+		var link eventbiz.EvidenceLink
+		if err := rows.Scan(&link.ID, &link.EventID, &link.EvidenceID, &link.ContributionWeight); err != nil {
+			_ = rows.Close()
+			return eventbiz.Aggregate{}, fmt.Errorf("scan Event Evidence Link: %w", err)
 		}
-		if err := validateStoredEventTag(tag, true); err != nil {
-			return nil, fmt.Errorf("read active Event Tag invariant: %w", err)
+		if err := validatePersistedEvidenceLink(link, eventID); err != nil {
+			_ = rows.Close()
+			return eventbiz.Aggregate{}, fmt.Errorf("read Event Evidence Link invariant: %w", err)
 		}
-		tags = append(tags, tag)
+		aggregate.Evidence = append(aggregate.Evidence, link)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("read active Event Tag Catalog: %w", err)
+	if err := closeRows(rows); err != nil {
+		return eventbiz.Aggregate{}, fmt.Errorf("read Event Evidence Links: %w", err)
 	}
-	return tags, nil
+
+	actorRows, err := s.db.QueryContext(ctx, `SELECT id, event_id, actor_id, actor_type, actor_name,
+       relation_type, relation_strength, confidence, created_at, updated_at
+FROM event_actor_links WHERE event_id = $1 ORDER BY id`, eventID)
+	if err != nil {
+		return eventbiz.Aggregate{}, fmt.Errorf("query Event Actor Links: %w", err)
+	}
+	for actorRows.Next() {
+		var link eventbiz.ActorLink
+		var actorType, actorName sql.NullString
+		var strength sql.NullFloat64
+		if err := actorRows.Scan(&link.ID, &link.EventID, &link.ActorID, &actorType, &actorName,
+			&link.RelationType, &strength, &link.Confidence, &link.CreatedAt, &link.UpdatedAt); err != nil {
+			_ = actorRows.Close()
+			return eventbiz.Aggregate{}, fmt.Errorf("scan Event Actor Link: %w", err)
+		}
+		if actorType.Valid {
+			link.ActorType = eventbiz.ActorType(actorType.String)
+		}
+		link.ActorName = nullStringPointer(actorName)
+		link.RelationStrength = nullFloatPointer(strength)
+		link.CreatedAt = link.CreatedAt.UTC()
+		link.UpdatedAt = link.UpdatedAt.UTC()
+		if err := validatePersistedActorLink(link, eventID); err != nil {
+			_ = actorRows.Close()
+			return eventbiz.Aggregate{}, fmt.Errorf("read Event Actor Link invariant: %w", err)
+		}
+		aggregate.Actors = append(aggregate.Actors, link)
+	}
+	if err := closeRows(actorRows); err != nil {
+		return eventbiz.Aggregate{}, fmt.Errorf("read Event Actor Links: %w", err)
+	}
+
+	assetRows, err := s.db.QueryContext(ctx, `SELECT id, event_id, asset_id, asset_type, asset_name,
+       impact_direction, impact_magnitude
+FROM event_asset_links WHERE event_id = $1 ORDER BY id`, eventID)
+	if err != nil {
+		return eventbiz.Aggregate{}, fmt.Errorf("query Event Asset Links: %w", err)
+	}
+	for assetRows.Next() {
+		var link eventbiz.AssetLink
+		var assetType, assetName sql.NullString
+		var magnitude sql.NullFloat64
+		if err := assetRows.Scan(&link.ID, &link.EventID, &link.AssetID, &assetType, &assetName,
+			&link.ImpactDirection, &magnitude); err != nil {
+			_ = assetRows.Close()
+			return eventbiz.Aggregate{}, fmt.Errorf("scan Event Asset Link: %w", err)
+		}
+		if assetType.Valid {
+			link.AssetType = eventbiz.AssetType(assetType.String)
+		}
+		link.AssetName = nullStringPointer(assetName)
+		link.ImpactMagnitude = nullFloatPointer(magnitude)
+		if err := validatePersistedAssetLink(link, eventID); err != nil {
+			_ = assetRows.Close()
+			return eventbiz.Aggregate{}, fmt.Errorf("read Event Asset Link invariant: %w", err)
+		}
+		aggregate.Assets = append(aggregate.Assets, link)
+	}
+	if err := closeRows(assetRows); err != nil {
+		return eventbiz.Aggregate{}, fmt.Errorf("read Event Asset Links: %w", err)
+	}
+	if len(aggregate.Evidence) == 0 {
+		return eventbiz.Aggregate{}, errors.New("persisted Event has no Evidence Link")
+	}
+	return aggregate, nil
 }
 
 func (s Store) ListEvents(ctx context.Context, filter eventbiz.EventListFilter) (eventbiz.EventStorePage, error) {
 	page, pageSize := normalizePage(filter.Page, filter.PageSize)
+	args := []any{
+		filter.Title, string(filter.Modality), string(filter.Status), nullableTime(filter.OccurredFrom),
+		nullableTime(filter.OccurredTo), nullableTime(filter.AnnouncedFrom), nullableTime(filter.AnnouncedTo),
+	}
 	var total int
-	if err := s.db.QueryRowContext(ctx, `
-SELECT COUNT(*)
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*)
 FROM events
 WHERE ($1 = '' OR title ILIKE '%' || $1 || '%')
-  AND ($2 = '' OR event_status = $2)
-  AND ($3 = '' OR fact_status = $3)
-  AND ($4::timestamptz IS NULL OR event_time >= $4)
-  AND ($5::timestamptz IS NULL OR event_time <= $5)
-  AND ($6::timestamptz IS NULL OR first_seen_at >= $6)
-  AND ($7::timestamptz IS NULL OR first_seen_at <= $7)`,
-		filter.Title, string(filter.EventStatus), string(filter.FactStatus), nullableTime(filter.EventTimeFrom),
-		nullableTime(filter.EventTimeTo), nullableTime(filter.FirstSeenFrom), nullableTime(filter.FirstSeenTo),
-	).Scan(&total); err != nil {
+  AND ($2 = '' OR modality = $2)
+  AND ($3 = '' OR status = $3)
+  AND ($4::timestamptz IS NULL OR occurred_at >= $4)
+  AND ($5::timestamptz IS NULL OR occurred_at <= $5)
+  AND ($6::timestamptz IS NULL OR announced_at >= $6)
+  AND ($7::timestamptz IS NULL OR announced_at <= $7)`, args...).Scan(&total); err != nil {
 		return eventbiz.EventStorePage{}, fmt.Errorf("count Events: %w", err)
 	}
-
-	rows, err := s.db.QueryContext(ctx, `
-SELECT id, title, summary, event_time, first_seen_at, knowable_at,
-       event_status, fact_status, dedupe_key
+	rows, err := s.db.QueryContext(ctx, `SELECT id, title, summary, semantic, modality, occurred_at, announced_at, status
 FROM events
 WHERE ($1 = '' OR title ILIKE '%' || $1 || '%')
-  AND ($2 = '' OR event_status = $2)
-  AND ($3 = '' OR fact_status = $3)
-  AND ($4::timestamptz IS NULL OR event_time >= $4)
-  AND ($5::timestamptz IS NULL OR event_time <= $5)
-  AND ($6::timestamptz IS NULL OR first_seen_at >= $6)
-  AND ($7::timestamptz IS NULL OR first_seen_at <= $7)
-ORDER BY first_seen_at DESC, event_time DESC NULLS LAST, id
-LIMIT $8 OFFSET $9`,
-		filter.Title, string(filter.EventStatus), string(filter.FactStatus), nullableTime(filter.EventTimeFrom),
-		nullableTime(filter.EventTimeTo), nullableTime(filter.FirstSeenFrom), nullableTime(filter.FirstSeenTo),
-		pageSize, (page-1)*pageSize,
-	)
+  AND ($2 = '' OR modality = $2)
+  AND ($3 = '' OR status = $3)
+  AND ($4::timestamptz IS NULL OR occurred_at >= $4)
+  AND ($5::timestamptz IS NULL OR occurred_at <= $5)
+  AND ($6::timestamptz IS NULL OR announced_at >= $6)
+  AND ($7::timestamptz IS NULL OR announced_at <= $7)
+ORDER BY occurred_at DESC NULLS LAST, announced_at DESC NULLS LAST, id
+LIMIT $8 OFFSET $9`, append(args, pageSize, (page-1)*pageSize)...)
 	if err != nil {
 		return eventbiz.EventStorePage{}, fmt.Errorf("query Events: %w", err)
 	}
-	defer rows.Close()
-
-	items := make([]eventbiz.EventListItem, 0)
+	items := make([]eventbiz.Event, 0)
 	for rows.Next() {
-		item, err := scanEvent(rows)
-		if err != nil {
-			return eventbiz.EventStorePage{}, err
+		item, scanErr := scanEvent(rows)
+		if scanErr != nil {
+			_ = rows.Close()
+			return eventbiz.EventStorePage{}, scanErr
 		}
 		items = append(items, item)
 	}
-	if err := rows.Err(); err != nil {
-		return eventbiz.EventStorePage{}, fmt.Errorf("iterate Events: %w", err)
+	if err := closeRows(rows); err != nil {
+		return eventbiz.EventStorePage{}, fmt.Errorf("read Events: %w", err)
 	}
 	return eventbiz.EventStorePage{Items: items, Total: total, Page: page, PageSize: pageSize}, nil
 }
 
 type rowScanner interface{ Scan(...any) error }
 
-func scanEvent(scanner rowScanner) (eventbiz.EventListItem, error) {
-	var item eventbiz.EventListItem
-	var eventTime sql.NullTime
-	var knowableAt sql.NullTime
-	if err := scanner.Scan(
-		&item.ID, &item.Title, &item.Summary, &eventTime, &item.FirstSeenAt, &knowableAt,
-		&item.EventStatus, &item.FactStatus, &item.DedupeKey,
-	); err != nil {
-		return eventbiz.EventListItem{}, fmt.Errorf("scan Event: %w", err)
+func scanEvent(scanner rowScanner) (eventbiz.Event, error) {
+	var item eventbiz.Event
+	var semantic []byte
+	var occurredAt, announcedAt sql.NullTime
+	if err := scanner.Scan(&item.ID, &item.Title, &item.Summary, &semantic, &item.Modality,
+		&occurredAt, &announcedAt, &item.Status); err != nil {
+		return eventbiz.Event{}, fmt.Errorf("scan Event: %w", err)
 	}
-	if eventTime.Valid {
-		value := eventTime.Time.UTC()
-		item.EventTime = &value
+	if err := decodeSemantic(semantic, &item.Semantic); err != nil {
+		return eventbiz.Event{}, fmt.Errorf("decode Event semantic: %w", err)
 	}
-	item.FirstSeenAt = item.FirstSeenAt.UTC()
-	if knowableAt.Valid {
-		value := knowableAt.Time.UTC()
-		item.KnowableAt = &value
-	}
-	if err := validateStoredEvent(item); err != nil {
-		return eventbiz.EventListItem{}, fmt.Errorf("read Event invariant: %w", err)
+	item.OccurredAt = nullTimePointer(occurredAt)
+	item.AnnouncedAt = nullTimePointer(announcedAt)
+	if err := validatePersistedEvent(item); err != nil {
+		return eventbiz.Event{}, fmt.Errorf("read Event invariant: %w", err)
 	}
 	return item, nil
 }
 
-func validateStoredEvent(item eventbiz.EventListItem) error {
-	if !coreid.Is(item.ID, coreid.Event) || strings.TrimSpace(item.Title) == "" ||
-		strings.TrimSpace(item.DedupeKey) == "" || item.FirstSeenAt.IsZero() {
-		return errors.New("required identity, title, dedupe key or first-seen time is missing")
+func validatePersistedEvent(event eventbiz.Event) error {
+	if !coreid.Is(event.ID, coreid.Event) || strings.TrimSpace(event.Title) == "" || strings.TrimSpace(event.Summary) == "" {
+		return errors.New("required Event field is missing")
 	}
-	switch item.EventStatus {
-	case eventbiz.EventStatusCandidate, eventbiz.EventStatusConfirmed, eventbiz.EventStatusRejected:
-	default:
+	if event.Modality != eventbiz.ModalityFact && event.Modality != eventbiz.ModalityPlan && event.Modality != eventbiz.ModalitySpec {
+		return errors.New("Event modality is invalid")
+	}
+	if event.Status != eventbiz.LifecycleStatusActive && event.Status != eventbiz.LifecycleStatusDeprecated && event.Status != eventbiz.LifecycleStatusArchived {
 		return errors.New("Event status is invalid")
 	}
-	switch item.FactStatus {
-	case eventbiz.FactStatusUnverified, eventbiz.FactStatusVerified, eventbiz.FactStatusDisputed:
-	default:
-		return errors.New("Fact status is invalid")
+	return nil
+}
+
+func validatePersistedEvidenceLink(link eventbiz.EvidenceLink, eventID string) error {
+	if !coreid.Is(link.ID, coreid.EventEvidenceLink) || link.EventID != eventID ||
+		!coreid.Is(link.EvidenceID, coreid.Evidence) || !validUnitInterval(link.ContributionWeight) {
+		return errors.New("Event Evidence Link is invalid")
 	}
 	return nil
 }
 
-func validateStoredEventTag(tag eventbiz.EventTag, requireActive bool) error {
-	if !coreid.Is(tag.ID, coreid.EventTagDefinition) || strings.TrimSpace(tag.Code) == "" || strings.TrimSpace(tag.Name) == "" {
-		return errors.New("required Event Tag field is missing")
-	}
-	if tag.Kind != eventbiz.EventTagKindNewsCategory && tag.Kind != eventbiz.EventTagKindIndexCategory {
-		return errors.New("Event Tag kind is invalid")
-	}
-	if requireActive && !tag.Active {
-		return errors.New("Event Tag is inactive")
-	}
-	return nil
-}
-
-func validateStoredEvidenceRecord(record eventbiz.StoredEventEvidenceRecord, artifactID string) error {
-	if record.ArtifactID != artifactID || !coreid.Is(record.ID, coreid.EventEvidenceRecord) ||
-		!validSHA256(record.ContentSHA256) || strings.TrimSpace(record.SourceRef) == "" ||
-		strings.TrimSpace(record.SourceName) == "" || strings.TrimSpace(record.SourceType) == "" ||
-		strings.TrimSpace(record.Title) == "" || record.CollectedAt.IsZero() {
-		return errors.New("Event Evidence Record violates persisted invariants")
+func validatePersistedActorLink(link eventbiz.ActorLink, eventID string) error {
+	if !coreid.Is(link.ID, coreid.EventActorLink) || link.EventID != eventID || strings.TrimSpace(link.ActorID) == "" ||
+		(link.ActorType != "" && link.ActorType != eventbiz.ActorTypeCountry && link.ActorType != eventbiz.ActorTypePerson &&
+			link.ActorType != eventbiz.ActorTypeOrganization && link.ActorType != eventbiz.ActorTypeCompany) ||
+		(link.RelationType != eventbiz.ActorRelationMentions && link.RelationType != eventbiz.ActorRelationAffects &&
+			link.RelationType != eventbiz.ActorRelationOriginatesFrom && link.RelationType != eventbiz.ActorRelationTargets) ||
+		(link.RelationStrength != nil && !validUnitInterval(*link.RelationStrength)) ||
+		!validUnitInterval(link.Confidence) || link.Confidence > 0.99 || link.CreatedAt.IsZero() || link.UpdatedAt.IsZero() {
+		return errors.New("Event Actor Link is invalid")
 	}
 	return nil
 }
 
-func validateStoredPublicationEvent(record eventbiz.StoredEvent, dedupeKey string) error {
-	if record.DedupeKey != dedupeKey || !coreid.Is(record.ID, coreid.Event) || strings.TrimSpace(record.Title) == "" ||
-		strings.TrimSpace(record.FactualSummary) == "" || record.FirstSeenAt.IsZero() || record.KnowableAt.IsZero() {
-		return errors.New("Event violates persisted publication invariants")
-	}
-	if record.EventStatus != eventbiz.EventStatusConfirmed || record.FactStatus != eventbiz.FactStatusVerified {
-		return errors.New("Event publication status is invalid")
-	}
-	if err := eventbiz.ValidateFactPayload(record.FactPayload); err != nil {
-		return fmt.Errorf("Event fact payload is invalid: %w", err)
-	}
-	return nil
-}
-
-func validateStoredEvidenceLink(record eventbiz.StoredEventEvidenceLink, eventID, rawDocumentID string) error {
-	if record.EventID != eventID || record.RawDocumentID != rawDocumentID ||
-		!coreid.Is(record.ID, coreid.EventEvidenceLink) || !coreid.Is(eventID, coreid.Event) ||
-		!coreid.Is(rawDocumentID, coreid.EventEvidenceRecord) ||
-		strings.TrimSpace(record.SourceLevel) == "" || strings.TrimSpace(record.EvidenceStatement) == "" ||
-		!validSHA256(record.EvidenceHash) {
-		return errors.New("Event Evidence Link violates persisted invariants")
-	}
-	if record.SourceLevel != eventbiz.EventSourceLevelPrimary && record.SourceLevel != eventbiz.EventSourceLevelSecondary {
-		return errors.New("Event Evidence Link source level is invalid")
-	}
-	expectedHash := sha256.Sum256([]byte(record.EvidenceStatement))
-	if record.EvidenceHash != hex.EncodeToString(expectedHash[:]) {
-		return errors.New("Event Evidence Link hash does not match its statement")
-	}
-	allowedFields := map[string]struct{}{
-		eventbiz.EventFieldTitle: {}, eventbiz.EventFieldFactualSummary: {},
-		eventbiz.EventFieldOccurredAt: {}, eventbiz.EventFieldFactPayload: {},
-	}
-	seenFields := make(map[string]struct{}, len(record.SupportsFields))
-	for _, field := range record.SupportsFields {
-		if _, allowed := allowedFields[field]; !allowed {
-			return errors.New("Event Evidence Link supports field is invalid")
-		}
-		if _, duplicate := seenFields[field]; duplicate {
-			return errors.New("Event Evidence Link supports fields contain a duplicate")
-		}
-		seenFields[field] = struct{}{}
-	}
-	if record.EvidenceRelation != eventbiz.EvidenceRelationSupports &&
-		record.EvidenceRelation != eventbiz.EvidenceRelationContradicts &&
-		record.EvidenceRelation != eventbiz.EvidenceRelationContext {
-		return errors.New("Event Evidence Link relation is invalid")
-	}
-	link := eventbiz.EventEvidenceLink{EvidenceRelation: record.EvidenceRelation, SupportsFields: record.SupportsFields}
-	return link.Validate()
-}
-
-func validateStoredTagAssignment(record eventbiz.StoredEventTagAssignment, eventID, tagID string) error {
-	if record.EventID != eventID || record.TagID != tagID ||
-		!coreid.Is(record.ID, coreid.EventTagAssignment) ||
-		strings.TrimSpace(record.AssignSource) == "" || strings.TrimSpace(record.Confidence) == "" ||
-		strings.TrimSpace(record.AssignmentReason) == "" || record.ReviewStatus != eventbiz.ReviewStatusApproved {
-		return errors.New("Event Tag Assignment violates persisted invariants")
-	}
-	if record.AssignSource != eventbiz.TagAssignSourceAI && record.AssignSource != eventbiz.TagAssignSourceRule {
-		return errors.New("Event Tag Assignment source is invalid")
-	}
-	confidence, valid := new(big.Rat).SetString(record.Confidence)
-	if !valid || confidence.Sign() < 0 || confidence.Cmp(big.NewRat(1, 1)) > 0 {
-		return errors.New("Event Tag Assignment confidence is invalid")
+func validatePersistedAssetLink(link eventbiz.AssetLink, eventID string) error {
+	if !coreid.Is(link.ID, coreid.EventAssetLink) || link.EventID != eventID || strings.TrimSpace(link.AssetID) == "" ||
+		(link.AssetType != "" && link.AssetType != eventbiz.AssetTypeSecurity && link.AssetType != eventbiz.AssetTypeCommodity &&
+			link.AssetType != eventbiz.AssetTypeIndex && link.AssetType != eventbiz.AssetTypeRate &&
+			link.AssetType != eventbiz.AssetTypeForex && link.AssetType != eventbiz.AssetTypeDerivative) ||
+		(link.ImpactDirection != eventbiz.ImpactDirectionPositive && link.ImpactDirection != eventbiz.ImpactDirectionNegative &&
+			link.ImpactDirection != eventbiz.ImpactDirectionNeutral) ||
+		(link.ImpactMagnitude != nil && !validUnitInterval(*link.ImpactMagnitude)) {
+		return errors.New("Event Asset Link is invalid")
 	}
 	return nil
 }
 
-func validSHA256(value string) bool {
-	if len(value) != 64 || strings.ToLower(value) != value {
-		return false
+func decodeSemantic(payload []byte, target *eventbiz.Semantic) error {
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(target); err != nil {
+		return err
 	}
-	decoded, err := hex.DecodeString(value)
-	return err == nil && len(decoded) == 32
+	if err := decoder.Decode(new(any)); !errors.Is(err, io.EOF) {
+		return errors.New("semantic contains trailing JSON")
+	}
+	return nil
+}
+
+func closeRows(rows *sql.Rows) error {
+	iterationErr := rows.Err()
+	return errors.Join(iterationErr, rows.Close())
+}
+
+func validUnitInterval(value float64) bool {
+	return !math.IsNaN(value) && !math.IsInf(value, 0) && value >= 0 && value <= 1
 }
 
 func normalizePage(page, pageSize int) (int, int) {
@@ -398,7 +344,59 @@ func nullableTime(value *time.Time) any {
 	if value == nil {
 		return nil
 	}
+	return value.UTC()
+}
+
+func nullTimePointer(value sql.NullTime) *time.Time {
+	if !value.Valid {
+		return nil
+	}
+	result := value.Time.UTC()
+	return &result
+}
+
+func nullableString(value *string) any {
+	if value == nil {
+		return nil
+	}
 	return *value
+}
+
+func nullStringPointer(value sql.NullString) *string {
+	if !value.Valid {
+		return nil
+	}
+	result := value.String
+	return &result
+}
+
+func nullableFloat(value *float64) any {
+	if value == nil {
+		return nil
+	}
+	return *value
+}
+
+func nullFloatPointer(value sql.NullFloat64) *float64 {
+	if !value.Valid {
+		return nil
+	}
+	result := value.Float64
+	return &result
+}
+
+func nullableActorType(value eventbiz.ActorType) any {
+	if value == "" {
+		return nil
+	}
+	return value
+}
+
+func nullableAssetType(value eventbiz.AssetType) any {
+	if value == "" {
+		return nil
+	}
+	return value
 }
 
 var _ eventbiz.Store = Store{}
