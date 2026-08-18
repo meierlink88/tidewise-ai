@@ -190,6 +190,9 @@ jobs:
         run: |
           go run ./cmd/dbmigrate -apply
           go run ./cmd/dbmigrate -apply
+          TIDEWISE_EMPTY_DATA_SCHEMA_REBUILD_CONFIRMED=issue-266-data-only \
+            go run ./cmd/dbmigrate -apply -target-version 58 -rebuild-empty-schema
+          go run ./cmd/dbmigrate
 
       - name: Test Data configuration and lifecycle
         if: steps.risks.outputs.conf_lifecycle == 'true'

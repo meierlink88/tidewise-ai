@@ -109,6 +109,40 @@ func TestUATWorkflowPlansSelectiveServicesFromRecordedReleaseState(t *testing.T)
 	}
 }
 
+func TestUATWorkflowExposesBoundedData2CutoverWithoutChangingNormalMode(t *testing.T) {
+	root := repositoryRoot()
+	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "deploy-uat.yml"))
+	for _, required := range []string{
+		"deployment_mode:",
+		"default: normal",
+		"- tidewise_2_cutover",
+		"confirm_destructive_data_change:",
+		"rebuild_empty_data_schema:",
+		"DEPLOYMENT_MODE: ${{ inputs.deployment_mode }}",
+		"DESTRUCTIVE_DATA_CHANGE_CONFIRMED: ${{ inputs.confirm_destructive_data_change }}",
+		"EMPTY_DATA_SCHEMA_REBUILD_REQUESTED: ${{ inputs.rebuild_empty_data_schema }}",
+		"tidewise-2-cutover-in-progress",
+		"scope_reason=tidewise_2_cutover",
+	} {
+		if !strings.Contains(workflow, required) {
+			t.Fatalf("UAT workflow is missing the bounded Data 2.0 cutover contract %q", required)
+		}
+	}
+}
+
+func TestDataMigrationSmokeExercisesExplicitEmptySchemaRebuild(t *testing.T) {
+	root := repositoryRoot()
+	ci := readContractFile(t, filepath.Join(root, ".github", "workflows", "ci.yml"))
+	for _, required := range []string{
+		"TIDEWISE_EMPTY_DATA_SCHEMA_REBUILD_CONFIRMED=issue-266-data-only",
+		"go run ./cmd/dbmigrate -apply -target-version 58 -rebuild-empty-schema",
+	} {
+		if !strings.Contains(ci, required) {
+			t.Fatalf("Data migration smoke is missing the empty-schema rebuild seam %q", required)
+		}
+	}
+}
+
 func TestUATWorkflowExcludesRetiredDataProjectionInputs(t *testing.T) {
 	workflow, prepare := uatWorkflowAndPrepareStep(t)
 	for _, forbidden := range []string{
@@ -475,9 +509,34 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 			t.Fatalf("UAT deploy executor missing %q", required)
 		}
 	}
-	if strings.Contains(deploy, "PGOPTIONS") ||
-		strings.Contains(deploy, "reviewed_local_cleanup_verified") {
-		t.Fatal("UAT deploy must not auto-grant historical migration review authorization")
+	fallbackStart := strings.LastIndex(deploy, `if [ "$empty_data_schema_rebuild_requested" = true ]; then`)
+	if fallbackStart < 0 {
+		t.Fatal("UAT deploy is missing the explicitly guarded empty Data schema fallback")
+	}
+	fallbackEndOffset := strings.Index(deploy[fallbackStart:], "\n  else\n")
+	if fallbackEndOffset < 0 {
+		t.Fatal("UAT empty Data schema fallback boundary is incomplete")
+	}
+	fallbackEnd := fallbackStart + fallbackEndOffset
+	fallback := deploy[fallbackStart:fallbackEnd]
+	for _, authorization := range []string{
+		"PGOPTIONS=",
+		"tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified",
+		"tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified",
+		"tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified",
+		"-rebuild-empty-schema",
+	} {
+		if !strings.Contains(fallback, authorization) {
+			t.Fatalf("empty Data schema fallback is missing %q", authorization)
+		}
+	}
+	if strings.Contains(deploy[:fallbackStart], "PGOPTIONS") || strings.Contains(deploy[fallbackEnd:], "PGOPTIONS") {
+		t.Fatal("historical migration review authorization escaped the explicitly guarded empty Data schema fallback")
+	}
+	releaseWriteMarkerRemoval := strings.LastIndex(deploy, `rm -f "$release_state_write_marker"`)
+	cutoverMarkerRemoval := strings.LastIndex(deploy, `rm -f "$data2_cutover_marker"`)
+	if releaseWriteMarkerRemoval < 0 || cutoverMarkerRemoval < 0 || releaseWriteMarkerRemoval > cutoverMarkerRemoval {
+		t.Fatal("successful cutover must remove the generic committed marker before the cutover recovery marker")
 	}
 	for _, forbidden := range []string{
 		"dbmigrate -down", "pg_restore", "compose down", ":latest",
