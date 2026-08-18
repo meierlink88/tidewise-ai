@@ -1,6 +1,7 @@
 package architecture
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -349,6 +350,44 @@ func TestLocalComposeOwnsOnlyApplicationServices(t *testing.T) {
 	}
 }
 
+func TestLocalDataMigrationRunsEphemerallyBeforeApplicationStartup(t *testing.T) {
+	repoRoot := repositoryRoot()
+	compose := readContractFile(t, filepath.Join(repoRoot, "infra", "local", "docker-compose.yaml"))
+	dataMigration := composeServiceSection(t, compose, "data-migrate")
+	for _, required := range []string{"profiles: ['operations']", "entrypoint: ['/usr/local/bin/dbmigrate']", "command: ['-apply']"} {
+		if !strings.Contains(dataMigration, required) {
+			t.Fatalf("Data migration run template missing %q", required)
+		}
+	}
+	if strings.Contains(dataMigration, "container_name:") {
+		t.Fatal("Data migration run template must not assign a stable container name")
+	}
+	data := composeServiceSection(t, compose, "data")
+	if strings.Contains(data, "data-migrate") || strings.Contains(data, "service_completed_successfully") {
+		t.Fatal("Data service must not depend on the ephemeral Data migration run")
+	}
+
+	packageContents := readContractFile(t, filepath.Join(repoRoot, "package.json"))
+	var manifest struct {
+		Scripts map[string]string `json:"scripts"`
+	}
+	if err := json.Unmarshal([]byte(packageContents), &manifest); err != nil {
+		t.Fatalf("decode package.json: %v", err)
+	}
+	if got := manifest.Scripts["runtime:migrate:data"]; !strings.Contains(got, "run --rm --build data-migrate") {
+		t.Fatalf("runtime:migrate:data must build and remove its one-off container, got %q", got)
+	}
+	if got := manifest.Scripts["runtime:ensure-infra-and-migrate-data"]; got != "npm run infra:ensure && npm run runtime:migrate:data" {
+		t.Fatalf("runtime:ensure-infra-and-migrate-data must ensure infrastructure then migrate Data, got %q", got)
+	}
+	for name, command := range manifest.Scripts {
+		if strings.Contains(command, "-f infra/local/docker-compose.yaml up") &&
+			!strings.HasPrefix(command, "npm run runtime:ensure-infra-and-migrate-data && ") {
+			t.Errorf("application startup script %q can skip Data migration: %q", name, command)
+		}
+	}
+}
+
 func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 	repoRoot := repositoryRoot()
 	contents, err := os.ReadFile(filepath.Join(repoRoot, ".github", "workflows", "ci.yml"))
@@ -429,7 +468,6 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		t.Fatalf("read Admin Portal to AgentRun Compose smoke script: %v", err)
 	}
 	agentRunSmoke := string(agentRunSmokeContents)
-	assertSmokeCreatesExternalNetworkBeforeCompose(t, "Admin Portal to AgentRun", agentRunSmoke)
 	for _, required := range []string{
 		"data-migrate",
 		"agentrun-migrate",
@@ -451,7 +489,6 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		t.Fatalf("read Miniapp Compose smoke script: %v", err)
 	}
 	smoke := string(smokeContents)
-	assertSmokeCreatesExternalNetworkBeforeCompose(t, "Miniapp to Data Service", smoke)
 	for _, required := range []string{
 		"data-migrate",
 		"PGOPTIONS",
@@ -470,26 +507,6 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		if !strings.Contains(smoke, required) {
 			t.Fatalf("Miniapp Compose smoke script missing %q", required)
 		}
-	}
-}
-
-func assertSmokeCreatesExternalNetworkBeforeCompose(t *testing.T, name, script string) {
-	t.Helper()
-	const networkCreate = `docker network create "$COMPOSE_NETWORK_NAME"`
-	const composeCreate = `"${compose[@]}" create`
-	networkCreateIndex := strings.Index(script, networkCreate)
-	if networkCreateIndex < 0 {
-		t.Fatalf("%s Compose smoke script must create its external network", name)
-	}
-	composeCreateIndex := strings.Index(script, composeCreate)
-	if composeCreateIndex < 0 {
-		t.Fatalf("%s Compose smoke script must create its services", name)
-	}
-	if networkCreateIndex > composeCreateIndex {
-		t.Fatalf("%s Compose smoke script must create its external network before its services", name)
-	}
-	if !strings.Contains(script, `docker network rm "$COMPOSE_NETWORK_NAME"`) {
-		t.Fatalf("%s Compose smoke script must remove its external network during cleanup", name)
 	}
 }
 

@@ -12,14 +12,18 @@
 
 初始 schema 的 down 段不自动删除业务表。需要回滚初始 schema 时，应通过已审阅的前向修复 migration 或数据库备份恢复执行，避免在有数据环境中误删事实基础。
 
-本地 migration 只从 Data image 运行。正常 Local Compose 启动会先自动执行同一 one-shot
-service；也可以显式运行：
+本地 migration 只从 Data image 运行。规范 npm 启动命令会先构建候选 Data image，再通过
+临时 Compose run 执行 migration，成功后才启动 Service；也可以显式运行同一命令：
 
 ```bash
-docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm data-migrate
+npm run runtime:migrate:data
 ```
 
-只检查 pending migration 时不加 `-apply`。
+只检查 pending migration 时，显式运行同一模板并以 `--` 覆盖默认的 `-apply`：
+
+```bash
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --build data-migrate --
+```
 
 当前实体基础库相关 migration：
 
