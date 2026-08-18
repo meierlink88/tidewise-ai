@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+compose_file=infra/uat-infra/docker-compose.yaml
+example_env=infra/uat-infra/.env.example
+run_suffix="${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-$$}"
+[[ "$run_suffix" =~ ^[A-Za-z0-9_-]+$ ]] || { echo "invalid smoke run suffix" >&2; exit 1; }
+network="tidewise-uat-infra-smoke-${run_suffix}"
+mysql_container="tidewise-uat-mysql-smoke-${run_suffix}"
+minio_container="tidewise-uat-minio-smoke-${run_suffix}"
+mysql_volume="tidewise-uat-mysql-smoke-${run_suffix}"
+minio_volume="tidewise-uat-minio-smoke-${run_suffix}"
+mysql_root_password="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
+minio_root_user="smoke$(python3 -c 'import secrets; print(secrets.token_hex(6))')"
+minio_root_password="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
+minio_access_key="smoke$(python3 -c 'import secrets; print(secrets.token_hex(6))')"
+minio_secret_key="$(python3 -c 'import secrets; print(secrets.token_hex(24))')"
+
+compose_json="$(docker compose --env-file "$example_env" -f "$compose_file" config --format json)"
+mysql_image="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["services"]["mysql"]["image"])' <<<"$compose_json")"
+minio_image="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["services"]["minio"]["image"])' <<<"$compose_json")"
+[[ "$mysql_image" =~ @sha256:[0-9a-f]{64}$ ]]
+[[ "$minio_image" =~ @sha256:[0-9a-f]{64}$ ]]
+
+cleanup() {
+  docker rm -f "$mysql_container" "$minio_container" >/dev/null 2>&1 || true
+  docker volume rm "$mysql_volume" "$minio_volume" >/dev/null 2>&1 || true
+  docker network rm "$network" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+cleanup
+
+docker network create "$network" >/dev/null
+docker volume create "$mysql_volume" >/dev/null
+docker volume create "$minio_volume" >/dev/null
+docker run -d --rm --name "$mysql_container" --network "$network" --network-alias mysql \
+  --mount "type=volume,source=${mysql_volume},target=/var/lib/mysql" \
+  -e MYSQL_ROOT_PASSWORD="$mysql_root_password" \
+  -e MYSQL_DATABASE=openspg \
+  "$mysql_image" --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci >/dev/null
+docker run -d --rm --name "$minio_container" --network "$network" --network-alias minio \
+  --mount "type=volume,source=${minio_volume},target=/data" \
+  -e MINIO_ACCESS_KEY="$minio_root_user" \
+  -e MINIO_SECRET_KEY="$minio_root_password" \
+  -e MINIO_ROOT_USER="$minio_root_user" \
+  -e MINIO_ROOT_PASSWORD="$minio_root_password" \
+  "$minio_image" server --console-address :9001 /data >/dev/null
+
+for attempt in $(seq 1 60); do
+  if docker exec -e MYSQL_PWD="$mysql_root_password" "$mysql_container" \
+    mysqladmin ping -h 127.0.0.1 --silent >/dev/null 2>&1; then
+    break
+  fi
+  [ "$attempt" -lt 60 ] || { docker logs "$mysql_container"; exit 1; }
+  sleep 2
+done
+for attempt in $(seq 1 30); do
+  if docker exec "$minio_container" mc ready local >/dev/null 2>&1; then
+    break
+  fi
+  [ "$attempt" -lt 30 ] || { docker logs "$minio_container"; exit 1; }
+  sleep 1
+done
+
+docker exec "$mysql_container" getent hosts mysql >/dev/null
+docker exec -e ROOT_USER="$minio_root_user" -e ROOT_PASSWORD="$minio_root_password" \
+  "$minio_container" sh -c \
+  'MC_CONFIG_DIR=/tmp/test-mc mc alias set root http://minio:9000 "$ROOT_USER" "$ROOT_PASSWORD" >/dev/null'
+docker exec "$minio_container" sh -c 'MC_CONFIG_DIR=/tmp/test-mc mc mb root/raw-evidence >/dev/null'
+
+agent_policy='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:GetBucketLocation","s3:ListBucket"],"Resource":["arn:aws:s3:::raw-evidence"]},{"Effect":"Allow","Action":["s3:GetObject","s3:PutObject","s3:DeleteObject"],"Resource":["arn:aws:s3:::raw-evidence/*"]}]}'
+stale_policy='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":["s3:GetObject"],"Resource":["arn:aws:s3:::raw-evidence/*"]}]}'
+docker exec -e POLICY="$stale_policy" "$minio_container" sh -c \
+  'printf "%s" "$POLICY" > /tmp/stale-policy.json; MC_CONFIG_DIR=/tmp/test-mc mc admin policy create root agentos-raw-evidence-v1 /tmp/stale-policy.json >/dev/null'
+docker exec -e POLICY="$agent_policy" "$minio_container" sh -c \
+  'printf "%s" "$POLICY" > /tmp/agent-policy.json; MC_CONFIG_DIR=/tmp/test-mc mc admin policy create root agentos-raw-evidence-v1 /tmp/agent-policy.json >/dev/null'
+agent_policy_info="$(docker exec "$minio_container" sh -c \
+  'MC_CONFIG_DIR=/tmp/test-mc mc admin policy info root agentos-raw-evidence-v1')"
+POLICY="$agent_policy" POLICY_INFO="$agent_policy_info" \
+  python3 infra/uat-infra/verify-policy.py admin
+docker exec -e ACCESS_KEY="$minio_access_key" -e SECRET_KEY="$minio_secret_key" \
+  "$minio_container" sh -c \
+  'MC_CONFIG_DIR=/tmp/test-mc mc admin user add root "$ACCESS_KEY" "$SECRET_KEY" >/dev/null'
+docker exec -e ACCESS_KEY="$minio_access_key" "$minio_container" sh -c \
+  'MC_CONFIG_DIR=/tmp/test-mc mc admin policy attach root agentos-raw-evidence-v1 --user "$ACCESS_KEY" >/dev/null'
+
+anonymous_policy='{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::raw-evidence/*"]}]}'
+docker exec -e POLICY="$anonymous_policy" "$minio_container" sh -c \
+  'printf "%s" "$POLICY" > /tmp/anonymous-policy.json; MC_CONFIG_DIR=/tmp/test-mc mc anonymous set-json /tmp/anonymous-policy.json root/raw-evidence >/dev/null'
+anonymous_policy_info="$(docker exec "$minio_container" sh -c \
+  'MC_CONFIG_DIR=/tmp/test-mc mc anonymous get-json root/raw-evidence')"
+POLICY="$anonymous_policy" POLICY_INFO="$anonymous_policy_info" \
+  python3 infra/uat-infra/verify-policy.py anonymous
+docker exec -e ACCESS_KEY="$minio_access_key" -e SECRET_KEY="$minio_secret_key" \
+  "$minio_container" sh -c \
+  'MC_CONFIG_DIR=/tmp/test-mc mc alias set agentos http://minio:9000 "$ACCESS_KEY" "$SECRET_KEY" >/dev/null'
+
+printf 'contract-test\n' | docker exec -i "$minio_container" sh -c \
+  'MC_CONFIG_DIR=/tmp/test-mc mc pipe agentos/raw-evidence/test.md >/dev/null'
+docker exec "$minio_container" sh -c 'MC_CONFIG_DIR=/tmp/test-mc mc cat agentos/raw-evidence/test.md' \
+  | grep -qx contract-test
+docker run --rm --network "$network" --entrypoint curl "$minio_image" \
+  -fsS http://minio:9000/raw-evidence/test.md | grep -qx contract-test
+anonymous_status="$(docker run --rm --network "$network" --entrypoint curl "$minio_image" \
+  -sS -X PUT --data-binary must-be-denied -o /dev/null -w '%{http_code}' \
+  http://minio:9000/raw-evidence/anonymous-put.md)"
+[ "$anonymous_status" = 403 ]
+docker exec "$minio_container" sh -c 'MC_CONFIG_DIR=/tmp/test-mc mc rm --force agentos/raw-evidence/test.md >/dev/null'
+if docker exec "$minio_container" sh -c \
+  'MC_CONFIG_DIR=/tmp/test-mc mc stat agentos/raw-evidence/test.md >/dev/null 2>&1'; then
+  echo "authenticated delete did not remove canary" >&2
+  exit 1
+fi
+
+docker restart "$mysql_container" "$minio_container" >/dev/null
+for attempt in $(seq 1 60); do
+  mysql_ready=false
+  minio_ready=false
+  docker exec -e MYSQL_PWD="$mysql_root_password" "$mysql_container" \
+    mysqladmin ping -h 127.0.0.1 --silent >/dev/null 2>&1 && mysql_ready=true
+  docker exec "$minio_container" mc ready local >/dev/null 2>&1 && minio_ready=true
+  [ "$mysql_ready" = true ] && [ "$minio_ready" = true ] && break
+  [ "$attempt" -lt 60 ] || exit 1
+  sleep 2
+done
+docker exec -e MYSQL_PWD="$mysql_root_password" "$mysql_container" \
+  mysql -NBe "SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='openspg'" \
+  | grep -qx openspg
+docker exec -e ROOT_USER="$minio_root_user" -e ROOT_PASSWORD="$minio_root_password" \
+  -e ACCESS_KEY="$minio_access_key" "$minio_container" sh -c \
+  'MC_CONFIG_DIR=/tmp/test-mc mc alias set root http://minio:9000 "$ROOT_USER" "$ROOT_PASSWORD" >/dev/null; MC_CONFIG_DIR=/tmp/test-mc mc stat root/raw-evidence >/dev/null; MC_CONFIG_DIR=/tmp/test-mc mc admin user info root "$ACCESS_KEY" >/dev/null'
+
+echo "PASS UAT MySQL-MinIO container behavior smoke"

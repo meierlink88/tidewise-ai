@@ -44,6 +44,11 @@ func TestApplicationChangeDetectionRoutesAffectedBoundaries(t *testing.T) {
 			path: "go.mod",
 			want: map[string]bool{"data": true, "miniapp": true, "adminportal": true},
 		},
+		{
+			name: "UAT infrastructure deployment",
+			path: "infra/uat-infra/deploy.sh",
+			want: map[string]bool{"data": true, "miniapp": false, "adminportal": false},
+		},
 	}
 
 	script, err := filepath.Abs(filepath.Join(repositoryRoot(), "scripts", "ci", "detect-app-change.sh"))
@@ -170,6 +175,12 @@ func TestRiskBoundaryDetectionSelectsOnlyAffectedSuites(t *testing.T) {
 			want:  map[string]bool{"container": true},
 		},
 		{
+			name:  "UAT infrastructure change selects container smoke",
+			scope: "data",
+			path:  "infra/uat-infra/deploy.sh",
+			want:  map[string]bool{"container": true, "uat_infra": true},
+		},
+		{
 			name:  "Runtime configuration selects the conditional lifecycle seam",
 			scope: "adminportal",
 			path:  "admin-portal/backend/internal/conf/config.go",
@@ -235,7 +246,7 @@ func TestRiskBoundaryDetectionSelectsOnlyAffectedSuites(t *testing.T) {
 			for _, risk := range []string{
 				"default", "frontend", "data", "migration", "migration_smoke", "migration_framework", "conf_lifecycle",
 				"provider_consumer", "container", "architecture",
-				"object_schema",
+				"object_schema", "uat_infra",
 			} {
 				if got[risk] != tt.want[risk] {
 					t.Fatalf("%s = %t, want %t; output=%q", risk, got[risk], tt.want[risk], result)

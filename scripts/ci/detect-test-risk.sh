@@ -39,13 +39,17 @@ provider_consumer=false
 container=false
 architecture=false
 object_schema=false
+uat_infra=false
 
 shared_go='^(go\.mod|go\.sum)$'
 shared_frontend='^(package\.json|package-lock\.json)$'
-container_assets='(^|/)(Dockerfile|docker-compose[^/]*\.ya?ml)$|^infra/(local|uat)/|^\.github/workflows/(ci|deploy-uat)\.yml$'
+container_assets='(^|/)(Dockerfile|docker-compose[^/]*\.ya?ml)$|^infra/(local|uat|uat-infra)/|^\.github/workflows/(ci|deploy-uat|deploy-uat-infra)\.yml$'
 
 case "$scope" in
   data)
+    if matches '^infra/uat-infra/|^scripts/ci/smoke-uat-infra\.sh$|^\.github/workflows/deploy-uat-infra\.yml$'; then
+      uat_infra=true
+    fi
     if matches '^data-service/doctype/|^scripts/ci/(verify-openspg-schemas\.py|verify-openspg-schemas\.sh|openspg-parser-requirements\.txt|openspg-kag-revision\.txt)$|^docs/development-standards/openspg-schema\.md$'; then
       object_schema=true
     fi
@@ -113,7 +117,7 @@ case "$scope" in
     fi
     ;;
   repository)
-    if matches '^(go\.mod|go\.sum|AGENTS\.md|CONTEXT-MAP\.md)$|^(data-service|miniapp|admin-portal)/backend/.*\.go$|^docs/(agents/|adr/|contexts/|development-standards/)|^infra/uat/|^scripts/ci/|^\.github/workflows/'; then
+    if matches '^(go\.mod|go\.sum|AGENTS\.md|CONTEXT-MAP\.md)$|^(data-service|miniapp|admin-portal)/backend/.*\.go$|^docs/(agents/|adr/|contexts/|development-standards/)|^infra/(uat|uat-infra)/|^scripts/ci/|^\.github/workflows/'; then
       architecture=true
     fi
     ;;
@@ -131,4 +135,5 @@ esac
   echo "container=$container"
   echo "architecture=$architecture"
   echo "object_schema=$object_schema"
+  echo "uat_infra=$uat_infra"
 } >>"$GITHUB_OUTPUT"
