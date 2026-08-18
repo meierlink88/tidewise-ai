@@ -185,7 +185,7 @@ ORDER BY ordinal_position`)
 		})
 	}
 	validSemantic := `{"who":"","what":"","when":"","where":"","why":"","how":""}`
-	assertPostgresCode(t, db, "23514", `INSERT INTO events (id,title,summary,semantic,modality,status) VALUES ($1,'bad modality','bad modality',$2,'ACTUAL','ACTIVE')`,
+	assertPostgresCode(t, db, "23514", `INSERT INTO events (id,title,summary,semantic,modality,status) VALUES ($1,'bad modality','bad modality',$2,'REAL','ACTIVE')`,
 		mustDomainID(t, coreid.Event), validSemantic)
 	assertPostgresCode(t, db, "23514", `INSERT INTO events (id,title,summary,semantic,modality,status) VALUES ($1,'bad status','bad status',$2,'FACT','CURRENT')`,
 		mustDomainID(t, coreid.Event), validSemantic)
