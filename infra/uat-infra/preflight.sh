@@ -59,7 +59,7 @@ for port in 3306 9000 9001; do
     fail "port-$port" "occupied by a non-Docker listener"
   fi
 done
-pass loopback-ports
+pass infrastructure-port-ownership
 
 hostname="$(python3 -c 'from urllib.parse import urlparse; import os; print(urlparse(os.environ["RAW_EVIDENCE_PUBLIC_BASE_URL"]).hostname)')"
 headers="$(curl -sS --connect-timeout 3 --max-time 5 --resolve "${hostname}:443:127.0.0.1" -D - -o /dev/null "${public_base%/}/raw-evidence/_preflight/not-present" || true)"

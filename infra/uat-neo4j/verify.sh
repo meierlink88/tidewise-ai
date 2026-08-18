@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck disable=SC1091
+source "$script_dir/lib.sh"
 neo4j_admin_password="${NEO4J_ADMIN_PASSWORD:?NEO4J_ADMIN_PASSWORD is required}"
 consumer_image="${REASON_CONSUMER_IMAGE:-spg-registry.cn-hangzhou.cr.aliyuncs.com/spg/openspg-server@sha256:fe6708deef9ebb8da8da7b1cb643e83b827769a5be8811961311639aa1f2cb88}"
 
@@ -13,22 +16,21 @@ consumer_image="${REASON_CONSUMER_IMAGE:-spg-registry.cn-hangzhou.cr.aliyuncs.co
 [ "$(systemctl is-active neo4j)" = active ]
 [ "$(neo4j version)" = "neo4j 5.26.28" ]
 curl --fail --silent --show-error http://127.0.0.1:7474/ >/dev/null
-echo "PASS Neo4j service, version and loopback HTTP"
+echo "PASS Neo4j service, version and HTTP"
 
 listener_endpoints="$(
   ss -H -ltn '( sport = :7474 or sport = :7687 )' |
     awk '{print $4}' |
-    sed -E 's/^\[::ffff:([^]]+)\]:(.+)$/\1:\2/; s/^\[([^]]+)\]:(.+)$/\1:\2/' |
-    LC_ALL=C sort
+    normalize_neo4j_listener_endpoints
 )"
-expected_endpoints="$(printf '%s\n' '127.0.0.1:7474' '172.17.0.1:7687' | LC_ALL=C sort)"
+expected_endpoints="$(printf '%s\n' '0.0.0.0:7474' '0.0.0.0:7687' | LC_ALL=C sort)"
 if [ "$listener_endpoints" != "$expected_endpoints" ]; then
   echo "Unexpected Neo4j listeners:" >&2
   printf '%s\n' "$listener_endpoints" >&2
   exit 1
 fi
 printf '%s\n' "$listener_endpoints"
-echo "PASS Neo4j listener isolation"
+echo "PASS Neo4j office-allowlisted listeners"
 
 gds_version="$(NEO4J_ADDRESS=bolt://172.17.0.1:7687 \
   NEO4J_USERNAME=neo4j \

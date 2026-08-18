@@ -11,7 +11,8 @@ Huawei ECS
 ├── tidewise-uat network
 │   ├── mysql:3306              # OpenSPG metadata, loopback host binding
 │   └── minio:9000              # shared S3 API, loopback host binding
-├── host Neo4j 127.0.0.1:7474/7687
+├── MinIO Console :9001          # office-allowlisted ECS host binding
+├── host Neo4j :7474/:7687       # office-allowlisted Browser and Bolt
 └── Nginx :443
     └── /raw-evidence/* -> 127.0.0.1:9000/raw-evidence/*
 
@@ -21,6 +22,10 @@ Huawei RDS PostgreSQL              # application and AgentOS databases
 The Compose project is `tidewise-infra-uat`. It creates the persistent named volumes
 `tidewise-infra-uat-mysql-data` and `tidewise-infra-uat-minio-data`. Normal deployment and rollback
 never remove either volume.
+
+The existing Huawei Cloud security-group source-IP allowlist is the outer boundary for the native
+UAT operator ports. Office users reach MinIO Console at `http://123.60.99.198:9001`; port `9000`
+remains loopback-only. This direct HTTP exception is UAT-only and must not be copied to production.
 
 ## One-time root bootstrap
 
@@ -52,6 +57,18 @@ connection and migration-readiness check without changing the database.
 CI runs `scripts/ci/smoke-uat-infra.sh` against isolated Docker volumes and a temporary network. It
 exercises the rendered Compose images, policy drift reconciliation, authenticated object lifecycle,
 anonymous-read/write-denial behavior, DNS aliases and restart persistence.
+
+After a successful deployment, verify the office-network boundary from outside the ECS:
+
+```bash
+curl --fail --show-error --silent http://123.60.99.198:9001/ >/dev/null
+if nc -z -w 3 123.60.99.198 9000; then
+  echo 'MinIO S3 API must remain private' >&2
+  exit 1
+fi
+```
+
+The first probe must load MinIO Console and the second must prove that the S3 API remains private.
 
 ## Deployment and rollback
 

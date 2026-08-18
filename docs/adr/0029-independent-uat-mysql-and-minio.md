@@ -2,6 +2,7 @@
 status: accepted
 date: 2026-08-18
 issue: 280
+amended_by: 284
 ---
 
 # Operate UAT MySQL and MinIO independently from application releases
@@ -16,7 +17,9 @@ containers or volumes.
 
 - MySQL owns OpenSPG product metadata and persists in `tidewise-infra-uat-mysql-data`.
 - MinIO owns shared S3 objects and persists in `tidewise-infra-uat-minio-data`.
-- Both services bind host ports only to loopback. MinIO's console is never published through Nginx.
+- MySQL and the MinIO S3 API bind host ports only to loopback. MinIO Console publishes native host
+  port `9001` for office-network operators; the existing Huawei Cloud source-IP allowlist is the
+  outer UAT access boundary.
 - Nginx exposes anonymous object `GetObject` only under `/raw-evidence/` with no public bucket
   listing; authenticated writes use the
   internal `http://minio:9000` endpoint and a bucket-scoped AgentOS identity.
@@ -40,5 +43,7 @@ TLS ingress. It does not deploy OpenSPG Server or KAG; Reason Server remains a s
 
 Local `tidewise-infra` remains a developer bootstrap and is not promoted byte-for-byte. UAT instead
 has an explicit environment-owned infrastructure contract with production-style credentials,
-loopback exposure, observability and rollback. Adding Reason Server later may depend on `mysql`,
-`minio` and existing Neo4j, but it cannot absorb their lifecycle or data ownership.
+office-allowlisted Console access, private MySQL/S3 API exposure, observability and rollback. The
+native HTTP Console exception is limited to UAT and is removed when a managed HTTPS/VPN operator
+ingress exists. Adding Reason Server later may depend on `mysql`, `minio` and existing Neo4j, but it
+cannot absorb their lifecycle or data ownership.
