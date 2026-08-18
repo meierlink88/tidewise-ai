@@ -12,6 +12,8 @@ import type {
 import { formatResearchThemeEventTime, formatResearchUpdateLabel } from './presentation';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const chainNodeIDPattern =
+  /^CND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const directionValues = ['positive', 'negative', 'mixed', 'neutral', 'uncertain'] as const;
 const strengthValues = ['strong', 'medium', 'weak', 'unknown'] as const;
 const attentionValues = ['high', 'medium', 'low'] as const;
@@ -85,19 +87,38 @@ export function parseResearchThemeWire(value: unknown, asOf?: string): HomeResea
     updateLabel: asOf ? formatResearchUpdateLabel(publishedAt, asOf) : '',
     impacts: array(theme.impacts).map((item, index) => {
       const impact = record(item);
-      onlyKeys(impact, [
-        'node_key',
-        'display_name',
-        'relation_role',
-        'impact_direction',
-        'impact_summary',
-        'display_order'
-      ]);
+      const snapshot = 'node_key' in impact;
+      onlyKeys(
+        impact,
+        snapshot
+          ? [
+              'node_key',
+              'display_name',
+              'chain_node_id',
+              'name',
+              'relation_role',
+              'impact_direction',
+              'impact_summary',
+              'display_order'
+            ]
+          : [
+              'chain_node_id',
+              'name',
+              'relation_role',
+              'impact_direction',
+              'impact_summary',
+              'display_order'
+            ]
+      );
       const displayOrder = positiveInteger(impact.display_order);
       if (displayOrder !== index + 1) invalid();
       return {
-        nodeKey: localKey(impact.node_key),
-        displayName: text(impact.display_name),
+        nodeKey: snapshot ? localKey(impact.node_key) : chainNodeID(impact.chain_node_id),
+        displayName: text(snapshot ? impact.display_name : impact.name),
+        chainNodeId: snapshot
+          ? nullableChainNodeIDString(impact.chain_node_id)
+          : chainNodeID(impact.chain_node_id),
+        name: text(snapshot ? impact.display_name : impact.name),
         relationRole: enumValue(impact.relation_role, relationRoleValues),
         impactDirection: enumValue<ResearchDirection>(impact.impact_direction, directionValues),
         impactSummary: nullableText(impact.impact_summary),
@@ -206,10 +227,18 @@ function uuid(value: unknown): string {
   if (!uuidPattern.test(result)) invalid();
   return result;
 }
+function chainNodeID(value: unknown): string {
+  const result = text(value);
+  if (!chainNodeIDPattern.test(result)) invalid();
+  return result;
+}
 function localKey(value: unknown): string {
   const result = text(value);
   if (!/^[a-z0-9][a-z0-9._:-]{0,127}$/.test(result)) invalid();
   return result;
+}
+function nullableChainNodeIDString(value: unknown): string | null {
+  return value === '' || value === null ? null : chainNodeID(value);
 }
 function timestamp(value: unknown): string {
   const result = text(value);

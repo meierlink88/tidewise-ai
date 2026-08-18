@@ -59,6 +59,29 @@ func TestHandlerDoesNotPublishOpenAPIInProduction(t *testing.T) {
 	}
 }
 
+func TestRetiredEventSemanticAndAnalysisContextRoutesAreNotRegistered(t *testing.T) {
+	handler := testHTTPHandler(testConfig(), nil)
+	for _, target := range []struct {
+		method string
+		path   string
+	}{
+		{method: http.MethodGet, path: dataapi.APIPrefix + "/event-semantics/eligible-events"},
+		{method: http.MethodPost, path: dataapi.APIPrefix + "/event-semantics/context-leases"},
+		{method: http.MethodGet, path: dataapi.APIPrefix + "/event-semantics/context-leases/SCL11111111-1111-4111-8111-111111111111/context"},
+		{method: http.MethodPost, path: dataapi.APIPrefix + "/event-semantics/submissions"},
+		{method: http.MethodPost, path: dataapi.APIPrefix + "/event-semantics/submissions/ESS11111111-1111-4111-8111-111111111111/reviews"},
+		{method: http.MethodGet, path: dataapi.APIPrefix + "/events/EVT11111111-1111-4111-8111-111111111111/semantics"},
+		{method: http.MethodGet, path: dataapi.APIPrefix + "/research-analysis-context"},
+	} {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(target.method, target.path, nil))
+		if response.Code != http.StatusNotFound {
+			t.Errorf("%s %s status=%d, want %d; body=%s", target.method, target.path,
+				response.Code, http.StatusNotFound, response.Body.String())
+		}
+	}
+}
+
 func TestOperationalResponseFieldsMatchOpenAPI(t *testing.T) {
 	var document map[string]any
 	if err := yaml.Unmarshal(dataapi.Document(), &document); err != nil {

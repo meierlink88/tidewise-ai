@@ -84,19 +84,22 @@ describe('ResearchThemeCard', () => {
       ...theme.impacts.slice(0, 2),
       {
         ...theme.impacts[0],
-		displayName: '存储芯片封测',
+        chainNodeId: '44444444-4444-4444-8444-444444444444',
+        name: '存储芯片封测',
         impactDirection: 'uncertain' as const,
         displayOrder: 3
       },
       {
         ...theme.impacts[0],
-		displayName: '服务器存储采购',
+        chainNodeId: '55555555-5555-4555-8555-555555555555',
+        name: '服务器存储采购',
         impactDirection: 'negative' as const,
         displayOrder: 4
       },
       {
         ...theme.impacts[0],
-		displayName: '手机存储采购',
+        chainNodeId: '66666666-6666-4666-8666-666666666666',
+        name: '手机存储采购',
         impactDirection: 'mixed' as const,
         displayOrder: 5
       }

@@ -91,26 +91,14 @@ func TestResearchReasoningTreeAdapterRejectsMalformedSnapshotRows(t *testing.T) 
 	}
 }
 
-func TestPostgresSnapshotPublicationSurvivesFullMigrationLedger(t *testing.T) {
+func TestPostgresSnapshotAndAtomicEvidenceWorkOnCurrentSchema(t *testing.T) {
 	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "..", "migrations"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	db := postgresfixture.OpenIsolated(t, "tw_research_snapshot", migrationDir, 58)
+	db := postgresfixture.OpenIsolated(t, "tw_research_snapshot", migrationDir, 0)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	// Seed a valid V3 snapshot through the current production path without making
-	// that path depend on v58-only formal columns. Those columns are deleted by 59.
-	if _, err := db.ExecContext(ctx, `ALTER TABLE research_theme_import_receipts
-    ALTER COLUMN theme_ids_by_key SET DEFAULT '{"theme:legacy-placeholder":"snapshot"}'::jsonb,
-    ALTER COLUMN write_counts SET DEFAULT '{"themes":1,"impacts":1,"event_associations":1,"receipts":1}'::jsonb,
-    ALTER COLUMN reasoning_tree_ids_by_industry_chain_id SET DEFAULT '{}'::jsonb;
-ALTER TABLE research_reasoning_tree_import_receipts
-    ALTER COLUMN reasoning_tree_ids_by_industry_chain_id SET DEFAULT '{}'::jsonb;
-ALTER TABLE research_reasoning_tree_node_signals
-    ALTER COLUMN source_kind SET DEFAULT 'analyst_snapshot'`); err != nil {
-		t.Fatal(err)
-	}
 
 	if _, err := db.ExecContext(ctx, `INSERT INTO events (
     id, title, summary, first_seen_at, event_status, fact_status, dedupe_key, fact_payload
@@ -150,15 +138,6 @@ ALTER TABLE research_reasoning_tree_node_signals
 	if err != nil {
 		t.Fatal(err)
 	}
-	postgresfixture.ApplyMigration(t, db, migrationDir, 59)
-	store, err = NewStore(db)
-	if err != nil {
-		t.Fatal(err)
-	}
-	useCase, err = researchbiz.NewUseCase(store, store, graphStore, time.Now)
-	if err != nil {
-		t.Fatal(err)
-	}
 	replayed, err := useCase.PublishSnapshot(ctx, "integration-analyst", aggregate)
 	if err != nil {
 		t.Fatal(err)
@@ -191,20 +170,7 @@ ALTER TABLE research_reasoning_tree_node_signals
 		t.Fatal(err)
 	}
 	if !semanticPreserved {
-		t.Fatal("Atomic Evidence semantic changed across migration 59")
-	}
-
-	for _, retiredTable := range []string{
-		"event_semantic_submissions", "event_entity_links", "variable_signals",
-		"direct_impact_assertions", "variable_definitions", "product_profiles",
-	} {
-		var exists bool
-		if err := db.QueryRowContext(ctx, `SELECT to_regclass($1) IS NOT NULL`, retiredTable).Scan(&exists); err != nil {
-			t.Fatal(err)
-		}
-		if exists {
-			t.Errorf("retired table %s still exists", retiredTable)
-		}
+		t.Fatal("Atomic Evidence semantic did not round-trip on the current schema")
 	}
 }
 

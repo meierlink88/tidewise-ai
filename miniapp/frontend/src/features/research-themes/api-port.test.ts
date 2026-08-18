@@ -40,8 +40,8 @@ describe('research theme BFF adapter', () => {
               published_at: '2026-07-28T08:05:00Z',
               impacts: [
                 {
-				  node_key: 'optical-module',
-				  display_name: '高速光模块',
+                  chain_node_id: 'CND33333333-3333-4333-8333-333333333333',
+                  name: '高速光模块',
                   relation_role: 'beneficiary',
                   impact_direction: 'positive',
                   impact_summary: '需求预期增强',
@@ -74,7 +74,7 @@ describe('research theme BFF adapter', () => {
       impactStrength: 'medium',
       transmissionSummary: '交换机 → 高速光模块',
       updateLabel: '1 小时前',
-		impacts: [{ displayName: '高速光模块', displayOrder: 1 }],
+      impacts: [{ name: '高速光模块', displayOrder: 1 }],
       evidenceEventCount: 2,
       reasoningTreeCount: 1
     });

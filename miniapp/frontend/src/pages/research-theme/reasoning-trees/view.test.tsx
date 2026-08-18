@@ -71,7 +71,7 @@ describe('ReasoningTreeView', () => {
     expect(markup).toContain('产业链节点传导');
     expect(markup).toContain('reasoning-chain-node--selected');
     expect(markup).toContain('节点 03');
-		expect(markup).toContain(selected.displayName);
+    expect(markup).toContain(selected.name);
     expect(markup).toContain(selected.primarySignal.displaySummary);
     expect(markup).toContain(selected.incomingTransmissionTitle);
     expect(markup).toContain(selected.incomingTransmissionMechanism);

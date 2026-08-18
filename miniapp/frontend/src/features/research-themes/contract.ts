@@ -13,8 +13,10 @@ export interface ResearchThemeListRequest {
 }
 
 export interface HomeResearchThemeImpact {
-	nodeKey: string;
-	displayName: string;
+  nodeKey: string;
+  displayName: string;
+  chainNodeId: string | null;
+  name: string;
   relationRole: 'driver' | 'beneficiary' | 'constraint' | 'exposure';
   impactDirection: ResearchDirection;
   impactSummary: string | null;

@@ -20,9 +20,11 @@ export class ResearchReasoningTreeError extends Error {
 }
 export type ResearchReasoningTreeTheme = HomeResearchThemeItem;
 export interface ResearchReasoningTreeSummary {
-	treeKey: string;
-	displayName: string;
-	reasoningTreeId: string;
+  treeKey: string;
+  displayName: string;
+  reasoningTreeId: string;
+  industryChainId: string | null;
+  industryChainName: string;
   title: string;
   displayOrder: number;
   eventCount: number;
@@ -45,11 +47,19 @@ export interface ResearchReasoningTreeCheckpoint {
   type: 'event' | 'relationship' | 'metric';
   summary: string;
 }
+export interface ResearchReasoningTreeGraphEdge {
+  id: string;
+  relationType: string;
+  reviewStatus: string;
+  status: string;
+}
 export interface ResearchReasoningTreeSignal {
   signalKey: string;
   variableName: string | null;
   direction: ResearchSignalDirection | null;
-	signalRole: 'primary' | 'supporting' | 'contradicting';
+  variableSignalKey: string | null;
+  signalRole: 'primary' | 'supporting' | 'contradicting';
+  signalDirection: ResearchSignalDirection | null;
   displaySummary: string;
   displayOrder: number;
 }
@@ -58,15 +68,19 @@ export interface ResearchReasoningTreeNode {
   displayName: string;
   id: string;
   position: number;
+  chainNodeId: string | null;
+  name: string;
   stateSummary: string | null;
   impactDirection: ResearchDirection;
   impactStrength: ResearchImpactStrength;
   impactSummary: string | null;
   reasoningBasisSummary: string | null;
   evidenceGapSummary: string | null;
+  incomingIndustryChainGraphEdgeId: string | null;
   incomingTransmissionTitle: string | null;
   incomingTransmissionMechanism: string | null;
   incomingConditionSummary: string | null;
+  incomingGraphEdge: ResearchReasoningTreeGraphEdge | null;
   signals: ResearchReasoningTreeSignal[];
   primarySignal: ResearchReasoningTreeSignal;
   signalDisplaySummary: string;
@@ -76,6 +90,8 @@ export interface ResearchReasoningTree {
   displayName: string;
   reasoningTreeId: string;
   themeId: string;
+  industryChainId: string | null;
+  industryChainName: string;
   title: string;
   displayOrder: number;
   oneLineConclusion: string;

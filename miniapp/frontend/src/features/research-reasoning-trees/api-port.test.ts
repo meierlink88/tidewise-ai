@@ -31,7 +31,7 @@ describe('research reasoning tree BFF adapter', () => {
     expect(index).toMatchObject({
       theme: { id: themeId, impactStrength: 'medium', transmissionStage: 'validation' },
       reasoningTrees: [
-        { reasoningTreeId: treeId, displayName: '高速光模块产业链' },
+        { reasoningTreeId: treeId, industryChainName: '高速光模块产业链' },
         { reasoningTreeId: 'f9f7fd7e-06cf-5f53-b749-66c75785d3dc', title: 'DSP 芯片' }
       ]
     });
@@ -52,7 +52,7 @@ describe('research reasoning tree BFF adapter', () => {
         eventCount: 2,
         nodes: [
           {
-            displayName: '交换机',
+            name: '数据中心交换机',
             impactStrength: 'medium',
             incomingTransmissionTitle: null,
             incomingTransmissionMechanism: null,
@@ -63,7 +63,7 @@ describe('research reasoning tree BFF adapter', () => {
             }
           },
           {
-            displayName: '高速光模块',
+            name: '高速光模块',
             incomingTransmissionTitle: '端口配置传导',
             incomingTransmissionMechanism: '新增交换机端口增加可插拔光模块配置需求。',
             incomingConditionSummary: '采购发生且可插拔路线延续',
@@ -73,7 +73,7 @@ describe('research reasoning tree BFF adapter', () => {
             }
           },
           {
-            displayName: 'DSP 芯片',
+            name: '高速光模块 DSP 芯片',
             incomingTransmissionTitle: '排产向核心器件传导',
             incomingTransmissionMechanism: '高速光模块排产若增加，将提高 DSP 芯片备料需求。',
             incomingConditionSummary: '模块排产增加，且当前 DSP 技术方案延续',
