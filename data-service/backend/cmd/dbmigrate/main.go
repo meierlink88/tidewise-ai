@@ -18,6 +18,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("parse migration options: %v", err)
 	}
+	if err := validateEmptySchemaRebuildConfirmation(options, os.Getenv); err != nil {
+		log.Fatalf("validate migration options: %v", err)
+	}
 
 	cfg, err := conf.LoadDatabaseOperation()
 	if err != nil {
@@ -45,11 +48,25 @@ func parseCLIOptions(args []string) (dbmigration.ServiceOptions, error) {
 	flags.SetOutput(io.Discard)
 	apply := flags.Bool("apply", false, "apply pending migrations")
 	targetVersion := flags.String("target-version", "", "apply pending migrations up to this exact version")
+	rebuildEmptySchema := flags.Bool("rebuild-empty-schema", false, "drop and rebuild only the Data public schema before applying migrations")
 	if err := flags.Parse(args); err != nil {
 		return dbmigration.ServiceOptions{}, err
 	}
 	if *targetVersion != "" && !*apply {
 		return dbmigration.ServiceOptions{}, fmt.Errorf("-target-version requires -apply")
 	}
-	return dbmigration.ServiceOptions{AutoApply: *apply, TargetVersion: *targetVersion}, nil
+	if *rebuildEmptySchema && (!*apply || *targetVersion != "58") {
+		return dbmigration.ServiceOptions{}, fmt.Errorf("-rebuild-empty-schema requires -apply -target-version 58")
+	}
+	return dbmigration.ServiceOptions{AutoApply: *apply, TargetVersion: *targetVersion, RebuildEmptySchema: *rebuildEmptySchema}, nil
+}
+
+func validateEmptySchemaRebuildConfirmation(options dbmigration.ServiceOptions, getenv func(string) string) error {
+	if !options.RebuildEmptySchema {
+		return nil
+	}
+	if getenv("TIDEWISE_EMPTY_DATA_SCHEMA_REBUILD_CONFIRMED") != "issue-266-data-only" {
+		return fmt.Errorf("empty Data schema rebuild confirmation is missing")
+	}
+	return nil
 }

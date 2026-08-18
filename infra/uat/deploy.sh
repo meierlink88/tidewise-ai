@@ -15,6 +15,9 @@ expected_current_adminportal_image="${EXPECTED_CURRENT_ADMINPORTAL_IMAGE:-}"
 expected_current_admin_image="${EXPECTED_CURRENT_ADMIN_IMAGE:-}"
 expected_current_agentrun_image="${EXPECTED_CURRENT_AGENTRUN_IMAGE:-}"
 backup_confirmed="${HIGH_RISK_BACKUP_CONFIRMED:-false}"
+deployment_mode="${DEPLOYMENT_MODE:-normal}"
+destructive_data_change_confirmed="${DESTRUCTIVE_DATA_CHANGE_CONFIRMED:-false}"
+empty_data_schema_rebuild_requested="${EMPTY_DATA_SCHEMA_REBUILD_REQUESTED:-false}"
 compose_file="${COMPOSE_FILE:-infra/uat/docker-compose.yaml}"
 migration_risk_manifest="${MIGRATION_RISK_MANIFEST:-infra/uat/migration-risk.tsv}"
 agentrun_migration_risk_manifest="${AGENTRUN_MIGRATION_RISK_MANIFEST:-infra/uat/agentrun-migration-risk.tsv}"
@@ -29,6 +32,7 @@ previous_images="${state_dir}/previous.images.env"
 previous_compose="${state_dir}/previous.compose.yaml"
 previous_sha="${state_dir}/previous.sha"
 report_file="${RUNNER_TEMP:-/tmp}/tidewise-uat-migration-${GITHUB_RUN_ID:-manual}.json"
+data2_apply_report_file="${RUNNER_TEMP:-/tmp}/tidewise-uat-data2-apply-${GITHUB_RUN_ID:-manual}.json"
 agentrun_report_file="${RUNNER_TEMP:-/tmp}/tidewise-uat-agentrun-migration-${GITHUB_RUN_ID:-manual}.json"
 agentrun_rollback_compatibility_required=false
 agentrun_rollback_target_version=""
@@ -36,13 +40,52 @@ agentrun_rollback_target_version=""
 agentrun_rollback_marker="${state_dir}/agentrun-010-rollback-required"
 agent_version_publication_marker="${state_dir}/agentrun-agent-version-publication.json"
 release_state_write_marker="${state_dir}/release-state-write-in-progress"
+data2_cutover_marker="${state_dir}/tidewise-2-cutover-in-progress"
+pre_data2_runtime="${deployment_root}/pre-data2.runtime.env"
+pre_data2_images="${state_dir}/pre-data2.images.env"
+pre_data2_compose="${state_dir}/pre-data2.compose.yaml"
+pre_data2_sha="${state_dir}/pre-data2.sha"
 candidate_services_started=false
 rollback_snapshot_ready=false
+cutover_migration_started=false
+interrupted_state_recovery_mode=""
+committed_cutover_recovery=false
 host_base_url="${UAT_HOST_BASE_URL:-http://127.0.0.1}"
 event_semantic_qdrant_url="http://qdrant:6333"
 
 test -d "$state_dir"
 test -w "$state_dir"
+
+case "$deployment_mode" in
+  normal|tidewise_2_cutover) ;;
+  *)
+    echo "FAIL deployment-mode-gate: DEPLOYMENT_MODE must be normal or tidewise_2_cutover" >&2
+    exit 1
+    ;;
+esac
+if [ "$empty_data_schema_rebuild_requested" = true ] && [ "$deployment_mode" != tidewise_2_cutover ]; then
+  echo "FAIL deployment-mode-gate: empty Data schema rebuild is only available in tidewise_2_cutover" >&2
+  exit 1
+fi
+
+write_data2_cutover_marker() {
+  local phase="$1"
+  local temporary_marker
+  temporary_marker="$(mktemp "${state_dir}/tidewise-2-cutover.XXXXXX")"
+  {
+    printf 'release_sha=%s\n' "$release_sha"
+    printf 'phase=%s\n' "$phase"
+  } > "$temporary_marker"
+  chmod 0640 "$temporary_marker"
+  sync "$temporary_marker"
+  mv -f "$temporary_marker" "$data2_cutover_marker"
+  sync -f "$state_dir"
+}
+
+data2_cutover_marker_value() {
+  local key="$1"
+  sed -n "s/^${key}=//p" "$data2_cutover_marker" | tail -n 1
+}
 
 write_release_state_marker() {
   local phase="$1"
@@ -76,6 +119,16 @@ restore_interrupted_release_state() {
       install -m 0640 "$previous_compose" "$current_compose"
       install -m 0640 "$previous_sha" "$current_sha"
       ;;
+    pre-data2)
+      if [ ! -s "$pre_data2_runtime" ] || [ ! -s "$pre_data2_images" ] || [ ! -s "$pre_data2_compose" ] || [ ! -s "$pre_data2_sha" ]; then
+        echo "FAIL release-state-recovery: pre-Data-2.0 snapshot is incomplete" >&2
+        return 1
+      fi
+      install -m 0600 "$pre_data2_runtime" "$current_runtime"
+      install -m 0640 "$pre_data2_images" "$current_images"
+      install -m 0640 "$pre_data2_compose" "$current_compose"
+      install -m 0640 "$pre_data2_sha" "$current_sha"
+      ;;
     none)
       rm -f "$current_runtime" "$current_images" "$current_compose" "$current_sha"
       ;;
@@ -98,7 +151,7 @@ current_image_value() {
 
 current_release_state_fingerprint() {
   local path
-  for path in "$current_runtime" "$current_sha" "$current_images" "$current_compose" "$release_state_write_marker"; do
+  for path in "$current_runtime" "$current_sha" "$current_images" "$current_compose" "$release_state_write_marker" "$data2_cutover_marker"; do
     if [ -e "$path" ]; then
       sha256sum "$path"
     else
@@ -108,7 +161,11 @@ current_release_state_fingerprint() {
 }
 
 verify_planned_release_state() {
-  if [ "$(current_release_state_fingerprint)" != "$expected_current_state_fingerprint" ]; then
+  local recovered_cutover_state=false
+  if [ "$deployment_mode" = tidewise_2_cutover ] && [[ "$interrupted_state_recovery_mode" =~ ^(pre-data2|committed)$ ]]; then
+    recovered_cutover_state=true
+  fi
+  if [ "$recovered_cutover_state" != true ] && [ "$(current_release_state_fingerprint)" != "$expected_current_state_fingerprint" ]; then
     echo "FAIL release-state-plan-gate: current release state changed after planning; rerun deployment" >&2
     return 1
   fi
@@ -143,9 +200,29 @@ if ! flock -n 9; then
 fi
 echo "PASS deployment-lock"
 if [ -f "$release_state_write_marker" ]; then
+  interrupted_state_recovery_mode="$(sed -n '1p' "$release_state_write_marker")"
   restore_interrupted_release_state
 fi
 verify_planned_release_state
+if [ "$deployment_mode" = tidewise_2_cutover ] && [ "$interrupted_state_recovery_mode" = committed ]; then
+  if [ ! -s "$data2_cutover_marker" ] || \
+    [ "$(data2_cutover_marker_value release_sha)" != "$release_sha" ] || \
+    [ "$(data2_cutover_marker_value phase)" != data-migrated ]; then
+    echo "FAIL data2-cutover-committed-recovery: matching data-migrated cutover marker is required" >&2
+    exit 1
+  fi
+  if [ "$(sed -n '1p' "$current_sha")" != "$release_sha" ]; then
+    echo "FAIL data2-cutover-committed-recovery: committed release SHA does not match the requested release" >&2
+    exit 1
+  fi
+  for image_key in DATA_IMAGE MINIAPP_IMAGE ADMINPORTAL_IMAGE ADMIN_IMAGE AGENTRUN_IMAGE; do
+    if [[ "$(current_image_value "$image_key")" != *":${release_sha}" ]]; then
+      echo "FAIL data2-cutover-committed-recovery: ${image_key} is not the committed cutover image" >&2
+      exit 1
+    fi
+  done
+  committed_cutover_recovery=true
+fi
 
 # Process environment variables have higher precedence than Compose --env-file.
 # The workflow exposes candidate image names at job scope, so clear them before
@@ -188,6 +265,12 @@ validate_application_only_release() {
   fi
   if printf '%s\n' "$validation_services" | grep -qx qdrant; then
     echo "FAIL ${validation_label}-qdrant-ownership: application release state must not manage Qdrant" >&2
+    return 1
+  fi
+  local expected_services
+  expected_services="$(printf '%s\n' admin adminportal agentrun data miniapp)"
+  if [ "$(printf '%s\n' "$validation_services" | LC_ALL=C sort -u)" != "$expected_services" ]; then
+    echo "FAIL ${validation_label}-compose-contract: release must contain exactly data, agentrun, miniapp, adminportal, and admin" >&2
     return 1
   fi
 }
@@ -300,10 +383,30 @@ rollback_current_release() {
   echo "PASS rollback: previous complete release restored" >&2
 }
 
-cleanup_unfinished_agentrun_migration() {
+recover_failed_deployment() {
   local exit_status=$?
   trap - EXIT
   if [ "$exit_status" -ne 0 ]; then
+    if [ "$deployment_mode" = tidewise_2_cutover ]; then
+      if [ -e "$agent_version_publication_marker" ]; then
+        withdraw_candidate_agent_versions || true
+      fi
+      if [ "$cutover_migration_started" = true ]; then
+        if ! "${candidate_compose[@]}" stop; then
+          echo "FAIL data2-cutover-recovery: candidate application services could not be stopped" >&2
+        fi
+        echo "FAIL data2-cutover-recovery: database may be mutated; old application images remain stopped and marker is retained" >&2
+      elif [ -e "$data2_cutover_marker" ]; then
+        if rollback_current_release; then
+          rm -f "$data2_cutover_marker"
+          sync -f "$state_dir"
+          echo "PASS data2-cutover-pre-migration-rollback" >&2
+        else
+          echo "FAIL data2-cutover-pre-migration-rollback: marker retained" >&2
+        fi
+      fi
+      exit "$exit_status"
+    fi
     if [ "$candidate_services_started" = true ]; then
       rollback_current_release || true
     else
@@ -328,7 +431,7 @@ fi
 "${candidate_compose[@]}" config --quiet
 echo "PASS compose-contract"
 
-if [ -e "$agent_version_publication_marker" ]; then
+if [ -e "$agent_version_publication_marker" ] && [ "$committed_cutover_recovery" != true ]; then
   withdraw_candidate_agent_versions
   echo "PASS recovered-interrupted-agent-version-publication"
 fi
@@ -384,11 +487,15 @@ if unclassified:
 print(",".join(version for version in versions if risk[version][0] == "high"))
 print(",".join(version for version in versions if risk[version][0] == "blocked"))
 print(",".join(f"{version}:{risk[version][1]}" for version in versions if risk[version][1] != "schema"))
+print(str(report.get("current_version") or "").zfill(6))
+print(",".join(versions))
 PY
 )"
 high_risk_pending="$(printf '%s\n' "$migration_risk_summary" | sed -n '1p')"
 blocked_pending="$(printf '%s\n' "$migration_risk_summary" | sed -n '2p')"
 non_schema_pending="$(printf '%s\n' "$migration_risk_summary" | sed -n '3p')"
+data_current_version="$(printf '%s\n' "$migration_risk_summary" | sed -n '4p')"
+data_pending_versions="$(printf '%s\n' "$migration_risk_summary" | sed -n '5p')"
 
 agentrun_migration_risk_summary="$(python3 - "$agentrun_report_file" "$agentrun_migration_risk_manifest" <<'PY'
 import json
@@ -422,6 +529,7 @@ print(",".join(f"{version}:{risk[version][1]}" for version in versions if risk[v
 rollback_versions = {"011", "012", "013", "014", "015"}
 print("true" if rollback_versions.intersection(versions) else "false")
 print(str(report.get("current_version") or "").zfill(3))
+print(",".join(versions))
 PY
 )"
 agentrun_high_risk_pending="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '1p')"
@@ -429,6 +537,7 @@ agentrun_blocked_pending="$(printf '%s\n' "$agentrun_migration_risk_summary" | s
 agentrun_non_schema_pending="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '3p')"
 agentrun_rollback_compatibility_required="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '4p')"
 agentrun_rollback_target_version="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '5p')"
+agentrun_pending_versions="$(printf '%s\n' "$agentrun_migration_risk_summary" | sed -n '6p')"
 
 database_identity="tidewise_uat@config.uat.yaml/tidewise_uat"
 
@@ -466,11 +575,61 @@ if [ -n "$blocked_pending" ] || [ -n "$agentrun_blocked_pending" ]; then
 fi
 echo "PASS migration-release-gate"
 
-if [ -n "$non_schema_pending" ] || [ -n "$agentrun_non_schema_pending" ]; then
-  echo "FAIL migration-scope-gate: UAT system deploy accepts schema-only migrations: data=${non_schema_pending:-none} agentrun=${agentrun_non_schema_pending:-none}" >&2
-  exit 1
+if [ "$deployment_mode" = tidewise_2_cutover ]; then
+  if [ "$expected_current_available" != true ]; then
+    echo "FAIL data2-cutover-gate: a complete repository-managed current UAT release is required" >&2
+    exit 1
+  fi
+  if [ "$destructive_data_change_confirmed" != true ]; then
+    echo "FAIL data2-cutover-gate: confirm_destructive_data_change=true is required" >&2
+    exit 1
+  fi
+  if [ "$backup_confirmed" != true ]; then
+    echo "FAIL data2-cutover-gate: confirm_high_risk_backup=true is required" >&2
+    exit 1
+  fi
+  if [ "$agentrun_rollback_target_version" != 015 ] || [ -n "$agentrun_pending_versions" ]; then
+    echo "FAIL data2-cutover-gate: AgentRun must already be at migration 015 with no pending migrations" >&2
+    exit 1
+  fi
+  if [ -e "$data2_cutover_marker" ]; then
+    if [ "$(data2_cutover_marker_value release_sha)" != "$release_sha" ]; then
+      echo "FAIL data2-cutover-gate: recovery marker belongs to another release" >&2
+      exit 1
+    fi
+    if ! python3 - "$data_current_version" "$data_pending_versions" "$empty_data_schema_rebuild_requested" <<'PY'
+import sys
+
+current = int(sys.argv[1])
+pending = [int(version) for version in sys.argv[2].split(",") if version]
+minimum = 0 if sys.argv[3] == "true" else 44
+if current < minimum or current > 58 or pending != list(range(current + 1, 59)):
+    raise SystemExit(1)
+PY
+    then
+      echo "FAIL data2-cutover-gate: recovery state is not a contiguous migration suffix ending at 58" >&2
+      exit 1
+    fi
+    echo "PASS data2-cutover-recovery-gate"
+  elif [ "$empty_data_schema_rebuild_requested" = true ]; then
+    echo "FAIL data2-cutover-gate: empty Data schema rebuild requires an existing cutover recovery marker" >&2
+    exit 1
+  elif [ "$data_current_version" != 000044 ] || [ "$data_pending_versions" != 000045,000046,000047,000048,000049,000050,000051,000052,000053,000054,000055,000056,000057,000058 ]; then
+    echo "FAIL data2-cutover-gate: initial cutover requires Data migration 44 with the exact pending range 45-58" >&2
+    exit 1
+  fi
+  echo "PASS data2-cutover-gate"
+else
+  if [ -e "$data2_cutover_marker" ]; then
+    echo "FAIL data2-cutover-recovery: ordinary deployment is blocked while a cutover marker exists" >&2
+    exit 1
+  fi
+  if [ -n "$non_schema_pending" ] || [ -n "$agentrun_non_schema_pending" ]; then
+    echo "FAIL migration-scope-gate: UAT system deploy accepts schema-only migrations: data=${non_schema_pending:-none} agentrun=${agentrun_non_schema_pending:-none}" >&2
+    exit 1
+  fi
+  echo "PASS migration-scope-gate"
 fi
-echo "PASS migration-scope-gate"
 
 if { [ -n "$high_risk_pending" ] || [ -n "$agentrun_high_risk_pending" ]; } && [ "$backup_confirmed" != true ]; then
   echo "FAIL migration-risk-gate: confirm_high_risk_backup=true is required for data=${high_risk_pending:-none} agentrun=${agentrun_high_risk_pending:-none}" >&2
@@ -483,13 +642,89 @@ if [ "$agentrun_rollback_compatibility_required" = true ] && ! [[ "$agentrun_rol
   exit 1
 fi
 
-"${candidate_compose[@]}" run --rm --no-deps data /usr/local/bin/dbmigrate -apply > "$report_file"
+if [ "$committed_cutover_recovery" = true ]; then
+  if [ "$data_current_version" != 000058 ] || [ -n "$data_pending_versions" ]; then
+    echo "FAIL data2-cutover-committed-recovery: Data must be at migration 58 with no pending migrations" >&2
+    exit 1
+  fi
+  if ! verify_services "$runtime_env" "${candidate_compose[@]}"; then
+    if ! "${candidate_compose[@]}" stop; then
+      echo "FAIL data2-cutover-committed-recovery: candidate application services could not be stopped" >&2
+    fi
+    echo "FAIL data2-cutover-committed-recovery: committed candidate is not healthy; cutover marker retained" >&2
+    exit 1
+  fi
+  rm -f "$agentrun_rollback_marker" "$agent_version_publication_marker" "$data2_cutover_marker"
+  sync -f "$state_dir"
+  echo "PASS data2-cutover-committed-recovery"
+  exit 0
+fi
+
+if [ "$deployment_mode" = tidewise_2_cutover ]; then
+  trap recover_failed_deployment EXIT
+  write_data2_cutover_marker prepared
+  current_release_compose=("${compose_command[@]}" --env-file "$current_runtime" --env-file "$current_images" -f "$current_compose")
+  "${current_release_compose[@]}" stop
+  if ! running_services="$("${current_release_compose[@]}" ps --status running --services)"; then
+    echo "FAIL application-write-stop: unable to inspect current Compose services" >&2
+    exit 1
+  fi
+  if [ -n "$running_services" ]; then
+    echo "FAIL application-write-stop: one or more current UAT services are still running" >&2
+    exit 1
+  fi
+  for service in data agentrun miniapp adminportal admin; do
+    if ! running_container_ids="$(docker ps \
+      --filter label=com.docker.compose.project=tidewise-uat \
+      --filter "label=com.docker.compose.service=${service}" \
+      --filter status=running \
+      --quiet)"; then
+      echo "FAIL application-write-stop: unable to inspect ${service} containers" >&2
+      exit 1
+    fi
+    if [ -n "$running_container_ids" ]; then
+      echo "FAIL application-write-stop: ${service} still has a running tidewise-uat container" >&2
+      exit 1
+    fi
+  done
+  write_data2_cutover_marker services-stopped
+  echo "PASS application-write-stop"
+  cutover_migration_started=true
+  write_data2_cutover_marker migration-started
+  if [ "$empty_data_schema_rebuild_requested" = true ]; then
+    "${candidate_compose[@]}" run --rm --no-deps \
+      -e TIDEWISE_EMPTY_DATA_SCHEMA_REBUILD_CONFIRMED=issue-266-data-only \
+      -e "PGOPTIONS=-c tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified -c tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified -c tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified" \
+      data /usr/local/bin/dbmigrate -apply -target-version 58 -rebuild-empty-schema > "$data2_apply_report_file"
+  else
+    "${candidate_compose[@]}" run --rm --no-deps data /usr/local/bin/dbmigrate -apply -target-version 58 > "$data2_apply_report_file"
+  fi
+  "${candidate_compose[@]}" run --rm --no-deps data /usr/local/bin/dbmigrate > "$report_file"
+  if ! python3 - "$report_file" <<'PY'
+import json
+import pathlib
+import sys
+
+report = json.loads(pathlib.Path(sys.argv[1]).read_text())
+current = str(report.get("current_version") or "").zfill(6)
+if current != "000058" or report.get("pending") or report.get("remaining"):
+    raise SystemExit(1)
+PY
+  then
+    echo "FAIL data2-target-version: Data did not reach migration 58 with no pending migrations" >&2
+    exit 1
+  fi
+  write_data2_cutover_marker data-migrated
+  echo "PASS data2-target-version"
+else
+  "${candidate_compose[@]}" run --rm --no-deps data /usr/local/bin/dbmigrate -apply > "$report_file"
+fi
 if [ "$agentrun_rollback_compatibility_required" = true ]; then
   printf '%s\n' "$agentrun_rollback_target_version" > "$agentrun_rollback_marker"
   chmod 0640 "$agentrun_rollback_marker"
   sync "$agentrun_rollback_marker"
   sync -f "$state_dir"
-  trap cleanup_unfinished_agentrun_migration EXIT
+  trap recover_failed_deployment EXIT
 fi
 "${candidate_compose[@]}" run --rm --no-deps --entrypoint /app/agentrun-migrate agentrun > "$agentrun_report_file"
 agent_version_publication_temp="$(mktemp "${state_dir}/agentrun-agent-version-publication.XXXXXX")"
@@ -503,7 +738,7 @@ chmod 0640 "$agent_version_publication_temp"
 sync "$agent_version_publication_temp"
 mv -f "$agent_version_publication_temp" "$agent_version_publication_marker"
 sync -f "$state_dir"
-trap cleanup_unfinished_agentrun_migration EXIT
+trap recover_failed_deployment EXIT
 {
   echo
   echo '<details><summary>Migration apply result</summary>'
@@ -524,28 +759,36 @@ echo "PASS migration-apply"
 echo "PASS agent-version-publication"
 
 if ! "${candidate_compose[@]}" up -d --wait --wait-timeout 120; then
-  if [ "$candidate_services_started" != true ]; then
+  if [ "$deployment_mode" != tidewise_2_cutover ] && [ "$candidate_services_started" != true ]; then
     rollback_current_release
   fi
   exit 1
 fi
 if ! verify_services "$runtime_env" "${candidate_compose[@]}"; then
-  if [ "$candidate_services_started" != true ]; then
+  if [ "$deployment_mode" != tidewise_2_cutover ] && [ "$candidate_services_started" != true ]; then
     rollback_current_release
   fi
   exit 1
 fi
 candidate_services_started=true
-trap cleanup_unfinished_agentrun_migration EXIT
+trap recover_failed_deployment EXIT
 
-if [ "$expected_current_available" = true ]; then
+if [ "$deployment_mode" = tidewise_2_cutover ]; then
+  install -m 0600 "$current_runtime" "$pre_data2_runtime"
+  install -m 0640 "$current_images" "$pre_data2_images"
+  install -m 0640 "$current_compose" "$pre_data2_compose"
+  install -m 0640 "$current_sha" "$pre_data2_sha"
+  rm -f "$previous_runtime" "$previous_images" "$previous_compose" "$previous_sha"
+elif [ "$expected_current_available" = true ]; then
   install -m 0600 "$current_runtime" "$previous_runtime"
   install -m 0640 "$current_images" "$previous_images"
   install -m 0640 "$current_compose" "$previous_compose"
   install -m 0640 "$current_sha" "$previous_sha"
   rollback_snapshot_ready=true
 fi
-if [ "$rollback_snapshot_ready" = true ]; then
+if [ "$deployment_mode" = tidewise_2_cutover ]; then
+  write_release_state_marker pre-data2
+elif [ "$rollback_snapshot_ready" = true ]; then
   write_release_state_marker previous
 else
   write_release_state_marker none
@@ -564,6 +807,10 @@ sync -f "$state_dir"
 agentrun_rollback_compatibility_required=false
 rm -f "$release_state_write_marker"
 sync -f "$state_dir"
+if [ "$deployment_mode" = tidewise_2_cutover ]; then
+  rm -f "$data2_cutover_marker"
+  sync -f "$state_dir"
+fi
 trap - EXIT
 echo "PASS release-state-recorded"
 

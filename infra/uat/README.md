@@ -19,6 +19,9 @@ UAT 由 GitHub Actions 手工发布到华为云 ECS，运行时数据库使用�
   AgentRun Artifact 写入探针、Data/AgentRun migration、Agent Version 数据发布、
   Compose 启动、两层健康
   检查和失败时的整套镜像回退。
+- Workflow 默认使用 `normal` 模式。一次性的 `tidewise_2_cutover` 模式只用于把既有
+  Data migration `44` 原子推进到 `58`，并强制构建和发布五个 Tidewise AI 服务；完成后
+  后续迭代继续使用同一个 workflow 的默认 `normal` 模式。
 
 服务目录与部署映射固定为：
 
@@ -67,6 +70,8 @@ Workflow 在成功后持久保存：
 - `/opt/tidewise/uat/runtime.env`：当前运行版本需要的 Secrets，权限 `0600`。
 - `/opt/tidewise/uat/state/current.*`：当前成功版本的 SHA、五个业务镜像与 Compose。
 - `/opt/tidewise/uat/state/previous.*`：上一成功版本的 SHA、五个业务镜像与 Compose。
+- `/opt/tidewise/uat/state/pre-data2.*` 与 `/opt/tidewise/uat/pre-data2.runtime.env`：
+  Tidewise AI 2.0 切换前的审计快照；数据库推进到 `58` 后不得由 Action 自动选择这些旧镜像。
 - `/opt/tidewise/uat/agentrun-artifacts`：AgentRun 持久化 Artifact，owner 为
   `tidewise-deploy`、group 为固定 GID `10001` 的 `tidewise-agentrun`，权限
   `2770`；AgentRun 镜像使用同一固定 GID，以非 root 用户读写。
@@ -153,11 +158,35 @@ Qdrant 运维需保证容器连接外部 Docker 网络 `tidewise-uat`、网络�
 
 所有 migration 的风险与 scope 维护在 `migration-risk.tsv`。每行固定为
 `version<TAB>risk<TAB>scope<TAB>reason`，scope 只能是 `schema`、`data` 或 `mixed`。
-未登记的 pending migration 会直接阻断发布；`blocked` 表示当前应用版本尚不兼容；
-`data`/`mixed` 表示该版本包含数据发布、转换、清理或事实破坏，系统部署不得执行，也不能
-通过备份确认绕过。只有 pending 版本全部是 `schema` 时才进入风险门禁；存在 `high` Schema
-migration 时，操作员必须先确认 RDS 自动备份/PITR 或手工恢复点可用，再勾选
-`confirm_high_risk_backup`，否则发布失败。
+未登记的 pending migration 会直接阻断发布；`blocked` 表示当前应用版本尚不兼容。
+默认 `normal` 模式不执行 `data`/`mixed` migration，也不能通过备份确认绕过。只有 pending
+版本全部是 `schema` 时才进入普通风险门禁；存在 `high` Schema migration 时，操作员必须先
+确认 RDS 自动备份/PITR 或手工恢复点可用，再勾选 `confirm_high_risk_backup`，否则发布失败。
+
+### Tidewise AI 2.0 一次性切换
+
+`tidewise_2_cutover` 是唯一例外，而且边界固定：Data 必须处于 migration `44`，pending 必须
+严格为连续的 `45`–`58`，AgentRun 必须已经处于 `015` 且没有 pending migration。操作员必须
+同时勾选 `confirm_high_risk_backup` 和 `confirm_destructive_data_change`。Workflow 会强制构建
+五个当前提交镜像，并在任何写入前验证当前 release、RDS TLS、AgentRun Artifact 与外部
+Qdrant；随后停止并确认五个应用服务全部停止，再执行候选 Data 镜像的
+`dbmigrate -apply -target-version 58`。
+
+切换启动数据库迁移后，旧应用与新数据库不再兼容。候选服务启动或健康检查失败时，脚本
+保留 `state/tidewise-2-cutover-in-progress`，保持旧服务停止，且普通 `normal` 发布直接失败。
+相同目标 SHA 可以在 Data ledger 是 `44`–`58` 且 pending 仍是直到 `58` 的连续后缀时继续
+forward recovery；另一条恢复路径是由操作员恢复切换前 RDS 恢复点后再启动旧 release。
+Action 不执行 down migration，也不会在数据库可能已改变后自动启动旧镜像。
+
+如果 migration 因历史 Data 不满足 fail-closed 前置条件而失败，首次失败会留下 cutover
+marker。操作员确认日志确属历史 Data 不兼容后，可用相同目标 SHA 重新运行
+`tidewise_2_cutover`，保持两个确认项并额外勾选 `rebuild_empty_data_schema`。该入口要求已有
+同 SHA marker，使用候选 Data 镜像在 migration advisory lock 内只删除并重建 Data database
+的 `public` schema，再从空结构推进到 migration `58`；不得清空 AgentRun database、AgentRun
+Artifact 或独立 Qdrant。脚本不会把任意连接、权限或命令错误自动解释为“可清空数据”。
+该空 schema 路径会随命令注入历史 migration `15`、`16`、`18` 所需的 reviewed session
+授权；它们只在已有同 SHA marker、cutover 模式、两个确认项和 rebuild 选择均成立时出现，
+不进入普通发布环境。
 
 UAT 目录、Seed、Agent 注册数据、配置、事实回填和清理使用独立数据发布机制，数据来源不
 默认采用开发环境。系统部署不拥有其 Artifact、review、幂等、Receipt 或恢复过程。历史
@@ -203,5 +232,8 @@ Miniapp 客户端地址和 Admin CORS 配置。发布完成后应从 ECS 外部�
    相互独立的 push/pull 凭据。
 4. 配置 GitHub `uat` Environment Variables 与 Secrets。
 5. 将 ECS runner 迁移到 `tidewise-deploy`，添加专属标签，并创建固定部署目录。
-6. 从 `main` 手工运行 `Deploy UAT`。如 check-only 报告包含高风险 migration，核验恢复点后重新勾选确认项执行。
+6. Tidewise AI 2.0 首次切换选择 `tidewise_2_cutover` 并勾选两个确认项；只有已标记的同 SHA
+   恢复且确认历史 Data 不兼容时才勾选 `rebuild_empty_data_schema`。切换成功后的日常
+   迭代保持默认 `normal`。如普通 check-only 报告包含高风险 Schema migration，核验恢复点后
+   重新勾选 `confirm_high_risk_backup` 执行。
 7. 检查 Actions deployment plan、受影响业务镜像、完整五服务 release state、独立 Qdrant 端点健康、代表性 BFF→Data/AgentRun 读取以及 `state/current.sha`、`state/previous.sha`。
