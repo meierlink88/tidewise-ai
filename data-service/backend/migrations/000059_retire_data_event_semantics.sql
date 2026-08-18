@@ -215,7 +215,7 @@ END;
 $$;
 -- +goose StatementEnd
 
-DROP FUNCTION event_semantic_measurement_evidence_ids_compat();
+DROP FUNCTION IF EXISTS event_semantic_measurement_evidence_ids_compat();
 
 CREATE TRIGGER trg_research_theme_receipts_immutable
 BEFORE UPDATE OR DELETE OR TRUNCATE ON research_theme_import_receipts
