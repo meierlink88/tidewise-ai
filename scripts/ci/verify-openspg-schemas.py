@@ -43,7 +43,49 @@ def constraint_values(prop):
     }
 
 
-def verify_region(parser):
+def schema_member_block(schema_file, declaration):
+    lines = schema_file.read_text(encoding="utf-8").splitlines()
+    start = next(
+        index for index, line in enumerate(lines) if line.strip() == declaration
+    )
+    declaration_indent = len(lines[start]) - len(lines[start].lstrip())
+    block = [lines[start]]
+    for line in lines[start + 1 :]:
+        if line.strip():
+            indent = len(line) - len(line.lstrip())
+            if indent <= declaration_indent:
+                break
+        block.append(line)
+    return "\n".join(block)
+
+
+def verify_published_entity_contracts(parser):
+    published_types = (
+        "Tidewise.Region",
+        "Tidewise.Organization",
+        "Tidewise.OrganizationCategory",
+        "Tidewise.OrganizationFunction",
+        "Tidewise.OrganizationDomainTag",
+    )
+    for type_name in published_types:
+        spg_type = parser.types.get(type_name)
+        assert spg_type is not None, f"{type_name} must be defined"
+        assert spg_type.spg_type_enum.value == "ENTITY_TYPE"
+        assert "id" not in spg_type.properties, (
+            f"{type_name} must inherit EntityType.id instead of redeclaring it"
+        )
+        assert spg_type.desc and spg_type.desc.strip()
+        assert len(spg_type.desc) <= 50, f"{type_name} description exceeds 50 characters"
+        for member in [*spg_type.properties.values(), *spg_type.relations.values()]:
+            assert member.desc and member.desc.strip(), (
+                f"{type_name}.{member.name} requires a description"
+            )
+            assert len(member.desc) <= 50, (
+                f"{type_name}.{member.name} description exceeds 50 characters"
+            )
+
+
+def verify_region(parser, schema_file):
     region = parser.types.get("Tidewise.Region")
     assert region is not None, "region.schema must define Tidewise.Region"
     assert region.spg_type_enum.value == "ENTITY_TYPE"
@@ -51,7 +93,6 @@ def verify_region(parser):
     assert region.desc and region.desc.strip()
 
     expected_properties = {
-        "id",
         "code",
         "name",
         "nameEn",
@@ -65,7 +106,7 @@ def verify_region(parser):
         assert prop.desc and prop.desc.strip(), f"{name} requires a description"
         assert prop.object_type_name == "Text", f"{name} must use OpenSPG Text"
 
-    required = {"id", "code", "name", "nameEn", "regionType", "createdAt"}
+    required = {"code", "name", "nameEn", "regionType", "createdAt"}
     for name in required:
         assert "NOT_NULL" in constraint_values(region.properties[name]), (
             f"{name} must be NotNull"
@@ -85,10 +126,13 @@ def verify_region(parser):
         "MULTILATERAL": ["多边合作或倡议区域", "可跨地理边界", "存在合作机制", "APEC"],
         "INVESTMENT": ["投资主题区域", "可跨地理边界", "不要求组织实体", "新兴市场"],
     }
+    region_type_source = schema_member_block(
+        schema_file, "regionType(区域类型): Text"
+    )
     for enum_value, phrases in meanings.items():
-        assert enum_value in region_type.desc
+        assert enum_value in region_type_source
         for phrase in phrases:
-            assert phrase in region_type.desc, f"{enum_value} requires meaning {phrase}"
+            assert phrase in region_type_source, f"{enum_value} requires meaning {phrase}"
 
 
 def verify_country(parser, country_migration, identity_migration):
@@ -189,7 +233,8 @@ def main():
         bundle.flush()
         parsed = parser_type(bundle.name, with_server=False)
 
-    verify_region(parsed)
+    verify_published_entity_contracts(parsed)
+    verify_region(parsed, args.schema_root / "region.schema")
     country_migration = (
         args.schema_root.parent
         / "backend"

@@ -116,8 +116,6 @@ func TestOrganizationFunctionSchemaAndPersistenceStayAligned(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, contract := range []string{
-		"id(核心职能标识): Text",
-		`constraint: NotNull, Regular="^OFN[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"`,
 		"code(核心职能代码): Text",
 		"nameZh(中文名称): Text",
 		"createdAt(创建时间): Text",

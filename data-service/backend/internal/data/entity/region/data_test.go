@@ -306,7 +306,6 @@ func TestRegionSchemaAndPersistenceStayAligned(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, property := range []string{
-		"id(区域标识): Text",
 		"code(区域编码): Text",
 		"name(区域中文名称): Text",
 		"nameEn(区域英文名称): Text",
