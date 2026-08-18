@@ -11,81 +11,6 @@ import (
 	researchbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/research"
 )
 
-func (s *Service) ListResearchAnalysisContext(
-	ctx context.Context,
-	request *researchapi.ResearchAnalysisContextRequest,
-) (*v1.Response[researchapi.ResearchAnalysisContext], error) {
-	if s == nil || s.useCase == nil {
-		return nil, publicError(
-			v1.StatusServiceUnavailable,
-			"RESEARCH_ANALYSIS_CONTEXT_NOT_READY",
-			"Research Analysis Context service is unavailable",
-		)
-	}
-	result, err := s.useCase.List(
-		ctx,
-		researchbiz.AnalysisContextRequest{
-			DiscoveryWindowStart:   request.DiscoveryWindowStart,
-			DiscoveryWindowEnd:     request.DiscoveryWindowEnd,
-			AnalysisAsOf:           request.AnalysisAsOf,
-			PredictionHorizonStart: request.PredictionHorizonStart,
-			PredictionHorizonEnd:   request.PredictionHorizonEnd,
-			PageSize:               request.PageSize,
-			Cursor:                 request.Cursor,
-		},
-	)
-	if err != nil {
-		if errors.Is(err, researchbiz.ErrReferenceClosureInconsistent) {
-			return nil, publicErrorWithDetails(
-				v1.StatusConflict,
-				"RESEARCH_ANALYSIS_CONTEXT_INCONSISTENT",
-				"Research Analysis Context references changed during the live query",
-				researchapi.ResearchAnalysisContextInconsistentDetails{
-					RetryGuidance: "restart_from_first_page",
-				},
-			)
-		}
-		if errors.Is(err, researchbiz.ErrHistoricalSemanticsUnavailable) {
-			return nil, publicError(
-				v1.StatusUnprocessableEntity,
-				"RESEARCH_ANALYSIS_CONTEXT_HISTORY_UNAVAILABLE",
-				"strict historical Event semantics are unavailable; choose a current analysis_as_of or use a future snapshot capability",
-			)
-		}
-		var validation *researchbiz.AnalysisContextValidationError
-		if errors.As(err, &validation) {
-			return nil, publicError(
-				v1.StatusBadRequest,
-				"RESEARCH_ANALYSIS_CONTEXT_INVALID",
-				validation.Reason,
-			)
-		}
-		var resourceLimit *researchbiz.ResearchResourceLimitError
-		if errors.As(err, &resourceLimit) {
-			return nil, publicErrorWithDetails(
-				v1.StatusTooManyRequests,
-				"RESEARCH_ANALYSIS_CONTEXT_RESOURCE_LIMIT",
-				resourceLimit.Reason,
-				researchResourceLimitDetails(
-					resourceLimit.Component,
-					resourceLimit.ActualRows,
-					resourceLimit.MaxRows,
-					resourceLimit.ActualBytes,
-					resourceLimit.MaxBytes,
-					resourceLimit.RetryGuidance,
-				),
-			)
-		}
-		return nil, publicError(
-			v1.StatusInternalServerError,
-			"RESEARCH_ANALYSIS_CONTEXT_FAILED",
-			"Research Analysis Context query failed",
-		)
-	}
-	dto := researchAnalysisContextDTO(result)
-	return &v1.Response[researchapi.ResearchAnalysisContext]{Status: v1.StatusOK, Result: dto}, nil
-}
-
 func researchResourceLimitDetails(
 	component string,
 	actualRows *int64,
@@ -104,181 +29,10 @@ func researchResourceLimitDetails(
 	}
 }
 
-func researchAnalysisContextDTO(
-	result researchbiz.AnalysisContextResult,
-) researchapi.ResearchAnalysisContext {
-	return researchapi.ResearchAnalysisContext{
-		ContractVersion:             result.ContractVersion,
-		TBoxContractVersion:         result.TBoxContractVersion,
-		TemporalSemantics:           result.TemporalSemantics,
-		TemporalLimitation:          result.TemporalLimitation,
-		EventPageFingerprint:        result.EventPageFingerprint,
-		ReferenceClosureFingerprint: result.ReferenceClosureFingerprint,
-		DiscoveryWindowStart:        result.DiscoveryWindowStart,
-		DiscoveryWindowEnd:          result.DiscoveryWindowEnd,
-		AnalysisAsOf:                result.AnalysisAsOf,
-		PredictionHorizonStart:      result.PredictionHorizonStart,
-		PredictionHorizonEnd:        result.PredictionHorizonEnd,
-		EventSemanticBundles:        researchAnalysisBundlesDTO(result.EventSemanticBundles),
-		Dictionaries:                researchAnalysisDictionariesDTO(result.Dictionaries),
-		NextCursor:                  result.NextCursor,
-		HasMore:                     result.HasMore,
-	}
-}
-
-func researchAnalysisBundlesDTO(values []researchbiz.EventSemanticBundle) []researchapi.ResearchAnalysisEventSemanticBundle {
-	result := make([]researchapi.ResearchAnalysisEventSemanticBundle, 0, len(values))
-	for _, value := range values {
-		result = append(result, researchapi.ResearchAnalysisEventSemanticBundle{
-			Event: researchAnalysisEventDTO(value.Event), Evidence: researchAnalysisEvidenceDTOs(value.Evidence),
-			EntityLinks:     researchAnalysisEntityLinkDTOs(value.EntityLinks),
-			VariableSignals: researchAnalysisVariableSignalDTOs(value.VariableSignals),
-		})
-	}
-	return result
-}
-
-func researchAnalysisEventDTO(value researchbiz.Event) researchapi.ResearchAnalysisEvent {
-	return researchapi.ResearchAnalysisEvent{
-		ID: value.ID, Title: value.Title, Summary: value.Summary, OccurredAt: value.OccurredAt,
-		FirstSeenAt: value.FirstSeenAt, KnowledgeAvailableAt: value.KnowledgeAvailableAt,
-		EventStatus: value.EventStatus, FactStatus: value.FactStatus,
-	}
-}
-
-func researchAnalysisEvidenceDTOs(values []researchbiz.Evidence) []researchapi.ResearchAnalysisEvidence {
-	result := make([]researchapi.ResearchAnalysisEvidence, 0, len(values))
-	for _, value := range values {
-		sourceURL := ""
-		if value.SourceURL != nil {
-			sourceURL = *value.SourceURL
-		}
-		var publishedAt *string
-		if value.PublishedAt != nil {
-			formatted := value.PublishedAt.Format(time.RFC3339Nano)
-			publishedAt = &formatted
-		}
-		result = append(result, researchapi.ResearchAnalysisEvidence{
-			EvidenceID: value.EvidenceID, EvidenceHash: value.EvidenceHash, Statement: value.Statement,
-			SourceLevel: value.SourceLevel, Relation: value.Relation, SupportsFields: value.SupportsFields,
-			RawDocumentID: value.RawDocumentID, SourceName: value.SourceName, SourceType: value.SourceType,
-			SourceURL: sourceURL, Title: value.Title, PublishedAt: publishedAt,
-			FirstSeenAt:          value.FirstSeenAt.Format(time.RFC3339Nano),
-			KnowledgeAvailableAt: value.KnowledgeAvailableAt.Format(time.RFC3339Nano),
-			AcceptedAt:           value.AcceptedAt.Format(time.RFC3339Nano), StatementSource: value.StatementSource,
-		})
-	}
-	return result
-}
-
-func researchAnalysisEntityLinkDTOs(values []researchbiz.EntityLink) []researchapi.ResearchAnalysisEntityLink {
-	result := make([]researchapi.ResearchAnalysisEntityLink, 0, len(values))
-	for _, value := range values {
-		result = append(result, researchapi.ResearchAnalysisEntityLink{
-			EventEntityLinkID: value.EventEntityLinkID, SemanticSubmissionID: value.SemanticSubmissionID,
-			EntityID: value.EntityID, EntityRole: value.EntityRole, ResolvedMention: value.ResolvedMention,
-			ResolutionMethod: value.ResolutionMethod, ResolutionConfidence: value.ResolutionConfidence,
-			EvidenceIDs: value.EvidenceIDs, ReviewStatus: value.ReviewStatus,
-		})
-	}
-	return result
-}
-
-func researchAnalysisVariableSignalDTOs(values []researchbiz.VariableSignal) []researchapi.ResearchAnalysisVariableSignal {
-	result := make([]researchapi.ResearchAnalysisVariableSignal, 0, len(values))
-	for _, value := range values {
-		result = append(result, researchapi.ResearchAnalysisVariableSignal{
-			VariableSignalID: value.VariableSignalID, SemanticSubmissionID: value.SemanticSubmissionID,
-			SourceEventID: value.SourceEventID, SubjectEventEntityLinkID: value.SubjectEventEntityLinkID,
-			SubjectEntityID: value.SubjectEntityID, VariableKey: value.VariableKey,
-			VariableVersion: value.VariableVersion, Direction: value.Direction,
-			AssertionModality: value.AssertionModality, EvidenceIDs: value.EvidenceIDs,
-			StatementAt: value.StatementAt, ValidFrom: value.ValidFrom, ValidUntil: value.ValidUntil,
-			ForecastPeriodStart: value.ForecastPeriodStart, ForecastPeriodEnd: value.ForecastPeriodEnd,
-			ExtractionConfidence: value.ExtractionConfidence, ReviewStatus: value.ReviewStatus,
-			Measurements:  researchAnalysisMeasurementDTOs(value.Measurements),
-			DirectImpacts: researchAnalysisDirectImpactDTOs(value.DirectImpacts),
-		})
-	}
-	return result
-}
-
-func researchAnalysisMeasurementDTOs(values []researchbiz.Measurement) []researchapi.ResearchAnalysisMeasurement {
-	result := make([]researchapi.ResearchAnalysisMeasurement, 0, len(values))
-	for _, value := range values {
-		result = append(result, researchapi.ResearchAnalysisMeasurement{
-			MeasurementID: value.MeasurementID, MeasurementRole: value.MeasurementRole, ValueShape: value.ValueShape,
-			RawValue: value.RawValue, RawLower: value.RawLower, RawUpper: value.RawUpper, RawUnit: value.RawUnit,
-			CanonicalValue: value.CanonicalValue, CanonicalLower: value.CanonicalLower,
-			CanonicalUpper: value.CanonicalUpper, CanonicalUnit: value.CanonicalUnit, Currency: value.Currency,
-			Scale: value.Scale, ComparisonBasis: value.ComparisonBasis, ComparisonPeriod: value.ComparisonPeriod,
-			RawText: value.RawText, IsApproximate: value.IsApproximate, EvidenceID: value.EvidenceID,
-		})
-	}
-	return result
-}
-
-func researchAnalysisDirectImpactDTOs(values []researchbiz.DirectImpact) []researchapi.ResearchAnalysisDirectImpact {
-	result := make([]researchapi.ResearchAnalysisDirectImpact, 0, len(values))
-	for _, value := range values {
-		result = append(result, researchapi.ResearchAnalysisDirectImpact{
-			DirectImpactAssertionID: value.DirectImpactAssertionID, SemanticSubmissionID: value.SemanticSubmissionID,
-			SourceVariableSignalID: value.SourceVariableSignalID, TargetEntityID: value.TargetEntityID,
-			AffectedVariableKey: value.AffectedVariableKey, AffectedVariableVersion: value.AffectedVariableVersion,
-			AffectedDirection: value.AffectedDirection, DerivationType: value.DerivationType,
-			MechanismSummary: value.MechanismSummary, EvidenceIDs: value.EvidenceIDs,
-			EntityRelationID: value.EntityRelationID, RuleKey: value.RuleKey, RuleVersion: value.RuleVersion,
-			AssertionConfidence: value.AssertionConfidence, EffectiveFrom: value.EffectiveFrom,
-			EffectiveTo: value.EffectiveTo, ReviewStatus: value.ReviewStatus,
-		})
-	}
-	return result
-}
-
-func researchAnalysisDictionariesDTO(value researchbiz.Dictionaries) researchapi.ResearchAnalysisDictionaries {
-	result := researchapi.ResearchAnalysisDictionaries{
-		Entities:                 researchAnalysisEntityDTOs(value.Entities),
-		RelationDefinitions:      researchAnalysisRelationDTOs(value.RelationDefinitions),
-		EntityRelations:          researchAnalysisEntityRelationDTOs(value.EntityRelations),
-		IndustryChains:           researchAnalysisIndustryChainDTOs(value.IndustryChains),
-		IndustryChainMemberships: researchAnalysisMembershipDTOs(value.IndustryChainMemberships),
-		IndustryChainGraphEdges:  researchAnalysisIndustryEdgeDTOs(value.IndustryChainGraphEdges),
-		VariableDefinitions:      make([]researchapi.ResearchAnalysisVariableDefinition, 0, len(value.VariableDefinitions)),
-		DirectTransmissionRules:  make([]researchapi.ResearchAnalysisTransmissionRule, 0, len(value.DirectTransmissionRules)),
-		AcceptancePolicies:       make([]researchapi.ResearchAnalysisAcceptancePolicy, 0, len(value.AcceptancePolicies)),
-	}
-	for _, item := range value.VariableDefinitions {
-		result.VariableDefinitions = append(result.VariableDefinitions, researchapi.ResearchAnalysisVariableDefinition{
-			Key: item.Key, Version: item.Version, NameZH: item.NameZH, NameEN: item.NameEN,
-			Domain: item.Domain, BusinessDefinition: item.BusinessDefinition, ValueType: item.ValueType,
-			AllowedDirections: item.AllowedDirections, CanonicalUnit: item.CanonicalUnit,
-			Status: item.Status, ApplicableEntityTypes: item.ApplicableEntityTypes,
-		})
-	}
-	for _, item := range value.DirectTransmissionRules {
-		result.DirectTransmissionRules = append(result.DirectTransmissionRules, researchapi.ResearchAnalysisTransmissionRule{
-			RuleKey: item.RuleKey, Version: item.Version, Status: item.Status,
-			SourceEntityType: item.SourceEntityType, SourceVariableKey: item.SourceVariableKey,
-			SourceVariableVersion: item.SourceVariableVersion, SourceDirection: item.SourceDirection,
-			RelationType: item.RelationType, TargetEntityType: item.TargetEntityType,
-			AffectedVariableKey: item.AffectedVariableKey, AffectedVariableVersion: item.AffectedVariableVersion,
-			AffectedDirection: item.AffectedDirection, ConditionSummary: item.ConditionSummary,
-			MechanismTemplate: item.MechanismTemplate,
-		})
-	}
-	for _, item := range value.AcceptancePolicies {
-		result.AcceptancePolicies = append(result.AcceptancePolicies, researchapi.ResearchAnalysisAcceptancePolicy{
-			PolicyKey: item.PolicyKey, Version: item.Version, RetryBudget: item.RetryBudget,
-			Status: item.Status, Policy: append([]byte(nil), item.Policy...),
-		})
-	}
-	return result
-}
-
-func researchAnalysisEntityDTOs(values []researchbiz.Entity) []researchapi.ResearchAnalysisEntity {
-	result := make([]researchapi.ResearchAnalysisEntity, 0, len(values))
+func researchGraphEntityDTOs(values []researchbiz.GraphEntity) []researchapi.ResearchGraphEntity {
+	result := make([]researchapi.ResearchGraphEntity, 0, len(values))
 	for _, item := range values {
-		result = append(result, researchapi.ResearchAnalysisEntity{
+		result = append(result, researchapi.ResearchGraphEntity{
 			EntityID: item.EntityID, EntityType: item.EntityType, Name: item.Name,
 			CanonicalName: item.CanonicalName, Aliases: item.Aliases, Status: item.Status,
 		})
@@ -286,18 +40,18 @@ func researchAnalysisEntityDTOs(values []researchbiz.Entity) []researchapi.Resea
 	return result
 }
 
-func researchAnalysisRelationDTOs(values []researchbiz.RelationDefinition) []researchapi.ResearchAnalysisRelationDefinition {
-	result := make([]researchapi.ResearchAnalysisRelationDefinition, 0, len(values))
+func researchGraphRelationDTOs(values []researchbiz.GraphRelationDefinition) []researchapi.ResearchGraphRelationDefinition {
+	result := make([]researchapi.ResearchGraphRelationDefinition, 0, len(values))
 	for _, item := range values {
-		result = append(result, researchapi.ResearchAnalysisRelationDefinition{RelationType: item.RelationType, Direction: item.Direction})
+		result = append(result, researchapi.ResearchGraphRelationDefinition{RelationType: item.RelationType, Direction: item.Direction})
 	}
 	return result
 }
 
-func researchAnalysisEntityRelationDTOs(values []researchbiz.EntityRelation) []researchapi.ResearchAnalysisEntityRelation {
-	result := make([]researchapi.ResearchAnalysisEntityRelation, 0, len(values))
+func researchGraphEntityRelationDTOs(values []researchbiz.GraphEntityRelation) []researchapi.ResearchGraphEntityRelation {
+	result := make([]researchapi.ResearchGraphEntityRelation, 0, len(values))
 	for _, item := range values {
-		result = append(result, researchapi.ResearchAnalysisEntityRelation{
+		result = append(result, researchapi.ResearchGraphEntityRelation{
 			EntityRelationID: item.EntityRelationID, FromEntityID: item.FromEntityID,
 			ToEntityID: item.ToEntityID, RelationType: item.RelationType, Status: item.Status,
 		})
@@ -305,10 +59,10 @@ func researchAnalysisEntityRelationDTOs(values []researchbiz.EntityRelation) []r
 	return result
 }
 
-func researchAnalysisIndustryChainDTOs(values []researchbiz.IndustryChain) []researchapi.ResearchAnalysisIndustryChain {
-	result := make([]researchapi.ResearchAnalysisIndustryChain, 0, len(values))
+func researchGraphIndustryChainDTOs(values []researchbiz.GraphIndustryChain) []researchapi.ResearchGraphIndustryChain {
+	result := make([]researchapi.ResearchGraphIndustryChain, 0, len(values))
 	for _, item := range values {
-		result = append(result, researchapi.ResearchAnalysisIndustryChain{
+		result = append(result, researchapi.ResearchGraphIndustryChain{
 			IndustryChainID: item.IndustryChainID, Scope: item.Scope,
 			TargetOutput: item.TargetOutput, EndUse: item.EndUse, Geography: item.Geography,
 			AsOfDate: item.AsOfDate, ReviewStatus: item.ReviewStatus,
@@ -317,10 +71,10 @@ func researchAnalysisIndustryChainDTOs(values []researchbiz.IndustryChain) []res
 	return result
 }
 
-func researchAnalysisMembershipDTOs(values []researchbiz.IndustryChainMembership) []researchapi.ResearchAnalysisIndustryChainMembership {
-	result := make([]researchapi.ResearchAnalysisIndustryChainMembership, 0, len(values))
+func researchGraphMembershipDTOs(values []researchbiz.GraphIndustryChainMembership) []researchapi.ResearchGraphIndustryChainMembership {
+	result := make([]researchapi.ResearchGraphIndustryChainMembership, 0, len(values))
 	for _, item := range values {
-		result = append(result, researchapi.ResearchAnalysisIndustryChainMembership{
+		result = append(result, researchapi.ResearchGraphIndustryChainMembership{
 			IndustryChainID: item.IndustryChainID, ChainNodeID: item.ChainNodeID,
 			Position: item.Position, ContextualStage: item.ContextualStage,
 			ReviewStatus: item.ReviewStatus, Status: item.Status,
@@ -329,10 +83,10 @@ func researchAnalysisMembershipDTOs(values []researchbiz.IndustryChainMembership
 	return result
 }
 
-func researchAnalysisIndustryEdgeDTOs(values []researchbiz.IndustryChainGraphEdge) []researchapi.ResearchAnalysisIndustryChainGraphEdge {
-	result := make([]researchapi.ResearchAnalysisIndustryChainGraphEdge, 0, len(values))
+func researchGraphIndustryEdgeDTOs(values []researchbiz.GraphIndustryChainEdge) []researchapi.ResearchGraphIndustryChainGraphEdge {
+	result := make([]researchapi.ResearchGraphIndustryChainGraphEdge, 0, len(values))
 	for _, item := range values {
-		result = append(result, researchapi.ResearchAnalysisIndustryChainGraphEdge{
+		result = append(result, researchapi.ResearchGraphIndustryChainGraphEdge{
 			IndustryChainGraphEdgeID: item.IndustryChainGraphEdgeID,
 			IndustryChainID:          item.IndustryChainID, FromChainNodeID: item.FromChainNodeID,
 			ToChainNodeID: item.ToChainNodeID, RelationType: item.RelationType,
@@ -344,13 +98,11 @@ func researchAnalysisIndustryEdgeDTOs(values []researchbiz.IndustryChainGraphEdg
 }
 
 type UseCase interface {
-	Publish(context.Context, string, researchbiz.Aggregate) (researchbiz.Result, error)
 	PublishSnapshot(context.Context, string, researchbiz.SnapshotAggregate) (researchbiz.Result, error)
 	ListThemes(context.Context, researchbiz.ResearchListRequest) (researchbiz.ResearchThemePage, error)
 	GetTheme(context.Context, string, researchbiz.ResearchDetailRequest) (researchbiz.ResearchThemeDetail, error)
 	ListReasoningTrees(context.Context, string) (researchbiz.ResearchReasoningTreeList, error)
 	GetReasoningTree(context.Context, string, string) (researchbiz.ResearchReasoningTreeDetail, error)
-	List(context.Context, researchbiz.AnalysisContextRequest) (researchbiz.AnalysisContextResult, error)
 	Search(context.Context, researchbiz.GraphSearchRequest) (researchbiz.GraphSearchResult, error)
 }
 
@@ -365,115 +117,7 @@ func NewService(useCase UseCase) (*Service, error) {
 
 var _ researchapi.Service = (*Service)(nil)
 
-func researchThemeImportInput(request *researchapi.ResearchThemeImportRequest) researchbiz.Aggregate {
-	theme := request.Theme
-	impacts := make([]researchbiz.ThemeImpactInput, 0, len(theme.Impacts))
-	for _, impact := range theme.Impacts {
-		impacts = append(impacts, researchbiz.ThemeImpactInput{
-			ChainNodeID: impact.ChainNodeID, RelationRole: impact.RelationRole,
-			ImpactDirection: impact.ImpactDirection, ImpactSummary: impact.ImpactSummary,
-			DisplayOrder: impact.DisplayOrder,
-		})
-	}
-	themeEvents := make([]researchbiz.ThemeEventInput, 0, len(theme.Events))
-	for _, event := range theme.Events {
-		themeEvents = append(themeEvents, researchbiz.ThemeEventInput{
-			EventID: event.EventID, EvidenceRole: event.EvidenceRole, SupportedClaim: event.SupportedClaim,
-		})
-	}
-	themeInput := researchbiz.ThemeInput{
-		ThemeKey: theme.ThemeKey, Title: theme.Title, OneLineConclusion: theme.OneLineConclusion,
-		ConclusionDirection: theme.ConclusionDirection, ImpactStrength: theme.ImpactStrength,
-		AttentionLevel: theme.AttentionLevel, ConclusionStatus: theme.ConclusionStatus,
-		TransmissionStage: theme.TransmissionStage, InvestmentGuidanceAction: theme.InvestmentGuidanceAction,
-		InvestmentGuidanceSummary: theme.InvestmentGuidanceSummary,
-		TimeHorizonCategory:       theme.TimeHorizonCategory, TimeHorizonSummary: theme.TimeHorizonSummary,
-		TransmissionSummary: theme.TransmissionSummary, CheckpointSummary: theme.CheckpointSummary,
-		RiskSummary: theme.RiskSummary, Impacts: impacts, Events: themeEvents,
-	}
-	trees := make([]researchbiz.ReasoningTree, 0, len(request.ReasoningTrees))
-	for _, tree := range request.ReasoningTrees {
-		checkpoints := make([]researchbiz.ReasonTreeCheckpoint, 0, len(tree.Checkpoints))
-		for _, checkpoint := range tree.Checkpoints {
-			checkpoints = append(checkpoints, researchbiz.ReasonTreeCheckpoint{
-				Type: checkpoint.Type, Summary: checkpoint.Summary,
-			})
-		}
-		events := make([]researchbiz.ReasonTreeEventInput, 0, len(tree.Events))
-		for _, event := range tree.Events {
-			events = append(events, researchbiz.ReasonTreeEventInput{
-				EventID: event.EventID, EvidenceRole: event.EvidenceRole, DisplayOrder: event.DisplayOrder,
-			})
-		}
-		nodes := make([]researchbiz.Node, 0, len(tree.Nodes))
-		for _, node := range tree.Nodes {
-			signals := make([]researchbiz.Signal, 0, len(node.Signals))
-			for _, signal := range node.Signals {
-				signals = append(signals, researchbiz.Signal{
-					VariableSignalKey: signal.VariableSignalKey, SignalRole: signal.SignalRole,
-					SignalDirection: signal.SignalDirection, DisplaySummary: signal.DisplaySummary,
-					DisplayOrder: signal.DisplayOrder,
-					Lineage: researchbiz.SignalLineage{
-						SourceKind:           signal.Lineage.SourceKind,
-						VariableSignalID:     signal.Lineage.VariableSignalID,
-						SemanticSubmissionID: signal.Lineage.SemanticSubmissionID,
-						EvidenceID:           signal.Lineage.EvidenceID, EvidenceHash: signal.Lineage.EvidenceHash,
-						UpstreamVariableSignalID:        signal.Lineage.UpstreamVariableSignalID,
-						UpstreamDirectImpactAssertionID: signal.Lineage.UpstreamDirectImpactAssertionID,
-						EntityRelationID:                signal.Lineage.EntityRelationID,
-						IndustryChainGraphEdgeID:        signal.Lineage.IndustryChainGraphEdgeID,
-					},
-				})
-			}
-			var incoming *researchbiz.IncomingLineage
-			if node.IncomingLineage != nil {
-				incoming = &researchbiz.IncomingLineage{
-					SourceKind:                      node.IncomingLineage.SourceKind,
-					DirectImpactAssertionID:         node.IncomingLineage.DirectImpactAssertionID,
-					SemanticSubmissionID:            node.IncomingLineage.SemanticSubmissionID,
-					EvidenceID:                      node.IncomingLineage.EvidenceID,
-					EvidenceHash:                    node.IncomingLineage.EvidenceHash,
-					AffectedVariableKey:             node.IncomingLineage.AffectedVariableKey,
-					AffectedDirection:               node.IncomingLineage.AffectedDirection,
-					UpstreamVariableSignalID:        node.IncomingLineage.UpstreamVariableSignalID,
-					UpstreamDirectImpactAssertionID: node.IncomingLineage.UpstreamDirectImpactAssertionID,
-					EntityRelationID:                node.IncomingLineage.EntityRelationID,
-				}
-			}
-			nodes = append(nodes, researchbiz.Node{
-				Position: node.Position, ChainNodeID: node.ChainNodeID,
-				StateSummary: node.StateSummary, ImpactDirection: node.ImpactDirection,
-				ImpactStrength: node.ImpactStrength, ImpactSummary: node.ImpactSummary,
-				ReasoningBasisSummary: node.ReasoningBasisSummary, EvidenceGapSummary: node.EvidenceGapSummary,
-				IncomingIndustryChainGraphEdgeID: node.IncomingIndustryChainGraphEdgeID,
-				IncomingTransmissionTitle:        node.IncomingTransmissionTitle,
-				IncomingTransmissionMechanism:    node.IncomingTransmissionMechanism,
-				IncomingConditionSummary:         node.IncomingConditionSummary,
-				IncomingLineage:                  incoming, Signals: signals,
-			})
-		}
-		trees = append(trees, researchbiz.ReasoningTree{
-			ReasonTreeInput: researchbiz.ReasonTreeInput{
-				IndustryChainID: tree.IndustryChainID, Title: tree.Title, DisplayOrder: tree.DisplayOrder,
-				OneLineConclusion: tree.OneLineConclusion, FactSummary: tree.FactSummary,
-				TransmissionSummary: tree.TransmissionSummary, ImpactDirection: tree.ImpactDirection,
-				ImpactStrength: tree.ImpactStrength, ImpactSummary: tree.ImpactSummary,
-				ConclusionBoundarySummary: tree.ConclusionBoundarySummary, SupportSummary: tree.SupportSummary,
-				CounterSummary: tree.CounterSummary, InvalidationConditions: tree.InvalidationConditions,
-				Checkpoints: checkpoints, Events: events,
-			},
-			Nodes: nodes,
-		})
-	}
-	return researchbiz.Aggregate{
-		AnalysisBatchID: request.AnalysisBatchID, AnalysisAsOf: request.AnalysisAsOf,
-		DiscoveryWindowStart: request.DiscoveryWindowStart,
-		DiscoveryWindowEnd:   request.DiscoveryWindowEnd,
-		Theme:                themeInput, ReasoningTrees: trees,
-	}
-}
-
-func researchThemeSnapshotImportInput(request *researchapi.ResearchThemeSnapshotImportRequest) researchbiz.SnapshotAggregate {
+func researchThemeImportInput(request *researchapi.ResearchThemeImportRequest) researchbiz.SnapshotAggregate {
 	theme := request.Theme
 	impacts := make([]researchbiz.SnapshotImpact, 0, len(theme.Impacts))
 	for _, impact := range theme.Impacts {
@@ -558,10 +202,9 @@ func researchThemeSnapshotImportInput(request *researchapi.ResearchThemeSnapshot
 func researchThemeImportDTO(result researchbiz.Result) researchapi.ResearchThemeImportResult {
 	return researchapi.ResearchThemeImportResult{
 		ReceiptID: result.ReceiptID, AnalysisBatchID: result.AnalysisBatchID, PayloadHash: result.PayloadHash,
-		ThemeID:                           result.ThemeID,
-		PublicationMode:                   result.PublicationMode,
-		ReasoningTreeIDsByIndustryChainID: result.ReasoningTreeIDsByIndustryChainID,
-		ReasoningTreeIDsByTreeKey:         result.ReasoningTreeIDsByTreeKey,
+		ThemeID:                   result.ThemeID,
+		PublicationMode:           result.PublicationMode,
+		ReasoningTreeIDsByTreeKey: result.ReasoningTreeIDsByTreeKey,
 		Counts: researchapi.ResearchThemeImportCounts{
 			Themes: result.Counts.Themes, Impacts: result.Counts.Impacts,
 			ThemeEventAssociations: result.Counts.ThemeEventAssociations,
@@ -578,7 +221,6 @@ func researchThemeDTO(value researchbiz.ResearchTheme) researchapi.ResearchTheme
 	for _, impact := range value.Impacts {
 		impacts = append(impacts, researchapi.ResearchThemeImpact{
 			NodeKey: impact.NodeKey, DisplayName: impact.DisplayName,
-			ChainNodeID: impact.ChainNodeID, Name: impact.Name,
 			RelationRole: impact.RelationRole, ImpactDirection: impact.ImpactDirection,
 			ImpactSummary: impact.ImpactSummary, DisplayOrder: impact.DisplayOrder,
 		})
@@ -634,8 +276,7 @@ func reasoningTreeListDTO(value researchbiz.ResearchReasoningTreeList) researcha
 	for _, tree := range value.ReasoningTrees {
 		trees = append(trees, researchapi.ResearchReasoningTreeSummary{
 			TreeKey: tree.TreeKey, DisplayName: tree.DisplayName,
-			ReasoningTreeID: tree.ReasoningTreeID, IndustryChainID: tree.IndustryChainID,
-			IndustryChainName: tree.IndustryChainName, Title: tree.Title, DisplayOrder: tree.DisplayOrder,
+			ReasoningTreeID: tree.ReasoningTreeID, Title: tree.Title, DisplayOrder: tree.DisplayOrder,
 			EventCount: tree.EventCount, PublishedAt: tree.PublishedAt,
 		})
 	}
@@ -654,24 +295,16 @@ func reasoningTreeDetailDTO(value researchbiz.ResearchReasoningTreeDetail) resea
 		for _, signal := range node.Signals {
 			signals = append(signals, researchSignalDTO(signal))
 		}
-		var graphEdge *researchapi.ResearchReasoningTreeGraphEdge
-		if node.IncomingGraphEdge != nil {
-			graphEdge = &researchapi.ResearchReasoningTreeGraphEdge{
-				ID: node.IncomingGraphEdge.ID, RelationType: node.IncomingGraphEdge.RelationType,
-				ReviewStatus: node.IncomingGraphEdge.ReviewStatus, Status: node.IncomingGraphEdge.Status,
-			}
-		}
 		nodes = append(nodes, researchapi.ResearchReasoningTreeNode{
 			NodeKey: node.NodeKey, DisplayName: node.DisplayName,
-			ID: node.ID, Position: node.Position, ChainNodeID: node.ChainNodeID, Name: node.Name,
+			ID: node.ID, Position: node.Position,
 			StateSummary: node.StateSummary, ImpactDirection: node.ImpactDirection,
 			ImpactStrength: node.ImpactStrength, ImpactSummary: node.ImpactSummary,
 			ReasoningBasisSummary: node.ReasoningBasisSummary, EvidenceGapSummary: node.EvidenceGapSummary,
-			IncomingIndustryChainGraphEdgeID: node.IncomingIndustryChainGraphEdgeID,
-			IncomingTransmissionTitle:        node.IncomingTransmissionTitle,
-			IncomingTransmissionMechanism:    node.IncomingTransmissionMechanism,
-			IncomingConditionSummary:         node.IncomingConditionSummary, IncomingGraphEdge: graphEdge,
-			Signals: signals, PrimarySignal: researchSignalDTO(node.PrimarySignal),
+			IncomingTransmissionTitle:     node.IncomingTransmissionTitle,
+			IncomingTransmissionMechanism: node.IncomingTransmissionMechanism,
+			IncomingConditionSummary:      node.IncomingConditionSummary,
+			Signals:                       signals, PrimarySignal: researchSignalDTO(node.PrimarySignal),
 			SignalDisplaySummary: node.SignalDisplaySummary,
 		})
 	}
@@ -682,7 +315,6 @@ func reasoningTreeDetailDTO(value researchbiz.ResearchReasoningTreeDetail) resea
 		ReasoningTree: researchapi.ResearchReasoningTree{
 			TreeKey: tree.TreeKey, DisplayName: tree.DisplayName,
 			ReasoningTreeID: tree.ReasoningTreeID, ThemeID: tree.ThemeID,
-			IndustryChainID: tree.IndustryChainID, IndustryChainName: tree.IndustryChainName,
 			Title: tree.Title, DisplayOrder: tree.DisplayOrder, OneLineConclusion: tree.OneLineConclusion,
 			FactSummary: tree.FactSummary, TransmissionSummary: tree.TransmissionSummary,
 			ImpactDirection: tree.ImpactDirection, ImpactStrength: tree.ImpactStrength,
@@ -698,8 +330,7 @@ func reasoningTreeDetailDTO(value researchbiz.ResearchReasoningTreeDetail) resea
 func researchSignalDTO(signal researchbiz.ResearchSignal) researchapi.ResearchReasoningTreeSignal {
 	return researchapi.ResearchReasoningTreeSignal{
 		SignalKey: signal.SignalKey, VariableName: signal.VariableName, Direction: signal.Direction,
-		VariableSignalKey: signal.VariableSignalKey, SignalRole: signal.SignalRole,
-		SignalDirection: signal.SignalDirection, DisplaySummary: signal.DisplaySummary,
+		SignalRole: signal.SignalRole, DisplaySummary: signal.DisplaySummary,
 		DisplayOrder: signal.DisplayOrder,
 	}
 }
@@ -764,12 +395,12 @@ func (s *Service) SearchResearchGraph(
 	dto := researchapi.ResearchGraphSearchResult{
 		ContractVersion: result.ContractVersion, AnalysisAsOf: result.AnalysisAsOf,
 		QueryFingerprint: result.QueryFingerprint, GraphFingerprint: result.GraphFingerprint,
-		ActualDepth: result.ActualDepth, Entities: researchAnalysisEntityDTOs(result.Entities),
-		RelationDefinitions:      researchAnalysisRelationDTOs(result.RelationDefinitions),
-		EntityRelations:          researchAnalysisEntityRelationDTOs(result.EntityRelations),
-		IndustryChains:           researchAnalysisIndustryChainDTOs(result.IndustryChains),
-		IndustryChainMemberships: researchAnalysisMembershipDTOs(result.IndustryChainMemberships),
-		IndustryChainGraphEdges:  researchAnalysisIndustryEdgeDTOs(result.IndustryChainGraphEdges),
+		ActualDepth: result.ActualDepth, Entities: researchGraphEntityDTOs(result.Entities),
+		RelationDefinitions:      researchGraphRelationDTOs(result.RelationDefinitions),
+		EntityRelations:          researchGraphEntityRelationDTOs(result.EntityRelations),
+		IndustryChains:           researchGraphIndustryChainDTOs(result.IndustryChains),
+		IndustryChainMemberships: researchGraphMembershipDTOs(result.IndustryChainMemberships),
+		IndustryChainGraphEdges:  researchGraphIndustryEdgeDTOs(result.IndustryChainGraphEdges),
 	}
 	return &v1.Response[researchapi.ResearchGraphSearchResult]{
 		Status: v1.StatusOK,
@@ -818,13 +449,7 @@ func (s *Service) PublishResearchTheme(ctx context.Context, request *researchapi
 	if s == nil || s.useCase == nil {
 		return nil, publicError(v1.StatusInternalServerError, "DATA_SERVICE_NOT_READY", "research Theme import service is unavailable")
 	}
-	var result researchbiz.Result
-	var err error
-	if request.PublicationMode == researchbiz.SnapshotPublicationMode && request.Snapshot != nil {
-		result, err = s.useCase.PublishSnapshot(ctx, principalIdentity(ctx), researchThemeSnapshotImportInput(request.Snapshot))
-	} else {
-		result, err = s.useCase.Publish(ctx, principalIdentity(ctx), researchThemeImportInput(request))
-	}
+	result, err := s.useCase.PublishSnapshot(ctx, principalIdentity(ctx), researchThemeImportInput(request))
 	if err != nil {
 		return nil, researchThemeImportError(err)
 	}
@@ -840,18 +465,6 @@ func researchThemeImportError(err error) error {
 	if errors.As(err, &validation) {
 		return publicErrorWithDetails(v1.StatusUnprocessableEntity, "RESEARCH_THEME_IMPORT_REJECTED", "research Theme aggregate failed validation", map[string]any{
 			"path": validation.Path, "reference": validation.Reference,
-		})
-	}
-	var themeValidation *researchbiz.ThemeValidationError
-	if errors.As(err, &themeValidation) {
-		return publicErrorWithDetails(v1.StatusUnprocessableEntity, "RESEARCH_THEME_IMPORT_REJECTED", "research Theme aggregate failed validation", map[string]any{
-			"path": themeValidation.Path, "reference": themeValidation.Reference,
-		})
-	}
-	var treeValidation *researchbiz.ReasonTreeValidationError
-	if errors.As(err, &treeValidation) {
-		return publicErrorWithDetails(v1.StatusUnprocessableEntity, "RESEARCH_THEME_IMPORT_REJECTED", "research Theme aggregate failed validation", map[string]any{
-			"path": treeValidation.Path, "reference": treeValidation.Reference,
 		})
 	}
 	var reference *researchbiz.ReferenceError

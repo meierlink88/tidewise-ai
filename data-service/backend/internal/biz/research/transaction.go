@@ -15,17 +15,12 @@ type PublicationTransaction interface {
 	ReferenceFacts(context.Context, ReferenceQuery) (ReferenceFacts, error)
 	InsertThemeReceipt(context.Context, Receipt) error
 	InsertTheme(context.Context, PublicationThemeRecord) error
-	InsertThemeImpact(context.Context, PublicationThemeImpactRecord) error
-	InsertThemeEvent(context.Context, PublicationThemeEventRecord) error
 	InsertSnapshotThemeImpact(context.Context, SnapshotImpactRecord) error
-	InsertTreeReceipt(context.Context, ReasonTreeReceipt) error
+	InsertThemeEvent(context.Context, PublicationThemeEventRecord) error
 	InsertSnapshotTreeReceipt(context.Context, SnapshotTreeReceipt) error
-	InsertTree(context.Context, ReasonTreeRecord) error
 	InsertSnapshotTree(context.Context, SnapshotTreeRecord) error
 	InsertTreeEvent(context.Context, ReasonTreeEventRecord) error
-	InsertNode(context.Context, NodeRecord) error
 	InsertSnapshotNode(context.Context, SnapshotNodeRecord) error
-	InsertSignal(context.Context, PublicationSignalRecord) error
 	InsertSnapshotSignal(context.Context, SnapshotSignalRecord) error
 	Verify(context.Context, Receipt) error
 }
@@ -40,49 +35,16 @@ type PublicationThemeRecord struct {
 	AnalysisAsOf, WindowStart, WindowEnd, PublishedAt                        time.Time
 }
 
-type PublicationThemeImpactRecord struct {
-	ThemeID, ChainNodeID, RelationRole, ImpactDirection string
-	ImpactSummary                                       *string
-	DisplayOrder                                        int
-}
-
 type PublicationThemeEventRecord struct {
 	ThemeID, EventID, EvidenceRole string
 	SupportedClaim                 *string
 	EvidenceIDs                    []string
 }
 
-type ReasonTreeRecord struct {
-	ID, ThemeID, ImportReceiptID, IndustryChainID, Title, OneLineConclusion string
-	DisplayOrder                                                            int
-	FactSummary, TransmissionSummary, ImpactSummary                         *string
-	ImpactDirection, ImpactStrength                                         string
-	ConclusionBoundarySummary, SupportSummary, CounterSummary               *string
-	InvalidationConditions                                                  []string
-	Checkpoints                                                             []ReasonTreeCheckpoint
-}
-
 type ReasonTreeEventRecord struct {
 	ReasoningTreeID, EventID, EvidenceRole string
 	DisplayOrder                           int
 	EvidenceIDs                            []string
-}
-
-type ReasonTreeNodeRecord struct {
-	ID, ReasoningTreeID, ChainNodeID, ImpactDirection, ImpactStrength      string
-	Position                                                               int
-	StateSummary, ImpactSummary, ReasoningBasisSummary, EvidenceGapSummary *string
-	IncomingIndustryChainGraphEdgeID, IncomingTransmissionTitle            *string
-	IncomingTransmissionMechanism, IncomingConditionSummary                *string
-}
-
-type ReasonTreeSignalRecord struct {
-	ReasoningTreeNodeID, VariableSignalKey, SignalRole, SignalDirection, DisplaySummary string
-	DisplayOrder                                                                        int
-}
-
-type ReasonTreeGraphEdgeReference struct {
-	ID, IndustryChainID, FromChainNodeID, ToChainNodeID string
 }
 
 type ReasonTreeCounts struct {
@@ -93,19 +55,11 @@ type ReasonTreeCounts struct {
 	Receipts           int `json:"receipts"`
 }
 
-type ReasonTreeReceipt struct {
-	ID, ThemeID, PublisherSubject, PayloadHash string
-	ReasoningTreeIDsByIndustryChainID          map[string]string
-	Counts                                     ReasonTreeCounts
-	PublishedAt, ImportedAt                    time.Time
-}
-
 type Receipt struct {
 	ID, AnalysisBatchID, PublisherSubject, PayloadHash, ThemeID string
 	ThemeKey                                                    string
 	ContractVersion                                             int
 	PublicationMode                                             string
-	ReasoningTreeIDsByIndustryChainID                           map[string]string
 	ReasoningTreeIDsByTreeKey                                   map[string]string
 	Counts                                                      Counts
 	PublishedAt, ImportedAt                                     time.Time
@@ -123,20 +77,12 @@ type Counts struct {
 }
 
 type ReferenceQuery struct {
-	ChainNodeIDs, EventIDs, IndustryChainIDs, GraphEdgeIDs, SignalIDs []string
-	ImpactIDs, EvidenceIDs, EntityRelationIDs                         []string
-	SnapshotEventExistenceOnly                                        bool
+	EventIDs, EvidenceIDs []string
 }
 
 type ReferenceFacts struct {
-	ChainNodeIDs, IndustryChainIDs map[string]TemporalFact
-	Events                         map[string]EventFact
-	Memberships                    map[string]map[string]TemporalFact
-	GraphEdges                     map[string]GraphEdgeFact
-	Signals                        map[string]SignalFact
-	Impacts                        map[string]ImpactFact
-	Evidences                      map[string]EvidenceFact
-	EntityRelations                map[string]EntityRelationFact
+	Events    map[string]EventFact
+	Evidences map[string]EvidenceFact
 }
 
 type EventFact struct {
@@ -144,55 +90,9 @@ type EventFact struct {
 	KnowledgeAvailableAt time.Time
 }
 
-type SignalFact struct {
-	ID, SemanticSubmissionID, EventID, SubjectEntityID string
-	VariableKey, Direction                             string
-	EvidenceIDs                                        map[string]struct{}
-	AcceptedAt                                         time.Time
-}
-
-type ImpactFact struct {
-	ID, SemanticSubmissionID, SourceVariableSignalID, TargetEntityID string
-	AffectedVariableKey, AffectedDirection                           string
-	SourceEventID, SourceEntityID                                    string
-	EvidenceIDs                                                      map[string]struct{}
-	AcceptedAt                                                       time.Time
-}
-
-type EntityRelationFact struct {
-	ID, FromEntityID, ToEntityID string
-	TemporalFact
-}
-
-type TemporalFact struct {
-	CreatedAt, UpdatedAt time.Time
-}
-
-type GraphEdgeFact struct {
-	ReasonTreeGraphEdgeReference
-	TemporalFact
-}
-
 type EvidenceFact struct {
 	ID, EventID, Hash    string
 	KnowledgeAvailableAt time.Time
-}
-
-type NodeRecord struct {
-	ReasonTreeNodeRecord
-	IncomingSourceKind, DirectImpactAssertionID, DirectImpactSemanticSubmissionID *string
-	DirectImpactEvidenceID, DirectImpactEvidenceHash                              *string
-	DirectImpactAffectedVariableKey, DirectImpactAffectedDirection                *string
-	InferenceUpstreamVariableSignalID, InferenceUpstreamDirectImpactAssertionID   *string
-	InferenceEntityRelationID                                                     *string
-}
-
-type PublicationSignalRecord struct {
-	ReasonTreeSignalRecord
-	SourceKind                                                       string
-	VariableSignalID, SemanticSubmissionID, EvidenceID, EvidenceHash *string
-	UpstreamVariableSignalID, UpstreamDirectImpactAssertionID        *string
-	EntityRelationID, IndustryChainGraphEdgeID                       *string
 }
 
 type SnapshotImpactRecord struct {

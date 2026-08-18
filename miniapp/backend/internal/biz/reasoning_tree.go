@@ -19,10 +19,9 @@ type ResearchReasoningTreeListResponse struct {
 	ReasoningTrees []ResearchReasoningTreeSummaryDTO
 }
 type ResearchReasoningTreeSummaryDTO struct {
-	TreeKey, DisplayName                                       string
-	ReasoningTreeID, IndustryChainID, IndustryChainName, Title string
-	DisplayOrder, EventCount                                   int
-	PublishedAt                                                string
+	TreeKey, DisplayName, ReasoningTreeID, Title string
+	DisplayOrder, EventCount                     int
+	PublishedAt                                  string
 }
 type ResearchReasoningTreeDetailResponse struct {
 	ThemeID       string
@@ -30,38 +29,33 @@ type ResearchReasoningTreeDetailResponse struct {
 	ReasoningTree ResearchReasoningTreeDTO
 }
 type ResearchCheckpointDTO struct{ Type, Summary string }
-type ResearchGraphEdgeDTO struct{ ID, RelationType, ReviewStatus, Status string }
 type ResearchSignalDTO struct {
-	SignalKey                                                      string
-	VariableName, Direction                                        *string
-	VariableSignalKey, SignalRole, SignalDirection, DisplaySummary string
-	DisplayOrder                                                   int
+	SignalKey, SignalRole, DisplaySummary string
+	VariableName, Direction               *string
+	DisplayOrder                          int
 }
 type ResearchReasoningTreeNodeDTO struct {
-	NodeKey, DisplayName                                        string
-	ID, ChainNodeID, Name, ImpactDirection, ImpactStrength      string
-	Position                                                    int
-	StateSummary, ImpactSummary, ReasoningBasisSummary          *string
-	EvidenceGapSummary                                          *string
-	IncomingIndustryChainGraphEdgeID, IncomingTransmissionTitle *string
-	IncomingTransmissionMechanism, IncomingConditionSummary     *string
-	IncomingGraphEdge                                           *ResearchGraphEdgeDTO
-	Signals                                                     []ResearchSignalDTO
-	PrimarySignal                                               ResearchSignalDTO
-	SignalDisplaySummary                                        string
+	NodeKey, DisplayName, ID, ImpactDirection, ImpactStrength string
+	Position                                                  int
+	StateSummary, ImpactSummary, ReasoningBasisSummary        *string
+	EvidenceGapSummary                                        *string
+	IncomingTransmissionTitle                                 *string
+	IncomingTransmissionMechanism, IncomingConditionSummary   *string
+	Signals                                                   []ResearchSignalDTO
+	PrimarySignal                                             ResearchSignalDTO
+	SignalDisplaySummary                                      string
 }
 type ResearchReasoningTreeDTO struct {
-	TreeKey, DisplayName                                         string
-	ReasoningTreeID, ThemeID, IndustryChainID, IndustryChainName string
-	Title, OneLineConclusion, ImpactDirection, ImpactStrength    string
-	DisplayOrder, EventCount                                     int
-	FactSummary, TransmissionSummary, ImpactSummary              *string
-	ConclusionBoundarySummary, SupportSummary, CounterSummary    *string
-	InvalidationConditions                                       []string
-	Checkpoints                                                  []ResearchCheckpointDTO
-	PublishedAt                                                  string
-	Events                                                       []ResearchEventDTO
-	Nodes                                                        []ResearchReasoningTreeNodeDTO
+	TreeKey, DisplayName, ReasoningTreeID, ThemeID            string
+	Title, OneLineConclusion, ImpactDirection, ImpactStrength string
+	DisplayOrder, EventCount                                  int
+	FactSummary, TransmissionSummary, ImpactSummary           *string
+	ConclusionBoundarySummary, SupportSummary, CounterSummary *string
+	InvalidationConditions                                    []string
+	Checkpoints                                               []ResearchCheckpointDTO
+	PublishedAt                                               string
+	Events                                                    []ResearchEventDTO
+	Nodes                                                     []ResearchReasoningTreeNodeDTO
 }
 
 func (s *ResearchService) ListReasoningTrees(ctx context.Context, themeID string) (ResearchReasoningTreeListResponse, error) {
@@ -80,8 +74,7 @@ func (s *ResearchService) ListReasoningTrees(ctx context.Context, themeID string
 	for _, tree := range value.ReasoningTrees {
 		trees = append(trees, ResearchReasoningTreeSummaryDTO{
 			TreeKey: tree.TreeKey, DisplayName: tree.DisplayName,
-			ReasoningTreeID: tree.ReasoningTreeID, IndustryChainID: tree.IndustryChainID,
-			IndustryChainName: tree.IndustryChainName, Title: tree.Title, DisplayOrder: tree.DisplayOrder,
+			ReasoningTreeID: tree.ReasoningTreeID, Title: tree.Title, DisplayOrder: tree.DisplayOrder,
 			EventCount: tree.EventCount, PublishedAt: formatTime(tree.PublishedAt),
 		})
 	}
@@ -117,25 +110,20 @@ func reasoningTreeDTO(value ResearchReasoningTree) ResearchReasoningTreeDTO {
 		for _, signal := range node.Signals {
 			signals = append(signals, signalDTO(signal))
 		}
-		var edge *ResearchGraphEdgeDTO
-		if node.IncomingGraphEdge != nil {
-			edge = &ResearchGraphEdgeDTO{ID: node.IncomingGraphEdge.ID, RelationType: node.IncomingGraphEdge.RelationType, ReviewStatus: node.IncomingGraphEdge.ReviewStatus, Status: node.IncomingGraphEdge.Status}
-		}
 		nodes = append(nodes, ResearchReasoningTreeNodeDTO{
 			NodeKey: node.NodeKey, DisplayName: node.DisplayName,
-			ID: node.ID, Position: node.Position, ChainNodeID: node.ChainNodeID, Name: node.Name,
+			ID: node.ID, Position: node.Position,
 			StateSummary: node.StateSummary, ImpactDirection: node.ImpactDirection, ImpactStrength: node.ImpactStrength,
 			ImpactSummary: node.ImpactSummary, ReasoningBasisSummary: node.ReasoningBasisSummary,
-			EvidenceGapSummary: node.EvidenceGapSummary, IncomingIndustryChainGraphEdgeID: node.IncomingIndustryChainGraphEdgeID,
+			EvidenceGapSummary:        node.EvidenceGapSummary,
 			IncomingTransmissionTitle: node.IncomingTransmissionTitle, IncomingTransmissionMechanism: node.IncomingTransmissionMechanism,
-			IncomingConditionSummary: node.IncomingConditionSummary, IncomingGraphEdge: edge, Signals: signals,
+			IncomingConditionSummary: node.IncomingConditionSummary, Signals: signals,
 			PrimarySignal: signalDTO(node.PrimarySignal), SignalDisplaySummary: node.SignalDisplaySummary,
 		})
 	}
 	return ResearchReasoningTreeDTO{
 		TreeKey: value.TreeKey, DisplayName: value.DisplayName,
 		ReasoningTreeID: value.ReasoningTreeID, ThemeID: value.ThemeID,
-		IndustryChainID: value.IndustryChainID, IndustryChainName: value.IndustryChainName,
 		Title: value.Title, DisplayOrder: value.DisplayOrder, OneLineConclusion: value.OneLineConclusion,
 		FactSummary: value.FactSummary, TransmissionSummary: value.TransmissionSummary,
 		ImpactDirection: value.ImpactDirection, ImpactStrength: value.ImpactStrength, ImpactSummary: value.ImpactSummary,
@@ -146,7 +134,7 @@ func reasoningTreeDTO(value ResearchReasoningTree) ResearchReasoningTreeDTO {
 	}
 }
 func signalDTO(value ResearchSignal) ResearchSignalDTO {
-	return ResearchSignalDTO{SignalKey: value.SignalKey, VariableName: value.VariableName, Direction: value.Direction, VariableSignalKey: value.VariableSignalKey, SignalRole: value.SignalRole, SignalDirection: value.SignalDirection, DisplaySummary: value.DisplaySummary, DisplayOrder: value.DisplayOrder}
+	return ResearchSignalDTO{SignalKey: value.SignalKey, VariableName: value.VariableName, Direction: value.Direction, SignalRole: value.SignalRole, DisplaySummary: value.DisplaySummary, DisplayOrder: value.DisplayOrder}
 }
 func normalizeReasoningTreeRepoError(err error) error {
 	switch {

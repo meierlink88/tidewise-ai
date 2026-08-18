@@ -15,13 +15,13 @@ func TestResearchServiceMapsThemeV1WithOneAggregateCall(t *testing.T) {
 		if q.WindowHours != 24 || q.Limit != 20 {
 			t.Fatalf("query=%#v", q)
 		}
-		return ResearchThemePage{WindowStart: now.Add(-24 * time.Hour), WindowEnd: now, AsOf: now, ThemeCount: 1, Items: []ResearchTheme{{ID: "theme", Title: "高速光模块需求验证", ConclusionDirection: "positive", ImpactStrength: "medium", TransmissionStage: "validation", InvestmentGuidanceAction: "focus", InvestmentGuidanceSummary: "关注订单", TimeHorizonCategory: "short_term", AnalysisAsOf: now, WindowStart: now.Add(-24 * time.Hour), WindowEnd: now, PublishedAt: now, Impacts: []ResearchThemeImpact{{ChainNodeID: "node", Name: "高速光模块", DisplayOrder: 1}}, ReasoningTreeCount: 2}}}, nil
+		return ResearchThemePage{WindowStart: now.Add(-24 * time.Hour), WindowEnd: now, AsOf: now, ThemeCount: 1, Items: []ResearchTheme{{ID: "theme", Title: "高速光模块需求验证", ConclusionDirection: "positive", ImpactStrength: "medium", TransmissionStage: "validation", InvestmentGuidanceAction: "focus", InvestmentGuidanceSummary: "关注订单", TimeHorizonCategory: "short_term", AnalysisAsOf: now, WindowStart: now.Add(-24 * time.Hour), WindowEnd: now, PublishedAt: now, Impacts: []ResearchThemeImpact{{NodeKey: "node", DisplayName: "高速光模块", DisplayOrder: 1}}, ReasoningTreeCount: 2}}}, nil
 	}}
 	result, err := NewResearchService(repo).ListThemes(context.Background(), ResearchListRequest{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if calls != 1 || result.Items[0].Title != "高速光模块需求验证" || result.Items[0].Impacts[0].Name != "高速光模块" || result.Items[0].ReasoningTreeCount != 2 {
+	if calls != 1 || result.Items[0].Title != "高速光模块需求验证" || result.Items[0].Impacts[0].DisplayName != "高速光模块" || result.Items[0].ReasoningTreeCount != 2 {
 		t.Fatalf("result=%#v calls=%d", result, calls)
 	}
 }

@@ -163,7 +163,6 @@ jobs:
             ./data-service/backend/internal/data/entity \
             ./data-service/backend/internal/data/entity/region \
             ./data-service/backend/internal/data/event \
-            ./data-service/backend/internal/data/eventsemantic \
             ./data-service/backend/internal/data/evidence \
             ./data-service/backend/internal/data/rawdocument \
             ./data-service/backend/internal/data/research \
@@ -172,11 +171,6 @@ jobs:
             ./data-service/backend/api/data/v1/event \
             -run '^(TestPostgresEventPublicationResponseLossReplayReusesFactsAndPreservesLineage|TestPostgresEventPublicationContractScenarios)$/^(artifact_conflict_rolls_back_the_whole_batch|receipt_failure_rolls_back_Event_evidence_and_Tag_writes)?$' \
             -count=1
-          go test \
-            ./data-service/backend/api/data/v1/eventsemantic \
-            -run '^TestPostgresEventSemanticHTTPFlowPreservesLeaseSubmissionReviewAndRead$' \
-            -count=1
-
       - name: Test Data migration framework
         if: steps.risks.outputs.migration_framework == 'true'
         run: go test ./data-service/backend/internal/data/dbmigration -count=1

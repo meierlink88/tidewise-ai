@@ -18,7 +18,6 @@ import (
 	industrychainapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/industrychain"
 	organizationapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/organization"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
-	eventsemanticapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/eventsemantic"
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
 	rawdocumentapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/rawdocument"
 	researchapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/research"
@@ -35,8 +34,6 @@ const (
 	ScopeEvidenceImport       = "data.evidences.import"
 	ScopeEvidenceCategoryRead = "data.evidence-categories.read"
 	ScopeEventTagRead         = "data.event-tags.read"
-	ScopeEventSemanticsRead   = "data.event-semantics.read"
-	ScopeEventSemanticsWrite  = "data.event-semantics.write"
 	ScopeCountryRead          = "data.countries.read"
 	ScopeCountryWrite         = "data.countries.write"
 	ScopeIndustryRead         = "data.industries.read"
@@ -143,17 +140,10 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeResearchImport, true
 	case researchapi.OperationListResearchThemes, researchapi.OperationGetResearchTheme,
 		researchapi.OperationListResearchThemeReasoningTrees, researchapi.OperationGetResearchThemeReasoningTree,
-		researchapi.OperationListResearchAnalysisContext, researchapi.OperationSearchResearchGraph:
+		researchapi.OperationSearchResearchGraph:
 		return ScopeResearchRead, true
 	case rawdocumentapi.OperationList, eventapi.OperationListAdminEvents, runtimehealthapi.OperationGet:
 		return ScopeAdminRead, true
-	case eventsemanticapi.OperationListEligibleEvents,
-		eventsemanticapi.OperationGetContext, eventsemanticapi.OperationGetSemantics:
-		return ScopeEventSemanticsRead, true
-	case eventsemanticapi.OperationCreateContextLease,
-		eventsemanticapi.OperationCreateSubmission,
-		eventsemanticapi.OperationSubmitReview:
-		return ScopeEventSemanticsWrite, true
 	case countryapi.OperationList, countryapi.OperationGet:
 		return ScopeCountryRead, true
 	case countryapi.OperationCreate, countryapi.OperationUpdate, countryapi.OperationReplaceRegions:

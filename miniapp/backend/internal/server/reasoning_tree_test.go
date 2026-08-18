@@ -23,9 +23,8 @@ func TestResearchReasoningTreeRoutesMapDataResultsWithOneDataCall(t *testing.T) 
 		dataResult := usecase.ResearchReasoningTreeList{
 			Theme: usecase.ResearchTheme{ID: "11111111-1111-4111-8111-111111111111", Title: "高速光模块需求验证", AnalysisAsOf: now, WindowStart: now, WindowEnd: now, PublishedAt: now},
 			ReasoningTrees: []usecase.ResearchReasoningTreeSummary{{
-				ReasoningTreeID:   "55555555-5555-4555-8555-555555555555",
-				IndustryChainID:   "ICH66666666-6666-4666-8666-666666666666",
-				IndustryChainName: "高速光模块产业链", Title: "高速光模块", DisplayOrder: 1, PublishedAt: now,
+				ReasoningTreeID: "55555555-5555-4555-8555-555555555555",
+				DisplayName:     "高速光模块产业链", Title: "高速光模块", DisplayOrder: 1, PublishedAt: now,
 			}},
 		}
 		calls := 0
@@ -45,7 +44,7 @@ func TestResearchReasoningTreeRoutesMapDataResultsWithOneDataCall(t *testing.T) 
 			t.Fatalf("status/calls = %d/%d, body=%s", response.Code, calls, response.Body.String())
 		}
 		if !strings.Contains(response.Body.String(), `"reasoning_tree_id":"55555555-5555-4555-8555-555555555555"`) ||
-			!strings.Contains(response.Body.String(), `"industry_chain_name":"高速光模块产业链"`) {
+			!strings.Contains(response.Body.String(), `"display_name":"高速光模块产业链"`) {
 			t.Fatalf("body=%s", response.Body.String())
 		}
 	})
@@ -58,7 +57,7 @@ func TestResearchReasoningTreeRoutesMapDataResultsWithOneDataCall(t *testing.T) 
 				ReasoningTreeID: "55555555-5555-4555-8555-555555555555",
 				ThemeID:         "11111111-1111-4111-8111-111111111111", Title: "高速光模块",
 				PublishedAt: time.Date(2026, 7, 28, 8, 10, 0, 0, time.UTC),
-				Nodes:       []usecase.ResearchReasoningTreeNode{{ID: "node", Name: "DSP 芯片", PrimarySignal: usecase.ResearchSignal{VariableSignalKey: "dsp-demand", SignalRole: "primary", DisplayOrder: 1}}},
+				Nodes:       []usecase.ResearchReasoningTreeNode{{ID: "node", DisplayName: "DSP 芯片", PrimarySignal: usecase.ResearchSignal{SignalKey: "dsp-demand", SignalRole: "primary", DisplayOrder: 1}}},
 			},
 		}
 		calls := 0
@@ -74,7 +73,7 @@ func TestResearchReasoningTreeRoutesMapDataResultsWithOneDataCall(t *testing.T) 
 		if response.Code != http.StatusOK || calls != 1 {
 			t.Fatalf("status/calls = %d/%d, body=%s", response.Code, calls, response.Body.String())
 		}
-		if !strings.Contains(response.Body.String(), `"variable_signal_key":"dsp-demand"`) ||
+		if !strings.Contains(response.Body.String(), `"signal_key":"dsp-demand"`) ||
 			!strings.Contains(response.Body.String(), `"impact_node_ids":["33333333-3333-4333-8333-333333333333"]`) {
 			t.Fatalf("body=%s", response.Body.String())
 		}

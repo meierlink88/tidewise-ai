@@ -56,8 +56,6 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
         {
           nodeKey: '22222222-2222-4222-8222-222222222222',
           displayName: '交换机',
-          chainNodeId: '22222222-2222-4222-8222-222222222222',
-          name: '交换机',
           relationRole: 'beneficiary',
           impactDirection: 'positive',
           impactSummary: '端口计划增加可能提高交换机需求。',
@@ -66,8 +64,6 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
         {
           nodeKey: '33333333-3333-4333-8333-333333333333',
           displayName: '高速光模块',
-          chainNodeId: '33333333-3333-4333-8333-333333333333',
-          name: '高速光模块',
           relationRole: 'beneficiary',
           impactDirection: 'positive',
           impactSummary: '端口配置增加可能提高模块需求。',
@@ -76,8 +72,6 @@ export const mockResearchThemeFeed: HomeResearchThemeFeed = {
         {
           nodeKey: '44444444-4444-4444-8444-444444444444',
           displayName: 'DSP 芯片',
-          chainNodeId: '44444444-4444-4444-8444-444444444444',
-          name: 'DSP 芯片',
           relationRole: 'beneficiary',
           impactDirection: 'positive',
           impactSummary: '模块排产增加可能提高备料需求。',
@@ -124,8 +118,6 @@ export const mockHistoricalResearchThemeFeed: HomeResearchThemeFeed = {
         {
           nodeKey: '66666666-6666-4666-8666-666666666666',
           displayName: '存储芯片',
-          chainNodeId: '66666666-6666-4666-8666-666666666666',
-          name: '存储芯片',
           relationRole: 'beneficiary',
           impactDirection: 'mixed',
           impactSummary: '报价改善利好盈利修复，但补库强度尚不确定。',

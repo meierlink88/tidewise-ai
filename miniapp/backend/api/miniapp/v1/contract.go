@@ -65,8 +65,6 @@ type ResearchThemeItem struct {
 type ResearchThemeImpact struct {
 	NodeKey         string  `json:"node_key"`
 	DisplayName     string  `json:"display_name"`
-	ChainNodeID     string  `json:"chain_node_id"`
-	Name            string  `json:"name"`
 	RelationRole    string  `json:"relation_role"`
 	ImpactDirection string  `json:"impact_direction"`
 	ImpactSummary   *string `json:"impact_summary"`
@@ -92,15 +90,13 @@ type ResearchReasoningTreeListResponse struct {
 	ReasoningTrees []ResearchReasoningTreeSummary `json:"reasoning_trees"`
 }
 type ResearchReasoningTreeSummary struct {
-	TreeKey           string `json:"tree_key"`
-	DisplayName       string `json:"display_name"`
-	ReasoningTreeID   string `json:"reasoning_tree_id"`
-	IndustryChainID   string `json:"industry_chain_id"`
-	IndustryChainName string `json:"industry_chain_name"`
-	Title             string `json:"title"`
-	DisplayOrder      int    `json:"display_order"`
-	EventCount        int    `json:"event_count"`
-	PublishedAt       string `json:"published_at"`
+	TreeKey         string `json:"tree_key"`
+	DisplayName     string `json:"display_name"`
+	ReasoningTreeID string `json:"reasoning_tree_id"`
+	Title           string `json:"title"`
+	DisplayOrder    int    `json:"display_order"`
+	EventCount      int    `json:"event_count"`
+	PublishedAt     string `json:"published_at"`
 }
 type ResearchReasoningTreeDetailResponse struct {
 	ThemeID       string                `json:"theme_id"`
@@ -111,51 +107,37 @@ type ResearchReasoningTreeCheckpoint struct {
 	Type    string `json:"type"`
 	Summary string `json:"summary"`
 }
-type ResearchReasoningTreeGraphEdge struct {
-	ID           string `json:"id"`
-	RelationType string `json:"relation_type"`
-	ReviewStatus string `json:"review_status"`
-	Status       string `json:"status"`
-}
 type ResearchReasoningTreeSignal struct {
-	SignalKey         string  `json:"signal_key"`
-	VariableName      *string `json:"variable_name"`
-	Direction         *string `json:"direction"`
-	VariableSignalKey string  `json:"variable_signal_key"`
-	SignalRole        string  `json:"signal_role"`
-	SignalDirection   string  `json:"signal_direction"`
-	DisplaySummary    string  `json:"display_summary"`
-	DisplayOrder      int     `json:"display_order"`
+	SignalKey      string  `json:"signal_key"`
+	VariableName   *string `json:"variable_name"`
+	Direction      *string `json:"direction"`
+	SignalRole     string  `json:"signal_role"`
+	DisplaySummary string  `json:"display_summary"`
+	DisplayOrder   int     `json:"display_order"`
 }
 type ResearchReasoningTreeNode struct {
-	NodeKey                          string                          `json:"node_key"`
-	DisplayName                      string                          `json:"display_name"`
-	ID                               string                          `json:"id"`
-	Position                         int                             `json:"position"`
-	ChainNodeID                      string                          `json:"chain_node_id"`
-	Name                             string                          `json:"name"`
-	StateSummary                     *string                         `json:"state_summary"`
-	ImpactDirection                  string                          `json:"impact_direction"`
-	ImpactStrength                   string                          `json:"impact_strength"`
-	ImpactSummary                    *string                         `json:"impact_summary"`
-	ReasoningBasisSummary            *string                         `json:"reasoning_basis_summary"`
-	EvidenceGapSummary               *string                         `json:"evidence_gap_summary"`
-	IncomingIndustryChainGraphEdgeID *string                         `json:"incoming_industry_chain_graph_edge_id"`
-	IncomingTransmissionTitle        *string                         `json:"incoming_transmission_title"`
-	IncomingTransmissionMechanism    *string                         `json:"incoming_transmission_mechanism"`
-	IncomingConditionSummary         *string                         `json:"incoming_condition_summary"`
-	IncomingGraphEdge                *ResearchReasoningTreeGraphEdge `json:"incoming_graph_edge"`
-	Signals                          []ResearchReasoningTreeSignal   `json:"signals"`
-	PrimarySignal                    ResearchReasoningTreeSignal     `json:"primary_signal"`
-	SignalDisplaySummary             string                          `json:"signal_display_summary"`
+	NodeKey                       string                        `json:"node_key"`
+	DisplayName                   string                        `json:"display_name"`
+	ID                            string                        `json:"id"`
+	Position                      int                           `json:"position"`
+	StateSummary                  *string                       `json:"state_summary"`
+	ImpactDirection               string                        `json:"impact_direction"`
+	ImpactStrength                string                        `json:"impact_strength"`
+	ImpactSummary                 *string                       `json:"impact_summary"`
+	ReasoningBasisSummary         *string                       `json:"reasoning_basis_summary"`
+	EvidenceGapSummary            *string                       `json:"evidence_gap_summary"`
+	IncomingTransmissionTitle     *string                       `json:"incoming_transmission_title"`
+	IncomingTransmissionMechanism *string                       `json:"incoming_transmission_mechanism"`
+	IncomingConditionSummary      *string                       `json:"incoming_condition_summary"`
+	Signals                       []ResearchReasoningTreeSignal `json:"signals"`
+	PrimarySignal                 ResearchReasoningTreeSignal   `json:"primary_signal"`
+	SignalDisplaySummary          string                        `json:"signal_display_summary"`
 }
 type ResearchReasoningTree struct {
 	TreeKey                   string                            `json:"tree_key"`
 	DisplayName               string                            `json:"display_name"`
 	ReasoningTreeID           string                            `json:"reasoning_tree_id"`
 	ThemeID                   string                            `json:"theme_id"`
-	IndustryChainID           string                            `json:"industry_chain_id"`
-	IndustryChainName         string                            `json:"industry_chain_name"`
 	Title                     string                            `json:"title"`
 	DisplayOrder              int                               `json:"display_order"`
 	OneLineConclusion         string                            `json:"one_line_conclusion"`

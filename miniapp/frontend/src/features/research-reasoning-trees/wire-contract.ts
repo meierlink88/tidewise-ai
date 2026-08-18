@@ -14,10 +14,6 @@ import type { ResearchDirection, ResearchImpactStrength } from '../research-them
 import { parseResearchThemeWire } from '../research-themes/wire-contract';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const chainNodeIDPattern =
-  /^CND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const industryChainIDPattern =
-  /^ICH[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const directionValues = ['positive', 'negative', 'mixed', 'neutral', 'uncertain'] as const;
 const strengthValues = ['strong', 'medium', 'weak', 'unknown'] as const;
 const evidenceRoleValues = ['driver', 'supporting', 'contradicting', 'context'] as const;
@@ -62,25 +58,19 @@ export function parseResearchReasoningTreeDetail(
 }
 
 function mapSummary(value: RecordValue): ResearchReasoningTreeSummary {
-  const snapshot = 'tree_key' in value;
   onlyKeys(value, [
-    ...(snapshot ? ['tree_key', 'display_name'] : []),
+    'tree_key',
+    'display_name',
     'reasoning_tree_id',
-    'industry_chain_id',
-    'industry_chain_name',
     'title',
     'display_order',
     'event_count',
     'published_at'
   ]);
   return {
-    treeKey: snapshot ? localKey(value.tree_key) : industryChainID(value.industry_chain_id),
-    displayName: text(snapshot ? value.display_name : value.industry_chain_name),
+    treeKey: localKey(value.tree_key),
+    displayName: text(value.display_name),
     reasoningTreeId: uuid(value.reasoning_tree_id),
-    industryChainId: snapshot
-      ? nullableIndustryChainIDString(value.industry_chain_id)
-      : industryChainID(value.industry_chain_id),
-    industryChainName: text(snapshot ? value.display_name : value.industry_chain_name),
     title: text(value.title),
     displayOrder: positiveInteger(value.display_order),
     eventCount: nonNegativeInteger(value.event_count),
@@ -89,13 +79,11 @@ function mapSummary(value: RecordValue): ResearchReasoningTreeSummary {
 }
 
 function mapTree(value: RecordValue): ResearchReasoningTree {
-  const snapshot = 'tree_key' in value;
   onlyKeys(value, [
-    ...(snapshot ? ['tree_key', 'display_name'] : []),
+    'tree_key',
+    'display_name',
     'reasoning_tree_id',
     'theme_id',
-    'industry_chain_id',
-    'industry_chain_name',
     'title',
     'display_order',
     'one_line_conclusion',
@@ -118,14 +106,10 @@ function mapTree(value: RecordValue): ResearchReasoningTree {
   const nodes = array(value.nodes).map((item, index) => mapNode(record(item), index));
   if (nodes.length === 0 || nonNegativeInteger(value.event_count) !== events.length) invalid();
   return {
-    treeKey: snapshot ? localKey(value.tree_key) : industryChainID(value.industry_chain_id),
-    displayName: text(snapshot ? value.display_name : value.industry_chain_name),
+    treeKey: localKey(value.tree_key),
+    displayName: text(value.display_name),
     reasoningTreeId: uuid(value.reasoning_tree_id),
     themeId: uuid(value.theme_id),
-    industryChainId: snapshot
-      ? nullableIndustryChainIDString(value.industry_chain_id)
-      : industryChainID(value.industry_chain_id),
-    industryChainName: text(snapshot ? value.display_name : value.industry_chain_name),
     title: text(value.title),
     displayOrder: positiveInteger(value.display_order),
     oneLineConclusion: text(value.one_line_conclusion),
@@ -180,24 +164,20 @@ function mapEvent(value: RecordValue, index: number): ResearchReasoningTreeEvent
 }
 
 function mapNode(value: RecordValue, index: number): ResearchReasoningTreeNode {
-  const snapshot = 'node_key' in value;
   onlyKeys(value, [
-    ...(snapshot ? ['node_key', 'display_name'] : []),
+    'node_key',
+    'display_name',
     'id',
     'position',
-    'chain_node_id',
-    'name',
     'state_summary',
     'impact_direction',
     'impact_strength',
     'impact_summary',
     'reasoning_basis_summary',
     'evidence_gap_summary',
-    'incoming_industry_chain_graph_edge_id',
     'incoming_transmission_title',
     'incoming_transmission_mechanism',
     'incoming_condition_summary',
-    'incoming_graph_edge',
     'signals',
     'primary_signal',
     'signal_display_summary'
@@ -221,28 +201,20 @@ function mapNode(value: RecordValue, index: number): ResearchReasoningTreeNode {
   ) {
     invalid();
   }
-  const incomingGraphEdge =
-    value.incoming_graph_edge === null ? null : mapGraphEdge(record(value.incoming_graph_edge));
   return {
-    nodeKey: snapshot ? localKey(value.node_key) : chainNodeID(value.chain_node_id),
-    displayName: text(snapshot ? value.display_name : value.name),
+    nodeKey: localKey(value.node_key),
+    displayName: text(value.display_name),
     id: uuid(value.id),
     position,
-    chainNodeId: snapshot
-      ? nullableChainNodeIDString(value.chain_node_id)
-      : chainNodeID(value.chain_node_id),
-    name: text(snapshot ? value.display_name : value.name),
     stateSummary: nullableText(value.state_summary),
     impactDirection: enumValue<ResearchDirection>(value.impact_direction, directionValues),
     impactStrength: enumValue<ResearchImpactStrength>(value.impact_strength, strengthValues),
     impactSummary: nullableText(value.impact_summary),
     reasoningBasisSummary: nullableText(value.reasoning_basis_summary),
     evidenceGapSummary: nullableText(value.evidence_gap_summary),
-    incomingIndustryChainGraphEdgeId: nullableUUID(value.incoming_industry_chain_graph_edge_id),
     incomingTransmissionTitle: nullableText(value.incoming_transmission_title),
     incomingTransmissionMechanism: nullableText(value.incoming_transmission_mechanism),
     incomingConditionSummary: nullableText(value.incoming_condition_summary),
-    incomingGraphEdge,
     signals,
     primarySignal,
     signalDisplaySummary
@@ -250,42 +222,23 @@ function mapNode(value: RecordValue, index: number): ResearchReasoningTreeNode {
 }
 
 function mapSignal(value: RecordValue, index: number): ResearchReasoningTreeSignal {
-  const snapshot = 'signal_key' in value;
   onlyKeys(value, [
-    ...(snapshot ? ['signal_key', 'variable_name', 'direction'] : []),
-    'variable_signal_key',
+    'signal_key',
+    'variable_name',
+    'direction',
     'signal_role',
-    'signal_direction',
     'display_summary',
     'display_order'
   ]);
   const displayOrder = positiveInteger(value.display_order);
   if (displayOrder !== index + 1) invalid();
   return {
-    signalKey: snapshot ? localKey(value.signal_key) : text(value.variable_signal_key),
-    variableName: snapshot ? nullableText(value.variable_name) : null,
-    direction: snapshot
-      ? nullableEnum<ResearchSignalDirection>(value.direction, signalDirectionValues)
-      : enumValue<ResearchSignalDirection>(value.signal_direction, signalDirectionValues),
-    variableSignalKey: snapshot
-      ? nullableTextAllowEmpty(value.variable_signal_key)
-      : text(value.variable_signal_key),
+    signalKey: localKey(value.signal_key),
+    variableName: nullableText(value.variable_name),
+    direction: nullableEnum<ResearchSignalDirection>(value.direction, signalDirectionValues),
     signalRole: enumValue(value.signal_role, signalRoleValues),
-    signalDirection: snapshot
-      ? nullableEnum<ResearchSignalDirection>(value.direction, signalDirectionValues)
-      : enumValue<ResearchSignalDirection>(value.signal_direction, signalDirectionValues),
     displaySummary: text(value.display_summary),
     displayOrder
-  };
-}
-
-function mapGraphEdge(value: RecordValue) {
-  onlyKeys(value, ['id', 'relation_type', 'review_status', 'status']);
-  return {
-    id: uuid(value.id),
-    relationType: text(value.relation_type),
-    reviewStatus: text(value.review_status),
-    status: text(value.status)
   };
 }
 
@@ -293,7 +246,7 @@ function sameSignal(left: ResearchReasoningTreeSignal, right: ResearchReasoningT
   return (
     left.signalKey === right.signalKey &&
     left.signalRole === right.signalRole &&
-    left.signalDirection === right.signalDirection &&
+    left.direction === right.direction &&
     left.displaySummary === right.displaySummary &&
     left.displayOrder === right.displayOrder
   );
@@ -303,18 +256,6 @@ function localKey(value: unknown): string {
   const result = text(value);
   if (!/^[a-z0-9][a-z0-9._:-]{0,127}$/.test(result)) invalid();
   return result;
-}
-
-function nullableIndustryChainIDString(value: unknown): string | null {
-  return value === '' || value === null ? null : industryChainID(value);
-}
-
-function nullableChainNodeIDString(value: unknown): string | null {
-  return value === '' || value === null ? null : chainNodeID(value);
-}
-
-function nullableTextAllowEmpty(value: unknown): string | null {
-  return value === '' || value === null ? null : text(value);
 }
 
 function failClosed<T>(operation: () => T): T {
@@ -363,22 +304,6 @@ function uuid(value: unknown): string {
   const parsed = text(value);
   if (!uuidPattern.test(parsed)) invalid();
   return parsed;
-}
-
-function industryChainID(value: unknown): string {
-  const parsed = text(value);
-  if (!industryChainIDPattern.test(parsed)) invalid();
-  return parsed;
-}
-
-function chainNodeID(value: unknown): string {
-  const parsed = text(value);
-  if (!chainNodeIDPattern.test(parsed)) invalid();
-  return parsed;
-}
-
-function nullableUUID(value: unknown): string | null {
-  return value === null ? null : uuid(value);
 }
 
 function timestamp(value: unknown): string {

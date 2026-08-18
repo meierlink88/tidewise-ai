@@ -17,7 +17,7 @@ describe('research theme homepage feed', () => {
       reasoningTreeCount: 2
     });
     expect(feed.items[0]).not.toHaveProperty('categories');
-    expect(feed.items[0].impacts.map((impact) => impact.name)).toEqual([
+		expect(feed.items[0].impacts.map((impact) => impact.displayName)).toEqual([
       '交换机',
       '高速光模块',
       'DSP 芯片'

@@ -26,7 +26,7 @@ func TestHTTPClientListsResearchThemesWithIdentityAndRequestID(t *testing.T) {
 			t.Fatalf("path = %q, want %q", request.URL.Path, ResearchThemesPath)
 		}
 		writer.Header().Set("Content-Type", "application/json")
-		_, _ = writer.Write([]byte(`{"request_id":"data-req-1","result":{"as_of":"2026-07-17T01:02:03Z","items":[{"id":"11111111-1111-5111-8111-111111111111","title":"theme","conclusion_direction":"positive","impact_strength":"medium","transmission_stage":"diffusion","investment_guidance_summary":"流动性改善后风险偏好可能回升","impacts":[{"chain_node_id":"CND22222222-2222-5222-8222-222222222222","name":"算力基础设施","relation_role":"driver","impact_direction":"positive","impact_summary":"资本开支上升","display_order":1}]}],"next_cursor":null}}`))
+		_, _ = writer.Write([]byte(`{"request_id":"data-req-1","result":{"as_of":"2026-07-17T01:02:03Z","items":[{"id":"11111111-1111-5111-8111-111111111111","title":"theme","conclusion_direction":"positive","impact_strength":"medium","transmission_stage":"diffusion","investment_guidance_summary":"流动性改善后风险偏好可能回升","impacts":[{"node_key":"compute-infrastructure","display_name":"算力基础设施","relation_role":"driver","impact_direction":"positive","impact_summary":"资本开支上升","display_order":1}]}],"next_cursor":null}}`))
 	}))
 	defer server.Close()
 
@@ -95,7 +95,7 @@ func TestHTTPClientReadsResearchReasoningTreeList(t *testing.T) {
 		gotPath = request.URL.EscapedPath()
 		gotQuery = request.URL.RawQuery
 		writer.Header().Set("Content-Type", "application/json")
-		if _, err := writer.Write([]byte(`{"request_id":"data-req-reasoning-list","result":{"theme":{"id":"c26337f2-a79f-5089-84f4-63d57bc32230"},"reasoning_trees":[{"industry_chain_name":"高速光模块产业链"},{}]}}`)); err != nil {
+		if _, err := writer.Write([]byte(`{"request_id":"data-req-reasoning-list","result":{"theme":{"id":"c26337f2-a79f-5089-84f4-63d57bc32230"},"reasoning_trees":[{"display_name":"高速光模块产业链"},{}]}}`)); err != nil {
 			t.Errorf("write reasoning tree list response: %v", err)
 		}
 	}))
@@ -112,7 +112,7 @@ func TestHTTPClientReadsResearchReasoningTreeList(t *testing.T) {
 	if gotAuthorization != "Bearer miniapp-service-token" || gotRequestID != "req-reasoning-list" {
 		t.Fatalf("auth/request ID = %q/%q", gotAuthorization, gotRequestID)
 	}
-	if result.Theme.ID != "c26337f2-a79f-5089-84f4-63d57bc32230" || len(result.ReasoningTrees) != 2 || result.ReasoningTrees[0].IndustryChainName != "高速光模块产业链" {
+	if result.Theme.ID != "c26337f2-a79f-5089-84f4-63d57bc32230" || len(result.ReasoningTrees) != 2 || result.ReasoningTrees[0].DisplayName != "高速光模块产业链" {
 		t.Fatalf("result = %#v", result)
 	}
 }
@@ -124,7 +124,7 @@ func TestHTTPClientReadsResearchReasoningTreeDetail(t *testing.T) {
 		gotPath = request.URL.EscapedPath()
 		gotQuery = request.URL.RawQuery
 		writer.Header().Set("Content-Type", "application/json")
-		if _, err := writer.Write([]byte(`{"request_id":"data-req-reasoning-detail","result":{"theme_id":"c26337f2-a79f-5089-84f4-63d57bc32230","reasoning_tree":{"event_count":2,"events":[{}, {"evidence_role":"contradicting"}],"nodes":[{}, {}, {"primary_signal":{"variable_signal_key":"dsp-demand"}}]}}}`)); err != nil {
+		if _, err := writer.Write([]byte(`{"request_id":"data-req-reasoning-detail","result":{"theme_id":"c26337f2-a79f-5089-84f4-63d57bc32230","reasoning_tree":{"event_count":2,"events":[{}, {"evidence_role":"contradicting"}],"nodes":[{}, {}, {"primary_signal":{"signal_key":"dsp-demand"}}]}}}`)); err != nil {
 			t.Errorf("write reasoning tree detail response: %v", err)
 		}
 	}))
@@ -138,7 +138,7 @@ func TestHTTPClientReadsResearchReasoningTreeDetail(t *testing.T) {
 	if gotPath != ResearchThemesPath+"/theme%2Fid/reasoning-trees/tree%2Fid" || gotQuery != "" {
 		t.Fatalf("path/query = %q/%q", gotPath, gotQuery)
 	}
-	if result.ThemeID != "c26337f2-a79f-5089-84f4-63d57bc32230" || result.ReasoningTree.EventCount != 2 || result.ReasoningTree.Events[1].EvidenceRole != "contradicting" || result.ReasoningTree.Nodes[2].PrimarySignal.VariableSignalKey != "dsp-demand" {
+	if result.ThemeID != "c26337f2-a79f-5089-84f4-63d57bc32230" || result.ReasoningTree.EventCount != 2 || result.ReasoningTree.Events[1].EvidenceRole != "contradicting" || result.ReasoningTree.Nodes[2].PrimarySignal.SignalKey != "dsp-demand" {
 		t.Fatalf("result = %#v", result)
 	}
 }

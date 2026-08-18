@@ -18,7 +18,7 @@ export function filterHomeResearchThemes(
       item.checkpointSummary ?? '',
       researchImpactStrengthLabel(item.impactStrength),
       researchTransmissionStageLabel(item.transmissionStage),
-      ...item.impacts.flatMap((node) => [node.name, node.impactSummary ?? ''])
+		...item.impacts.flatMap((node) => [node.displayName, node.impactSummary ?? ''])
     ]
       .join(' ')
       .toLocaleLowerCase();

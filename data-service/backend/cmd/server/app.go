@@ -19,7 +19,6 @@ import (
 	industrychainbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/industrychain"
 	organizationbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/organization"
 	eventbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/event"
-	eventsemanticbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/eventsemantic"
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
 	rawdocumentbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/rawdocument"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/research"
@@ -35,7 +34,6 @@ import (
 	industrychaindata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/industrychain"
 	organizationdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/organization"
 	eventdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/event"
-	eventsemanticdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/eventsemantic"
 	evidencedata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/evidence"
 	rawdocumentdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/rawdocument"
 	researchdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/research"
@@ -47,7 +45,6 @@ import (
 	industrychainservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/industrychain"
 	organizationservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/organization"
 	eventservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/event"
-	eventsemanticservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/eventsemantic"
 	evidenceservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/evidence"
 	rawdocumentservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/rawdocument"
 	researchservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/research"
@@ -97,14 +94,6 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	eventUseCase, err := eventbiz.NewUseCase(eventStore)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Event use case: %w", err))
-	}
-	eventSemanticStore, err := eventsemanticdata.NewStore(db)
-	if err != nil {
-		return nil, nil, closeBuildResources(fmt.Errorf("configure Event Semantic store: %w", err))
-	}
-	eventSemanticUseCase, err := eventsemanticbiz.NewUseCase(eventSemanticStore)
-	if err != nil {
-		return nil, nil, closeBuildResources(fmt.Errorf("configure Event Semantic use case: %w", err))
 	}
 	rawDocumentStore, err := rawdocumentdata.NewStore(db)
 	if err != nil {
@@ -177,8 +166,6 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	researchUseCase, err := research.NewUseCase(
 		researchStore,
 		researchStore,
-		eventUseCase,
-		eventSemanticUseCase,
 		entityUseCase,
 		time.Now,
 	)
@@ -201,10 +188,6 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	eventApplication, err := eventservice.NewService(eventUseCase)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Event API service: %w", err))
-	}
-	eventSemanticApplication, err := eventsemanticservice.NewService(eventSemanticUseCase)
-	if err != nil {
-		return nil, nil, closeBuildResources(fmt.Errorf("configure Event Semantic API service: %w", err))
 	}
 	rawDocumentApplication, err := rawdocumentservice.NewService(rawDocumentUseCase)
 	if err != nil {
@@ -234,7 +217,7 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Organization API service: %w", err))
 	}
-	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, eventSemanticApplication, evidenceApplication, rawDocumentApplication, countryApplication, industryApplication, conceptApplication, chainNodeApplication, industryChainApplication, organizationApplication, authenticator, logger)
+	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, evidenceApplication, rawDocumentApplication, countryApplication, industryApplication, conceptApplication, chainNodeApplication, industryChainApplication, organizationApplication, authenticator, logger)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure HTTP server: %w", err))
 	}
@@ -255,8 +238,6 @@ func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 				server.ScopeEvidenceImport,
 				server.ScopeEvidenceCategoryRead,
 				server.ScopeEventTagRead,
-				server.ScopeEventSemanticsRead,
-				server.ScopeEventSemanticsWrite,
 				server.ScopeResearchImport,
 				server.ScopeResearchRead,
 				server.ScopeAdminRead,

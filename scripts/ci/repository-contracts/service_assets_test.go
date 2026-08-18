@@ -150,38 +150,28 @@ func TestDataImageExcludesRetiredEventSemanticProjection(t *testing.T) {
 	deploy := readContractFile(t, filepath.Join(repoRoot, "infra", "uat", "deploy.sh"))
 	for _, forbidden := range []string{"event-semantic-projector", "EVENT_SEMANTIC_PROJECTION_ENABLED"} {
 		if strings.Contains(dockerfile, forbidden) || strings.Contains(deploy, forbidden) {
-			t.Fatalf("Data delivery retains retired semantic projection operation %q", forbidden)
+			t.Fatalf("Data delivery retains retired Event Semantic operation %q", forbidden)
 		}
 	}
-	for _, required := range []string{"event-semantic-acceptance-audit", "event-semantic-history-audit"} {
-		if !strings.Contains(dockerfile, required) {
-			t.Fatalf("Data image lost retained audit command %q", required)
+	for _, forbidden := range []string{
+		"event-semantic-acceptance-audit",
+		"event-semantic-history-audit",
+		"event-semantics-synthetic-fixture",
+	} {
+		if strings.Contains(dockerfile, forbidden) {
+			t.Fatalf("Data image retains retired Event Semantic operation %q", forbidden)
 		}
 	}
 }
 
-func TestServiceImagesCarryEventSemanticHistoryMaintenanceCommands(t *testing.T) {
+func TestAgentRunImageCarriesEventSemanticHistoryMaintenanceCommands(t *testing.T) {
 	repoRoot := repositoryRoot()
-	dataDockerfile := readContractFile(t, filepath.Join(
-		repoRoot,
-		"data-service",
-		"backend",
-		"Dockerfile",
-	))
 	agentrunDockerfile := readContractFile(t, filepath.Join(
 		repoRoot,
 		"agent-run",
 		"backend",
 		"Dockerfile",
 	))
-	for _, required := range []string{
-		"-o /out/event-semantic-history-audit ./data-service/backend/cmd/event-semantic-history-audit",
-		"COPY --from=builder /out/event-semantic-history-audit /usr/local/bin/event-semantic-history-audit",
-	} {
-		if !strings.Contains(dataDockerfile, required) {
-			t.Fatalf("Data runtime image missing Event Semantic history contract %q", required)
-		}
-	}
 	for _, required := range []string{
 		"-o /out/agentrun-event-semantic-history ./agent-run/backend/cmd/event-semantic-history",
 		"COPY --from=build /out/agentrun-event-semantic-history /app/agentrun-event-semantic-history",

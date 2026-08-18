@@ -30,10 +30,6 @@ func (Service) GetResearchReasoningTree(context.Context, *researchapi.ReasoningT
 	return response[researchapi.ResearchReasoningTreeDetail](), nil
 }
 
-func (Service) ListResearchAnalysisContext(context.Context, *researchapi.ResearchAnalysisContextRequest) (*v1.Response[researchapi.ResearchAnalysisContext], error) {
-	return response[researchapi.ResearchAnalysisContext](), nil
-}
-
 func (Service) SearchResearchGraph(context.Context, *researchapi.ResearchGraphSearchRequest) (*v1.Response[researchapi.ResearchGraphSearchResult], error) {
 	return response[researchapi.ResearchGraphSearchResult](), nil
 }
