@@ -5,7 +5,10 @@ describe('data ingestion api client', () => {
   it('loads current events with the frozen filters', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ request_id: 'admin-event-test', result: { items: [], total: 0, page: 1, page_size: 50 } })
+      json: async () => ({
+        request_id: 'admin-event-test',
+        result: { items: [], total: 0, page: 1, page_size: 50 }
+      })
     });
     vi.stubGlobal('fetch', fetchMock);
 
