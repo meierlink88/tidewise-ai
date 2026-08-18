@@ -49,4 +49,6 @@ Docker image 和 Compose 运行。共享 PostgreSQL、MySQL、Neo4j、MinIO 与 
 UAT 中的 OpenSPG MySQL 与共享 MinIO 由独立 `tidewise-infra-uat` 项目运行，不属于四个
 应用服务、AgentOS 或 Reason Server 的发布事务；详见
 `docs/adr/0029-independent-uat-mysql-and-minio.md`。Huawei RDS、主机级 Neo4j 和独立 Qdrant
-保持原有 ownership 与生命周期。
+保持独立 ownership 与生命周期。其中专用 UAT Neo4j 的版本、插件、认证、备份/清理、
+网络暴露与基础设施验证由本仓库统一管理；Reason Server 只消费且验证该合同，详见
+`docs/adr/0030-own-uat-neo4j-for-reason.md`。

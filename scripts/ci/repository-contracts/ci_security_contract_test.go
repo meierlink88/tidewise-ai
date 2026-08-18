@@ -59,6 +59,8 @@ func TestCIWorkflowEnforcesQualityAndSecurityGates(t *testing.T) {
 		"python-version: '3.12.11'",
 		"Verify OpenSPG Object Schemas",
 		"bash scripts/ci/verify-openspg-schemas.sh",
+		"Verify UAT Neo4j adoption contract",
+		"bash scripts/ci/verify-uat-neo4j-contract.sh",
 		"Verify Region Schema and PostgreSQL parity",
 		"./data-service/backend/api/data/v1/...",
 		"./data-service/backend/internal/service/...",
