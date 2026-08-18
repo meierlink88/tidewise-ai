@@ -227,88 +227,6 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /api/data/v1/event-tags:
-    get:
-      tags: [Event Tag Catalog]
-      operationId: listActiveEventTags
-      x-client-drift-anchor: data.v1.listActiveEventTags
-      x-required-service-scope: data.event-tags.read
-      x-retry-policy: safe-get
-      x-timeout-budget-ms: 5000
-      summary: 获取 active Event Tag Catalog 快照
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-        - name: active
-          in: query
-          required: true
-          schema:
-            type: string
-            enum: ['true']
-      responses:
-        '200':
-          description: 按 tag_kind、code、id 稳定排序的 active Event Tag Catalog
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/RequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EventTagCatalogEnvelope'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
-  /api/data/v1/raw-documents:
-    get:
-      tags: [Admin aggregates]
-      operationId: listAdminRawDocuments
-      x-client-drift-anchor: data.v1.listAdminRawDocuments
-      x-required-service-scope: data.admin.read
-      x-retry-policy: safe-get
-      x-timeout-budget-ms: 5000
-      summary: 获取 Admin 原始文档分页聚合
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-        - $ref: '#/components/parameters/Page'
-        - $ref: '#/components/parameters/PageSize'
-        - name: title
-          in: query
-          schema:
-            type: string
-            maxLength: 200
-        - name: source_ref
-          in: query
-          schema:
-            type: string
-            maxLength: 256
-        - name: ingest_status
-          in: query
-          schema:
-            $ref: '#/components/schemas/IngestStatus'
-      responses:
-        '200':
-          description: 原始文档分页
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/RequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AdminRawDocumentPageEnvelope'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalError'
-
   /api/data/v1/events:
     get:
       tags: [Admin aggregates]
@@ -327,27 +245,27 @@ paths:
           schema:
             type: string
             maxLength: 200
-        - name: event_status
+        - name: modality
           in: query
           schema:
-            $ref: '#/components/schemas/EventStatus'
-        - name: fact_status
+            $ref: '#/components/schemas/EventModality'
+        - name: status
           in: query
           schema:
-            $ref: '#/components/schemas/FactStatus'
-        - name: event_time_from
-          in: query
-          schema:
-            $ref: '#/components/schemas/UTCTimestamp'
-        - name: event_time_to
+            $ref: '#/components/schemas/EventLifecycleStatus'
+        - name: occurred_from
           in: query
           schema:
             $ref: '#/components/schemas/UTCTimestamp'
-        - name: first_seen_from
+        - name: occurred_to
           in: query
           schema:
             $ref: '#/components/schemas/UTCTimestamp'
-        - name: first_seen_to
+        - name: announced_from
+          in: query
+          schema:
+            $ref: '#/components/schemas/UTCTimestamp'
+        - name: announced_to
           in: query
           schema:
             $ref: '#/components/schemas/UTCTimestamp'
@@ -629,58 +547,6 @@ paths:
           $ref: '#/components/responses/InternalError'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
-
-  /api/data/v1/reviewed-event-imports:
-    post:
-      tags: [Event publication]
-      operationId: publishReviewedEvents
-      x-client-drift-anchor: data.v1.publishReviewedEvents
-      x-required-service-scope: data.reviewed-events.import
-      x-retry-policy: retry-failed-call-with-natural-identities
-      x-timeout-budget-ms: 15000
-      x-atomicity: whole-batch-single-postgresql-transaction
-      x-receipt-schema: event_publication_receipts
-      x-transaction-membership: raw-document,event,event-source,event-tag,event-publication-receipt
-      summary: 原子发布 1 到 10 个已审核 Event 及其轻量证据
-      description: >-
-        每次成功调用创建新的 immutable receipt。接口不使用幂等键；已存在的 Event、
-        Artifact、Evidence Link 和 Tag Link 仅在自然身份和语义内容完全一致时复用，
-        任一冲突或失败都会回滚整个 batch。
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              maxLength: 1048576
-              x-max-body-bytes: 1048576
-              allOf:
-                - $ref: '#/components/schemas/EventPublicationRequest'
-      responses:
-        '201':
-          description: 完整 publication 和新 receipt 已原子提交
-          headers:
-            X-Request-ID:
-              $ref: '#/components/headers/RequestID'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EventPublicationEnvelope'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '413':
-          $ref: '#/components/responses/PayloadTooLarge'
-        '422':
-          $ref: '#/components/responses/UnprocessableEntity'
-        '500':
-          $ref: '#/components/responses/InternalError'
 
   /api/data/v1/research-theme-imports:
     post:
@@ -2331,21 +2197,9 @@ components:
     EventID:
       type: string
       pattern: '^EVT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-    EventEvidenceRecordID:
-      type: string
-      pattern: '^EER[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
     EventEvidenceLinkID:
       type: string
       pattern: '^EEL[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-    EventTagDefinitionID:
-      type: string
-      pattern: '^ETD[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-    EventTagAssignmentID:
-      type: string
-      pattern: '^ETA[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
-    EventPublicationReceiptID:
-      type: string
-      pattern: '^EPR[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
     IndustryChainGraphEdgeID:
       type: string
       pattern: '^IGE[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
@@ -2386,66 +2240,35 @@ components:
       maxLength: 64
       pattern: '^[0-9a-f]{64}$'
       description: 服务端生成的 lowercase SHA-256 hex。
-    IngestStatus:
+    EventModality:
       type: string
-      enum: [collected, duplicate, failed, pending_extract]
-    EventStatus:
+      enum: [FACT, PLAN, SPEC]
+    EventLifecycleStatus:
       type: string
-      enum: [candidate, confirmed, rejected]
-    FactStatus:
-      type: string
-      enum: [unverified, verified, disputed]
-    EvidenceRelation:
-      type: string
-      enum: [supports, contradicts, context]
-    TagKind:
-      type: string
-      enum: [news_category, index_category]
-    TagAssignSource:
-      type: string
-      enum: [ai, rule]
-
-    EventTagCatalogItem:
+      enum: [ACTIVE, DEPRECATED, ARCHIVED]
+    EventSemantic:
       type: object
       additionalProperties: false
-      required: [id, tag_kind, code, name, is_active]
+      required: [who, what, when, where, why, how]
       properties:
-        id:
-          $ref: '#/components/schemas/EventTagDefinitionID'
-        tag_kind:
-          $ref: '#/components/schemas/TagKind'
-        code:
+        who:
           type: string
-          minLength: 1
-          maxLength: 100
-        name:
+          nullable: true
+        what:
           type: string
-          minLength: 1
-          maxLength: 200
-        is_active:
-          type: boolean
-          enum: [true]
-    EventTagCatalog:
-      type: object
-      additionalProperties: false
-      required: [tags]
-      properties:
-        tags:
-          type: array
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/EventTagCatalogItem'
-    EventTagCatalogEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
+          nullable: true
+        when:
           type: string
-          minLength: 1
-          maxLength: 128
-        result:
-          $ref: '#/components/schemas/EventTagCatalog'
+          nullable: true
+        where:
+          type: string
+          nullable: true
+        why:
+          type: string
+          nullable: true
+        how:
+          type: string
+          nullable: true
 
     ErrorDetail:
       type: object
@@ -2934,103 +2757,10 @@ components:
         request_id: {type: string}
         result: {$ref: '#/components/schemas/ResearchReasoningTreeDetail'}
 
-    AdminRawDocument:
-      type: object
-      additionalProperties: false
-      required:
-        - id
-        - contract_version
-        - ingest_channel
-        - source_type
-        - source_name
-        - source_url
-        - title
-        - content_text
-        - content_level
-        - raw_object_uri
-        - raw_mime_type
-        - language
-        - collected_at
-        - ingest_status
-        - content_sha256
-      properties:
-        id:
-          $ref: '#/components/schemas/EventEvidenceRecordID'
-        contract_version:
-          type: integer
-          minimum: 1
-        artifact_id:
-          type: string
-          maxLength: 256
-        source_ref:
-          type: string
-          maxLength: 256
-        ingest_channel:
-          type: string
-        source_type:
-          type: string
-        source_name:
-          type: string
-        source_url:
-          type: string
-        source_external_id:
-          type: string
-        title:
-          type: string
-        content_text:
-          type: string
-        content_level:
-          type: string
-        raw_object_uri:
-          type: string
-        raw_mime_type:
-          type: string
-        language:
-          type: string
-        published_at:
-          allOf:
-            - $ref: '#/components/schemas/UTCTimestamp'
-          nullable: true
-        collected_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-        ingest_status:
-          $ref: '#/components/schemas/IngestStatus'
-        content_sha256:
-          type: string
-    AdminRawDocumentPage:
-      type: object
-      additionalProperties: false
-      x-client-drift-anchor: data.v1.schema.AdminRawDocumentPage
-      required: [items, total, page, page_size]
-      properties:
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/AdminRawDocument'
-        total:
-          type: integer
-          minimum: 0
-        page:
-          type: integer
-          minimum: 1
-        page_size:
-          type: integer
-          minimum: 1
-          maximum: 100
-    AdminRawDocumentPageEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/AdminRawDocumentPage'
-
     AdminEvent:
       type: object
       additionalProperties: false
-      required: [id, title, summary, first_seen_at, event_status, fact_status, dedupe_key]
+      required: [id, title, summary, semantic, modality, occurred_at, announced_at, status]
       properties:
         id:
           $ref: '#/components/schemas/EventID'
@@ -3038,22 +2768,20 @@ components:
           type: string
         summary:
           type: string
-        event_time:
+        semantic:
+          $ref: '#/components/schemas/EventSemantic'
+        modality:
+          $ref: '#/components/schemas/EventModality'
+        occurred_at:
           allOf:
             - $ref: '#/components/schemas/UTCTimestamp'
           nullable: true
-        first_seen_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-        knowable_at:
+        announced_at:
           allOf:
             - $ref: '#/components/schemas/UTCTimestamp'
           nullable: true
-        event_status:
-          $ref: '#/components/schemas/EventStatus'
-        fact_status:
-          $ref: '#/components/schemas/FactStatus'
-        dedupe_key:
-          type: string
+        status:
+          $ref: '#/components/schemas/EventLifecycleStatus'
     AdminEventPage:
       type: object
       additionalProperties: false
@@ -3464,316 +3192,6 @@ components:
           minLength: 1
         result:
           $ref: '#/components/schemas/EvidencePublicationResult'
-
-    EventPublicationRequest:
-      type: object
-      additionalProperties: false
-      x-client-drift-anchor: data.v1.schema.EventPublicationRequest
-      required: [package_id, provenance, raw_documents, events]
-      properties:
-        package_id:
-          type: string
-          minLength: 1
-          maxLength: 256
-        provenance:
-          $ref: '#/components/schemas/EventPublicationProvenance'
-        raw_documents:
-          type: array
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/EventPublicationRawDocument'
-        events:
-          type: array
-          minItems: 1
-          maxItems: 10
-          items:
-            $ref: '#/components/schemas/EventPublicationEvent'
-
-    EventPublicationProvenance:
-      type: object
-      additionalProperties: false
-      required: [extractor_execution_id, extractor_agent_version, collector_executions]
-      properties:
-        extractor_execution_id:
-          type: string
-          minLength: 1
-          maxLength: 256
-        extractor_agent_version:
-          type: string
-          minLength: 1
-          maxLength: 256
-        collector_executions:
-          type: array
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/EventPublicationCollectorExecution'
-
-    EventPublicationCollectorExecution:
-      type: object
-      additionalProperties: false
-      required: [artifact_id, collector_execution_id]
-      properties:
-        artifact_id:
-          type: string
-          minLength: 1
-          maxLength: 256
-        collector_execution_id:
-          type: string
-          minLength: 1
-          maxLength: 256
-
-    EventPublicationRawDocument:
-      type: object
-      additionalProperties: false
-      required:
-        [artifact_id, content_sha256, source_ref, source_name, source_type, title, collected_at]
-      properties:
-        artifact_id:
-          type: string
-          minLength: 1
-          maxLength: 256
-        content_sha256:
-          $ref: '#/components/schemas/PayloadHash'
-        source_ref:
-          type: string
-          minLength: 1
-          maxLength: 256
-        source_name:
-          type: string
-          minLength: 1
-          maxLength: 300
-        source_type:
-          type: string
-          minLength: 1
-          maxLength: 64
-        source_url:
-          type: string
-          format: uri
-          maxLength: 2048
-        title:
-          type: string
-          minLength: 1
-          maxLength: 1000
-        published_at:
-          nullable: true
-          allOf:
-            - $ref: '#/components/schemas/UTCTimestamp'
-        collected_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-        language:
-          type: string
-          maxLength: 16
-        mime_type:
-          type: string
-          maxLength: 128
-
-    EventPublicationEvent:
-      type: object
-      additionalProperties: false
-      required: [dedupe_key, title, factual_summary, fact_payload, evidence, tags, review]
-      properties:
-        dedupe_key:
-          type: string
-          minLength: 1
-        title:
-          type: string
-          minLength: 1
-        factual_summary:
-          type: string
-          minLength: 1
-        occurred_at:
-          nullable: true
-          allOf:
-            - $ref: '#/components/schemas/UTCTimestamp'
-        fact_payload:
-          type: object
-          additionalProperties: true
-        evidence:
-          type: array
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/EventPublicationEvidence'
-        tags:
-          type: array
-          minItems: 1
-          maxItems: 5
-          items:
-            $ref: '#/components/schemas/EventPublicationTag'
-        review:
-          $ref: '#/components/schemas/EventPublicationReview'
-
-    EventPublicationEvidence:
-      type: object
-      additionalProperties: false
-      required:
-        [
-          artifact_id,
-          evidence_relation,
-          evidence_statement,
-          supports_fields,
-          source_level
-        ]
-      properties:
-        artifact_id:
-          type: string
-          minLength: 1
-          maxLength: 256
-        evidence_relation:
-          $ref: '#/components/schemas/EvidenceRelation'
-        evidence_statement:
-          type: string
-          minLength: 1
-        supports_fields:
-          type: array
-          uniqueItems: true
-          items:
-            type: string
-            enum: [title, factual_summary, occurred_at, fact_payload]
-        source_level:
-          type: string
-          enum: [primary, secondary]
-
-    EventPublicationTag:
-      type: object
-      additionalProperties: false
-      required: [tag_id, tag_kind, tag_code, confidence, assignment_reason, assign_source]
-      properties:
-        tag_id:
-          $ref: '#/components/schemas/EventTagDefinitionID'
-        tag_kind:
-          $ref: '#/components/schemas/TagKind'
-        tag_code:
-          type: string
-          minLength: 1
-        confidence:
-          type: number
-          minimum: 0
-          maximum: 1
-        assignment_reason:
-          type: string
-          minLength: 1
-        assign_source:
-          $ref: '#/components/schemas/TagAssignSource'
-
-    EventPublicationReview:
-      type: object
-      additionalProperties: false
-      required: [review_id, evidence_grade, reasons]
-      properties:
-        review_id:
-          type: string
-          minLength: 1
-        evidence_grade:
-          type: string
-          minLength: 1
-        reasons:
-          type: array
-          minItems: 1
-          items:
-            type: string
-            minLength: 1
-
-    EventPublicationDisposition:
-      type: string
-      enum: [created, reused]
-
-    EventPublicationEventResult:
-      type: object
-      additionalProperties: false
-      required: [dedupe_key, event_id, disposition]
-      properties:
-        dedupe_key:
-          type: string
-        event_id:
-          $ref: '#/components/schemas/EventID'
-        disposition:
-          $ref: '#/components/schemas/EventPublicationDisposition'
-
-    EventPublicationRawDocumentResult:
-      type: object
-      additionalProperties: false
-      required: [artifact_id, raw_document_id, disposition]
-      properties:
-        artifact_id:
-          type: string
-        raw_document_id:
-          $ref: '#/components/schemas/EventEvidenceRecordID'
-        disposition:
-          $ref: '#/components/schemas/EventPublicationDisposition'
-
-    EventPublicationCounts:
-      type: object
-      additionalProperties: false
-      required:
-        - events_created
-        - events_reused
-        - raw_documents_created
-        - raw_documents_reused
-        - event_sources_created
-        - event_sources_reused
-        - event_tags_created
-        - event_tags_reused
-      properties:
-        events_created:
-          type: integer
-          minimum: 0
-        events_reused:
-          type: integer
-          minimum: 0
-        raw_documents_created:
-          type: integer
-          minimum: 0
-        raw_documents_reused:
-          type: integer
-          minimum: 0
-        event_sources_created:
-          type: integer
-          minimum: 0
-        event_sources_reused:
-          type: integer
-          minimum: 0
-        event_tags_created:
-          type: integer
-          minimum: 0
-        event_tags_reused:
-          type: integer
-          minimum: 0
-
-    EventPublicationResult:
-      type: object
-      additionalProperties: false
-      x-client-drift-anchor: data.v1.schema.EventPublicationResult
-      required: [receipt_id, package_id, imported_at, events, raw_documents, counts]
-      properties:
-        receipt_id:
-          $ref: '#/components/schemas/EventPublicationReceiptID'
-        package_id:
-          type: string
-        imported_at:
-          $ref: '#/components/schemas/UTCTimestamp'
-        events:
-          type: array
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/EventPublicationEventResult'
-        raw_documents:
-          type: array
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/EventPublicationRawDocumentResult'
-        counts:
-          $ref: '#/components/schemas/EventPublicationCounts'
-
-    EventPublicationEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-          minLength: 1
-        result:
-          $ref: '#/components/schemas/EventPublicationResult'
 
     ResearchGraphEntity:
       type: object

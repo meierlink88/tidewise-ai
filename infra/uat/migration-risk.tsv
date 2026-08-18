@@ -58,3 +58,4 @@
 000057	high	mixed	preserve and detach ChainNode and IndustryChain facts plus graph and Research references from shadow Entity rows in a stop-write cutover
 000058	high	mixed	rewrite four independent object prefixes and every direct polymorphic and JSONB reference in a stop-write cutover
 000059	high	mixed	retire Data Event Semantic persistence and formal Research rows in a snapshot-protected stop-write cutover
+000060	high	mixed	delete legacy Event and dependent Research facts and rebuild Event persistence around Atomic Evidence in a snapshot-protected stop-write cutover

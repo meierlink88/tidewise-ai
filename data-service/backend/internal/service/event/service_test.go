@@ -4,75 +4,72 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	eventbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/event"
 )
 
-type fakeUseCase struct {
-	catalog eventbiz.EventTagCatalog
+func TestListEventsMapsNewEventContract(t *testing.T) {
+	occurred := time.Date(2026, 8, 18, 1, 0, 0, 0, time.UTC)
+	who := "Example Corp"
+	useCase := &eventUseCaseStub{page: eventbiz.EventPage{
+		Items: []eventbiz.Event{{
+			ID: "EVT11111111-1111-4111-8111-111111111111", Title: "Event", Summary: "Summary",
+			Semantic: eventbiz.Semantic{Who: &who}, Modality: eventbiz.ModalityFact,
+			OccurredAt: &occurred, Status: eventbiz.LifecycleStatusActive,
+		}},
+		Total: 1, Page: 2, PageSize: 10,
+	}}
+	service, err := NewService(useCase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := service.ListEvents(context.Background(), &eventapi.ListRequest{
+		Title: " Event ", Modality: "FACT", Status: "ACTIVE",
+		OccurredFrom: "2026-08-18T00:00:00Z", Page: "2", PageSize: "10",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if response.Status != v1.StatusOK || len(response.Result.Items) != 1 {
+		t.Fatalf("response = %#v", response)
+	}
+	item := response.Result.Items[0]
+	if item.Modality != "FACT" || item.Status != "ACTIVE" || item.OccurredAt == nil || item.Semantic.Who == nil || *item.Semantic.Who != who {
+		t.Fatalf("item = %#v", item)
+	}
+	if useCase.request.Title != "Event" || useCase.request.OccurredFrom == nil || useCase.request.Page != 2 {
+		t.Fatalf("Biz request = %#v", useCase.request)
+	}
+}
+
+func TestListEventsRejectsRetiredAndInvalidFilters(t *testing.T) {
+	service, err := NewService(new(eventUseCaseStub))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, request := range []*eventapi.ListRequest{
+		{Modality: "UNKNOWN"},
+		{Status: "confirmed"},
+		{AnnouncedFrom: "2026-08-18T08:00:00+08:00"},
+	} {
+		_, err := service.ListEvents(context.Background(), request)
+		var public *v1.PublicError
+		if !errors.As(err, &public) || public.Status != v1.StatusBadRequest || public.Code != eventapi.ErrorInvalidRequest {
+			t.Fatalf("error = %#v", err)
+		}
+	}
+}
+
+type eventUseCaseStub struct {
+	request eventbiz.EventListRequest
+	page    eventbiz.EventPage
 	err     error
 }
 
-func (f fakeUseCase) Import(context.Context, string, eventbiz.PublicationBatch) (eventbiz.Result, error) {
-	return eventbiz.Result{}, f.err
-}
-
-func (f fakeUseCase) ActiveTags(context.Context) (eventbiz.EventTagCatalog, error) {
-	return f.catalog, f.err
-}
-
-func (f fakeUseCase) ListEvents(context.Context, eventbiz.EventListRequest) (eventbiz.EventPage, error) {
-	return eventbiz.EventPage{}, f.err
-}
-
-func TestCancellationPreservesLegacyPublicErrorMapping(t *testing.T) {
-	service, err := NewService(fakeUseCase{err: context.Canceled})
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, test := range []struct {
-		name, code string
-		call       func() error
-	}{
-		{name: "publication", code: eventapi.ErrorEventPublicationFailed, call: func() error {
-			_, callErr := service.PublishReviewedEvents(v1.WithPrincipal(context.Background(), v1.Principal{Identity: "caller"}), &eventapi.PublicationRequest{})
-			return callErr
-		}},
-		{name: "catalog", code: eventapi.ErrorEventTagCatalogFailed, call: func() error {
-			_, callErr := service.ListActiveEventTags(context.Background(), &eventapi.TagCatalogRequest{Active: true})
-			return callErr
-		}},
-		{name: "list", code: eventapi.ErrorDataRepositoryFailure, call: func() error {
-			_, callErr := service.ListEvents(context.Background(), &eventapi.ListRequest{})
-			return callErr
-		}},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			var public *v1.PublicError
-			if err := test.call(); !errors.As(err, &public) || public.Code != test.code {
-				t.Fatalf("error = %#v, want public code %s", err, test.code)
-			}
-		})
-	}
-}
-
-func TestListActiveEventTagsMapsCatalogSnapshot(t *testing.T) {
-	service, err := NewService(fakeUseCase{catalog: eventbiz.EventTagCatalog{
-		Tags: []eventbiz.EventTag{{
-			ID: "22a5afc5-20ed-55ce-bf77-54c26bbcc6ea", Kind: "news_category",
-			Code: "technology_industry", Name: "科技产业", Active: true,
-		}},
-	}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	response, err := service.ListActiveEventTags(context.Background(), &eventapi.TagCatalogRequest{Active: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(response.Result.Tags) != 1 || !response.Result.Tags[0].IsActive {
-		t.Fatalf("catalog = %#v", response.Result)
-	}
+func (s *eventUseCaseStub) ListEvents(_ context.Context, request eventbiz.EventListRequest) (eventbiz.EventPage, error) {
+	s.request = request
+	return s.page, s.err
 }

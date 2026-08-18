@@ -11,7 +11,6 @@ import (
 
 func RegisterAdminHTTPServer(server *kratoshttp.Server, service AdminHTTPServer) {
 	router := server.Route(APIPrefix)
-	router.GET("/raw-documents", listRawDocumentsHandler(service))
 	router.GET("/events", listEventsHandler(service))
 	router.GET("/runtime-health", getRuntimeHealthHandler(service))
 }
@@ -25,37 +24,35 @@ func getRuntimeHealthHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {
 	}
 }
 
-func listRawDocumentsHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {
-	return func(ctx kratoshttp.Context) error {
-		page, pageSize, err := parsePage(ctx, 50)
-		if err != nil {
-			return err
-		}
-		request := &ListRawDocumentsRequest{
-			Title: ctx.Query().Get("title"), SourceRef: ctx.Query().Get("source_ref"),
-			Page: page, PageSize: pageSize,
-		}
-		return call(ctx, OperationListRawDocuments, request, func(callContext context.Context) (any, error) {
-			return service.ListRawDocuments(callContext, request)
-		})
-	}
-}
-
 func listEventsHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
+		for name := range ctx.Request().URL.Query() {
+			if !allowedEventQueryParameter(name) {
+				return NewHTTPError(http.StatusBadRequest, "INVALID_REQUEST", "unsupported Event query parameter")
+			}
+		}
 		page, pageSize, err := parsePage(ctx, 50)
 		if err != nil {
 			return err
 		}
 		request := &ListEventsRequest{
-			Title: ctx.Query().Get("title"), EventStatus: ctx.Query().Get("event_status"),
-			FactStatus: ctx.Query().Get("fact_status"), EventTimeFrom: ctx.Query().Get("event_time_from"),
-			EventTimeTo: ctx.Query().Get("event_time_to"), FirstSeenFrom: ctx.Query().Get("first_seen_from"),
-			FirstSeenTo: ctx.Query().Get("first_seen_to"), Page: page, PageSize: pageSize,
+			Title: ctx.Query().Get("title"), Modality: ctx.Query().Get("modality"), Status: ctx.Query().Get("status"),
+			OccurredFrom: ctx.Query().Get("occurred_from"), OccurredTo: ctx.Query().Get("occurred_to"),
+			AnnouncedFrom: ctx.Query().Get("announced_from"), AnnouncedTo: ctx.Query().Get("announced_to"),
+			Page: page, PageSize: pageSize,
 		}
 		return call(ctx, OperationListEvents, request, func(callContext context.Context) (any, error) {
 			return service.ListEvents(callContext, request)
 		})
+	}
+}
+
+func allowedEventQueryParameter(name string) bool {
+	switch name {
+	case "title", "modality", "status", "occurred_from", "occurred_to", "announced_from", "announced_to", "page", "page_size":
+		return true
+	default:
+		return false
 	}
 }
 

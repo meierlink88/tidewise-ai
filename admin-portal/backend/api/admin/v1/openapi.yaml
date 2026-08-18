@@ -36,24 +36,6 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ReadinessResponse' }
-  /api/admin/v1/raw-documents:
-    get:
-      tags: [Admin data]
-      operationId: listAdminPortalRawDocuments
-      summary: 获取已接纳的轻量证据文档分页
-      parameters:
-        - { $ref: '#/components/parameters/RequestID' }
-        - { $ref: '#/components/parameters/Page' }
-        - { $ref: '#/components/parameters/PageSize' }
-        - { name: title, in: query, required: false, schema: { type: string } }
-        - { name: source_ref, in: query, required: false, schema: { type: string } }
-      responses:
-        '200': { $ref: '#/components/responses/RawDocumentPageSuccess' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '500': { $ref: '#/components/responses/InternalError' }
-        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /api/admin/v1/events:
     get:
       tags: [Admin data]
@@ -65,37 +47,37 @@ paths:
         - { $ref: '#/components/parameters/PageSize' }
         - { name: title, in: query, required: false, schema: { type: string } }
         - {
-            name: event_status,
+            name: modality,
             in: query,
             required: false,
-            schema: { $ref: '#/components/schemas/EventStatus' }
+            schema: { $ref: '#/components/schemas/EventModality' }
           }
         - {
-            name: fact_status,
+            name: status,
             in: query,
             required: false,
-            schema: { $ref: '#/components/schemas/FactStatus' }
+            schema: { $ref: '#/components/schemas/EventLifecycleStatus' }
           }
         - {
-            name: event_time_from,
-            in: query,
-            required: false,
-            schema: { $ref: '#/components/schemas/UTCTimestamp' }
-          }
-        - {
-            name: event_time_to,
+            name: occurred_from,
             in: query,
             required: false,
             schema: { $ref: '#/components/schemas/UTCTimestamp' }
           }
         - {
-            name: first_seen_from,
+            name: occurred_to,
             in: query,
             required: false,
             schema: { $ref: '#/components/schemas/UTCTimestamp' }
           }
         - {
-            name: first_seen_to,
+            name: announced_from,
+            in: query,
+            required: false,
+            schema: { $ref: '#/components/schemas/UTCTimestamp' }
+          }
+        - {
+            name: announced_to,
             in: query,
             required: false,
             schema: { $ref: '#/components/schemas/UTCTimestamp' }
@@ -148,11 +130,6 @@ components:
       description: 与响应 body 中 request_id 一致。
       schema: { type: string, minLength: 1, maxLength: 128 }
   responses:
-    RawDocumentPageSuccess:
-      description: 轻量证据文档分页
-      headers: { X-Request-ID: { $ref: '#/components/headers/RequestID' } }
-      content:
-        { application/json: { schema: { $ref: '#/components/schemas/RawDocumentPageEnvelope' } } }
     EventPageSuccess:
       description: Event 分页
       headers: { X-Request-ID: { $ref: '#/components/headers/RequestID' } }
@@ -216,13 +193,6 @@ components:
       properties:
         error: { $ref: '#/components/schemas/ErrorDetail' }
         request_id: { type: string }
-    RawDocumentPageEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id: { type: string }
-        result: { $ref: '#/components/schemas/RawDocumentPage' }
     EventPageEnvelope:
       type: object
       additionalProperties: false
@@ -237,54 +207,6 @@ components:
       properties:
         request_id: { type: string }
         result: { $ref: '#/components/schemas/RuntimeHealth' }
-    RawDocumentPage:
-      type: object
-      additionalProperties: false
-      required: [items, total, page, page_size]
-      properties:
-        items: { type: array, items: { $ref: '#/components/schemas/RawDocument' } }
-        total: { type: integer, minimum: 0 }
-        page: { type: integer, minimum: 1 }
-        page_size: { type: integer, minimum: 1 }
-    RawDocument:
-      type: object
-      additionalProperties: false
-      required:
-        [
-          id,
-          contract_version,
-          ingest_channel,
-          source_type,
-          source_name,
-          source_url,
-          title,
-          content_text,
-          raw_object_uri,
-          raw_mime_type,
-          language,
-          collected_at,
-          ingest_status,
-          content_sha256
-        ]
-      properties:
-        id: { type: string }
-        contract_version: { type: integer }
-        artifact_id: { type: string }
-        source_ref: { type: string }
-        ingest_channel: { type: string }
-        source_type: { type: string }
-        source_name: { type: string }
-        source_url: { type: string, format: uri }
-        source_external_id: { type: string }
-        title: { type: string }
-        content_text: { type: string }
-        raw_object_uri: { type: string }
-        raw_mime_type: { type: string }
-        language: { type: string }
-        published_at: { $ref: '#/components/schemas/UTCTimestamp' }
-        collected_at: { $ref: '#/components/schemas/UTCTimestamp' }
-        ingest_status: { type: string }
-        content_sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
     EventPage:
       type: object
       additionalProperties: false
@@ -297,17 +219,20 @@ components:
     Event:
       type: object
       additionalProperties: false
-      required: [id, title, summary, first_seen_at, event_status, fact_status, dedupe_key]
+      required: [id, title, summary, semantic, modality, occurred_at, announced_at, status]
       properties:
         id: { type: string }
         title: { type: string }
         summary: { type: string }
-        event_time: { $ref: '#/components/schemas/UTCTimestamp' }
-        first_seen_at: { $ref: '#/components/schemas/UTCTimestamp' }
-        knowable_at: { $ref: '#/components/schemas/UTCTimestamp' }
-        event_status: { $ref: '#/components/schemas/EventStatus' }
-        fact_status: { $ref: '#/components/schemas/FactStatus' }
-        dedupe_key: { type: string }
+        semantic: { $ref: '#/components/schemas/EventSemantic' }
+        modality: { $ref: '#/components/schemas/EventModality' }
+        occurred_at:
+          nullable: true
+          allOf: [{ $ref: '#/components/schemas/UTCTimestamp' }]
+        announced_at:
+          nullable: true
+          allOf: [{ $ref: '#/components/schemas/UTCTimestamp' }]
+        status: { $ref: '#/components/schemas/EventLifecycleStatus' }
     RuntimeHealth:
       type: object
       additionalProperties: false
@@ -341,5 +266,16 @@ components:
         type: string,
         enum: [timeout, unreachable, not_ready, authentication_failed, invalid_response]
       }
-    EventStatus: { type: string, enum: [candidate, confirmed, rejected] }
-    FactStatus: { type: string, enum: [unverified, verified, disputed] }
+    EventModality: { type: string, enum: [FACT, PLAN, SPEC] }
+    EventLifecycleStatus: { type: string, enum: [ACTIVE, DEPRECATED, ARCHIVED] }
+    EventSemantic:
+      type: object
+      additionalProperties: false
+      required: [who, what, when, where, why, how]
+      properties:
+        who: { type: string, nullable: true }
+        what: { type: string, nullable: true }
+        when: { type: string, nullable: true }
+        where: { type: string, nullable: true }
+        why: { type: string, nullable: true }
+        how: { type: string, nullable: true }

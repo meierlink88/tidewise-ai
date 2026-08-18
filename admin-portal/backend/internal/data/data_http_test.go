@@ -16,15 +16,13 @@ import (
 
 func TestHTTPClientListsAdminDataWithIdentityRequestIDAndTypedQueries(t *testing.T) {
 	t.Parallel()
-	requests := make(chan *http.Request, 2)
+	requests := make(chan *http.Request, 1)
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		requests <- request.Clone(context.Background())
 		writer.Header().Set("Content-Type", "application/json")
 		switch request.URL.Path {
-		case rawDocumentsPath:
-			_, _ = writer.Write([]byte(`{"request_id":"data-req-1","result":{"items":[{"id":"11111111-1111-5111-8111-111111111111","contract_version":2,"artifact_id":"artifact-1","source_ref":"source:reuters:world","title":"raw","content_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","collected_at":"2026-07-17T01:02:03Z","ingest_status":"collected"}],"total":1,"page":2,"page_size":10}}`))
 		case eventsPath:
-			_, _ = writer.Write([]byte(`{"request_id":"data-req-2","result":{"items":[{"id":"22222222-2222-5222-8222-222222222222","title":"event","first_seen_at":"2026-07-17T01:02:03Z","event_status":"confirmed","fact_status":"verified"}],"total":1,"page":1,"page_size":20}}`))
+			_, _ = writer.Write([]byte(`{"request_id":"data-req-2","result":{"items":[{"id":"EVT22222222-2222-5222-8222-222222222222","title":"event","summary":"summary","semantic":{"who":null,"what":"rate hold","when":null,"where":null,"why":null,"how":null},"modality":"FACT","occurred_at":"2026-07-17T01:02:03Z","announced_at":null,"status":"ACTIVE"}],"total":1,"page":1,"page_size":20}}`))
 		default:
 			writer.WriteHeader(http.StatusNotFound)
 		}
@@ -33,32 +31,20 @@ func TestHTTPClientListsAdminDataWithIdentityRequestIDAndTypedQueries(t *testing
 	client := newTestClient(t, server.URL, server.Client(), "admin-service-token")
 	ctx := WithRequestID(context.Background(), "admin-req-123")
 
-	rawPage, err := client.ListRawDocuments(ctx, biz.RawDocumentListQuery{Title: "央行 data", SourceRef: "source:reuters:world", IngestStatus: "collected", Page: 2, PageSize: 10})
-	if err != nil {
-		t.Fatal(err)
-	}
 	eventFrom := time.Date(2026, 7, 1, 2, 3, 4, 0, time.UTC)
-	eventPage, err := client.ListEvents(ctx, biz.EventListQuery{Title: "event title", EventStatus: "confirmed", FactStatus: "verified", EventTimeFrom: &eventFrom, Page: 1, PageSize: 20})
+	eventPage, err := client.ListEvents(ctx, biz.EventListQuery{Title: "event title", Modality: biz.EventModalityFact, Status: biz.EventLifecycleActive, OccurredFrom: &eventFrom, Page: 1, PageSize: 20})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(rawPage.Items) != 1 || rawPage.Items[0].Title != "raw" || rawPage.Items[0].ContractVersion != 2 || rawPage.Items[0].ArtifactID != "artifact-1" || rawPage.Items[0].SourceRef != "source:reuters:world" || rawPage.Page != 2 || !rawPage.Items[0].CollectedAt.Equal(time.Date(2026, 7, 17, 1, 2, 3, 0, time.UTC)) {
-		t.Fatalf("raw page = %#v", rawPage)
-	}
-	if len(eventPage.Items) != 1 || eventPage.Items[0].EventStatus != "confirmed" {
+	if len(eventPage.Items) != 1 || eventPage.Items[0].Status != biz.EventLifecycleActive || eventPage.Items[0].Semantic.What == nil || *eventPage.Items[0].Semantic.What != "rate hold" {
 		t.Fatalf("events = %#v", eventPage)
 	}
 
-	rawRequest, eventRequest := <-requests, <-requests
-	for _, request := range []*http.Request{rawRequest, eventRequest} {
-		if request.Header.Get("Authorization") != "Bearer admin-service-token" || request.Header.Get(RequestIDHeader) != "admin-req-123" {
-			t.Fatalf("auth/request ID for %q = %q/%q", request.URL.Path, request.Header.Get("Authorization"), request.Header.Get(RequestIDHeader))
-		}
+	eventRequest := <-requests
+	if eventRequest.Header.Get("Authorization") != "Bearer admin-service-token" || eventRequest.Header.Get(RequestIDHeader) != "admin-req-123" {
+		t.Fatalf("auth/request ID for %q = %q/%q", eventRequest.URL.Path, eventRequest.Header.Get("Authorization"), eventRequest.Header.Get(RequestIDHeader))
 	}
-	if rawRequest.URL.Path != rawDocumentsPath || rawRequest.URL.Query().Get("title") != "央行 data" || rawRequest.URL.Query().Get("source_ref") != "source:reuters:world" || rawRequest.URL.Query().Get("ingest_status") != "collected" || rawRequest.URL.Query().Get("page") != "2" || rawRequest.URL.Query().Get("page_size") != "10" {
-		t.Fatalf("raw request = %s?%s", rawRequest.URL.Path, rawRequest.URL.RawQuery)
-	}
-	if eventRequest.URL.Path != eventsPath || eventRequest.URL.Query().Get("event_time_from") != eventFrom.Format(time.RFC3339) || eventRequest.URL.Query().Get("event_status") != "confirmed" {
+	if eventRequest.URL.Path != eventsPath || eventRequest.URL.Query().Get("occurred_from") != eventFrom.Format(time.RFC3339) || eventRequest.URL.Query().Get("modality") != "FACT" || eventRequest.URL.Query().Get("status") != "ACTIVE" {
 		t.Fatalf("event request = %s?%s", eventRequest.URL.Path, eventRequest.URL.RawQuery)
 	}
 }
@@ -83,7 +69,7 @@ func TestHTTPClientRetriesOnlySafeRetryableReads(t *testing.T) {
 	defer server.Close()
 	client := newTestClient(t, server.URL, server.Client(), "token")
 
-	if _, err := client.ListRawDocuments(context.Background(), biz.RawDocumentListQuery{}); err != nil {
+	if _, err := client.ListEvents(context.Background(), biz.EventListQuery{}); err != nil {
 		t.Fatalf("safe read error = %v", err)
 	}
 	if got := attempts.Load(); got != 2 {
@@ -95,8 +81,8 @@ func TestHTTPClientRetriesOnlySafeRetryableReads(t *testing.T) {
 
 	attempts.Store(0)
 	err := client.doJSON(
-		context.Background(), http.MethodPost, "Data.TestMutation", rawDocumentsPath,
-		rawDocumentsPath, map[string]string{"value": "mutation"}, nil,
+		context.Background(), http.MethodPost, "Data.TestMutation", eventsPath,
+		eventsPath, map[string]string{"value": "mutation"}, nil,
 	)
 	if err == nil {
 		t.Fatal("mutation error = nil")
@@ -116,6 +102,34 @@ func TestHTTPClientRejectsMalformedSuccessEnvelope(t *testing.T) {
 
 	_, err := client.ListEvents(context.Background(), biz.EventListQuery{})
 	assertDataUnavailable(t, err)
+}
+
+func TestHTTPClientRejectsEventContractDrift(t *testing.T) {
+	t.Parallel()
+	valid := `{"request_id":"data-req","result":{"items":[{"id":"EVT22222222-2222-5222-8222-222222222222","title":"event","summary":"summary","semantic":{"who":null,"what":"fact","when":null,"where":null,"why":null,"how":null},"modality":"FACT","occurred_at":null,"announced_at":null,"status":"ACTIVE"}],"total":1,"page":1,"page_size":50}}`
+	for _, test := range []struct {
+		name    string
+		payload string
+	}{
+		{name: "missing semantic", payload: strings.Replace(valid, `,"semantic":{"who":null,"what":"fact","when":null,"where":null,"why":null,"how":null}`, "", 1)},
+		{name: "missing semantic key", payload: strings.Replace(valid, `,"how":null`, "", 1)},
+		{name: "extra semantic key", payload: strings.Replace(valid, `,"how":null`, `,"how":null,"extra":null`, 1)},
+		{name: "missing nullable time", payload: strings.Replace(valid, `,"occurred_at":null`, "", 1)},
+		{name: "wrong ID", payload: strings.Replace(valid, "EVT22222222-2222-5222-8222-222222222222", "not-an-event", 1)},
+		{name: "blank title", payload: strings.Replace(valid, `"title":"event"`, `"title":" "`, 1)},
+		{name: "oversized page", payload: strings.Replace(valid, `"page_size":50`, `"page_size":101`, 1)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				_, _ = writer.Write([]byte(test.payload))
+			}))
+			defer server.Close()
+			client := newTestClient(t, server.URL, server.Client(), "token")
+			_, err := client.ListEvents(context.Background(), biz.EventListQuery{})
+			assertDataUnavailable(t, err)
+		})
+	}
 }
 
 func TestHTTPClientClassifiesFailuresWithoutLeakingSecrets(t *testing.T) {
@@ -141,7 +155,7 @@ func TestHTTPClientClassifiesFailuresWithoutLeakingSecrets(t *testing.T) {
 			defer server.Close()
 			client := newTestClient(t, server.URL, server.Client(), "secret-service-token")
 
-			_, err := client.ListRawDocuments(context.Background(), biz.RawDocumentListQuery{})
+			_, err := client.ListEvents(context.Background(), biz.EventListQuery{})
 			if !errors.Is(err, biz.ErrDataServiceUnavailable) {
 				t.Fatalf("error = %#v", err)
 			}

@@ -2,7 +2,9 @@
 status: accepted
 date: 2026-08-11
 supersedes_in_part: 0005-agentrun-owns-source-and-raw-artifacts.md
-superseded_in_part_by: 0021-simplify-atomic-evidence-semantics.md
+superseded_in_part_by:
+  - 0021-simplify-atomic-evidence-semantics.md
+  - 0028-rebuild-event-domain-around-atomic-evidence.md
 ---
 
 # Data 拥有 Raw Evidence 与原子 Evidence 发布

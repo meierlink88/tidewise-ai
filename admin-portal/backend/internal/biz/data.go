@@ -9,83 +9,36 @@ import (
 // DataServiceRepo is the Admin-owned boundary for the retained management
 // aggregates. Scheduler control is deliberately absent from this port.
 type DataServiceRepo interface {
-	ListRawDocuments(context.Context, RawDocumentListQuery) (RawDocumentPage, error)
 	ListEvents(context.Context, EventListQuery) (EventPage, error)
-}
-
-type RawDocumentListQuery struct {
-	Title        string
-	SourceRef    string
-	IngestStatus IngestStatus
-	Page         int
-	PageSize     int
 }
 
 type EventListQuery struct {
 	Title         string
-	EventStatus   EventStatus
-	FactStatus    FactStatus
-	EventTimeFrom *time.Time
-	EventTimeTo   *time.Time
-	FirstSeenFrom *time.Time
-	FirstSeenTo   *time.Time
+	Modality      EventModality
+	Status        EventLifecycleStatus
+	OccurredFrom  *time.Time
+	OccurredTo    *time.Time
+	AnnouncedFrom *time.Time
+	AnnouncedTo   *time.Time
 	Page          int
 	PageSize      int
 }
 
-type IngestStatus string
+type EventModality string
 
 const (
-	IngestStatusCollected      IngestStatus = "collected"
-	IngestStatusDuplicate      IngestStatus = "duplicate"
-	IngestStatusFailed         IngestStatus = "failed"
-	IngestStatusPendingExtract IngestStatus = "pending_extract"
+	EventModalityFact EventModality = "FACT"
+	EventModalityPlan EventModality = "PLAN"
+	EventModalitySpec EventModality = "SPEC"
 )
 
-type EventStatus string
+type EventLifecycleStatus string
 
 const (
-	EventStatusCandidate EventStatus = "candidate"
-	EventStatusConfirmed EventStatus = "confirmed"
-	EventStatusRejected  EventStatus = "rejected"
+	EventLifecycleActive     EventLifecycleStatus = "ACTIVE"
+	EventLifecycleDeprecated EventLifecycleStatus = "DEPRECATED"
+	EventLifecycleArchived   EventLifecycleStatus = "ARCHIVED"
 )
-
-type FactStatus string
-
-const (
-	FactStatusUnverified FactStatus = "unverified"
-	FactStatusVerified   FactStatus = "verified"
-	FactStatusDisputed   FactStatus = "disputed"
-)
-
-type RawDocumentPage struct {
-	Items    []RawDocument
-	Total    int
-	Page     int
-	PageSize int
-}
-
-type RawDocument struct {
-	ID               string
-	ContractVersion  int
-	ArtifactID       string
-	SourceRef        string
-	IngestChannel    string
-	SourceType       string
-	SourceName       string
-	SourceURL        string
-	SourceExternalID string
-	Title            string
-	ContentText      string
-	ContentLevel     string
-	RawObjectURI     string
-	RawMIMEType      string
-	Language         string
-	PublishedAt      *time.Time
-	CollectedAt      time.Time
-	IngestStatus     IngestStatus
-	ContentSHA256    string
-}
 
 type EventPage struct {
 	Items    []Event
@@ -98,27 +51,27 @@ type Event struct {
 	ID          string
 	Title       string
 	Summary     string
-	EventTime   *time.Time
-	FirstSeenAt time.Time
-	KnowableAt  *time.Time
-	EventStatus EventStatus
-	FactStatus  FactStatus
-	DedupeKey   string
+	Semantic    EventSemantic
+	Modality    EventModality
+	OccurredAt  *time.Time
+	AnnouncedAt *time.Time
+	Status      EventLifecycleStatus
+}
+
+type EventSemantic struct {
+	Who   *string
+	What  *string
+	When  *string
+	Where *string
+	Why   *string
+	How   *string
 }
 
 var ErrFakeMethodNotConfigured = errors.New("data service fake method is not configured")
 
 // FakeDataServiceRepo keeps Admin orchestration tests independent from HTTP and databases.
 type FakeDataServiceRepo struct {
-	ListRawDocumentsFunc func(context.Context, RawDocumentListQuery) (RawDocumentPage, error)
-	ListEventsFunc       func(context.Context, EventListQuery) (EventPage, error)
-}
-
-func (f *FakeDataServiceRepo) ListRawDocuments(ctx context.Context, query RawDocumentListQuery) (RawDocumentPage, error) {
-	if f == nil || f.ListRawDocumentsFunc == nil {
-		return RawDocumentPage{}, ErrFakeMethodNotConfigured
-	}
-	return f.ListRawDocumentsFunc(ctx, query)
+	ListEventsFunc func(context.Context, EventListQuery) (EventPage, error)
 }
 
 func (f *FakeDataServiceRepo) ListEvents(ctx context.Context, query EventListQuery) (EventPage, error) {

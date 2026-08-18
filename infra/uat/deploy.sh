@@ -41,6 +41,10 @@ pre_data59_runtime="${deployment_root}/pre-data59.runtime.env"
 pre_data59_images="${state_dir}/pre-data59.images.env"
 pre_data59_compose="${state_dir}/pre-data59.compose.yaml"
 pre_data59_sha="${state_dir}/pre-data59.sha"
+pre_data60_runtime="${deployment_root}/pre-data60.runtime.env"
+pre_data60_images="${state_dir}/pre-data60.images.env"
+pre_data60_compose="${state_dir}/pre-data60.compose.yaml"
+pre_data60_sha="${state_dir}/pre-data60.sha"
 agentrun_rollback_marker="${state_dir}/agentrun-010-rollback-required"
 agentrun_version_publication="${state_dir}/agentrun-agent-version-publication.json"
 candidate_services_started=false
@@ -97,8 +101,22 @@ case "$deployment_mode" in
     cutover_checkpoint_compose="$pre_data59_compose"
     cutover_checkpoint_sha="$pre_data59_sha"
     ;;
+  data_60_cutover)
+    bounded_data_cutover=true
+    cutover_target_version=60
+    cutover_target_version_padded=000060
+    cutover_initial_current_version=000059
+    cutover_initial_pending_versions=000060
+    cutover_recovery_minimum_version=59
+    cutover_gate_name=data60
+    cutover_release_state_mode=pre-data60
+    cutover_checkpoint_runtime="$pre_data60_runtime"
+    cutover_checkpoint_images="$pre_data60_images"
+    cutover_checkpoint_compose="$pre_data60_compose"
+    cutover_checkpoint_sha="$pre_data60_sha"
+    ;;
   *)
-    echo "FAIL deployment-mode-gate: DEPLOYMENT_MODE must be normal, tidewise_2_cutover, or data_59_cutover" >&2
+    echo "FAIL deployment-mode-gate: DEPLOYMENT_MODE must be normal, tidewise_2_cutover, data_59_cutover, or data_60_cutover" >&2
     exit 1
     ;;
 esac
@@ -197,6 +215,16 @@ restore_interrupted_release_state() {
       install -m 0640 "$pre_data59_compose" "$current_compose"
       install -m 0640 "$pre_data59_sha" "$current_sha"
       ;;
+    pre-data60)
+      if [ ! -s "$pre_data60_runtime" ] || [ ! -s "$pre_data60_images" ] || [ ! -s "$pre_data60_compose" ] || [ ! -s "$pre_data60_sha" ]; then
+        echo "FAIL release-state-recovery: pre-Data-60 snapshot is incomplete" >&2
+        return 1
+      fi
+      install -m 0600 "$pre_data60_runtime" "$current_runtime"
+      install -m 0640 "$pre_data60_images" "$current_images"
+      install -m 0640 "$pre_data60_compose" "$current_compose"
+      install -m 0640 "$pre_data60_sha" "$current_sha"
+      ;;
     none)
       rm -f "$current_runtime" "$current_images" "$current_compose" "$current_sha"
       ;;
@@ -230,7 +258,7 @@ current_release_state_fingerprint() {
 
 verify_planned_release_state() {
   local recovered_cutover_state=false
-  if [ "$bounded_data_cutover" = true ] && [[ "$interrupted_state_recovery_mode" =~ ^(pre-data2|pre-data59|committed)$ ]]; then
+  if [ "$bounded_data_cutover" = true ] && [[ "$interrupted_state_recovery_mode" =~ ^(pre-data2|pre-data59|pre-data60|committed)$ ]]; then
     recovered_cutover_state=true
   fi
   if [ "$recovered_cutover_state" != true ] && [ "$(current_release_state_fingerprint)" != "$expected_current_state_fingerprint" ]; then
@@ -729,6 +757,7 @@ else
     "$previous_runtime" "$previous_images" "$previous_compose" "$previous_sha" \
     "$pre_data2_runtime" "$pre_data2_images" "$pre_data2_compose" "$pre_data2_sha" \
     "$pre_data59_runtime" "$pre_data59_images" "$pre_data59_compose" "$pre_data59_sha" \
+    "$pre_data60_runtime" "$pre_data60_images" "$pre_data60_compose" "$pre_data60_sha" \
     "$agentrun_rollback_marker" "$agentrun_version_publication"
 fi
 if [ "$bounded_data_cutover" = true ]; then

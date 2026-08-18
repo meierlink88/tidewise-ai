@@ -20,7 +20,6 @@ import (
 	organizationbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/organization"
 	eventbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/event"
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
-	rawdocumentbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/rawdocument"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/runtimehealth"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/conf"
@@ -35,7 +34,6 @@ import (
 	organizationdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/organization"
 	eventdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/event"
 	evidencedata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/evidence"
-	rawdocumentdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/rawdocument"
 	researchdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/research"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/server"
 	chainnodeservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/chainnode"
@@ -46,7 +44,6 @@ import (
 	organizationservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/organization"
 	eventservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/event"
 	evidenceservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/evidence"
-	rawdocumentservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/rawdocument"
 	researchservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/research"
 	runtimehealthservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/runtimehealth"
 )
@@ -94,14 +91,6 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	eventUseCase, err := eventbiz.NewUseCase(eventStore)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Event use case: %w", err))
-	}
-	rawDocumentStore, err := rawdocumentdata.NewStore(db)
-	if err != nil {
-		return nil, nil, closeBuildResources(fmt.Errorf("configure RawDocument store: %w", err))
-	}
-	rawDocumentUseCase, err := rawdocumentbiz.NewUseCase(rawDocumentStore)
-	if err != nil {
-		return nil, nil, closeBuildResources(fmt.Errorf("configure RawDocument use case: %w", err))
 	}
 	entityStore, err := entitydata.NewStore(db)
 	if err != nil {
@@ -189,10 +178,6 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Event API service: %w", err))
 	}
-	rawDocumentApplication, err := rawdocumentservice.NewService(rawDocumentUseCase)
-	if err != nil {
-		return nil, nil, closeBuildResources(fmt.Errorf("configure RawDocument API service: %w", err))
-	}
 	countryApplication, err := countryservice.NewService(countryUseCase)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Country API service: %w", err))
@@ -217,7 +202,7 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Organization API service: %w", err))
 	}
-	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, evidenceApplication, rawDocumentApplication, countryApplication, industryApplication, conceptApplication, chainNodeApplication, industryChainApplication, organizationApplication, authenticator, logger)
+	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, evidenceApplication, countryApplication, industryApplication, conceptApplication, chainNodeApplication, industryChainApplication, organizationApplication, authenticator, logger)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure HTTP server: %w", err))
 	}
@@ -232,12 +217,10 @@ func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 		{
 			Secret: config.Secrets.ServiceToken,
 			Principal: v1.Principal{Identity: "tidewise-internal-service", Scopes: []string{
-				server.ScopeReviewedEventImport,
 				server.ScopeRawEvidenceImport,
 				server.ScopeRawEvidenceRead,
 				server.ScopeEvidenceImport,
 				server.ScopeEvidenceCategoryRead,
-				server.ScopeEventTagRead,
 				server.ScopeResearchImport,
 				server.ScopeResearchRead,
 				server.ScopeAdminRead,

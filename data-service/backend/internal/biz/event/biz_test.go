@@ -2,280 +2,115 @@ package event
 
 import (
 	"context"
-	"encoding/json"
-	"reflect"
-	"strings"
+	"errors"
+	"math"
 	"testing"
 	"time"
+
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
-func TestDecodeStrictRejectsUnknownFields(t *testing.T) {
-	_, err := DecodeStrict(strings.NewReader(`{"package_id":"pkg","unexpected":true}`))
-	if err == nil || !strings.Contains(err.Error(), `unknown field "unexpected"`) {
-		t.Fatalf("DecodeStrict error = %v, want unknown field", err)
+func TestCreateBuildsOwnedAggregateIdentitiesAndDefaults(t *testing.T) {
+	store := new(fakeStore)
+	useCase, err := NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	created, err := useCase.Create(context.Background(), validCreateInput())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !coreid.Is(created.Event.ID, coreid.Event) || created.Event.Status != LifecycleStatusActive {
+		t.Fatalf("created Event = %#v", created.Event)
+	}
+	if len(created.Evidence) != 1 || !coreid.Is(created.Evidence[0].ID, coreid.EventEvidenceLink) ||
+		created.Evidence[0].EventID != created.Event.ID {
+		t.Fatalf("created Evidence Links = %#v", created.Evidence)
+	}
+	if len(created.Actors) != 1 || !coreid.Is(created.Actors[0].ID, coreid.EventActorLink) || created.Actors[0].Confidence != 0.70 {
+		t.Fatalf("created Actor Links = %#v", created.Actors)
+	}
+	if len(created.Assets) != 1 || !coreid.Is(created.Assets[0].ID, coreid.EventAssetLink) {
+		t.Fatalf("created Asset Links = %#v", created.Assets)
 	}
 }
 
-func TestPublicationValidateAcceptsFrozenContract(t *testing.T) {
-	if err := validPublication().Validate(); err != nil {
-		t.Fatalf("Validate() error = %v", err)
-	}
-}
-
-func TestPublicationValidateRejectsStorageBoundaryOverflow(t *testing.T) {
+func TestCreateRejectsInvalidAggregateBeforePersistence(t *testing.T) {
 	tests := []struct {
-		name string
-		edit func(*PublicationBatch)
-		path string
+		name   string
+		mutate func(*CreateInput)
 	}{
-		{
-			name: "package id",
-			edit: func(publication *PublicationBatch) {
-				publication.PackageID = strings.Repeat("p", 257)
-			},
-			path: "package_id",
-		},
-		{
-			name: "source type",
-			edit: func(publication *PublicationBatch) {
-				publication.RawDocuments[0].SourceType = strings.Repeat("s", 65)
-			},
-			path: "raw_documents[0].source_type",
-		},
-		{
-			name: "language",
-			edit: func(publication *PublicationBatch) {
-				publication.RawDocuments[0].Language = strings.Repeat("l", 17)
-			},
-			path: "raw_documents[0].language",
-		},
-		{
-			name: "mime type",
-			edit: func(publication *PublicationBatch) {
-				publication.RawDocuments[0].MIMEType = strings.Repeat("m", 129)
-			},
-			path: "raw_documents[0].mime_type",
-		},
+		{name: "missing evidence", mutate: func(input *CreateInput) { input.Evidence = nil }},
+		{name: "unknown evidence identity", mutate: func(input *CreateInput) { input.Evidence[0].EvidenceID = "bad" }},
+		{name: "duplicate evidence", mutate: func(input *CreateInput) { input.Evidence = append(input.Evidence, input.Evidence[0]) }},
+		{name: "invalid modality", mutate: func(input *CreateInput) { input.Modality = "UNKNOWN" }},
+		{name: "invalid weight", mutate: func(input *CreateInput) { input.Evidence[0].ContributionWeight = 1.01 }},
+		{name: "nan actor strength", mutate: func(input *CreateInput) { value := math.NaN(); input.Actors[0].RelationStrength = &value }},
+		{name: "invalid actor confidence", mutate: func(input *CreateInput) { value := 1.0; input.Actors[0].Confidence = &value }},
+		{name: "duplicate actor relation", mutate: func(input *CreateInput) { input.Actors = append(input.Actors, input.Actors[0]) }},
+		{name: "invalid asset type", mutate: func(input *CreateInput) { input.Assets[0].AssetType = "UNKNOWN" }},
+		{name: "duplicate asset", mutate: func(input *CreateInput) { input.Assets = append(input.Assets, input.Assets[0]) }},
 	}
-
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			publication := validPublication()
-			test.edit(&publication)
-			err := publication.Validate()
-			var validation *ValidationError
-			if !asValidationError(err, &validation) {
-				t.Fatalf("Validate() error = %v, want ValidationError", err)
+			store := new(fakeStore)
+			useCase, err := NewUseCase(store)
+			if err != nil {
+				t.Fatal(err)
 			}
-			found := false
-			for _, issue := range validation.Issues {
-				if issue.Path == test.path && issue.Code == "MAX_LENGTH" {
-					found = true
-					break
-				}
+			input := validCreateInput()
+			test.mutate(&input)
+			if _, err := useCase.Create(context.Background(), input); err == nil {
+				t.Fatal("Create() error = nil")
 			}
-			if !found {
-				t.Fatalf("issues = %#v, want MAX_LENGTH at %s", validation.Issues, test.path)
+			if store.createCalls != 0 {
+				t.Fatalf("CreateEvent calls = %d, want 0", store.createCalls)
 			}
 		})
 	}
 }
 
-func TestPublicationValidatePreservesFactEvidenceAndTagBoundaries(t *testing.T) {
-	for _, test := range []struct {
-		name string
-		edit func(*PublicationBatch)
-	}{
-		{name: "forbidden fact prediction", edit: func(publication *PublicationBatch) {
-			publication.Events[0].FactPayload = map[string]any{"price_prediction": "上涨"}
+func validCreateInput() CreateInput {
+	return CreateInput{
+		Title: "Example Event", Summary: "Example Event summary.",
+		Semantic: Semantic{}, Modality: ModalityFact,
+		Evidence: []EvidenceLinkInput{{EvidenceID: "EVD11111111-1111-4111-8111-111111111111", ContributionWeight: 0.8}},
+		Actors: []ActorLinkInput{{
+			ActorID: "actor:1", ActorType: ActorTypeCompany, RelationType: ActorRelationMentions,
 		}},
-		{name: "supports without fields", edit: func(publication *PublicationBatch) {
-			publication.Events[0].Evidence[0].SupportsFields = nil
+		Assets: []AssetLinkInput{{
+			AssetID: "asset:1", AssetType: AssetTypeSecurity, ImpactDirection: ImpactDirectionPositive,
 		}},
-		{name: "unsupported evidence relation", edit: func(publication *PublicationBatch) {
-			publication.Events[0].Evidence[0].EvidenceRelation = "irrelevant"
-		}},
-		{name: "assignment without reason", edit: func(publication *PublicationBatch) {
-			publication.Events[0].Tags[0].AssignmentReason = ""
-		}},
-		{name: "confidence over one", edit: func(publication *PublicationBatch) {
-			publication.Events[0].Tags[0].Confidence = json.Number("1.0001")
-		}},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			publication := validPublication()
-			test.edit(&publication)
-			if err := publication.Validate(); err == nil {
-				t.Fatal("Validate() error = nil, want rejection")
-			}
-		})
-	}
-}
-
-func TestNewValidationErrorSortsIssuesDeterministically(t *testing.T) {
-	err := NewValidationError([]ValidationIssue{
-		{Path: "events[1].title", Code: "REQUIRED", Message: "second"},
-		{Path: "events[0].title", Code: "REQUIRED", Message: "first"},
-		{Path: "events[0].title", Code: "MAX_LENGTH", Message: "bounded"},
-	})
-	got := err.Issues
-	if got[0].Path != "events[0].title" || got[0].Code != "MAX_LENGTH" ||
-		got[1].Path != "events[0].title" || got[1].Code != "REQUIRED" ||
-		got[2].Path != "events[1].title" {
-		t.Fatalf("issues not sorted deterministically: %#v", got)
-	}
-}
-
-func TestSemanticJSONEqualPreservesNumberPrecision(t *testing.T) {
-	if SemanticJSONEqual(
-		map[string]any{"count": json.Number("9007199254740992")},
-		map[string]any{"count": json.Number("9007199254740993")},
-	) {
-		t.Fatal("SemanticJSONEqual treated distinct integers above float64 precision as equal")
-	}
-	if !SemanticJSONEqual(
-		map[string]any{"ratio": json.Number("1")},
-		map[string]any{"ratio": json.Number("1.0")},
-	) {
-		t.Fatal("SemanticJSONEqual treated equivalent JSON numbers as different")
-	}
-}
-
-func TestActiveTagsSortsStableCurrentCollection(t *testing.T) {
-	tags := []EventTag{
-		{ID: "ETDb1a5438f-6e81-55e7-8ecb-33230b9ae965", Kind: "news_category", Code: "macroeconomy", Name: "宏观经济", Active: true},
-		{ID: "ETD22a5afc5-20ed-55ce-bf77-54c26bbcc6ea", Kind: "news_category", Code: "technology_industry", Name: "科技产业", Active: true},
-	}
-	first, err := NewUseCase(fakeStore{tags: tags})
-	if err != nil {
-		t.Fatal(err)
-	}
-	firstCatalog, err := first.ActiveTags(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	second, err := NewUseCase(fakeStore{tags: []EventTag{tags[1], tags[0]}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	secondCatalog, err := second.ActiveTags(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(firstCatalog.Tags, secondCatalog.Tags) {
-		t.Fatalf("unstable collections: first=%#v second=%#v", firstCatalog, secondCatalog)
-	}
-	if firstCatalog.Tags[0].Code != "macroeconomy" || firstCatalog.Tags[1].Code != "technology_industry" {
-		t.Fatalf("catalog order = %#v", firstCatalog.Tags)
-	}
-}
-
-func TestActiveTagsRejectsInvalidCatalogRows(t *testing.T) {
-	useCase, err := NewUseCase(fakeStore{tags: []EventTag{{
-		ID: "22a5afc5-20ed-55ce-bf77-54c26bbcc6ea", Kind: "news_category",
-		Code: "technology_industry", Name: "科技产业", Active: false,
-	}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := useCase.ActiveTags(context.Background()); err == nil {
-		t.Fatal("inactive persisted Tag was accepted")
-	}
-}
-
-func TestListEventsMapsReadProjection(t *testing.T) {
-	now := time.Date(2026, 8, 11, 1, 0, 0, 0, time.UTC)
-	useCase, err := NewUseCase(fakeStore{events: EventStorePage{
-		Items: []EventListItem{{
-			ID: "event-1", Title: "Event", FirstSeenAt: now, EventStatus: EventStatusConfirmed,
-			FactStatus: FactStatusVerified, DedupeKey: "event:key",
-		}}, Total: 1, Page: 2, PageSize: 10,
-	}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	page, err := useCase.ListEvents(context.Background(), EventListRequest{Page: 2, PageSize: 10})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if page.Total != 1 || page.Items[0].ID != "event-1" || page.Page != 2 || page.PageSize != 10 {
-		t.Fatalf("page = %#v", page)
 	}
 }
 
 type fakeStore struct {
-	tags           []EventTag
-	events         EventStorePage
-	researchEvents ResearchEventPage
+	aggregate   Aggregate
+	createCalls int
+	createErr   error
 }
 
-func (fakeStore) InTransaction(context.Context, func(Transaction) error) error { return nil }
-func (store fakeStore) ListActiveTags(context.Context) ([]EventTag, error) {
-	return append([]EventTag(nil), store.tags...), nil
-}
-func (store fakeStore) ListEvents(context.Context, EventListFilter) (EventStorePage, error) {
-	return store.events, nil
-}
-
-func (store fakeStore) ListResearchEvents(context.Context, ResearchEventQuery) (ResearchEventPage, error) {
-	return store.researchEvents, nil
-}
-
-func TestResearchEventProviderReturnsFormalFacts(t *testing.T) {
-	want := ResearchEventPage{Events: []ResearchEventRecord{{Event: ResearchEventFact{ID: "10000000-0000-4000-8000-000000000001"}}}}
-	useCase, err := NewUseCase(fakeStore{researchEvents: want})
-	if err != nil {
-		t.Fatal(err)
+func (s *fakeStore) CreateEvent(_ context.Context, aggregate Aggregate) error {
+	s.createCalls++
+	if s.createErr != nil {
+		return s.createErr
 	}
-	got, err := useCase.ListResearchEvents(context.Background(), ResearchEventQuery{PageSize: 1})
-	if err != nil || len(got.Events) != 1 || got.Events[0].Event.ID != want.Events[0].Event.ID {
-		t.Fatalf("ListResearchEvents() = %#v, %v", got, err)
+	now := time.Date(2026, 8, 18, 1, 0, 0, 0, time.UTC)
+	for index := range aggregate.Actors {
+		aggregate.Actors[index].CreatedAt = now
+		aggregate.Actors[index].UpdatedAt = now
 	}
+	s.aggregate = aggregate
+	return nil
 }
 
-func asValidationError(err error, target **ValidationError) bool {
-	validation, ok := err.(*ValidationError)
-	if ok {
-		*target = validation
+func (s *fakeStore) EventByID(context.Context, string) (Aggregate, error) {
+	if s.aggregate.Event.ID == "" {
+		return Aggregate{}, ErrEventNotFound
 	}
-	return ok
+	return s.aggregate, nil
 }
 
-func validPublication() PublicationBatch {
-	publishedAt := time.Date(2026, 7, 23, 1, 0, 0, 0, time.UTC)
-	collectedAt := time.Date(2026, 7, 23, 1, 5, 0, 0, time.UTC)
-	occurredAt := time.Date(2026, 7, 23, 0, 30, 0, 0, time.UTC)
-	return PublicationBatch{
-		PackageID: "package-1",
-		Provenance: Provenance{
-			ExtractorExecutionID:  "extractor-1",
-			ExtractorAgentVersion: "extractor-v2",
-			CollectorExecutions: []CollectorExecution{{
-				ArtifactID: "artifact-1", CollectorExecutionID: "collector-1",
-			}},
-		},
-		RawDocuments: []EventEvidenceRecord{{
-			ArtifactID: "artifact-1", ContentSHA256: strings.Repeat("a", 64),
-			SourceRef: "source:1", SourceName: "Source", SourceType: "news",
-			SourceURL: "https://example.test/1", Title: "Source title",
-			PublishedAt: &publishedAt, CollectedAt: collectedAt,
-			Language: "en", MIMEType: "text/markdown",
-		}},
-		Events: []PublicationEvent{{
-			DedupeKey: "event-1", Title: "Event title", FactualSummary: "Event summary",
-			OccurredAt: &occurredAt, FactPayload: map[string]any{"metric": "example"},
-			Evidence: []EventEvidenceLinkInput{{
-				ArtifactID: "artifact-1", EvidenceRelation: "supports",
-				EvidenceStatement: "Evidence statement", SupportsFields: []string{"title"},
-				SourceLevel: "primary",
-			}},
-			Tags: []EventTagInput{{
-				TagID:   "ETD22a5afc5-20ed-55ce-bf77-54c26bbcc6ea",
-				TagKind: "news_category", TagCode: "technology_industry",
-				Confidence: json.Number("0.9"), AssignmentReason: "Technology event",
-				AssignSource: "ai",
-			}},
-			Review: Review{ReviewID: "review-1", EvidenceGrade: "A", Reasons: []string{"Reviewed"}},
-		}},
-	}
+func (s *fakeStore) ListEvents(context.Context, EventListFilter) (EventStorePage, error) {
+	return EventStorePage{}, errors.New("not implemented")
 }

@@ -27,7 +27,6 @@ const (
 	maxErrorCodeLength   = 100
 	maxReadAttempts      = 3
 	dataAPIPrefix        = "/api/data/v1"
-	rawDocumentsPath     = dataAPIPrefix + "/raw-documents"
 	eventsPath           = dataAPIPrefix + "/events"
 )
 
@@ -108,21 +107,6 @@ func (c *DataHTTPClient) Close() error {
 	return nil
 }
 
-func (c *DataHTTPClient) ListRawDocuments(ctx context.Context, query biz.RawDocumentListQuery) (biz.RawDocumentPage, error) {
-	var envelope responseEnvelope[rawDocumentPageWire]
-	err := c.doJSON(ctx, http.MethodGet, "Data.ListRawDocuments", rawDocumentsPath,
-		rawDocumentListPath(query), nil, &envelope)
-	wire, err := unwrapEnvelope(envelope, err)
-	if err != nil {
-		return biz.RawDocumentPage{}, biz.ErrDataServiceUnavailable
-	}
-	page, err := wire.toBiz()
-	if err != nil {
-		return biz.RawDocumentPage{}, biz.ErrDataServiceUnavailable
-	}
-	return page, nil
-}
-
 func (c *DataHTTPClient) ListEvents(ctx context.Context, query biz.EventListQuery) (biz.EventPage, error) {
 	var envelope responseEnvelope[eventPageWire]
 	err := c.doJSON(ctx, http.MethodGet, "Data.ListEvents", eventsPath,
@@ -154,36 +138,21 @@ func unwrapEnvelope[T any](envelope responseEnvelope[T], err error) (T, error) {
 	return *envelope.Result, nil
 }
 
-func rawDocumentListPath(query biz.RawDocumentListQuery) string {
-	values := url.Values{}
-	if query.Title != "" {
-		values.Set("title", query.Title)
-	}
-	if query.SourceRef != "" {
-		values.Set("source_ref", query.SourceRef)
-	}
-	if query.IngestStatus != "" {
-		values.Set("ingest_status", string(query.IngestStatus))
-	}
-	setPageQuery(values, query.Page, query.PageSize)
-	return appendQuery(rawDocumentsPath, values)
-}
-
 func eventListPath(query biz.EventListQuery) string {
 	values := url.Values{}
 	if query.Title != "" {
 		values.Set("title", query.Title)
 	}
-	if query.EventStatus != "" {
-		values.Set("event_status", string(query.EventStatus))
+	if query.Modality != "" {
+		values.Set("modality", string(query.Modality))
 	}
-	if query.FactStatus != "" {
-		values.Set("fact_status", string(query.FactStatus))
+	if query.Status != "" {
+		values.Set("status", string(query.Status))
 	}
-	setTimeQuery(values, "event_time_from", query.EventTimeFrom)
-	setTimeQuery(values, "event_time_to", query.EventTimeTo)
-	setTimeQuery(values, "first_seen_from", query.FirstSeenFrom)
-	setTimeQuery(values, "first_seen_to", query.FirstSeenTo)
+	setTimeQuery(values, "occurred_from", query.OccurredFrom)
+	setTimeQuery(values, "occurred_to", query.OccurredTo)
+	setTimeQuery(values, "announced_from", query.AnnouncedFrom)
+	setTimeQuery(values, "announced_to", query.AnnouncedTo)
 	setPageQuery(values, query.Page, query.PageSize)
 	return appendQuery(eventsPath, values)
 }

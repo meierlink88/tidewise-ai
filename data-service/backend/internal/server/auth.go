@@ -19,7 +19,6 @@ import (
 	organizationapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/organization"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
-	rawdocumentapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/rawdocument"
 	researchapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/research"
 	runtimehealthapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/runtimehealth"
 )
@@ -28,12 +27,10 @@ const (
 	ScopeResearchRead         = "data.research.read"
 	ScopeResearchImport       = "data.research.import"
 	ScopeAdminRead            = "data.admin.read"
-	ScopeReviewedEventImport  = "data.reviewed-events.import"
 	ScopeRawEvidenceImport    = "data.raw-evidences.import"
 	ScopeRawEvidenceRead      = "data.raw-evidences.read"
 	ScopeEvidenceImport       = "data.evidences.import"
 	ScopeEvidenceCategoryRead = "data.evidence-categories.read"
-	ScopeEventTagRead         = "data.event-tags.read"
 	ScopeCountryRead          = "data.countries.read"
 	ScopeCountryWrite         = "data.countries.write"
 	ScopeIndustryRead         = "data.industries.read"
@@ -124,8 +121,6 @@ func authenticationMiddleware(authenticator *Authenticator) middleware.Middlewar
 
 func requiredScope(operation string) (string, bool) {
 	switch operation {
-	case eventapi.OperationPublishReviewedEvents:
-		return ScopeReviewedEventImport, true
 	case evidenceapi.OperationPublishRawEvidence:
 		return ScopeRawEvidenceImport, true
 	case evidenceapi.OperationGetRawEvidence:
@@ -134,15 +129,13 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeEvidenceImport, true
 	case evidenceapi.OperationListEvidenceCategories:
 		return ScopeEvidenceCategoryRead, true
-	case eventapi.OperationListActiveEventTags:
-		return ScopeEventTagRead, true
 	case researchapi.OperationPublishResearchTheme:
 		return ScopeResearchImport, true
 	case researchapi.OperationListResearchThemes, researchapi.OperationGetResearchTheme,
 		researchapi.OperationListResearchThemeReasoningTrees, researchapi.OperationGetResearchThemeReasoningTree,
 		researchapi.OperationSearchResearchGraph:
 		return ScopeResearchRead, true
-	case rawdocumentapi.OperationList, eventapi.OperationListAdminEvents, runtimehealthapi.OperationGet:
+	case eventapi.OperationListAdminEvents, runtimehealthapi.OperationGet:
 		return ScopeAdminRead, true
 	case countryapi.OperationList, countryapi.OperationGet:
 		return ScopeCountryRead, true
