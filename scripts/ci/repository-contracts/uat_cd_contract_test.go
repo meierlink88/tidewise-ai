@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
+func TestUATWorkflowEnforcesValidatedFourImageRelease(t *testing.T) {
 	root := repositoryRoot()
 	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "deploy-uat.yml"))
 	for _, required := range []string{
@@ -26,11 +26,8 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 		"SWR_DEPLOY_REPOSITORY",
 		"UAT_PUBLIC_BASE_URL",
 		"TIDEWISW_DB_PASSWORD",
-		"AGENTRUN_DB_PASSWORD",
 		"DATA_SERVICE_TOKEN",
 		"ADMIN_SERVICE_TOKEN",
-		"AGENTRUN_SERVICE_TOKEN",
-		"EMBEDDING_API_KEY",
 		"infra/uat/preflight.sh",
 		"infra/uat/deploy.sh",
 		"infra/uat/collect-diagnostics.sh",
@@ -46,7 +43,7 @@ func TestUATWorkflowEnforcesValidatedFiveImageRelease(t *testing.T) {
 			t.Fatalf("UAT workflow missing %q", required)
 		}
 	}
-	for _, image := range []string{"data_image", "miniapp_image", "adminportal_image", "admin_image", "agentrun_image"} {
+	for _, image := range []string{"data_image", "miniapp_image", "adminportal_image", "admin_image"} {
 		if !strings.Contains(workflow, image+"=") && !strings.Contains(workflow, image+":") {
 			t.Fatalf("UAT workflow missing complete release image %q", image)
 		}
@@ -83,7 +80,6 @@ func TestUATWorkflowPlansSelectiveServicesFromRecordedReleaseState(t *testing.T)
 		"EXPECTED_CURRENT_RELEASE_SHA:",
 		"data_image=$(select_image",
 		"if: needs.plan-release.outputs.deploy_data == 'true'",
-		"if: needs.plan-release.outputs.deploy_agentrun == 'true'",
 		"if: needs.plan-release.outputs.deploy_miniapp == 'true'",
 		"if: needs.plan-release.outputs.deploy_adminportal == 'true'",
 		"if: needs.plan-release.outputs.deploy_admin == 'true'",
@@ -96,7 +92,6 @@ func TestUATWorkflowPlansSelectiveServicesFromRecordedReleaseState(t *testing.T)
 	for _, required := range []string{
 		"git diff --name-only --no-renames -z",
 		"data-service/*",
-		"agent-run/*",
 		"miniapp/backend/*",
 		"admin-portal/backend/*",
 		"admin-portal/frontend/*",
@@ -158,18 +153,6 @@ func TestUATWorkflowExcludesRetiredDataProjectionInputs(t *testing.T) {
 		if strings.Contains(workflow, forbidden) || strings.Contains(prepare, forbidden) {
 			t.Fatalf("UAT workflow retains retired Data projection input %q", forbidden)
 		}
-	}
-}
-
-func TestUATWorkflowPersistsEmbeddingSecret(t *testing.T) {
-	workflow, prepare := uatWorkflowAndPrepareStep(t)
-	for _, required := range []string{"EMBEDDING_API_KEY=${EMBEDDING_API_KEY}"} {
-		if !strings.Contains(prepare, required) {
-			t.Fatalf("UAT runtime preparation missing %q", required)
-		}
-	}
-	if !strings.Contains(workflow, "EMBEDDING_API_KEY: ${{ secrets.EMBEDDING_API_KEY }}") {
-		t.Fatal("UAT workflow does not source the embedding key from the uat Environment Secret")
 	}
 }
 
@@ -257,21 +240,17 @@ func TestStageUATDeployBundlePinsIdentityAndChecksums(t *testing.T) {
 	fixtures := map[string]string{
 		filepath.Join(releaseRoot, "infra/uat/docker-compose.yaml"):                "release-compose\n",
 		filepath.Join(releaseRoot, "data-service/backend/configs/config.uat.yaml"): "data-config\n",
-		filepath.Join(releaseRoot, "agent-run/backend/configs/config.uat.yaml"):    "agentrun-config\n",
 		filepath.Join(controlRoot, "infra/uat/preflight.sh"):                       "preflight\n",
 		filepath.Join(controlRoot, "infra/uat/deploy.sh"):                          "deploy\n",
 		filepath.Join(controlRoot, "infra/uat/collect-diagnostics.sh"):             "diagnostics\n",
 		filepath.Join(controlRoot, "infra/uat/migration-risk.tsv"):                 "data-risk\n",
-		filepath.Join(controlRoot, "infra/uat/agentrun-migration-risk.tsv"):        "agentrun-risk\n",
 		filepath.Join(controlRoot, "infra/uat/deploy-bundle-files.txt"): strings.Join([]string{
 			"release\tinfra/uat/docker-compose.yaml",
 			"release\tdata-service/backend/configs/config.uat.yaml",
-			"release\tagent-run/backend/configs/config.uat.yaml",
 			"control\tinfra/uat/preflight.sh",
 			"control\tinfra/uat/deploy.sh",
 			"control\tinfra/uat/collect-diagnostics.sh",
 			"control\tinfra/uat/migration-risk.tsv",
-			"control\tinfra/uat/agentrun-migration-risk.tsv",
 			"",
 		}, "\n"),
 	}
@@ -326,37 +305,6 @@ func TestStageUATDeployBundlePinsIdentityAndChecksums(t *testing.T) {
 	}
 }
 
-func TestEveryAgentRunMigrationHasExplicitUATRiskClassification(t *testing.T) {
-	root := repositoryRoot()
-	entries, err := filepath.Glob(filepath.Join(root, "agent-run", "backend", "internal", "data", "postgres", "migrations", "*.sql"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	versions := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		versions = append(versions, strings.SplitN(filepath.Base(entry), "_", 2)[0])
-	}
-	sort.Strings(versions)
-
-	manifest := readContractFile(t, filepath.Join(root, "infra", "uat", "agentrun-migration-risk.tsv"))
-	classified := make([]string, 0, len(versions))
-	for _, line := range strings.Split(manifest, "\n") {
-		if strings.TrimSpace(line) == "" || strings.HasPrefix(strings.TrimSpace(line), "#") {
-			continue
-		}
-		fields := strings.Split(line, "\t")
-		if len(fields) != 4 || (fields[1] != "normal" && fields[1] != "high" && fields[1] != "blocked") ||
-			(fields[2] != "schema" && fields[2] != "data" && fields[2] != "mixed") || strings.TrimSpace(fields[3]) == "" {
-			t.Fatalf("invalid AgentRun UAT migration risk row %q", line)
-		}
-		classified = append(classified, fields[0])
-	}
-	sort.Strings(classified)
-	if strings.Join(classified, ",") != strings.Join(versions, ",") {
-		t.Fatalf("AgentRun UAT migration risk versions = %v, repository versions = %v", classified, versions)
-	}
-}
-
 func TestEveryMigrationHasExplicitUATRiskClassification(t *testing.T) {
 	root := repositoryRoot()
 	entries, err := filepath.Glob(filepath.Join(root, "data-service", "backend", "migrations", "*.sql"))
@@ -398,10 +346,10 @@ func TestUATComposeEnforcesRuntimeSecurityAndPorts(t *testing.T) {
 	root := repositoryRoot()
 	compose := readContractFile(t, filepath.Join(root, "infra", "uat", "docker-compose.yaml"))
 	for _, required := range []string{
-		"  data:", "  miniapp:", "  adminportal:", "  admin:", "  agentrun:",
-		"http://data:9011", "http://agentrun:9080", "http://adminportal:9013", "9012:9012", "9014:9014", "\"9080\"",
-		"ADMIN_BACKEND_URL", "ADMIN_ALLOWED_ORIGIN", "TIDEWISW_DB_PASSWORD", "AGENTRUN_DB_PASSWORD",
-		"DATA_SERVICE_TOKEN", "ADMIN_SERVICE_TOKEN", "AGENTRUN_SERVICE_TOKEN",
+		"  data:", "  miniapp:", "  adminportal:", "  admin:",
+		"http://data:9011", "http://adminportal:9013", "9012:9012", "9014:9014",
+		"ADMIN_BACKEND_URL", "ADMIN_ALLOWED_ORIGIN", "TIDEWISW_DB_PASSWORD",
+		"DATA_SERVICE_TOKEN", "ADMIN_SERVICE_TOKEN",
 		"restart: unless-stopped", "max-size: \"20m\"", "max-file: \"5\"",
 	} {
 		if !strings.Contains(compose, required) {
@@ -430,12 +378,6 @@ func TestUATComposeEnforcesRuntimeSecurityAndPorts(t *testing.T) {
 			}
 		}
 	}
-	agentrun := composeServiceSection(t, compose, "agentrun")
-	for _, required := range []string{"AGENTRUN_DB_PASSWORD", "AGENTRUN_SERVICE_TOKEN", "DATA_SERVICE_TOKEN", "EMBEDDING_API_KEY", "QDRANT_API_KEY", "AGENTRUN_ARTIFACT_DIR", "http://127.0.0.1:9080/readyz"} {
-		if !strings.Contains(agentrun, required) {
-			t.Fatalf("AgentRun UAT service missing %q", required)
-		}
-	}
 	for _, forbidden := range []string{"DATA_NEO4J_HEALTH", "NEO4J_URI", "NEO4J_PASSWORD"} {
 		if strings.Contains(data, forbidden) {
 			t.Fatalf("Data UAT service retains retired projection dependency %q", forbidden)
@@ -458,7 +400,6 @@ func TestUATServiceConfigsAndImagesUseFixedPortsAndNonRoot(t *testing.T) {
 		"data":        {root: "data-service/backend", configDir: "configs", port: "9011"},
 		"miniapp":     {root: "miniapp/backend", configDir: "configs", port: "9012"},
 		"adminportal": {root: "admin-portal/backend", configDir: "configs", port: "9013"},
-		"agentrun":    {root: "agent-run/backend", configDir: "configs", port: "9080"},
 	}
 	for service, asset := range services {
 		config := readContractFile(t, filepath.Join(root, filepath.FromSlash(asset.root), asset.configDir, "config.uat.yaml"))
@@ -466,7 +407,7 @@ func TestUATServiceConfigsAndImagesUseFixedPortsAndNonRoot(t *testing.T) {
 			t.Fatalf("%s UAT config does not use port %s", service, asset.port)
 		}
 		dockerfile := readContractFile(t, filepath.Join(root, filepath.FromSlash(asset.root), "Dockerfile"))
-		if (!strings.Contains(dockerfile, "USER tidewise") && !strings.Contains(dockerfile, "USER agentrun")) || !strings.Contains(dockerfile, "EXPOSE "+asset.port) {
+		if !strings.Contains(dockerfile, "USER tidewise") || !strings.Contains(dockerfile, "EXPOSE "+asset.port) {
 			t.Fatalf("%s image does not enforce non-root port %s runtime", service, asset.port)
 		}
 	}
@@ -476,12 +417,8 @@ func TestUATServiceConfigsAndImagesUseFixedPortsAndNonRoot(t *testing.T) {
 			t.Fatalf("Data UAT config missing %q", required)
 		}
 	}
-	agentRunConfig := readContractFile(t, filepath.Join(root, "agent-run", "backend", "configs", "config.uat.yaml"))
-	if !strings.Contains(agentRunConfig, "user: agentrun_uat") {
-		t.Fatal("AgentRun UAT config must use the audited RDS role agentrun_uat")
-	}
 	const privateRDSHost = "775b3ecf9c934ae185c0b8eda157c50din03.internal.cn-east-3.postgresql.rds.myhuaweicloud.com"
-	for service, config := range map[string]string{"Data": dataConfig, "AgentRun": agentRunConfig} {
+	for service, config := range map[string]string{"Data": dataConfig} {
 		if !strings.Contains(config, "host: "+privateRDSHost) ||
 			strings.Contains(config, "host: http") ||
 			strings.Contains(config, "rds.invalid") {
@@ -499,16 +436,11 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 	deploy := readContractFile(t, filepath.Join(root, "infra", "uat", "deploy.sh"))
 	for _, required := range []string{
 		"flock -n", "dbmigrate -apply", "rollback_current_release",
-		"/app/agentrun-agent-version", "publish-current", "PASS agent-version-publication",
-		"withdraw-publication", "PASS agent-version-withdrawal",
 		"current.images.env", "previous.images.env", "current.compose.yaml", "previous.compose.yaml",
-		"current.sha", "previous.sha", "PASS rds-tls-readonly", "PASS agentrun-rds-tls-readonly", "PASS bff-to-service-read-paths",
-		"/api/admin/v1/model-providers",
-		"http://127.0.0.1:9080/readyz",
+		"current.sha", "previous.sha", "PASS rds-tls-readonly", "PASS bff-to-service-read-paths",
 		"FAIL migration-release-gate", "PASS migration-release-gate",
-		"PASS external-qdrant-ready",
 		"qdrant-ownership: application release state must not manage Qdrant",
-		"wget -q -T 10 -t 2 -O-",
+		"--remove-orphans",
 	} {
 		if !strings.Contains(deploy, required) {
 			t.Fatalf("UAT deploy executor missing %q", required)
@@ -545,7 +477,7 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 	}
 	for _, forbidden := range []string{
 		"dbmigrate -down", "pg_restore", "compose down", ":latest",
-		"up -d --wait --wait-timeout 120 qdrant", "exec -T qdrant", "--remove-orphans",
+		"up -d --wait --wait-timeout 120 qdrant", "exec -T qdrant",
 		"industry-relationship-import", "industry-graph-projector", "event-semantic-projector",
 		"INDUSTRY_RELATIONSHIP_IMPORT_ENABLED", "INDUSTRY_GRAPH_PROJECTION_ENABLED", "EVENT_SEMANTIC_PROJECTION_ENABLED",
 	} {
@@ -554,22 +486,9 @@ func TestUATDeploymentAssetsKeepCurrentAndPreviousRelease(t *testing.T) {
 		}
 	}
 	bootstrap := readContractFile(t, filepath.Join(root, "infra", "uat", "bootstrap-ecs.sh"))
-	for _, required := range []string{"Ubuntu 24.04", "tidewise-deploy", "docker-compose-v2", "sha256sum --check", "tidewise-uat-ecs", "systemctl", "agentrun-artifacts"} {
+	for _, required := range []string{"Ubuntu 24.04", "tidewise-deploy", "docker-compose-v2", "sha256sum --check", "tidewise-uat-ecs", "systemctl"} {
 		if !strings.Contains(bootstrap, required) {
 			t.Fatalf("UAT bootstrap missing %q", required)
-		}
-	}
-}
-
-func TestUATPreflightEnforcesIndependentDataAndAgentRunDatabaseIdentities(t *testing.T) {
-	root := repositoryRoot()
-	preflight := readContractFile(t, filepath.Join(root, "infra", "uat", "preflight.sh"))
-	for _, required := range []string{
-		"Data and AgentRun must use different database names",
-		"Data and AgentRun must use different database users",
-	} {
-		if !strings.Contains(preflight, required) {
-			t.Fatalf("UAT preflight missing database identity guard %q", required)
 		}
 	}
 }

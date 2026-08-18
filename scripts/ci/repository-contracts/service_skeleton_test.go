@@ -33,14 +33,6 @@ func TestServiceOwnedPackagesAndCommandsExist(t *testing.T) {
 		"admin-portal/backend/internal/data",
 		"admin-portal/backend/internal/server",
 		"admin-portal/backend/internal/service",
-		"agent-run/backend/api/agentrun/v1",
-		"agent-run/backend/cmd/server",
-		"agent-run/backend/cmd/migrate",
-		"agent-run/backend/cmd/config",
-		"agent-run/backend/cmd/artifacts",
-		"agent-run/backend/internal/conf",
-		"agent-run/backend/internal/server",
-		"agent-run/backend/internal/service",
 	} {
 		if !hasPackageSuffix(packages, suffix) {
 			t.Errorf("expected service-owned package %q to exist", suffix)
@@ -51,7 +43,6 @@ func TestServiceOwnedPackagesAndCommandsExist(t *testing.T) {
 		"data-service/backend",
 		"miniapp/backend",
 		"admin-portal/backend",
-		"agent-run/backend",
 	} {
 		for _, layer := range []string{"conf", "biz", "data", "service", "server"} {
 			path := filepath.Join(repositoryRoot(), service, "internal", layer)
@@ -79,7 +70,7 @@ func TestDeployableServicesDoNotImportEachOther(t *testing.T) {
 	}
 }
 
-func TestEinoDependenciesStayInAgentRunBinaryClosure(t *testing.T) {
+func TestCurrentServiceBinariesExcludeAgentRuntimeDependencies(t *testing.T) {
 	commands := map[string]string{
 		"data":         "./data-service/backend/cmd/server",
 		"miniapp":      "./miniapp/backend/cmd/server",
@@ -96,52 +87,10 @@ func TestEinoDependenciesStayInAgentRunBinaryClosure(t *testing.T) {
 			}
 		}
 	}
-
-	agentRunDependencies := listCommandDependencies(t, "./agent-run/backend/cmd/server")
-	for _, required := range []string{
-		"github.com/cloudwego/eino",
-		"github.com/cloudwego/eino-ext/components/embedding/openai",
-		"github.com/cloudwego/eino-ext/components/model/openai",
-	} {
-		found := false
-		for _, dependency := range agentRunDependencies {
-			if dependency == required || strings.HasPrefix(dependency, required+"/") {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Fatalf("AgentRun binary closure is missing %q", required)
-		}
-	}
-	for _, forbidden := range []string{
-		"github.com/cohesion-org/deepseek-go",
-		"github.com/gin-gonic/gin",
-		"github.com/ollama/ollama",
-	} {
-		for _, dependency := range agentRunDependencies {
-			if dependency == forbidden || strings.HasPrefix(dependency, forbidden+"/") {
-				t.Fatalf("AgentRun binary unexpectedly includes vulnerable dependency %q", dependency)
-			}
-		}
-	}
 }
 
-func TestEventSemanticEmbeddingOwnership(t *testing.T) {
+func TestDataSemanticProjectionRemainsRetired(t *testing.T) {
 	root := repositoryRoot()
-	agentAdapter := string(readContractFile(t, filepath.Join(
-		root, "agent-run", "backend", "internal", "data", "semanticretrieval", "client.go",
-	)))
-	for _, forbidden := range []string{"/embeddings", "encoding_format", `json:"embedding"`} {
-		if strings.Contains(agentAdapter, forbidden) {
-			t.Fatalf("AgentRun Qdrant adapter reimplements embedding wire contract %q", forbidden)
-		}
-	}
-	if !strings.Contains(agentAdapter, "embedding.Embedder") ||
-		!strings.Contains(agentAdapter, ".EmbedStrings(ctx, texts)") {
-		t.Fatal("AgentRun Qdrant adapter must batch through an injected Eino embedding.Embedder")
-	}
-
 	if _, err := os.Stat(filepath.Join(root, "data-service", "backend", "internal", "data", "semanticprojection")); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("Data semantic projection adapter must be retired: %v", err)
 	}
@@ -157,11 +106,6 @@ func TestKratosLayersFollowOneCentralDependencyPolicy(t *testing.T) {
 		}
 		root := serviceRoot(service)
 		for _, imported := range pkg.Imports {
-			if service == "agent-run" &&
-				strings.HasPrefix(imported, "github.com/cloudwego/eino-ext/") &&
-				!strings.Contains(local, "/internal/data/modelprovider/") {
-				t.Fatalf("%s imports concrete Eino provider %s outside internal/data/modelprovider", local, imported)
-			}
 			switch {
 			case strings.Contains(local, "/api/"):
 				assertImportOutside(t, local, imported, root+"/internal/")
@@ -218,7 +162,6 @@ func TestDeployableServicesUseExplicitConstructionWithoutWire(t *testing.T) {
 		"data-service/backend",
 		"miniapp/backend",
 		"admin-portal/backend",
-		"agent-run/backend",
 	} {
 		err := filepath.WalkDir(filepath.Join(root, service), func(path string, entry os.DirEntry, err error) error {
 			if err != nil {
@@ -253,8 +196,6 @@ func serviceRoot(service string) string {
 		return "miniapp/backend"
 	case "admin-portal":
 		return "admin-portal/backend"
-	case "agent-run":
-		return "agent-run/backend"
 	default:
 		return ""
 	}
@@ -265,7 +206,6 @@ func deployableService(packageName string) string {
 		"data-service/backend": "data-service",
 		"miniapp/backend":      "miniapp",
 		"admin-portal/backend": "admin-portal",
-		"agent-run/backend":    "agent-run",
 	}
 	for prefix, service := range services {
 		if packageName == prefix || strings.HasPrefix(packageName, prefix+"/") {
@@ -319,7 +259,6 @@ func listServicePackages(t *testing.T) []packageInfo {
 		"./data-service/backend/...",
 		"./miniapp/backend/...",
 		"./admin-portal/backend/...",
-		"./agent-run/backend/...",
 	)
 	command.Dir = repositoryRoot()
 	output, err := command.Output()
@@ -355,30 +294,4 @@ func listCommandDependencies(t *testing.T, commandPath string) []string {
 		t.Fatalf("go list dependencies for %s failed: %v\n%s", commandPath, err, output)
 	}
 	return strings.Fields(string(output))
-}
-
-func TestAgentRunStandaloneRepositoryAssetsAreConverged(t *testing.T) {
-	repoRoot := repositoryRoot()
-	for _, standalone := range []string{
-		"agent-run/backend/go.mod",
-		"agent-run/backend/go.sum",
-		"agent-run/backend/.github",
-		"agent-run/backend/.codex",
-		"agent-run/backend/AGENTS.md",
-		"agent-run/backend/CONTEXT.md",
-		"agent-run/backend/docs",
-	} {
-		if _, err := os.Stat(filepath.Join(repoRoot, standalone)); !errors.Is(err, os.ErrNotExist) {
-			t.Errorf("standalone AgentRun asset %q must be converged into the monorepo: %v", standalone, err)
-		}
-	}
-	for _, required := range []string{
-		"docs/contexts/agentrun/CONTEXT.md",
-		"docs/contexts/agentrun/adr/0001-limit-plaintext-provider-credentials-to-development.md",
-		"docs/contexts/agentrun/adr/0002-use-kratos-as-service-shell-and-eino-inside-agent-capabilities.md",
-	} {
-		if _, err := os.Stat(filepath.Join(repoRoot, required)); err != nil {
-			t.Errorf("converged AgentRun asset %q is missing: %v", required, err)
-		}
-	}
 }

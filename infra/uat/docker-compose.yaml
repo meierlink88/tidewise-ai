@@ -28,36 +28,6 @@ services:
     logging: *default-logging
     networks: [tidewise-uat]
 
-  agentrun:
-    image: ${AGENTRUN_IMAGE:?AGENTRUN_IMAGE is required}
-    restart: unless-stopped
-    environment:
-      APP_ENV: uat
-      AGENTRUN_CONFIG_DIR: /app/configs
-      TZ: Asia/Shanghai
-      AGENTRUN_DB_PASSWORD: ${AGENTRUN_DB_PASSWORD:?AGENTRUN_DB_PASSWORD is required}
-      AGENTRUN_SERVICE_TOKEN: ${AGENTRUN_SERVICE_TOKEN:?AGENTRUN_SERVICE_TOKEN is required}
-      DATA_SERVICE_TOKEN: ${DATA_SERVICE_TOKEN:?DATA_SERVICE_TOKEN is required}
-      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:?EMBEDDING_API_KEY is required}
-      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
-    volumes:
-      - ${AGENTRUN_ARTIFACT_DIR:-/opt/tidewise/uat/agentrun-artifacts}:/app/data
-    expose:
-      - "9080"
-    depends_on:
-      data:
-        condition: service_healthy
-    healthcheck:
-      # UAT is releasable only after its database, execution configuration,
-      # service token and persistent Artifact store are ready.
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9080/readyz"]
-      interval: 15s
-      timeout: 5s
-      retries: 6
-      start_period: 20s
-    logging: *default-logging
-    networks: [tidewise-uat]
-
   miniapp:
     image: ${MINIAPP_IMAGE:?MINIAPP_IMAGE is required}
     restart: unless-stopped
@@ -90,12 +60,8 @@ services:
       ADMIN_ALLOWED_ORIGIN: ${ADMIN_ALLOWED_ORIGIN:?ADMIN_ALLOWED_ORIGIN is required}
       DATA_SERVICE_BASE_URL: http://data:9011
       DATA_SERVICE_TOKEN: ${DATA_SERVICE_TOKEN:?DATA_SERVICE_TOKEN is required}
-      AGENTRUN_BASE_URL: http://agentrun:9080
-      AGENTRUN_SERVICE_TOKEN: ${AGENTRUN_SERVICE_TOKEN:?AGENTRUN_SERVICE_TOKEN is required}
     depends_on:
       data:
-        condition: service_healthy
-      agentrun:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9013/readyz"]

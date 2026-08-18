@@ -44,42 +44,8 @@ func TestOpenAPIContractFreezesAdminRoutesSecurityAndEnvelopes(t *testing.T) {
 		"/api/admin/v1/events": {
 			{method: "get", operationID: "listAdminPortalEvents", envelope: "EventPageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
 		},
-		"/api/admin/v1/agent-schedules/{agent_key}": {
-			{method: "get", operationID: "getAdminPortalAgentSchedule", envelope: "AgentScheduleEnvelope", statuses: []string{"401", "403", "404", "500", "503"}},
-			{method: "put", operationID: "saveAdminPortalAgentSchedule", envelope: "AgentScheduleEnvelope", statuses: []string{"400", "401", "403", "404", "409", "500", "503"}},
-			{method: "patch", operationID: "setAdminPortalAgentScheduleEnabled", envelope: "AgentScheduleEnvelope", statuses: []string{"400", "401", "403", "404", "409", "500", "503"}},
-		},
-		"/api/admin/v1/agent-statuses": {
-			{method: "get", operationID: "listAdminPortalAgentStatuses", envelope: "AgentStatusListEnvelope", statuses: []string{"401", "403", "500", "503"}},
-		},
 		"/api/admin/v1/runtime-health": {
 			{method: "get", operationID: "getAdminPortalRuntimeHealth", envelope: "RuntimeHealthEnvelope", statuses: []string{"401", "403", "500"}},
-		},
-		"/api/admin/v1/monitoring/summary": {
-			{method: "get", operationID: "getAdminPortalMonitoringSummary", envelope: "MonitoringSummaryEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
-		},
-		"/api/admin/v1/monitoring/collector-executions": {
-			{method: "get", operationID: "listAdminPortalCollectorMonitoring", envelope: "CollectorMonitoringPageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
-		},
-		"/api/admin/v1/monitoring/artifact-extractions": {
-			{method: "get", operationID: "listAdminPortalArtifactMonitoring", envelope: "ArtifactMonitoringPageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
-		},
-		"/api/admin/v1/monitoring/semantic-work-items": {
-			{method: "get", operationID: "listAdminPortalSemanticMonitoring", envelope: "SemanticMonitoringPageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
-		},
-		"/api/admin/v1/model-providers": {
-			{method: "get", operationID: "listAdminPortalModelProviders", envelope: "ModelProviderListEnvelope", statuses: []string{"401", "403", "500", "503"}},
-		},
-		"/api/admin/v1/model-providers/{provider_key}": {
-			{method: "get", operationID: "getAdminPortalModelProvider", envelope: "ModelProviderEnvelope", statuses: []string{"401", "403", "404", "500", "503"}},
-			{method: "patch", operationID: "updateAdminPortalModelProvider", envelope: "ModelProviderEnvelope", statuses: []string{"400", "401", "403", "404", "409", "500", "503"}},
-		},
-		"/api/admin/v1/connectors": {
-			{method: "get", operationID: "listAdminPortalConnectors", envelope: "ConnectorListEnvelope", statuses: []string{"401", "403", "500", "503"}},
-		},
-		"/api/admin/v1/connectors/{connector_key}": {
-			{method: "get", operationID: "getAdminPortalConnector", envelope: "ConnectorEnvelope", statuses: []string{"401", "403", "404", "500", "503"}},
-			{method: "patch", operationID: "updateAdminPortalConnector", envelope: "ConnectorEnvelope", statuses: []string{"400", "401", "403", "404", "409", "500", "503"}},
 		},
 	}
 	if len(paths) != len(want) {
@@ -123,6 +89,44 @@ func TestOpenAPIContractFreezesAdminRoutesSecurityAndEnvelopes(t *testing.T) {
 	assertAdminRequired(t, adminSchema(t, document, "ErrorEnvelope"), "error", "request_id")
 	assertAdminRequired(t, adminSchema(t, document, "ErrorDetail"), "code", "message", "details")
 	assertAdminNoDanglingLocalReferences(t, document)
+}
+
+func TestOpenAPIContractPreservesRetainedDataListSchemas(t *testing.T) {
+	document := parseAdminDocument(t)
+	components := adminObject(t, document["components"], "components")
+	parameters := adminObject(t, components["parameters"], "parameters")
+	pageSizeSchema := adminObject(t, adminObject(t, parameters["PageSize"], "PageSize")["schema"], "PageSize.schema")
+	if pageSizeSchema["default"] != 50 || pageSizeSchema["maximum"] != 100 {
+		t.Fatalf("PageSize schema = %#v, want retained default 50 and maximum 100", pageSizeSchema)
+	}
+
+	for name, want := range map[string][]string{
+		"EventStatus": {"candidate", "confirmed", "rejected"},
+		"FactStatus":  {"unverified", "verified", "disputed"},
+	} {
+		schema := adminSchema(t, document, name)
+		values := adminArray(t, schema["enum"], name+".enum")
+		if len(values) != len(want) {
+			t.Fatalf("%s enum = %v, want %v", name, values, want)
+		}
+		for index, expected := range want {
+			if values[index] != expected {
+				t.Fatalf("%s enum = %v, want %v", name, values, want)
+			}
+		}
+	}
+
+	rawDocument := adminSchema(t, document, "RawDocument")
+	if rawDocument["additionalProperties"] != false {
+		t.Fatalf("RawDocument additionalProperties = %v, want false", rawDocument["additionalProperties"])
+	}
+	properties := adminObject(t, rawDocument["properties"], "RawDocument.properties")
+	if adminObject(t, properties["source_url"], "source_url")["format"] != "uri" {
+		t.Fatal("RawDocument source_url must retain uri format")
+	}
+	if adminObject(t, properties["content_sha256"], "content_sha256")["pattern"] != "^[0-9a-f]{64}$" {
+		t.Fatal("RawDocument content_sha256 must retain lowercase SHA-256 pattern")
+	}
 }
 
 func parseAdminDocument(t *testing.T) map[string]any {

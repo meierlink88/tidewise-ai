@@ -1,5 +1,6 @@
 ---
-status: accepted
+status: superseded
+superseded_by: 0027-retire-agent-run.md
 date: 2026-08-12
 supersedes_in_part: 0013-data-entity-domain-and-projection-retirement.md
 ---

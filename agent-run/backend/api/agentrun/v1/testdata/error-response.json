@@ -1,8 +1,0 @@
-{
-  "request_id": "request-example-2",
-  "error": {
-    "code": "INVALID_REQUEST",
-    "message": "request parameter is invalid",
-    "details": {}
-  }
-}

@@ -2,7 +2,6 @@ package data
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -33,25 +32,5 @@ func TestDataRuntimeHealthUsesSingleStrictProviderRequest(t *testing.T) {
 
 	if err != nil || calls.Load() != 1 || len(result.Services) != 1 || result.Services[0].Key != biz.RuntimeServiceData {
 		t.Fatalf("calls=%d result=%#v err=%v", calls.Load(), result, err)
-	}
-}
-
-func TestAgentRunRuntimeHealthRejectsProviderContractDriftWithoutRetry(t *testing.T) {
-	var calls atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
-		calls.Add(1)
-		_, _ = fmt.Fprint(response, `{"request_id":"req-agent","result":{"checked_at":"2026-08-04T10:00:00Z","services":[{"key":"agentrun","display_name":"AgentRun","status":"ready","checked_at":"2026-08-04T10:00:00Z","unexpected":true},{"key":"qdrant","display_name":"Qdrant","status":"ready","checked_at":"2026-08-04T10:00:00Z"}]}}`)
-	}))
-	defer server.Close()
-	client, err := NewAgentRunHTTPClient(AgentRunHTTPConfig{BaseURL: server.URL, ServiceToken: "agent-token", Timeout: time.Second, MaxReadAttempts: 3})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = client.GetRuntimeHealth(context.Background())
-
-	var providerError *biz.RuntimeHealthProviderError
-	if calls.Load() != 1 || !errors.As(err, &providerError) || providerError.ReasonCode != biz.RuntimeReasonInvalidResponse {
-		t.Fatalf("calls=%d err=%#v", calls.Load(), err)
 	}
 }

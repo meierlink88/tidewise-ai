@@ -17,37 +17,32 @@ func TestApplicationChangeDetectionRoutesAffectedBoundaries(t *testing.T) {
 		{
 			name: "Miniapp frontend",
 			path: "miniapp/frontend/src/pages/index.tsx",
-			want: map[string]bool{"data": false, "miniapp": true, "adminportal": false, "agentrun": false},
+			want: map[string]bool{"data": false, "miniapp": true, "adminportal": false},
 		},
 		{
 			name: "Admin Portal backend",
 			path: "admin-portal/backend/internal/service/collector.go",
-			want: map[string]bool{"data": false, "miniapp": false, "adminportal": true, "agentrun": true},
+			want: map[string]bool{"data": false, "miniapp": false, "adminportal": true},
 		},
 		{
 			name: "Admin Portal Context",
 			path: "docs/contexts/adminportal/CONTEXT.md",
-			want: map[string]bool{"data": false, "miniapp": false, "adminportal": true, "agentrun": false},
+			want: map[string]bool{"data": false, "miniapp": false, "adminportal": true},
 		},
 		{
 			name: "Data API",
 			path: "data-service/backend/api/data/v1/research.go",
-			want: map[string]bool{"data": true, "miniapp": true, "adminportal": true, "agentrun": false},
-		},
-		{
-			name: "AgentRun API",
-			path: "agent-run/backend/api/agentrun/v1/admin.go",
-			want: map[string]bool{"data": false, "miniapp": false, "adminportal": true, "agentrun": true},
+			want: map[string]bool{"data": true, "miniapp": true, "adminportal": true},
 		},
 		{
 			name: "Shared frontend lockfile",
 			path: "package-lock.json",
-			want: map[string]bool{"data": false, "miniapp": true, "adminportal": true, "agentrun": false},
+			want: map[string]bool{"data": false, "miniapp": true, "adminportal": true},
 		},
 		{
 			name: "Shared Go module",
 			path: "go.mod",
-			want: map[string]bool{"data": true, "miniapp": true, "adminportal": true, "agentrun": true},
+			want: map[string]bool{"data": true, "miniapp": true, "adminportal": true},
 		},
 	}
 
@@ -71,7 +66,7 @@ func TestApplicationChangeDetectionRoutesAffectedBoundaries(t *testing.T) {
 			runTestCommand(t, repo, "git", "commit", "-q", "-m", "change")
 			head := strings.TrimSpace(runTestCommand(t, repo, "git", "rev-parse", "HEAD"))
 
-			for _, scope := range []string{"data", "miniapp", "adminportal", "agentrun"} {
+			for _, scope := range []string{"data", "miniapp", "adminportal"} {
 				outputFile := filepath.Join(repo, scope+".output")
 				cmd := exec.Command("bash", script, scope)
 				cmd.Dir = repo
@@ -151,42 +146,6 @@ func TestRiskBoundaryDetectionSelectsOnlyAffectedSuites(t *testing.T) {
 			scope: "miniapp",
 			path:  "miniapp/backend/internal/data/client.go",
 			want:  map[string]bool{"default": true, "data": true, "provider_consumer": true},
-		},
-		{
-			name:  "Admin sees a changed AgentRun provider contract without running unrelated defaults",
-			scope: "adminportal",
-			path:  "agent-run/backend/api/agentrun/v1/admin.go",
-			want:  map[string]bool{"provider_consumer": true},
-		},
-		{
-			name:  "AgentRun Eino workflow remains a default Biz seam",
-			scope: "agentrun",
-			path:  "agent-run/backend/internal/biz/agents/collector/workflow/workflow.go",
-			want:  map[string]bool{"default": true},
-		},
-		{
-			name:  "AgentRun connector selects a real Adapter contract",
-			scope: "agentrun",
-			path:  "agent-run/backend/internal/data/connectors/search.go",
-			want:  map[string]bool{"default": true, "data": true, "provider_consumer": true},
-		},
-		{
-			name:  "AgentRun embedded migration selects its PostgreSQL migration seam",
-			scope: "agentrun",
-			path:  "agent-run/backend/internal/data/postgres/migrations/006_example.sql",
-			want:  map[string]bool{"default": true, "data": true, "migration": true},
-		},
-		{
-			name:  "AgentRun migration implementation selects its PostgreSQL migration seam",
-			scope: "agentrun",
-			path:  "agent-run/backend/internal/data/postgres/migrations.go",
-			want:  map[string]bool{"default": true, "data": true, "migration": true},
-		},
-		{
-			name:  "AgentRun Artifact permission smoke selects the container seam",
-			scope: "agentrun",
-			path:  "scripts/ci/smoke-agentrun-artifact-permissions.sh",
-			want:  map[string]bool{"container": true},
 		},
 		{
 			name:  "Shared Go module selects every Backend risk affected by dependencies",

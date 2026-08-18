@@ -8,7 +8,4 @@ dist
 data-service/backend/.data
 miniapp/frontend/.swc
 .reference
-agent-run/backend/.env
-agent-run/backend/data
-agent-run/backend/bin
 midscene_run

@@ -2,6 +2,7 @@
 status: accepted
 date: 2026-08-18
 issue: 266
+superseded_in_part_by: 0027-retire-agent-run.md
 ---
 
 # 使用有界停写模式执行 UAT Tidewise AI 2.0 切换

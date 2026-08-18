@@ -27,10 +27,9 @@
 
 ### Domain docs
 
-采用 Data、Miniapp、Admin Portal、AgentRun 四个上下文的 multi-context 布局。应用
-源码分别位于 `data-service/`、`miniapp/`、`admin-portal/` 和
-`agent-run/`；AgentRun 共仓后仍保持独立 Context、数据库、Artifact 与 API 边界。
-详见 `docs/agents/domain.md`。
+采用 Data、Miniapp、Admin Portal 三个上下文的 multi-context 布局。应用源码分别位于
+`data-service/`、`miniapp/` 和 `admin-portal/`。Agent OS 是仓库外系统，只能通过
+版本化 Data API 协作。详见 `docs/agents/domain.md`。
 
 ### Engineering standards
 
@@ -57,6 +56,5 @@ Lifecycle 和 Architecture 仅在对应风险被本次修改触及时启用。�
   Backend API。
 - Backend Service 工作执行 Skill 路由的 Kratos 分支；工程结构使用当前结构规范，
   运行时、API、数据与业务事实以 Context、ADR、OpenAPI 和当前数据约束为准。
-- Eino/Agent 工作执行 Skill 路由的 Eino reference-first 分支。
-- 跨前端、Service 与 Agent 的需求同时执行所有适用分支，并先冻结 API、数据和所有权边界。
+- 跨前端与 Service 的需求同时执行所有适用分支，并先冻结 API、数据和所有权边界。
 - 仅不改变系统行为或项目事实的纯解释、纯文案工作可以不触发。

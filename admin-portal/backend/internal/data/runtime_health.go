@@ -11,10 +11,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/admin-portal/backend/internal/biz"
 )
 
-const (
-	dataRuntimeHealthPath  = dataAPIPrefix + "/runtime-health"
-	agentRuntimeHealthPath = agentRunAdminPrefix + "/runtime-health"
-)
+const dataRuntimeHealthPath = dataAPIPrefix + "/runtime-health"
 
 type runtimeHealthWire struct {
 	CheckedAt time.Time                  `json:"checked_at"`
@@ -54,24 +51,18 @@ func (wire *runtimeHealthServiceWire) UnmarshalJSON(content []byte) error {
 	return nil
 }
 
-func (wire runtimeHealthWire) toBiz(expected []biz.RuntimeServiceKey) (biz.ProviderRuntimeHealth, error) {
-	if wire.CheckedAt.IsZero() || len(wire.Services) != len(expected) {
+func (wire runtimeHealthWire) toBiz() (biz.ProviderRuntimeHealth, error) {
+	if wire.CheckedAt.IsZero() || len(wire.Services) != 1 {
 		return biz.ProviderRuntimeHealth{}, &biz.RuntimeHealthProviderError{ReasonCode: biz.RuntimeReasonInvalidResponse}
 	}
-	expectedSet := make(map[biz.RuntimeServiceKey]bool, len(expected))
-	for _, key := range expected {
-		expectedSet[key] = true
-	}
-	seen := make(map[biz.RuntimeServiceKey]bool, len(expected))
-	services := make([]biz.RuntimeHealthService, 0, len(expected))
+	services := make([]biz.RuntimeHealthService, 0, 1)
 	for _, item := range wire.Services {
-		if !expectedSet[item.Key] || seen[item.Key] || item.DisplayName != item.Key.DisplayName() ||
+		if item.Key != biz.RuntimeServiceData || item.DisplayName != item.Key.DisplayName() ||
 			item.CheckedAt.IsZero() || item.LatencyMS != nil && *item.LatencyMS < 0 ||
 			!item.Status.Valid() || item.Status == biz.RuntimeStatusReady && item.ReasonCode != "" ||
 			item.Status != biz.RuntimeStatusReady && !item.ReasonCode.Valid() {
 			return biz.ProviderRuntimeHealth{}, &biz.RuntimeHealthProviderError{ReasonCode: biz.RuntimeReasonInvalidResponse}
 		}
-		seen[item.Key] = true
 		services = append(services, biz.RuntimeHealthService{
 			Key: item.Key, DisplayName: item.DisplayName, Status: item.Status, CheckedAt: item.CheckedAt,
 			LatencyMS: item.LatencyMS, ReasonCode: item.ReasonCode,
@@ -93,22 +84,7 @@ func (c *DataHTTPClient) GetRuntimeHealth(ctx context.Context) (biz.ProviderRunt
 	if err != nil {
 		return biz.ProviderRuntimeHealth{}, runtimeHealthProviderError(callContext, err)
 	}
-	return wire.toBiz([]biz.RuntimeServiceKey{biz.RuntimeServiceData})
-}
-
-func (c *AgentRunHTTPClient) GetRuntimeHealth(ctx context.Context) (biz.ProviderRuntimeHealth, error) {
-	requestID := RequestIDFromContext(ctx)
-	if requestID == "" {
-		requestID = newRequestID()
-	}
-	callContext, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
-	var wire runtimeHealthWire
-	_, err := c.doJSONAttempt(callContext, http.MethodGet, "AgentRun.GetRuntimeHealth", agentRuntimeHealthPath, agentRuntimeHealthPath, nil, requestID, &wire)
-	if err != nil {
-		return biz.ProviderRuntimeHealth{}, runtimeHealthProviderError(callContext, err)
-	}
-	return wire.toBiz([]biz.RuntimeServiceKey{biz.RuntimeServiceAgentRun, biz.RuntimeServiceQdrant})
+	return wire.toBiz()
 }
 
 func runtimeHealthProviderError(ctx context.Context, err error) error {
@@ -127,21 +103,7 @@ func runtimeHealthProviderError(ctx context.Context, err error) error {
 			reason = biz.RuntimeReasonInvalidResponse
 		}
 	}
-	var upstream *agentRunHTTPError
-	if errors.As(err, &upstream) {
-		switch {
-		case upstream.status == http.StatusUnauthorized || upstream.status == http.StatusForbidden:
-			reason = biz.RuntimeReasonAuthenticationFailed
-		case upstream.status >= 400 && upstream.status < 500:
-			reason = biz.RuntimeReasonInvalidResponse
-		}
-	}
-	var decodeError *agentRunDecodeError
-	if errors.As(err, &decodeError) {
-		reason = biz.RuntimeReasonInvalidResponse
-	}
 	return &biz.RuntimeHealthProviderError{ReasonCode: reason}
 }
 
 var _ biz.RuntimeHealthProvider = (*DataHTTPClient)(nil)
-var _ biz.RuntimeHealthProvider = (*AgentRunHTTPClient)(nil)

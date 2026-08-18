@@ -28,25 +28,15 @@ func buildApp(config conf.RuntimeConfig, logger *slog.Logger) (*kratos.App, func
 	if err != nil {
 		return nil, nil, err
 	}
-	agentRunRepo, err := data.NewAgentRunHTTPClient(data.AgentRunHTTPConfig{
-		BaseURL: config.AgentRun.BaseURL, ServiceToken: config.AgentRun.ServiceToken,
-		Timeout: config.AgentRun.Timeout,
-	})
-	if err != nil {
-		_ = dataServiceRepo.Close()
-		return nil, nil, err
-	}
-
 	useCase := biz.NewService(
 		dataServiceRepo,
-		agentRunRepo,
-		biz.WithRuntimeHealthProviders(dataServiceRepo, agentRunRepo),
+		biz.WithRuntimeHealthProvider(dataServiceRepo),
 	)
 	applicationService := service.NewAdminService(useCase)
 	httpServer := server.NewHTTPServer(config, applicationService, logger)
 
 	cleanup := func(context.Context) error {
-		return errors.Join(dataServiceRepo.Close(), agentRunRepo.Close())
+		return dataServiceRepo.Close()
 	}
 	return newApp(httpServer, logger), cleanup, nil
 }

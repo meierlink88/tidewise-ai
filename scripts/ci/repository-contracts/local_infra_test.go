@@ -33,9 +33,6 @@ func TestLocalDockerProjectsSeparateApplicationsAndInfrastructure(t *testing.T) 
 	for _, want := range []string{
 		"name: tidewise-app",
 		"container_name: data-service",
-		"container_name: agentrun-service",
-		"container_name: agentrun-migrate",
-		"container_name: agentrun-agent-version",
 		"container_name: miniapp-service",
 		"container_name: admin-portal-service",
 		"container_name: admin-portal-web",
@@ -45,11 +42,7 @@ func TestLocalDockerProjectsSeparateApplicationsAndInfrastructure(t *testing.T) 
 		"miniapp:",
 		"adminportal:",
 		"admin:",
-		"agentrun:",
-		"agentrun-migrate:",
-		"agentrun-agent-version:",
 		"external: true",
-		"9080",
 	} {
 		if !strings.Contains(applicationText, want) {
 			t.Fatalf("application compose missing %q", want)
@@ -62,7 +55,7 @@ func TestLocalDockerProjectsSeparateApplicationsAndInfrastructure(t *testing.T) 
 	for _, forbidden := range []string{
 		"\n  postgres:", "\n  neo4j:", "\n  qdrant:", "image: postgres:",
 		"image: neo4j:", "image: qdrant/", "tidewise_postgres_data", "tidewise_neo4j_data",
-		"tidewise_qdrant_data", "agentrun-db-init:",
+		"tidewise_qdrant_data", "agentrun-db-init:", "agentrun", "AGENTRUN_", "9080",
 	} {
 		if strings.Contains(applicationText, forbidden) {
 			t.Fatalf("application Compose packages infrastructure middleware %q", forbidden)
@@ -81,18 +74,18 @@ func TestLocalDockerProjectsSeparateApplicationsAndInfrastructure(t *testing.T) 
 	}
 
 	for _, want := range []string{
-		"agent-run/backend",
-		"TIDEWISW_DB_PASSWORD",
-		"AGENTRUN_DB_PASSWORD",
 		"DATA_SERVICE_TOKEN",
-		"AGENTRUN_SERVICE_TOKEN",
-		"EMBEDDING_API_KEY",
 		"ADMIN_SERVICE_TOKEN",
-		"run --rm",
-		"independently operated `tidewise-infra`",
+		"`tidewise-infra`",
+		"`tidewise-app`",
 	} {
 		if !strings.Contains(readmeText, want) {
 			t.Fatalf("local README missing %q", want)
+		}
+	}
+	for _, forbidden := range []string{"AgentRun", "agent-run", "agentrun", "AGENTRUN_"} {
+		if strings.Contains(readmeText, forbidden) {
+			t.Fatalf("local README still presents retired AgentRun contract %q", forbidden)
 		}
 	}
 

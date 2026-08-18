@@ -4,6 +4,7 @@ date: 2026-08-12
 supersedes_in_part: 0009-event-semantic-qdrant-projection-and-agentrun-retrieval.md, 0010-event-semantic-entity-first-cross-type-resolution.md
 superseded_in_part_by: 0014-agentrun-consumes-retained-qdrant-snapshot.md
 superseded_in_part_by_2: 0016-tidewise-ai-2-object-schema-and-independent-region.md
+superseded_in_part_by_3: 0027-retire-agent-run.md
 ---
 
 # Data 收敛 Entity 领域并退役 Neo4j/Qdrant 投影

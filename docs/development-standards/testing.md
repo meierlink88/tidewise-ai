@@ -34,7 +34,7 @@ Biz 测试不关心 HTTP、数据库 driver、框架 Context 或具体 Adapter�
 
 API 测试只证明绑定与错误映射，不复制 Biz 的完整规则矩阵。
 
-Frontend 与 Agent/Eino 的默认 seam、命令和平台条件分别由对应技术栈规范定义。
+Frontend 的默认 seam、命令和平台条件由对应技术栈规范定义。
 
 ## Conditional Seams
 

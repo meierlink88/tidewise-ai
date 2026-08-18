@@ -3,7 +3,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import AdminShell from './layouts/AdminShell';
 import AdminLogin from './pages/AdminLogin';
 import DataIngestionCenter from './pages/DataIngestionCenter';
-import MonitoringCenter from './pages/MonitoringCenter';
 import AppProviders from './providers/app-providers';
 import type { AdminPage } from './components/admin/app-sidebar';
 
@@ -12,7 +11,7 @@ const tokenStorageKey = 'tidewise_admin_token';
 function AdminApp() {
   const queryClient = useQueryClient();
   const [token, setToken] = useState(() => localStorage.getItem(tokenStorageKey) ?? '');
-  const [currentPage, setCurrentPage] = useState<AdminPage>('data-ingestion');
+  const currentPage: AdminPage = 'data-ingestion';
 
   const handleLogin = (nextToken: string) => {
     queryClient.clear();
@@ -24,7 +23,6 @@ function AdminApp() {
     queryClient.clear();
     localStorage.removeItem(tokenStorageKey);
     setToken('');
-    setCurrentPage('data-ingestion');
   };
 
   if (!token) {
@@ -35,20 +33,15 @@ function AdminApp() {
     <AdminShell
       currentPage={currentPage}
       currentTitle={pageTitle(currentPage)}
-      onNavigate={setCurrentPage}
+      onNavigate={() => undefined}
       onLogout={handleLogout}
     >
-      {currentPage === 'monitoring' ? (
-        <MonitoringCenter token={token} />
-      ) : (
-        <DataIngestionCenter onOpenMonitoring={() => setCurrentPage('monitoring')} token={token} />
-      )}
+      <DataIngestionCenter token={token} />
     </AdminShell>
   );
 }
 
-function pageTitle(page: AdminPage): string {
-  if (page === 'monitoring') return '监控中心';
+function pageTitle(_page: AdminPage): string {
   return '数据采集中心';
 }
 

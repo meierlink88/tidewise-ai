@@ -193,7 +193,7 @@ func TestPostgresEventPublicationResponseLossReplayReusesFactsAndPreservesLineag
 	handler, service := newEventPublicationTestHandler(t, db)
 
 	body := []byte(`{
-	  "package_id": "agentrun:event-publication:20260723:001",
+	  "package_id": "publisher:event-publication:20260723:001",
 	  "provenance": {
 	    "extractor_execution_id": "extractor-exec-001",
 	    "extractor_agent_version": "event-extractor-v2.0.0",
@@ -304,7 +304,7 @@ SELECT
   count(DISTINCT extractor_agent_version),
   count(DISTINCT collector_executions::text)
 FROM event_publication_receipts
-WHERE package_id = 'agentrun:event-publication:20260723:001'`).Scan(
+WHERE package_id = 'publisher:event-publication:20260723:001'`).Scan(
 		&receiptCount,
 		&extractorExecutions,
 		&extractorVersions,
@@ -818,7 +818,7 @@ func newEventPublicationTestHandler(t *testing.T, db *sql.DB) (http.Handler, *ca
 	}
 	credentials := map[string]v1.Principal{
 		"agent-token": {
-			Identity: "agent-run",
+			Identity: "event-publisher",
 			Scopes:   []string{serverpkg.ScopeReviewedEventImport},
 		},
 		"read-only-token": {

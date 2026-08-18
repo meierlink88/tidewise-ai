@@ -257,54 +257,14 @@ func operationForRequest(request *http.Request) string {
 		return v1.OperationListRawDocuments
 	case v1.APIPrefix + "/events":
 		return v1.OperationListEvents
-	case v1.APIPrefix + "/agent-statuses":
-		return v1.OperationListAgentStatuses
-	case v1.APIPrefix + "/monitoring/summary":
-		return v1.OperationGetMonitoringSummary
-	case v1.APIPrefix + "/monitoring/collector-executions":
-		return v1.OperationListCollectorMonitoring
-	case v1.APIPrefix + "/monitoring/artifact-extractions":
-		return v1.OperationListArtifactMonitoring
-	case v1.APIPrefix + "/monitoring/semantic-work-items":
-		return v1.OperationListSemanticMonitoring
 	case v1.APIPrefix + "/runtime-health":
 		return v1.OperationGetRuntimeHealth
-	case v1.APIPrefix + "/model-providers":
-		return v1.OperationListModelProviders
-	case v1.APIPrefix + "/connectors":
-		return v1.OperationListConnectors
 	}
 	if strings.HasPrefix(request.URL.Path, "/docs/") {
 		return "admin.docs"
 	}
 	if !strings.HasPrefix(request.URL.Path, v1.APIPrefix+"/") {
 		return "admin.unknown"
-	}
-	segments := strings.Split(strings.TrimPrefix(request.URL.Path, v1.APIPrefix+"/"), "/")
-	switch {
-	case len(segments) == 2 && segments[0] == "agent-schedules" && segments[1] != "":
-		switch request.Method {
-		case http.MethodGet:
-			return v1.OperationGetAgentSchedule
-		case http.MethodPut:
-			return v1.OperationSaveAgentSchedule
-		case http.MethodPatch:
-			return v1.OperationSetScheduleEnabled
-		}
-	case len(segments) == 2 && segments[0] == "model-providers" && segments[1] != "":
-		if request.Method == http.MethodGet {
-			return v1.OperationGetModelProvider
-		}
-		if request.Method == http.MethodPatch {
-			return v1.OperationPatchModelProvider
-		}
-	case len(segments) == 2 && segments[0] == "connectors" && segments[1] != "":
-		if request.Method == http.MethodGet {
-			return v1.OperationGetConnector
-		}
-		if request.Method == http.MethodPatch {
-			return v1.OperationPatchConnector
-		}
 	}
 	return "admin.unknown"
 }
