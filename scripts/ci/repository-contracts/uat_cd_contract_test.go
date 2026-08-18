@@ -112,6 +112,7 @@ func TestUATWorkflowExposesBoundedDataCutoversWithoutChangingNormalMode(t *testi
 		"default: normal",
 		"- tidewise_2_cutover",
 		"- data_59_cutover",
+		"- data_60_cutover",
 		"confirm_destructive_data_change:",
 		"rebuild_empty_data_schema:",
 		"DEPLOYMENT_MODE: ${{ inputs.deployment_mode }}",
@@ -122,6 +123,10 @@ func TestUATWorkflowExposesBoundedDataCutoversWithoutChangingNormalMode(t *testi
 		"pre-data59.sha",
 		"pre-data59.images.env",
 		"pre-data59.compose.yaml",
+		"pre-data60.runtime.env",
+		"pre-data60.sha",
+		"pre-data60.images.env",
+		"pre-data60.compose.yaml",
 		"scope_reason=${DEPLOYMENT_MODE}",
 	} {
 		if !strings.Contains(workflow, required) {

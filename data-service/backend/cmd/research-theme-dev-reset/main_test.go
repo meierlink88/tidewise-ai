@@ -139,12 +139,11 @@ func expectProtectedCounts(mock sqlmock.Sqlmock, counts protectedCounts) {
 	mock.ExpectQuery(regexp.QuoteMeta(protectedCountsSQL)).WillReturnRows(
 		sqlmock.NewRows([]string{
 			"events", "entity_nodes", "industry", "concept", "chain_node", "industry_chain",
-			"industry_chain_graph_edges", "index_profiles", "event_tag_defs",
-			"event_tag_maps", "raw_documents",
+			"industry_chain_graph_edges", "index_profiles",
 		}).AddRow(
 			counts.Events, counts.EntityNodes, counts.Industries, counts.Concepts, counts.ChainNodes,
 			counts.IndustryChains, counts.IndustryChainGraphEdges,
-			counts.IndexProfiles, counts.EventTagDefs, counts.EventTagMaps, counts.RawDocuments,
+			counts.IndexProfiles,
 		),
 	)
 }

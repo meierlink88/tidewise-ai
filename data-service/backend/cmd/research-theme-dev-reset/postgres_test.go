@@ -100,8 +100,7 @@ func prepareV1ResetSchema(t *testing.T, db *sql.DB) {
 	}
 	protectedTables := []string{
 		"events", "entity_nodes", "industry", "concept", "chain_node", "industry_chain",
-		"industry_chain_graph_edges", "index_profiles", "event_tag_defs",
-		"event_tag_maps", "raw_documents",
+		"industry_chain_graph_edges", "index_profiles",
 	}
 	for _, table := range append(publicationTableNames(publicationTables), protectedTables...) {
 		if _, err := db.Exec(`CREATE TABLE ` + table + ` (id INTEGER PRIMARY KEY)`); err != nil {

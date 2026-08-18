@@ -40,9 +40,9 @@ Data 拥有正式 Raw Evidence、Evidence 及发布合同；外部 Agent OS 只�
 Artifact。Source Catalog 和采集控制面是否迁入 Data 属于独立需求，不由本次 Evidence
 Publication 恢复。
 
-既有 Event Publication 的轻量 `raw_documents` 与 `event_sources` 继续服务现有 Event
-业务；它们不是 Raw Evidence 或原子 Evidence，不与新表共享身份、外键或发布事务。
-已退役运行时的旧数据库与本地数据已从当前工程边界移除；历史 Data 事实仍按现有合同读取。
+Event 直接通过 `event_evidence_links` 引用 Data-owned Atomic Evidence；轻量
+`raw_documents`、`event_sources`、Event Tag 和旧 Event Publication 已退役。新 Event
+写入必须在同一事务中包含至少一个 Atomic Evidence 关联。
 
 ## Language
 
@@ -53,6 +53,25 @@ owning Biz 生成，初始化发布调用同一生成器。请求不接收主键
 可移植目录、关系和可重放事实基于受控自然键确定性生成 UUID，普通领域对象随机生成。
 Data Service 管理的每张表都使用名为 `id` 的唯一主键；自然键或关系端点另作唯一约束。
 _Avoid_: 裸 UUID、任意字符串前缀、`PREFIX_...`、`PREFIX-...`、调用方提交主键、数据库序列
+
+**Event**:
+经过交叉验证的标准化事件事实，仅包含 `EVT` 身份、title、summary、严格六键
+`semantic` （who/what/when/where/why/how）、FACT/PLAN/SPEC modality、可空
+occurred/announced 时间和 ACTIVE/DEPRECATED/ARCHIVED lifecycle。Semantic 值可为字符串
+或 null，空字符串与全 null 结构合法。Event 没有 Event Type、Tag、dedupe key、fact
+payload、first-seen/knowable 或双重审核状态。
+_Avoid_: 请求派生身份、内容去重、缺失/额外 semantic key、无证据 Event
+
+**Event Evidence Link**:
+Event 与 Atomic Evidence 的唯一当前证据关系，使用 `EEL` 身份、严格外键和 0.00–1.00 的独立
+`contribution_weight`。同一 Event/Evidence 端点对只能出现一次，各权重不要求合计为 1。
+_Avoid_: Artifact 引用、证据正文副本、Event Source 关系字段
+
+**Event Actor Link / Event Asset Link**:
+Event-owned 的预留关系快照。`EAC` 记录 Actor 的 opaque ID、可选类型/名称、关系类型、
+强度与置信度；`EAS` 记录 Asset 的 opaque ID、可选类型/名称、影响方向与幅度。它们只外键到
+Event，不证明 Actor/Asset 存在，也不定义其归属或生命周期。
+_Avoid_: Actor/Asset entity、target 外键、lookup API、将快照当作主数据
 
 **Organization**:
 以 `ORG + canonical lowercase UUID` 为稳定身份的独立多边组织事实，覆盖联盟、协会、国际机制、贸易集团和
@@ -207,36 +226,38 @@ _Avoid_: Chain Node、Commodity、Technology、产品名称 Mention
 Publication 进入 Data，并不复用该遗留对象。
 _Avoid_: Data Raw Document、Event Evidence Record、Data 原始语料
 
-**Event Evidence Record**:
+> 以下“已退役”条目仅保留历史语义，不是当前代码、schema 或 API 合同。
+
+**已退役：Event Evidence Record**:
 Data 仅在正式 Event 引用了外部 Artifact 时接纳的轻量证据文档记录，保存 Artifact 身份、内容 SHA-256、稳定 `source_ref`、来源快照和必要时间元数据，不保存完整正文或 Artifact 存储位置。`source_ref` 只是无外键的外部来源引用，Data 不维护其 Source 主数据。内容 SHA-256 只用于检测同一 Artifact 身份是否发生内容漂移，不表示 Data 已读取原文或验证来源真实性。来源快照可保留公开 `source_url` 用于证据归因，允许没有公开地址的来源为空；该地址不是外部 Artifact 的内部位置，Data 不主动访问或校验。一个记录可以支持多个 Event，一个 Event 也可以引用多个记录。
 V3 接纳字段只包含必填的 `artifact_id`、`content_sha256`、`source_ref`、`source_name`、`source_type`、`title`、`collected_at`，以及可选的 `source_url`、`published_at`、`language`、`mime_type`。`content_text`、Artifact URI、采集通道、采集状态、内容层级和独立来源外部 ID 不属于 V3 合同。
 `source_type` 是由外部发布方治理的非空快照字符串，Data 只校验非空和长度，不维护对应枚举或主数据。
 _Avoid_: 完整 Raw Document、采集缓存、未产生 Event 的文档
 
-**Event Evidence Link**:
+**已退役：Artifact-based Event Evidence Link**:
 一个正式 Event 与 Event Evidence Record 之间的语义关联，必须包含 `artifact_id`、短而非空的 `evidence_statement`、`evidence_relation` 和 `source_level`。`evidence_statement` 是模型生成并由审核阶段确认的证据陈述，不承诺逐字摘录；程序仅通过 Artifact 身份和内容哈希建立正式血缘，不用原文字符串匹配裁决语义。`evidence_relation` 仅允许 `supports`、`contradicts`、`context`；前两类必须提交非空 `supports_fields`，`context` 可为空。`supports_fields` 仅允许 `title`、`factual_summary`、`occurred_at`、`fact_payload`。`source_level` 仅允许 `primary`、`secondary`，仅表示来源层级，不表示某条 Evidence 在 Event 内拥有主证据地位。Data 根据证据陈述计算 `evidence_hash`，不接收调用方计算的证据哈希。
 同一 Artifact 在同一 Event 中只能出现一次，数据库按 `(event_id, raw_document_id)` 保证唯一；一个 Link 可通过 `supports_fields` 覆盖多个字段。再次提交已有 Link 时，关系、证据陈述、支持字段和来源层级必须全部一致，否则整批冲突。Event 不再保存或暴露主证据引用，所有 Evidence Link 具有平等的正式血缘地位。
 _Avoid_: 完整正文副本、无语义 Artifact 引用、真实性认证结果
 
-**Event Tag Assignment**:
+**已退役：Event Tag Assignment**:
 正式 Event 的受控 Tag 映射。每个 Event 必须包含一至两个 active `news_category`，并可包含零至三个 active `index_category`；每项提交匹配的 Tag ID、kind、code，以及 `confidence`、非空 `assignment_reason` 和 `ai` 或 `rule` 来源。V3 不接收 Tag review status，Data 统一写为 `approved`。已有同 Tag 映射仅在内容一致时复用，新映射可以追加，冲突时整批失败。
 _Avoid_: 待审核 Tag、未知或停用 Tag、静默覆盖已有分配依据
 
-**Event Tag Catalog**:
+**已退役：Event Tag Catalog**:
 Data PostgreSQL 拥有的唯一当前 Event 分类主数据集合，包含稳定 Tag ID、kind、code、名称和
 启停状态。V1 不提供 Catalog 历史、版本、revision 或内容 hash；外部发布方每次分类通过 Data
 只读合同取得当前 active Tag，校验 wire 字段、受控 kind、稳定排序和重复身份后使用。Event
 Publication 仍由 Data 根据 PostgreSQL 当前 Tag 校验 ID、kind、code 和 active 状态。
 _Avoid_: 外部发布方自建或持久化 Tag Catalog 副本、Catalog 版本身份、对 JSON 字节重复计算 hash、在 Prompt 或 YAML 中复制 Tag ID、模型创造 Tag
 
-**Event Publication Batch**:
+**已退役：Event Publication Batch**:
 外部发布方将一至十个已完成提取与审核、状态固定为 `confirmed + verified` 的原子 Event，连同其共享 Event Evidence Record、证据关联、Tag、Review 和提取血缘，按照 Data 定义的严格同步合同整批原子提交为正式事实；候选、未验证或拒绝 Event 不进入 Data，任一成员失败时整批不可见。
 每个 Event 独立提交必填的 `review_id`、`evidence_grade` 和非空 `reasons`；V3 不重复提交审核决定、Event/Fact 状态或组件版本，Data 统一写入 `confirmed + verified`。
 V3 在批次顶层提交去重后的 `raw_documents`，各 Event 通过 `artifact_id` 引用共享证据。每个 Event 至少引用一个已声明 Artifact；每个顶层 Artifact 也必须至少被一个 Event 引用，未知或重复 Artifact 身份均使整批失败。
 Data 在写事务前返回所有当前可确定的合同、枚举、Tag 和引用错误；自然身份内容冲突单独返回冲突错误。任一错误均阻止整个批次和 Receipt 落库，不允许部分成功。
 _Avoid_: 独立 Raw Document 导入、Agent 直写数据库、先存全文后补 Event
 
-**Event Import Receipt**:
+**已退役：Event Import Receipt**:
 Data 为每次成功 Event Publication Batch 生成的不可变审计凭证，记录调用主体、`package_id`、正式事实身份、`extractor_execution_id`、`extractor_agent_version`、每个 Artifact 对应的 `collector_execution_id` 和导入时间。以上执行血缘均为必填；Prompt、模型和 Profile 版本由外部发布方保存。Receipt 不承担请求幂等、重放判断或异步状态查询职责；失败事务不生成 Receipt。
 `package_id` 只是外部发布方提供的审计关联编号，不唯一且不参与事实复用；相同 package 可以产生多个成功 Receipt，每次成功调用均由 Data 生成新的 `receipt_id`。
 Event Publication 必须通过 Data 唯一的内部 Bearer service token 鉴权；Token 只存在于运行环境，不进入数据库。Data 将该凭据解析为稳定的 Data 内部 trust-domain `caller_subject` 写入 Receipt，不区分具体消费者。Event 的消费者级审计由必填 Collector/Extractor 执行血缘承担，与 Source、采集通道或 Artifact 来源无关。本期明确不提供 Data API 的逐消费者 token、scope 隔离或逐消费者 Receipt 主体。
@@ -244,11 +265,11 @@ V3 Receipt 存储在专用 `event_publication_receipts`。旧独立 Raw Document
 每次成功调用均创建 Receipt 并返回 `201 Created`，响应包含 `receipt_id`、`package_id`、`imported_at`、Dedupe Key 到 Event ID 的 created/reused 映射、Artifact ID 到 Raw Document ID 的 created/reused 映射，以及 Event、Raw Document、Event Source、Event Tag 的 created/reused 分类计数；不返回 payload hash、replayed 或异步任务状态。
 _Avoid_: Idempotency Record、Import Job、失败占位记录
 
-**Event Dedupe Key**:
+**已退役：Event Dedupe Key**:
 外部发布方为一个原子 Event 提交的稳定唯一业务身份，对应 Data 中唯一的 Event 事实；Data 的 Event UUID 是独立数据库身份。相同 Dedupe Key 不得对应不同核心事实，事实修订必须使用新的 Dedupe Key。
 _Avoid_: Event UUID、Import Idempotency Key、可覆盖的事件名称
 
-**Event 事实收敛（Event Fact Convergence）**:
+**已退役：Event 事实收敛（Event Fact Convergence）**:
 相同 Event Dedupe Key 的 `title`、`factual_summary`、可空 `occurred_at` 和按 JSONB 语义比较的 `fact_payload` 必须完全一致，Data 复用已有 Event；任一核心字段修订必须使用新的 Dedupe Key。`first_seen_at` 与 `knowable_at` 不由调用方提交，由 Data 根据全部关联证据计算，并且后续只能随新增的更早证据向更早时间收敛。后续 Publication Batch 可以为该 Event 新增证据或 Tag 关联；已有且语义一致的关联直接复用，已有关系不得被静默改写或删除，冲突时整批失败。每次成功调用仍生成独立 Import Receipt。
 `occurred_at = null` 表示证据不足以确定事件发生时间，不影响已确认、已验证且 Evidence 合同
 有效的 Event 进入下游读取；Data 不用发布时间、采集时间或首次发现时间补写该字段。

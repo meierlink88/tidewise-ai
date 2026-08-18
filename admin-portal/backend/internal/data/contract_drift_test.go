@@ -20,16 +20,10 @@ func TestOpenAPIContractMatchesAdminTypedClient(t *testing.T) {
 		parameters  []string
 	}{
 		{
-			rawDocumentsPath,
-			"listAdminRawDocuments",
-			"AdminRawDocumentPageEnvelope",
-			[]string{"Page", "PageSize", "RequestID", "ingest_status", "source_ref", "title"},
-		},
-		{
 			eventsPath,
 			"listAdminEvents",
 			"AdminEventPageEnvelope",
-			[]string{"Page", "PageSize", "RequestID", "event_status", "event_time_from", "event_time_to", "fact_status", "first_seen_from", "first_seen_to", "title"},
+			[]string{"Page", "PageSize", "RequestID", "announced_from", "announced_to", "modality", "occurred_from", "occurred_to", "status", "title"},
 		},
 	} {
 		operation := openAPIOperation(t, document, contract.path)
@@ -45,17 +39,14 @@ func TestOpenAPIContractMatchesAdminTypedClient(t *testing.T) {
 	}
 
 	for schemaName, dataType := range map[string]reflect.Type{
-		"AdminRawDocumentPage": reflect.TypeOf(rawDocumentPageWire{}),
-		"AdminRawDocument":     reflect.TypeOf(rawDocumentWire{}),
-		"AdminEventPage":       reflect.TypeOf(eventPageWire{}),
-		"AdminEvent":           reflect.TypeOf(eventWire{}),
+		"AdminEventPage": reflect.TypeOf(eventPageWire{}),
+		"AdminEvent":     reflect.TypeOf(eventWire{}),
 	} {
 		assertDTOJSONFieldsMatchSchema(t, document, schemaName, dataType)
 	}
 
-	assertComponentEnum(t, document, "IngestStatus", []string{"collected", "duplicate", "failed", "pending_extract"})
-	assertComponentEnum(t, document, "EventStatus", []string{"candidate", "confirmed", "rejected"})
-	assertComponentEnum(t, document, "FactStatus", []string{"disputed", "unverified", "verified"})
+	assertComponentEnum(t, document, "EventModality", []string{"FACT", "PLAN", "SPEC"})
+	assertComponentEnum(t, document, "EventLifecycleStatus", []string{"ACTIVE", "ARCHIVED", "DEPRECATED"})
 }
 
 func loadOpenAPI(t *testing.T) map[string]any {

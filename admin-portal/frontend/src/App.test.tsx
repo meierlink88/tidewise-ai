@@ -2,14 +2,13 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
-import { loadEvents, loadRawDocuments } from './api/dataIngestion';
+import { loadEvents } from './api/dataIngestion';
 
 vi.mock('./api/dataIngestion', async () => {
   const actual = await vi.importActual<typeof import('./api/dataIngestion')>('./api/dataIngestion');
   return {
     ...actual,
-    loadEvents: vi.fn(),
-    loadRawDocuments: vi.fn()
+		loadEvents: vi.fn()
   };
 });
 
@@ -30,8 +29,7 @@ describe('App admin login', () => {
       }
     };
     vi.stubGlobal('localStorage', localStorageMock);
-    vi.mocked(loadRawDocuments).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
-    vi.mocked(loadEvents).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
+		vi.mocked(loadEvents).mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
   });
 
   it('shows a login page with the local admin token hint before entering the admin shell', () => {
@@ -67,7 +65,7 @@ describe('App admin login', () => {
       await within(screen.getByRole('banner')).findByRole('heading', { name: '数据采集中心' })
     ).toBeInTheDocument();
     expect(
-      within(screen.getByRole('main')).getByRole('heading', { name: '数据采集中心' })
+		within(screen.getByRole('main')).getByRole('heading', { name: '事件中心' })
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^采集中心/ })).toHaveAttribute(
       'aria-current',
@@ -75,7 +73,7 @@ describe('App admin login', () => {
     );
     expect(screen.queryByRole('button', { name: /^数据采集中心/ })).not.toBeInTheDocument();
     expect(
-      within(screen.getByRole('main')).getByText('查询原始采集数据和全球事件。')
+		within(screen.getByRole('main')).getByText('查询标准化事件。证据通过 Event Evidence Link 关联。')
     ).toBeInTheDocument();
     expect(within(screen.getByRole('main')).queryByText('Data Ingestion')).not.toBeInTheDocument();
     expect(
@@ -83,9 +81,7 @@ describe('App admin login', () => {
         '查看采集原始数据、事件结果、搜索通道和调度器运行记录。'
       )
     ).not.toBeInTheDocument();
-    expect(screen.getAllByRole('tab')).toHaveLength(2);
-    expect(screen.queryByRole('tab', { name: '调度器' })).not.toBeInTheDocument();
-    expect(loadRawDocuments).toHaveBeenCalledWith('local-admin-token', { page: 1, title: '' });
+		expect(loadEvents).toHaveBeenCalledWith('local-admin-token', { page: 1, title: '' });
     expect(storage.get('tidewise_admin_token')).toBe('local-admin-token');
 
     await user.click(screen.getByRole('button', { name: '退出登录' }));
@@ -110,7 +106,7 @@ describe('App admin login', () => {
     await user.keyboard('{Enter}');
 
     expect(
-      await screen.findByRole('heading', { name: '数据采集中心', level: 2 })
+		await screen.findByRole('heading', { name: '事件中心', level: 2 })
     ).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: '管理后台导航' })).not.toBeInTheDocument();
     expect(menuTrigger).toHaveFocus();
@@ -165,7 +161,7 @@ describe('App admin login', () => {
 
     render(<App />);
 
-    await screen.findByText('暂无原始数据');
+		await screen.findByText('暂无事件');
     expect(document.documentElement).not.toHaveClass('dark');
     expect(storage.get('tidewise_admin_theme')).toBe('light');
     expect(screen.getByRole('button', { name: '切换到深色主题' })).toBeInTheDocument();

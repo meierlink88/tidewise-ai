@@ -25,38 +25,35 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 	want := map[string]operationContract{
 		"/healthz":                                {method: "get", operationID: "getDataServiceHealth"},
 		"/readyz":                                 {method: "get", operationID: "getDataServiceReadiness"},
-		namespace + "/event-tags":                 {method: "get", operationID: "listActiveEventTags", driftAnchor: "data.v1.listActiveEventTags", scope: "data.event-tags.read"},
 		namespace + "/evidence-categories":        {method: "get", operationID: "listEvidenceCategories", driftAnchor: "data.v1.listEvidenceCategories", scope: "data.evidence-categories.read"},
 		namespace + "/research/themes":            {method: "get", operationID: "listResearchThemes", driftAnchor: "data.v1.listResearchThemes", scope: "data.research.read"},
 		namespace + "/research/themes/{theme_id}": {method: "get", operationID: "getResearchTheme", driftAnchor: "data.v1.getResearchTheme", scope: "data.research.read"},
 		namespace + "/research/themes/{theme_id}/reasoning-trees":                     {method: "get", operationID: "listResearchThemeReasoningTrees", driftAnchor: "data.v1.listResearchThemeReasoningTrees", scope: "data.research.read"},
 		namespace + "/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}": {method: "get", operationID: "getResearchThemeReasoningTree", driftAnchor: "data.v1.getResearchThemeReasoningTree", scope: "data.research.read"},
-		namespace + "/raw-documents":                                                  {method: "get", operationID: "listAdminRawDocuments", driftAnchor: "data.v1.listAdminRawDocuments", scope: "data.admin.read"},
-		namespace + "/events":                                                         {method: "get", operationID: "listAdminEvents", driftAnchor: "data.v1.listAdminEvents", scope: "data.admin.read"},
-		namespace + "/runtime-health":                                                 {method: "get", operationID: "getDataRuntimeHealth", driftAnchor: "data.v1.getRuntimeHealth", scope: "data.admin.read"},
-		namespace + "/research-graph:search":                                          {method: "post", operationID: "searchResearchGraph", driftAnchor: "data.v1.searchResearchGraph", scope: "data.research.read"},
-		namespace + "/reviewed-event-imports":                                         {method: "post", operationID: "publishReviewedEvents", driftAnchor: "data.v1.publishReviewedEvents", scope: "data.reviewed-events.import"},
-		namespace + "/raw-evidence-publications":                                      {method: "post", operationID: "publishRawEvidence", driftAnchor: "data.v1.publishRawEvidence", scope: "data.raw-evidences.import"},
-		namespace + "/raw-evidences/{id}":                                             {method: "get", operationID: "getRawEvidence", driftAnchor: "data.v1.getRawEvidence", scope: "data.raw-evidences.read"},
-		namespace + "/evidence-publications":                                          {method: "post", operationID: "publishEvidence", driftAnchor: "data.v1.publishEvidence", scope: "data.evidences.import"},
-		namespace + "/research-theme-imports":                                         {method: "post", operationID: "publishResearchTheme", driftAnchor: "data.v1.publishResearchTheme", scope: "data.research.import"},
-		namespace + "/entities/countries":                                             {method: "get", operationID: "listCountries", driftAnchor: "data.v1.listCountries", scope: "data.countries.read"},
-		namespace + "/entities/countries/{country_id}":                                {method: "get", operationID: "getCountry", driftAnchor: "data.v1.getCountry", scope: "data.countries.read"},
-		namespace + "/entities/countries/{country_id}/regions":                        {method: "put", operationID: "replaceCountryRegions", driftAnchor: "data.v1.replaceCountryRegions", scope: "data.countries.write"},
-		namespace + "/entities/industries":                                            {method: "get", operationID: "listIndustries", driftAnchor: "data.v1.listIndustries", scope: "data.industries.read"},
-		namespace + "/entities/industries/{industry_id}":                              {method: "get", operationID: "getIndustry", driftAnchor: "data.v1.getIndustry", scope: "data.industries.read"},
-		namespace + "/entities/concepts":                                              {method: "get", operationID: "listConcepts", driftAnchor: "data.v1.listConcepts", scope: "data.concepts.read"},
-		namespace + "/entities/concepts/{concept_id}":                                 {method: "get", operationID: "getConcept", driftAnchor: "data.v1.getConcept", scope: "data.concepts.read"},
-		namespace + "/entities/chain-nodes":                                           {method: "get", operationID: "listChainNodes", driftAnchor: "data.v1.listChainNodes", scope: "data.chain-nodes.read"},
-		namespace + "/entities/chain-nodes/{chain_node_id}":                           {method: "get", operationID: "getChainNode", driftAnchor: "data.v1.getChainNode", scope: "data.chain-nodes.read"},
-		namespace + "/entities/industry-chains":                                       {method: "get", operationID: "listIndustryChains", driftAnchor: "data.v1.listIndustryChains", scope: "data.industry-chains.read"},
-		namespace + "/entities/industry-chains/{industry_chain_id}":                   {method: "get", operationID: "getIndustryChain", driftAnchor: "data.v1.getIndustryChain", scope: "data.industry-chains.read"},
-		namespace + "/entities/organizations":                                         {method: "get", operationID: "listOrganizations", driftAnchor: "data.v1.listOrganizations", scope: "data.organizations.read"},
-		namespace + "/entities/organizations/{organization_id}":                       {method: "get", operationID: "getOrganization", driftAnchor: "data.v1.getOrganization", scope: "data.organizations.read"},
-		namespace + "/entities/organizations/{organization_id}/domain-tags":           {method: "put", operationID: "replaceOrganizationDomainTags", driftAnchor: "data.v1.replaceOrganizationDomainTags", scope: "data.organizations.write"},
-		namespace + "/organization-catalog":                                           {method: "get", operationID: "getOrganizationCatalog", driftAnchor: "data.v1.getOrganizationCatalog", scope: "data.organizations.read"},
-		namespace + "/entities/organizations/{organization_id}/members":               {method: "get", operationID: "listOrganizationMembers", driftAnchor: "data.v1.listOrganizationMembers", scope: "data.organizations.read"},
-		namespace + "/entities/organizations/{organization_id}/members/{member_id}":   {method: "put", operationID: "updateOrganizationMember", driftAnchor: "data.v1.updateOrganizationMember", scope: "data.organizations.write"},
+		namespace + "/events":                                                       {method: "get", operationID: "listAdminEvents", driftAnchor: "data.v1.listAdminEvents", scope: "data.admin.read"},
+		namespace + "/runtime-health":                                               {method: "get", operationID: "getDataRuntimeHealth", driftAnchor: "data.v1.getRuntimeHealth", scope: "data.admin.read"},
+		namespace + "/research-graph:search":                                        {method: "post", operationID: "searchResearchGraph", driftAnchor: "data.v1.searchResearchGraph", scope: "data.research.read"},
+		namespace + "/raw-evidence-publications":                                    {method: "post", operationID: "publishRawEvidence", driftAnchor: "data.v1.publishRawEvidence", scope: "data.raw-evidences.import"},
+		namespace + "/raw-evidences/{id}":                                           {method: "get", operationID: "getRawEvidence", driftAnchor: "data.v1.getRawEvidence", scope: "data.raw-evidences.read"},
+		namespace + "/evidence-publications":                                        {method: "post", operationID: "publishEvidence", driftAnchor: "data.v1.publishEvidence", scope: "data.evidences.import"},
+		namespace + "/research-theme-imports":                                       {method: "post", operationID: "publishResearchTheme", driftAnchor: "data.v1.publishResearchTheme", scope: "data.research.import"},
+		namespace + "/entities/countries":                                           {method: "get", operationID: "listCountries", driftAnchor: "data.v1.listCountries", scope: "data.countries.read"},
+		namespace + "/entities/countries/{country_id}":                              {method: "get", operationID: "getCountry", driftAnchor: "data.v1.getCountry", scope: "data.countries.read"},
+		namespace + "/entities/countries/{country_id}/regions":                      {method: "put", operationID: "replaceCountryRegions", driftAnchor: "data.v1.replaceCountryRegions", scope: "data.countries.write"},
+		namespace + "/entities/industries":                                          {method: "get", operationID: "listIndustries", driftAnchor: "data.v1.listIndustries", scope: "data.industries.read"},
+		namespace + "/entities/industries/{industry_id}":                            {method: "get", operationID: "getIndustry", driftAnchor: "data.v1.getIndustry", scope: "data.industries.read"},
+		namespace + "/entities/concepts":                                            {method: "get", operationID: "listConcepts", driftAnchor: "data.v1.listConcepts", scope: "data.concepts.read"},
+		namespace + "/entities/concepts/{concept_id}":                               {method: "get", operationID: "getConcept", driftAnchor: "data.v1.getConcept", scope: "data.concepts.read"},
+		namespace + "/entities/chain-nodes":                                         {method: "get", operationID: "listChainNodes", driftAnchor: "data.v1.listChainNodes", scope: "data.chain-nodes.read"},
+		namespace + "/entities/chain-nodes/{chain_node_id}":                         {method: "get", operationID: "getChainNode", driftAnchor: "data.v1.getChainNode", scope: "data.chain-nodes.read"},
+		namespace + "/entities/industry-chains":                                     {method: "get", operationID: "listIndustryChains", driftAnchor: "data.v1.listIndustryChains", scope: "data.industry-chains.read"},
+		namespace + "/entities/industry-chains/{industry_chain_id}":                 {method: "get", operationID: "getIndustryChain", driftAnchor: "data.v1.getIndustryChain", scope: "data.industry-chains.read"},
+		namespace + "/entities/organizations":                                       {method: "get", operationID: "listOrganizations", driftAnchor: "data.v1.listOrganizations", scope: "data.organizations.read"},
+		namespace + "/entities/organizations/{organization_id}":                     {method: "get", operationID: "getOrganization", driftAnchor: "data.v1.getOrganization", scope: "data.organizations.read"},
+		namespace + "/entities/organizations/{organization_id}/domain-tags":         {method: "put", operationID: "replaceOrganizationDomainTags", driftAnchor: "data.v1.replaceOrganizationDomainTags", scope: "data.organizations.write"},
+		namespace + "/organization-catalog":                                         {method: "get", operationID: "getOrganizationCatalog", driftAnchor: "data.v1.getOrganizationCatalog", scope: "data.organizations.read"},
+		namespace + "/entities/organizations/{organization_id}/members":             {method: "get", operationID: "listOrganizationMembers", driftAnchor: "data.v1.listOrganizationMembers", scope: "data.organizations.read"},
+		namespace + "/entities/organizations/{organization_id}/members/{member_id}": {method: "put", operationID: "updateOrganizationMember", driftAnchor: "data.v1.updateOrganizationMember", scope: "data.organizations.write"},
 	}
 	additionalMethods := map[string]map[string]struct{}{
 		namespace + "/entities/countries":                                           {"post": {}},
@@ -122,7 +119,7 @@ func TestOpenAPIContractDoesNotPublishRetiredEventSemanticContracts(t *testing.T
 
 	schemas := object(t, object(t, document["components"], "components")["schemas"], "schemas")
 	for name := range schemas {
-		if strings.HasPrefix(name, "EventSemantic") || strings.HasPrefix(name, "ResearchAnalysis") ||
+		if (strings.HasPrefix(name, "EventSemantic") && name != "EventSemantic") || strings.HasPrefix(name, "ResearchAnalysis") ||
 			strings.Contains(name, "VariableSignal") || strings.Contains(name, "DirectImpact") {
 			t.Errorf("retired schema %q remains in the Data contract", name)
 		}
@@ -208,11 +205,6 @@ func TestOpenAPICreateContractsDoNotAcceptSystemOwnedPrimaryKeys(t *testing.T) {
 		"OrganizationMemberWriteRequest":          {"id", "member_id"},
 		"RawEvidence":                             {"id", "raw_evidence_id"},
 		"AtomicEvidence":                          {"id", "evidence_id"},
-		"EventPublicationRequest":                 {"id", "receipt_id"},
-		"EventPublicationRawDocument":             {"id", "raw_document_id"},
-		"EventPublicationEvent":                   {"id", "event_id"},
-		"EventPublicationEvidence":                {"id", "event_evidence_link_id"},
-		"EventPublicationTag":                     {"id", "event_tag_assignment_id"},
 		"ResearchThemeImportRequest":              {"id", "receipt_id", "theme_id", "reasoning_tree_receipt_id"},
 		"ResearchThemeSnapshotItem":               {"id", "theme_id"},
 		"ResearchReasoningTreeSnapshotImportItem": {"id", "reasoning_tree_id"},
@@ -276,36 +268,37 @@ func TestOpenAPIContractFreezesOrganizationNullsErrorsAndRequestIDs(t *testing.T
 	assertRequired(t, schema(t, document, "OrganizationDomainTag"), "id", "code", "function_code", "name_zh")
 }
 
-func TestOpenAPIContractFreezesActiveEventTagCatalog(t *testing.T) {
+func TestOpenAPIContractFreezesCurrentEventReadContract(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
-	operation := object(t, object(t, paths[namespace+"/event-tags"], "Event Tag Catalog path")["get"], "Event Tag Catalog operation")
+	operation := object(t, object(t, paths[namespace+"/events"], "Event path")["get"], "Event operation")
 	assertString(t, operation, "x-retry-policy", "safe-get")
-	assertString(t, operation, "x-required-service-scope", "data.event-tags.read")
+	assertString(t, operation, "x-required-service-scope", "data.admin.read")
 
-	parameters := array(t, operation["parameters"], "Event Tag Catalog parameters")
-	if len(parameters) != 2 {
-		t.Fatalf("Event Tag Catalog parameter count = %d, want 2", len(parameters))
+	parameters := array(t, operation["parameters"], "Event parameters")
+	if len(parameters) != 10 {
+		t.Fatalf("Event parameter count = %d, want 10", len(parameters))
 	}
-	active := object(t, parameters[1], "active parameter")
-	assertString(t, active, "name", "active")
-	assertStringSet(t, object(t, active["schema"], "active schema")["enum"], "true")
+	wantNames := []string{"title", "modality", "status", "occurred_from", "occurred_to", "announced_from", "announced_to"}
+	for index, want := range wantNames {
+		assertString(t, object(t, parameters[index+3], want+" parameter"), "name", want)
+	}
 
-	catalog := schema(t, document, "EventTagCatalog")
-	assertRequired(t, catalog, "tags")
-	properties := object(t, catalog["properties"], "EventTagCatalog properties")
-	if _, exists := properties["catalog_revision"]; exists {
-		t.Fatal("EventTagCatalog exposes catalog_revision")
+	event := schema(t, document, "AdminEvent")
+	assertRequired(t, event, "id", "title", "summary", "semantic", "modality", "occurred_at", "announced_at", "status")
+	semantic := schema(t, document, "EventSemantic")
+	assertRequired(t, semantic, "who", "what", "when", "where", "why", "how")
+	if semantic["additionalProperties"] != false {
+		t.Fatal("EventSemantic must reject additional properties")
 	}
-	if _, exists := properties["catalog_hash"]; exists {
-		t.Fatal("EventTagCatalog exposes catalog_hash")
-	}
-	tags := object(t, properties["tags"], "tags")
-	assertInt(t, tags, "minItems", 1)
+	assertStringSet(t, schema(t, document, "EventModality")["enum"], "FACT", "PLAN", "SPEC")
+	assertStringSet(t, schema(t, document, "EventLifecycleStatus")["enum"], "ACTIVE", "DEPRECATED", "ARCHIVED")
 
-	tag := schema(t, document, "EventTagCatalogItem")
-	assertRequired(t, tag, "id", "tag_kind", "code", "name", "is_active")
-	assertString(t, object(t, object(t, tag["properties"], "tag properties")["tag_kind"], "tag_kind"), "$ref", "#/components/schemas/TagKind")
+	for _, retired := range []string{namespace + "/event-tags", namespace + "/raw-documents", namespace + "/reviewed-event-imports"} {
+		if _, exists := paths[retired]; exists {
+			t.Errorf("retired path %q remains in the Data contract", retired)
+		}
+	}
 }
 
 func TestOpenAPIContractFreezesResearchReasoningTreeReadV1(t *testing.T) {
@@ -469,57 +462,11 @@ func TestOpenAPIContractFreezesBearerIdentityRequestIDAndStructuredErrors(t *tes
 	}
 }
 
-func TestOpenAPIContractFreezesEventPublication(t *testing.T) {
-	document := loadContract(t)
-	paths := object(t, document["paths"], "paths")
-	operation := object(t, object(t, paths[namespace+"/reviewed-event-imports"], "Event Publication path")["post"], "Event Publication operation")
-	assertString(t, operation, "x-atomicity", "whole-batch-single-postgresql-transaction")
-	assertString(t, operation, "x-receipt-schema", "event_publication_receipts")
-	assertString(t, operation, "x-retry-policy", "retry-failed-call-with-natural-identities")
-	requestBody := object(t, operation["requestBody"], "Event Publication request body")
-	media := object(t, object(t, requestBody["content"], "request content")["application/json"], "request media")
-	requestSchema := object(t, media["schema"], "request schema")
-	assertInt(t, requestSchema, "x-max-body-bytes", 1048576)
-
-	request := schema(t, document, "EventPublicationRequest")
-	assertRequired(t, request, "package_id", "provenance", "raw_documents", "events")
-	requestProperties := object(t, request["properties"], "EventPublicationRequest properties")
-	for _, forbidden := range []string{"idempotency_key", "payload_hash", "caller_subject", "content_text", "artifact_uri"} {
-		if _, exists := requestProperties[forbidden]; exists {
-			t.Fatalf("EventPublicationRequest exposes forbidden field %q", forbidden)
-		}
-	}
-	events := object(t, requestProperties["events"], "publication events")
-	assertInt(t, events, "minItems", 1)
-	assertInt(t, events, "maxItems", 10)
-
-	raw := schema(t, document, "EventPublicationRawDocument")
-	assertRequired(t, raw, "artifact_id", "content_sha256", "source_ref", "source_name", "source_type", "title", "collected_at")
-	rawProperties := object(t, raw["properties"], "raw document properties")
-	for _, forbidden := range []string{"content_text", "artifact_uri", "ingest_channel", "ingest_status", "content_level", "source_external_id"} {
-		if _, exists := rawProperties[forbidden]; exists {
-			t.Fatalf("EventPublicationRawDocument exposes forbidden field %q", forbidden)
-		}
-	}
-	assertInt(t, object(t, rawProperties["source_type"], "source_type"), "maxLength", 64)
-	assertInt(t, object(t, rawProperties["language"], "language"), "maxLength", 16)
-	assertInt(t, object(t, rawProperties["mime_type"], "mime_type"), "maxLength", 128)
-	event := schema(t, document, "EventPublicationEvent")
-	assertRequired(t, event, "dedupe_key", "title", "factual_summary", "fact_payload", "evidence", "tags", "review")
-	for _, forbidden := range []string{"event_status", "fact_status"} {
-		if _, exists := object(t, event["properties"], "event properties")[forbidden]; exists {
-			t.Fatalf("EventPublicationEvent lets caller submit %q", forbidden)
-		}
-	}
-	result := schema(t, document, "EventPublicationResult")
-	assertRequired(t, result, "receipt_id", "package_id", "imported_at", "events", "raw_documents", "counts")
-}
-
 func TestOpenAPIContractFreezesDTOFormatsEnumsAndSensitiveMetadataBoundary(t *testing.T) {
 	document := loadContract(t)
 	for _, name := range []string{
 		"ResearchThemeCollection", "ResearchThemeDetail", "ResearchReasoningTreeList", "ResearchReasoningTreeDetail",
-		"AdminRawDocumentPage", "AdminEventPage", "ErrorEnvelope",
+		"AdminEventPage", "ErrorEnvelope",
 	} {
 		contractSchema := schema(t, document, name)
 		assertString(t, contractSchema, "x-client-drift-anchor", "data.v1.schema."+name)
@@ -535,9 +482,8 @@ func TestOpenAPIContractFreezesDTOFormatsEnumsAndSensitiveMetadataBoundary(t *te
 		t.Fatalf("UTCTimestamp description must freeze UTC RFC3339 semantics: %v", utc["description"])
 	}
 
-	assertStringSet(t, schema(t, document, "EventStatus")["enum"], "candidate", "confirmed", "rejected")
-	assertStringSet(t, schema(t, document, "FactStatus")["enum"], "unverified", "verified", "disputed")
-	assertStringSet(t, schema(t, document, "EventPublicationDisposition")["enum"], "created", "reused")
+	assertStringSet(t, schema(t, document, "EventModality")["enum"], "FACT", "PLAN", "SPEC")
+	assertStringSet(t, schema(t, document, "EventLifecycleStatus")["enum"], "ACTIVE", "DEPRECATED", "ARCHIVED")
 }
 
 func TestOpenAPIContractHasNoDanglingLocalReferences(t *testing.T) {

@@ -253,8 +253,6 @@ func operationForRequest(request *http.Request) string {
 		return "admin.ready"
 	case "/docs", "/openapi.yaml":
 		return "admin.docs"
-	case v1.APIPrefix + "/raw-documents":
-		return v1.OperationListRawDocuments
 	case v1.APIPrefix + "/events":
 		return v1.OperationListEvents
 	case v1.APIPrefix + "/runtime-health":

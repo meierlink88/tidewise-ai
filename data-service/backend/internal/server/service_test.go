@@ -21,7 +21,6 @@ import (
 	organizationapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/organization"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
-	rawdocumentapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/rawdocument"
 	researchapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/research"
 	runtimehealthapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/runtimehealth"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/conf"
@@ -180,7 +179,7 @@ func TestServerEnforcesResearchReadScopeOnResearchRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server, err := NewHTTPServer(testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{}, serverTestEvidenceService{}, serverTestRawDocumentService{}, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, authenticator, nil)
+	server, err := NewHTTPServer(testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{}, serverTestEvidenceService{}, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, authenticator, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +263,7 @@ func TestServerEnforcesDedicatedCountryReadAndWriteScopes(t *testing.T) {
 	}
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{},
-		serverTestEvidenceService{}, serverTestRawDocumentService{},
+		serverTestEvidenceService{},
 		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, authenticator, nil,
 	)
 	if err != nil {
@@ -309,7 +308,7 @@ func TestServerEnforcesDedicatedIndependentObjectScopes(t *testing.T) {
 	}
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{},
-		serverTestEvidenceService{}, serverTestRawDocumentService{},
+		serverTestEvidenceService{},
 		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, authenticator, nil,
 	)
 	if err != nil {
@@ -395,7 +394,6 @@ func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
 		research      researchapi.Service
 		event         eventapi.Service
 		evidence      evidenceapi.Service
-		rawDocument   rawdocumentapi.Service
 		country       countryapi.Service
 		industry      industryapi.Service
 		concept       conceptapi.Service
@@ -404,18 +402,17 @@ func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
 		organization  organizationapi.Service
 		auth          *Authenticator
 	}{
-		{name: "Runtime Health API", research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
-		{name: "Research API", application: serverTestDataService{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
-		{name: "Event API", application: serverTestDataService{}, research: researchfixture.Service{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
-		{name: "Evidence API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
-		{name: "RawDocument API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
-		{name: "Country API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
-		{name: "Industry API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
-		{name: "Concept API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, organization: serverTestOrganizationService{}, auth: authenticator},
-		{name: "ChainNode API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
-		{name: "IndustryChain API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
-		{name: "Organization API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, auth: authenticator},
-		{name: "authenticator", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, rawDocument: serverTestRawDocumentService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}},
+		{name: "Runtime Health API", research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
+		{name: "Research API", application: serverTestDataService{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
+		{name: "Event API", application: serverTestDataService{}, research: researchfixture.Service{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
+		{name: "Evidence API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
+		{name: "Country API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
+		{name: "Industry API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
+		{name: "Concept API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, organization: serverTestOrganizationService{}, auth: authenticator},
+		{name: "ChainNode API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
+		{name: "IndustryChain API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
+		{name: "Organization API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, auth: authenticator},
+		{name: "authenticator", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if test.name != "ChainNode API" && test.chainNode == nil {
@@ -424,7 +421,7 @@ func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
 			if test.name != "IndustryChain API" && test.industryChain == nil {
 				test.industryChain = serverTestIndustryChainService{}
 			}
-			if _, err := NewHTTPServer(testConfig(), test.application, test.research, test.event, test.evidence, test.rawDocument, test.country, test.industry, test.concept, test.chainNode, test.industryChain, test.organization, test.auth, nil); err == nil {
+			if _, err := NewHTTPServer(testConfig(), test.application, test.research, test.event, test.evidence, test.country, test.industry, test.concept, test.chainNode, test.industryChain, test.organization, test.auth, nil); err == nil {
 				t.Fatal("NewHTTPServer() error = nil")
 			}
 		})
@@ -464,7 +461,6 @@ func TestEveryBusinessOperationHasAnAuthenticationScope(t *testing.T) {
 	businessOperations := append(runtimehealthapi.BusinessOperations(), eventapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, researchapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, evidenceapi.BusinessOperations()...)
-	businessOperations = append(businessOperations, rawdocumentapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, countryapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, industryapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, conceptapi.BusinessOperations()...)
@@ -537,7 +533,7 @@ func newTestHTTPServer(config conf.Config, application runtimehealthapi.Service,
 }
 
 func newTestHTTPServerWithEvent(config conf.Config, application runtimehealthapi.Service, eventApplication eventapi.Service, evidenceApplication evidenceapi.Service, authenticator *Authenticator) *kratoshttp.Server {
-	server, err := NewHTTPServer(config, application, researchfixture.Service{}, eventApplication, evidenceApplication, serverTestRawDocumentService{}, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, authenticator, nil)
+	server, err := NewHTTPServer(config, application, researchfixture.Service{}, eventApplication, evidenceApplication, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, authenticator, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -545,8 +541,6 @@ func newTestHTTPServerWithEvent(config conf.Config, application runtimehealthapi
 }
 
 type serverTestDataService struct{}
-
-type serverTestRawDocumentService struct{}
 
 type serverTestCountryService struct{}
 
@@ -666,21 +660,9 @@ func (serverTestIndustryChainService) Update(context.Context, *industrychainapi.
 	return serverTestResponse[industrychainapi.IndustryChain]()
 }
 
-func (serverTestRawDocumentService) List(context.Context, *rawdocumentapi.ListRequest) (*dataapi.Response[rawdocumentapi.Page], error) {
-	return serverTestResponse[rawdocumentapi.Page]()
-}
-
 type serverTestEventService struct{}
 
 type serverTestEvidenceService struct{}
-
-func (serverTestEventService) PublishReviewedEvents(context.Context, *eventapi.PublicationRequest) (*dataapi.Response[eventapi.PublicationResult], error) {
-	return serverTestResponse[eventapi.PublicationResult]()
-}
-
-func (serverTestEventService) ListActiveEventTags(context.Context, *eventapi.TagCatalogRequest) (*dataapi.Response[eventapi.TagCatalog], error) {
-	return serverTestResponse[eventapi.TagCatalog]()
-}
 
 func (serverTestEventService) ListEvents(context.Context, *eventapi.ListRequest) (*dataapi.Response[eventapi.Page], error) {
 	return serverTestResponse[eventapi.Page]()

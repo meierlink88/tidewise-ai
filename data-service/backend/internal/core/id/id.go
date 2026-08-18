@@ -39,15 +39,13 @@ const (
 	ChainNodeRelation                 Kind = "CNR"
 	CountryRegionLink                 Kind = "CRL"
 	EntityExternalIdentifier          Kind = "EEI"
-	EventPublicationReceipt           Kind = "EPR"
 	EventEvidenceLink                 Kind = "EEL"
-	EventTagDefinition                Kind = "ETD"
-	EventTagAssignment                Kind = "ETA"
+	EventActorLink                    Kind = "EAC"
+	EventAssetLink                    Kind = "EAS"
 	Event                             Kind = "EVT"
 	IndustryChainGraphEdge            Kind = "IGE"
 	IndustryRelationshipImportReceipt Kind = "IRI"
 	OrganizationMembership            Kind = "OMB"
-	EventEvidenceRecord               Kind = "EER"
 	ResearchReasoningTreeReceipt      Kind = "RRI"
 	ResearchReasoningTreeNode         Kind = "RRN"
 	ResearchReasoningTree             Kind = "RRT"
@@ -154,9 +152,9 @@ func registered(kind Kind) bool {
 	case Entity, Industry, Concept, ChainNode, IndustryChain, EntityRelation, Country, Region, Organization, OrganizationCategory, OrganizationFunction, OrganizationDomainTag,
 		OrganizationDomainTagLink, RawEvidence, Evidence, EvidenceCategory, RawEvidenceCategoryLink,
 		ChainNodePhysicalConstraint, ChainNodeRelation, CountryRegionLink,
-		EntityExternalIdentifier, EventPublicationReceipt, EventEvidenceLink, EventTagDefinition, EventTagAssignment, Event,
+		EntityExternalIdentifier, EventEvidenceLink, EventActorLink, EventAssetLink, Event,
 		IndustryChainGraphEdge, IndustryRelationshipImportReceipt, OrganizationMembership,
-		EventEvidenceRecord, ResearchReasoningTreeReceipt, ResearchReasoningTreeNode, ResearchReasoningTree,
+		ResearchReasoningTreeReceipt, ResearchReasoningTreeNode, ResearchReasoningTree,
 		ResearchThemeReceipt, ResearchTheme:
 		return true
 	default:

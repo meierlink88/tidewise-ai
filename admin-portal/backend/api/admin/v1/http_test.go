@@ -29,7 +29,6 @@ func TestEveryAdminEndpointExecutesKratosMiddleware(t *testing.T) {
 		path      string
 		operation string
 	}{
-		{APIPrefix + "/raw-documents", OperationListRawDocuments},
 		{APIPrefix + "/events", OperationListEvents},
 		{APIPrefix + "/runtime-health", OperationGetRuntimeHealth},
 	} {
@@ -50,6 +49,7 @@ func TestRetiredManagementRoutesAreNotRegistered(t *testing.T) {
 		APIPrefix + "/monitoring/summary",
 		APIPrefix + "/model-providers",
 		APIPrefix + "/connectors",
+		APIPrefix + "/raw-documents",
 	} {
 		response := httptest.NewRecorder()
 		server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
@@ -61,9 +61,6 @@ func TestRetiredManagementRoutesAreNotRegistered(t *testing.T) {
 
 type stubAdminHTTPServer struct{}
 
-func (stubAdminHTTPServer) ListRawDocuments(context.Context, *ListRawDocumentsRequest) (*RawDocumentListResponse, error) {
-	return &RawDocumentListResponse{}, nil
-}
 func (stubAdminHTTPServer) ListEvents(context.Context, *ListEventsRequest) (*EventListResponse, error) {
 	return &EventListResponse{}, nil
 }

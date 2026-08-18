@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as dataIngestionAPI from '../api/dataIngestion';
@@ -7,196 +7,46 @@ import DataIngestionCenter from './DataIngestionCenter';
 describe('DataIngestionCenter', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('renders the retained evidence and event tabs and loads raw documents by default', async () => {
-    vi.spyOn(dataIngestionAPI, 'loadRawDocuments').mockResolvedValue({
-      items: [
-        {
-          id: 'raw-1',
-          source_ref: 'publisher://source/bbc-business',
-          source_name: '新华社',
-          title: '央行公布金融数据',
-          content_text: '摘要',
-          collected_at: '2026-07-09T10:00:00Z',
-          ingest_status: 'collected'
-        }
-      ],
-      total: 1,
-      page: 1,
-      page_size: 50
-    });
+  it('loads and renders the current Event contract', async () => {
+    const what = '维持利率不变';
     vi.spyOn(dataIngestionAPI, 'loadEvents').mockResolvedValue({
-      items: [
-        {
-          id: 'event-1',
-          title: '全球市场事件',
-          summary: '摘要',
-          event_time: '2026-07-09T08:00:00Z',
-          first_seen_at: '2026-07-09T09:00:00Z',
-          event_status: 'confirmed',
-          fact_status: 'verified'
-        }
-      ],
-      total: 1,
-      page: 1,
-      page_size: 50
+      items: [{
+        id: 'EVT00000000-0000-5000-8000-000000000001', title: '全球市场事件', summary: '摘要',
+        semantic: { who: null, what, when: null, where: null, why: null, how: null },
+        modality: 'FACT', occurred_at: '2026-07-09T08:00:00Z', announced_at: null, status: 'ACTIVE'
+      }],
+      total: 1, page: 1, page_size: 50
     });
 
     render(<DataIngestionCenter token='secret-token' />);
 
-    const rawTab = await screen.findByRole('tab', { name: '原始数据' });
-    expect(screen.getByRole('heading', { name: '数据采集中心' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: '全球事件' })).toBeInTheDocument();
-    expect(screen.getAllByRole('tab')).toHaveLength(2);
-    expect(await screen.findByText('央行公布金融数据')).toBeInTheDocument();
-    expect(screen.getByText('publisher://source/bbc-business')).toBeInTheDocument();
-    expect(dataIngestionAPI.loadRawDocuments).toHaveBeenCalledWith('secret-token', {
-      page: 1,
-      title: ''
-    });
-    const rawTableRegion = screen.getByRole('region', { name: '原始数据表格滚动区域' });
-    expect(within(rawTableRegion).getByRole('table')).toBeInTheDocument();
-    expect(
-      within(rawTableRegion).queryByRole('textbox', { name: '原始数据标题搜索' })
-    ).not.toBeInTheDocument();
-    expect(
-      within(rawTableRegion).queryByRole('button', { name: '下一页' })
-    ).not.toBeInTheDocument();
-    await userEvent.hover(screen.getByText('央行公布金融数据'));
-    expect(await screen.findByRole('tooltip')).toHaveClass('text-sm');
-
-    await act(async () => {
-      rawTab.focus();
-      fireEvent.keyDown(rawTab, { key: 'ArrowRight' });
-      await Promise.resolve();
-    });
-    await waitFor(() =>
-      expect(screen.getByRole('tab', { name: '全球事件' })).toHaveAttribute('aria-selected', 'true')
-    );
+    expect(screen.getByRole('heading', { name: '事件中心' })).toBeInTheDocument();
     expect(await screen.findByText('全球市场事件')).toBeInTheDocument();
-    const eventTableRegion = screen.getByRole('region', { name: '全球事件表格滚动区域' });
-    expect(within(eventTableRegion).getByRole('table')).toBeInTheDocument();
-    expect(
-      within(eventTableRegion).queryByRole('textbox', { name: '事件标题搜索' })
-    ).not.toBeInTheDocument();
-    expect(
-      within(eventTableRegion).queryByRole('button', { name: '下一页' })
-    ).not.toBeInTheDocument();
+    expect(screen.getByText('FACT')).toBeInTheDocument();
+    expect(screen.getByText('ACTIVE')).toBeInTheDocument();
+    expect(dataIngestionAPI.loadEvents).toHaveBeenCalledWith('secret-token', { page: 1, title: '' });
   });
 
-  it('presents a safe data error and retries the current tab', async () => {
+  it('applies Event filters and retries a safe error', async () => {
     const user = userEvent.setup();
-    const loadRawDocuments = vi
-      .spyOn(dataIngestionAPI, 'loadRawDocuments')
+    const loadEvents = vi.spyOn(dataIngestionAPI, 'loadEvents')
       .mockRejectedValueOnce(new Error('internal server error'))
-      .mockResolvedValueOnce({ items: [], total: 0, page: 1, page_size: 50 });
-    vi.spyOn(dataIngestionAPI, 'loadEvents').mockResolvedValue({
-      items: [],
-      total: 0,
-      page: 1,
-      page_size: 50
-    });
-
+      .mockResolvedValue({ items: [], total: 0, page: 1, page_size: 50 });
     render(<DataIngestionCenter token='secret-token' />);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('数据加载失败，请稍后重试。');
-    expect(screen.queryByText('internal server error')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: '重试' }));
-    await waitFor(() => expect(loadRawDocuments).toHaveBeenCalledTimes(2));
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-  });
+    await waitFor(() => expect(loadEvents).toHaveBeenCalledTimes(2));
 
-  it('moves forward and backward through retained raw-data pages', async () => {
-    const user = userEvent.setup();
-    const loadRawDocuments = vi
-      .spyOn(dataIngestionAPI, 'loadRawDocuments')
-      .mockImplementation(async (_token, query) => ({
-        items: [],
-        total: 101,
-        page: query.page ?? 1,
-        page_size: 50
-      }));
-    vi.spyOn(dataIngestionAPI, 'loadEvents').mockResolvedValue({
-      items: [],
-      total: 0,
-      page: 1,
-      page_size: 50
-    });
-
-    render(<DataIngestionCenter token='secret-token' />);
-
-    expect(await screen.findByText('1 / 3')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: '下一页' }));
-    await waitFor(() =>
-      expect(loadRawDocuments).toHaveBeenLastCalledWith('secret-token', {
-        page: 2,
-        title: ''
-      })
-    );
-    expect(await screen.findByText('2 / 3')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: '上一页' }));
-    await waitFor(() =>
-      expect(loadRawDocuments).toHaveBeenLastCalledWith('secret-token', {
-        page: 1,
-        title: ''
-      })
-    );
-    expect(await screen.findByText('1 / 3')).toBeInTheDocument();
-  });
-
-  it('applies raw title search and event filters', async () => {
-    const user = userEvent.setup();
-    const eventTimeFrom = '2026-07-09T00:00';
-    const eventTimeTo = '2026-07-10T00:00';
-    const firstSeenFrom = '2026-07-08T00:00';
-    const firstSeenTo = '2026-07-11T00:00';
-    vi.spyOn(dataIngestionAPI, 'loadRawDocuments').mockResolvedValue({
-      items: [],
-      total: 0,
-      page: 1,
-      page_size: 50
-    });
-    vi.spyOn(dataIngestionAPI, 'loadEvents').mockResolvedValue({
-      items: [],
-      total: 0,
-      page: 1,
-      page_size: 50
-    });
-
-    render(<DataIngestionCenter token='secret-token' />);
-
-    await screen.findByRole('tab', { name: '原始数据' });
-    await user.type(screen.getByLabelText('原始数据标题搜索'), '央行');
-    await user.click(screen.getByRole('button', { name: '搜索原始数据' }));
-    expect(dataIngestionAPI.loadRawDocuments).toHaveBeenLastCalledWith('secret-token', {
-      page: 1,
-      title: '央行'
-    });
-
-    await user.click(screen.getByRole('tab', { name: '全球事件' }));
     await user.type(screen.getByLabelText('事件标题搜索'), '美联储');
-    await user.click(screen.getByLabelText('事件状态'));
-    await user.click(screen.getByRole('option', { name: '已确认' }));
-    await user.click(screen.getByLabelText('事实状态'));
-    await user.click(screen.getByRole('option', { name: '已核验' }));
-    await user.type(screen.getByLabelText('事件时间开始'), eventTimeFrom);
-    await user.type(screen.getByLabelText('事件时间结束'), eventTimeTo);
-    await user.type(screen.getByLabelText('首次发现开始'), firstSeenFrom);
-    await user.type(screen.getByLabelText('首次发现结束'), firstSeenTo);
+    await user.click(screen.getByLabelText('模态'));
+    await user.click(screen.getByRole('option', { name: '事实' }));
+    await user.click(screen.getByLabelText('状态'));
+    await user.click(screen.getByRole('option', { name: '活跃' }));
     await user.click(screen.getByRole('button', { name: '搜索事件' }));
 
-    expect(dataIngestionAPI.loadEvents).toHaveBeenLastCalledWith(
-      'secret-token',
-      expect.objectContaining({
-        page: 1,
-        title: '美联储',
-        event_status: 'confirmed',
-        fact_status: 'verified',
-        event_time_from: new Date(eventTimeFrom).toISOString(),
-        event_time_to: new Date(eventTimeTo).toISOString(),
-        first_seen_from: new Date(firstSeenFrom).toISOString(),
-        first_seen_to: new Date(firstSeenTo).toISOString()
-      })
-    );
+    await waitFor(() => expect(loadEvents).toHaveBeenLastCalledWith('secret-token', expect.objectContaining({
+      page: 1, title: '美联储', modality: 'FACT', status: 'ACTIVE'
+    })));
   });
 });

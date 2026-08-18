@@ -49,7 +49,7 @@ func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *te
 	}
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{},
-		application, serverTestRawDocumentService{},
+		application,
 		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, authenticator, nil,
 	)
 	if err != nil {

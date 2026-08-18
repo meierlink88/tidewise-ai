@@ -91,7 +91,7 @@ type EventFact struct {
 }
 
 type EvidenceFact struct {
-	ID, EventID, Hash    string
+	ID, EventID          string
 	KnowledgeAvailableAt time.Time
 }
 
