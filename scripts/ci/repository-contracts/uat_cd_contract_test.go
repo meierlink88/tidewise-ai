@@ -109,23 +109,28 @@ func TestUATWorkflowPlansSelectiveServicesFromRecordedReleaseState(t *testing.T)
 	}
 }
 
-func TestUATWorkflowExposesBoundedData2CutoverWithoutChangingNormalMode(t *testing.T) {
+func TestUATWorkflowExposesBoundedDataCutoversWithoutChangingNormalMode(t *testing.T) {
 	root := repositoryRoot()
 	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "deploy-uat.yml"))
 	for _, required := range []string{
 		"deployment_mode:",
 		"default: normal",
 		"- tidewise_2_cutover",
+		"- data_59_cutover",
 		"confirm_destructive_data_change:",
 		"rebuild_empty_data_schema:",
 		"DEPLOYMENT_MODE: ${{ inputs.deployment_mode }}",
 		"DESTRUCTIVE_DATA_CHANGE_CONFIRMED: ${{ inputs.confirm_destructive_data_change }}",
 		"EMPTY_DATA_SCHEMA_REBUILD_REQUESTED: ${{ inputs.rebuild_empty_data_schema }}",
 		"tidewise-2-cutover-in-progress",
-		"scope_reason=tidewise_2_cutover",
+		"pre-data59.runtime.env",
+		"pre-data59.sha",
+		"pre-data59.images.env",
+		"pre-data59.compose.yaml",
+		"scope_reason=${DEPLOYMENT_MODE}",
 	} {
 		if !strings.Contains(workflow, required) {
-			t.Fatalf("UAT workflow is missing the bounded Data 2.0 cutover contract %q", required)
+			t.Fatalf("UAT workflow is missing the bounded Data cutover contract %q", required)
 		}
 	}
 }

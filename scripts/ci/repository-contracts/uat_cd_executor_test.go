@@ -605,6 +605,214 @@ func TestUATDeployExecutorRunsBoundedData2CutoverWithAllWritersStopped(t *testin
 	assertFileContent(t, filepath.Join(result.root, "state", "current.sha"), fixtureSHA)
 }
 
+func TestUATDeployExecutorRunsBoundedData59CutoverWithAllWritersStopped(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:           true,
+		existingPreData2Snapshot: true,
+		deploymentMode:           "data_59_cutover",
+		destructiveConfirmed:     true,
+		backupConfirmed:          true,
+		migrationReport:          `{"current_version":"58","pending":[{"Version":"59"}],"applied":[],"remaining":[]}`,
+		migrationApplyReport:     `{"current_version":"59","pending":[],"applied":[],"remaining":[]}`,
+	})
+	if result.err != nil {
+		t.Fatalf("Data 59 cutover fixture failed: %v\n%s", result.err, result.output)
+	}
+	for _, want := range []string{
+		"PASS data59-cutover-gate",
+		"PASS application-write-stop",
+		"PASS data59-target-version",
+		"PASS release-state-recorded",
+	} {
+		if !strings.Contains(result.output, want) {
+			t.Fatalf("Data 59 cutover output missing %q: %s", want, result.output)
+		}
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logText := string(dockerLog)
+	stop := strings.Index(logText, " stop ")
+	apply := strings.Index(logText, "dbmigrate -apply -target-version 59")
+	start := strings.Index(logText, " up -d --wait --wait-timeout 120")
+	if stop < 0 || apply < 0 || start < 0 || stop > apply || apply > start {
+		t.Fatalf("Data 59 cutover must stop writers before migration and start candidates afterward: %s", logText)
+	}
+	if _, err := os.Stat(filepath.Join(result.root, "state", "tidewise-2-cutover-in-progress")); !os.IsNotExist(err) {
+		t.Fatalf("successful Data 59 cutover retained recovery marker: %v", err)
+	}
+	assertFileContent(t, filepath.Join(result.root, "state", "pre-data2.sha"), historicalPreData2FixtureSHA)
+	assertFileContent(t, filepath.Join(result.root, "state", "pre-data59.sha"), previousFixtureSHA)
+}
+
+func TestUATDeployExecutorRejectsUnexpectedData59MigrationRangeBeforeStoppingServices(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:       true,
+		deploymentMode:       "data_59_cutover",
+		destructiveConfirmed: true,
+		backupConfirmed:      true,
+		migrationReport:      `{"current_version":"57","pending":[{"Version":"58"},{"Version":"59"}],"applied":[],"remaining":[]}`,
+	})
+	if result.err == nil || !strings.Contains(result.output, "FAIL data59-cutover-gate") {
+		t.Fatalf("unexpected Data 59 migration range was not blocked: err=%v output=%s", result.err, result.output)
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(dockerLog), " stop ") || strings.Contains(string(dockerLog), "dbmigrate -apply") {
+		t.Fatalf("invalid Data 59 cutover reached destructive work: %s", dockerLog)
+	}
+}
+
+func TestUATDeployExecutorRequiresData59CutoverConfirmations(t *testing.T) {
+	for _, test := range []struct {
+		name                   string
+		destructiveConfirmed   bool
+		backupConfirmed        bool
+		expectedFailureMessage string
+	}{
+		{name: "destructive change", backupConfirmed: true, expectedFailureMessage: "confirm_destructive_data_change=true is required"},
+		{name: "recovery point", destructiveConfirmed: true, expectedFailureMessage: "confirm_high_risk_backup=true is required"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result := runDeployFixture(t, deployFixtureOptions{
+				currentRelease:       true,
+				deploymentMode:       "data_59_cutover",
+				destructiveConfirmed: test.destructiveConfirmed,
+				backupConfirmed:      test.backupConfirmed,
+				migrationReport:      `{"current_version":"58","pending":[{"Version":"59"}],"applied":[],"remaining":[]}`,
+			})
+			if result.err == nil || !strings.Contains(result.output, test.expectedFailureMessage) {
+				t.Fatalf("missing Data 59 confirmation was not blocked: err=%v output=%s", result.err, result.output)
+			}
+		})
+	}
+}
+
+func TestUATDeployExecutorNeverRestartsOldImagesAfterData59MigrationStarts(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:       true,
+		deploymentMode:       "data_59_cutover",
+		destructiveConfirmed: true,
+		backupConfirmed:      true,
+		migrationReport:      `{"current_version":"58","pending":[{"Version":"59"}],"applied":[],"remaining":[]}`,
+		migrationApplyReport: `{"current_version":"59","pending":[],"applied":[],"remaining":[]}`,
+		failFirstUp:          true,
+	})
+	if result.err == nil {
+		t.Fatal("failed Data 59 candidate fixture unexpectedly succeeded")
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(string(dockerLog), "\n") {
+		if strings.Contains(line, "resolved-data-image=fixture/data:"+previousFixtureSHA) && strings.Contains(line, " up ") {
+			t.Fatalf("Data 59 cutover restarted the incompatible old Data image: %s", dockerLog)
+		}
+	}
+	marker := filepath.Join(result.root, "state", "tidewise-2-cutover-in-progress")
+	assertFileContains(t, marker, "phase=data-migrated")
+	assertFileContains(t, marker, "target_version=59")
+}
+
+func TestUATDeployExecutorResumesSameReleaseData59Cutover(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:             true,
+		deploymentMode:             "data_59_cutover",
+		destructiveConfirmed:       true,
+		backupConfirmed:            true,
+		cutoverMarkerPhase:         "migration-started",
+		cutoverMarkerTargetVersion: "59",
+		migrationReport:            `{"current_version":"58","pending":[{"Version":"59"}],"applied":[],"remaining":[]}`,
+		migrationApplyReport:       `{"current_version":"59","pending":[],"applied":[],"remaining":[]}`,
+	})
+	if result.err != nil || !strings.Contains(result.output, "PASS data59-cutover-recovery-gate") {
+		t.Fatalf("same-release Data 59 forward recovery failed: err=%v output=%s", result.err, result.output)
+	}
+}
+
+func TestUATDeployExecutorRecoversInterruptedData59ReleaseStateWrite(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:             true,
+		releaseStateWritePhase:     "pre-data59",
+		deploymentMode:             "data_59_cutover",
+		destructiveConfirmed:       true,
+		backupConfirmed:            true,
+		cutoverMarkerPhase:         "data-migrated",
+		cutoverMarkerTargetVersion: "59",
+		migrationReport:            `{"current_version":"59","pending":[],"applied":[],"remaining":[]}`,
+		migrationApplyReport:       `{"current_version":"59","pending":[],"applied":[],"remaining":[]}`,
+	})
+	if result.err != nil {
+		t.Fatalf("interrupted Data 59 release-state recovery failed: %v\n%s", result.err, result.output)
+	}
+	for _, want := range []string{"PASS recovered-interrupted-release-state", "PASS data59-cutover-recovery-gate", "PASS release-state-recorded"} {
+		if !strings.Contains(result.output, want) {
+			t.Fatalf("interrupted Data 59 recovery output missing %q: %s", want, result.output)
+		}
+	}
+}
+
+func TestUATDeployExecutorTreatsAdvancedData59LedgerAsPostMigrationBeforeWriterStop(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:             true,
+		deploymentMode:             "data_59_cutover",
+		destructiveConfirmed:       true,
+		backupConfirmed:            true,
+		cutoverMarkerPhase:         "prepared",
+		cutoverMarkerTargetVersion: "59",
+		migrationReport:            `{"current_version":"59","pending":[],"applied":[],"remaining":[]}`,
+		migrationApplyReport:       `{"current_version":"59","pending":[],"applied":[],"remaining":[]}`,
+		failRunningServiceProbe:    true,
+	})
+	if result.err == nil || !strings.Contains(result.output, "FAIL application-write-stop") {
+		t.Fatalf("advanced Data 59 ledger did not fail closed at writer-stop proof: err=%v output=%s", result.err, result.output)
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(string(dockerLog), "\n") {
+		if strings.Contains(line, "resolved-data-image=fixture/data:"+previousFixtureSHA) && strings.Contains(line, " up ") {
+			t.Fatalf("advanced Data 59 ledger restarted migration-58 images: %s", dockerLog)
+		}
+	}
+	marker := filepath.Join(result.root, "state", "tidewise-2-cutover-in-progress")
+	assertFileContains(t, marker, "phase=migration-started")
+}
+
+func TestUATDeployExecutorStopsOldServicesWhenAdvancedData59MarkerRewriteFails(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:             true,
+		deploymentMode:             "data_59_cutover",
+		destructiveConfirmed:       true,
+		backupConfirmed:            true,
+		cutoverMarkerPhase:         "prepared",
+		cutoverMarkerTargetVersion: "59",
+		migrationReport:            `{"current_version":"59","pending":[],"applied":[],"remaining":[]}`,
+		migrationApplyReport:       `{"current_version":"59","pending":[],"applied":[],"remaining":[]}`,
+		failCutoverMarkerSync:      true,
+	})
+	if result.err == nil {
+		t.Fatalf("advanced Data 59 marker rewrite failure unexpectedly succeeded: %s", result.output)
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(dockerLog), " stop ") {
+		t.Fatalf("advanced Data 59 marker rewrite failure left old services running: %s", dockerLog)
+	}
+	for _, line := range strings.Split(string(dockerLog), "\n") {
+		if strings.Contains(line, "resolved-data-image=fixture/data:"+previousFixtureSHA) && strings.Contains(line, " up ") {
+			t.Fatalf("advanced Data 59 marker rewrite failure restarted migration-58 images: %s", dockerLog)
+		}
+	}
+}
+
 func TestUATDeployExecutorNeverRestartsOldImagesAfterData2MigrationStarts(t *testing.T) {
 	result := runDeployFixture(t, deployFixtureOptions{
 		currentRelease:       true,
@@ -1006,13 +1214,15 @@ echo 'EMBEDDING_API_KEY=visible-embedding-key'
 }
 
 const (
-	fixtureSHA                = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	previousFixtureSHA        = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
-	fixtureRelationshipPkgSHA = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	fixtureSHA                   = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	previousFixtureSHA           = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+	historicalPreData2FixtureSHA = "dddddddddddddddddddddddddddddddddddddddd"
+	fixtureRelationshipPkgSHA    = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
 )
 
 type deployFixtureOptions struct {
 	currentRelease                  bool
+	existingPreData2Snapshot        bool
 	currentReleaseCandidate         bool
 	expectedCurrentSHA              string
 	expectedCurrentMissing          bool
@@ -1032,6 +1242,8 @@ type deployFixtureOptions struct {
 	deploymentMode                  string
 	destructiveConfirmed            bool
 	cutoverMarkerPhase              string
+	cutoverMarkerTargetVersion      string
+	failCutoverMarkerSync           bool
 	failRunningServiceProbe         bool
 	rebuildEmptyDataSchema          bool
 	orphanedCutoverWriter           bool
@@ -1097,7 +1309,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		agentrunMigrationScope = "schema"
 	}
 	manifestRows := ""
-	for version := 1; version <= 58; version++ {
+	for version := 1; version <= 59; version++ {
 		risk := "normal"
 		scope := "schema"
 		reason := "fixture migration"
@@ -1121,6 +1333,11 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 			if version == 53 || version == 54 {
 				scope = "schema"
 			}
+		}
+		if version == 59 {
+			risk = "high"
+			scope = "mixed"
+			reason = "fixture Data 59 cutover migration"
 		}
 		manifestRows += fmt.Sprintf("%06d\t%s\t%s\t%s\n", version, risk, scope, reason)
 	}
@@ -1149,6 +1366,12 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 			currentSHA = "not-a-release-sha"
 		}
 		writeFixture(t, filepath.Join(state, "current.sha"), currentSHA+"\n")
+		if options.existingPreData2Snapshot {
+			writeFixture(t, filepath.Join(root, "pre-data2.runtime.env"), "ADMIN_SERVICE_TOKEN=historical-pre-data2-secret\n")
+			writeFixture(t, filepath.Join(state, "pre-data2.images.env"), "DATA_IMAGE=fixture/data:"+historicalPreData2FixtureSHA+"\n")
+			writeFixture(t, filepath.Join(state, "pre-data2.compose.yaml"), composeContent)
+			writeFixture(t, filepath.Join(state, "pre-data2.sha"), historicalPreData2FixtureSHA+"\n")
+		}
 	}
 	if options.releaseStateWritePhase != "" {
 		writeFixture(t, filepath.Join(state, "release-state-write-in-progress"), options.releaseStateWritePhase+"\n")
@@ -1158,9 +1381,19 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 			writeFixture(t, filepath.Join(state, "pre-data2.compose.yaml"), composeContent)
 			writeFixture(t, filepath.Join(state, "pre-data2.sha"), previousFixtureSHA+"\n")
 		}
+		if options.releaseStateWritePhase == "pre-data59" {
+			writeFixture(t, filepath.Join(root, "pre-data59.runtime.env"), "ADMIN_SERVICE_TOKEN=previous-admin-secret\n")
+			writeFixture(t, filepath.Join(state, "pre-data59.images.env"), "DATA_IMAGE=fixture/data:"+previousFixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+previousFixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+previousFixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+previousFixtureSHA+"\nAGENTRUN_IMAGE=fixture/agentrun:"+previousFixtureSHA+"\n")
+			writeFixture(t, filepath.Join(state, "pre-data59.compose.yaml"), composeContent)
+			writeFixture(t, filepath.Join(state, "pre-data59.sha"), previousFixtureSHA+"\n")
+		}
 	}
 	if options.cutoverMarkerPhase != "" {
-		writeFixture(t, filepath.Join(state, "tidewise-2-cutover-in-progress"), "release_sha="+fixtureSHA+"\nphase="+options.cutoverMarkerPhase+"\n")
+		marker := "release_sha=" + fixtureSHA + "\nphase=" + options.cutoverMarkerPhase + "\n"
+		if options.cutoverMarkerTargetVersion != "" {
+			marker += "target_version=" + options.cutoverMarkerTargetVersion + "\n"
+		}
+		writeFixture(t, filepath.Join(state, "tidewise-2-cutover-in-progress"), marker)
 	}
 
 	report := options.migrationReport
@@ -1190,6 +1423,17 @@ if [ "${FAKE_FAIL_FIRST_CURL:-false}" = true ] && [ "$count" -eq 1 ]; then exit 
 exit 0
 `)
 	writeExecutable(t, filepath.Join(bin, "flock"), "#!/bin/sh\nexit 0\n")
+	writeExecutable(t, filepath.Join(bin, "sync"), `#!/bin/sh
+set -eu
+if [ "${FAKE_FAIL_CUTOVER_MARKER_SYNC:-false}" = true ]; then
+  for argument in "$@"; do
+    case "$argument" in
+      *tidewise-2-cutover.*) exit 1 ;;
+    esac
+  done
+fi
+exit 0
+`)
 	writeExecutable(t, filepath.Join(bin, "docker"), `#!/bin/sh
 set -eu
 resolved_data_image="${DATA_IMAGE:-}"
@@ -1238,7 +1482,7 @@ case " $* " in
     if [ "${FAKE_FAIL_ARTIFACT_PROBE:-false}" = true ]; then exit 1; fi
     ;;
   *" --check-only "*) cat "$FAKE_AGENTRUN_MIGRATION_REPORT" ;;
-	  *" run "*" /usr/local/bin/dbmigrate -apply -target-version 58 "*)
+	  *" run "*" /usr/local/bin/dbmigrate -apply -target-version 58 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 59 "*)
 	    touch "$FAKE_CUTOVER_APPLIED"
 	    cat "$FAKE_MIGRATION_APPLY_REPORT"
 	    ;;
@@ -1337,6 +1581,7 @@ exit 0
 		"FAKE_FAIL_EXTERNAL_QDRANT="+boolText(options.failExternalQdrant),
 		"FAKE_FAIL_AGENT_VERSION_WITHDRAWAL="+boolText(options.failAgentVersionWithdrawal),
 		"FAKE_FAIL_RUNNING_SERVICE_PROBE="+boolText(options.failRunningServiceProbe),
+		"FAKE_FAIL_CUTOVER_MARKER_SYNC="+boolText(options.failCutoverMarkerSync),
 		"FAKE_ORPHANED_WRITER="+orphanedWriter,
 		"FAKE_RESTARTING_WRITER="+restartingWriter,
 		"DATA_IMAGE=fixture/data:"+fixtureSHA,
