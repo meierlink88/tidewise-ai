@@ -69,7 +69,7 @@ Data Domain Service
 - `docs/adr/0015-retire-root-shared-test-fixtures.md`
 - `docs/adr/0020-local-docker-application-and-infrastructure-projects.md`
 - `docs/adr/0021-simplify-atomic-evidence-semantics.md`
-- `docs/adr/0025-retire-data-event-semantic-and-formal-research.md`
+- `docs/adr/0026-retire-data-event-semantic-and-formal-research.md`
 
 ## Runtime
 
