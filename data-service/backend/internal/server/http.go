@@ -24,7 +24,6 @@ import (
 	organizationapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/organization"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
-	rawdocumentapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/rawdocument"
 	researchapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/research"
 	runtimehealthapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/runtimehealth"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/conf"
@@ -39,7 +38,7 @@ type healthResponse struct {
 	Checks      map[string]string `json:"checks,omitempty"`
 }
 
-func NewHTTPServer(config conf.Config, runtimeHealthApplication runtimehealthapi.Service, researchApplication researchapi.Service, eventApplication eventapi.Service, evidenceApplication evidenceapi.Service, rawDocumentApplication rawdocumentapi.Service, countryApplication countryapi.Service, industryApplication industryapi.Service, conceptApplication conceptapi.Service, chainNodeApplication chainnodeapi.Service, industryChainApplication industrychainapi.Service, organizationApplication organizationapi.Service, authenticator *Authenticator, logger *slog.Logger) (*kratoshttp.Server, error) {
+func NewHTTPServer(config conf.Config, runtimeHealthApplication runtimehealthapi.Service, researchApplication researchapi.Service, eventApplication eventapi.Service, evidenceApplication evidenceapi.Service, countryApplication countryapi.Service, industryApplication industryapi.Service, conceptApplication conceptapi.Service, chainNodeApplication chainnodeapi.Service, industryChainApplication industrychainapi.Service, organizationApplication organizationapi.Service, authenticator *Authenticator, logger *slog.Logger) (*kratoshttp.Server, error) {
 	if runtimeHealthApplication == nil {
 		return nil, errors.New("Runtime Health API service is required")
 	}
@@ -51,9 +50,6 @@ func NewHTTPServer(config conf.Config, runtimeHealthApplication runtimehealthapi
 	}
 	if eventApplication == nil {
 		return nil, errors.New("Event API service is required")
-	}
-	if rawDocumentApplication == nil {
-		return nil, errors.New("RawDocument API service is required")
 	}
 	if countryApplication == nil {
 		return nil, errors.New("Country API service is required")
@@ -100,7 +96,6 @@ func NewHTTPServer(config conf.Config, runtimeHealthApplication runtimehealthapi
 	researchapi.RegisterHTTPServer(server, researchApplication)
 	eventapi.RegisterHTTPServer(server, eventApplication)
 	evidenceapi.RegisterHTTPServer(server, evidenceApplication)
-	rawdocumentapi.RegisterHTTPServer(server, rawDocumentApplication)
 	countryapi.RegisterHTTPServer(server, countryApplication)
 	industryapi.RegisterHTTPServer(server, industryApplication)
 	conceptapi.RegisterHTTPServer(server, conceptApplication)

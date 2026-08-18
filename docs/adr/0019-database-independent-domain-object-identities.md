@@ -37,9 +37,9 @@ Data 各领域曾并存裸 UUID、`PREFIX_ + code`、固定短码和非 UUID 自
 `ODL` Organization Domain Tag Link、
 `RAW` Raw Evidence、`EVD` Evidence、`EVC` Evidence Category、`RCL` Raw Evidence Category Link、`CPC` Chain Node Physical
 Constraint、`CNR` Chain Node Relation、`CRL` Country Region Link、`EEI` Entity External Identifier、
-`EPR` Event Publication Receipt、`EEL` Event Evidence Link、`ETD` Event Tag Definition、`ETA`
-Event Tag Assignment、`EVT` Event、`IGE` Industry Chain Graph Edge、`IRI` Industry Relationship
-Import Receipt、`OMB` Organization Membership、`EER` Event Evidence Record、`RRI` Research
+`EVT` Event、`EEL` Event Evidence Link、`EAC` Event Actor Link、`EAS` Event Asset Link、
+`IGE` Industry Chain Graph Edge、`IRI` Industry Relationship Import Receipt、
+`OMB` Organization Membership、`RRI` Research
 Reasoning Tree Import Receipt、`RRN` Research Reasoning Tree Node、`RRT` Research Reasoning Tree、
 `RTI` Research Theme Import Receipt、`RTH` Research Theme。
 
@@ -65,3 +65,7 @@ UUID 后缀并同步改写全部支持引用。普通 Entity 继续使用 `ENT`�
 Issue #267 通过 forward-only migration `000059` 退役 Data-owned Event Semantic 与
 Variable Signal 持久化，因此从当前注册表删除 `DIA`、`ENL`、`ECS`、`SCL`、`ERB`、
 `ERS`、`ESS`、`VSM` 和 `VSG`。历史 migration 中的旧前缀仍是不可改写的账本事实。
+
+Issue #277 通过 forward-only migration `000060` 重建 Event 领域，保留 `EVT` 和
+`EEL`，新增 `EAC` 与 `EAS`，并从当前注册表删除已退役的 `EER`、`ETD`、
+`ETA` 和 `EPR`。这些旧前缀在历史 migration 中的出现仍保留。

@@ -43,12 +43,12 @@ func TestHandlerDoesNotPublishOpenAPIInProduction(t *testing.T) {
 
 func TestNewHandlerComposesAdminBFFWithOneDataServiceCall(t *testing.T) {
 	calls := 0
-	client := &biz.FakeDataServiceRepo{ListRawDocumentsFunc: func(context.Context, biz.RawDocumentListQuery) (biz.RawDocumentPage, error) {
+	client := &biz.FakeDataServiceRepo{ListEventsFunc: func(context.Context, biz.EventListQuery) (biz.EventPage, error) {
 		calls++
-		return biz.RawDocumentPage{Items: []biz.RawDocument{}, Page: 1, PageSize: 50}, nil
+		return biz.EventPage{Items: []biz.Event{}, Page: 1, PageSize: 50}, nil
 	}}
 	handler := newHandler(testConfig(), client, "admin-token")
-	request := httptest.NewRequest(http.MethodGet, v1.APIPrefix+"/raw-documents", nil)
+	request := httptest.NewRequest(http.MethodGet, v1.APIPrefix+"/events", nil)
 	request.Header.Set("Authorization", "Bearer admin-token")
 	request.Header.Set(data.RequestIDHeader, "admin-service-test")
 	response := httptest.NewRecorder()

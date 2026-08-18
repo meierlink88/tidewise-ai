@@ -8,7 +8,7 @@ on:
         required: false
         type: string
       deployment_mode:
-        description: Use normal for ongoing releases; cutover modes are bounded to Data migrations 44-58 or 59.
+        description: Use normal for ongoing releases; cutover modes are bounded to Data migrations 44-58, 59, or 60.
         required: true
         default: normal
         type: choice
@@ -16,6 +16,7 @@ on:
           - normal
           - tidewise_2_cutover
           - data_59_cutover
+          - data_60_cutover
       confirm_high_risk_backup:
         description: Confirm a current RDS recovery point for high-risk migrations.
         required: false
@@ -138,6 +139,10 @@ jobs:
           pre_data59_sha="${state_dir}/pre-data59.sha"
           pre_data59_images="${state_dir}/pre-data59.images.env"
           pre_data59_compose="${state_dir}/pre-data59.compose.yaml"
+          pre_data60_runtime="${DEPLOY_ROOT}/pre-data60.runtime.env"
+          pre_data60_sha="${state_dir}/pre-data60.sha"
+          pre_data60_images="${state_dir}/pre-data60.images.env"
+          pre_data60_compose="${state_dir}/pre-data60.compose.yaml"
           state_fingerprint() {
             for path in "$runtime_file" "$sha_file" "$images_file" "$compose_file" "$write_marker" "$cutover_marker"; do
               if [ -e "$path" ]; then
@@ -149,7 +154,7 @@ jobs:
           }
           echo "available=false" >> "$GITHUB_OUTPUT"
           echo "state_fingerprint=$(state_fingerprint)" >> "$GITHUB_OUTPUT"
-          if [ -e "$cutover_marker" ] && [ "$DEPLOYMENT_MODE" != tidewise_2_cutover ] && [ "$DEPLOYMENT_MODE" != data_59_cutover ]; then
+          if [ -e "$cutover_marker" ] && [ "$DEPLOYMENT_MODE" != tidewise_2_cutover ] && [ "$DEPLOYMENT_MODE" != data_59_cutover ] && [ "$DEPLOYMENT_MODE" != data_60_cutover ]; then
             echo "A bounded Data cutover recovery marker blocks ordinary UAT deployment." >&2
             exit 1
           fi
@@ -167,7 +172,13 @@ jobs:
               images_file="$pre_data59_images"
               compose_file="$pre_data59_compose"
               echo "Using the archived pre-Data-59 release as the interrupted cutover recovery baseline."
-            elif [[ "$DEPLOYMENT_MODE" =~ ^(tidewise_2_cutover|data_59_cutover)$ ]] && [ "$recovery_mode" = committed ]; then
+            elif [ "$DEPLOYMENT_MODE" = data_60_cutover ] && [ "$recovery_mode" = pre-data60 ]; then
+              runtime_file="$pre_data60_runtime"
+              sha_file="$pre_data60_sha"
+              images_file="$pre_data60_images"
+              compose_file="$pre_data60_compose"
+              echo "Using the archived pre-Data-60 release as the interrupted cutover recovery baseline."
+            elif [[ "$DEPLOYMENT_MODE" =~ ^(tidewise_2_cutover|data_59_cutover|data_60_cutover)$ ]] && [ "$recovery_mode" = committed ]; then
               echo "Using the committed candidate release as the interrupted cutover recovery baseline."
             else
               echo "Previous UAT release has an interrupted state write; full deployment required."
@@ -254,7 +265,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "$DEPLOYMENT_MODE" =~ ^(tidewise_2_cutover|data_59_cutover)$ ]]; then
+          if [[ "$DEPLOYMENT_MODE" =~ ^(tidewise_2_cutover|data_59_cutover|data_60_cutover)$ ]]; then
             plan="$(printf '%s\n' \
               'deploy_all=true' \
               'deploy_data=true' \

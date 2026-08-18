@@ -38,9 +38,6 @@ func TestOpenAPIContractFreezesAdminRoutesSecurityAndEnvelopes(t *testing.T) {
 		"/readyz": {
 			{method: "get", operationID: "getAdminPortalReadiness"},
 		},
-		"/api/admin/v1/raw-documents": {
-			{method: "get", operationID: "listAdminPortalRawDocuments", envelope: "RawDocumentPageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
-		},
 		"/api/admin/v1/events": {
 			{method: "get", operationID: "listAdminPortalEvents", envelope: "EventPageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
 		},
@@ -101,8 +98,8 @@ func TestOpenAPIContractPreservesRetainedDataListSchemas(t *testing.T) {
 	}
 
 	for name, want := range map[string][]string{
-		"EventStatus": {"candidate", "confirmed", "rejected"},
-		"FactStatus":  {"unverified", "verified", "disputed"},
+		"EventModality":        {"FACT", "PLAN", "SPEC"},
+		"EventLifecycleStatus": {"ACTIVE", "DEPRECATED", "ARCHIVED"},
 	} {
 		schema := adminSchema(t, document, name)
 		values := adminArray(t, schema["enum"], name+".enum")
@@ -116,17 +113,12 @@ func TestOpenAPIContractPreservesRetainedDataListSchemas(t *testing.T) {
 		}
 	}
 
-	rawDocument := adminSchema(t, document, "RawDocument")
-	if rawDocument["additionalProperties"] != false {
-		t.Fatalf("RawDocument additionalProperties = %v, want false", rawDocument["additionalProperties"])
+	event := adminSchema(t, document, "Event")
+	if event["additionalProperties"] != false {
+		t.Fatalf("Event additionalProperties = %v, want false", event["additionalProperties"])
 	}
-	properties := adminObject(t, rawDocument["properties"], "RawDocument.properties")
-	if adminObject(t, properties["source_url"], "source_url")["format"] != "uri" {
-		t.Fatal("RawDocument source_url must retain uri format")
-	}
-	if adminObject(t, properties["content_sha256"], "content_sha256")["pattern"] != "^[0-9a-f]{64}$" {
-		t.Fatal("RawDocument content_sha256 must retain lowercase SHA-256 pattern")
-	}
+	assertAdminRequired(t, event, "id", "title", "summary", "semantic", "modality", "occurred_at", "announced_at", "status")
+	assertAdminRequired(t, adminSchema(t, document, "EventSemantic"), "who", "what", "when", "where", "why", "how")
 }
 
 func parseAdminDocument(t *testing.T) map[string]any {

@@ -54,10 +54,7 @@ WHERE n.nspname = current_schema()
     (SELECT COUNT(*) FROM chain_node),
     (SELECT COUNT(*) FROM industry_chain),
     (SELECT COUNT(*) FROM industry_chain_graph_edges),
-    (SELECT COUNT(*) FROM index_profiles),
-    (SELECT COUNT(*) FROM event_tag_defs),
-    (SELECT COUNT(*) FROM event_tag_maps),
-    (SELECT COUNT(*) FROM raw_documents)`
+    (SELECT COUNT(*) FROM index_profiles)`
 	disablePublicationTriggersSQL = `ALTER TABLE research_theme_import_receipts DISABLE TRIGGER trg_research_theme_receipts_immutable;
 ALTER TABLE research_themes DISABLE TRIGGER trg_research_themes_immutable;
 ALTER TABLE research_theme_impacts DISABLE TRIGGER trg_research_theme_impacts_immutable;
@@ -115,9 +112,6 @@ type protectedCounts struct {
 	IndustryChains          int64 `json:"industry_chain"`
 	IndustryChainGraphEdges int64 `json:"industry_chain_graph_edges"`
 	IndexProfiles           int64 `json:"index_profiles"`
-	EventTagDefs            int64 `json:"event_tag_defs"`
-	EventTagMaps            int64 `json:"event_tag_maps"`
-	RawDocuments            int64 `json:"raw_documents"`
 }
 
 type resetReport struct {
@@ -310,7 +304,7 @@ func readProtectedCounts(ctx context.Context, tx *sql.Tx) (protectedCounts, erro
 	err := tx.QueryRowContext(ctx, protectedCountsSQL).Scan(
 		&counts.Events, &counts.EntityNodes, &counts.Industries, &counts.Concepts, &counts.ChainNodes,
 		&counts.IndustryChains, &counts.IndustryChainGraphEdges,
-		&counts.IndexProfiles, &counts.EventTagDefs, &counts.EventTagMaps, &counts.RawDocuments,
+		&counts.IndexProfiles,
 	)
 	if err != nil {
 		return protectedCounts{}, fmt.Errorf("read protected data counts: %w", err)

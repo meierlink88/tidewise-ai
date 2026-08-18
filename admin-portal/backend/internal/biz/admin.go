@@ -33,13 +33,6 @@ func NewService(dataClient DataServiceRepo, options ...Option) *Service {
 	return service
 }
 
-func (s *Service) ListRawDocuments(ctx context.Context, query RawDocumentListQuery) (RawDocumentPage, error) {
-	if s == nil || s.dataClient == nil {
-		return RawDocumentPage{}, ErrDataServiceUnavailable
-	}
-	return s.dataClient.ListRawDocuments(ctx, query)
-}
-
 func (s *Service) ListEvents(ctx context.Context, query EventListQuery) (EventPage, error) {
 	if s == nil || s.dataClient == nil {
 		return EventPage{}, ErrDataServiceUnavailable

@@ -66,7 +66,7 @@ func TestAdminTokenMiddlewareRejectsMissingWrongAndUnconfiguredTokenWithoutDataC
 		t.Run(test.name, func(t *testing.T) {
 			calls := 0
 			router := NewRouter(testConfig(), biz.NewService(countingClient(&calls), nil), test.token)
-			request := httptest.NewRequest(http.MethodGet, "/api/admin/v1/raw-documents", nil)
+			request := httptest.NewRequest(http.MethodGet, "/api/admin/v1/events", nil)
 			if test.header != "" {
 				request.Header.Set("Authorization", test.header)
 			}
@@ -101,63 +101,10 @@ func TestRetiredSchedulerEndpointsAreAbsent(t *testing.T) {
 	}
 }
 
-func TestRawDocumentsAPIUsesOneDataCallAndPreservesPublicShape(t *testing.T) {
-	collectedAt := testTime()
-	publishedAt := collectedAt.Add(-time.Hour)
-	calls := 0
-	var gotQuery biz.RawDocumentListQuery
-	var gotRequestID string
-	client := &biz.FakeDataServiceRepo{ListRawDocumentsFunc: func(ctx context.Context, query biz.RawDocumentListQuery) (biz.RawDocumentPage, error) {
-		calls++
-		gotQuery = query
-		gotRequestID = data.RequestIDFromContext(ctx)
-		return biz.RawDocumentPage{
-			Items: []biz.RawDocument{{
-				ID: "raw-1", ContractVersion: 2, ArtifactID: "artifact-1", SourceRef: "source:reuters:world", SourceType: "news",
-				SourceName: "示例来源", SourceURL: "https://example.com/rss.xml", Title: "央行公布金融数据",
-				PublishedAt: &publishedAt, CollectedAt: collectedAt,
-				IngestStatus:  biz.IngestStatusCollected,
-				ContentSHA256: strings.Repeat("a", 64),
-			}},
-			Total: 1, Page: 2, PageSize: 25,
-		}, nil
-	}}
-	router := NewRouter(testConfig(), biz.NewService(client, nil), "secret")
-
-	response := performJSONRequest(t, router, http.MethodGet, "/api/admin/v1/raw-documents?title=央行&page=2&page_size=25", nil, "secret", "admin-request-raw")
-	if response.Code != http.StatusOK {
-		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
-	}
-	if calls != 1 || gotQuery.Title != "央行" || gotQuery.Page != 2 || gotQuery.PageSize != 25 || gotRequestID != "admin-request-raw" {
-		t.Fatalf("calls/query/request id = %d/%#v/%q", calls, gotQuery, gotRequestID)
-	}
-	var envelope struct {
-		RequestID string                     `json:"request_id"`
-		Result    v1.RawDocumentListResponse `json:"result"`
-	}
-	decodeJSON(t, response, &envelope)
-	body := envelope.Result
-	if envelope.RequestID != "admin-request-raw" || response.Header().Get(data.RequestIDHeader) != envelope.RequestID {
-		t.Fatalf("request IDs = %q/%q", envelope.RequestID, response.Header().Get(data.RequestIDHeader))
-	}
-	if body.Total != 1 || body.Page != 2 || body.PageSize != 25 || len(body.Items) != 1 || body.Items[0].Title != "央行公布金融数据" || body.Items[0].ContractVersion != 2 || body.Items[0].ArtifactID != "artifact-1" || body.Items[0].SourceRef != "source:reuters:world" || body.Items[0].PublishedAt != publishedAt.Format(time.RFC3339) {
-		t.Fatalf("response = %#v", body)
-	}
-}
-
-func TestInvalidRawPaginationReturns400WithoutDataCall(t *testing.T) {
-	calls := 0
-	router := NewRouter(testConfig(), biz.NewService(countingClient(&calls), nil), "secret")
-	response := performJSONRequest(t, router, http.MethodGet, "/api/admin/v1/raw-documents?page=0", nil, "secret", "")
-	if response.Code != http.StatusBadRequest || calls != 0 {
-		t.Fatalf("status/calls = %d/%d, want 400/0", response.Code, calls)
-	}
-}
-
 func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T) {
 	eventTime := testTime()
-	firstSeenAt := eventTime.Add(30 * time.Minute)
-	knowableAt := firstSeenAt.Add(time.Minute)
+	announcedAt := eventTime.Add(30 * time.Minute)
+	what := "维持利率不变"
 	calls := 0
 	var gotQuery biz.EventListQuery
 	client := &biz.FakeDataServiceRepo{ListEventsFunc: func(ctx context.Context, query biz.EventListQuery) (biz.EventPage, error) {
@@ -167,18 +114,18 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 			t.Fatalf("request id = %q", data.RequestIDFromContext(ctx))
 		}
 		return biz.EventPage{Items: []biz.Event{{
-			ID: "event-1", Title: "美联储维持利率不变", Summary: "摘要", EventTime: &eventTime,
-			FirstSeenAt: firstSeenAt, KnowableAt: &knowableAt, EventStatus: biz.EventStatusConfirmed,
-			FactStatus: biz.FactStatusVerified, DedupeKey: "fed-rate-hold",
+			ID: "EVT00000000-0000-5000-8000-000000000001", Title: "美联储维持利率不变", Summary: "摘要",
+			Semantic: biz.EventSemantic{What: &what}, Modality: biz.EventModalityFact,
+			OccurredAt: &eventTime, AnnouncedAt: &announcedAt, Status: biz.EventLifecycleActive,
 		}}, Total: 1, Page: 1, PageSize: 50}, nil
 	}}
 	router := NewRouter(testConfig(), biz.NewService(client, nil), "secret")
-	path := "/api/admin/v1/events?title=美联储&event_status=confirmed&fact_status=verified&event_time_from=2026-07-09T00:00:00Z&event_time_to=2026-07-10T00:00:00Z&first_seen_from=2026-07-09T00:00:00Z&first_seen_to=2026-07-10T00:00:00Z"
+	path := "/api/admin/v1/events?title=美联储&modality=FACT&status=ACTIVE&occurred_from=2026-07-09T00:00:00Z&occurred_to=2026-07-10T00:00:00Z&announced_from=2026-07-09T00:00:00Z&announced_to=2026-07-10T00:00:00Z"
 	response := performJSONRequest(t, router, http.MethodGet, path, nil, "secret", "admin-request-event")
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
 	}
-	if calls != 1 || gotQuery.Title != "美联储" || gotQuery.EventStatus != biz.EventStatusConfirmed || gotQuery.FactStatus != biz.FactStatusVerified || gotQuery.EventTimeFrom == nil || gotQuery.EventTimeTo == nil || gotQuery.FirstSeenFrom == nil || gotQuery.FirstSeenTo == nil || gotQuery.Page != 1 || gotQuery.PageSize != 50 {
+	if calls != 1 || gotQuery.Title != "美联储" || gotQuery.Modality != biz.EventModalityFact || gotQuery.Status != biz.EventLifecycleActive || gotQuery.OccurredFrom == nil || gotQuery.OccurredTo == nil || gotQuery.AnnouncedFrom == nil || gotQuery.AnnouncedTo == nil || gotQuery.Page != 1 || gotQuery.PageSize != 50 {
 		t.Fatalf("calls/query = %d/%#v", calls, gotQuery)
 	}
 	if strings.Contains(response.Body.String(), "fact_payload") {
@@ -193,17 +140,34 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 	if envelope.RequestID != "admin-request-event" || response.Header().Get(data.RequestIDHeader) != envelope.RequestID {
 		t.Fatalf("request IDs = %q/%q", envelope.RequestID, response.Header().Get(data.RequestIDHeader))
 	}
-	if body.Total != 1 || len(body.Items) != 1 || body.Items[0].ID != "event-1" || body.Items[0].KnowableAt != knowableAt.Format(time.RFC3339) {
+	if body.Total != 1 || len(body.Items) != 1 || body.Items[0].Status != "ACTIVE" || body.Items[0].AnnouncedAt == nil || *body.Items[0].AnnouncedAt != announcedAt.Format(time.RFC3339) || body.Items[0].Semantic.What == nil || *body.Items[0].Semantic.What != what {
 		t.Fatalf("response = %#v", body)
 	}
 }
 
-func TestUnexpectedDataErrorReturnsGeneric500WithoutLeak(t *testing.T) {
-	client := &biz.FakeDataServiceRepo{ListRawDocumentsFunc: func(context.Context, biz.RawDocumentListQuery) (biz.RawDocumentPage, error) {
-		return biz.RawDocumentPage{}, errors.New("postgres connection secret-internal-detail")
+func TestEventsAPIAlwaysEmitsNullableTimeFields(t *testing.T) {
+	client := &biz.FakeDataServiceRepo{ListEventsFunc: func(context.Context, biz.EventListQuery) (biz.EventPage, error) {
+		return biz.EventPage{Items: []biz.Event{{
+			ID: "EVT00000000-0000-5000-8000-000000000001", Title: "无时间事件", Summary: "摘要",
+			Modality: biz.EventModalityFact, Status: biz.EventLifecycleActive,
+		}}, Total: 1, Page: 1, PageSize: 50}, nil
 	}}
 	router := NewRouter(testConfig(), biz.NewService(client, nil), "secret")
-	response := performJSONRequest(t, router, http.MethodGet, "/api/admin/v1/raw-documents", nil, "secret", "")
+	response := performJSONRequest(t, router, http.MethodGet, "/api/admin/v1/events", nil, "secret", "admin-null-times")
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
+	}
+	if !strings.Contains(response.Body.String(), `"occurred_at":null`) || !strings.Contains(response.Body.String(), `"announced_at":null`) {
+		t.Fatalf("nullable time fields are not explicit: %s", response.Body.String())
+	}
+}
+
+func TestUnexpectedDataErrorReturnsGeneric500WithoutLeak(t *testing.T) {
+	client := &biz.FakeDataServiceRepo{ListEventsFunc: func(context.Context, biz.EventListQuery) (biz.EventPage, error) {
+		return biz.EventPage{}, errors.New("postgres connection secret-internal-detail")
+	}}
+	router := NewRouter(testConfig(), biz.NewService(client, nil), "secret")
+	response := performJSONRequest(t, router, http.MethodGet, "/api/admin/v1/events", nil, "secret", "")
 	if response.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500", response.Code)
 	}
@@ -248,7 +212,7 @@ func TestPanicReturnsStructuredErrorWithRequestID(t *testing.T) {
 func TestAdminCORSAllowsOnlyConfiguredOriginAndHandlesPreflightBeforeAuth(t *testing.T) {
 	router := NewRouter(testConfig(), biz.NewService(countingClient(new(int)), nil), "secret", "http://uat.example.test:9014")
 
-	preflight := httptest.NewRequest(http.MethodOptions, "/api/admin/v1/raw-documents", nil)
+	preflight := httptest.NewRequest(http.MethodOptions, "/api/admin/v1/events", nil)
 	preflight.Header.Set("Origin", "http://uat.example.test:9014")
 	preflight.Header.Set("Access-Control-Request-Method", http.MethodGet)
 	allowed := httptest.NewRecorder()
@@ -257,7 +221,7 @@ func TestAdminCORSAllowsOnlyConfiguredOriginAndHandlesPreflightBeforeAuth(t *tes
 		t.Fatalf("allowed preflight = status %d, origin %q", allowed.Code, allowed.Header().Get("Access-Control-Allow-Origin"))
 	}
 
-	deniedRequest := httptest.NewRequest(http.MethodGet, "/api/admin/v1/raw-documents", nil)
+	deniedRequest := httptest.NewRequest(http.MethodGet, "/api/admin/v1/events", nil)
 	deniedRequest.Header.Set("Origin", "http://attacker.example.test")
 	denied := httptest.NewRecorder()
 	router.ServeHTTP(denied, deniedRequest)
@@ -268,10 +232,6 @@ func TestAdminCORSAllowsOnlyConfiguredOriginAndHandlesPreflightBeforeAuth(t *tes
 
 func countingClient(calls *int) *biz.FakeDataServiceRepo {
 	return &biz.FakeDataServiceRepo{
-		ListRawDocumentsFunc: func(context.Context, biz.RawDocumentListQuery) (biz.RawDocumentPage, error) {
-			*calls++
-			return biz.RawDocumentPage{}, nil
-		},
 		ListEventsFunc: func(context.Context, biz.EventListQuery) (biz.EventPage, error) {
 			*calls++
 			return biz.EventPage{}, nil

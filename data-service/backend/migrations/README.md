@@ -65,6 +65,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000059_retire_data_event_semantics.sql`：删除 Data-owned Event Semantic/Variable Signal
   能力和持久化，并在语义表之前删除依赖它们的 formal Research 行；保留
   `analyst_snapshot` Research 及 Atomic Evidence `semantic`。
+- `000060_rebuild_event_domain.sql`：Issue #277 授权的零兼容切换，删除旧 Event 与
+  依赖 Research 事实，退役轻量 Raw Document、Event Source、Event Tag 和 Publication
+  Receipt，并围绕 Event、Atomic Evidence Link、Actor Link 和 Asset Link 重建持久化。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -153,8 +156,10 @@ Signal、Direct Impact 与相关 definition/policy/catalog 表均不存在，for
 保持原合同。旧应用不兼容新 schema；回滚必须同时恢复 migration 59 前快照和上一版应用，
 不运行 down migration。
 
-Data 不再提供 `source-seed` 或维护 `source_catalogs`，既有 Event Publication 仍只通过
-`POST /api/data/v1/reviewed-event-imports` 连同轻量 Event 证据原子接纳；历史
-`raw_documents.content_text` 继续可读，但 V2 新记录不保存正文。ADR-0011 另行建立与该旧链路
-隔离的 Evidence 体系：完整材料进入 `raw_evidences`，不复用 `raw_documents` 或
-`event_sources`。
+`000060` 是 Issue #277 授权的零兼容破坏性切换，也是“migration 不删除业务事实”
+规则的限域例外。旧 Event 无法在不编造 semantic、modality 和 lifecycle 的前提下转换，
+需求明确要求删除且不保留。操作员必须停止 Data 及直接依赖写入者，确认 PostgreSQL
+恢复点，并以候选镜像 check-only；只有确认 `000060` 是唯一 pending migration 后才通过
+`data_60_cutover` 执行 apply。执行后确认 ledger 为 `60`，旧五类表不存在，新四表的列、
+约束与前缀身份正确，且旧 Event 与依赖 Research 数据为空。旧应用不兼容新 schema；
+回滚必须同时恢复 migration 60 前快照与上一版应用，不运行 down migration。

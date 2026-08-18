@@ -20,28 +20,6 @@ func NewAdminService(admin *biz.Service) *AdminService {
 	return &AdminService{admin: admin}
 }
 
-func (s *AdminService) ListRawDocuments(
-	ctx context.Context,
-	request *v1.ListRawDocumentsRequest,
-) (*v1.RawDocumentListResponse, error) {
-	if s == nil || s.admin == nil || request == nil {
-		return nil, v1.ErrInvalidRequest
-	}
-	page, err := s.admin.ListRawDocuments(ctx, biz.RawDocumentListQuery{
-		Title: request.Title, SourceRef: request.SourceRef, Page: request.Page, PageSize: request.PageSize,
-	})
-	if err != nil {
-		return nil, v1.NewHTTPError(http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
-	}
-	items := make([]v1.RawDocument, 0, len(page.Items))
-	for _, document := range page.Items {
-		items = append(items, rawDocument(document))
-	}
-	return &v1.RawDocumentListResponse{
-		Items: items, Total: page.Total, Page: page.Page, PageSize: page.PageSize,
-	}, nil
-}
-
 func (s *AdminService) ListEvents(
 	ctx context.Context,
 	request *v1.ListEventsRequest,
@@ -67,36 +45,35 @@ func (s *AdminService) ListEvents(
 }
 
 func eventQuery(request *v1.ListEventsRequest) (biz.EventListQuery, error) {
-	eventTimeFrom, err := parseOptionalTime(request.EventTimeFrom)
+	occurredFrom, err := parseOptionalTime(request.OccurredFrom)
 	if err != nil {
 		return biz.EventListQuery{}, err
 	}
-	eventTimeTo, err := parseOptionalTime(request.EventTimeTo)
+	occurredTo, err := parseOptionalTime(request.OccurredTo)
 	if err != nil {
 		return biz.EventListQuery{}, err
 	}
-	firstSeenFrom, err := parseOptionalTime(request.FirstSeenFrom)
+	announcedFrom, err := parseOptionalTime(request.AnnouncedFrom)
 	if err != nil {
 		return biz.EventListQuery{}, err
 	}
-	firstSeenTo, err := parseOptionalTime(request.FirstSeenTo)
+	announcedTo, err := parseOptionalTime(request.AnnouncedTo)
 	if err != nil {
 		return biz.EventListQuery{}, err
 	}
-	eventStatus := biz.EventStatus(request.EventStatus)
-	if eventStatus != "" && eventStatus != biz.EventStatusCandidate &&
-		eventStatus != biz.EventStatusConfirmed && eventStatus != biz.EventStatusRejected {
+	modality := biz.EventModality(request.Modality)
+	if modality != "" && modality != biz.EventModalityFact && modality != biz.EventModalityPlan && modality != biz.EventModalitySpec {
+		return biz.EventListQuery{}, invalidRequest("unsupported event modality")
+	}
+	status := biz.EventLifecycleStatus(request.Status)
+	if status != "" && status != biz.EventLifecycleActive &&
+		status != biz.EventLifecycleDeprecated && status != biz.EventLifecycleArchived {
 		return biz.EventListQuery{}, invalidRequest("unsupported event status")
 	}
-	factStatus := biz.FactStatus(request.FactStatus)
-	if factStatus != "" && factStatus != biz.FactStatusUnverified &&
-		factStatus != biz.FactStatusVerified && factStatus != biz.FactStatusDisputed {
-		return biz.EventListQuery{}, invalidRequest("unsupported fact status")
-	}
 	return biz.EventListQuery{
-		Title: request.Title, EventStatus: eventStatus, FactStatus: factStatus,
-		EventTimeFrom: eventTimeFrom, EventTimeTo: eventTimeTo,
-		FirstSeenFrom: firstSeenFrom, FirstSeenTo: firstSeenTo,
+		Title: request.Title, Modality: modality, Status: status,
+		OccurredFrom: occurredFrom, OccurredTo: occurredTo,
+		AnnouncedFrom: announcedFrom, AnnouncedTo: announcedTo,
 		Page: request.Page, PageSize: request.PageSize,
 	}, nil
 }
@@ -116,34 +93,22 @@ func invalidRequest(message string) error {
 	return v1.NewHTTPError(http.StatusBadRequest, "INVALID_REQUEST", message)
 }
 
-func rawDocument(value biz.RawDocument) v1.RawDocument {
-	response := v1.RawDocument{
-		ID: value.ID, ContractVersion: value.ContractVersion, ArtifactID: value.ArtifactID,
-		SourceRef: value.SourceRef, IngestChannel: value.IngestChannel, SourceType: value.SourceType,
-		SourceName: value.SourceName, SourceURL: value.SourceURL, SourceExternalID: value.SourceExternalID,
-		Title: value.Title, ContentText: value.ContentText, RawObjectURI: value.RawObjectURI,
-		RawMIMEType: value.RawMIMEType, Language: value.Language,
-		CollectedAt: value.CollectedAt.Format(time.RFC3339), IngestStatus: string(value.IngestStatus),
-		ContentSHA256: value.ContentSHA256,
-	}
-	if value.PublishedAt != nil {
-		response.PublishedAt = value.PublishedAt.Format(time.RFC3339)
-	}
-	return response
-}
-
 func event(value biz.Event) v1.Event {
 	response := v1.Event{
 		ID: value.ID, Title: value.Title, Summary: value.Summary,
-		FirstSeenAt: value.FirstSeenAt.Format(time.RFC3339),
-		EventStatus: string(value.EventStatus), FactStatus: string(value.FactStatus),
-		DedupeKey: value.DedupeKey,
+		Semantic: v1.EventSemantic{
+			Who: value.Semantic.Who, What: value.Semantic.What, When: value.Semantic.When,
+			Where: value.Semantic.Where, Why: value.Semantic.Why, How: value.Semantic.How,
+		},
+		Modality: string(value.Modality), Status: string(value.Status),
 	}
-	if value.EventTime != nil {
-		response.EventTime = value.EventTime.Format(time.RFC3339)
+	if value.OccurredAt != nil {
+		formatted := value.OccurredAt.Format(time.RFC3339)
+		response.OccurredAt = &formatted
 	}
-	if value.KnowableAt != nil {
-		response.KnowableAt = value.KnowableAt.Format(time.RFC3339)
+	if value.AnnouncedAt != nil {
+		formatted := value.AnnouncedAt.Format(time.RFC3339)
+		response.AnnouncedAt = &formatted
 	}
 	return response
 }
