@@ -32,7 +32,6 @@ func TestLocalDockerProjectsSeparateApplicationsAndInfrastructure(t *testing.T) 
 
 	for _, want := range []string{
 		"name: tidewise-app",
-		"container_name: data-migrate",
 		"container_name: data-service",
 		"container_name: agentrun-service",
 		"container_name: agentrun-migrate",
@@ -55,6 +54,9 @@ func TestLocalDockerProjectsSeparateApplicationsAndInfrastructure(t *testing.T) 
 		if !strings.Contains(applicationText, want) {
 			t.Fatalf("application compose missing %q", want)
 		}
+	}
+	if strings.Contains(applicationText, "container_name: data-migrate") {
+		t.Fatal("ephemeral Data migration template must not assign a stable container name")
 	}
 
 	for _, forbidden := range []string{

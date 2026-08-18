@@ -37,7 +37,6 @@ cleanup() {
 trap cleanup EXIT
 
 docker network create "$COMPOSE_NETWORK_NAME" >/dev/null
-"${compose[@]}" create --no-build data-migrate >/dev/null
 docker run -d --name "$postgres_fixture" --network "$COMPOSE_NETWORK_NAME" \
   -e POSTGRES_USER=tidewise \
   -e "POSTGRES_PASSWORD=${TIDEWISW_DB_PASSWORD}" \
@@ -53,6 +52,10 @@ docker exec "$postgres_fixture" pg_isready -U tidewise -d tidewise_local >/dev/n
 "${compose[@]}" run --rm --no-deps \
   -e "PGOPTIONS=-c tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified -c tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified -c tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified" \
   data-migrate >/dev/null
+if [[ -n "$("${compose[@]}" ps -a -q data-migrate)" ]]; then
+  echo "Data migration container was retained after the ephemeral run" >&2
+  exit 1
+fi
 "${compose[@]}" up -d --wait --no-build --no-deps data
 "${compose[@]}" up -d --wait --no-build --no-deps miniapp
 

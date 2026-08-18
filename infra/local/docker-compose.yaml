@@ -2,7 +2,7 @@ name: tidewise-app
 
 services:
   data-migrate:
-    container_name: data-migrate
+    profiles: ['operations']
     build:
       context: ../..
       dockerfile: data-service/backend/Dockerfile
@@ -33,9 +33,6 @@ services:
       TIDEWISE_DB_HOST: '${TIDEWISE_DB_HOST:-postgres}'
       TIDEWISW_DB_PASSWORD: '${TIDEWISW_DB_PASSWORD:-${POSTGRES_PASSWORD:?set TIDEWISW_DB_PASSWORD or POSTGRES_PASSWORD in infra/local/.env.local}}'
       DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
-    depends_on:
-      data-migrate:
-        condition: service_completed_successfully
     healthcheck:
       test:
         [
