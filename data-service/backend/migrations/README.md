@@ -71,6 +71,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000061_add_sources.sql`：创建当前 Data-owned `sources` 表、固定身份保护、单一 active
   web-search 约束和稳定读取索引。它不复用已退役 `source_catalogs` 语义，不 seed
   也不从 AgentOS 数据库读取事实。
+- `000062_add_subdivisions.sql`：新增严格从属于 Country 的独立 `subdivisions` 事实表、
+  `SUB` 身份约束、Country 内 local code 组合唯一与四值 PostgreSQL 原生类型；不 seed、
+  不建立 Region 或 Organization 关系，也不增加运行时 API wiring。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -177,3 +180,10 @@ web search，并用正式 token 读取完整管理集合与 active snapshot。�
 新 API 的旧 Admin Backend/AgentOS 共存，但不允许双写；AgentOS 切换由其独立交付完成。
 回滚 Data 应用时保留表与已导入数据，不运行 down；外部消费方切换后的回滚必须停止
 新 workflow/管理写入并按 ADR-0031 恢复切换前 AgentOS 快照，不使用部分快照或反向同步。
+
+`000062` 是 Issue #293 的 additive、forward-only Subdivision persistence 基础。操作员使用
+候选 Data 镜像执行 check-only，确认它是唯一 pending migration 后 apply，并验证 ledger 为
+`62`、空表字段/组合唯一/FK/enum/时间默认值满足合同。旧应用不消费新增结构，可以与已应用
+schema 共存；应用回退保留新增空结构。若必须移除数据库结构，恢复 migration 62 前快照或
+使用另行审阅的 forward repair，不运行 down migration。Subdivision 初始化、API wiring、
+Organization 总部行政区集成与任何事实写入均需后续独立发布。

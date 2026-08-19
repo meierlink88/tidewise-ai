@@ -25,6 +25,7 @@ const (
 	IndustryChain                     Kind = "ICH"
 	EntityRelation                    Kind = "ERL"
 	Country                           Kind = "COU"
+	Subdivision                       Kind = "SUB"
 	Region                            Kind = "REG"
 	Organization                      Kind = "ORG"
 	OrganizationCategory              Kind = "OCA"
@@ -150,7 +151,7 @@ func prefix(kind Kind) (string, error) {
 
 func registered(kind Kind) bool {
 	switch kind {
-	case Entity, Industry, Concept, ChainNode, IndustryChain, EntityRelation, Country, Region, Organization, OrganizationCategory, OrganizationFunction, OrganizationDomainTag,
+	case Entity, Industry, Concept, ChainNode, IndustryChain, EntityRelation, Country, Subdivision, Region, Organization, OrganizationCategory, OrganizationFunction, OrganizationDomainTag,
 		OrganizationDomainTagLink, RawEvidence, Evidence, EvidenceCategory, RawEvidenceCategoryLink,
 		ChainNodePhysicalConstraint, ChainNodeRelation, CountryRegionLink,
 		EntityExternalIdentifier, EventEvidenceLink, EventActorLink, EventAssetLink, Event,

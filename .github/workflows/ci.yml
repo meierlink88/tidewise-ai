@@ -166,6 +166,7 @@ jobs:
             -p 1 \
             ./data-service/backend/internal/data/entity \
             ./data-service/backend/internal/data/entity/region \
+            ./data-service/backend/internal/data/entity/subdivision \
             ./data-service/backend/internal/data/event \
             ./data-service/backend/internal/data/evidence \
             ./data-service/backend/internal/data/research \

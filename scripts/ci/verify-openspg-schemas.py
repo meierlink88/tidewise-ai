@@ -62,6 +62,7 @@ def schema_member_block(schema_file, declaration):
 def verify_published_entity_contracts(parser):
     published_types = (
         "Tidewise.Region",
+        "Tidewise.Subdivision",
         "Tidewise.Organization",
         "Tidewise.OrganizationCategory",
         "Tidewise.OrganizationFunction",
@@ -208,6 +209,86 @@ def verify_country(parser, country_migration, identity_migration):
     ), "Country.regions has no matching restrictive, unique PostgreSQL relationship"
 
 
+def verify_subdivision(parser, schema_file, migration_file):
+    subdivision = parser.types.get("Tidewise.Subdivision")
+    assert subdivision is not None, "subdivision.schema must define Tidewise.Subdivision"
+    assert subdivision.spg_type_enum.value == "ENTITY_TYPE"
+    assert subdivision.name_zh == "行政区域"
+
+    expected_properties = {
+        "code",
+        "name",
+        "nameEn",
+        "subdivisionType",
+        "strategicPositioning",
+        "keyResources",
+        "createdAt",
+        "updatedAt",
+    }
+    assert set(subdivision.properties) == expected_properties
+    for name, prop in subdivision.properties.items():
+        assert prop.name_zh and prop.name_zh.strip(), f"Subdivision.{name} requires a Chinese name"
+        assert prop.desc and prop.desc.strip(), f"Subdivision.{name} requires a description"
+        assert prop.object_type_name == "Text", f"Subdivision.{name} must use OpenSPG Text"
+
+    required = {"code", "name", "nameEn", "subdivisionType", "createdAt", "updatedAt"}
+    for name in required:
+        assert "NOT_NULL" in constraint_values(subdivision.properties[name]), (
+            f"Subdivision.{name} must be NotNull"
+        )
+    for name in {"strategicPositioning", "keyResources"}:
+        assert "NOT_NULL" not in constraint_values(subdivision.properties[name])
+    assert constraint_values(subdivision.properties["code"])["REGULAR"] == "^[A-Z0-9]+$"
+    assert constraint_values(subdivision.properties["subdivisionType"])["ENUM"] == [
+        "PROVINCE",
+        "STATE",
+        "SAR",
+        "TERRITORY",
+    ]
+    type_source = schema_member_block(
+        schema_file, "subdivisionType(行政区域类型): Text"
+    )
+    for value, meaning in {
+        "PROVINCE": "省级行政区域",
+        "STATE": "州级行政区域",
+        "SAR": "特别行政区",
+        "TERRITORY": "领地",
+    }.items():
+        assert value in type_source and meaning in type_source
+
+    assert len(subdivision.relations) == 1, (
+        f"Subdivision relations = {set(subdivision.relations)}, want only country"
+    )
+    country = next(iter(subdivision.relations.values()))
+    assert country.name == "country"
+    assert country.name_zh == "所属国家"
+    assert country.object_type_name == "Tidewise.Country"
+    assert country.desc and country.desc.strip()
+    assert "唯一" in country.desc
+    assert "MULTI_VALUE" not in constraint_values(country)
+
+    migration = migration_file.read_text(encoding="utf-8")
+    persistence_columns = {
+        "id": r"\bid\s+VARCHAR\(39\)\s+PRIMARY KEY",
+        "code": r"\bcode\s+VARCHAR\(10\)\s+NOT NULL",
+        "name": r"\bname\s+VARCHAR\(100\)\s+NOT NULL",
+        "nameEn": r"\bname_en\s+VARCHAR\(100\)\s+NOT NULL",
+        "country": r"\bcountry_id\s+VARCHAR\(39\)\s+NOT NULL\s+REFERENCES\s+countries\(id\)\s+ON DELETE RESTRICT",
+        "subdivisionType": r"\bsubdivision_type\s+subdivision_type\s+NOT NULL",
+        "strategicPositioning": r"\bstrategic_positioning\s+TEXT\s*,",
+        "keyResources": r"\bkey_resources\s+TEXT\s*,",
+        "createdAt": r"\bcreated_at\s+TIMESTAMPTZ\s+NOT NULL\s+DEFAULT\s+now\(\)",
+        "updatedAt": r"\bupdated_at\s+TIMESTAMPTZ\s+NOT NULL\s+DEFAULT\s+now\(\)",
+    }
+    for member_name, pattern in persistence_columns.items():
+        assert re.search(pattern, migration, re.IGNORECASE), (
+            f"Subdivision.{member_name} has no matching PostgreSQL persistence member"
+        )
+    assert "UNIQUE (country_id, code)" in migration
+    assert "id ~ '^SUB[0-9a-f]{8}-" in migration
+    assert "code ~ '^[A-Z0-9]+$'" in migration
+
+
 def verify_event(parser):
     event = parser.types.get("Tidewise.Event")
     assert event is not None, "event.schema must define Tidewise.Event"
@@ -264,11 +345,13 @@ def main():
     schema_files = sorted(args.schema_root.glob("*.schema"))
     assert schema_files, f"no Object Schema found in {args.schema_root}"
 
-    parser_type = load_parser(args.kag_root)
     schema_names = {schema_file.name for schema_file in schema_files}
     assert "region.schema" in schema_names, "Region Object Schema is required"
     assert "country.schema" in schema_names, "Country Object Schema is required"
+    assert "subdivision.schema" in schema_names, "Subdivision Object Schema is required"
     assert "event.schema" in schema_names, "Event Object Schema is required"
+
+    parser_type = load_parser(args.kag_root)
 
     combined_lines = ["namespace Tidewise", ""]
     for schema_file in schema_files:
@@ -300,6 +383,18 @@ def main():
     )
     assert identity_migration.is_file(), f"Identity migration is missing: {identity_migration}"
     verify_country(parsed, country_migration, identity_migration)
+    subdivision_migration = (
+        args.schema_root.parent
+        / "backend"
+        / "migrations"
+        / "000062_add_subdivisions.sql"
+    )
+    assert subdivision_migration.is_file(), (
+        f"Subdivision migration is missing: {subdivision_migration}"
+    )
+    verify_subdivision(
+        parsed, args.schema_root / "subdivision.schema", subdivision_migration
+    )
     verify_event(parsed)
     print(
         f"verified {len(schema_files)} OpenSPG schema(s) with KAG {args.expected_revision}"
