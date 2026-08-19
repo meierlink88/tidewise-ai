@@ -481,6 +481,21 @@ LEI、受控系统重要性、可选说明和数据库生成时间；系统重�
 Subdivision 或 Region 建立关系。
 _Avoid_: FinancialInstitution、Institution Profile、Institution shadow Entity、regulatory_authority_id、region_id、Ministry 关系、调用方 ID
 
+**GeopoliticRivalry（地缘政治对抗蓝图）**:
+以 `GPR + canonical lowercase UUID` 为稳定身份的独立静态叙事蓝图，保存中英文名称、
+受控对抗类型、自然语言描述、核心参与方文本、可空外围参与方文本、可空影响区域文本集合、
+受控生命周期和数据库生成时间。参与方与影响区域只是人工整理内容，不证明正式 Actor 或
+Region 存在，也不建立任何外键。GeopoliticRivalry 不拥有 Storyline；未来 Storyline 如需
+使用该蓝图，由 Storyline 侧另行建立关系。
+_Avoid_: Storyline 外键、Country/Region/Institution/Ministry 关系、Actor 解析、Tags、调用方 ID、名称去重
+
+**MacroEconomic（宏观经济叙事蓝图）**:
+以 `MEC + canonical lowercase UUID` 为稳定身份的独立静态叙事蓝图，保存中英文名称、
+受控宏观类型、自然语言描述、受控生命周期和数据库生成时间。MacroEconomic 当前不表达
+Country、Region、Institution 或其他外部归属，也不拥有 Storyline；未来 Storyline 如需使用
+该蓝图，由 Storyline 侧另行建立关系。
+_Avoid_: Economy Entity、Storyline 外键、Country/Region/Institution 关系、业务 code、调用方 ID、名称去重
+
 Industry Chain 的可选主要国家范围使用 `primary_country_id` 引用独立 Country；不得把国家
 写回 `geography` 自由文本或旧 Economy UUID。已退役的 Sector 持久化表不因 Country 切换而恢复。
 

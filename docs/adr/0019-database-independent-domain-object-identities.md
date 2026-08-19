@@ -34,6 +34,7 @@ Data 各领域曾并存裸 UUID、`PREFIX_ + code`、固定短码和非 UUID 自
 `ENT` Entity、`IND` Industry、`CON` Concept、`CND` ChainNode、`ICH` IndustryChain、
 `ERL` Entity Relation、`COU` Country、`REG` Region、`ORG` Organization、
 `SUB` Subdivision、`MIN` Ministry、`INS` Institution、
+`GPR` GeopoliticRivalry、`MEC` MacroEconomic、
 `OCA` Organization Category、`OFN` Organization Function、`ODT` Organization Domain Tag、
 `ODL` Organization Domain Tag Link、
 `RAW` Raw Evidence、`EVD` Evidence、`EVC` Evidence Category、`RCL` Raw Evidence Category Link、`CPC` Chain Node Physical
@@ -75,3 +76,8 @@ Issue #298 通过 additive forward-only migration `000063` 增加独立 Ministry
 事实及 `MIN`、`INS` 身份。由于第一阶段明确只交付 persistence 和公开 Data Adapter，且不建立
 Biz UseCase，Adapter 的 Create input 不接收主键并在服务端调用同一随机生成原语；未来 Biz/API
 接入仍不得允许调用方提交主键或把人工业务 code 嵌入身份。
+
+Issue #300 通过 additive forward-only migration `000064` 增加独立 GeopoliticRivalry 与
+MacroEconomic 静态叙事蓝图及 `GPR`、`MEC` 身份。第一阶段同样只交付 persistence 和公开
+Data Adapter，因此 Adapter 的 Create input 不接收主键并调用共享随机生成原语；未来 Biz/API
+接入必须把生成时机收敛到 owning Biz，且不得允许调用方提交主键或从名称、参与方文本派生身份。
