@@ -65,7 +65,7 @@ describe('App admin login', () => {
       await within(screen.getByRole('banner')).findByRole('heading', { name: '数据采集中心' })
     ).toBeInTheDocument();
     expect(
-      within(screen.getByRole('main')).getByRole('heading', { name: '事件中心' })
+      within(screen.getByRole('main')).getByRole('heading', { name: '采集中心' })
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^采集中心/ })).toHaveAttribute(
       'aria-current',
@@ -73,9 +73,7 @@ describe('App admin login', () => {
     );
     expect(screen.queryByRole('button', { name: /^数据采集中心/ })).not.toBeInTheDocument();
     expect(
-      within(screen.getByRole('main')).getByText(
-        '查询标准化事件。证据通过 Event Evidence Link 关联。'
-      )
+      within(screen.getByRole('main')).getByText('查询标准化事件、完整证据与采集信源。')
     ).toBeInTheDocument();
     expect(within(screen.getByRole('main')).queryByText('Data Ingestion')).not.toBeInTheDocument();
     expect(
@@ -107,7 +105,7 @@ describe('App admin login', () => {
     collectionNavigation.focus();
     await user.keyboard('{Enter}');
 
-    expect(await screen.findByRole('heading', { name: '事件中心', level: 2 })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: '采集中心', level: 2 })).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: '管理后台导航' })).not.toBeInTheDocument();
     expect(menuTrigger).toHaveFocus();
   });

@@ -8,12 +8,18 @@ import (
 const APIPrefix = "/api/admin/v1"
 
 const (
-	OperationListEvents       = "admin.events.list"
-	OperationGetRuntimeHealth = "admin.runtimeHealth.get"
+	OperationListEvents             = "admin.events.list"
+	OperationListEvidences          = "admin.evidences.list"
+	OperationListEvidenceCategories = "admin.evidenceCategories.list"
+	OperationListSources            = "admin.sources.list"
+	OperationGetRuntimeHealth       = "admin.runtimeHealth.get"
 )
 
 type AdminHTTPServer interface {
 	ListEvents(context.Context, *ListEventsRequest) (*EventListResponse, error)
+	ListEvidences(context.Context, *ListEvidencesRequest) (*EvidenceListResponse, error)
+	ListEvidenceCategories(context.Context, *EmptyRequest) (*EvidenceCategoryListResponse, error)
+	ListSources(context.Context, *ListSourcesRequest) (*SourceListResponse, error)
 	GetRuntimeHealth(context.Context, *EmptyRequest) (*RuntimeHealth, error)
 }
 
@@ -29,6 +35,18 @@ type ListEventsRequest struct {
 	AnnouncedTo   string
 	Page          int
 	PageSize      int
+}
+
+type ListEvidencesRequest struct {
+	Title, Summary, CategoryID, SourceName, SourceLevel, IsSplit string
+	PublishedFrom, PublishedTo, CollectedFrom, CollectedTo       string
+	Page, PageSize                                               int
+}
+
+type ListSourcesRequest struct {
+	Query, OwnershipType, ChannelType, Enabled, Priority, DefaultSourceLevel string
+	UpdatedFrom, UpdatedTo                                                   string
+	Page, PageSize                                                           int
 }
 
 type RuntimeHealth struct {
@@ -71,4 +89,54 @@ type EventSemantic struct {
 	Where *string `json:"where"`
 	Why   *string `json:"why"`
 	How   *string `json:"how"`
+}
+
+type EvidenceListResponse struct {
+	Items    []Evidence `json:"items"`
+	Total    int        `json:"total"`
+	Page     int        `json:"page"`
+	PageSize int        `json:"page_size"`
+}
+
+type Evidence struct {
+	ID            string             `json:"id"`
+	RawEvidenceID string             `json:"raw_evidence_id"`
+	Title         *string            `json:"title"`
+	Summary       string             `json:"summary"`
+	Categories    []EvidenceCategory `json:"categories"`
+	SourceName    string             `json:"source_name"`
+	SourceLevel   string             `json:"source_level"`
+	IsSplit       bool               `json:"is_split"`
+	PublishedAt   *string            `json:"published_at"`
+	CollectedAt   string             `json:"collected_at"`
+}
+
+type EvidenceCategory struct {
+	ID          string `json:"id"`
+	Code        string `json:"code"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type EvidenceCategoryListResponse struct {
+	Categories []EvidenceCategory `json:"categories"`
+}
+
+type SourceListResponse struct {
+	Items    []Source `json:"items"`
+	Total    int      `json:"total"`
+	Page     int      `json:"page"`
+	PageSize int      `json:"page_size"`
+}
+
+type Source struct {
+	ID                 string `json:"id"`
+	Code               string `json:"code"`
+	Name               string `json:"name"`
+	OwnershipType      string `json:"ownership_type"`
+	ChannelType        string `json:"channel_type"`
+	Enabled            bool   `json:"enabled"`
+	Priority           int    `json:"priority"`
+	DefaultSourceLevel string `json:"default_source_level"`
+	UpdatedAt          string `json:"updated_at"`
 }

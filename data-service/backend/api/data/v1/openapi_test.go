@@ -26,6 +26,7 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		"/healthz":                                {method: "get", operationID: "getDataServiceHealth"},
 		"/readyz":                                 {method: "get", operationID: "getDataServiceReadiness"},
 		namespace + "/evidence-categories":        {method: "get", operationID: "listEvidenceCategories", driftAnchor: "data.v1.listEvidenceCategories", scope: "data.evidence-categories.read"},
+		namespace + "/evidences":                  {method: "get", operationID: "listAdminEvidence", driftAnchor: "data.v1.listAdminEvidence", scope: "data.admin.read"},
 		namespace + "/research/themes":            {method: "get", operationID: "listResearchThemes", driftAnchor: "data.v1.listResearchThemes", scope: "data.research.read"},
 		namespace + "/research/themes/{theme_id}": {method: "get", operationID: "getResearchTheme", driftAnchor: "data.v1.getResearchTheme", scope: "data.research.read"},
 		namespace + "/research/themes/{theme_id}/reasoning-trees":                     {method: "get", operationID: "listResearchThemeReasoningTrees", driftAnchor: "data.v1.listResearchThemeReasoningTrees", scope: "data.research.read"},

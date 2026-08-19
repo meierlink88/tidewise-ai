@@ -20,6 +20,40 @@ func registerHTTPServer(server *kratoshttp.Server, application Service, executio
 	router.GET("/raw-evidences/{id}", getRawEvidenceHandler(application, executionBudget))
 	router.POST("/evidence-publications", evidenceHandler(application, executionBudget))
 	router.GET("/evidence-categories", evidenceCategoryCatalogHandler(application, executionBudget))
+	router.GET("/evidences", listEvidenceHandler(application, executionBudget))
+}
+
+func listEvidenceHandler(application Service, executionBudget time.Duration) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		for name := range ctx.Request().URL.Query() {
+			if !allowedEvidenceListParameter(name) {
+				return v1.NewPublicError(v1.StatusBadRequest, ErrorInvalidRequest, "unsupported Evidence query parameter", nil)
+			}
+		}
+		request := &ListRequest{
+			Title: ctx.Query().Get("title"), Summary: ctx.Query().Get("summary"),
+			CategoryID: ctx.Query().Get("category_id"), SourceName: ctx.Query().Get("source_name"),
+			SourceLevel: ctx.Query().Get("source_level"), IsSplit: ctx.Query().Get("is_split"),
+			PublishedFrom: ctx.Query().Get("published_from"), PublishedTo: ctx.Query().Get("published_to"),
+			CollectedFrom: ctx.Query().Get("collected_from"), CollectedTo: ctx.Query().Get("collected_to"),
+			Page: ctx.Query().Get("page"), PageSize: ctx.Query().Get("page_size"),
+		}
+		return v1.Call(ctx, OperationListAdminEvidence, request, func(callContext context.Context) (*v1.Response[Page], error) {
+			deadlineContext, cancel := context.WithTimeout(callContext, executionBudget)
+			defer cancel()
+			return application.ListEvidence(deadlineContext, request)
+		})
+	}
+}
+
+func allowedEvidenceListParameter(name string) bool {
+	switch name {
+	case "title", "summary", "category_id", "source_name", "source_level", "is_split",
+		"published_from", "published_to", "collected_from", "collected_to", "page", "page_size":
+		return true
+	default:
+		return false
+	}
 }
 
 func evidenceCategoryCatalogHandler(application Service, executionBudget time.Duration) kratoshttp.HandlerFunc {

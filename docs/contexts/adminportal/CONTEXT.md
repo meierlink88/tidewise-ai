@@ -3,7 +3,7 @@
 ## Purpose
 
 Admin Portal 是管理产品，由 Admin Portal Frontend 和 Admin Application Backend Service
-组成。当前只提供 Data-owned Event 的管理查询入口。
+组成。当前通过采集中心提供 Data-owned Event、Atomic Evidence 和 Source 的管理查询入口。
 
 ## Dependency Rule
 
@@ -16,6 +16,16 @@ Backend Service 只通过 Data 的版本化 REST API 读取事实，不访问下
 面向管理员查询 Data 已接纳的正式 Event。列表提供查询、分页、加载、错误与空状态，
 不承载 Event 写入、采集执行、调度或配置控制面。
 _Avoid_: 浏览器直连 Data、在 Admin 保存 Data 事实、把列表扩展成外部 Agent 控制台
+
+**证据中心（Evidence Center）**：
+以 Data-owned Atomic Evidence 为分页单位，关联其唯一 Raw Evidence 的标题、信源快照、时间与完整
+Content Category 集合，构成 Admin 专用只读列表。
+_Avoid_: 独立 Raw Evidence Tab、父子树、在 Admin 重新定义 Evidence 或 Category 事实
+
+**信源管理（Source Management）**：
+对 Data-owned Source 的有界只读管理投影，只展示名称/编码、归属、渠道、启用状态、优先级、
+默认信源等级和更新时间。
+_Avoid_: Adapter、Endpoint、app_key、provider config、在当前 Admin 页面创建或修改 Source
 
 **运行时健康（Runtime Health）**：
 Admin Backend 对 Data Service 的有界健康探测。浏览器只看到安全的状态、检查时间、延迟

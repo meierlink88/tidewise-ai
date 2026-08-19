@@ -5,13 +5,16 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 type Store struct{ db *sql.DB }
@@ -73,6 +76,194 @@ func (s Store) ListCategories(ctx context.Context) ([]evidencebiz.Category, erro
 		return nil, persistedInvariant("Evidence Category Catalog", "categories", "catalog is empty")
 	}
 	return categories, nil
+}
+
+const evidenceListWhere = `
+FROM evidences AS evidence
+JOIN raw_evidences AS raw ON raw.id = evidence.raw_evidence_id
+WHERE ($1 = '' OR strpos(lower(raw.title), lower($1)) > 0)
+  AND ($2 = '' OR strpos(lower(evidence.summary), lower($2)) > 0)
+  AND ($3 = '' OR EXISTS (
+      SELECT 1 FROM raw_evidence_category_links AS selected_category
+      WHERE selected_category.raw_evidence_id = raw.id AND selected_category.category_id = $3
+  ))
+  AND ($4 = '' OR strpos(lower(raw.source_name), lower($4)) > 0)
+  AND ($5 = '' OR raw.source_level = $5)
+  AND ($6::boolean IS NULL OR evidence.is_split = $6)
+  AND ($7::timestamptz IS NULL OR raw.published_at >= $7)
+  AND ($8::timestamptz IS NULL OR raw.published_at <= $8)
+  AND ($9::timestamptz IS NULL OR raw.collected_at >= $9)
+  AND ($10::timestamptz IS NULL OR raw.collected_at <= $10)`
+
+func (s Store) ListEvidence(ctx context.Context, filter evidencebiz.EvidenceListFilter) (evidencebiz.EvidencePage, error) {
+	args := []any{
+		filter.Title, filter.Summary, string(filter.CategoryID), filter.SourceName, string(filter.SourceLevel),
+		optionalBoolValue(filter.IsSplit), optionalTimeValue(filter.PublishedFrom), optionalTimeValue(filter.PublishedTo),
+		optionalTimeValue(filter.CollectedFrom), optionalTimeValue(filter.CollectedTo),
+	}
+	var total int
+	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*)`+evidenceListWhere, args...).Scan(&total); err != nil {
+		return evidencebiz.EvidencePage{}, fmt.Errorf("count Evidence: %w", err)
+	}
+	rows, err := s.db.QueryContext(ctx, `
+SELECT evidence.id, evidence.raw_evidence_id, evidence.is_split, evidence.summary,
+       raw.title, raw.source_name, raw.source_level, raw.published_at, raw.collected_at,
+       COALESCE((
+           SELECT jsonb_agg(jsonb_build_object(
+               'id', category.id,
+               'code', category.code,
+               'name', category.name,
+               'description', category.description,
+               'created_at', category.created_at
+           ) ORDER BY category.code COLLATE "C", category.id COLLATE "C")
+           FROM raw_evidence_category_links AS category_link
+           JOIN evidence_categories AS category ON category.id = category_link.category_id
+           WHERE category_link.raw_evidence_id = raw.id
+       ), '[]'::jsonb) AS categories
+`+evidenceListWhere+`
+ORDER BY raw.published_at DESC NULLS LAST, raw.collected_at DESC, evidence.id COLLATE "C"
+LIMIT $11 OFFSET $12`, append(args, filter.PageSize, (filter.Page-1)*filter.PageSize)...)
+	if err != nil {
+		return evidencebiz.EvidencePage{}, fmt.Errorf("query Evidence: %w", err)
+	}
+	defer rows.Close()
+	items := make([]evidencebiz.EvidenceListItem, 0)
+	seen := make(map[string]struct{})
+	for rows.Next() {
+		item, scanErr := scanEvidenceListItem(rows)
+		if scanErr != nil {
+			return evidencebiz.EvidencePage{}, scanErr
+		}
+		if _, duplicate := seen[item.ID]; duplicate {
+			return evidencebiz.EvidencePage{}, persistedInvariant("Evidence list", "id", "query returned a duplicate identity")
+		}
+		seen[item.ID] = struct{}{}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return evidencebiz.EvidencePage{}, fmt.Errorf("iterate Evidence: %w", err)
+	}
+	if total < 0 || len(items) > filter.PageSize || len(items) > total {
+		return evidencebiz.EvidencePage{}, persistedInvariant("Evidence list", "page", "query returned an invalid page")
+	}
+	return evidencebiz.EvidencePage{Items: items, Total: total, Page: filter.Page, PageSize: filter.PageSize}, nil
+}
+
+type evidenceListScanner interface{ Scan(...any) error }
+
+func scanEvidenceListItem(scanner evidenceListScanner) (evidencebiz.EvidenceListItem, error) {
+	var item evidencebiz.EvidenceListItem
+	var title sql.NullString
+	var publishedAt sql.NullTime
+	var categoriesJSON []byte
+	if err := scanner.Scan(
+		&item.ID, &item.RawEvidenceID, &item.IsSplit, &item.Summary, &title,
+		&item.SourceName, &item.SourceLevel, &publishedAt, &item.CollectedAt, &categoriesJSON,
+	); err != nil {
+		return evidencebiz.EvidenceListItem{}, fmt.Errorf("scan Evidence list: %w", err)
+	}
+	if title.Valid {
+		item.Title = &title.String
+	}
+	if publishedAt.Valid {
+		value := publishedAt.Time.UTC()
+		item.PublishedAt = &value
+	}
+	item.CollectedAt = item.CollectedAt.UTC()
+	categories, err := decodeEvidenceListCategories(categoriesJSON)
+	if err != nil {
+		return evidencebiz.EvidenceListItem{}, fmt.Errorf("decode Evidence list categories: %w", err)
+	}
+	item.Categories = categories
+	if err := validateEvidenceListItem(item); err != nil {
+		return evidencebiz.EvidenceListItem{}, fmt.Errorf("read Evidence list invariant: %w", err)
+	}
+	return item, nil
+}
+
+type evidenceListCategoryJSON struct {
+	ID          string    `json:"id"`
+	Code        string    `json:"code"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func decodeEvidenceListCategories(payload []byte) ([]evidencebiz.Category, error) {
+	var values []evidenceListCategoryJSON
+	if err := json.Unmarshal(payload, &values); err != nil || values == nil {
+		return nil, persistedInvariant("Evidence list", "categories", "value is not an array")
+	}
+	categories := make([]evidencebiz.Category, len(values))
+	for index, value := range values {
+		category := evidencebiz.Category{
+			ID: evidencebiz.CategoryID(value.ID), Code: value.Code, Name: value.Name,
+			Description: value.Description, CreatedAt: value.CreatedAt,
+		}
+		if err := validateStoredCategory(&category); err != nil {
+			return nil, err
+		}
+		if index > 0 {
+			previous := categories[index-1]
+			if previous.Code > category.Code || previous.Code == category.Code && previous.ID >= category.ID {
+				return nil, persistedInvariant("Evidence list", "categories", "collection is not uniquely ordered")
+			}
+		}
+		categories[index] = category
+	}
+	return categories, nil
+}
+
+func validateEvidenceListItem(item evidencebiz.EvidenceListItem) error {
+	if err := validateStoredRequired("Evidence list", "id", item.ID, 39); err != nil {
+		return err
+	}
+	if err := validateStoredRequired("Evidence list", "raw_evidence_id", item.RawEvidenceID, 39); err != nil {
+		return err
+	}
+	if err := validateStoredRequired("Evidence list", "summary", item.Summary, 200); err != nil {
+		return err
+	}
+	if err := validateStoredRequired("Evidence list", "source_name", item.SourceName, 100); err != nil {
+		return err
+	}
+	if !coreIDIsEvidence(item.ID) || !coreIDIsRawEvidence(item.RawEvidenceID) {
+		return persistedInvariant("Evidence list", "id", "value is not a stable domain identity")
+	}
+	if err := validateStoredOptional("Evidence list", "title", item.Title, 500); err != nil {
+		return err
+	}
+	switch item.SourceLevel {
+	case evidencebiz.SourceLevelOfficial, evidencebiz.SourceLevelWire, evidencebiz.SourceLevelMedia, evidencebiz.SourceLevelSocial:
+	default:
+		return persistedInvariant("Evidence list", "source_level", "value is not supported")
+	}
+	if item.CollectedAt.IsZero() || item.Categories == nil {
+		return persistedInvariant("Evidence list", "time", "required projection value is missing")
+	}
+	return nil
+}
+
+func coreIDIsEvidence(value string) bool {
+	return coreid.Is(value, coreid.Evidence)
+}
+
+func coreIDIsRawEvidence(value string) bool {
+	return coreid.Is(value, coreid.RawEvidence)
+}
+
+func optionalBoolValue(value *bool) any {
+	if value == nil {
+		return nil
+	}
+	return *value
+}
+
+func optionalTimeValue(value *time.Time) any {
+	if value == nil {
+		return nil
+	}
+	return value.UTC()
 }
 
 type persistedInvariantError struct {

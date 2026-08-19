@@ -339,6 +339,10 @@ func (s *memoryStore) ListCategories(context.Context) ([]Category, error) {
 	return cloneCategories(s.categories), s.categoryErr
 }
 
+func (s *memoryStore) ListEvidence(context.Context, EvidenceListFilter) (EvidencePage, error) {
+	return EvidencePage{}, nil
+}
+
 func (s *memoryStore) InTransaction(_ context.Context, fn func(Transaction) error) error {
 	return fn((*memoryTransaction)(s))
 }

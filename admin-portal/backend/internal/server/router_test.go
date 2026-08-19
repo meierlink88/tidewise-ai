@@ -162,6 +162,63 @@ func TestEventsAPIAlwaysEmitsNullableTimeFields(t *testing.T) {
 	}
 }
 
+func TestCollectionCenterEvidenceAndSourceAPIsExposeConfirmedReadModels(t *testing.T) {
+	now := testTime()
+	client := &biz.FakeDataServiceRepo{
+		ListEvidencesFunc: func(context.Context, biz.EvidenceListQuery) (biz.EvidencePage, error) {
+			return biz.EvidencePage{Items: []biz.Evidence{{ID: "EVD00000000-0000-5000-8000-000000000001", RawEvidenceID: "RAW00000000-0000-5000-8000-000000000001", Summary: "summary", Categories: []biz.EvidenceCategory{{ID: "EVC00000000-0000-5000-8000-000000000001", Code: "EVENT_BRIEF", Name: "Event brief", Description: "description"}}, SourceName: "Official", SourceLevel: "L1_OFFICIAL", CollectedAt: now}}, Total: 1, Page: 1, PageSize: 50}, nil
+		},
+		ListEvidenceCategoriesFunc: func(context.Context) ([]biz.EvidenceCategory, error) {
+			return []biz.EvidenceCategory{{ID: "EVC00000000-0000-5000-8000-000000000001", Code: "EVENT_BRIEF", Name: "Event brief", Description: "description"}}, nil
+		},
+		ListSourcesFunc: func(context.Context) ([]biz.Source, error) {
+			return []biz.Source{{ID: "SRC00000000-0000-5000-8000-000000000001", Code: "official", Name: "Official", OwnershipType: "fixed", ChannelType: "api", Enabled: true, Priority: 1, DefaultSourceLevel: "L1_OFFICIAL", UpdatedAt: now}}, nil
+		},
+	}
+	router := NewRouter(testConfig(), biz.NewService(client), "secret")
+	for _, path := range []string{"/api/admin/v1/evidences?is_split=false", "/api/admin/v1/evidence-categories", "/api/admin/v1/sources?query=official"} {
+		response := performJSONRequest(t, router, http.MethodGet, path, nil, "secret", "collection-request")
+		if response.Code != http.StatusOK {
+			t.Fatalf("GET %s status=%d body=%s", path, response.Code, response.Body.String())
+		}
+		if strings.Contains(response.Body.String(), "adapter_key") || strings.Contains(response.Body.String(), "endpoint") || strings.Contains(response.Body.String(), "app_key") {
+			t.Fatalf("GET %s leaked Source internals: %s", path, response.Body.String())
+		}
+	}
+}
+
+func TestCollectionCenterRejectsInvalidFiltersBeforeDataCalls(t *testing.T) {
+	calls := 0
+	client := &biz.FakeDataServiceRepo{
+		ListEvidencesFunc: func(context.Context, biz.EvidenceListQuery) (biz.EvidencePage, error) {
+			calls++
+			return biz.EvidencePage{}, nil
+		},
+		ListSourcesFunc: func(context.Context) ([]biz.Source, error) { calls++; return nil, nil },
+	}
+	router := NewRouter(testConfig(), biz.NewService(client), "secret")
+	for _, path := range []string{"/api/admin/v1/evidences?category_id=invalid", "/api/admin/v1/evidences?is_split=yes", "/api/admin/v1/sources?priority=8", "/api/admin/v1/sources?page_size=101"} {
+		response := performJSONRequest(t, router, http.MethodGet, path, nil, "secret", "invalid-filter")
+		if response.Code != http.StatusBadRequest {
+			t.Fatalf("GET %s status=%d body=%s", path, response.Code, response.Body.String())
+		}
+	}
+	if calls != 0 {
+		t.Fatalf("Data calls = %d, want 0", calls)
+	}
+}
+
+func TestCollectionCenterMapsKnownDataTimeoutToServiceUnavailable(t *testing.T) {
+	client := &biz.FakeDataServiceRepo{ListSourcesFunc: func(context.Context) ([]biz.Source, error) {
+		return nil, context.DeadlineExceeded
+	}}
+	router := NewRouter(testConfig(), biz.NewService(client), "secret")
+	response := performJSONRequest(t, router, http.MethodGet, "/api/admin/v1/sources", nil, "secret", "source-timeout")
+	if response.Code != http.StatusServiceUnavailable || !strings.Contains(response.Body.String(), "DATA_SERVICE_UNAVAILABLE") {
+		t.Fatalf("timeout response=%d %s", response.Code, response.Body.String())
+	}
+}
+
 func TestUnexpectedDataErrorReturnsGeneric500WithoutLeak(t *testing.T) {
 	client := &biz.FakeDataServiceRepo{ListEventsFunc: func(context.Context, biz.EventListQuery) (biz.EventPage, error) {
 		return biz.EventPage{}, errors.New("postgres connection secret-internal-detail")

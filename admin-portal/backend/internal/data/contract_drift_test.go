@@ -25,6 +25,9 @@ func TestOpenAPIContractMatchesAdminTypedClient(t *testing.T) {
 			"AdminEventPageEnvelope",
 			[]string{"Page", "PageSize", "RequestID", "announced_from", "announced_to", "modality", "occurred_from", "occurred_to", "status", "title"},
 		},
+		{evidencesPath, "listAdminEvidence", "AdminEvidencePageEnvelope", []string{"Page", "PageSize", "RequestID", "category_id", "collected_from", "collected_to", "is_split", "published_from", "published_to", "source_level", "source_name", "summary", "title"}},
+		{evidenceCategoriesPath, "listEvidenceCategories", "EvidenceCategoryCatalogEnvelope", []string{"RequestID"}},
+		{sourcesPath, "listSources", "SourceListEnvelope", []string{"RequestID"}},
 	} {
 		operation := openAPIOperation(t, document, contract.path)
 		assertOpenAPIString(t, operation, "operationId", contract.operationID)
@@ -39,8 +42,14 @@ func TestOpenAPIContractMatchesAdminTypedClient(t *testing.T) {
 	}
 
 	for schemaName, dataType := range map[string]reflect.Type{
-		"AdminEventPage": reflect.TypeOf(eventPageWire{}),
-		"AdminEvent":     reflect.TypeOf(eventWire{}),
+		"AdminEventPage":          reflect.TypeOf(eventPageWire{}),
+		"AdminEvent":              reflect.TypeOf(eventWire{}),
+		"AdminEvidencePage":       reflect.TypeOf(evidencePageWire{}),
+		"AdminEvidence":           reflect.TypeOf(evidenceWire{}),
+		"EvidenceCategory":        reflect.TypeOf(evidenceCategoryWire{}),
+		"EvidenceCategoryCatalog": reflect.TypeOf(evidenceCategoryListWire{}),
+		"Source":                  reflect.TypeOf(sourceWire{}),
+		"SourceCollection":        reflect.TypeOf(sourceListWire{}),
 	} {
 		assertDTOJSONFieldsMatchSchema(t, document, schemaName, dataType)
 	}

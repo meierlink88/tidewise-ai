@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,6 +23,21 @@ import (
 	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 	"github.com/pressly/goose/v3"
 )
+
+func TestEvidenceListTextFiltersUseLiteralCaseInsensitiveContains(t *testing.T) {
+	for _, expression := range []string{
+		"strpos(lower(raw.title), lower($1)) > 0",
+		"strpos(lower(evidence.summary), lower($2)) > 0",
+		"strpos(lower(raw.source_name), lower($4)) > 0",
+	} {
+		if !strings.Contains(evidenceListWhere, expression) {
+			t.Fatalf("Evidence list predicate is missing %q", expression)
+		}
+	}
+	if strings.Contains(evidenceListWhere, "ILIKE") {
+		t.Fatal("Evidence list text filters must not interpret LIKE wildcard characters")
+	}
+}
 
 func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) {
 	db := openEvidencePublicationTestDatabase(t)
@@ -308,6 +324,62 @@ func TestPostgresEvidenceCategoryCatalogReturnsCurrentFixedCategories(t *testing
 		}
 	}
 }
+
+func TestListEvidenceReturnsJoinedRawEvidenceAndCompleteCategories(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	publishedFrom := time.Date(2026, 8, 18, 0, 0, 0, 0, time.UTC)
+	publishedTo := time.Date(2026, 8, 19, 0, 0, 0, 0, time.UTC)
+	collectedFrom := publishedFrom
+	collectedTo := publishedTo
+	categoryID := evidencebiz.CategoryID("EVCc18ddddb-14bc-5496-99ea-963ee2c25597")
+	filter := evidencebiz.EvidenceListFilter{
+		Title: "Source", Summary: "Atomic", CategoryID: categoryID, SourceName: "Example",
+		SourceLevel: evidencebiz.SourceLevelWire, IsSplit: testBoolPointer(true),
+		PublishedFrom: &publishedFrom, PublishedTo: &publishedTo,
+		CollectedFrom: &collectedFrom, CollectedTo: &collectedTo, Page: 2, PageSize: 10,
+	}
+	args := []driver.Value{
+		"Source", "Atomic", string(categoryID), "Example", string(evidencebiz.SourceLevelWire), true,
+		publishedFrom, publishedTo, collectedFrom, collectedTo,
+	}
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\).*FROM evidences").WithArgs(args...).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	listArgs := append(append([]driver.Value{}, args...), int64(10), int64(10))
+	categoryCreatedAt := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	categories := fmt.Sprintf(`[{"id":"%s","code":"EVENT_BRIEF","name":"事件快讯","description":"事件材料","created_at":"%s"}]`, categoryID, categoryCreatedAt.Format(time.RFC3339))
+	mock.ExpectQuery("SELECT evidence.id, evidence.raw_evidence_id").WithArgs(listArgs...).WillReturnRows(sqlmock.NewRows([]string{
+		"id", "raw_evidence_id", "is_split", "summary", "title", "source_name", "source_level", "published_at", "collected_at", "categories",
+	}).AddRow(
+		"EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf", true, "Atomic fact",
+		"Source title", "Example Wire", "L2_WIRE", publishedFrom.Add(time.Hour), collectedFrom.Add(65*time.Minute), []byte(categories),
+	))
+
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err := store.ListEvidence(context.Background(), filter)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page.Total != 1 || page.Page != 2 || page.PageSize != 10 || len(page.Items) != 1 {
+		t.Fatalf("page = %#v", page)
+	}
+	item := page.Items[0]
+	if item.Title == nil || *item.Title != "Source title" || item.Summary != "Atomic fact" ||
+		item.SourceName != "Example Wire" || item.SourceLevel != evidencebiz.SourceLevelWire || !item.IsSplit ||
+		len(item.Categories) != 1 || item.Categories[0].ID != categoryID {
+		t.Fatalf("item = %#v", item)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func testBoolPointer(value bool) *bool { return &value }
 
 func TestEvidenceCategoryCatalogRejectsInvalidPersistedCollection(t *testing.T) {
 	now := time.Date(2026, 8, 16, 8, 0, 0, 0, time.UTC)

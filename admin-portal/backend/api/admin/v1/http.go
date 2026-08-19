@@ -12,7 +12,87 @@ import (
 func RegisterAdminHTTPServer(server *kratoshttp.Server, service AdminHTTPServer) {
 	router := server.Route(APIPrefix)
 	router.GET("/events", listEventsHandler(service))
+	router.GET("/evidences", listEvidencesHandler(service))
+	router.GET("/evidence-categories", listEvidenceCategoriesHandler(service))
+	router.GET("/sources", listSourcesHandler(service))
 	router.GET("/runtime-health", getRuntimeHealthHandler(service))
+}
+
+func listEvidenceCategoriesHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		if len(ctx.Request().URL.Query()) != 0 {
+			return NewHTTPError(http.StatusBadRequest, "INVALID_REQUEST", "evidence categories do not accept query parameters")
+		}
+		request := &EmptyRequest{}
+		return call(ctx, OperationListEvidenceCategories, request, func(callContext context.Context) (any, error) {
+			return service.ListEvidenceCategories(callContext, request)
+		})
+	}
+}
+
+func listEvidencesHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		for name := range ctx.Request().URL.Query() {
+			if !allowedEvidenceQueryParameter(name) {
+				return NewHTTPError(http.StatusBadRequest, "INVALID_REQUEST", "unsupported Evidence query parameter")
+			}
+		}
+		page, pageSize, err := parsePage(ctx, 50)
+		if err != nil {
+			return err
+		}
+		query := ctx.Query()
+		request := &ListEvidencesRequest{
+			Title: query.Get("title"), Summary: query.Get("summary"), CategoryID: query.Get("category_id"),
+			SourceName: query.Get("source_name"), SourceLevel: query.Get("source_level"), IsSplit: query.Get("is_split"),
+			PublishedFrom: query.Get("published_from"), PublishedTo: query.Get("published_to"),
+			CollectedFrom: query.Get("collected_from"), CollectedTo: query.Get("collected_to"), Page: page, PageSize: pageSize,
+		}
+		return call(ctx, OperationListEvidences, request, func(callContext context.Context) (any, error) {
+			return service.ListEvidences(callContext, request)
+		})
+	}
+}
+
+func allowedEvidenceQueryParameter(name string) bool {
+	switch name {
+	case "title", "summary", "category_id", "source_name", "source_level", "is_split", "published_from", "published_to", "collected_from", "collected_to", "page", "page_size":
+		return true
+	default:
+		return false
+	}
+}
+
+func listSourcesHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		for name := range ctx.Request().URL.Query() {
+			if !allowedSourceQueryParameter(name) {
+				return NewHTTPError(http.StatusBadRequest, "INVALID_REQUEST", "unsupported Source query parameter")
+			}
+		}
+		page, pageSize, err := parsePage(ctx, 50)
+		if err != nil {
+			return err
+		}
+		query := ctx.Query()
+		request := &ListSourcesRequest{
+			Query: query.Get("query"), OwnershipType: query.Get("ownership_type"), ChannelType: query.Get("channel_type"),
+			Enabled: query.Get("enabled"), Priority: query.Get("priority"), DefaultSourceLevel: query.Get("default_source_level"),
+			UpdatedFrom: query.Get("updated_from"), UpdatedTo: query.Get("updated_to"), Page: page, PageSize: pageSize,
+		}
+		return call(ctx, OperationListSources, request, func(callContext context.Context) (any, error) {
+			return service.ListSources(callContext, request)
+		})
+	}
+}
+
+func allowedSourceQueryParameter(name string) bool {
+	switch name {
+	case "query", "ownership_type", "channel_type", "enabled", "priority", "default_source_level", "updated_from", "updated_to", "page", "page_size":
+		return true
+	default:
+		return false
+	}
 }
 
 func getRuntimeHealthHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {
@@ -78,9 +158,15 @@ func parsePage(ctx kratoshttp.Context, defaultPageSize int) (int, int, error) {
 	if err != nil {
 		return 0, 0, err
 	}
+	if page > 1_000_000 {
+		return 0, 0, NewHTTPError(http.StatusBadRequest, "INVALID_REQUEST", "page must not exceed 1000000")
+	}
 	pageSize, err := parsePositiveInt(ctx.Query().Get("page_size"), defaultPageSize, "page_size must be positive")
 	if err != nil {
 		return 0, 0, err
+	}
+	if pageSize > 100 {
+		return 0, 0, NewHTTPError(http.StatusBadRequest, "INVALID_REQUEST", "page_size must not exceed 100")
 	}
 	return page, pageSize, nil
 }

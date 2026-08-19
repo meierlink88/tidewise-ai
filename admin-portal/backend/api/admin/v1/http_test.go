@@ -30,6 +30,9 @@ func TestEveryAdminEndpointExecutesKratosMiddleware(t *testing.T) {
 		operation string
 	}{
 		{APIPrefix + "/events", OperationListEvents},
+		{APIPrefix + "/evidences", OperationListEvidences},
+		{APIPrefix + "/evidence-categories", OperationListEvidenceCategories},
+		{APIPrefix + "/sources", OperationListSources},
 		{APIPrefix + "/runtime-health", OperationGetRuntimeHealth},
 	} {
 		response := httptest.NewRecorder()
@@ -81,6 +84,15 @@ type stubAdminHTTPServer struct{}
 
 func (stubAdminHTTPServer) ListEvents(context.Context, *ListEventsRequest) (*EventListResponse, error) {
 	return &EventListResponse{}, nil
+}
+func (stubAdminHTTPServer) ListEvidences(context.Context, *ListEvidencesRequest) (*EvidenceListResponse, error) {
+	return &EvidenceListResponse{}, nil
+}
+func (stubAdminHTTPServer) ListEvidenceCategories(context.Context, *EmptyRequest) (*EvidenceCategoryListResponse, error) {
+	return &EvidenceCategoryListResponse{}, nil
+}
+func (stubAdminHTTPServer) ListSources(context.Context, *ListSourcesRequest) (*SourceListResponse, error) {
+	return &SourceListResponse{}, nil
 }
 func (stubAdminHTTPServer) GetRuntimeHealth(context.Context, *EmptyRequest) (*RuntimeHealth, error) {
 	return &RuntimeHealth{}, nil

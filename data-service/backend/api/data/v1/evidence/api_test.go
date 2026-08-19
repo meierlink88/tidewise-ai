@@ -259,3 +259,68 @@ func TestEvidenceCategoryCatalogOpenAPIContract(t *testing.T) {
 		t.Fatal("EvidenceCategoryCatalogEnvelope must reject additional properties")
 	}
 }
+
+func TestAdminEvidenceListOpenAPIContract(t *testing.T) {
+	var document map[string]any
+	if err := yaml.Unmarshal(v1.Document(), &document); err != nil {
+		t.Fatal(err)
+	}
+	paths := document["paths"].(map[string]any)
+	path, exists := paths[v1.APIPrefix+"/evidences"].(map[string]any)
+	if !exists {
+		t.Fatal("Admin Evidence list path is missing")
+	}
+	operation := path["get"].(map[string]any)
+	for field, want := range map[string]any{
+		"operationId":              "listAdminEvidence",
+		"x-client-drift-anchor":    "data.v1.listAdminEvidence",
+		"x-required-service-scope": "data.admin.read",
+		"x-retry-policy":           "safe-get",
+		"x-timeout-budget-ms":      3000,
+	} {
+		if got := operation[field]; got != want {
+			t.Fatalf("%s = %#v, want %#v", field, got, want)
+		}
+	}
+	wantParameters := []string{"X-Request-ID", "title", "summary", "category_id", "source_name", "source_level", "is_split", "published_from", "published_to", "collected_from", "collected_to", "page", "page_size"}
+	parameters := operation["parameters"].([]any)
+	if len(parameters) != len(wantParameters) {
+		t.Fatalf("parameters = %#v, want %d", parameters, len(wantParameters))
+	}
+	for index, want := range wantParameters {
+		parameter := parameters[index].(map[string]any)
+		if ref, ok := parameter["$ref"].(string); ok {
+			wantRef := map[string]string{"X-Request-ID": "#/components/parameters/RequestID", "page": "#/components/parameters/Page", "page_size": "#/components/parameters/PageSize"}[want]
+			if ref != wantRef {
+				t.Fatalf("parameter[%d] = %#v, want %s", index, parameter, want)
+			}
+			continue
+		}
+		if parameter["name"] != want || parameter["in"] != "query" || parameter["required"] != false {
+			t.Fatalf("parameter[%d] = %#v, want optional query %s", index, parameter, want)
+		}
+	}
+	responses := operation["responses"].(map[string]any)
+	for _, status := range []string{"200", "400", "401", "403", "500", "503"} {
+		if _, exists := responses[status]; !exists {
+			t.Fatalf("response %s is missing", status)
+		}
+	}
+	components := document["components"].(map[string]any)["schemas"].(map[string]any)
+	item := components["AdminEvidence"].(map[string]any)
+	wantFields := []string{"id", "raw_evidence_id", "title", "summary", "categories", "source_name", "source_level", "is_split", "published_at", "collected_at"}
+	properties := item["properties"].(map[string]any)
+	if len(properties) != len(wantFields) || item["additionalProperties"] != false {
+		t.Fatalf("AdminEvidence = %#v", item)
+	}
+	for _, field := range wantFields {
+		if _, exists := properties[field]; !exists {
+			t.Fatalf("AdminEvidence is missing %q", field)
+		}
+	}
+	page := components["AdminEvidencePage"].(map[string]any)
+	pageProperties := page["properties"].(map[string]any)
+	if len(pageProperties) != 4 || page["additionalProperties"] != false {
+		t.Fatalf("AdminEvidencePage = %#v", page)
+	}
+}

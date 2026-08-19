@@ -2,6 +2,7 @@ package data
 
 import (
 	"encoding/json"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -132,4 +133,256 @@ func validEventModality(modality biz.EventModality) bool {
 
 func validEventStatus(status biz.EventLifecycleStatus) bool {
 	return status == biz.EventLifecycleActive || status == biz.EventLifecycleDeprecated || status == biz.EventLifecycleArchived
+}
+
+type evidencePageWire struct {
+	Items    []evidenceWire `json:"items"`
+	Total    int            `json:"total"`
+	Page     int            `json:"page"`
+	PageSize int            `json:"page_size"`
+}
+
+func (w *evidencePageWire) UnmarshalJSON(payload []byte) error {
+	if !hasExactJSONFields(payload, "items", "total", "page", "page_size") {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	type alias evidencePageWire
+	var decoded alias
+	if json.Unmarshal(payload, &decoded) != nil {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	*w = evidencePageWire(decoded)
+	return nil
+}
+func (w evidencePageWire) toBiz() (biz.EvidencePage, error) {
+	if w.Total < 0 || w.Page < 1 || w.PageSize < 1 || w.PageSize > 100 || len(w.Items) > w.PageSize || len(w.Items) > w.Total {
+		return biz.EvidencePage{}, &Error{Kind: ErrorKindDecode}
+	}
+	items := make([]biz.Evidence, 0, len(w.Items))
+	seen := make(map[string]struct{}, len(w.Items))
+	for _, value := range w.Items {
+		item, err := value.toBiz()
+		if err != nil {
+			return biz.EvidencePage{}, err
+		}
+		if _, exists := seen[item.ID]; exists {
+			return biz.EvidencePage{}, &Error{Kind: ErrorKindDecode}
+		}
+		seen[item.ID] = struct{}{}
+		items = append(items, item)
+	}
+	return biz.EvidencePage{Items: items, Total: w.Total, Page: w.Page, PageSize: w.PageSize}, nil
+}
+
+type evidenceWire struct {
+	ID            string                 `json:"id"`
+	RawEvidenceID string                 `json:"raw_evidence_id"`
+	Title         *string                `json:"title"`
+	Summary       string                 `json:"summary"`
+	Categories    []evidenceCategoryWire `json:"categories"`
+	SourceName    string                 `json:"source_name"`
+	SourceLevel   string                 `json:"source_level"`
+	IsSplit       bool                   `json:"is_split"`
+	PublishedAt   *time.Time             `json:"published_at"`
+	CollectedAt   time.Time              `json:"collected_at"`
+}
+
+func (w *evidenceWire) UnmarshalJSON(payload []byte) error {
+	if !hasExactJSONFields(payload, "id", "raw_evidence_id", "title", "summary", "categories", "source_name", "source_level", "is_split", "published_at", "collected_at") {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	type alias evidenceWire
+	var decoded alias
+	if json.Unmarshal(payload, &decoded) != nil {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	*w = evidenceWire(decoded)
+	return nil
+}
+func (w evidenceWire) toBiz() (biz.Evidence, error) {
+	if !evidenceIDPattern.MatchString(w.ID) || !rawEvidenceIDPattern.MatchString(w.RawEvidenceID) || strings.TrimSpace(w.Summary) == "" || utf8.RuneCountInString(w.Summary) > 200 ||
+		strings.TrimSpace(w.SourceName) == "" || utf8.RuneCountInString(w.SourceName) > 100 || !validSourceLevel(w.SourceLevel) || w.CollectedAt.IsZero() || w.CollectedAt.Location() != time.UTC ||
+		(w.Title != nil && (strings.TrimSpace(*w.Title) == "" || utf8.RuneCountInString(*w.Title) > 500)) || (w.PublishedAt != nil && w.PublishedAt.Location() != time.UTC) {
+		return biz.Evidence{}, &Error{Kind: ErrorKindDecode}
+	}
+	categories := make([]biz.EvidenceCategory, 0, len(w.Categories))
+	seen := make(map[string]struct{}, len(w.Categories))
+	for _, value := range w.Categories {
+		category, err := value.toBiz()
+		if err != nil {
+			return biz.Evidence{}, err
+		}
+		if _, exists := seen[category.ID]; exists {
+			return biz.Evidence{}, &Error{Kind: ErrorKindDecode}
+		}
+		seen[category.ID] = struct{}{}
+		categories = append(categories, category)
+	}
+	return biz.Evidence{ID: w.ID, RawEvidenceID: w.RawEvidenceID, Title: w.Title, Summary: w.Summary, Categories: categories, SourceName: w.SourceName,
+		SourceLevel: w.SourceLevel, IsSplit: w.IsSplit, PublishedAt: w.PublishedAt, CollectedAt: w.CollectedAt}, nil
+}
+
+type evidenceCategoryWire struct {
+	ID          string `json:"id"`
+	Code        string `json:"code"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+func (w *evidenceCategoryWire) UnmarshalJSON(payload []byte) error {
+	if !hasExactJSONFields(payload, "id", "code", "name", "description") {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	type alias evidenceCategoryWire
+	var decoded alias
+	if json.Unmarshal(payload, &decoded) != nil {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	*w = evidenceCategoryWire(decoded)
+	return nil
+}
+func (w evidenceCategoryWire) toBiz() (biz.EvidenceCategory, error) {
+	if !evidenceCategoryIDPattern.MatchString(w.ID) || !evidenceCategoryCodePattern.MatchString(w.Code) || strings.TrimSpace(w.Name) == "" || strings.TrimSpace(w.Description) == "" || utf8.RuneCountInString(w.Name) > 50 {
+		return biz.EvidenceCategory{}, &Error{Kind: ErrorKindDecode}
+	}
+	return biz.EvidenceCategory{ID: w.ID, Code: w.Code, Name: w.Name, Description: w.Description}, nil
+}
+
+type evidenceCategoryListWire struct {
+	Categories []evidenceCategoryWire `json:"categories"`
+}
+
+func (w *evidenceCategoryListWire) UnmarshalJSON(payload []byte) error {
+	if !hasExactJSONFields(payload, "categories") {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	type alias evidenceCategoryListWire
+	var decoded alias
+	if json.Unmarshal(payload, &decoded) != nil {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	*w = evidenceCategoryListWire(decoded)
+	return nil
+}
+func (w evidenceCategoryListWire) toBiz() ([]biz.EvidenceCategory, error) {
+	if len(w.Categories) == 0 {
+		return nil, &Error{Kind: ErrorKindDecode}
+	}
+	items := make([]biz.EvidenceCategory, 0, len(w.Categories))
+	seen := map[string]struct{}{}
+	previous := ""
+	for _, value := range w.Categories {
+		item, err := value.toBiz()
+		if err != nil {
+			return nil, err
+		}
+		key := item.Code + "\x00" + item.ID
+		if _, exists := seen[item.ID]; exists || (previous != "" && key < previous) {
+			return nil, &Error{Kind: ErrorKindDecode}
+		}
+		seen[item.ID] = struct{}{}
+		previous = key
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+type sourceWire struct {
+	ID                 string          `json:"id"`
+	Code               string          `json:"code"`
+	Name               string          `json:"name"`
+	OwnershipType      string          `json:"ownership_type"`
+	ChannelType        string          `json:"channel_type"`
+	AdapterKey         string          `json:"adapter_key"`
+	Enabled            bool            `json:"enabled"`
+	Endpoint           string          `json:"endpoint"`
+	AppKey             *string         `json:"app_key"`
+	Config             json.RawMessage `json:"config"`
+	Priority           int             `json:"priority"`
+	TimeoutSeconds     int             `json:"timeout_seconds"`
+	MaxResults         int             `json:"max_results"`
+	DefaultSourceLevel string          `json:"default_source_level"`
+	CreatedAt          time.Time       `json:"created_at"`
+	UpdatedAt          time.Time       `json:"updated_at"`
+}
+
+func (w *sourceWire) UnmarshalJSON(payload []byte) error {
+	if !hasExactJSONFields(payload, "id", "code", "name", "ownership_type", "channel_type", "adapter_key", "enabled", "endpoint", "app_key", "config", "priority", "timeout_seconds", "max_results", "default_source_level", "created_at", "updated_at") {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	type alias sourceWire
+	var decoded alias
+	if json.Unmarshal(payload, &decoded) != nil {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	*w = sourceWire(decoded)
+	return nil
+}
+func (w sourceWire) toBiz() (biz.Source, error) {
+	var config map[string]any
+	parsedEndpoint, endpointErr := url.Parse(w.Endpoint)
+	if !sourceIDPattern.MatchString(w.ID) || !sourceCodePattern.MatchString(w.Code) || strings.TrimSpace(w.Name) == "" || utf8.RuneCountInString(w.Name) > 100 ||
+		(w.OwnershipType != "fixed" && w.OwnershipType != "dynamic") || (w.ChannelType != "web_search" && w.ChannelType != "api" && w.ChannelType != "rss") || !validAdapterKey(w.AdapterKey) || endpointErr != nil || parsedEndpoint.Scheme == "" || parsedEndpoint.Host == "" || utf8.RuneCountInString(w.Endpoint) > 2048 ||
+		(w.AppKey != nil && utf8.RuneCountInString(*w.AppKey) > 512) || json.Unmarshal(w.Config, &config) != nil || config == nil || w.Priority < 1 || w.Priority > 5 || w.TimeoutSeconds < 1 || w.TimeoutSeconds > 300 || w.MaxResults < 1 || w.MaxResults > 100 || !validSourceLevel(w.DefaultSourceLevel) || w.CreatedAt.IsZero() || w.UpdatedAt.IsZero() || w.CreatedAt.Location() != time.UTC || w.UpdatedAt.Location() != time.UTC || w.CreatedAt.After(w.UpdatedAt) {
+		return biz.Source{}, &Error{Kind: ErrorKindDecode}
+	}
+	return biz.Source{ID: w.ID, Code: w.Code, Name: w.Name, OwnershipType: w.OwnershipType, ChannelType: w.ChannelType, Enabled: w.Enabled, Priority: w.Priority, DefaultSourceLevel: w.DefaultSourceLevel, UpdatedAt: w.UpdatedAt}, nil
+}
+
+type sourceListWire struct {
+	Sources []sourceWire `json:"sources"`
+}
+
+func (w *sourceListWire) UnmarshalJSON(payload []byte) error {
+	if !hasExactJSONFields(payload, "sources") {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	type alias sourceListWire
+	var decoded alias
+	if json.Unmarshal(payload, &decoded) != nil {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	*w = sourceListWire(decoded)
+	return nil
+}
+func (w sourceListWire) toBiz() ([]biz.Source, error) {
+	if len(w.Sources) > 200 {
+		return nil, &Error{Kind: ErrorKindDecode}
+	}
+	items := make([]biz.Source, 0, len(w.Sources))
+	seen := map[string]struct{}{}
+	var previous *biz.Source
+	for _, value := range w.Sources {
+		item, err := value.toBiz()
+		if err != nil {
+			return nil, err
+		}
+		if _, exists := seen[item.ID]; exists || previous != nil && (previous.Priority > item.Priority || previous.Priority == item.Priority && (previous.Code > item.Code || previous.Code == item.Code && previous.ID >= item.ID)) {
+			return nil, &Error{Kind: ErrorKindDecode}
+		}
+		seen[item.ID] = struct{}{}
+		items = append(items, item)
+		previous = &items[len(items)-1]
+	}
+	return items, nil
+}
+
+var evidenceIDPattern = regexp.MustCompile(`^EVD[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+var rawEvidenceIDPattern = regexp.MustCompile(`^RAW[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+var evidenceCategoryIDPattern = regexp.MustCompile(`^EVC[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+var evidenceCategoryCodePattern = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
+var sourceIDPattern = regexp.MustCompile(`^SRC[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+var sourceCodePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,63}$`)
+
+func validSourceLevel(value string) bool {
+	return value == "L1_OFFICIAL" || value == "L2_WIRE" || value == "L3_MEDIA" || value == "L4_SOCIAL"
+}
+
+func validAdapterKey(value string) bool {
+	switch value {
+	case "bocha", "tavily", "parallel", "cls", "eastmoney_fast", "eastmoney_stock", "stcn", "generic_rss":
+		return true
+	default:
+		return false
+	}
 }
