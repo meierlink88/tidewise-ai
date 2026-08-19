@@ -54,6 +54,9 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/organization-catalog":                                         {method: "get", operationID: "getOrganizationCatalog", driftAnchor: "data.v1.getOrganizationCatalog", scope: "data.organizations.read"},
 		namespace + "/entities/organizations/{organization_id}/members":             {method: "get", operationID: "listOrganizationMembers", driftAnchor: "data.v1.listOrganizationMembers", scope: "data.organizations.read"},
 		namespace + "/entities/organizations/{organization_id}/members/{member_id}": {method: "put", operationID: "updateOrganizationMember", driftAnchor: "data.v1.updateOrganizationMember", scope: "data.organizations.write"},
+		namespace + "/sources":                                                      {method: "get", operationID: "listSources", driftAnchor: "data.v1.listSources", scope: "data.sources.read"},
+		namespace + "/sources/{source_id}":                                          {method: "put", operationID: "updateSource", driftAnchor: "data.v1.updateSource", scope: "data.sources.write"},
+		namespace + "/source-snapshot":                                              {method: "get", operationID: "getSourceSnapshot", driftAnchor: "data.v1.getSourceSnapshot", scope: "data.sources.read"},
 	}
 	additionalMethods := map[string]map[string]struct{}{
 		namespace + "/entities/countries":                                           {"post": {}},
@@ -70,6 +73,8 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/entities/organizations/{organization_id}":                     {"put": {}},
 		namespace + "/entities/organizations/{organization_id}/members":             {"post": {}},
 		namespace + "/entities/organizations/{organization_id}/members/{member_id}": {"delete": {}},
+		namespace + "/sources":                                                      {"post": {}},
+		namespace + "/sources/{source_id}":                                          {"delete": {}},
 	}
 
 	if len(paths) != len(want) {
@@ -98,6 +103,76 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestOpenAPIContractFreezesSourceManagementAndSnapshot(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	type sourceOperation struct {
+		operationContract
+		errorCodes []string
+	}
+	for _, expected := range []sourceOperation{
+		{operationContract: operationContract{method: "get", operationID: "listSources", driftAnchor: "data.v1.listSources", scope: "data.sources.read"}, errorCodes: []string{"SOURCE_FAILED", "SOURCE_TIMEOUT"}},
+		{operationContract: operationContract{method: "post", operationID: "createSource", driftAnchor: "data.v1.createSource", scope: "data.sources.write"}, errorCodes: []string{"SOURCE_INVALID", "SOURCE_CONFLICT", "SOURCE_CAPACITY_EXCEEDED", "SOURCE_TIMEOUT", "SOURCE_FAILED"}},
+		{operationContract: operationContract{method: "put", operationID: "updateSource", driftAnchor: "data.v1.updateSource", scope: "data.sources.write"}, errorCodes: []string{"SOURCE_INVALID", "SOURCE_NOT_FOUND", "SOURCE_CONFLICT", "SOURCE_CAPACITY_EXCEEDED", "SOURCE_TIMEOUT", "SOURCE_FAILED"}},
+		{operationContract: operationContract{method: "delete", operationID: "deleteSource", driftAnchor: "data.v1.deleteSource", scope: "data.sources.write"}, errorCodes: []string{"SOURCE_INVALID", "SOURCE_NOT_FOUND", "SOURCE_FIXED_DELETE_FORBIDDEN", "SOURCE_TIMEOUT", "SOURCE_FAILED"}},
+		{operationContract: operationContract{method: "get", operationID: "getSourceSnapshot", driftAnchor: "data.v1.getSourceSnapshot", scope: "data.sources.read"}, errorCodes: []string{"SOURCE_SNAPSHOT_FAILED", "SOURCE_TIMEOUT", "SOURCE_FAILED"}},
+	} {
+		path := namespace + "/sources"
+		if expected.method == "put" || expected.method == "delete" {
+			path += "/{source_id}"
+		}
+		if expected.operationID == "getSourceSnapshot" {
+			path = namespace + "/source-snapshot"
+		}
+		operation := object(t, object(t, paths[path], path)[expected.method], expected.method+" "+path)
+		assertString(t, operation, "operationId", expected.operationID)
+		assertString(t, operation, "x-client-drift-anchor", expected.driftAnchor)
+		assertString(t, operation, "x-required-service-scope", expected.scope)
+		assertInt(t, operation, "x-timeout-budget-ms", 3000)
+		assertStringSet(t, operation["x-error-codes"], expected.errorCodes...)
+	}
+	createResponses := object(t, object(t, object(t, paths[namespace+"/sources"], "Source collection path")["post"], "Source create")["responses"], "Source create responses")
+	updateResponses := object(t, object(t, object(t, paths[namespace+"/sources/{source_id}"], "Source item path")["put"], "Source update")["responses"], "Source update responses")
+	deleteResponses := object(t, object(t, object(t, paths[namespace+"/sources/{source_id}"], "Source item path")["delete"], "Source delete")["responses"], "Source delete responses")
+	if _, exists := createResponses["413"]; !exists {
+		t.Fatal("Source create must document 413")
+	}
+	if _, exists := updateResponses["413"]; !exists {
+		t.Fatal("Source update must document 413")
+	}
+	if _, exists := deleteResponses["422"]; !exists {
+		t.Fatal("Source delete must document 422")
+	}
+
+	snapshot := object(t, object(t, paths[namespace+"/source-snapshot"], "snapshot path")["get"], "snapshot operation")
+	assertInt(t, snapshot, "x-max-response-bytes", 500000)
+	assertRequired(t, schema(t, document, "Source"),
+		"id", "code", "name", "ownership_type", "channel_type", "adapter_key", "enabled", "endpoint", "app_key", "config",
+		"priority", "timeout_seconds", "max_results", "default_source_level", "created_at", "updated_at",
+	)
+	assertStringSet(t, schema(t, document, "SourceLevel")["enum"], "L1_OFFICIAL", "L2_WIRE", "L3_MEDIA", "L4_SOCIAL")
+	for _, schemaName := range []string{"SourceCreateRequest", "SourceUpdateRequest"} {
+		properties := object(t, schema(t, document, schemaName)["properties"], schemaName+" properties")
+		for _, immutable := range []string{"id", "ownership_type", "channel_type"} {
+			if _, exists := properties[immutable]; exists {
+				t.Errorf("%s exposes system-owned or immutable property %q", schemaName, immutable)
+			}
+		}
+	}
+	updateProperties := object(t, schema(t, document, "SourceUpdateRequest")["properties"], "SourceUpdateRequest properties")
+	if _, exists := updateProperties["code"]; exists {
+		t.Fatal("SourceUpdateRequest must not expose immutable code")
+	}
+	if _, exists := updateProperties["adapter_key"]; !exists {
+		t.Fatal("SourceUpdateRequest must expose mutable adapter_key")
+	}
+
+	collectionProperties := object(t, schema(t, document, "SourceCollection")["properties"], "SourceCollection properties")
+	sources := object(t, collectionProperties["sources"], "SourceCollection sources")
+	assertInt(t, sources, "maxItems", 200)
+	assertInt(t, schema(t, document, "SourceSnapshotEnvelope"), "x-max-utf8-bytes", 500000)
 }
 
 func TestOpenAPIContractDoesNotPublishRetiredEventSemanticContracts(t *testing.T) {

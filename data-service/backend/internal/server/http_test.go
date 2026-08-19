@@ -2,24 +2,202 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"testing"
 	"time"
 
 	dataapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
+	sourceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/source"
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
+	sourcebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/source"
 	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 	evidencedata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/evidence"
+	sourcedata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/source"
 	evidenceservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/evidence"
+	sourceservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/source"
 	postgresfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/postgres"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/research"
 )
+
+func TestProductionServerSourceManagementAndSnapshotContract(t *testing.T) {
+	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "migrations"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := postgresfixture.OpenIsolated(t, "tw_source_server", migrationDir, 0)
+	store, err := sourcedata.NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useCase, err := sourcebiz.NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plainKey := "plain-bocha-key"
+	fixed, err := useCase.PublishFixed(context.Background(), sourcebiz.CurrentFixedManifest(sourcebiz.FixedManifestOptions{AppKeys: map[string]string{"bocha": plainKey}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	application, err := sourceservice.NewService(useCase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authenticator, err := NewAuthenticator([]Credential{
+		{Secret: "source-read-token", Principal: dataapi.Principal{Identity: "agentos", Scopes: []string{ScopeSourceRead}}},
+		{Secret: "source-write-token", Principal: dataapi.Principal{Identity: "admin-backend", Scopes: []string{ScopeSourceWrite}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := NewHTTPServer(
+		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{}, serverTestEvidenceService{},
+		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{},
+		serverTestIndustryChainService{}, serverTestOrganizationService{}, application, authenticator, nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	snapshot := productionContractRequest(t, server, http.MethodGet, dataapi.APIPrefix+"/source-snapshot", "source-read-token", "", "source-snapshot", http.StatusOK)
+	active := snapshot["result"].(map[string]any)["sources"].([]any)
+	if len(active) != 5 || active[0].(map[string]any)["channel_type"] != "api" || active[len(active)-1].(map[string]any)["channel_type"] != "web_search" {
+		t.Fatalf("active snapshot = %#v", active)
+	}
+	if active[len(active)-1].(map[string]any)["app_key"] != plainKey {
+		t.Fatalf("snapshot did not return plaintext app_key: %#v", active[len(active)-1])
+	}
+	productionContractError(t, server, http.MethodPost, dataapi.APIPrefix+"/sources", "source-write-token", `{"code":"missing_enabled","name":"Missing","endpoint":"https://example.com/feed.xml","app_key":null,"config":{},"priority":1,"timeout_seconds":30,"max_results":10,"default_source_level":"L3_MEDIA"}`, "source-create-required", http.StatusBadRequest, "INVALID_REQUEST")
+
+	created := productionContractRequest(t, server, http.MethodPost, dataapi.APIPrefix+"/sources", "source-write-token", `{"code":"example_feed","name":"Example Feed","enabled":true,"endpoint":"https://example.com/feed.xml","app_key":null,"config":{"max_bytes":5000000},"priority":2,"timeout_seconds":20,"max_results":25,"default_source_level":"L3_MEDIA"}`, "source-create", http.StatusCreated)
+	dynamicID := created["result"].(map[string]any)["id"].(string)
+	if created["result"].(map[string]any)["ownership_type"] != "dynamic" || created["result"].(map[string]any)["adapter_key"] != "generic_rss" {
+		t.Fatalf("dynamic create = %#v", created)
+	}
+
+	bochaID := ""
+	for _, item := range fixed {
+		if item.Code == "bocha" {
+			bochaID = item.ID
+		}
+	}
+	updated := productionContractRequest(t, server, http.MethodPut, dataapi.APIPrefix+"/sources/"+bochaID, "source-write-token", `{"name":"博查","adapter_key":"generic_rss","enabled":true,"endpoint":"https://api.bochaai.com/v1/web-search","app_key":"plain-bocha-key","config":{},"priority":1,"timeout_seconds":30,"max_results":10,"default_source_level":"L3_MEDIA"}`, "source-update", http.StatusOK)
+	if updated["result"].(map[string]any)["channel_type"] != "web_search" || updated["result"].(map[string]any)["adapter_key"] != "generic_rss" {
+		t.Fatalf("fixed adapter mismatch update = %#v", updated)
+	}
+	productionContractError(t, server, http.MethodDelete, dataapi.APIPrefix+"/sources/"+bochaID, "source-write-token", "", "source-fixed-delete", http.StatusConflict, "SOURCE_FIXED_DELETE_FORBIDDEN")
+	productionContractRequest(t, server, http.MethodDelete, dataapi.APIPrefix+"/sources/"+dynamicID, "source-write-token", "", "source-dynamic-delete", http.StatusOK)
+	productionContractError(t, server, http.MethodGet, dataapi.APIPrefix+"/source-snapshot?page=1", "source-read-token", "", "source-query", http.StatusBadRequest, "INVALID_REQUEST")
+	productionContractError(t, server, http.MethodGet, dataapi.APIPrefix+"/source-snapshot", "source-write-token", "", "source-scope", http.StatusForbidden, "FORBIDDEN")
+	if _, err := db.Exec(`UPDATE sources SET config='{"source_levels":{"example.com":"INVALID"}}'::jsonb WHERE code='cls_telegraph'`); err != nil {
+		t.Fatal(err)
+	}
+	failedSnapshot := productionContractError(t, server, http.MethodGet, dataapi.APIPrefix+"/source-snapshot", "source-read-token", "", "source-invalid-state", http.StatusServiceUnavailable, "SOURCE_SNAPSHOT_FAILED")
+	if _, exists := failedSnapshot["result"]; exists {
+		t.Fatalf("failed snapshot exposed partial result: %#v", failedSnapshot)
+	}
+}
+
+func TestSourceProviderFixtureMatchesRuntimeHTTPOutput(t *testing.T) {
+	payload, err := os.ReadFile(filepath.Join("..", "..", "api", "data", "v1", "source", "testdata", "source-snapshot.v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		RequestID string                   `json:"request_id"`
+		Result    sourceapi.SourceSnapshot `json:"result"`
+	}
+	var expected map[string]any
+	if err := json.Unmarshal(payload, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(payload, &expected); err != nil {
+		t.Fatal(err)
+	}
+	server := sourceSnapshotContractServer(t, fixtureSourceService{sources: fixture.Result.Sources})
+	actual := productionContractRequest(t, server, http.MethodGet, dataapi.APIPrefix+"/source-snapshot", "source-read-token", "", fixture.RequestID, http.StatusOK)
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("runtime Source snapshot differs from provider fixture:\nactual=%#v\nexpected=%#v", actual, expected)
+	}
+}
+
+func TestSourceSnapshotHTTPReturnsTwoHundredSourcesWithinEnvelopeAndTimeBudgets(t *testing.T) {
+	sources := make([]sourceapi.Source, 0, sourcebiz.MaxSources)
+	for index := 0; index < sourcebiz.MaxSources; index++ {
+		code := fmt.Sprintf("source-%03d", index)
+		id, err := coreid.Derive(coreid.Source, "source", code)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sources = append(sources, sourceapi.Source{
+			ID: id, Code: code, Name: code, OwnershipType: "dynamic", ChannelType: "rss", AdapterKey: "generic_rss",
+			Enabled: true, Endpoint: "https://example.com/feed.xml", Config: json.RawMessage(`{}`), Priority: 1,
+			TimeoutSeconds: 30, MaxResults: 10, DefaultSourceLevel: "L3_MEDIA",
+			CreatedAt: "2026-08-19T00:00:00Z", UpdatedAt: "2026-08-19T00:00:00Z",
+		})
+	}
+	server := sourceSnapshotContractServer(t, fixtureSourceService{sources: sources})
+	request := httptest.NewRequest(http.MethodGet, dataapi.APIPrefix+"/source-snapshot", nil)
+	request.Header.Set("Authorization", "Bearer source-read-token")
+	request.Header.Set("X-Request-ID", "source-200-http")
+	response := httptest.NewRecorder()
+	started := time.Now()
+	server.ServeHTTP(response, request)
+	if elapsed := time.Since(started); elapsed >= 3*time.Second {
+		t.Fatalf("200-Source HTTP snapshot took %s", elapsed)
+	}
+	if response.Code != http.StatusOK {
+		t.Fatalf("snapshot status=%d body=%s", response.Code, response.Body.String())
+	}
+	if response.Body.Len() > sourcebiz.MaxSnapshotEnvelopeSize {
+		t.Fatalf("serialized snapshot envelope=%d bytes", response.Body.Len())
+	}
+	var envelope struct {
+		Result sourceapi.SourceSnapshot `json:"result"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if len(envelope.Result.Sources) != sourcebiz.MaxSources {
+		t.Fatalf("HTTP snapshot Source count=%d", len(envelope.Result.Sources))
+	}
+}
+
+type fixtureSourceService struct {
+	serverTestSourceService
+	sources []sourceapi.Source
+}
+
+func (s fixtureSourceService) Snapshot(context.Context) (*dataapi.Response[sourceapi.SourceSnapshot], error) {
+	return &dataapi.Response[sourceapi.SourceSnapshot]{Status: dataapi.StatusOK, Result: sourceapi.SourceSnapshot{Sources: s.sources}}, nil
+}
+
+func sourceSnapshotContractServer(t *testing.T, application sourceapi.Service) http.Handler {
+	t.Helper()
+	authenticator, err := NewAuthenticator([]Credential{{
+		Secret: "source-read-token", Principal: dataapi.Principal{Identity: "agentos", Scopes: []string{ScopeSourceRead}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := NewHTTPServer(
+		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{}, serverTestEvidenceService{},
+		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{},
+		serverTestIndustryChainService{}, serverTestOrganizationService{}, application, authenticator, nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return server
+}
 
 func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *testing.T) {
 	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "migrations"))
@@ -50,7 +228,7 @@ func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *te
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{},
 		application,
-		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, authenticator, nil,
+		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)

@@ -95,6 +95,7 @@ func TestOrganizationAndEvidenceRelationshipKindsAreRegistered(t *testing.T) {
 		OrganizationDomainTag:     "ODT",
 		OrganizationDomainTagLink: "ODL",
 		RawEvidenceCategoryLink:   "RCL",
+		Source:                    "SRC",
 	} {
 		value, err := New(kind)
 		if err != nil {

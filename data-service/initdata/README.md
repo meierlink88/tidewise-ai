@@ -77,3 +77,39 @@ dates. Those rows are not silently converted into Country memberships.
 This artifact does not add or change an initializer, runtime command, database
 transaction, schema, migration, or deployment behavior. Environment-specific
 loading remains outside this data-only package.
+
+## Source ownership publication
+
+Source schema is installed by migration `000061`, but Source facts are never seeded by a schema
+migration or normal deployment. For a fresh local environment, publish the seven reviewed fixed
+Sources with the released Data image:
+
+```text
+/usr/local/bin/source-initialize
+```
+
+The initializer applies deployment endpoint and plaintext provider-key environment overrides,
+inserts only missing fixed codes, and preserves mutable values of existing fixed rows. It is safe
+to replay and does not create dynamic Sources.
+
+For an existing local or UAT AgentOS ownership transfer, freeze all Source management first and
+export the complete current set, including ownership, timestamps and plaintext `app_key`, as:
+
+```json
+{ "sources": [/* complete Source objects */] }
+```
+
+Then publish that reviewed file into an empty Data `sources` table:
+
+```text
+/usr/local/bin/source-import -file /approved/source-export.json
+```
+
+The importer assigns deterministic `SRC` identities from `code`, validates the whole set and
+commits atomically. Exact replay is accepted; a partial existing set or any drift fails. The file
+is an operator-controlled transfer artifact, is not committed to this repository, and must be
+handled with the same controls as a secret because `app_key` is plaintext. Take Data and AgentOS
+recovery points before publication, verify the complete authenticated management list and active
+snapshot afterward, and retain the export for the coordinated rollback window. Do not run the
+initializer before importing an existing AgentOS set, do not let deployment invoke either command,
+and never operate Data and AgentOS as concurrent Source writers.

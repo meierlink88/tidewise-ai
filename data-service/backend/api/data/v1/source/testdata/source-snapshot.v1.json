@@ -1,0 +1,43 @@
+{
+  "request_id": "source-provider-fixture-v1",
+  "result": {
+    "sources": [
+      {
+        "id": "SRCdd882dab-b629-5361-8926-e4d17883389a",
+        "code": "cls_telegraph",
+        "name": "财联社电报",
+        "ownership_type": "fixed",
+        "channel_type": "api",
+        "adapter_key": "cls",
+        "enabled": true,
+        "endpoint": "https://www.cls.cn/v1/roll/get_roll_list",
+        "app_key": null,
+        "config": {},
+        "priority": 1,
+        "timeout_seconds": 30,
+        "max_results": 10,
+        "default_source_level": "L2_WIRE",
+        "created_at": "2026-08-19T00:00:00Z",
+        "updated_at": "2026-08-19T00:00:00Z"
+      },
+      {
+        "id": "SRC8e2d0d70-86ec-5fc8-85ba-0f003011280c",
+        "code": "bocha",
+        "name": "博查",
+        "ownership_type": "fixed",
+        "channel_type": "web_search",
+        "adapter_key": "bocha",
+        "enabled": true,
+        "endpoint": "https://api.bochaai.com/v1/web-search",
+        "app_key": "plaintext-provider-key",
+        "config": {},
+        "priority": 1,
+        "timeout_seconds": 30,
+        "max_results": 10,
+        "default_source_level": "L3_MEDIA",
+        "created_at": "2026-08-19T00:00:00Z",
+        "updated_at": "2026-08-19T00:00:00Z"
+      }
+    ]
+  }
+}

@@ -23,6 +23,7 @@ import (
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
 	researchapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/research"
 	runtimehealthapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/runtimehealth"
+	sourceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/source"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/conf"
 	researchfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/research"
 	"gopkg.in/yaml.v3"
@@ -179,7 +180,7 @@ func TestServerEnforcesResearchReadScopeOnResearchRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server, err := NewHTTPServer(testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{}, serverTestEvidenceService{}, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, authenticator, nil)
+	server, err := NewHTTPServer(testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{}, serverTestEvidenceService{}, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, authenticator, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +265,7 @@ func TestServerEnforcesDedicatedCountryReadAndWriteScopes(t *testing.T) {
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{},
 		serverTestEvidenceService{},
-		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, authenticator, nil,
+		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -309,7 +310,7 @@ func TestServerEnforcesDedicatedIndependentObjectScopes(t *testing.T) {
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{},
 		serverTestEvidenceService{},
-		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, authenticator, nil,
+		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -400,9 +401,10 @@ func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
 		chainNode     chainnodeapi.Service
 		industryChain industrychainapi.Service
 		organization  organizationapi.Service
+		source        sourceapi.Service
 		auth          *Authenticator
 	}{
-		{name: "Runtime Health API", research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
+		{name: "Runtime Health API", research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, source: serverTestSourceService{}, auth: authenticator},
 		{name: "Research API", application: serverTestDataService{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
 		{name: "Event API", application: serverTestDataService{}, research: researchfixture.Service{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
 		{name: "Evidence API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
@@ -412,6 +414,7 @@ func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
 		{name: "ChainNode API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
 		{name: "IndustryChain API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
 		{name: "Organization API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, auth: authenticator},
+		{name: "Source API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
 		{name: "authenticator", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -421,7 +424,10 @@ func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
 			if test.name != "IndustryChain API" && test.industryChain == nil {
 				test.industryChain = serverTestIndustryChainService{}
 			}
-			if _, err := NewHTTPServer(testConfig(), test.application, test.research, test.event, test.evidence, test.country, test.industry, test.concept, test.chainNode, test.industryChain, test.organization, test.auth, nil); err == nil {
+			if test.name != "Source API" && test.source == nil {
+				test.source = serverTestSourceService{}
+			}
+			if _, err := NewHTTPServer(testConfig(), test.application, test.research, test.event, test.evidence, test.country, test.industry, test.concept, test.chainNode, test.industryChain, test.organization, test.source, test.auth, nil); err == nil {
 				t.Fatal("NewHTTPServer() error = nil")
 			}
 		})
@@ -467,6 +473,7 @@ func TestEveryBusinessOperationHasAnAuthenticationScope(t *testing.T) {
 	businessOperations = append(businessOperations, chainnodeapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, industrychainapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, organizationapi.BusinessOperations()...)
+	businessOperations = append(businessOperations, sourceapi.BusinessOperations()...)
 	for _, operation := range businessOperations {
 		if _, exists := openAPIOperations[operation]; !exists {
 			t.Errorf("business operation %q is absent from OpenAPI", operation)
@@ -533,7 +540,7 @@ func newTestHTTPServer(config conf.Config, application runtimehealthapi.Service,
 }
 
 func newTestHTTPServerWithEvent(config conf.Config, application runtimehealthapi.Service, eventApplication eventapi.Service, evidenceApplication evidenceapi.Service, authenticator *Authenticator) *kratoshttp.Server {
-	server, err := NewHTTPServer(config, application, researchfixture.Service{}, eventApplication, evidenceApplication, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, authenticator, nil)
+	server, err := NewHTTPServer(config, application, researchfixture.Service{}, eventApplication, evidenceApplication, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, authenticator, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -553,6 +560,28 @@ type serverTestChainNodeService struct{}
 type serverTestIndustryChainService struct{}
 
 type serverTestOrganizationService struct{}
+
+type serverTestSourceService struct{}
+
+func (serverTestSourceService) Create(context.Context, *sourceapi.CreateRequest) (*dataapi.Response[sourceapi.Source], error) {
+	return &dataapi.Response[sourceapi.Source]{Status: dataapi.StatusOK}, nil
+}
+
+func (serverTestSourceService) List(context.Context) (*dataapi.Response[sourceapi.SourceList], error) {
+	return &dataapi.Response[sourceapi.SourceList]{Status: dataapi.StatusOK}, nil
+}
+
+func (serverTestSourceService) Update(context.Context, *sourceapi.UpdateRequest) (*dataapi.Response[sourceapi.Source], error) {
+	return &dataapi.Response[sourceapi.Source]{Status: dataapi.StatusOK}, nil
+}
+
+func (serverTestSourceService) Delete(context.Context, *sourceapi.DeleteRequest) (*dataapi.Response[sourceapi.DeleteResult], error) {
+	return &dataapi.Response[sourceapi.DeleteResult]{Status: dataapi.StatusOK}, nil
+}
+
+func (serverTestSourceService) Snapshot(context.Context) (*dataapi.Response[sourceapi.SourceSnapshot], error) {
+	return &dataapi.Response[sourceapi.SourceSnapshot]{Status: dataapi.StatusOK}, nil
+}
 
 func (serverTestOrganizationService) Create(context.Context, *organizationapi.CreateRequest) (*dataapi.Response[organizationapi.Organization], error) {
 	return serverTestResponse[organizationapi.Organization]()

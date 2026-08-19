@@ -46,6 +46,7 @@ const (
 	IndustryChainGraphEdge            Kind = "IGE"
 	IndustryRelationshipImportReceipt Kind = "IRI"
 	OrganizationMembership            Kind = "OMB"
+	Source                            Kind = "SRC"
 	ResearchReasoningTreeReceipt      Kind = "RRI"
 	ResearchReasoningTreeNode         Kind = "RRN"
 	ResearchReasoningTree             Kind = "RRT"
@@ -154,6 +155,7 @@ func registered(kind Kind) bool {
 		ChainNodePhysicalConstraint, ChainNodeRelation, CountryRegionLink,
 		EntityExternalIdentifier, EventEvidenceLink, EventActorLink, EventAssetLink, Event,
 		IndustryChainGraphEdge, IndustryRelationshipImportReceipt, OrganizationMembership,
+		Source,
 		ResearchReasoningTreeReceipt, ResearchReasoningTreeNode, ResearchReasoningTree,
 		ResearchThemeReceipt, ResearchTheme:
 		return true
