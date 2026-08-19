@@ -6,11 +6,11 @@
 
 ## Contexts
 
-| Context | 类型 | 主要职责 | 详细说明 |
-| --- | --- | --- | --- |
-| Miniapp | 产品系统 | `miniapp/frontend` 与 `miniapp/backend` | `docs/contexts/miniapp/CONTEXT.md` |
+| Context      | 类型     | 主要职责                                          | 详细说明                               |
+| ------------ | -------- | ------------------------------------------------- | -------------------------------------- |
+| Miniapp      | 产品系统 | `miniapp/frontend` 与 `miniapp/backend`           | `docs/contexts/miniapp/CONTEXT.md`     |
 | Admin Portal | 产品系统 | `admin-portal/frontend` 与 `admin-portal/backend` | `docs/contexts/adminportal/CONTEXT.md` |
-| Data | 领域系统 | `data-service/backend`、正式事实与查询 | `docs/contexts/data/CONTEXT.md` |
+| Data         | 领域系统 | `data-service/backend`、正式事实与查询            | `docs/contexts/data/CONTEXT.md`        |
 
 `data-service` 是工程应用名，领域术语仍为 Data Domain Service。Agent OS 位于本仓库之外，
 需要发布数据时只能消费 Data 的版本化 REST API，不属于本仓库 Context、部署单元或数据
@@ -25,10 +25,10 @@ Miniapp Frontend
 
 Admin Portal Frontend
   -> Admin Application Backend Service
-      -> Data Domain Service REST API
+      -> Data Domain Service REST API, including Source management
 
 External Agent OS
-  -> Data Domain Service versioned publication/read REST APIs
+  -> Data Domain Service versioned Source snapshot and publication/read REST APIs
 
 Data Domain Service
   -> no external Agent runtime, database, Artifact, or code dependency
@@ -44,7 +44,8 @@ Docker image 和 Compose 运行。共享 PostgreSQL、MySQL、Neo4j、MinIO 与 
 基础设施项目，不属于应用发布单元。Admin Web 是浏览器唯一 Admin origin，并把相对
 `/api/admin/*` 请求代理到内部 Admin Backend。
 
-系统级退役决策见 `docs/adr/0027-retire-agent-run.md`。
+系统级退役决策见 `docs/adr/0027-retire-agent-run.md`。Source 所有权、Admin Backend 管理边界与
+AgentOS 运行时快照见 `docs/adr/0031-data-owns-source-management.md`。
 
 UAT 中的 OpenSPG MySQL 与共享 MinIO 由独立 `tidewise-infra-uat` 项目运行，不属于四个
 应用服务、AgentOS 或 Reason Server 的发布事务；详见

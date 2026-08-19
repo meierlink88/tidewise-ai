@@ -68,6 +68,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000060_rebuild_event_domain.sql`：Issue #277 授权的零兼容切换，删除旧 Event 与
   依赖 Research 事实，退役轻量 Raw Document、Event Source、Event Tag 和 Publication
   Receipt，并围绕 Event、Atomic Evidence Link、Actor Link 和 Asset Link 重建持久化。
+- `000061_add_sources.sql`：创建当前 Data-owned `sources` 表、固定身份保护、单一 active
+  web-search 约束和稳定读取索引。它不复用已退役 `source_catalogs` 语义，不 seed
+  也不从 AgentOS 数据库读取事实。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -163,3 +166,14 @@ Signal、Direct Impact 与相关 definition/policy/catalog 表均不存在，for
 `data_60_cutover` 执行 apply。执行后确认 ledger 为 `60`，旧五类表不存在，新四表的列、
 约束与前缀身份正确，且旧 Event 与依赖 Research 数据为空。旧应用不兼容新 schema；
 回滚必须同时恢复 migration 60 前快照与上一版应用，不运行 down migration。
+
+`000061` 是 Issue #286 的 additive、forward-only Source 所有权切换基础。操作员先停止
+AgentOS/Admin 上的 Source 管理变更，分别取得 Data PostgreSQL 和 AgentOS Source 数据的
+恢复点，然后用候选镜像执行 check-only，确认 `000061` 是唯一 pending migration 后
+才 apply。迁移只能通过完整 export 文件运行 `source-import -file ...`；新鲜环境则运行
+`source-initialize`。两个命令都是独立人工发布动作，不属于 migration 或普通 Deploy。
+发布后确认 ledger 为 `61`、Source 总数与导出一致、不超过 200、最多一个 active
+web search，并用正式 token 读取完整管理集合与 active snapshot。新 Data 可与尚未消费
+新 API 的旧 Admin Backend/AgentOS 共存，但不允许双写；AgentOS 切换由其独立交付完成。
+回滚 Data 应用时保留表与已导入数据，不运行 down；外部消费方切换后的回滚必须停止
+新 workflow/管理写入并按 ADR-0031 恢复切换前 AgentOS 快照，不使用部分快照或反向同步。

@@ -22,6 +22,7 @@ import (
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/runtimehealth"
+	sourcebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/source"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/conf"
 	data "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/dbmigration"
@@ -35,6 +36,7 @@ import (
 	eventdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/event"
 	evidencedata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/evidence"
 	researchdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/research"
+	sourcedata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/source"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/server"
 	chainnodeservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/chainnode"
 	conceptservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/concept"
@@ -46,6 +48,7 @@ import (
 	evidenceservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/evidence"
 	researchservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/research"
 	runtimehealthservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/runtimehealth"
+	sourceservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/source"
 )
 
 const applicationStopTimeout = 10 * time.Second
@@ -148,6 +151,14 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Organization use case: %w", err))
 	}
+	sourceStore, err := sourcedata.NewStore(db)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Source store: %w", err))
+	}
+	sourceUseCase, err := sourcebiz.NewUseCase(sourceStore)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Source use case: %w", err))
+	}
 	researchStore, err := researchdata.NewStore(db)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Research store: %w", err))
@@ -202,7 +213,11 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Organization API service: %w", err))
 	}
-	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, evidenceApplication, countryApplication, industryApplication, conceptApplication, chainNodeApplication, industryChainApplication, organizationApplication, authenticator, logger)
+	sourceApplication, err := sourceservice.NewService(sourceUseCase)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Source API service: %w", err))
+	}
+	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, evidenceApplication, countryApplication, industryApplication, conceptApplication, chainNodeApplication, industryChainApplication, organizationApplication, sourceApplication, authenticator, logger)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure HTTP server: %w", err))
 	}
@@ -236,6 +251,8 @@ func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 				server.ScopeIndustryChainWrite,
 				server.ScopeOrganizationRead,
 				server.ScopeOrganizationWrite,
+				server.ScopeSourceRead,
+				server.ScopeSourceWrite,
 			}},
 		},
 	}

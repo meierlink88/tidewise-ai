@@ -27,6 +27,7 @@ tags:
   - name: Industry
   - name: Concept
   - name: Organization
+  - name: Source
 
 paths:
   /healthz:
@@ -1372,6 +1373,134 @@ paths:
         '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/ServiceUnavailable'}
 
+  /api/data/v1/sources:
+    get:
+      tags: [Source]
+      operationId: listSources
+      x-client-drift-anchor: data.v1.listSources
+      x-required-service-scope: data.sources.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 3000
+      summary: 一次返回全部 Source 管理视图
+      description: 不分页、不接受 query 参数，按 priority、code、id 稳定排序。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          description: 完整 Source 集合
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/SourceListEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+    post:
+      tags: [Source]
+      operationId: createSource
+      x-client-drift-anchor: data.v1.createSource
+      x-required-service-scope: data.sources.write
+      x-retry-policy: caller-confirms-natural-identity
+      x-timeout-budget-ms: 3000
+      summary: 创建 dynamic RSS Source
+      description: 服务端固定 ownership_type=dynamic、channel_type=rss、adapter_key=generic_rss。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SourceCreateRequest'}}}}
+      responses:
+        '201':
+          description: Source 已创建
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/SourceEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
+  /api/data/v1/sources/{source_id}:
+    parameters:
+      - $ref: '#/components/parameters/SourceID'
+    put:
+      tags: [Source]
+      operationId: updateSource
+      x-client-drift-anchor: data.v1.updateSource
+      x-required-service-scope: data.sources.write
+      x-retry-policy: idempotent-put
+      x-timeout-budget-ms: 3000
+      summary: 替换 Source 的全部可变字段
+      description: fixed Source 的 code、ownership_type、channel_type 不可变；adapter_key 可变且不校验与 channel_type 的兼容性。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      requestBody: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/SourceUpdateRequest'}}}}
+      responses:
+        '200':
+          description: Source 已更新
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/SourceEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+    delete:
+      tags: [Source]
+      operationId: deleteSource
+      x-client-drift-anchor: data.v1.deleteSource
+      x-required-service-scope: data.sources.write
+      x-retry-policy: caller-confirms-source-exists
+      x-timeout-budget-ms: 3000
+      summary: 删除 dynamic Source
+      description: fixed Source 不可删除。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          description: dynamic Source 已删除
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/SourceDeleteEnvelope'}}}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
+  /api/data/v1/source-snapshot:
+    get:
+      tags: [Source]
+      operationId: getSourceSnapshot
+      x-client-drift-anchor: data.v1.getSourceSnapshot
+      x-required-service-scope: data.sources.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 3000
+      x-max-response-bytes: 500000
+      summary: 一次返回全部 active Source 运行时快照
+      description: >-
+        不分页、不接受 query 参数，按 channel_type、priority、code、id 稳定排序。
+        空集合是合法完整快照；读取、完整性校验或 500000-byte envelope 预算失败时整次失败，禁止部分结果。
+        app_key 依用户确认的 service-token 信任边界以明文返回。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+      responses:
+        '200':
+          description: 可冻结为单次 Raw Collection Workflow 输入的完整 active Source 快照
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/SourceSnapshotEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503':
+          description: 完整 snapshot 不可用；错误码 SOURCE_SNAPSHOT_FAILED 或 SOURCE_SNAPSHOT_TIMEOUT
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
+
 components:
   securitySchemes:
     ServiceBearer:
@@ -1515,6 +1644,12 @@ components:
       in: path
       required: true
       schema: {type: string, pattern: '^ORG[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', maxLength: 39}
+    SourceID:
+      name: source_id
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/SourceID'
 
   headers:
     RequestID:
@@ -1645,6 +1780,111 @@ components:
             $ref: '#/components/schemas/ErrorEnvelope'
 
   schemas:
+    SourceID:
+      type: string
+      pattern: '^SRC[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      maxLength: 39
+    SourceCode:
+      type: string
+      pattern: '^[a-z0-9][a-z0-9_-]{0,63}$'
+      minLength: 1
+      maxLength: 64
+      description: 全局唯一且创建后不可变。
+    SourceLevel:
+      type: string
+      enum: [L1_OFFICIAL, L2_WIRE, L3_MEDIA, L4_SOCIAL]
+    Source:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.Source
+      required: [id, code, name, ownership_type, channel_type, adapter_key, enabled, endpoint, app_key, config, priority, timeout_seconds, max_results, default_source_level, created_at, updated_at]
+      properties:
+        id: {$ref: '#/components/schemas/SourceID'}
+        code: {$ref: '#/components/schemas/SourceCode'}
+        name: {type: string, minLength: 1, maxLength: 100}
+        ownership_type: {type: string, enum: [fixed, dynamic]}
+        channel_type: {type: string, enum: [web_search, api, rss]}
+        adapter_key: {type: string, enum: [bocha, tavily, parallel, cls, eastmoney_fast, eastmoney_stock, stcn, generic_rss], description: '已知 adapter 枚举；Data Service 不校验它与 channel_type 的兼容性。'}
+        enabled: {type: boolean}
+        endpoint: {type: string, format: uri, minLength: 1, maxLength: 2048}
+        app_key: {type: string, maxLength: 512, nullable: true, description: '由 DATA_SERVICE_TOKEN 保护的明文 provider credential。'}
+        config: {type: object, additionalProperties: true, x-max-utf8-bytes: 4096, description: '紧凑 JSON 对象的 UTF-8 编码不超过 4096 bytes；source_levels 值只能是四级枚举，RSS max_bytes 范围 65536..10485760，推荐默认值 5000000。'}
+        priority: {type: integer, minimum: 1, maximum: 5}
+        timeout_seconds: {type: integer, minimum: 1, maximum: 300}
+        max_results: {type: integer, minimum: 1, maximum: 100}
+        default_source_level: {$ref: '#/components/schemas/SourceLevel'}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    SourceCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [code, name, enabled, endpoint, app_key, config, priority, timeout_seconds, max_results, default_source_level]
+      properties:
+        code: {$ref: '#/components/schemas/SourceCode'}
+        name: {type: string, minLength: 1, maxLength: 100}
+        enabled: {type: boolean}
+        endpoint: {type: string, format: uri, minLength: 1, maxLength: 2048}
+        app_key: {type: string, maxLength: 512, nullable: true}
+        config: {type: object, additionalProperties: true, x-max-utf8-bytes: 4096}
+        priority: {type: integer, minimum: 1, maximum: 5}
+        timeout_seconds: {type: integer, minimum: 1, maximum: 300}
+        max_results: {type: integer, minimum: 1, maximum: 100}
+        default_source_level: {$ref: '#/components/schemas/SourceLevel'}
+    SourceUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [name, adapter_key, enabled, endpoint, app_key, config, priority, timeout_seconds, max_results, default_source_level]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 100}
+        adapter_key: {type: string, enum: [bocha, tavily, parallel, cls, eastmoney_fast, eastmoney_stock, stcn, generic_rss]}
+        enabled: {type: boolean}
+        endpoint: {type: string, format: uri, minLength: 1, maxLength: 2048}
+        app_key: {type: string, maxLength: 512, nullable: true}
+        config: {type: object, additionalProperties: true, x-max-utf8-bytes: 4096}
+        priority: {type: integer, minimum: 1, maximum: 5}
+        timeout_seconds: {type: integer, minimum: 1, maximum: 300}
+        max_results: {type: integer, minimum: 1, maximum: 100}
+        default_source_level: {$ref: '#/components/schemas/SourceLevel'}
+    SourceCollection:
+      type: object
+      additionalProperties: false
+      required: [sources]
+      properties:
+        sources: {type: array, maxItems: 200, items: {$ref: '#/components/schemas/Source'}}
+    SourceEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string, minLength: 1, maxLength: 128}
+        result: {$ref: '#/components/schemas/Source'}
+    SourceListEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string, minLength: 1, maxLength: 128}
+        result: {$ref: '#/components/schemas/SourceCollection'}
+    SourceSnapshotEnvelope:
+      type: object
+      additionalProperties: false
+      x-client-drift-anchor: data.v1.schema.SourceSnapshotEnvelope
+      x-max-utf8-bytes: 500000
+      required: [request_id, result]
+      properties:
+        request_id: {type: string, minLength: 1, maxLength: 128}
+        result: {$ref: '#/components/schemas/SourceCollection'}
+    SourceDeleteEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string, minLength: 1, maxLength: 128}
+        result:
+          type: object
+          additionalProperties: false
+          required: [id]
+          properties: {id: {$ref: '#/components/schemas/SourceID'}}
     OrganizationCategory:
       type: object
       additionalProperties: false

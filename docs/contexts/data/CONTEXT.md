@@ -17,6 +17,8 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 - 面向 Miniapp/Admin Application Backend Service 的版本化 REST API。
 - Data Service 自身的只读运行健康状态。
 - Data Application 内数据库无关的 Domain Object ID 技术原语与格式合同。
+- Source 管理、校验、固定清单初始化、持久化、动态 RSS Source 生命周期与
+  完整 active Source 运行时快照。
 
 ## Does Not Own
 
@@ -33,17 +35,32 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 
 ## Acquisition And Agent Boundary
 
-Data 拥有正式 Raw Evidence、Evidence 及发布合同；外部 Agent OS 只拥有
-采集、关键词生成、清洗和语义提取执行。执行方必须通过 Data 的版本化 API 发布，不直接
-访问 Data 数据库。Data 不反向调用、不 import、也不读取外部 Agent OS 数据库或本地
-Artifact。Source Catalog 和采集控制面是否迁入 Data 属于独立需求，不由本次 Evidence
-Publication 恢复。
+Data 拥有 Source 配置与正式 Raw Evidence、Evidence 及发布合同；外部 Agent OS 只拥有
+采集、关键词生成、清洗和语义提取执行。AgentOS 在每次 Raw Collection Workflow
+开始前通过 Data 版本化 API 读取一次完整 active Source 快照，之后为该 workflow
+冻结。执行方也必须通过 Data API 发布结果，不直接访问 Data 数据库。Data 不反向调用、
+不读取 AgentOS 数据库或本地 Artifact，也不执行 connector、parser、prompt、schedule
+或 workflow。一次性迁移文件由操作员发布，不构成运行时 import 或数据库依赖。
 
 Event 直接通过 `event_evidence_links` 引用 Data-owned Atomic Evidence；轻量
 `raw_documents`、`event_sources`、Event Tag 和旧 Event Publication 已退役。新 Event
 写入必须在同一事务中包含至少一个 Atomic Evidence 关联。
 
 ## Language
+
+**Source**:
+Data-owned 的可执行采集入口配置，使用 `SRC + canonical lowercase UUID` 稳定身份
+和全局唯一、不可变 `code`。fixed Source 不可删除，且 `code`/`ownership_type`/
+`channel_type` 不可变；`adapter_key` 与其它运行字段可变。dynamic Source 只能为
+`rss + generic_rss` 并可创建、启停、更新或删除。`app_key` 在当前 service-token
+信任边界内以明文保存并返回。Source 不是历史 `source_catalogs`。
+_Avoid_: Collection Channel 双写、credential_ref、Data 代理 Provider、adapter/channel 兼容性校验、source_catalogs
+
+**Source Snapshot**:
+每次 workflow 启动时的完整 active Source 集合，不分页，按 `channel_type`/`priority`/
+`code`/`id` 稳定排序，整体不超过 500,000 bytes。空集合合法；读取、完整性或
+容量校验失败时 fail closed，不返回部分项、不缓存回退。
+_Avoid_: 分页、静默截断、丢弃单个非法 Source、workflow 中途刷新
 
 **Domain Object ID**:
 技术组件生成的与数据库无关身份，格式为“领域对象缩写前缀 + canonical lowercase

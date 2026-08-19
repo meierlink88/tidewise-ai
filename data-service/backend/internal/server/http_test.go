@@ -2,6 +2,7 @@ package server
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -14,12 +15,85 @@ import (
 
 	dataapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
+	sourcebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/source"
 	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 	evidencedata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/evidence"
+	sourcedata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/source"
 	evidenceservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/evidence"
+	sourceservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/source"
 	postgresfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/postgres"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/research"
 )
+
+func TestProductionServerSourceManagementAndSnapshotContract(t *testing.T) {
+	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "migrations"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := postgresfixture.OpenIsolated(t, "tw_source_server", migrationDir, 0)
+	store, err := sourcedata.NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useCase, err := sourcebiz.NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plainKey := "plain-bocha-key"
+	fixed, err := useCase.PublishFixed(context.Background(), sourcedata.CurrentFixedManifest(sourcedata.FixedManifestOptions{AppKeys: map[string]string{"bocha": plainKey}}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	application, err := sourceservice.NewService(useCase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	authenticator, err := NewAuthenticator([]Credential{
+		{Secret: "source-read-token", Principal: dataapi.Principal{Identity: "agentos", Scopes: []string{ScopeSourceRead}}},
+		{Secret: "source-write-token", Principal: dataapi.Principal{Identity: "admin-backend", Scopes: []string{ScopeSourceWrite}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := NewHTTPServer(
+		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{}, serverTestEvidenceService{},
+		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{},
+		serverTestIndustryChainService{}, serverTestOrganizationService{}, application, authenticator, nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	snapshot := productionContractRequest(t, server, http.MethodGet, dataapi.APIPrefix+"/source-snapshot", "source-read-token", "", "source-snapshot", http.StatusOK)
+	active := snapshot["result"].(map[string]any)["sources"].([]any)
+	if len(active) != 5 || active[0].(map[string]any)["channel_type"] != "api" || active[len(active)-1].(map[string]any)["channel_type"] != "web_search" {
+		t.Fatalf("active snapshot = %#v", active)
+	}
+	if active[len(active)-1].(map[string]any)["app_key"] != plainKey {
+		t.Fatalf("snapshot did not return plaintext app_key: %#v", active[len(active)-1])
+	}
+
+	created := productionContractRequest(t, server, http.MethodPost, dataapi.APIPrefix+"/sources", "source-write-token", `{"code":"example_feed","name":"Example Feed","enabled":true,"endpoint":"https://example.com/feed.xml","app_key":null,"config":{"max_bytes":5000000},"priority":2,"timeout_seconds":20,"max_results":25,"default_source_level":"L3_MEDIA"}`, "source-create", http.StatusCreated)
+	dynamicID := created["result"].(map[string]any)["id"].(string)
+	if created["result"].(map[string]any)["ownership_type"] != "dynamic" || created["result"].(map[string]any)["adapter_key"] != "generic_rss" {
+		t.Fatalf("dynamic create = %#v", created)
+	}
+
+	bochaID := ""
+	for _, item := range fixed {
+		if item.Code == "bocha" {
+			bochaID = item.ID
+		}
+	}
+	updated := productionContractRequest(t, server, http.MethodPut, dataapi.APIPrefix+"/sources/"+bochaID, "source-write-token", `{"name":"博查","adapter_key":"generic_rss","enabled":true,"endpoint":"https://api.bochaai.com/v1/web-search","app_key":"plain-bocha-key","config":{},"priority":1,"timeout_seconds":30,"max_results":10,"default_source_level":"L3_MEDIA"}`, "source-update", http.StatusOK)
+	if updated["result"].(map[string]any)["channel_type"] != "web_search" || updated["result"].(map[string]any)["adapter_key"] != "generic_rss" {
+		t.Fatalf("fixed adapter mismatch update = %#v", updated)
+	}
+	productionContractError(t, server, http.MethodDelete, dataapi.APIPrefix+"/sources/"+bochaID, "source-write-token", "", "source-fixed-delete", http.StatusConflict, "SOURCE_FIXED_DELETE_FORBIDDEN")
+	productionContractRequest(t, server, http.MethodDelete, dataapi.APIPrefix+"/sources/"+dynamicID, "source-write-token", "", "source-dynamic-delete", http.StatusOK)
+	productionContractError(t, server, http.MethodGet, dataapi.APIPrefix+"/source-snapshot?page=1", "source-read-token", "", "source-query", http.StatusBadRequest, "INVALID_REQUEST")
+	productionContractError(t, server, http.MethodGet, dataapi.APIPrefix+"/source-snapshot", "source-write-token", "", "source-scope", http.StatusForbidden, "FORBIDDEN")
+}
 
 func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *testing.T) {
 	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "migrations"))
@@ -50,7 +124,7 @@ func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *te
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{},
 		application,
-		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, authenticator, nil,
+		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)

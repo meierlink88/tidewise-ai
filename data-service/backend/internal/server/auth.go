@@ -21,6 +21,7 @@ import (
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
 	researchapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/research"
 	runtimehealthapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/runtimehealth"
+	sourceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/source"
 )
 
 const (
@@ -43,6 +44,8 @@ const (
 	ScopeIndustryChainWrite   = "data.industry-chains.write"
 	ScopeOrganizationRead     = "data.organizations.read"
 	ScopeOrganizationWrite    = "data.organizations.write"
+	ScopeSourceRead           = "data.sources.read"
+	ScopeSourceWrite          = "data.sources.write"
 	operationHealth           = "data.health"
 	operationReady            = "data.ready"
 )
@@ -162,6 +165,10 @@ func requiredScope(operation string) (string, bool) {
 	case organizationapi.OperationCreate, organizationapi.OperationUpdate, organizationapi.OperationReplaceDomainTags,
 		organizationapi.OperationCreateMember, organizationapi.OperationUpdateMember, organizationapi.OperationDeleteMember:
 		return ScopeOrganizationWrite, true
+	case sourceapi.OperationList, sourceapi.OperationSnapshot:
+		return ScopeSourceRead, true
+	case sourceapi.OperationCreate, sourceapi.OperationUpdate, sourceapi.OperationDelete:
+		return ScopeSourceWrite, true
 	default:
 		return "", false
 	}
