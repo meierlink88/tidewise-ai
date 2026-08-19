@@ -45,11 +45,12 @@ type DataServiceRuntimeConfig struct {
 // RuntimeConfig contains only Admin process, browser authentication, and
 // downstream API settings. It cannot carry PostgreSQL or migration configuration.
 type RuntimeConfig struct {
-	App           AppConfig
-	Server        ServerConfig
-	AdminToken    string
-	AllowedOrigin string
-	DataService   DataServiceRuntimeConfig
+	App                      AppConfig
+	Server                   ServerConfig
+	AdminToken               string
+	AllowedOrigin            string
+	RawEvidencePublicBaseURL string
+	DataService              DataServiceRuntimeConfig
 }
 
 func LoadRuntimeConfig() (RuntimeConfig, error) {
@@ -80,6 +81,9 @@ func LoadRuntimeConfig() (RuntimeConfig, error) {
 		Server:        fileConfig.Server,
 		AdminToken:    strings.TrimSpace(os.Getenv("ADMIN_SERVICE_TOKEN")),
 		AllowedOrigin: strings.TrimSpace(os.Getenv("ADMIN_ALLOWED_ORIGIN")),
+		RawEvidencePublicBaseURL: strings.TrimSpace(
+			os.Getenv("RAW_EVIDENCE_PUBLIC_BASE_URL"),
+		),
 		DataService: DataServiceRuntimeConfig{
 			BaseURL:       strings.TrimSpace(os.Getenv("DATA_SERVICE_BASE_URL")),
 			IdentityToken: strings.TrimSpace(os.Getenv("DATA_SERVICE_TOKEN")),
@@ -92,6 +96,9 @@ func LoadRuntimeConfig() (RuntimeConfig, error) {
 	if err := validateAllowedOrigin(runtime.AllowedOrigin); err != nil {
 		return RuntimeConfig{}, err
 	}
+	if err := validateRawEvidencePublicBaseURL(runtime.RawEvidencePublicBaseURL); err != nil {
+		return RuntimeConfig{}, err
+	}
 	if runtime.DataService.BaseURL == "" {
 		return RuntimeConfig{}, fmt.Errorf("DATA_SERVICE_BASE_URL is required")
 	}
@@ -99,6 +106,14 @@ func LoadRuntimeConfig() (RuntimeConfig, error) {
 		return RuntimeConfig{}, fmt.Errorf("DATA_SERVICE_TOKEN is required")
 	}
 	return runtime, nil
+}
+
+func validateRawEvidencePublicBaseURL(value string) error {
+	parsed, err := url.ParseRequestURI(value)
+	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.User != nil || (parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return fmt.Errorf("RAW_EVIDENCE_PUBLIC_BASE_URL must be an http(s) origin without credentials, path, query, or fragment")
+	}
+	return nil
 }
 
 func resolveEnvironment(value string) (Environment, error) {

@@ -11,8 +11,18 @@ import (
 type DataServiceRepo interface {
 	ListEvents(context.Context, EventListQuery) (EventPage, error)
 	ListEvidences(context.Context, EvidenceListQuery) (EvidencePage, error)
+	GetRawEvidenceDocument(context.Context, string) (RawEvidenceDocument, error)
 	ListEvidenceCategories(context.Context) ([]EvidenceCategory, error)
 	ListSources(context.Context) ([]Source, error)
+}
+
+type RawEvidenceDocument struct {
+	RawText string
+}
+
+type CollectionDocument struct {
+	Available bool
+	URL       string
 }
 
 type EvidenceListQuery struct {
@@ -130,8 +140,16 @@ var ErrFakeMethodNotConfigured = errors.New("data service fake method is not con
 type FakeDataServiceRepo struct {
 	ListEventsFunc             func(context.Context, EventListQuery) (EventPage, error)
 	ListEvidencesFunc          func(context.Context, EvidenceListQuery) (EvidencePage, error)
+	GetRawEvidenceDocumentFunc func(context.Context, string) (RawEvidenceDocument, error)
 	ListEvidenceCategoriesFunc func(context.Context) ([]EvidenceCategory, error)
 	ListSourcesFunc            func(context.Context) ([]Source, error)
+}
+
+func (f *FakeDataServiceRepo) GetRawEvidenceDocument(ctx context.Context, id string) (RawEvidenceDocument, error) {
+	if f == nil || f.GetRawEvidenceDocumentFunc == nil {
+		return RawEvidenceDocument{}, ErrFakeMethodNotConfigured
+	}
+	return f.GetRawEvidenceDocumentFunc(ctx, id)
 }
 
 func (f *FakeDataServiceRepo) ListEvidences(ctx context.Context, query EvidenceListQuery) (EvidencePage, error) {

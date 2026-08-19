@@ -4,16 +4,25 @@ package biz
 import (
 	"context"
 	"errors"
+	"regexp"
 	"strings"
 	"time"
 )
 
 var ErrDataServiceUnavailable = errors.New("data service unavailable")
+var ErrRawEvidenceNotFound = errors.New("raw evidence not found")
 
 type Service struct {
-	dataClient DataServiceRepo
-	dataHealth RuntimeHealthProvider
-	now        func() time.Time
+	dataClient               DataServiceRepo
+	dataHealth               RuntimeHealthProvider
+	rawEvidencePublicBaseURL string
+	now                      func() time.Time
+}
+
+func WithRawEvidencePublicBaseURL(baseURL string) Option {
+	return func(service *Service) {
+		service.rawEvidencePublicBaseURL = strings.TrimSuffix(strings.TrimSpace(baseURL), "/")
+	}
 }
 
 type Option func(*Service)
@@ -47,6 +56,27 @@ func (s *Service) ListEvidences(ctx context.Context, query EvidenceListQuery) (E
 	}
 	return s.dataClient.ListEvidences(ctx, query)
 }
+
+func (s *Service) GetCollectionDocument(ctx context.Context, rawEvidenceID string) (CollectionDocument, error) {
+	if s == nil || s.dataClient == nil || s.rawEvidencePublicBaseURL == "" {
+		return CollectionDocument{}, ErrDataServiceUnavailable
+	}
+	document, err := s.dataClient.GetRawEvidenceDocument(ctx, rawEvidenceID)
+	if err != nil {
+		return CollectionDocument{}, err
+	}
+	path := strings.TrimSpace(document.RawText)
+	matches := collectionDocumentPathPattern.FindStringSubmatch(path)
+	if len(matches) != 2 {
+		return CollectionDocument{}, nil
+	}
+	if _, err := time.Parse("2006/01/02", matches[1]); err != nil {
+		return CollectionDocument{}, nil
+	}
+	return CollectionDocument{Available: true, URL: s.rawEvidencePublicBaseURL + path}, nil
+}
+
+var collectionDocumentPathPattern = regexp.MustCompile(`^/raw-evidence/documents/([0-9]{4}/[0-9]{2}/[0-9]{2})/[0-9a-f]{64}\.md$`)
 
 func (s *Service) ListEvidenceCategories(ctx context.Context) ([]EvidenceCategory, error) {
 	if s == nil || s.dataClient == nil {

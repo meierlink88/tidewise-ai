@@ -115,6 +115,30 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '500': { $ref: '#/components/responses/InternalError' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /api/admin/v1/raw-evidences/{raw_evidence_id}/collection-document:
+    get:
+      tags: [Admin data]
+      operationId: getAdminPortalCollectionDocument
+      summary: 获取 Raw Evidence 对应的采集文档访问地址
+      description: 仅返回经过校验并拼接公开 Base URL 的采集文档地址；不返回正文或内部对象路径。
+      parameters:
+        - { $ref: '#/components/parameters/RequestID' }
+        - name: raw_evidence_id
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 39
+            maxLength: 39
+            pattern: '^RAW[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      responses:
+        '200': { $ref: '#/components/responses/CollectionDocumentSuccess' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /api/admin/v1/evidence-categories:
     get:
       tags: [Admin data]
@@ -202,6 +226,13 @@ components:
       description: Evidence 分页
       headers: { X-Request-ID: { $ref: '#/components/headers/RequestID' } }
       content: { application/json: { schema: { $ref: '#/components/schemas/EvidencePageEnvelope' } } }
+    CollectionDocumentSuccess:
+      description: 采集文档访问结果
+      headers: { X-Request-ID: { $ref: '#/components/headers/RequestID' } }
+      content:
+        {
+          application/json: { schema: { $ref: '#/components/schemas/CollectionDocumentEnvelope' } }
+        }
     EvidenceCategoryListSuccess:
       description: Evidence Category 目录
       headers: { X-Request-ID: { $ref: '#/components/headers/RequestID' } }
@@ -225,6 +256,10 @@ components:
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
     Forbidden:
       description: 调用来源不被允许
+      headers: { X-Request-ID: { $ref: '#/components/headers/RequestID' } }
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Raw Evidence 不存在
       headers: { X-Request-ID: { $ref: '#/components/headers/RequestID' } }
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
     InternalError:
@@ -281,6 +316,13 @@ components:
       additionalProperties: false
       required: [request_id, result]
       properties: { request_id: { type: string }, result: { $ref: '#/components/schemas/EvidencePage' } }
+    CollectionDocumentEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: { type: string }
+        result: { $ref: '#/components/schemas/CollectionDocument' }
     EvidenceCategoryListEnvelope:
       type: object
       additionalProperties: false
@@ -354,6 +396,17 @@ components:
         is_split: { type: boolean }
         published_at: { allOf: [{ $ref: '#/components/schemas/UTCTimestamp' }], nullable: true }
         collected_at: { $ref: '#/components/schemas/UTCTimestamp' }
+    CollectionDocument:
+      type: object
+      additionalProperties: false
+      required: [available, url]
+      properties:
+        available: { type: boolean }
+        url:
+          type: string
+          format: uri
+          nullable: true
+      description: available=true 时 url 必须为 HTTP(S) 绝对地址；available=false 时 url 为 null。
     EvidenceSemantic:
       type: object
       additionalProperties: false

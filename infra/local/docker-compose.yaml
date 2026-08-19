@@ -84,6 +84,7 @@ services:
       TIDEWISE_CONFIG_DIR: /app/configs
       ADMIN_SERVICE_TOKEN: '${ADMIN_SERVICE_TOKEN:?set ADMIN_SERVICE_TOKEN in infra/local/.env.local}'
       ADMIN_ALLOWED_ORIGIN: '${ADMIN_ALLOWED_ORIGIN:-http://127.0.0.1:9014}'
+      RAW_EVIDENCE_PUBLIC_BASE_URL: '${RAW_EVIDENCE_PUBLIC_BASE_URL:-http://127.0.0.1:9000}'
       DATA_SERVICE_BASE_URL: http://data:9011
       DATA_SERVICE_TOKEN: '${DATA_SERVICE_TOKEN:?set DATA_SERVICE_TOKEN in infra/local/.env.local}'
     depends_on:

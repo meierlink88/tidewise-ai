@@ -96,6 +96,7 @@ Variables：
 | `SWR_DEPLOY_REPOSITORY`      | UAT deployment bundle 镜像仓库名                         |
 | `UAT_RUNNER_NAME`            | ECS runner 的准确名称                                    |
 | `UAT_PUBLIC_BASE_URL`        | 不带端口和路径的 UAT HTTP 地址，如 `http://203.0.113.10` |
+| `RAW_EVIDENCE_PUBLIC_BASE_URL` | 采集文档公开读取 origin，不带路径                        |
 
 Secrets：
 

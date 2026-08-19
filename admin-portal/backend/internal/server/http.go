@@ -264,6 +264,9 @@ func operationForRequest(request *http.Request) string {
 	case v1.APIPrefix + "/runtime-health":
 		return v1.OperationGetRuntimeHealth
 	}
+	if strings.HasPrefix(request.URL.Path, v1.APIPrefix+"/raw-evidences/") && strings.HasSuffix(request.URL.Path, "/collection-document") {
+		return v1.OperationGetCollectionDocument
+	}
 	if strings.HasPrefix(request.URL.Path, "/docs/") {
 		return "admin.docs"
 	}

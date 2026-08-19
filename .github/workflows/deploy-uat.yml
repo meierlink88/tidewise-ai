@@ -479,6 +479,7 @@ jobs:
       SWR_REGISTRY: ${{ vars.SWR_REGISTRY }}
       UAT_RUNNER_NAME: ${{ vars.UAT_RUNNER_NAME }}
       UAT_PUBLIC_BASE_URL: ${{ vars.UAT_PUBLIC_BASE_URL }}
+      RAW_EVIDENCE_PUBLIC_BASE_URL: ${{ vars.RAW_EVIDENCE_PUBLIC_BASE_URL }}
       COMMIT_SHA: ${{ needs.resolve-release.outputs.commit_sha }}
       EXPECTED_CURRENT_RELEASE_AVAILABLE: ${{ needs.current-release.outputs.available }}
       EXPECTED_CURRENT_RELEASE_STATE_FINGERPRINT: ${{ needs.current-release.outputs.state_fingerprint }}
@@ -580,6 +581,7 @@ jobs:
           umask 077
           printf '%s\n' \
             "ADMIN_ALLOWED_ORIGIN=${UAT_PUBLIC_BASE_URL}:9014" \
+            "RAW_EVIDENCE_PUBLIC_BASE_URL=${RAW_EVIDENCE_PUBLIC_BASE_URL}" \
             "TIDEWISW_DB_PASSWORD=${TIDEWISW_DB_PASSWORD}" \
             "DATA_SERVICE_TOKEN=${DATA_SERVICE_TOKEN}" \
             "ADMIN_SERVICE_TOKEN=${ADMIN_SERVICE_TOKEN}" > "$runtime_env"

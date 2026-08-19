@@ -90,6 +90,63 @@ func TestHTTPClientListsEvidenceCategoriesAndSourcesWithStrictProjection(t *test
 	}
 }
 
+func TestHTTPClientGetsRawEvidenceDocumentWithStrictContract(t *testing.T) {
+	t.Parallel()
+	const id = "RAW22222222-2222-5222-8222-222222222222"
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != rawEvidencesPath+"/"+id || request.Header.Get("Authorization") != "Bearer token" {
+			t.Fatalf("request = %s auth=%q", request.URL.Path, request.Header.Get("Authorization"))
+		}
+		_, _ = writer.Write([]byte(`{"request_id":"raw-document","result":{"raw_evidence":{"id":"RAW22222222-2222-5222-8222-222222222222","source_id":"SRC_example_00000000000000000000","source_name":"Official","source_level":"L1_OFFICIAL","source_url":"https://example.test/article","is_original":true,"quoted_source_id":null,"quoted_source_name":null,"title":"Title","raw_text":"/raw-evidence/documents/2026/08/17/11f0864fc4078b47a4cc758149a2b0b7923654d2c7c8a694ad5b2d5ced4fc998.md","published_at":null,"collected_at":"2026-08-19T02:00:00Z","keywords":[],"categories":[]}}}`))
+	}))
+	defer server.Close()
+	client := newTestClient(t, server.URL, server.Client(), "token")
+	document, err := client.GetRawEvidenceDocument(context.Background(), id)
+	if err != nil || !strings.HasPrefix(document.RawText, "/raw-evidence/documents/") {
+		t.Fatalf("document/error = %#v/%v", document, err)
+	}
+}
+
+func TestHTTPClientMapsRawEvidenceNotFound(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.WriteHeader(http.StatusNotFound)
+		_, _ = writer.Write([]byte(`{"request_id":"missing","error":{"code":"RAW_EVIDENCE_NOT_FOUND","message":"not found","details":{}}}`))
+	}))
+	defer server.Close()
+	client := newTestClient(t, server.URL, server.Client(), "token")
+	_, err := client.GetRawEvidenceDocument(context.Background(), "RAW22222222-2222-5222-8222-222222222222")
+	if !errors.Is(err, biz.ErrRawEvidenceNotFound) {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestHTTPClientRejectsInvalidRawEvidenceDocumentProjection(t *testing.T) {
+	t.Parallel()
+	const id = "RAW22222222-2222-5222-8222-222222222222"
+	const valid = `{"request_id":"raw-document","result":{"raw_evidence":{"id":"RAW22222222-2222-5222-8222-222222222222","source_id":"SRC_example_00000000000000000000","source_name":"Official","source_level":"L1_OFFICIAL","source_url":"https://example.test/article","is_original":true,"quoted_source_id":null,"quoted_source_name":null,"title":"Title","raw_text":"/raw-evidence/documents/2026/08/17/11f0864fc4078b47a4cc758149a2b0b7923654d2c7c8a694ad5b2d5ced4fc998.md","published_at":null,"collected_at":"2026-08-19T02:00:00Z","keywords":[],"categories":[]}}}`
+	for _, test := range []struct {
+		name    string
+		payload string
+	}{
+		{name: "oversized source identity", payload: strings.Replace(valid, "SRC_example_00000000000000000000", strings.Repeat("s", 33), 1)},
+		{name: "unsupported source level", payload: strings.Replace(valid, "L1_OFFICIAL", "UNKNOWN", 1)},
+		{name: "non-http source URL", payload: strings.Replace(valid, "https://example.test/article", "file:///secret", 1)},
+		{name: "invalid category", payload: strings.Replace(valid, `"categories":[]`, `"categories":[{"id":"invalid","code":"EVENT_BRIEF","name":"Event brief","description":"description"}]`, 1)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+				_, _ = writer.Write([]byte(test.payload))
+			}))
+			defer server.Close()
+			client := newTestClient(t, server.URL, server.Client(), "token")
+			_, err := client.GetRawEvidenceDocument(context.Background(), id)
+			assertDataUnavailable(t, err)
+		})
+	}
+}
+
 func TestHTTPClientAcceptsMaximumCompleteSourceListLargerThanOneMiB(t *testing.T) {
 	t.Parallel()
 	sources := make([]map[string]any, 200)

@@ -26,6 +26,7 @@ func TestOpenAPIContractMatchesAdminTypedClient(t *testing.T) {
 			[]string{"Page", "PageSize", "RequestID", "announced_from", "announced_to", "modality", "occurred_from", "occurred_to", "status", "title"},
 		},
 		{evidencesPath, "listAdminEvidence", "AdminEvidencePageEnvelope", []string{"Page", "PageSize", "RequestID", "category_id", "collected_from", "collected_to", "is_split", "published_from", "published_to", "source_level", "source_name", "summary", "title"}},
+		{rawEvidencesPath + "/{id}", "getRawEvidence", "RawEvidenceReadEnvelope", []string{"RequestID", "id"}},
 		{evidenceCategoriesPath, "listEvidenceCategories", "EvidenceCategoryCatalogEnvelope", []string{"RequestID"}},
 		{sourcesPath, "listSources", "SourceListEnvelope", []string{"RequestID"}},
 	} {
@@ -46,6 +47,8 @@ func TestOpenAPIContractMatchesAdminTypedClient(t *testing.T) {
 		"AdminEvent":              reflect.TypeOf(eventWire{}),
 		"AdminEvidencePage":       reflect.TypeOf(evidencePageWire{}),
 		"AdminEvidence":           reflect.TypeOf(evidenceWire{}),
+		"RawEvidenceReadResult":   reflect.TypeOf(rawEvidenceResultWire{}),
+		"RawEvidenceRead":         reflect.TypeOf(rawEvidenceWire{}),
 		"EvidenceCategory":        reflect.TypeOf(evidenceCategoryWire{}),
 		"EvidenceCategoryCatalog": reflect.TypeOf(evidenceCategoryListWire{}),
 		"Source":                  reflect.TypeOf(sourceWire{}),

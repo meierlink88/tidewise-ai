@@ -66,6 +66,24 @@ func (s *AdminService) ListEvidences(ctx context.Context, request *v1.ListEviden
 	return &v1.EvidenceListResponse{Items: items, Total: page.Total, Page: page.Page, PageSize: page.PageSize}, nil
 }
 
+func (s *AdminService) GetCollectionDocument(ctx context.Context, request *v1.GetCollectionDocumentRequest) (*v1.CollectionDocumentResponse, error) {
+	if s == nil || s.admin == nil || request == nil || !rawEvidenceIDPattern.MatchString(request.RawEvidenceID) {
+		return nil, v1.ErrInvalidRequest
+	}
+	document, err := s.admin.GetCollectionDocument(ctx, request.RawEvidenceID)
+	if err != nil {
+		if errors.Is(err, biz.ErrRawEvidenceNotFound) {
+			return nil, v1.NewHTTPError(http.StatusNotFound, "RAW_EVIDENCE_NOT_FOUND", "raw evidence was not found")
+		}
+		return nil, adminReadError(err)
+	}
+	response := &v1.CollectionDocumentResponse{Available: document.Available}
+	if document.Available {
+		response.URL = &document.URL
+	}
+	return response, nil
+}
+
 func (s *AdminService) ListEvidenceCategories(ctx context.Context, request *v1.EmptyRequest) (*v1.EvidenceCategoryListResponse, error) {
 	if s == nil || s.admin == nil || request == nil {
 		return nil, v1.ErrInvalidRequest
@@ -257,6 +275,7 @@ func evidenceCategory(value biz.EvidenceCategory) v1.EvidenceCategory {
 }
 
 var evidenceCategoryIDPattern = regexp.MustCompile(`^EVC[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+var rawEvidenceIDPattern = regexp.MustCompile(`^RAW[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 
 func eventQuery(request *v1.ListEventsRequest) (biz.EventListQuery, error) {
 	occurredFrom, err := parseOptionalTime(request.OccurredFrom)

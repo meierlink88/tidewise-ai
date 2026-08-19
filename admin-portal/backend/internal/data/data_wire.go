@@ -142,6 +142,87 @@ type evidencePageWire struct {
 	PageSize int            `json:"page_size"`
 }
 
+type rawEvidenceResultWire struct {
+	RawEvidence rawEvidenceWire `json:"raw_evidence"`
+}
+
+func (w *rawEvidenceResultWire) UnmarshalJSON(payload []byte) error {
+	if !hasExactJSONFields(payload, "raw_evidence") {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	type alias rawEvidenceResultWire
+	var decoded alias
+	if json.Unmarshal(payload, &decoded) != nil {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	*w = rawEvidenceResultWire(decoded)
+	return nil
+}
+
+func (w rawEvidenceResultWire) toBiz(expectedID string) (biz.RawEvidenceDocument, error) {
+	raw := w.RawEvidence
+	if raw.ID != expectedID || !rawEvidenceIDPattern.MatchString(raw.ID) ||
+		strings.TrimSpace(raw.SourceID) == "" || utf8.RuneCountInString(raw.SourceID) > 32 ||
+		strings.TrimSpace(raw.SourceName) == "" || utf8.RuneCountInString(raw.SourceName) > 100 ||
+		!validSourceLevel(raw.SourceLevel) || strings.TrimSpace(raw.SourceURL) == "" || utf8.RuneCountInString(raw.SourceURL) > 2048 ||
+		strings.TrimSpace(raw.RawText) == "" || raw.Keywords == nil || raw.Categories == nil ||
+		raw.CollectedAt.IsZero() || raw.CollectedAt.Location() != time.UTC ||
+		raw.Title != nil && (strings.TrimSpace(*raw.Title) == "" || utf8.RuneCountInString(*raw.Title) > 500) ||
+		raw.QuotedSourceID != nil && (strings.TrimSpace(*raw.QuotedSourceID) == "" || utf8.RuneCountInString(*raw.QuotedSourceID) > 32) ||
+		raw.QuotedSourceName != nil && (strings.TrimSpace(*raw.QuotedSourceName) == "" || utf8.RuneCountInString(*raw.QuotedSourceName) > 100) ||
+		raw.PublishedAt != nil && raw.PublishedAt.Location() != time.UTC ||
+		raw.IsOriginal && (raw.QuotedSourceID != nil || raw.QuotedSourceName != nil) ||
+		!raw.IsOriginal && raw.QuotedSourceName == nil {
+		return biz.RawEvidenceDocument{}, &Error{Kind: ErrorKindDecode}
+	}
+	parsedSourceURL, err := url.Parse(raw.SourceURL)
+	if err != nil || parsedSourceURL.Host == "" || parsedSourceURL.Scheme != "http" && parsedSourceURL.Scheme != "https" {
+		return biz.RawEvidenceDocument{}, &Error{Kind: ErrorKindDecode}
+	}
+	seenCategories := make(map[string]struct{}, len(raw.Categories))
+	for _, value := range raw.Categories {
+		category, err := value.toBiz()
+		if err != nil {
+			return biz.RawEvidenceDocument{}, err
+		}
+		if _, exists := seenCategories[category.ID]; exists {
+			return biz.RawEvidenceDocument{}, &Error{Kind: ErrorKindDecode}
+		}
+		seenCategories[category.ID] = struct{}{}
+	}
+	return biz.RawEvidenceDocument{RawText: raw.RawText}, nil
+}
+
+type rawEvidenceWire struct {
+	ID               string                 `json:"id"`
+	SourceID         string                 `json:"source_id"`
+	SourceName       string                 `json:"source_name"`
+	SourceLevel      string                 `json:"source_level"`
+	SourceURL        string                 `json:"source_url"`
+	IsOriginal       bool                   `json:"is_original"`
+	QuotedSourceID   *string                `json:"quoted_source_id"`
+	QuotedSourceName *string                `json:"quoted_source_name"`
+	Title            *string                `json:"title"`
+	RawText          string                 `json:"raw_text"`
+	PublishedAt      *time.Time             `json:"published_at"`
+	CollectedAt      time.Time              `json:"collected_at"`
+	Keywords         []string               `json:"keywords"`
+	Categories       []evidenceCategoryWire `json:"categories"`
+}
+
+func (w *rawEvidenceWire) UnmarshalJSON(payload []byte) error {
+	if !hasExactJSONFields(payload, "id", "source_id", "source_name", "source_level", "source_url", "is_original", "quoted_source_id", "quoted_source_name", "title", "raw_text", "published_at", "collected_at", "keywords", "categories") {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	type alias rawEvidenceWire
+	var decoded alias
+	if json.Unmarshal(payload, &decoded) != nil {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	*w = rawEvidenceWire(decoded)
+	return nil
+}
+
 func (w *evidencePageWire) UnmarshalJSON(payload []byte) error {
 	if !hasExactJSONFields(payload, "items", "total", "page", "page_size") {
 		return &Error{Kind: ErrorKindDecode}

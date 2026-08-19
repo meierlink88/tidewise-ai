@@ -168,6 +168,9 @@ func TestCollectionCenterEvidenceAndSourceAPIsExposeConfirmedReadModels(t *testi
 		ListEvidencesFunc: func(context.Context, biz.EvidenceListQuery) (biz.EvidencePage, error) {
 			return biz.EvidencePage{Items: []biz.Evidence{{ID: "EVD00000000-0000-5000-8000-000000000001", RawEvidenceID: "RAW00000000-0000-5000-8000-000000000001", Summary: "summary", Categories: []biz.EvidenceCategory{{ID: "EVC00000000-0000-5000-8000-000000000001", Code: "EVENT_BRIEF", Name: "Event brief", Description: "description"}}, SourceName: "Official", SourceLevel: "L1_OFFICIAL", CollectedAt: now}}, Total: 1, Page: 1, PageSize: 50}, nil
 		},
+		GetRawEvidenceDocumentFunc: func(context.Context, string) (biz.RawEvidenceDocument, error) {
+			return biz.RawEvidenceDocument{RawText: "/raw-evidence/documents/2026/08/17/11f0864fc4078b47a4cc758149a2b0b7923654d2c7c8a694ad5b2d5ced4fc998.md"}, nil
+		},
 		ListEvidenceCategoriesFunc: func(context.Context) ([]biz.EvidenceCategory, error) {
 			return []biz.EvidenceCategory{{ID: "EVC00000000-0000-5000-8000-000000000001", Code: "EVENT_BRIEF", Name: "Event brief", Description: "description"}}, nil
 		},
@@ -175,8 +178,8 @@ func TestCollectionCenterEvidenceAndSourceAPIsExposeConfirmedReadModels(t *testi
 			return []biz.Source{{ID: "SRC00000000-0000-5000-8000-000000000001", Code: "official", Name: "Official", OwnershipType: "fixed", ChannelType: "api", Enabled: true, Priority: 1, DefaultSourceLevel: "L1_OFFICIAL", UpdatedAt: now}}, nil
 		},
 	}
-	router := NewRouter(testConfig(), biz.NewService(client), "secret")
-	for _, path := range []string{"/api/admin/v1/evidences?is_split=false", "/api/admin/v1/evidence-categories", "/api/admin/v1/sources?query=official"} {
+	router := NewRouter(testConfig(), biz.NewService(client, biz.WithRawEvidencePublicBaseURL("https://tideai.tripwise.cn")), "secret")
+	for _, path := range []string{"/api/admin/v1/evidences?is_split=false", "/api/admin/v1/raw-evidences/RAW00000000-0000-5000-8000-000000000001/collection-document", "/api/admin/v1/evidence-categories", "/api/admin/v1/sources?query=official"} {
 		response := performJSONRequest(t, router, http.MethodGet, path, nil, "secret", "collection-request")
 		if response.Code != http.StatusOK {
 			t.Fatalf("GET %s status=%d body=%s", path, response.Code, response.Body.String())
@@ -197,7 +200,7 @@ func TestCollectionCenterRejectsInvalidFiltersBeforeDataCalls(t *testing.T) {
 		ListSourcesFunc: func(context.Context) ([]biz.Source, error) { calls++; return nil, nil },
 	}
 	router := NewRouter(testConfig(), biz.NewService(client), "secret")
-	for _, path := range []string{"/api/admin/v1/evidences?category_id=invalid", "/api/admin/v1/evidences?is_split=yes", "/api/admin/v1/sources?priority=8", "/api/admin/v1/sources?page_size=101"} {
+	for _, path := range []string{"/api/admin/v1/evidences?category_id=invalid", "/api/admin/v1/evidences?is_split=yes", "/api/admin/v1/raw-evidences/invalid/collection-document", "/api/admin/v1/raw-evidences/RAW00000000-0000-5000-8000-000000000001/collection-document?unexpected=true", "/api/admin/v1/sources?priority=8", "/api/admin/v1/sources?page_size=101"} {
 		response := performJSONRequest(t, router, http.MethodGet, path, nil, "secret", "invalid-filter")
 		if response.Code != http.StatusBadRequest {
 			t.Fatalf("GET %s status=%d body=%s", path, response.Code, response.Body.String())

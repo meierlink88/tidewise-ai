@@ -251,6 +251,12 @@ describe('DataIngestionCenter', () => {
       page_size: 50
     });
     vi.spyOn(dataIngestionAPI, 'loadEvidenceCategories').mockResolvedValue([]);
+    vi.spyOn(dataIngestionAPI, 'loadCollectionDocument')
+      .mockResolvedValueOnce({
+        available: true,
+        url: 'https://tideai.tripwise.cn/raw-evidence/documents/2026/08/17/11f0864fc4078b47a4cc758149a2b0b7923654d2c7c8a694ad5b2d5ced4fc998.md'
+      })
+      .mockResolvedValueOnce({ available: false, url: null });
     vi.spyOn(dataIngestionAPI, 'loadEvidences').mockResolvedValue({
       items: [
         {
@@ -323,6 +329,12 @@ describe('DataIngestionCenter', () => {
       'href',
       'https://example.com/reposted-report'
     );
+    expect(await within(repostDialog).findByRole('link', { name: '打开采集文档' })).toHaveAttribute(
+      'href',
+      'https://tideai.tripwise.cn/raw-evidence/documents/2026/08/17/11f0864fc4078b47a4cc758149a2b0b7923654d2c7c8a694ad5b2d5ced4fc998.md'
+    );
+    expect(within(repostDialog).getByText('原始文章')).toBeInTheDocument();
+    expect(within(repostDialog).getByText('采集文档')).toBeInTheDocument();
     expect(
       within(repostDialog).queryByText(/EVD00000000|RAW00000000|完整原文|哈希/)
     ).not.toBeInTheDocument();
@@ -334,5 +346,6 @@ describe('DataIngestionCenter', () => {
     expect(within(originalDialog).getByText('原创')).toBeInTheDocument();
     expect(within(originalDialog).queryByText('引用信源')).not.toBeInTheDocument();
     expect(within(originalDialog).getAllByText('—').length).toBeGreaterThan(0);
+    expect(await within(originalDialog).findByText('暂无采集文档')).toBeInTheDocument();
   });
 });
