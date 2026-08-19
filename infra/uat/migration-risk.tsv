@@ -61,3 +61,4 @@
 000060	high	mixed	delete legacy Event and dependent Research facts and rebuild Event persistence around Atomic Evidence in a snapshot-protected stop-write cutover
 000061	high	schema	add forward-only Data-owned Source storage, identity guards, capacity constraints, and stable snapshot indexes
 000062	normal	schema	add empty forward-only Subdivision storage with reviewed identity, restrictive Country ownership, scoped code uniqueness, and closed enum constraints
+000063	normal	schema	add empty forward-only Ministry and Institution storage with reviewed identities, exclusive Country or Organization ownership, restrictive references, and closed enum constraints

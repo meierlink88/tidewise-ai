@@ -63,6 +63,8 @@ def verify_published_entity_contracts(parser):
     published_types = (
         "Tidewise.Region",
         "Tidewise.Subdivision",
+        "Tidewise.Ministry",
+        "Tidewise.Institution",
         "Tidewise.Organization",
         "Tidewise.OrganizationCategory",
         "Tidewise.OrganizationFunction",
@@ -338,6 +340,253 @@ def verify_event(parser):
         "ARCHIVED",
     ]
 
+
+def verify_ministry(parser, schema_file, migration_file):
+    ministry = parser.types.get("Tidewise.Ministry")
+    assert ministry is not None, "ministry.schema must define Tidewise.Ministry"
+    assert ministry.spg_type_enum.value == "ENTITY_TYPE"
+    assert ministry.name_zh == "政府部门"
+    expected_properties = {
+        "code",
+        "name",
+        "nameEn",
+        "isSupranational",
+        "agencyLevel",
+        "hasSanctionPower",
+        "hasRegulatoryPower",
+        "hasEnforcementPower",
+        "jurisdictionScope",
+        "domainTags",
+        "strategicPositioning",
+        "description",
+        "createdAt",
+        "updatedAt",
+    }
+    assert set(ministry.properties) == expected_properties
+    for name, prop in ministry.properties.items():
+        assert prop.name_zh and prop.name_zh.strip(), f"Ministry.{name} requires a Chinese name"
+        assert prop.desc and prop.desc.strip(), f"Ministry.{name} requires a description"
+        assert prop.object_type_name == "Text", f"Ministry.{name} must use OpenSPG Text"
+
+    required = {
+        "code",
+        "name",
+        "nameEn",
+        "isSupranational",
+        "agencyLevel",
+        "hasSanctionPower",
+        "hasRegulatoryPower",
+        "hasEnforcementPower",
+        "createdAt",
+        "updatedAt",
+    }
+    for name in required:
+        assert "NOT_NULL" in constraint_values(ministry.properties[name]), (
+            f"Ministry.{name} must be NotNull"
+        )
+    for name in expected_properties - required:
+        assert "NOT_NULL" not in constraint_values(ministry.properties[name]), (
+            f"Ministry.{name} must remain nullable"
+        )
+    for name in {
+        "isSupranational",
+        "hasSanctionPower",
+        "hasRegulatoryPower",
+        "hasEnforcementPower",
+    }:
+        assert constraint_values(ministry.properties[name])["ENUM"] == ["TRUE", "FALSE"]
+    assert constraint_values(ministry.properties["agencyLevel"])["ENUM"] == [
+        "CABINET_LEVEL",
+        "SUB_CABINET",
+        "INDEPENDENT_REGULATOR",
+    ]
+    assert constraint_values(ministry.properties["jurisdictionScope"])["ENUM"] == [
+        "FEDERAL",
+        "STATE",
+        "SUPRANATIONAL",
+    ]
+    assert "MULTI_VALUE" in constraint_values(ministry.properties["domainTags"])
+
+    for declaration, meanings in {
+        "agencyLevel(机构层级): Text": {
+            "CABINET_LEVEL": "内阁级部门",
+            "SUB_CABINET": "次内阁级部门",
+            "INDEPENDENT_REGULATOR": "独立监管机构",
+        },
+        "jurisdictionScope(管辖范围): Text": {
+            "FEDERAL": "联邦层级管辖",
+            "STATE": "州级管辖",
+            "SUPRANATIONAL": "超国家管辖",
+        },
+    }.items():
+        source = schema_member_block(schema_file, declaration)
+        for value, meaning in meanings.items():
+            assert value in source and meaning in source
+
+    relations = {relation.name: relation for relation in ministry.relations.values()}
+    assert set(relations) == {"country", "organization", "parentMinistry"}
+    relation_types = {
+        "country": "Tidewise.Country",
+        "organization": "Tidewise.Organization",
+        "parentMinistry": "Tidewise.Ministry",
+    }
+    for name, object_type in relation_types.items():
+        relation = relations[name]
+        assert relation.object_type_name == object_type
+        assert relation.name_zh and relation.desc
+        assert "NOT_NULL" not in constraint_values(relation)
+        assert "MULTI_VALUE" not in constraint_values(relation)
+    assert "XOR" in relations["country"].desc
+    assert "XOR" in relations["organization"].desc
+
+    migration = migration_file.read_text(encoding="utf-8")
+    patterns = {
+        "id": r"\bid\s+VARCHAR\(39\)\s+PRIMARY KEY",
+        "code": r"\bcode\s+VARCHAR\(30\)\s+NOT NULL\s+UNIQUE",
+        "name": r"\bname\s+VARCHAR\(100\)\s+NOT NULL",
+        "nameEn": r"\bname_en\s+VARCHAR\(100\)\s+NOT NULL",
+        "country": r"FOREIGN KEY \(country_id\) REFERENCES countries\(id\) ON DELETE RESTRICT",
+        "organization": r"FOREIGN KEY \(org_id\) REFERENCES organizations\(id\) ON DELETE RESTRICT",
+        "parentMinistry": r"FOREIGN KEY \(parent_ministry_id\) REFERENCES ministries\(id\) ON DELETE RESTRICT",
+        "isSupranational": r"\bis_supranational\s+BOOLEAN\s+NOT NULL\s+DEFAULT\s+FALSE",
+        "agencyLevel": r"\bagency_level\s+ministry_agency_level\s+NOT NULL",
+        "hasSanctionPower": r"\bhas_sanction_power\s+BOOLEAN\s+NOT NULL",
+        "hasRegulatoryPower": r"\bhas_regulatory_power\s+BOOLEAN\s+NOT NULL",
+        "hasEnforcementPower": r"\bhas_enforcement_power\s+BOOLEAN\s+NOT NULL",
+        "jurisdictionScope": r"\bjurisdiction_scope\s+ministry_jurisdiction_scope\s*,",
+        "domainTags": r"\bdomain_tags\s+TEXT\[\]\s*,",
+        "strategicPositioning": r"\bstrategic_positioning\s+TEXT\s*,",
+        "description": r"\bdescription\s+TEXT\s*,",
+        "createdAt": r"\bcreated_at\s+TIMESTAMPTZ\s+NOT NULL\s+DEFAULT\s+now\(\)",
+        "updatedAt": r"\bupdated_at\s+TIMESTAMPTZ\s+NOT NULL\s+DEFAULT\s+now\(\)",
+    }
+    ministry_migration = migration.split("CREATE TABLE institutions", 1)[0]
+    for member, pattern in patterns.items():
+        assert re.search(pattern, ministry_migration, re.IGNORECASE), (
+            f"Ministry.{member} has no matching PostgreSQL persistence member"
+        )
+    assert "chk_ministries_owner" in ministry_migration
+    assert "id ~ '^MIN[0-9a-f]{8}-" in ministry_migration
+
+
+def verify_institution(parser, schema_file, migration_file):
+    institution = parser.types.get("Tidewise.Institution")
+    assert institution is not None, "institution.schema must define Tidewise.Institution"
+    assert institution.spg_type_enum.value == "ENTITY_TYPE"
+    assert institution.name_zh == "金融机构"
+    expected_properties = {
+        "code",
+        "name",
+        "nameEn",
+        "isSupranational",
+        "institutionType",
+        "clearingCurrency",
+        "swiftBic",
+        "leiCode",
+        "systemicImportance",
+        "strategicPositioning",
+        "description",
+        "createdAt",
+        "updatedAt",
+    }
+    assert set(institution.properties) == expected_properties
+    for name, prop in institution.properties.items():
+        assert prop.name_zh and prop.name_zh.strip(), f"Institution.{name} requires a Chinese name"
+        assert prop.desc and prop.desc.strip(), f"Institution.{name} requires a description"
+        assert prop.object_type_name == "Text", f"Institution.{name} must use OpenSPG Text"
+
+    required = {
+        "code",
+        "name",
+        "nameEn",
+        "isSupranational",
+        "institutionType",
+        "createdAt",
+        "updatedAt",
+    }
+    for name in required:
+        assert "NOT_NULL" in constraint_values(institution.properties[name]), (
+            f"Institution.{name} must be NotNull"
+        )
+    for name in expected_properties - required:
+        assert "NOT_NULL" not in constraint_values(institution.properties[name]), (
+            f"Institution.{name} must remain nullable"
+        )
+    assert constraint_values(institution.properties["isSupranational"])["ENUM"] == [
+        "TRUE",
+        "FALSE",
+    ]
+    assert constraint_values(institution.properties["institutionType"])["ENUM"] == [
+        "CENTRAL_BANK",
+        "COMMERCIAL_BANK",
+        "CLEARING_HOUSE",
+        "PAYMENT_SYSTEM",
+        "DEVELOPMENT_BANK",
+        "INTERNATIONAL_FINANCIAL_INSTITUTION",
+    ]
+    assert constraint_values(institution.properties["systemicImportance"])["ENUM"] == [
+        "G_SIB",
+        "D_SIB",
+        "NON_SIB",
+    ]
+    for declaration, meanings in {
+        "institutionType(机构类型): Text": {
+            "CENTRAL_BANK": "中央银行",
+            "COMMERCIAL_BANK": "商业银行",
+            "CLEARING_HOUSE": "清算机构",
+            "PAYMENT_SYSTEM": "支付系统",
+            "DEVELOPMENT_BANK": "开发性银行",
+            "INTERNATIONAL_FINANCIAL_INSTITUTION": "国际金融机构",
+        },
+        "systemicImportance(系统重要性): Text": {
+            "G_SIB": "全球系统重要性银行",
+            "D_SIB": "国内系统重要性银行",
+            "NON_SIB": "已评估为非系统重要性",
+        },
+    }.items():
+        source = schema_member_block(schema_file, declaration)
+        for value, meaning in meanings.items():
+            assert value in source and meaning in source
+
+    relations = {relation.name: relation for relation in institution.relations.values()}
+    assert set(relations) == {"country", "organization"}
+    for name, object_type in {
+        "country": "Tidewise.Country",
+        "organization": "Tidewise.Organization",
+    }.items():
+        relation = relations[name]
+        assert relation.object_type_name == object_type
+        assert relation.name_zh and relation.desc and "XOR" in relation.desc
+        assert "NOT_NULL" not in constraint_values(relation)
+        assert "MULTI_VALUE" not in constraint_values(relation)
+
+    migration = migration_file.read_text(encoding="utf-8")
+    institution_migration = migration.split("CREATE TABLE institutions", 1)[1]
+    patterns = {
+        "id": r"\bid\s+VARCHAR\(39\)\s+PRIMARY KEY",
+        "code": r"\bcode\s+VARCHAR\(30\)\s+NOT NULL\s+UNIQUE",
+        "name": r"\bname\s+VARCHAR\(100\)\s+NOT NULL",
+        "nameEn": r"\bname_en\s+VARCHAR\(100\)\s+NOT NULL",
+        "country": r"FOREIGN KEY \(country_id\) REFERENCES countries\(id\) ON DELETE RESTRICT",
+        "organization": r"FOREIGN KEY \(org_id\) REFERENCES organizations\(id\) ON DELETE RESTRICT",
+        "isSupranational": r"\bis_supranational\s+BOOLEAN\s+NOT NULL\s+DEFAULT\s+FALSE",
+        "institutionType": r"\binstitution_type\s+institution_type\s+NOT NULL",
+        "clearingCurrency": r"\bclearing_currency\s+CHAR\(3\)\s*,",
+        "swiftBic": r"\bswift_bic\s+CHAR\(11\)\s*,",
+        "leiCode": r"\blei_code\s+CHAR\(20\)\s*,",
+        "systemicImportance": r"\bsystemic_importance\s+institution_systemic_importance\s*,",
+        "strategicPositioning": r"\bstrategic_positioning\s+TEXT\s*,",
+        "description": r"\bdescription\s+TEXT\s*,",
+        "createdAt": r"\bcreated_at\s+TIMESTAMPTZ\s+NOT NULL\s+DEFAULT\s+now\(\)",
+        "updatedAt": r"\bupdated_at\s+TIMESTAMPTZ\s+NOT NULL\s+DEFAULT\s+now\(\)",
+    }
+    for member, pattern in patterns.items():
+        assert re.search(pattern, institution_migration, re.IGNORECASE), (
+            f"Institution.{member} has no matching PostgreSQL persistence member"
+        )
+    assert "chk_institutions_owner" in institution_migration
+    assert "id ~ '^INS[0-9a-f]{8}-" in institution_migration
+
 def main():
     args = parse_args()
     assert args.kag_root.is_dir(), f"KAG root does not exist: {args.kag_root}"
@@ -349,6 +598,8 @@ def main():
     assert "region.schema" in schema_names, "Region Object Schema is required"
     assert "country.schema" in schema_names, "Country Object Schema is required"
     assert "subdivision.schema" in schema_names, "Subdivision Object Schema is required"
+    assert "ministry.schema" in schema_names, "Ministry Object Schema is required"
+    assert "institution.schema" in schema_names, "Institution Object Schema is required"
     assert "event.schema" in schema_names, "Event Object Schema is required"
 
     parser_type = load_parser(args.kag_root)
@@ -394,6 +645,19 @@ def main():
     )
     verify_subdivision(
         parsed, args.schema_root / "subdivision.schema", subdivision_migration
+    )
+    object_migration = (
+        args.schema_root.parent
+        / "backend"
+        / "migrations"
+        / "000063_add_ministries_and_institutions.sql"
+    )
+    assert object_migration.is_file(), (
+        f"Ministry and Institution migration is missing: {object_migration}"
+    )
+    verify_ministry(parsed, args.schema_root / "ministry.schema", object_migration)
+    verify_institution(
+        parsed, args.schema_root / "institution.schema", object_migration
     )
     verify_event(parsed)
     print(
