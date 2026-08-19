@@ -41,6 +41,15 @@ func TestOpenAPIContractFreezesAdminRoutesSecurityAndEnvelopes(t *testing.T) {
 		"/api/admin/v1/events": {
 			{method: "get", operationID: "listAdminPortalEvents", envelope: "EventPageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
 		},
+		"/api/admin/v1/evidences": {
+			{method: "get", operationID: "listAdminPortalEvidences", envelope: "EvidencePageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
+		},
+		"/api/admin/v1/evidence-categories": {
+			{method: "get", operationID: "listAdminPortalEvidenceCategories", envelope: "EvidenceCategoryListEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
+		},
+		"/api/admin/v1/sources": {
+			{method: "get", operationID: "listAdminPortalSources", envelope: "SourcePageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
+		},
 		"/api/admin/v1/runtime-health": {
 			{method: "get", operationID: "getAdminPortalRuntimeHealth", envelope: "RuntimeHealthEnvelope", statuses: []string{"401", "403", "500"}},
 		},
@@ -92,6 +101,10 @@ func TestOpenAPIContractPreservesRetainedDataListSchemas(t *testing.T) {
 	document := parseAdminDocument(t)
 	components := adminObject(t, document["components"], "components")
 	parameters := adminObject(t, components["parameters"], "parameters")
+	pageSchema := adminObject(t, adminObject(t, parameters["Page"], "Page")["schema"], "Page.schema")
+	if pageSchema["maximum"] != 1000000 {
+		t.Fatalf("Page schema = %#v, want maximum 1000000", pageSchema)
+	}
 	pageSizeSchema := adminObject(t, adminObject(t, parameters["PageSize"], "PageSize")["schema"], "PageSize.schema")
 	if pageSizeSchema["default"] != 50 || pageSizeSchema["maximum"] != 100 {
 		t.Fatalf("PageSize schema = %#v, want retained default 50 and maximum 100", pageSizeSchema)
@@ -119,6 +132,15 @@ func TestOpenAPIContractPreservesRetainedDataListSchemas(t *testing.T) {
 	}
 	assertAdminRequired(t, event, "id", "title", "summary", "semantic", "modality", "occurred_at", "announced_at", "status")
 	assertAdminRequired(t, adminSchema(t, document, "EventSemantic"), "who", "what", "when", "where", "why", "how")
+	assertAdminRequired(t, adminSchema(t, document, "Evidence"), "id", "raw_evidence_id", "title", "summary", "categories", "source_name", "source_level", "is_split", "published_at", "collected_at")
+	source := adminSchema(t, document, "Source")
+	assertAdminRequired(t, source, "id", "code", "name", "ownership_type", "channel_type", "enabled", "priority", "default_source_level", "updated_at")
+	properties := adminObject(t, source["properties"], "Source.properties")
+	for _, forbidden := range []string{"adapter_key", "endpoint", "app_key", "config", "timeout_seconds", "max_results"} {
+		if _, exists := properties[forbidden]; exists {
+			t.Fatalf("Admin Source exposes %q", forbidden)
+		}
+	}
 }
 
 func parseAdminDocument(t *testing.T) map[string]any {

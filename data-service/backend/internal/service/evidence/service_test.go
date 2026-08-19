@@ -4,11 +4,64 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
 )
+
+func TestListEvidenceMapsConfirmedQueryAndJoinedDTO(t *testing.T) {
+	publishedAt := time.Date(2026, 8, 18, 1, 0, 0, 0, time.UTC)
+	collectedAt := time.Date(2026, 8, 18, 1, 5, 0, 0, time.UTC)
+	title := "Source title"
+	useCase := &capturingListUseCase{page: evidencebiz.EvidencePage{
+		Items: []evidencebiz.EvidenceListItem{{
+			ID: "EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", RawEvidenceID: "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf",
+			Title: &title, Summary: "Atomic fact", Categories: []evidencebiz.Category{{
+				ID: "EVCc18ddddb-14bc-5496-99ea-963ee2c25597", Code: "EVENT_BRIEF", Name: "事件快讯", Description: "事件材料",
+			}}, SourceName: "Example Wire", SourceLevel: evidencebiz.SourceLevelWire, IsSplit: true,
+			PublishedAt: &publishedAt, CollectedAt: collectedAt,
+		}}, Total: 1, Page: 2, PageSize: 10,
+	}}
+	service, err := NewService(useCase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := service.ListEvidence(context.Background(), &evidenceapi.ListRequest{
+		Title: " Source ", Summary: " Atomic ", CategoryID: "EVCc18ddddb-14bc-5496-99ea-963ee2c25597",
+		SourceName: " Example ", SourceLevel: "L2_WIRE", IsSplit: "true",
+		PublishedFrom: "2026-08-18T00:00:00Z", PublishedTo: "2026-08-19T00:00:00Z",
+		CollectedFrom: "2026-08-18T00:00:00Z", CollectedTo: "2026-08-19T00:00:00Z",
+		Page: "2", PageSize: "10",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if useCase.filter.Title != "Source" || useCase.filter.Summary != "Atomic" || useCase.filter.IsSplit == nil ||
+		!*useCase.filter.IsSplit || useCase.filter.Page != 2 || useCase.filter.PageSize != 10 || useCase.filter.PublishedFrom == nil {
+		t.Fatalf("filter = %#v", useCase.filter)
+	}
+	if response.Status != v1.StatusOK || response.Result.Total != 1 || len(response.Result.Items) != 1 {
+		t.Fatalf("response = %#v", response)
+	}
+	item := response.Result.Items[0]
+	if item.Title == nil || *item.Title != title || item.PublishedAt == nil || *item.PublishedAt != "2026-08-18T01:00:00Z" ||
+		item.CollectedAt != "2026-08-18T01:05:00Z" || len(item.Categories) != 1 {
+		t.Fatalf("item = %#v", item)
+	}
+}
+
+type capturingListUseCase struct {
+	failingUseCase
+	filter evidencebiz.EvidenceListFilter
+	page   evidencebiz.EvidencePage
+}
+
+func (u *capturingListUseCase) ListEvidence(_ context.Context, filter evidencebiz.EvidenceListFilter) (evidencebiz.EvidencePage, error) {
+	u.filter = filter
+	return u.page, nil
+}
 
 func TestNewServiceRejectsMissingUseCase(t *testing.T) {
 	if _, err := NewService(nil); err == nil {
@@ -131,4 +184,8 @@ func (u failingUseCase) GetRawEvidence(context.Context, string) (evidencebiz.Sto
 
 func (u failingUseCase) PublishEvidence(context.Context, string, []evidencebiz.Evidence) (evidencebiz.EvidenceResult, error) {
 	return evidencebiz.EvidenceResult{}, u.err
+}
+
+func (u failingUseCase) ListEvidence(context.Context, evidencebiz.EvidenceListFilter) (evidencebiz.EvidencePage, error) {
+	return evidencebiz.EvidencePage{}, u.err
 }

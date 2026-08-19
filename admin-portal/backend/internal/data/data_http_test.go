@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -46,6 +47,82 @@ func TestHTTPClientListsAdminDataWithIdentityRequestIDAndTypedQueries(t *testing
 	}
 	if eventRequest.URL.Path != eventsPath || eventRequest.URL.Query().Get("occurred_from") != eventFrom.Format(time.RFC3339) || eventRequest.URL.Query().Get("modality") != "FACT" || eventRequest.URL.Query().Get("status") != "ACTIVE" {
 		t.Fatalf("event request = %s?%s", eventRequest.URL.Path, eventRequest.URL.RawQuery)
+	}
+}
+
+func TestHTTPClientListsEvidenceCategoriesAndSourcesWithStrictProjection(t *testing.T) {
+	t.Parallel()
+	requests := make(chan *http.Request, 3)
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		requests <- request.Clone(context.Background())
+		writer.Header().Set("Content-Type", "application/json")
+		switch request.URL.Path {
+		case evidencesPath:
+			_, _ = writer.Write([]byte(`{"request_id":"data-evidence","result":{"items":[{"id":"EVD22222222-2222-5222-8222-222222222222","raw_evidence_id":"RAW22222222-2222-5222-8222-222222222222","title":"raw title","summary":"summary","categories":[{"id":"EVC22222222-2222-5222-8222-222222222222","code":"EVENT_BRIEF","name":"Event brief","description":"description"}],"source_name":"Official","source_level":"L1_OFFICIAL","is_split":true,"published_at":"2026-08-19T01:00:00Z","collected_at":"2026-08-19T02:00:00Z"}],"total":1,"page":1,"page_size":50}}`))
+		case evidenceCategoriesPath:
+			_, _ = writer.Write([]byte(`{"request_id":"data-category","result":{"categories":[{"id":"EVC22222222-2222-5222-8222-222222222222","code":"EVENT_BRIEF","name":"Event brief","description":"description"}]}}`))
+		case sourcesPath:
+			_, _ = writer.Write([]byte(`{"request_id":"data-source","result":{"sources":[{"id":"SRC22222222-2222-5222-8222-222222222222","code":"official","name":"Official","ownership_type":"fixed","channel_type":"api","adapter_key":"tavily","enabled":true,"endpoint":"https://provider.example.test","app_key":"must-not-leak","config":{"secret":"must-not-leak"},"priority":1,"timeout_seconds":10,"max_results":20,"default_source_level":"L1_OFFICIAL","created_at":"2026-08-19T01:00:00Z","updated_at":"2026-08-19T02:00:00Z"}]}}`))
+		default:
+			writer.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	client := newTestClient(t, server.URL, server.Client(), "admin-service-token")
+	isSplit := true
+	page, err := client.ListEvidences(context.Background(), biz.EvidenceListQuery{Title: "raw", CategoryID: "EVC22222222-2222-5222-8222-222222222222", IsSplit: &isSplit, Page: 1, PageSize: 50})
+	if err != nil || len(page.Items) != 1 || len(page.Items[0].Categories) != 1 {
+		t.Fatalf("Evidence page/error = %#v/%v", page, err)
+	}
+	categories, err := client.ListEvidenceCategories(context.Background())
+	if err != nil || len(categories) != 1 {
+		t.Fatalf("categories/error = %#v/%v", categories, err)
+	}
+	sources, err := client.ListSources(context.Background())
+	if err != nil || len(sources) != 1 || sources[0].Code != "official" {
+		t.Fatalf("sources/error = %#v/%v", sources, err)
+	}
+	first, second, third := <-requests, <-requests, <-requests
+	if first.URL.Query().Get("title") != "raw" || first.URL.Query().Get("category_id") == "" || first.URL.Query().Get("is_split") != "true" || second.URL.RawQuery != "" || third.URL.RawQuery != "" {
+		t.Fatalf("requests = %s / %s / %s", first.URL.String(), second.URL.String(), third.URL.String())
+	}
+}
+
+func TestHTTPClientAcceptsMaximumCompleteSourceListLargerThanOneMiB(t *testing.T) {
+	t.Parallel()
+	sources := make([]map[string]any, 200)
+	for index := range sources {
+		sources[index] = map[string]any{
+			"id":   fmt.Sprintf("SRC%08x-0000-5000-8000-%012x", index+1, index+1),
+			"code": fmt.Sprintf("source-%03d", index), "name": fmt.Sprintf("Source %03d", index),
+			"ownership_type": "fixed", "channel_type": "api", "adapter_key": "tavily", "enabled": true,
+			"endpoint": "https://provider.example.test/" + strings.Repeat("a", 2000), "app_key": strings.Repeat("k", 512),
+			"config": map[string]any{"blob": strings.Repeat("x", 4080)}, "priority": 1, "timeout_seconds": 300,
+			"max_results": 100, "default_source_level": "L1_OFFICIAL", "created_at": "2026-08-19T01:00:00Z", "updated_at": "2026-08-19T02:00:00Z",
+		}
+	}
+	payload, err := json.Marshal(map[string]any{"request_id": "large-source-list", "result": map[string]any{"sources": sources}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(payload) <= 1<<20 || len(payload) > maxSuccessBodyBytes {
+		t.Fatalf("payload size = %d", len(payload))
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) { _, _ = writer.Write(payload) }))
+	defer server.Close()
+	client := newTestClient(t, server.URL, server.Client(), "token")
+	result, err := client.ListSources(context.Background())
+	if err != nil || len(result) != 200 {
+		t.Fatalf("Source count/error = %d/%v", len(result), err)
+	}
+}
+
+func TestClassifyReadErrorPreservesCancellationAndTimeout(t *testing.T) {
+	if !errors.Is(classifyReadError(&Error{Kind: ErrorKindCanceled}), context.Canceled) {
+		t.Fatal("cancellation was not preserved")
+	}
+	if !errors.Is(classifyReadError(&Error{Kind: ErrorKindTimeout}), context.DeadlineExceeded) {
+		t.Fatal("timeout was not preserved")
 	}
 }
 

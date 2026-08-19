@@ -138,7 +138,7 @@ func requiredScope(operation string) (string, bool) {
 		researchapi.OperationListResearchThemeReasoningTrees, researchapi.OperationGetResearchThemeReasoningTree,
 		researchapi.OperationSearchResearchGraph:
 		return ScopeResearchRead, true
-	case eventapi.OperationListAdminEvents, runtimehealthapi.OperationGet:
+	case eventapi.OperationListAdminEvents, evidenceapi.OperationListAdminEvidence, runtimehealthapi.OperationGet:
 		return ScopeAdminRead, true
 	case countryapi.OperationList, countryapi.OperationGet:
 		return ScopeCountryRead, true

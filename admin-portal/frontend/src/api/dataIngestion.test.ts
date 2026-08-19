@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { loadEvents } from './dataIngestion';
+import { loadEvidenceCategories, loadEvidences, loadEvents, loadSources } from './dataIngestion';
 
 describe('data ingestion api client', () => {
   it('loads current events with the frozen filters', async () => {
@@ -26,6 +26,81 @@ describe('data ingestion api client', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/admin/v1/events?page=1&page_size=50&title=%E7%BE%8E%E8%81%94%E5%82%A8&modality=FACT&status=ACTIVE&occurred_from=2026-07-09T00%3A00%3A00Z&occurred_to=2026-07-10T00%3A00%3A00Z&announced_from=2026-07-09T00%3A00%3A00Z&announced_to=2026-07-10T00%3A00%3A00Z',
       { headers: { Authorization: 'Bearer secret-token' } }
+    );
+  });
+
+  it('maps Evidence and Source filters without exposing retired fields', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        request_id: 'request',
+        result: { items: [], total: 0, page: 1, page_size: 50 }
+      })
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await loadEvidences('token', {
+      page: 1,
+      title: '标题',
+      category_id: 'category',
+      is_split: 'true'
+    });
+    await loadSources('token', { page: 2, query: 'official', enabled: 'true', priority: '1' });
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      '/api/admin/v1/evidences?page=1&page_size=50&title=%E6%A0%87%E9%A2%98&category_id=category&is_split=true',
+      { headers: { Authorization: 'Bearer token' } }
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/api/admin/v1/sources?page=2&page_size=50&query=official&enabled=true&priority=1',
+      { headers: { Authorization: 'Bearer token' } }
+    );
+    expect(fetchMock.mock.calls.flat().join(' ')).not.toMatch(/adapter|endpoint/);
+  });
+
+  it('loads the Evidence Category catalog', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ request_id: 'request', result: { categories: [] } })
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(loadEvidenceCategories('token')).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledWith('/api/admin/v1/evidence-categories', {
+      headers: { Authorization: 'Bearer token' }
+    });
+  });
+
+  it('rejects untrusted list items with contract drift', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          request_id: 'request',
+          result: {
+            items: [
+              {
+                id: 'SRC00000000-0000-5000-8000-000000000001',
+                code: 'official',
+                name: 'Official',
+                ownership_type: 'fixed',
+                channel_type: 'api',
+                enabled: true,
+                priority: 1,
+                default_source_level: 'L1_OFFICIAL',
+                updated_at: '2026-08-19T02:00:00Z',
+                endpoint: 'https://must-not-cross.example.test'
+              }
+            ],
+            total: 1,
+            page: 1,
+            page_size: 50
+          }
+        })
+      })
+    );
+    await expect(loadSources('token', { page: 1 })).rejects.toThrow(
+      'Admin API returned an invalid response'
     );
   });
 });

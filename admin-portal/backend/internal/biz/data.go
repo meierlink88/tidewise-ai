@@ -10,6 +10,50 @@ import (
 // aggregates. Scheduler control is deliberately absent from this port.
 type DataServiceRepo interface {
 	ListEvents(context.Context, EventListQuery) (EventPage, error)
+	ListEvidences(context.Context, EvidenceListQuery) (EvidencePage, error)
+	ListEvidenceCategories(context.Context) ([]EvidenceCategory, error)
+	ListSources(context.Context) ([]Source, error)
+}
+
+type EvidenceListQuery struct {
+	Title, Summary, CategoryID, SourceName, SourceLevel    string
+	IsSplit                                                *bool
+	PublishedFrom, PublishedTo, CollectedFrom, CollectedTo *time.Time
+	Page, PageSize                                         int
+}
+
+type EvidencePage struct {
+	Items                 []Evidence
+	Total, Page, PageSize int
+}
+type Evidence struct {
+	ID, RawEvidenceID       string
+	Title                   *string
+	Summary                 string
+	Categories              []EvidenceCategory
+	SourceName, SourceLevel string
+	IsSplit                 bool
+	PublishedAt             *time.Time
+	CollectedAt             time.Time
+}
+type EvidenceCategory struct{ ID, Code, Name, Description string }
+
+type SourceListQuery struct {
+	Text, OwnershipType, ChannelType, DefaultSourceLevel string
+	Enabled                                              *bool
+	Priority                                             *int
+	UpdatedFrom, UpdatedTo                               *time.Time
+	Page, PageSize                                       int
+}
+type SourcePage struct {
+	Items                 []Source
+	Total, Page, PageSize int
+}
+type Source struct {
+	ID, Code, Name, OwnershipType, ChannelType, DefaultSourceLevel string
+	Enabled                                                        bool
+	Priority                                                       int
+	UpdatedAt                                                      time.Time
 }
 
 type EventListQuery struct {
@@ -71,7 +115,31 @@ var ErrFakeMethodNotConfigured = errors.New("data service fake method is not con
 
 // FakeDataServiceRepo keeps Admin orchestration tests independent from HTTP and databases.
 type FakeDataServiceRepo struct {
-	ListEventsFunc func(context.Context, EventListQuery) (EventPage, error)
+	ListEventsFunc             func(context.Context, EventListQuery) (EventPage, error)
+	ListEvidencesFunc          func(context.Context, EvidenceListQuery) (EvidencePage, error)
+	ListEvidenceCategoriesFunc func(context.Context) ([]EvidenceCategory, error)
+	ListSourcesFunc            func(context.Context) ([]Source, error)
+}
+
+func (f *FakeDataServiceRepo) ListEvidences(ctx context.Context, query EvidenceListQuery) (EvidencePage, error) {
+	if f == nil || f.ListEvidencesFunc == nil {
+		return EvidencePage{}, ErrFakeMethodNotConfigured
+	}
+	return f.ListEvidencesFunc(ctx, query)
+}
+
+func (f *FakeDataServiceRepo) ListEvidenceCategories(ctx context.Context) ([]EvidenceCategory, error) {
+	if f == nil || f.ListEvidenceCategoriesFunc == nil {
+		return nil, ErrFakeMethodNotConfigured
+	}
+	return f.ListEvidenceCategoriesFunc(ctx)
+}
+
+func (f *FakeDataServiceRepo) ListSources(ctx context.Context) ([]Source, error) {
+	if f == nil || f.ListSourcesFunc == nil {
+		return nil, ErrFakeMethodNotConfigured
+	}
+	return f.ListSourcesFunc(ctx)
 }
 
 func (f *FakeDataServiceRepo) ListEvents(ctx context.Context, query EventListQuery) (EventPage, error) {

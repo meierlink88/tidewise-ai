@@ -12,6 +12,7 @@ const (
 	OperationGetRawEvidence         = "data.v1.getRawEvidence"
 	OperationPublishEvidence        = "data.v1.publishEvidence"
 	OperationListEvidenceCategories = "data.v1.listEvidenceCategories"
+	OperationListAdminEvidence      = "data.v1.listAdminEvidence"
 
 	ErrorInvalidRequest                      = "INVALID_REQUEST"
 	ErrorDataServiceNotReady                 = "DATA_SERVICE_NOT_READY"
@@ -25,10 +26,15 @@ const (
 	ErrorRawEvidenceReadFailed               = "RAW_EVIDENCE_READ_FAILED"
 	ErrorEvidenceCategoryCatalogFailed       = "EVIDENCE_CATEGORY_CATALOG_FAILED"
 	ErrorEvidenceCategoryCatalogTimeout      = "EVIDENCE_CATEGORY_CATALOG_TIMEOUT"
+	ErrorEvidenceListFailed                  = "EVIDENCE_LIST_FAILED"
+	ErrorEvidenceListTimeout                 = "EVIDENCE_LIST_TIMEOUT"
 )
 
 func BusinessOperations() []string {
-	return []string{OperationPublishRawEvidence, OperationGetRawEvidence, OperationPublishEvidence, OperationListEvidenceCategories}
+	return []string{
+		OperationPublishRawEvidence, OperationGetRawEvidence, OperationPublishEvidence,
+		OperationListEvidenceCategories, OperationListAdminEvidence,
+	}
 }
 
 type Service interface {
@@ -36,6 +42,42 @@ type Service interface {
 	GetRawEvidence(context.Context, *GetRawEvidenceRequest) (*v1.Response[RawEvidenceReadResult], error)
 	PublishEvidence(context.Context, *EvidencePublicationRequest) (*v1.Response[EvidencePublicationResult], error)
 	ListEvidenceCategories(context.Context) (*v1.Response[EvidenceCategoryCatalog], error)
+	ListEvidence(context.Context, *ListRequest) (*v1.Response[Page], error)
+}
+
+type ListRequest struct {
+	Title         string
+	Summary       string
+	CategoryID    string
+	SourceName    string
+	SourceLevel   string
+	IsSplit       string
+	PublishedFrom string
+	PublishedTo   string
+	CollectedFrom string
+	CollectedTo   string
+	Page          string
+	PageSize      string
+}
+
+type ListItem struct {
+	ID            string             `json:"id"`
+	RawEvidenceID string             `json:"raw_evidence_id"`
+	Title         *string            `json:"title"`
+	Summary       string             `json:"summary"`
+	Categories    []EvidenceCategory `json:"categories"`
+	SourceName    string             `json:"source_name"`
+	SourceLevel   string             `json:"source_level"`
+	IsSplit       bool               `json:"is_split"`
+	PublishedAt   *string            `json:"published_at"`
+	CollectedAt   string             `json:"collected_at"`
+}
+
+type Page struct {
+	Items    []ListItem `json:"items"`
+	Total    int        `json:"total"`
+	Page     int        `json:"page"`
+	PageSize int        `json:"page_size"`
 }
 
 type RawEvidencePublicationRequest struct {

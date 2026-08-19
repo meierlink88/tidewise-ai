@@ -693,6 +693,10 @@ type serverTestEventService struct{}
 
 type serverTestEvidenceService struct{}
 
+func (serverTestEvidenceService) ListEvidence(context.Context, *evidenceapi.ListRequest) (*dataapi.Response[evidenceapi.Page], error) {
+	return &dataapi.Response[evidenceapi.Page]{Result: evidenceapi.Page{Items: []evidenceapi.ListItem{}, Page: 1, PageSize: 50}}, nil
+}
+
 func (serverTestEventService) ListEvents(context.Context, *eventapi.ListRequest) (*dataapi.Response[eventapi.Page], error) {
 	return serverTestResponse[eventapi.Page]()
 }

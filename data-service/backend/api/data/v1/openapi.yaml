@@ -442,6 +442,48 @@ paths:
         '503':
           $ref: '#/components/responses/EvidenceCategoryCatalogTimeout'
 
+  /api/data/v1/evidences:
+    get:
+      tags: [Admin aggregates]
+      operationId: listAdminEvidence
+      x-client-drift-anchor: data.v1.listAdminEvidence
+      x-required-service-scope: data.admin.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 3000
+      summary: 分页查询 Admin Evidence Center 读模型
+      description: >-
+        以 Atomic Evidence 为分页单位，关联其唯一 Raw Evidence 与完整 Evidence Category 集合。
+        文本筛选为不区分大小写的 contains；时间范围两端均包含且必须为 UTC RFC3339。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - {name: title, in: query, required: false, schema: {type: string, maxLength: 500}}
+        - {name: summary, in: query, required: false, schema: {type: string, maxLength: 200}}
+        - {name: category_id, in: query, required: false, schema: {type: string, maxLength: 39, pattern: '^EVC[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'}}
+        - {name: source_name, in: query, required: false, schema: {type: string, maxLength: 100}}
+        - {name: source_level, in: query, required: false, schema: {$ref: '#/components/schemas/SourceLevel'}}
+        - {name: is_split, in: query, required: false, schema: {type: boolean}}
+        - {name: published_from, in: query, required: false, schema: {$ref: '#/components/schemas/UTCTimestamp'}}
+        - {name: published_to, in: query, required: false, schema: {$ref: '#/components/schemas/UTCTimestamp'}}
+        - {name: collected_from, in: query, required: false, schema: {$ref: '#/components/schemas/UTCTimestamp'}}
+        - {name: collected_to, in: query, required: false, schema: {$ref: '#/components/schemas/UTCTimestamp'}}
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Evidence Center 分页结果
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminEvidencePageEnvelope'
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
   /api/data/v1/raw-evidence-publications:
     post:
       tags: [Evidence publication]
@@ -3233,6 +3275,55 @@ components:
           maxLength: 128
         result:
           $ref: '#/components/schemas/EvidenceCategoryCatalog'
+
+    AdminEvidence:
+      type: object
+      additionalProperties: false
+      required: [id, raw_evidence_id, title, summary, categories, source_name, source_level, is_split, published_at, collected_at]
+      properties:
+        id:
+          type: string
+          maxLength: 39
+          pattern: '^EVD[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+        raw_evidence_id:
+          type: string
+          maxLength: 39
+          pattern: '^RAW[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+        title:
+          type: string
+          maxLength: 500
+          nullable: true
+        summary: {type: string, minLength: 1, maxLength: 200}
+        categories:
+          type: array
+          items: {$ref: '#/components/schemas/EvidenceCategory'}
+        source_name: {type: string, minLength: 1, maxLength: 100}
+        source_level: {$ref: '#/components/schemas/SourceLevel'}
+        is_split: {type: boolean}
+        published_at:
+          allOf: [{$ref: '#/components/schemas/UTCTimestamp'}]
+          nullable: true
+        collected_at: {$ref: '#/components/schemas/UTCTimestamp'}
+
+    AdminEvidencePage:
+      type: object
+      additionalProperties: false
+      required: [items, total, page, page_size]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/AdminEvidence'}
+        total: {type: integer, minimum: 0}
+        page: {type: integer, minimum: 1}
+        page_size: {type: integer, minimum: 1, maximum: 100}
+
+    AdminEvidencePageEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string, minLength: 1, maxLength: 128}
+        result: {$ref: '#/components/schemas/AdminEvidencePage'}
 
     RawEvidenceRead:
       type: object

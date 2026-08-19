@@ -255,6 +255,12 @@ func operationForRequest(request *http.Request) string {
 		return "admin.docs"
 	case v1.APIPrefix + "/events":
 		return v1.OperationListEvents
+	case v1.APIPrefix + "/evidences":
+		return v1.OperationListEvidences
+	case v1.APIPrefix + "/evidence-categories":
+		return v1.OperationListEvidenceCategories
+	case v1.APIPrefix + "/sources":
+		return v1.OperationListSources
 	case v1.APIPrefix + "/runtime-health":
 		return v1.OperationGetRuntimeHealth
 	}

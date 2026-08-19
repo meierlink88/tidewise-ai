@@ -87,6 +87,7 @@ type CategoryCatalog struct {
 type Store interface {
 	TransactionStore
 	ListCategories(context.Context) ([]Category, error)
+	ListEvidence(context.Context, EvidenceListFilter) (EvidencePage, error)
 }
 
 type Evidence struct {
@@ -108,6 +109,41 @@ type StoredEvidence struct {
 	Evidence
 	RawEvidenceID string
 	IsSplit       bool
+}
+
+type EvidenceListFilter struct {
+	Title         string
+	Summary       string
+	CategoryID    CategoryID
+	SourceName    string
+	SourceLevel   SourceLevel
+	IsSplit       *bool
+	PublishedFrom *time.Time
+	PublishedTo   *time.Time
+	CollectedFrom *time.Time
+	CollectedTo   *time.Time
+	Page          int
+	PageSize      int
+}
+
+type EvidenceListItem struct {
+	ID            string
+	RawEvidenceID string
+	Title         *string
+	Summary       string
+	Categories    []Category
+	SourceName    string
+	SourceLevel   SourceLevel
+	IsSplit       bool
+	PublishedAt   *time.Time
+	CollectedAt   time.Time
+}
+
+type EvidencePage struct {
+	Items    []EvidenceListItem
+	Total    int
+	Page     int
+	PageSize int
 }
 
 type RawEvidenceResult struct {
@@ -223,6 +259,59 @@ func (s *UseCase) ListCategories(ctx context.Context) (CategoryCatalog, error) {
 		return categories[left].ID < categories[right].ID
 	})
 	return CategoryCatalog{Categories: categories}, nil
+}
+
+func (s *UseCase) ListEvidence(ctx context.Context, filter EvidenceListFilter) (EvidencePage, error) {
+	if s == nil || s.store == nil {
+		return EvidencePage{}, errors.New("Evidence store is required")
+	}
+	if issue := validateEvidenceListFilter(filter); issue != nil {
+		return EvidencePage{}, &ValidationError{Issues: []Issue{*issue}}
+	}
+	page, err := s.store.ListEvidence(ctx, filter)
+	if err != nil {
+		return EvidencePage{}, fmt.Errorf("list Evidence: %w", err)
+	}
+	return page, nil
+}
+
+func validateEvidenceListFilter(filter EvidenceListFilter) *Issue {
+	for _, text := range []struct {
+		path  string
+		value string
+		max   int
+	}{
+		{path: "title", value: filter.Title, max: 500},
+		{path: "summary", value: filter.Summary, max: 200},
+		{path: "source_name", value: filter.SourceName, max: 100},
+	} {
+		if utf8.RuneCountInString(text.value) > text.max {
+			return &Issue{Path: text.path, Code: IssueTooLong, Message: "query is too long"}
+		}
+	}
+	if filter.CategoryID != "" && !filter.CategoryID.IsValid() {
+		return &Issue{Path: "category_id", Code: IssueInvalidFormat, Message: "must be a stable Evidence Category ID"}
+	}
+	if filter.SourceLevel != "" {
+		if _, ok := allowedSourceLevels[filter.SourceLevel]; !ok {
+			return &Issue{Path: "source_level", Code: IssueInvalidEnum, Message: "is not supported"}
+		}
+	}
+	for _, value := range []*time.Time{filter.PublishedFrom, filter.PublishedTo, filter.CollectedFrom, filter.CollectedTo} {
+		if value != nil && !isUTC(*value) {
+			return &Issue{Path: "time", Code: IssueInvalidTimestamp, Message: "must use UTC"}
+		}
+	}
+	if filter.PublishedFrom != nil && filter.PublishedTo != nil && filter.PublishedFrom.After(*filter.PublishedTo) {
+		return &Issue{Path: "published_from", Code: IssueInvalidTimestamp, Message: "must not be after published_to"}
+	}
+	if filter.CollectedFrom != nil && filter.CollectedTo != nil && filter.CollectedFrom.After(*filter.CollectedTo) {
+		return &Issue{Path: "collected_from", Code: IssueInvalidTimestamp, Message: "must not be after collected_to"}
+	}
+	if filter.Page < 1 || filter.Page > 1_000_000 || filter.PageSize < 1 || filter.PageSize > 100 {
+		return &Issue{Path: "page", Code: IssueInvalidFormat, Message: "pagination is outside the supported range"}
+	}
+	return nil
 }
 
 func (s *UseCase) PublishRawEvidence(ctx context.Context, input RawEvidence) (RawEvidenceResult, error) {

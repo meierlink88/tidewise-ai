@@ -22,12 +22,16 @@ import (
 )
 
 const (
-	RequestIDHeader      = "X-Request-ID"
-	maxResponseBodyBytes = 1 << 20
-	maxErrorCodeLength   = 100
-	maxReadAttempts      = 3
-	dataAPIPrefix        = "/api/data/v1"
-	eventsPath           = dataAPIPrefix + "/events"
+	RequestIDHeader        = "X-Request-ID"
+	maxSuccessBodyBytes    = 8 << 20
+	maxErrorBodyBytes      = 1 << 20
+	maxErrorCodeLength     = 100
+	maxReadAttempts        = 3
+	dataAPIPrefix          = "/api/data/v1"
+	eventsPath             = dataAPIPrefix + "/events"
+	evidencesPath          = dataAPIPrefix + "/evidences"
+	evidenceCategoriesPath = dataAPIPrefix + "/evidence-categories"
+	sourcesPath            = dataAPIPrefix + "/sources"
 )
 
 type DataHTTPConfig struct {
@@ -122,6 +126,61 @@ func (c *DataHTTPClient) ListEvents(ctx context.Context, query biz.EventListQuer
 	return page, nil
 }
 
+func (c *DataHTTPClient) ListEvidences(ctx context.Context, query biz.EvidenceListQuery) (biz.EvidencePage, error) {
+	var envelope responseEnvelope[evidencePageWire]
+	err := c.doJSON(ctx, http.MethodGet, "Data.ListEvidences", evidencesPath, evidenceListPath(query), nil, &envelope)
+	wire, err := unwrapEnvelope(envelope, err)
+	if err != nil {
+		return biz.EvidencePage{}, classifyReadError(err)
+	}
+	page, err := wire.toBiz()
+	if err != nil {
+		return biz.EvidencePage{}, biz.ErrDataServiceUnavailable
+	}
+	return page, nil
+}
+
+func (c *DataHTTPClient) ListEvidenceCategories(ctx context.Context) ([]biz.EvidenceCategory, error) {
+	var envelope responseEnvelope[evidenceCategoryListWire]
+	err := c.doJSON(ctx, http.MethodGet, "Data.ListEvidenceCategories", evidenceCategoriesPath, evidenceCategoriesPath, nil, &envelope)
+	wire, err := unwrapEnvelope(envelope, err)
+	if err != nil {
+		return nil, classifyReadError(err)
+	}
+	items, err := wire.toBiz()
+	if err != nil {
+		return nil, biz.ErrDataServiceUnavailable
+	}
+	return items, nil
+}
+
+func (c *DataHTTPClient) ListSources(ctx context.Context) ([]biz.Source, error) {
+	var envelope responseEnvelope[sourceListWire]
+	err := c.doJSON(ctx, http.MethodGet, "Data.ListSources", sourcesPath, sourcesPath, nil, &envelope)
+	wire, err := unwrapEnvelope(envelope, err)
+	if err != nil {
+		return nil, classifyReadError(err)
+	}
+	items, err := wire.toBiz()
+	if err != nil {
+		return nil, biz.ErrDataServiceUnavailable
+	}
+	return items, nil
+}
+
+func classifyReadError(err error) error {
+	var clientError *Error
+	if errors.As(err, &clientError) {
+		switch clientError.Kind {
+		case ErrorKindCanceled:
+			return context.Canceled
+		case ErrorKindTimeout:
+			return context.DeadlineExceeded
+		}
+	}
+	return biz.ErrDataServiceUnavailable
+}
+
 type responseEnvelope[T any] struct {
 	RequestID string `json:"request_id"`
 	Result    *T     `json:"result"`
@@ -155,6 +214,24 @@ func eventListPath(query biz.EventListQuery) string {
 	setTimeQuery(values, "announced_to", query.AnnouncedTo)
 	setPageQuery(values, query.Page, query.PageSize)
 	return appendQuery(eventsPath, values)
+}
+
+func evidenceListPath(query biz.EvidenceListQuery) string {
+	values := url.Values{}
+	for name, value := range map[string]string{"title": query.Title, "summary": query.Summary, "category_id": query.CategoryID, "source_name": query.SourceName, "source_level": query.SourceLevel} {
+		if value != "" {
+			values.Set(name, value)
+		}
+	}
+	if query.IsSplit != nil {
+		values.Set("is_split", strconv.FormatBool(*query.IsSplit))
+	}
+	setTimeQuery(values, "published_from", query.PublishedFrom)
+	setTimeQuery(values, "published_to", query.PublishedTo)
+	setTimeQuery(values, "collected_from", query.CollectedFrom)
+	setTimeQuery(values, "collected_to", query.CollectedTo)
+	setPageQuery(values, query.Page, query.PageSize)
+	return appendQuery(evidencesPath, values)
 }
 
 func setPageQuery(values url.Values, page int, pageSize int) {
@@ -294,11 +371,11 @@ func (c *DataHTTPClient) doJSONAttempt(
 
 func decodeDataSuccessResponse(_ context.Context, response *http.Response, result any) error {
 	defer response.Body.Close()
-	bodyBytes, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBodyBytes+1))
+	bodyBytes, err := io.ReadAll(io.LimitReader(response.Body, maxSuccessBodyBytes+1))
 	if err != nil {
 		return err
 	}
-	if len(bodyBytes) > maxResponseBodyBytes || len(bodyBytes) == 0 {
+	if len(bodyBytes) > maxSuccessBodyBytes || len(bodyBytes) == 0 {
 		return &Error{Kind: ErrorKindDecode, RequestID: response.Header.Get(RequestIDHeader)}
 	}
 	if result == nil {
@@ -315,7 +392,7 @@ func decodeDataErrorResponse(_ context.Context, response *http.Response) error {
 		return nil
 	}
 	defer response.Body.Close()
-	bodyBytes, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBodyBytes+1))
+	bodyBytes, err := io.ReadAll(io.LimitReader(response.Body, maxErrorBodyBytes+1))
 	if err != nil {
 		return &Error{
 			Kind:       ErrorKindProtocol,
@@ -367,7 +444,7 @@ func httpStatusError(status int, headerRequestID string, body []byte) *Error {
 			Code string `json:"code"`
 		} `json:"error"`
 	}
-	if len(body) <= maxResponseBodyBytes {
+	if len(body) <= maxErrorBodyBytes {
 		_ = json.Unmarshal(body, &envelope)
 	}
 	requestID := safeMetadata(headerRequestID, 128)

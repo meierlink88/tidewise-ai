@@ -18,9 +18,56 @@ import (
 type evidencePublicationHTTPStub struct {
 	rawRequest      *RawEvidencePublicationRequest
 	evidenceRequest *EvidencePublicationRequest
+	listRequest     *ListRequest
 	deadline        time.Time
 	blockUntilDone  bool
 }
+
+func (s *evidencePublicationHTTPStub) ListEvidence(ctx context.Context, request *ListRequest) (*v1.Response[Page], error) {
+	s.listRequest = request
+	s.deadline, _ = ctx.Deadline()
+	return &v1.Response[Page]{Status: v1.StatusOK, Result: Page{
+		Items: []ListItem{{
+			ID: "EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", RawEvidenceID: "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf",
+			Title: testString("Source title"), Summary: "Atomic fact", Categories: []EvidenceCategory{{
+				ID: "EVCc18ddddb-14bc-5496-99ea-963ee2c25597", Code: "EVENT_BRIEF", Name: "事件快讯", Description: "事件材料",
+			}}, SourceName: "Example Wire", SourceLevel: "L2_WIRE", IsSplit: true,
+			PublishedAt: testString("2026-08-18T01:00:00Z"), CollectedAt: "2026-08-18T01:05:00Z",
+		}}, Total: 1, Page: 2, PageSize: 10,
+	}}, nil
+}
+
+func TestEvidenceListHTTPBindsConfirmedFiltersAndPagination(t *testing.T) {
+	stub := &evidencePublicationHTTPStub{}
+	server := kratoshttp.NewServer()
+	RegisterHTTPServer(server, stub)
+	path := v1.APIPrefix + "/evidences?title=Source&summary=Atomic&category_id=EVCc18ddddb-14bc-5496-99ea-963ee2c25597" +
+		"&source_name=Example&source_level=L2_WIRE&is_split=true" +
+		"&published_from=2026-08-18T00%3A00%3A00Z&published_to=2026-08-19T00%3A00%3A00Z" +
+		"&collected_from=2026-08-18T00%3A00%3A00Z&collected_to=2026-08-19T00%3A00%3A00Z&page=2&page_size=10"
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+
+	if response.Code != v1.StatusOK {
+		t.Fatalf("status=%d body=%s, want 200", response.Code, response.Body)
+	}
+	if stub.listRequest == nil || stub.listRequest.Title != "Source" || stub.listRequest.Summary != "Atomic" ||
+		stub.listRequest.CategoryID != "EVCc18ddddb-14bc-5496-99ea-963ee2c25597" || stub.listRequest.SourceName != "Example" ||
+		stub.listRequest.SourceLevel != "L2_WIRE" || stub.listRequest.IsSplit != "true" || stub.listRequest.Page != "2" ||
+		stub.listRequest.PageSize != "10" || stub.listRequest.PublishedFrom != "2026-08-18T00:00:00Z" ||
+		stub.listRequest.CollectedTo != "2026-08-19T00:00:00Z" {
+		t.Fatalf("bound request = %#v", stub.listRequest)
+	}
+	var page Page
+	if err := json.Unmarshal(response.Body.Bytes(), &page); err != nil {
+		t.Fatal(err)
+	}
+	if page.Total != 1 || len(page.Items) != 1 || page.Items[0].Summary != "Atomic fact" || len(page.Items[0].Categories) != 1 {
+		t.Fatalf("page = %#v", page)
+	}
+}
+
+func testString(value string) *string { return &value }
 
 func (s *evidencePublicationHTTPStub) ListEvidenceCategories(ctx context.Context) (*v1.Response[EvidenceCategoryCatalog], error) {
 	s.deadline, _ = ctx.Deadline()
