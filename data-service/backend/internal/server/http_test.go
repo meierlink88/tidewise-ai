@@ -8,12 +8,15 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"testing"
 	"time"
 
 	dataapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
+	sourceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/source"
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
 	sourcebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/source"
 	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
@@ -101,6 +104,99 @@ func TestProductionServerSourceManagementAndSnapshotContract(t *testing.T) {
 	if _, exists := failedSnapshot["result"]; exists {
 		t.Fatalf("failed snapshot exposed partial result: %#v", failedSnapshot)
 	}
+}
+
+func TestSourceProviderFixtureMatchesRuntimeHTTPOutput(t *testing.T) {
+	payload, err := os.ReadFile(filepath.Join("..", "..", "api", "data", "v1", "source", "testdata", "source-snapshot.v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		RequestID string                   `json:"request_id"`
+		Result    sourceapi.SourceSnapshot `json:"result"`
+	}
+	var expected map[string]any
+	if err := json.Unmarshal(payload, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(payload, &expected); err != nil {
+		t.Fatal(err)
+	}
+	server := sourceSnapshotContractServer(t, fixtureSourceService{sources: fixture.Result.Sources})
+	actual := productionContractRequest(t, server, http.MethodGet, dataapi.APIPrefix+"/source-snapshot", "source-read-token", "", fixture.RequestID, http.StatusOK)
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("runtime Source snapshot differs from provider fixture:\nactual=%#v\nexpected=%#v", actual, expected)
+	}
+}
+
+func TestSourceSnapshotHTTPReturnsTwoHundredSourcesWithinEnvelopeAndTimeBudgets(t *testing.T) {
+	sources := make([]sourceapi.Source, 0, sourcebiz.MaxSources)
+	for index := 0; index < sourcebiz.MaxSources; index++ {
+		code := fmt.Sprintf("source-%03d", index)
+		id, err := coreid.Derive(coreid.Source, "source", code)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sources = append(sources, sourceapi.Source{
+			ID: id, Code: code, Name: code, OwnershipType: "dynamic", ChannelType: "rss", AdapterKey: "generic_rss",
+			Enabled: true, Endpoint: "https://example.com/feed.xml", Config: json.RawMessage(`{}`), Priority: 1,
+			TimeoutSeconds: 30, MaxResults: 10, DefaultSourceLevel: "L3_MEDIA",
+			CreatedAt: "2026-08-19T00:00:00Z", UpdatedAt: "2026-08-19T00:00:00Z",
+		})
+	}
+	server := sourceSnapshotContractServer(t, fixtureSourceService{sources: sources})
+	request := httptest.NewRequest(http.MethodGet, dataapi.APIPrefix+"/source-snapshot", nil)
+	request.Header.Set("Authorization", "Bearer source-read-token")
+	request.Header.Set("X-Request-ID", "source-200-http")
+	response := httptest.NewRecorder()
+	started := time.Now()
+	server.ServeHTTP(response, request)
+	if elapsed := time.Since(started); elapsed >= 3*time.Second {
+		t.Fatalf("200-Source HTTP snapshot took %s", elapsed)
+	}
+	if response.Code != http.StatusOK {
+		t.Fatalf("snapshot status=%d body=%s", response.Code, response.Body.String())
+	}
+	if response.Body.Len() > sourcebiz.MaxSnapshotEnvelopeSize {
+		t.Fatalf("serialized snapshot envelope=%d bytes", response.Body.Len())
+	}
+	var envelope struct {
+		Result sourceapi.SourceSnapshot `json:"result"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	if len(envelope.Result.Sources) != sourcebiz.MaxSources {
+		t.Fatalf("HTTP snapshot Source count=%d", len(envelope.Result.Sources))
+	}
+}
+
+type fixtureSourceService struct {
+	serverTestSourceService
+	sources []sourceapi.Source
+}
+
+func (s fixtureSourceService) Snapshot(context.Context) (*dataapi.Response[sourceapi.SourceSnapshot], error) {
+	return &dataapi.Response[sourceapi.SourceSnapshot]{Status: dataapi.StatusOK, Result: sourceapi.SourceSnapshot{Sources: s.sources}}, nil
+}
+
+func sourceSnapshotContractServer(t *testing.T, application sourceapi.Service) http.Handler {
+	t.Helper()
+	authenticator, err := NewAuthenticator([]Credential{{
+		Secret: "source-read-token", Principal: dataapi.Principal{Identity: "agentos", Scopes: []string{ScopeSourceRead}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := NewHTTPServer(
+		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{}, serverTestEvidenceService{},
+		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{},
+		serverTestIndustryChainService{}, serverTestOrganizationService{}, application, authenticator, nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return server
 }
 
 func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *testing.T) {

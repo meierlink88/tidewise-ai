@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"math/big"
 	"net/url"
 	"reflect"
 	"regexp"
@@ -450,7 +452,10 @@ func validateProjectedSet(items []Source) error {
 			}
 		}
 	}
-	if len(active) > MaxSources || activeWeb > 1 || snapshotEnvelopeSize(active) > MaxSnapshotEnvelopeSize {
+	if activeWeb > 1 {
+		return ErrConflict
+	}
+	if len(active) > MaxSources || snapshotEnvelopeSize(active) > MaxSnapshotEnvelopeSize {
 		return ErrCapacityExceeded
 	}
 	return nil
@@ -478,7 +483,7 @@ func validateSource(item Source, requireTimestamps bool) error {
 	if item.OwnershipType == OwnershipDynamic && (item.ChannelType != ChannelRSS || item.AdapterKey != AdapterGenericRSS) {
 		return &ValidationError{Field: "adapter_key", Message: "dynamic Sources must use generic_rss"}
 	}
-	if len(item.Endpoint) > 2048 {
+	if utf8.RuneCountInString(item.Endpoint) > 2048 {
 		return &ValidationError{Field: "endpoint", Message: "must contain at most 2048 characters"}
 	}
 	parsed, err := url.Parse(item.Endpoint)
@@ -653,15 +658,86 @@ func sameSource(left, right Source) bool {
 }
 
 func sameConfig(left, right json.RawMessage) bool {
-	var leftValue, rightValue any
-	if json.Unmarshal(left, &leftValue) != nil || json.Unmarshal(right, &rightValue) != nil {
+	leftValue, leftOK := canonicalJSON(left)
+	rightValue, rightOK := canonicalJSON(right)
+	if !leftOK || !rightOK {
 		return false
 	}
 	return reflect.DeepEqual(leftValue, rightValue)
 }
 
 func samePostgresTimestamp(left, right time.Time) bool {
-	return left.UTC().Round(time.Microsecond).Equal(right.UTC().Round(time.Microsecond))
+	return left.UTC().Truncate(time.Microsecond).Equal(right.UTC().Truncate(time.Microsecond))
+}
+
+type canonicalNumber string
+
+func canonicalJSON(raw json.RawMessage) (any, bool) {
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.UseNumber()
+	var value any
+	if err := decoder.Decode(&value); err != nil {
+		return nil, false
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return nil, false
+	}
+	return normalizeJSONValue(value)
+}
+
+func normalizeJSONValue(value any) (any, bool) {
+	switch typed := value.(type) {
+	case json.Number:
+		return normalizeJSONNumber(string(typed))
+	case map[string]any:
+		for key, item := range typed {
+			normalized, ok := normalizeJSONValue(item)
+			if !ok {
+				return nil, false
+			}
+			typed[key] = normalized
+		}
+	case []any:
+		for index, item := range typed {
+			normalized, ok := normalizeJSONValue(item)
+			if !ok {
+				return nil, false
+			}
+			typed[index] = normalized
+		}
+	}
+	return value, true
+}
+
+func normalizeJSONNumber(raw string) (any, bool) {
+	mantissa, exponentText := raw, "0"
+	if index := strings.IndexAny(raw, "eE"); index >= 0 {
+		mantissa, exponentText = raw[:index], raw[index+1:]
+	}
+	var exponent big.Int
+	if _, ok := exponent.SetString(exponentText, 10); !ok {
+		return nil, false
+	}
+	negative := strings.HasPrefix(mantissa, "-")
+	mantissa = strings.TrimPrefix(mantissa, "-")
+	fractionDigits := 0
+	if index := strings.IndexByte(mantissa, '.'); index >= 0 {
+		fractionDigits = len(mantissa) - index - 1
+		mantissa = mantissa[:index] + mantissa[index+1:]
+	}
+	digits := strings.TrimLeft(mantissa, "0")
+	if digits == "" {
+		return canonicalNumber("0"), true
+	}
+	exponent.Sub(&exponent, big.NewInt(int64(fractionDigits)))
+	trimmed := strings.TrimRight(digits, "0")
+	exponent.Add(&exponent, big.NewInt(int64(len(digits)-len(trimmed))))
+	prefix := ""
+	if negative {
+		prefix = "-"
+	}
+	return canonicalNumber(prefix + trimmed + "e" + exponent.String()), true
 }
 
 func sameOptionalString(left, right *string) bool {

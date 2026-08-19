@@ -109,13 +109,13 @@ func TestPostgresSourceImportReplayAndConcurrentCapacity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stamp := time.Date(2026, 8, 19, 1, 2, 3, 123_456_400, time.UTC)
+	stamp := time.Date(2026, 8, 19, 1, 2, 3, 123_456_600, time.UTC)
 	input := make([]sourcebiz.Source, 0, 199)
 	for index := 0; index < 199; index++ {
 		code := fmt.Sprintf("import-%03d", index)
 		config := []byte(`{}`)
 		if index == 0 {
-			config = []byte(`{"nested":{"z":1,"a":2},"max_bytes":5000000}`)
+			config = []byte(`{"nested":{"z":1,"a":2},"large":9007199254740992,"max_bytes":5000000}`)
 		}
 		input = append(input, sourcebiz.Source{
 			Code: code, Name: code, OwnershipType: sourcebiz.OwnershipDynamic, ChannelType: sourcebiz.ChannelRSS,
@@ -129,6 +129,11 @@ func TestPostgresSourceImportReplayAndConcurrentCapacity(t *testing.T) {
 	}
 	if _, err := useCase.Import(context.Background(), input); err != nil {
 		t.Fatalf("semantic JSONB/microsecond replay: %v", err)
+	}
+	numericDrift := append([]sourcebiz.Source(nil), input...)
+	numericDrift[0].Config = []byte(`{"nested":{"z":1,"a":2},"large":9007199254740993,"max_bytes":5000000}`)
+	if _, err := useCase.Import(context.Background(), numericDrift); !errors.Is(err, sourcebiz.ErrConflict) {
+		t.Fatalf("numeric config drift replay error = %v", err)
 	}
 	drift := append([]sourcebiz.Source(nil), input...)
 	drift[0].Name = "drifted"

@@ -101,6 +101,19 @@ func TestFixedSourceAllowsIncompatibleAdapterUpdateButCannotBeDeleted(t *testing
 	if err := useCase.Delete(context.Background(), updated.ID); !errors.Is(err, ErrFixedDeleteForbidden) {
 		t.Fatalf("Delete(fixed) error = %v", err)
 	}
+	tavily := fixed
+	tavily.Code, tavily.Name, tavily.AdapterKey, tavily.Enabled = "tavily", "Tavily", AdapterTavily, false
+	tavily.Endpoint = "https://api.tavily.com/search"
+	secondFixed, err := useCase.PublishFixed(context.Background(), []Source{tavily})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := useCase.Update(context.Background(), secondFixed[0].ID, MutableSource{
+		Name: "Tavily", AdapterKey: AdapterTavily, Enabled: true, Endpoint: tavily.Endpoint,
+		Config: []byte(`{}`), Priority: 1, TimeoutSeconds: 30, MaxResults: 10, DefaultSourceLevel: SourceLevelMedia,
+	}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("enabling a second web_search error = %v, want conflict", err)
+	}
 }
 
 func TestImportPreservesTimestampsAndRejectsDriftOnReplay(t *testing.T) {
@@ -109,12 +122,12 @@ func TestImportPreservesTimestampsAndRejectsDriftOnReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	createdAt := time.Date(2026, 8, 1, 1, 2, 3, 123_456_400, time.UTC)
+	createdAt := time.Date(2026, 8, 1, 1, 2, 3, 123_456_600, time.UTC)
 	updatedAt := createdAt.Add(time.Hour)
 	input := Source{
 		Code: "imported-rss", Name: "Imported", OwnershipType: OwnershipDynamic, ChannelType: ChannelRSS,
 		AdapterKey: AdapterGenericRSS, Enabled: true, Endpoint: "https://example.test/imported.xml",
-		Config: []byte(`{"nested":{"z":1,"a":2},"max_bytes":5000000}`), Priority: 3, TimeoutSeconds: 40, MaxResults: 20,
+		Config: []byte(`{"nested":{"z":1,"a":2},"large":9007199254740992,"max_bytes":5000000}`), Priority: 3, TimeoutSeconds: 40, MaxResults: 20,
 		DefaultSourceLevel: SourceLevelWire, CreatedAt: createdAt, UpdatedAt: updatedAt,
 	}
 
@@ -122,9 +135,9 @@ func TestImportPreservesTimestampsAndRejectsDriftOnReplay(t *testing.T) {
 	if err != nil || len(first) != 1 || !first[0].CreatedAt.Equal(createdAt) || !first[0].UpdatedAt.Equal(updatedAt) {
 		t.Fatalf("Import() = %#v, %v", first, err)
 	}
-	store.rows[0].Config = []byte(`{"max_bytes":5000000,"nested":{"a":2,"z":1}}`)
-	store.rows[0].CreatedAt = store.rows[0].CreatedAt.Round(time.Microsecond)
-	store.rows[0].UpdatedAt = store.rows[0].UpdatedAt.Round(time.Microsecond)
+	store.rows[0].Config = []byte(`{"large":9007199254740992,"max_bytes":5000000,"nested":{"a":2,"z":1}}`)
+	store.rows[0].CreatedAt = store.rows[0].CreatedAt.Truncate(time.Microsecond)
+	store.rows[0].UpdatedAt = store.rows[0].UpdatedAt.Truncate(time.Microsecond)
 	second, err := useCase.Import(context.Background(), []Source{input})
 	if err != nil || len(second) != 1 || second[0].ID != first[0].ID {
 		t.Fatalf("Import(replay) = %#v, %v", second, err)
@@ -134,6 +147,20 @@ func TestImportPreservesTimestampsAndRejectsDriftOnReplay(t *testing.T) {
 	drift.Name = "Drifted"
 	if _, err := useCase.Import(context.Background(), []Source{drift}); !errors.Is(err, ErrConflict) {
 		t.Fatalf("Import(drift) error = %v", err)
+	}
+	numericDrift := input
+	numericDrift.Config = []byte(`{"nested":{"z":1,"a":2},"large":9007199254740993,"max_bytes":5000000}`)
+	if _, err := useCase.Import(context.Background(), []Source{numericDrift}); !errors.Is(err, ErrConflict) {
+		t.Fatalf("Import(numeric drift) error = %v", err)
+	}
+}
+
+func TestConfigComparisonUsesLosslessJSONBNumericSemantics(t *testing.T) {
+	if !sameConfig([]byte(`{"number":1,"zero":-0}`), []byte(`{"zero":0.0,"number":1.00e0}`)) {
+		t.Fatal("equivalent JSONB numeric forms were treated as drift")
+	}
+	if sameConfig([]byte(`{"number":9007199254740992}`), []byte(`{"number":9007199254740993}`)) {
+		t.Fatal("distinct large JSON numbers were treated as equal")
 	}
 }
 
@@ -188,6 +215,11 @@ func TestSourceValidationFreezesConfigRSSLevelAndPriorityBounds(t *testing.T) {
 	item.Priority = 6
 	if err := validateSource(item, true); err == nil {
 		t.Fatal("priority 6 was accepted")
+	}
+	item = validTestSource(t, 0, true)
+	item.Endpoint = "https://example.com/" + strings.Repeat("界", 2_000)
+	if err := validateSource(item, true); err != nil {
+		t.Fatalf("endpoint within the 2048-character contract: %v", err)
 	}
 }
 
