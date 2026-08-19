@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
-import { type ChangeEvent, type FormEvent, useMemo, useState } from 'react';
+import { type ChangeEvent, type FormEvent, useMemo, useRef, useState } from 'react';
 import { loadEvents, type EventItem, type EventQuery } from '../../api/dataIngestion';
 import { DataTable, type DataTableColumn } from '../../components/admin/data-table';
 import { OverflowTooltip } from '../../components/admin/overflow-tooltip';
@@ -18,8 +18,12 @@ import {
   QueryFailure,
   toRFC3339
 } from './shared';
+import { EventDetailSheet } from './EventDetailSheet';
 
 export default function EventTab({ token }: { token: string }) {
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const detailTrigger = useRef<HTMLTableRowElement | null>(null);
   const [form, setForm] = useState({
     title: '',
     modality: '',
@@ -37,6 +41,7 @@ export default function EventTab({ token }: { token: string }) {
     placeholderData: keepPreviousData
   });
   const page = result.data ?? { items: [], total: 0, page: query.page, page_size: pageSize };
+  const selectedEvent = page.items.find((item) => item.id === selectedEventId) ?? null;
   const columns = useMemo<DataTableColumn<EventItem>[]>(
     () => [
       {
@@ -177,7 +182,14 @@ export default function EventTab({ token }: { token: string }) {
         emptyText={result.isPending ? '正在加载事件' : '暂无事件'}
         getRowKey={(item) => item.id}
         items={page.items}
+        onRowActivate={(item, trigger) => {
+          detailTrigger.current = trigger;
+          setSelectedEventId(item.id);
+          setDetailOpen(true);
+        }}
+        rowAccessibleName={(item) => `查看${item.title}详情`}
         scrollAreaLabel='事件表格滚动区域'
+        selectedRowKey={detailOpen ? (selectedEventId ?? undefined) : undefined}
         tableClassName='min-w-[720px] table-fixed text-xs [&_td]:py-2.5 [&_th]:h-9'
       />
       <Pagination
@@ -185,6 +197,15 @@ export default function EventTab({ token }: { token: string }) {
         pageSize={page.page_size}
         total={page.total}
         onPageChange={(next) => setQuery((current) => ({ ...current, page: next }))}
+      />
+      <EventDetailSheet
+        event={selectedEvent}
+        open={detailOpen}
+        onOpenChange={(open) => {
+          if (open) return;
+          setDetailOpen(false);
+          window.setTimeout(() => detailTrigger.current?.focus(), 0);
+        }}
       />
     </CollectionPanel>
   );

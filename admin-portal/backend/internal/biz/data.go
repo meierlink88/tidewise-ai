@@ -30,11 +30,24 @@ type Evidence struct {
 	ID, RawEvidenceID       string
 	Title                   *string
 	Summary                 string
+	Semantic                EvidenceSemantic
 	Categories              []EvidenceCategory
 	SourceName, SourceLevel string
+	SourceURL               string
+	IsOriginal              bool
+	QuotedSourceName        *string
+	Keywords                []string
 	IsSplit                 bool
 	PublishedAt             *time.Time
 	CollectedAt             time.Time
+}
+type EvidenceSemantic struct {
+	Who   *string
+	What  string
+	When  *string
+	Where *string
+	Why   *string
+	How   *string
 }
 type EvidenceCategory struct{ ID, Code, Name, Description string }
 

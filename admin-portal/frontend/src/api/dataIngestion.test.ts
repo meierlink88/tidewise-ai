@@ -70,6 +70,105 @@ describe('data ingestion api client', () => {
     });
   });
 
+  it('validates the complete Evidence detail projection', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          request_id: 'evidence-detail',
+          result: {
+            items: [
+              {
+                id: 'EVD00000000-0000-5000-8000-000000000001',
+                raw_evidence_id: 'RAW00000000-0000-5000-8000-000000000001',
+                title: '材料标题',
+                summary: '原子证据摘要',
+                semantic: {
+                  who: '商务部',
+                  what: '发布公告',
+                  when: null,
+                  where: '中国',
+                  why: null,
+                  how: null
+                },
+                categories: [],
+                source_name: '商务部',
+                source_level: 'L1_OFFICIAL',
+                source_url: 'https://example.com/report',
+                is_original: true,
+                quoted_source_name: null,
+                keywords: [],
+                is_split: false,
+                published_at: null,
+                collected_at: '2026-08-19T02:00:00Z'
+              }
+            ],
+            total: 1,
+            page: 1,
+            page_size: 50
+          }
+        })
+      })
+    );
+
+    const page = await loadEvidences('token', { page: 1 });
+    expect(page.items[0]).toMatchObject({
+      semantic: { what: '发布公告' },
+      source_url: 'https://example.com/report',
+      is_original: true,
+      quoted_source_name: null,
+      keywords: []
+    });
+  });
+
+  it('rejects inconsistent Evidence source attribution', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          request_id: 'evidence-detail',
+          result: {
+            items: [
+              {
+                id: 'EVD00000000-0000-5000-8000-000000000001',
+                raw_evidence_id: 'RAW00000000-0000-5000-8000-000000000001',
+                title: null,
+                summary: '摘要',
+                semantic: {
+                  who: null,
+                  what: '事项',
+                  when: null,
+                  where: null,
+                  why: null,
+                  how: null
+                },
+                categories: [],
+                source_name: '官方信源',
+                source_level: 'L1_OFFICIAL',
+                source_url: 'https://example.com/report',
+                is_original: false,
+                quoted_source_name: null,
+                keywords: [],
+                is_split: false,
+                published_at: null,
+                collected_at: '2026-08-19T02:00:00Z'
+              }
+            ],
+            total: 1,
+            page: 1,
+            page_size: 50
+          }
+        })
+      })
+    );
+
+    await expect(loadEvidences('token', { page: 1 })).rejects.toThrow(
+      'Admin API returned an invalid response'
+    );
+  });
+
   it('rejects untrusted list items with contract drift', async () => {
     vi.stubGlobal(
       'fetch',

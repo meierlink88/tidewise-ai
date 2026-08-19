@@ -350,11 +350,15 @@ func TestListEvidenceReturnsJoinedRawEvidenceAndCompleteCategories(t *testing.T)
 	listArgs := append(append([]driver.Value{}, args...), int64(10), int64(10))
 	categoryCreatedAt := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
 	categories := fmt.Sprintf(`[{"id":"%s","code":"EVENT_BRIEF","name":"事件快讯","description":"事件材料","created_at":"%s"}]`, categoryID, categoryCreatedAt.Format(time.RFC3339))
+	semantic := []byte(`{"who":"Example Corp","what":"announced a production line","when":null,"where":"China","why":null,"how":"through an exchange filing"}`)
+	keywords := []byte(`["advanced manufacturing","capacity expansion"]`)
+	quotedSourceName := "Example Corp filing"
 	mock.ExpectQuery("SELECT evidence.id, evidence.raw_evidence_id").WithArgs(listArgs...).WillReturnRows(sqlmock.NewRows([]string{
-		"id", "raw_evidence_id", "is_split", "summary", "title", "source_name", "source_level", "published_at", "collected_at", "categories",
+		"id", "raw_evidence_id", "is_split", "summary", "semantic", "title", "source_name", "source_level", "source_url", "is_original", "quoted_source_name", "published_at", "collected_at", "keywords", "categories",
 	}).AddRow(
-		"EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf", true, "Atomic fact",
-		"Source title", "Example Wire", "L2_WIRE", publishedFrom.Add(time.Hour), collectedFrom.Add(65*time.Minute), []byte(categories),
+		"EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf", true, "Atomic fact", semantic,
+		"Source title", "Example Wire", "L2_WIRE", "https://example.com/report", false, quotedSourceName,
+		publishedFrom.Add(time.Hour), collectedFrom.Add(65*time.Minute), keywords, []byte(categories),
 	))
 
 	store, err := NewStore(db)
@@ -371,6 +375,9 @@ func TestListEvidenceReturnsJoinedRawEvidenceAndCompleteCategories(t *testing.T)
 	item := page.Items[0]
 	if item.Title == nil || *item.Title != "Source title" || item.Summary != "Atomic fact" ||
 		item.SourceName != "Example Wire" || item.SourceLevel != evidencebiz.SourceLevelWire || !item.IsSplit ||
+		item.Semantic.Who == nil || *item.Semantic.Who != "Example Corp" || item.Semantic.What != "announced a production line" ||
+		item.SourceURL != "https://example.com/report" || item.IsOriginal || item.QuotedSourceName == nil || *item.QuotedSourceName != quotedSourceName ||
+		len(item.Keywords) != 2 || item.Keywords[0] != "advanced manufacturing" ||
 		len(item.Categories) != 1 || item.Categories[0].ID != categoryID {
 		t.Fatalf("item = %#v", item)
 	}

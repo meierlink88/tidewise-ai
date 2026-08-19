@@ -3279,7 +3279,7 @@ components:
     AdminEvidence:
       type: object
       additionalProperties: false
-      required: [id, raw_evidence_id, title, summary, categories, source_name, source_level, is_split, published_at, collected_at]
+      required: [id, raw_evidence_id, title, summary, semantic, categories, source_name, source_level, source_url, is_original, quoted_source_name, keywords, is_split, published_at, collected_at]
       properties:
         id:
           type: string
@@ -3294,11 +3294,18 @@ components:
           maxLength: 500
           nullable: true
         summary: {type: string, minLength: 1, maxLength: 200}
+        semantic: {$ref: '#/components/schemas/EvidenceSemantic'}
         categories:
           type: array
           items: {$ref: '#/components/schemas/EvidenceCategory'}
         source_name: {type: string, minLength: 1, maxLength: 100}
         source_level: {$ref: '#/components/schemas/SourceLevel'}
+        source_url: {type: string, format: uri, minLength: 1, maxLength: 2048}
+        is_original: {type: boolean}
+        quoted_source_name: {type: string, maxLength: 100, nullable: true}
+        keywords:
+          type: array
+          items: {type: string}
         is_split: {type: boolean}
         published_at:
           allOf: [{$ref: '#/components/schemas/UTCTimestamp'}]

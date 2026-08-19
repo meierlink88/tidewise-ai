@@ -308,7 +308,7 @@ func TestAdminEvidenceListOpenAPIContract(t *testing.T) {
 	}
 	components := document["components"].(map[string]any)["schemas"].(map[string]any)
 	item := components["AdminEvidence"].(map[string]any)
-	wantFields := []string{"id", "raw_evidence_id", "title", "summary", "categories", "source_name", "source_level", "is_split", "published_at", "collected_at"}
+	wantFields := []string{"id", "raw_evidence_id", "title", "summary", "semantic", "categories", "source_name", "source_level", "source_url", "is_original", "quoted_source_name", "keywords", "is_split", "published_at", "collected_at"}
 	properties := item["properties"].(map[string]any)
 	if len(properties) != len(wantFields) || item["additionalProperties"] != false {
 		t.Fatalf("AdminEvidence = %#v", item)
@@ -317,6 +317,14 @@ func TestAdminEvidenceListOpenAPIContract(t *testing.T) {
 		if _, exists := properties[field]; !exists {
 			t.Fatalf("AdminEvidence is missing %q", field)
 		}
+	}
+	semantic := properties["semantic"].(map[string]any)
+	if semantic["$ref"] != "#/components/schemas/EvidenceSemantic" {
+		t.Fatalf("AdminEvidence semantic = %#v", semantic)
+	}
+	keywords := properties["keywords"].(map[string]any)
+	if keywords["type"] != "array" {
+		t.Fatalf("AdminEvidence keywords = %#v", keywords)
 	}
 	page := components["AdminEvidencePage"].(map[string]any)
 	pageProperties := page["properties"].(map[string]any)

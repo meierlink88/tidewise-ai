@@ -1,0 +1,91 @@
+import type { EventItem } from '../../api/dataIngestion';
+import {
+  DetailItem,
+  DetailList,
+  DetailSection,
+  nullableDetailValue
+} from '../../components/admin/detail-description-list';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../../components/ui/sheet';
+import { formatDateTime } from './shared';
+
+export function EventDetailSheet({
+  event,
+  open,
+  onOpenChange
+}: {
+  event: EventItem | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Sheet open={open && event !== null} onOpenChange={onOpenChange}>
+      {event ? (
+        <SheetContent
+          className='w-full max-w-[620px] gap-0 overflow-hidden p-0 sm:w-[min(620px,92vw)]'
+          closeLabel='关闭事件详情'
+          side='right'
+        >
+          <header className='shrink-0 border-b px-6 py-5 pr-16'>
+            <span className='text-[10px] font-semibold tracking-[0.08em] text-muted-foreground uppercase'>
+              事件详情
+            </span>
+            <SheetTitle className='mt-1.5 text-lg leading-7 font-semibold'>
+              {event.title}
+            </SheetTitle>
+            <SheetDescription className='sr-only'>查看事件的完整业务信息</SheetDescription>
+            <div className='mt-3 flex flex-wrap gap-2'>
+              <StatusBadge tone='running'>{event.modality}</StatusBadge>
+              <StatusBadge
+                tone={
+                  event.status === 'ACTIVE'
+                    ? 'success'
+                    : event.status === 'DEPRECATED'
+                      ? 'danger'
+                      : 'neutral'
+                }
+              >
+                {event.status}
+              </StatusBadge>
+            </div>
+          </header>
+          <div className='min-h-0 flex-1 overflow-y-auto px-6 pb-8'>
+            <DetailSection title='基本信息'>
+              <p className='rounded-md bg-muted px-4 py-3 text-sm leading-6'>{event.summary}</p>
+              <DetailList>
+                <DetailItem label='模态'>{event.modality}</DetailItem>
+                <DetailItem label='状态'>{event.status}</DetailItem>
+                <DetailItem label='发生时间'>{formatNullableTime(event.occurred_at)}</DetailItem>
+                <DetailItem label='公布时间'>{formatNullableTime(event.announced_at)}</DetailItem>
+              </DetailList>
+            </DetailSection>
+            <DetailSection title='事件语义'>
+              <DetailList>
+                <DetailItem label='Who · 谁'>{nullableDetailValue(event.semantic.who)}</DetailItem>
+                <DetailItem label='When · 何时'>
+                  {nullableDetailValue(event.semantic.when)}
+                </DetailItem>
+                <DetailItem full label='What · 什么'>
+                  {nullableDetailValue(event.semantic.what)}
+                </DetailItem>
+                <DetailItem label='Where · 何地'>
+                  {nullableDetailValue(event.semantic.where)}
+                </DetailItem>
+                <DetailItem label='Why · 为何'>
+                  {nullableDetailValue(event.semantic.why)}
+                </DetailItem>
+                <DetailItem full label='How · 如何'>
+                  {nullableDetailValue(event.semantic.how)}
+                </DetailItem>
+              </DetailList>
+            </DetailSection>
+          </div>
+        </SheetContent>
+      ) : null}
+    </Sheet>
+  );
+}
+
+function formatNullableTime(value: string | null): string {
+  return value ? formatDateTime(value) : '—';
+}

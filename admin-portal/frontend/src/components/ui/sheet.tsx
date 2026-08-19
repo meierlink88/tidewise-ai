@@ -15,11 +15,12 @@ const SheetContent = React.forwardRef<
   }
 >(({ children, className, closeLabel = '关闭', side = 'left', ...props }, ref) => (
   <DialogPrimitive.Portal>
-    <DialogPrimitive.Overlay className='fixed inset-0 z-50 bg-black/50' />
+    <DialogPrimitive.Overlay className='sheet-overlay fixed inset-0 z-50 bg-black/50' />
     <DialogPrimitive.Content
+      data-side={side}
       ref={ref}
       className={cn(
-        'fixed inset-y-0 z-50 flex w-[min(27.5rem,92vw)] flex-col bg-background p-6 text-foreground shadow-xl outline-none',
+        'sheet-content fixed inset-y-0 z-50 flex w-[min(27.5rem,92vw)] flex-col bg-background p-6 text-foreground shadow-xl outline-none',
         side === 'left' ? 'left-0 border-r' : 'right-0 border-l',
         className
       )}

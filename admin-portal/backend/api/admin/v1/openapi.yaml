@@ -337,18 +337,34 @@ components:
     Evidence:
       type: object
       additionalProperties: false
-      required: [id, raw_evidence_id, title, summary, categories, source_name, source_level, is_split, published_at, collected_at]
+      required: [id, raw_evidence_id, title, summary, semantic, categories, source_name, source_level, source_url, is_original, quoted_source_name, keywords, is_split, published_at, collected_at]
       properties:
         id: { type: string }
         raw_evidence_id: { type: string }
         title: { type: string, nullable: true }
         summary: { type: string }
+        semantic: { $ref: '#/components/schemas/EvidenceSemantic' }
         categories: { type: array, items: { $ref: '#/components/schemas/EvidenceCategory' } }
         source_name: { type: string }
         source_level: { $ref: '#/components/schemas/SourceLevel' }
+        source_url: { type: string, format: uri }
+        is_original: { type: boolean }
+        quoted_source_name: { type: string, nullable: true }
+        keywords: { type: array, items: { type: string } }
         is_split: { type: boolean }
         published_at: { allOf: [{ $ref: '#/components/schemas/UTCTimestamp' }], nullable: true }
         collected_at: { $ref: '#/components/schemas/UTCTimestamp' }
+    EvidenceSemantic:
+      type: object
+      additionalProperties: false
+      required: [who, what, when, where, why, how]
+      properties:
+        who: { type: string, nullable: true }
+        what: { type: string }
+        when: { type: string, nullable: true }
+        where: { type: string, nullable: true }
+        why: { type: string, nullable: true }
+        how: { type: string, nullable: true }
     EvidenceCategory:
       type: object
       additionalProperties: false
