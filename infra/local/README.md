@@ -37,6 +37,8 @@ npm run infra:status
 
 Required application inputs are explicit: Data uses `TIDEWISE_DB_HOST` and
 `TIDEWISW_DB_PASSWORD`. Service identities use `DATA_SERVICE_TOKEN` and `ADMIN_SERVICE_TOKEN`.
+Admin Evidence 详情使用 `RAW_EVIDENCE_PUBLIC_BASE_URL` 拼接公开采集文档地址；本地默认值为
+`http://127.0.0.1:9000`。
 
 Build and start the four Tidewise AI application services. This first ensures existing middleware
 containers are running with `--no-recreate`, builds the candidate Data image, applies its migration

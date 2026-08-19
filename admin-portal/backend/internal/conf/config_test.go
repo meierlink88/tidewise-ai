@@ -15,6 +15,7 @@ func TestLoadRuntimeConfigRequiresAdminAndDataServiceSettings(t *testing.T) {
 	t.Setenv("DATA_SERVICE_TOKEN", "data-service-token")
 	t.Setenv("ADMIN_SERVICE_TOKEN", "admin-service-token")
 	t.Setenv("ADMIN_ALLOWED_ORIGIN", "http://127.0.0.1:5174")
+	t.Setenv("RAW_EVIDENCE_PUBLIC_BASE_URL", "http://127.0.0.1:9000")
 	t.Setenv("TIDEWISW_DB_PASSWORD", "must-not-be-loaded")
 
 	runtime, err := LoadRuntimeConfig()
@@ -26,6 +27,7 @@ func TestLoadRuntimeConfigRequiresAdminAndDataServiceSettings(t *testing.T) {
 		runtime.DataService.IdentityToken != "data-service-token" ||
 		runtime.AdminToken != "admin-service-token" ||
 		runtime.AllowedOrigin != "http://127.0.0.1:5174" ||
+		runtime.RawEvidencePublicBaseURL != "http://127.0.0.1:9000" ||
 		runtime.DataService.Timeout != 5*time.Second {
 		t.Fatalf("runtime = %#v", runtime)
 	}
@@ -37,6 +39,7 @@ func TestLoadRuntimeConfigFailsClosedWithoutRequiredServiceIdentity(t *testing.T
 		"DATA_SERVICE_TOKEN",
 		"ADMIN_SERVICE_TOKEN",
 		"ADMIN_ALLOWED_ORIGIN",
+		"RAW_EVIDENCE_PUBLIC_BASE_URL",
 	} {
 		t.Run(missing, func(t *testing.T) {
 			configDir := writeRuntimeConfig(t)
@@ -46,9 +49,27 @@ func TestLoadRuntimeConfigFailsClosedWithoutRequiredServiceIdentity(t *testing.T
 			t.Setenv("DATA_SERVICE_TOKEN", "data-service-token")
 			t.Setenv("ADMIN_SERVICE_TOKEN", "admin-service-token")
 			t.Setenv("ADMIN_ALLOWED_ORIGIN", "http://127.0.0.1:5174")
+			t.Setenv("RAW_EVIDENCE_PUBLIC_BASE_URL", "http://127.0.0.1:9000")
 			t.Setenv(missing, "")
 			if _, err := LoadRuntimeConfig(); err == nil {
 				t.Fatalf("LoadRuntimeConfig() error = nil without %s", missing)
+			}
+		})
+	}
+}
+
+func TestLoadRuntimeConfigRejectsInvalidRawEvidencePublicBaseURL(t *testing.T) {
+	for _, baseURL := range []string{"http://minio.example.test/raw-evidence", "https://user:secret@minio.example.test", "ftp://minio.example.test"} {
+		t.Run(baseURL, func(t *testing.T) {
+			t.Setenv("APP_ENV", "local")
+			t.Setenv("TIDEWISE_CONFIG_DIR", writeRuntimeConfig(t))
+			t.Setenv("DATA_SERVICE_BASE_URL", "http://data.internal:9011")
+			t.Setenv("DATA_SERVICE_TOKEN", "data-service-token")
+			t.Setenv("ADMIN_SERVICE_TOKEN", "admin-service-token")
+			t.Setenv("ADMIN_ALLOWED_ORIGIN", "http://127.0.0.1:5174")
+			t.Setenv("RAW_EVIDENCE_PUBLIC_BASE_URL", baseURL)
+			if _, err := LoadRuntimeConfig(); err == nil {
+				t.Fatalf("LoadRuntimeConfig() accepted Raw Evidence public base URL %q", baseURL)
 			}
 		})
 	}

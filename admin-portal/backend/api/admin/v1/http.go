@@ -13,9 +13,22 @@ func RegisterAdminHTTPServer(server *kratoshttp.Server, service AdminHTTPServer)
 	router := server.Route(APIPrefix)
 	router.GET("/events", listEventsHandler(service))
 	router.GET("/evidences", listEvidencesHandler(service))
+	router.GET("/raw-evidences/{raw_evidence_id}/collection-document", getCollectionDocumentHandler(service))
 	router.GET("/evidence-categories", listEvidenceCategoriesHandler(service))
 	router.GET("/sources", listSourcesHandler(service))
 	router.GET("/runtime-health", getRuntimeHealthHandler(service))
+}
+
+func getCollectionDocumentHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		if len(ctx.Request().URL.Query()) != 0 {
+			return NewHTTPError(http.StatusBadRequest, "INVALID_REQUEST", "collection document does not accept query parameters")
+		}
+		request := &GetCollectionDocumentRequest{RawEvidenceID: ctx.Vars().Get("raw_evidence_id")}
+		return call(ctx, OperationGetCollectionDocument, request, func(callContext context.Context) (any, error) {
+			return service.GetCollectionDocument(callContext, request)
+		})
+	}
 }
 
 func listEvidenceCategoriesHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {

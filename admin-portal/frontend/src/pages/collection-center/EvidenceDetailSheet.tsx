@@ -1,5 +1,6 @@
-import { ExternalLink } from 'lucide-react';
-import type { EvidenceItem } from '../../api/dataIngestion';
+import { useQuery } from '@tanstack/react-query';
+import { ExternalLink, RefreshCw } from 'lucide-react';
+import { loadCollectionDocument, type EvidenceItem } from '../../api/dataIngestion';
 import {
   DetailItem,
   DetailList,
@@ -7,6 +8,7 @@ import {
   nullableDetailValue
 } from '../../components/admin/detail-description-list';
 import { Badge } from '../../components/ui/badge';
+import { Button } from '../../components/ui/Button';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../../components/ui/sheet';
 import { formatDateTime } from './shared';
@@ -14,12 +16,20 @@ import { formatDateTime } from './shared';
 export function EvidenceDetailSheet({
   evidence,
   open,
+  token,
   onOpenChange
 }: {
   evidence: EvidenceItem | null;
   open: boolean;
+  token: string;
   onOpenChange: (open: boolean) => void;
 }) {
+  const rawEvidenceID = evidence?.raw_evidence_id ?? '';
+  const collectionDocument = useQuery({
+    queryKey: ['collection-center', 'collection-document', rawEvidenceID],
+    queryFn: () => loadCollectionDocument(token, rawEvidenceID),
+    enabled: open && rawEvidenceID !== ''
+  });
   return (
     <Sheet open={open && evidence !== null} onOpenChange={onOpenChange}>
       {evidence ? (
@@ -108,6 +118,37 @@ export function EvidenceDetailSheet({
                     访问原始文章
                     <ExternalLink aria-hidden='true' className='size-3.5' />
                   </a>
+                </DetailItem>
+                <DetailItem full label='采集文档'>
+                  {collectionDocument.isPending ? (
+                    <span className='text-muted-foreground'>正在加载采集文档…</span>
+                  ) : collectionDocument.isError ? (
+                    <span className='inline-flex flex-wrap items-center gap-2'>
+                      <span className='text-destructive'>采集文档加载失败</span>
+                      <Button
+                        aria-label='重试加载采集文档'
+                        onClick={() => void collectionDocument.refetch()}
+                        size='sm'
+                        type='button'
+                        variant='outline'
+                      >
+                        <RefreshCw aria-hidden='true' className='size-3.5' />
+                        重试
+                      </Button>
+                    </span>
+                  ) : collectionDocument.data.available ? (
+                    <a
+                      className='inline-flex items-center gap-1.5 text-primary underline-offset-4 hover:underline'
+                      href={collectionDocument.data.url}
+                      rel='noreferrer noopener'
+                      target='_blank'
+                    >
+                      打开采集文档
+                      <ExternalLink aria-hidden='true' className='size-3.5' />
+                    </a>
+                  ) : (
+                    <span className='text-muted-foreground'>暂无采集文档</span>
+                  )}
                 </DetailItem>
               </DetailList>
             </DetailSection>

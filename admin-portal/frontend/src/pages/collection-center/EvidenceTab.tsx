@@ -241,6 +241,7 @@ export default function EvidenceTab({ token }: { token: string }) {
       <EvidenceDetailSheet
         evidence={selectedEvidence}
         open={detailOpen}
+        token={token}
         onOpenChange={(open) => {
           if (open) return;
           setDetailOpen(false);

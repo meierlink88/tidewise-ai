@@ -30,6 +30,7 @@ const (
 	dataAPIPrefix          = "/api/data/v1"
 	eventsPath             = dataAPIPrefix + "/events"
 	evidencesPath          = dataAPIPrefix + "/evidences"
+	rawEvidencesPath       = dataAPIPrefix + "/raw-evidences"
 	evidenceCategoriesPath = dataAPIPrefix + "/evidence-categories"
 	sourcesPath            = dataAPIPrefix + "/sources"
 )
@@ -40,6 +41,28 @@ type DataHTTPConfig struct {
 	Timeout         time.Duration
 	MaxReadAttempts int
 	HTTPClient      *http.Client
+}
+
+func (c *DataHTTPClient) GetRawEvidenceDocument(ctx context.Context, id string) (biz.RawEvidenceDocument, error) {
+	if !rawEvidenceIDPattern.MatchString(id) {
+		return biz.RawEvidenceDocument{}, biz.ErrDataServiceUnavailable
+	}
+	path := rawEvidencesPath + "/" + url.PathEscape(id)
+	var envelope responseEnvelope[rawEvidenceResultWire]
+	err := c.doJSON(ctx, http.MethodGet, "Data.GetRawEvidence", rawEvidencesPath+"/{id}", path, nil, &envelope)
+	wire, err := unwrapEnvelope(envelope, err)
+	if err != nil {
+		var clientError *Error
+		if errors.As(err, &clientError) && clientError.StatusCode == http.StatusNotFound && clientError.Code == "RAW_EVIDENCE_NOT_FOUND" {
+			return biz.RawEvidenceDocument{}, biz.ErrRawEvidenceNotFound
+		}
+		return biz.RawEvidenceDocument{}, classifyReadError(err)
+	}
+	document, err := wire.toBiz(id)
+	if err != nil {
+		return biz.RawEvidenceDocument{}, biz.ErrDataServiceUnavailable
+	}
+	return document, nil
 }
 
 type DataHTTPClient struct {

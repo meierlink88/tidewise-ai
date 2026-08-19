@@ -10,6 +10,7 @@ const APIPrefix = "/api/admin/v1"
 const (
 	OperationListEvents             = "admin.events.list"
 	OperationListEvidences          = "admin.evidences.list"
+	OperationGetCollectionDocument  = "admin.collectionDocument.get"
 	OperationListEvidenceCategories = "admin.evidenceCategories.list"
 	OperationListSources            = "admin.sources.list"
 	OperationGetRuntimeHealth       = "admin.runtimeHealth.get"
@@ -18,12 +19,22 @@ const (
 type AdminHTTPServer interface {
 	ListEvents(context.Context, *ListEventsRequest) (*EventListResponse, error)
 	ListEvidences(context.Context, *ListEvidencesRequest) (*EvidenceListResponse, error)
+	GetCollectionDocument(context.Context, *GetCollectionDocumentRequest) (*CollectionDocumentResponse, error)
 	ListEvidenceCategories(context.Context, *EmptyRequest) (*EvidenceCategoryListResponse, error)
 	ListSources(context.Context, *ListSourcesRequest) (*SourceListResponse, error)
 	GetRuntimeHealth(context.Context, *EmptyRequest) (*RuntimeHealth, error)
 }
 
 type EmptyRequest struct{}
+
+type GetCollectionDocumentRequest struct {
+	RawEvidenceID string
+}
+
+type CollectionDocumentResponse struct {
+	Available bool    `json:"available"`
+	URL       *string `json:"url"`
+}
 
 type ListEventsRequest struct {
 	Title         string

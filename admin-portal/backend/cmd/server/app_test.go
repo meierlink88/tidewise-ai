@@ -20,8 +20,9 @@ func TestBuildAdminAppComposesKratosApplicationWithoutStartingNetwork(t *testing
 		Server: conf.ServerConfig{
 			Host: "127.0.0.1", Port: 18083, ReadTimeoutSeconds: 5, WriteTimeoutSeconds: 10,
 		},
-		AdminToken:    "browser-admin-token",
-		AllowedOrigin: "http://127.0.0.1:5174",
+		AdminToken:               "browser-admin-token",
+		AllowedOrigin:            "http://127.0.0.1:5174",
+		RawEvidencePublicBaseURL: "http://127.0.0.1:9000",
 		DataService: conf.DataServiceRuntimeConfig{
 			BaseURL: "http://127.0.0.1:18081", IdentityToken: "test-token", Timeout: time.Second,
 		},

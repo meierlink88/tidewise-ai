@@ -22,7 +22,9 @@ _Avoid_: 浏览器直连 Data、在 Admin 保存 Data 事实、把列表扩展�
 以 Data-owned Atomic Evidence 为分页单位，关联其唯一 Raw Evidence 的标题、信源快照、时间与完整
 Content Category 集合，构成 Admin 专用只读列表。列表行右侧详情继续展示 Atomic Evidence
 semantic，以及 Raw Evidence 的来源地址、原创/转载归因、条件引用信源、Keywords 与完整分类说明；
-不展示完整正文、技术身份、哈希或内部生成/入库时间。
+同时保留“原始文章”公开来源链接，并为符合受控 MinIO 对象路径的 Raw Evidence 提供独立的
+“采集文档”打开入口。历史正文不返回浏览器且显示为暂无采集文档；不展示完整正文、技术身份、
+哈希、内部对象路径或内部生成/入库时间。
 _Avoid_: 独立 Raw Evidence Tab、父子树、在 Admin 重新定义 Evidence 或 Category 事实
 
 **信源管理（Source Management）**：

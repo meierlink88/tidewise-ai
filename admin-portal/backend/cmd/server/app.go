@@ -31,6 +31,7 @@ func buildApp(config conf.RuntimeConfig, logger *slog.Logger) (*kratos.App, func
 	useCase := biz.NewService(
 		dataServiceRepo,
 		biz.WithRuntimeHealthProvider(dataServiceRepo),
+		biz.WithRawEvidencePublicBaseURL(config.RawEvidencePublicBaseURL),
 	)
 	applicationService := service.NewAdminService(useCase)
 	httpServer := server.NewHTTPServer(config, applicationService, logger)

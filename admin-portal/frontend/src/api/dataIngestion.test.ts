@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
-import { loadEvidenceCategories, loadEvidences, loadEvents, loadSources } from './dataIngestion';
+import {
+  loadCollectionDocument,
+  loadEvidenceCategories,
+  loadEvidences,
+  loadEvents,
+  loadSources
+} from './dataIngestion';
 
 describe('data ingestion api client', () => {
   it('loads current events with the frozen filters', async () => {
@@ -68,6 +74,28 @@ describe('data ingestion api client', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/admin/v1/evidence-categories', {
       headers: { Authorization: 'Bearer token' }
     });
+  });
+
+  it('loads a validated collection document link on demand', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        request_id: 'collection-document',
+        result: {
+          available: true,
+          url: 'https://tideai.tripwise.cn/raw-evidence/documents/2026/08/17/11f0864fc4078b47a4cc758149a2b0b7923654d2c7c8a694ad5b2d5ced4fc998.md'
+        }
+      })
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      loadCollectionDocument('token', 'RAW00000000-0000-5000-8000-000000000001')
+    ).resolves.toMatchObject({ available: true });
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/admin/v1/raw-evidences/RAW00000000-0000-5000-8000-000000000001/collection-document',
+      { headers: { Authorization: 'Bearer token' } }
+    );
   });
 
   it('validates the complete Evidence detail projection', async () => {

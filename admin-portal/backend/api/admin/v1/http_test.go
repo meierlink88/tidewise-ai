@@ -31,6 +31,7 @@ func TestEveryAdminEndpointExecutesKratosMiddleware(t *testing.T) {
 	}{
 		{APIPrefix + "/events", OperationListEvents},
 		{APIPrefix + "/evidences", OperationListEvidences},
+		{APIPrefix + "/raw-evidences/RAW00000000-0000-5000-8000-000000000001/collection-document", OperationGetCollectionDocument},
 		{APIPrefix + "/evidence-categories", OperationListEvidenceCategories},
 		{APIPrefix + "/sources", OperationListSources},
 		{APIPrefix + "/runtime-health", OperationGetRuntimeHealth},
@@ -87,6 +88,9 @@ func (stubAdminHTTPServer) ListEvents(context.Context, *ListEventsRequest) (*Eve
 }
 func (stubAdminHTTPServer) ListEvidences(context.Context, *ListEvidencesRequest) (*EvidenceListResponse, error) {
 	return &EvidenceListResponse{}, nil
+}
+func (stubAdminHTTPServer) GetCollectionDocument(context.Context, *GetCollectionDocumentRequest) (*CollectionDocumentResponse, error) {
+	return &CollectionDocumentResponse{}, nil
 }
 func (stubAdminHTTPServer) ListEvidenceCategories(context.Context, *EmptyRequest) (*EvidenceCategoryListResponse, error) {
 	return &EvidenceCategoryListResponse{}, nil

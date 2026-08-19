@@ -86,6 +86,8 @@ export interface EvidenceQuery {
   collected_to?: string;
 }
 
+export type CollectionDocument = { available: true; url: string } | { available: false; url: null };
+
 export interface SourceItem {
   id: string;
   code: string;
@@ -189,6 +191,18 @@ const evidenceItemSchema: z.ZodType<EvidenceItem> = z
       context.addIssue({ code: 'custom', message: 'reposted Evidence requires quoted source' });
     }
   });
+const collectionDocumentSchema: z.ZodType<CollectionDocument> = z.discriminatedUnion('available', [
+  z
+    .object({
+      available: z.literal(true),
+      url: z
+        .string()
+        .url()
+        .refine((value) => /^https?:\/\//.test(value))
+    })
+    .strict(),
+  z.object({ available: z.literal(false), url: z.null() }).strict()
+]);
 const sourceItemSchema: z.ZodType<SourceItem> = z
   .object({
     id: z.string().regex(new RegExp(`^SRC${domainUUID}$`)),
@@ -237,6 +251,17 @@ export async function loadEvents(
 
 export async function loadEvidences(token: string, query: EvidenceQuery) {
   return loadPage(token, '/api/admin/v1/evidences', query, evidenceItemSchema);
+}
+
+export async function loadCollectionDocument(
+  token: string,
+  rawEvidenceID: string
+): Promise<CollectionDocument> {
+  const response = await fetch(
+    `/api/admin/v1/raw-evidences/${encodeURIComponent(rawEvidenceID)}/collection-document`,
+    { headers: authHeaders(token) }
+  );
+  return parseContract(collectionDocumentSchema, await readJSON(response));
 }
 
 export async function loadSources(token: string, query: SourceQuery) {

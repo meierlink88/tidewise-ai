@@ -44,6 +44,9 @@ func TestOpenAPIContractFreezesAdminRoutesSecurityAndEnvelopes(t *testing.T) {
 		"/api/admin/v1/evidences": {
 			{method: "get", operationID: "listAdminPortalEvidences", envelope: "EvidencePageEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
 		},
+		"/api/admin/v1/raw-evidences/{raw_evidence_id}/collection-document": {
+			{method: "get", operationID: "getAdminPortalCollectionDocument", envelope: "CollectionDocumentEnvelope", statuses: []string{"400", "401", "403", "404", "500", "503"}},
+		},
 		"/api/admin/v1/evidence-categories": {
 			{method: "get", operationID: "listAdminPortalEvidenceCategories", envelope: "EvidenceCategoryListEnvelope", statuses: []string{"400", "401", "403", "500", "503"}},
 		},
@@ -133,6 +136,7 @@ func TestOpenAPIContractPreservesRetainedDataListSchemas(t *testing.T) {
 	assertAdminRequired(t, event, "id", "title", "summary", "semantic", "modality", "occurred_at", "announced_at", "status")
 	assertAdminRequired(t, adminSchema(t, document, "EventSemantic"), "who", "what", "when", "where", "why", "how")
 	assertAdminRequired(t, adminSchema(t, document, "Evidence"), "id", "raw_evidence_id", "title", "summary", "semantic", "categories", "source_name", "source_level", "source_url", "is_original", "quoted_source_name", "keywords", "is_split", "published_at", "collected_at")
+	assertAdminRequired(t, adminSchema(t, document, "CollectionDocument"), "available", "url")
 	source := adminSchema(t, document, "Source")
 	assertAdminRequired(t, source, "id", "code", "name", "ownership_type", "channel_type", "enabled", "priority", "default_source_level", "updated_at")
 	properties := adminObject(t, source["properties"], "Source.properties")
