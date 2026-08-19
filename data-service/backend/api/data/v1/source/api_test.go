@@ -10,6 +10,7 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 func TestSourceSnapshotProviderFixtureMatchesOpenAPIAndExactDTO(t *testing.T) {
@@ -40,6 +41,15 @@ func TestSourceSnapshotProviderFixtureMatchesOpenAPIAndExactDTO(t *testing.T) {
 	}
 	if envelope.Result.Sources[1].AppKey == nil || *envelope.Result.Sources[1].AppKey != "plaintext-provider-key" {
 		t.Fatalf("fixture does not freeze plaintext app_key: %+v", envelope.Result.Sources[1])
+	}
+	for _, item := range envelope.Result.Sources {
+		wantID, err := coreid.Derive(coreid.Source, "source", item.Code)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if item.ID != wantID {
+			t.Fatalf("fixture Source %s id = %q, want runtime-derived %q", item.Code, item.ID, wantID)
+		}
 	}
 
 	document, err := openapi3.NewLoader().LoadFromData(v1.Document())

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -99,17 +100,49 @@ type MutableSource struct {
 	DefaultSourceLevel SourceLevel
 }
 
-type Store interface {
-	List(context.Context, bool) ([]Source, error)
-	InTransaction(context.Context, func(Transaction) error) error
+type FixedManifestOptions struct {
+	Endpoints map[string]string
+	AppKeys   map[string]string
 }
 
-type Transaction interface {
-	Lock(context.Context) error
-	List(context.Context) ([]Source, error)
-	Insert(context.Context, Source) (Source, error)
-	Update(context.Context, Source) (Source, error)
-	Delete(context.Context, string) error
+func CurrentFixedManifest(options FixedManifestOptions) []Source {
+	type definition struct {
+		code, name, endpoint string
+		channel              ChannelType
+		adapter              AdapterKey
+		enabled              bool
+		level                SourceLevel
+		credential           bool
+	}
+	definitions := []definition{
+		{"bocha", "博查", "https://api.bochaai.com/v1/web-search", ChannelWebSearch, AdapterBocha, true, SourceLevelMedia, true},
+		{"tavily", "Tavily", "https://api.tavily.com/search", ChannelWebSearch, AdapterTavily, false, SourceLevelMedia, true},
+		{"parallel_search", "Parallel Search", "https://api.parallel.ai/v1/search", ChannelWebSearch, AdapterParallel, false, SourceLevelMedia, true},
+		{"cls_telegraph", "财联社电报", "https://www.cls.cn/v1/roll/get_roll_list", ChannelAPI, AdapterCLS, true, SourceLevelWire, false},
+		{"eastmoney_fastnews", "东方财富 7x24", "https://np-weblist.eastmoney.com/comm/web/getFastNewsList", ChannelAPI, AdapterEastmoneyFast, true, SourceLevelMedia, false},
+		{"eastmoney_stock_news", "东方财富个股新闻", "https://search-api-web.eastmoney.com/search/jsonp", ChannelAPI, AdapterEastmoneyStock, true, SourceLevelMedia, false},
+		{"stcn_quicknews", "证券时报快讯", "https://www.stcn.com/article/list.html", ChannelAPI, AdapterSTCN, true, SourceLevelMedia, false},
+	}
+	result := make([]Source, 0, len(definitions))
+	for _, item := range definitions {
+		endpoint := item.endpoint
+		if override := strings.TrimSpace(options.Endpoints[item.code]); override != "" {
+			endpoint = override
+		}
+		var appKey *string
+		if item.credential {
+			if value := strings.TrimSpace(options.AppKeys[item.code]); value != "" {
+				appKey = &value
+			}
+		}
+		result = append(result, Source{
+			Code: item.code, Name: item.name, OwnershipType: OwnershipFixed,
+			ChannelType: item.channel, AdapterKey: item.adapter, Enabled: item.enabled,
+			Endpoint: endpoint, AppKey: appKey, Config: json.RawMessage(`{}`), Priority: 1,
+			TimeoutSeconds: 30, MaxResults: 10, DefaultSourceLevel: item.level,
+		})
+	}
+	return result
 }
 
 type UseCase struct{ store Store }
@@ -164,21 +197,12 @@ func (s *UseCase) PublishFixed(ctx context.Context, manifest []Source) ([]Source
 	prepared := make([]Source, len(manifest))
 	seen := make(map[string]struct{}, len(manifest))
 	for index, item := range manifest {
-		id, err := coreid.Derive(coreid.Source, "source", item.Code)
-		if err != nil {
-			return nil, &ValidationError{Field: fmt.Sprintf("sources[%d].code", index), Message: "must be a stable Source code"}
-		}
-		item.ID = id
 		item.OwnershipType = OwnershipFixed
-		item.Config = compactConfig(item.Config)
-		if _, duplicate := seen[item.Code]; duplicate {
-			return nil, ErrConflict
-		}
-		seen[item.Code] = struct{}{}
-		if err := validateSource(item, false); err != nil {
+		item, err := prepareSource(item, index, seen, false)
+		if err != nil {
 			return nil, err
 		}
-		prepared[index] = cloneSource(item)
+		prepared[index] = item
 	}
 	var result []Source
 	err := s.store.InTransaction(ctx, func(tx Transaction) error {
@@ -308,20 +332,11 @@ func (s *UseCase) Import(ctx context.Context, input []Source) ([]Source, error) 
 	prepared := make([]Source, len(input))
 	seen := make(map[string]struct{}, len(input))
 	for index, item := range input {
-		id, err := coreid.Derive(coreid.Source, "source", item.Code)
+		item, err := prepareSource(item, index, seen, true)
 		if err != nil {
-			return nil, &ValidationError{Field: fmt.Sprintf("sources[%d].code", index), Message: "must be a stable Source code"}
-		}
-		item.ID = id
-		item.Config = compactConfig(item.Config)
-		if _, duplicate := seen[item.Code]; duplicate {
-			return nil, ErrConflict
-		}
-		seen[item.Code] = struct{}{}
-		if err := validateSource(item, true); err != nil {
 			return nil, err
 		}
-		prepared[index] = cloneSource(item)
+		prepared[index] = item
 	}
 	if err := validateProjectedSet(prepared); err != nil {
 		return nil, err
@@ -368,6 +383,23 @@ func (s *UseCase) Import(ctx context.Context, input []Source) ([]Source, error) 
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].Code < result[j].Code })
 	return cloneSources(result), nil
+}
+
+func prepareSource(item Source, index int, seen map[string]struct{}, requireTimestamps bool) (Source, error) {
+	id, err := coreid.Derive(coreid.Source, "source", item.Code)
+	if err != nil {
+		return Source{}, &ValidationError{Field: fmt.Sprintf("sources[%d].code", index), Message: "must be a stable Source code"}
+	}
+	item.ID = id
+	item.Config = compactConfig(item.Config)
+	if _, duplicate := seen[item.Code]; duplicate {
+		return Source{}, ErrConflict
+	}
+	seen[item.Code] = struct{}{}
+	if err := validateSource(item, requireTimestamps); err != nil {
+		return Source{}, err
+	}
+	return cloneSource(item), nil
 }
 
 func (s *UseCase) ActiveSnapshot(ctx context.Context) ([]Source, error) {
@@ -521,13 +553,23 @@ func compactConfig(raw json.RawMessage) json.RawMessage {
 }
 
 func snapshotEnvelopeSize(items []Source) int {
+	measured := cloneSources(items)
+	worstTimestamp := time.Date(9999, 12, 31, 23, 59, 59, 999_999_999, time.UTC)
+	for index := range measured {
+		if measured[index].CreatedAt.IsZero() {
+			measured[index].CreatedAt = worstTimestamp
+		}
+		if measured[index].UpdatedAt.IsZero() {
+			measured[index].UpdatedAt = worstTimestamp
+		}
+	}
 	value := struct {
 		RequestID string `json:"request_id"`
 		Result    struct {
 			Sources []Source `json:"sources"`
 		} `json:"result"`
-	}{RequestID: strings.Repeat("r", 128)}
-	value.Result.Sources = items
+	}{RequestID: strings.Repeat("💧", 128)}
+	value.Result.Sources = measured
 	encoded, err := json.Marshal(value)
 	if err != nil {
 		return MaxSnapshotEnvelopeSize + 1
@@ -604,10 +646,22 @@ func sameSource(left, right Source) bool {
 	return left.ID == right.ID && left.Code == right.Code && left.Name == right.Name &&
 		left.OwnershipType == right.OwnershipType && left.ChannelType == right.ChannelType &&
 		left.AdapterKey == right.AdapterKey && left.Enabled == right.Enabled && left.Endpoint == right.Endpoint &&
-		sameOptionalString(left.AppKey, right.AppKey) && bytes.Equal(compactConfig(left.Config), compactConfig(right.Config)) &&
+		sameOptionalString(left.AppKey, right.AppKey) && sameConfig(left.Config, right.Config) &&
 		left.Priority == right.Priority && left.TimeoutSeconds == right.TimeoutSeconds &&
 		left.MaxResults == right.MaxResults && left.DefaultSourceLevel == right.DefaultSourceLevel &&
-		left.CreatedAt.Equal(right.CreatedAt) && left.UpdatedAt.Equal(right.UpdatedAt)
+		samePostgresTimestamp(left.CreatedAt, right.CreatedAt) && samePostgresTimestamp(left.UpdatedAt, right.UpdatedAt)
+}
+
+func sameConfig(left, right json.RawMessage) bool {
+	var leftValue, rightValue any
+	if json.Unmarshal(left, &leftValue) != nil || json.Unmarshal(right, &rightValue) != nil {
+		return false
+	}
+	return reflect.DeepEqual(leftValue, rightValue)
+}
+
+func samePostgresTimestamp(left, right time.Time) bool {
+	return left.UTC().Round(time.Microsecond).Equal(right.UTC().Round(time.Microsecond))
 }
 
 func sameOptionalString(left, right *string) bool {

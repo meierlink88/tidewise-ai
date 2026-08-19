@@ -32,7 +32,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("create Source use case: %v", err)
 	}
-	manifest := sourcedata.CurrentFixedManifest(sourcedata.FixedManifestOptions{
+	manifest := sourcebiz.CurrentFixedManifest(sourcebiz.FixedManifestOptions{
 		Endpoints: map[string]string{
 			"bocha": os.Getenv("BOCHA_SEARCH_BASE_URL"), "tavily": os.Getenv("TAVILY_SEARCH_BASE_URL"),
 			"parallel_search": os.Getenv("PARALLEL_SEARCH_BASE_URL"), "cls_telegraph": os.Getenv("CLS_TELEGRAPH_BASE_URL"),

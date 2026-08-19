@@ -13,6 +13,15 @@ const (
 	OperationUpdate   = "data.v1.updateSource"
 	OperationDelete   = "data.v1.deleteSource"
 	OperationSnapshot = "data.v1.getSourceSnapshot"
+
+	ErrorInvalid              = "SOURCE_INVALID"
+	ErrorNotFound             = "SOURCE_NOT_FOUND"
+	ErrorConflict             = "SOURCE_CONFLICT"
+	ErrorFixedDeleteForbidden = "SOURCE_FIXED_DELETE_FORBIDDEN"
+	ErrorCapacityExceeded     = "SOURCE_CAPACITY_EXCEEDED"
+	ErrorSnapshotFailed       = "SOURCE_SNAPSHOT_FAILED"
+	ErrorTimeout              = "SOURCE_TIMEOUT"
+	ErrorFailed               = "SOURCE_FAILED"
 )
 
 func BusinessOperations() []string {

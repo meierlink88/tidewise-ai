@@ -3,7 +3,7 @@
   "result": {
     "sources": [
       {
-        "id": "SRC123e4567-e89b-52d3-a456-426614174001",
+        "id": "SRCdd882dab-b629-5361-8926-e4d17883389a",
         "code": "cls_telegraph",
         "name": "财联社电报",
         "ownership_type": "fixed",
@@ -21,7 +21,7 @@
         "updated_at": "2026-08-19T00:00:00Z"
       },
       {
-        "id": "SRC123e4567-e89b-52d3-a456-426614174002",
+        "id": "SRC8e2d0d70-86ec-5fc8-85ba-0f003011280c",
         "code": "bocha",
         "name": "博查",
         "ownership_type": "fixed",

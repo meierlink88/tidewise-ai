@@ -1381,6 +1381,7 @@ paths:
       x-required-service-scope: data.sources.read
       x-retry-policy: safe-get
       x-timeout-budget-ms: 3000
+      x-error-codes: [SOURCE_FAILED, SOURCE_TIMEOUT]
       summary: 一次返回全部 Source 管理视图
       description: 不分页、不接受 query 参数，按 priority、code、id 稳定排序。
       parameters:
@@ -1402,6 +1403,7 @@ paths:
       x-required-service-scope: data.sources.write
       x-retry-policy: caller-confirms-natural-identity
       x-timeout-budget-ms: 3000
+      x-error-codes: [SOURCE_INVALID, SOURCE_CONFLICT, SOURCE_CAPACITY_EXCEEDED, SOURCE_TIMEOUT, SOURCE_FAILED]
       summary: 创建 dynamic RSS Source
       description: 服务端固定 ownership_type=dynamic、channel_type=rss、adapter_key=generic_rss。
       parameters:
@@ -1413,6 +1415,7 @@ paths:
           headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
           content: {application/json: {schema: {$ref: '#/components/schemas/SourceEnvelope'}}}
         '400': {$ref: '#/components/responses/BadRequest'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
         '409': {$ref: '#/components/responses/Conflict'}
@@ -1430,6 +1433,7 @@ paths:
       x-required-service-scope: data.sources.write
       x-retry-policy: idempotent-put
       x-timeout-budget-ms: 3000
+      x-error-codes: [SOURCE_INVALID, SOURCE_NOT_FOUND, SOURCE_CONFLICT, SOURCE_CAPACITY_EXCEEDED, SOURCE_TIMEOUT, SOURCE_FAILED]
       summary: 替换 Source 的全部可变字段
       description: fixed Source 的 code、ownership_type、channel_type 不可变；adapter_key 可变且不校验与 channel_type 的兼容性。
       parameters:
@@ -1445,6 +1449,7 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
+        '413': {$ref: '#/components/responses/PayloadTooLarge'}
         '422': {$ref: '#/components/responses/UnprocessableEntity'}
         '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/ServiceUnavailable'}
@@ -1455,6 +1460,7 @@ paths:
       x-required-service-scope: data.sources.write
       x-retry-policy: caller-confirms-source-exists
       x-timeout-budget-ms: 3000
+      x-error-codes: [SOURCE_INVALID, SOURCE_NOT_FOUND, SOURCE_FIXED_DELETE_FORBIDDEN, SOURCE_TIMEOUT, SOURCE_FAILED]
       summary: 删除 dynamic Source
       description: fixed Source 不可删除。
       parameters:
@@ -1468,6 +1474,7 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '404': {$ref: '#/components/responses/NotFound'}
         '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/UnprocessableEntity'}
         '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/ServiceUnavailable'}
 
@@ -1480,6 +1487,7 @@ paths:
       x-retry-policy: safe-get
       x-timeout-budget-ms: 3000
       x-max-response-bytes: 500000
+      x-error-codes: [SOURCE_SNAPSHOT_FAILED, SOURCE_TIMEOUT, SOURCE_FAILED]
       summary: 一次返回全部 active Source 运行时快照
       description: >-
         不分页、不接受 query 参数，按 channel_type、priority、code、id 稳定排序。
@@ -1497,7 +1505,7 @@ paths:
         '403': {$ref: '#/components/responses/Forbidden'}
         '500': {$ref: '#/components/responses/InternalError'}
         '503':
-          description: 完整 snapshot 不可用；错误码 SOURCE_SNAPSHOT_FAILED 或 SOURCE_SNAPSHOT_TIMEOUT
+          description: 完整 snapshot 不可用；错误码 SOURCE_SNAPSHOT_FAILED 或 SOURCE_TIMEOUT
           headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
           content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
 

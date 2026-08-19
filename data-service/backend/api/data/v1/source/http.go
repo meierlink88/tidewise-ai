@@ -32,7 +32,7 @@ func completeListHandler(application Service) kratoshttp.HandlerFunc {
 
 func createHandler(application Service) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
-		request, err := v1.DecodeStrictJSONBody[CreateRequest](ctx)
+		request, err := decodeCreateRequest(ctx)
 		if err != nil {
 			return err
 		}
@@ -44,7 +44,7 @@ func createHandler(application Service) kratoshttp.HandlerFunc {
 
 func updateHandler(application Service) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
-		request, err := v1.DecodeStrictJSONBody[UpdateRequest](ctx)
+		request, err := decodeUpdateRequest(ctx)
 		if err != nil {
 			return err
 		}
@@ -53,6 +53,47 @@ func updateHandler(application Service) kratoshttp.HandlerFunc {
 			return application.Update(callContext, request)
 		})
 	}
+}
+
+func decodeCreateRequest(ctx kratoshttp.Context) (*CreateRequest, error) {
+	request := new(CreateRequest)
+	if err := decodeRequiredBody(ctx, []string{
+		"code", "name", "enabled", "endpoint", "app_key", "config", "priority", "timeout_seconds", "max_results", "default_source_level",
+	}, map[string]*v1.StrictJSONShape{
+		"code": v1.StrictJSONString(), "name": v1.StrictJSONString(), "enabled": v1.StrictJSONBoolean(),
+		"endpoint": v1.StrictJSONString(), "app_key": v1.StrictJSONNullableString(), "config": v1.StrictJSONAny(),
+		"priority": v1.StrictJSONInteger(), "timeout_seconds": v1.StrictJSONInteger(), "max_results": v1.StrictJSONInteger(),
+		"default_source_level": v1.StrictJSONString(),
+	}, request); err != nil {
+		return nil, err
+	}
+	return request, nil
+}
+
+func decodeUpdateRequest(ctx kratoshttp.Context) (*UpdateRequest, error) {
+	request := new(UpdateRequest)
+	if err := decodeRequiredBody(ctx, []string{
+		"name", "adapter_key", "enabled", "endpoint", "app_key", "config", "priority", "timeout_seconds", "max_results", "default_source_level",
+	}, map[string]*v1.StrictJSONShape{
+		"name": v1.StrictJSONString(), "adapter_key": v1.StrictJSONString(), "enabled": v1.StrictJSONBoolean(),
+		"endpoint": v1.StrictJSONString(), "app_key": v1.StrictJSONNullableString(), "config": v1.StrictJSONAny(),
+		"priority": v1.StrictJSONInteger(), "timeout_seconds": v1.StrictJSONInteger(), "max_results": v1.StrictJSONInteger(),
+		"default_source_level": v1.StrictJSONString(),
+	}, request); err != nil {
+		return nil, err
+	}
+	return request, nil
+}
+
+func decodeRequiredBody(ctx kratoshttp.Context, required []string, fields map[string]*v1.StrictJSONShape, target any) error {
+	payload, err := v1.ReadImportPayload(ctx)
+	if err != nil {
+		return err
+	}
+	if err := v1.DecodeStrictJSON(payload, v1.StrictJSONRequiredObject(required, fields), target); err != nil {
+		return v1.NewPublicError(v1.StatusBadRequest, "INVALID_REQUEST", "request body is not valid for the Source contract", map[string]any{"path": v1.StrictJSONErrorPath(err)})
+	}
+	return nil
 }
 
 func deleteHandler(application Service) kratoshttp.HandlerFunc {

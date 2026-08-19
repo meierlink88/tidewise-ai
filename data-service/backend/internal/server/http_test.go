@@ -40,7 +40,7 @@ func TestProductionServerSourceManagementAndSnapshotContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	plainKey := "plain-bocha-key"
-	fixed, err := useCase.PublishFixed(context.Background(), sourcedata.CurrentFixedManifest(sourcedata.FixedManifestOptions{AppKeys: map[string]string{"bocha": plainKey}}))
+	fixed, err := useCase.PublishFixed(context.Background(), sourcebiz.CurrentFixedManifest(sourcebiz.FixedManifestOptions{AppKeys: map[string]string{"bocha": plainKey}}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,6 +72,7 @@ func TestProductionServerSourceManagementAndSnapshotContract(t *testing.T) {
 	if active[len(active)-1].(map[string]any)["app_key"] != plainKey {
 		t.Fatalf("snapshot did not return plaintext app_key: %#v", active[len(active)-1])
 	}
+	productionContractError(t, server, http.MethodPost, dataapi.APIPrefix+"/sources", "source-write-token", `{"code":"missing_enabled","name":"Missing","endpoint":"https://example.com/feed.xml","app_key":null,"config":{},"priority":1,"timeout_seconds":30,"max_results":10,"default_source_level":"L3_MEDIA"}`, "source-create-required", http.StatusBadRequest, "INVALID_REQUEST")
 
 	created := productionContractRequest(t, server, http.MethodPost, dataapi.APIPrefix+"/sources", "source-write-token", `{"code":"example_feed","name":"Example Feed","enabled":true,"endpoint":"https://example.com/feed.xml","app_key":null,"config":{"max_bytes":5000000},"priority":2,"timeout_seconds":20,"max_results":25,"default_source_level":"L3_MEDIA"}`, "source-create", http.StatusCreated)
 	dynamicID := created["result"].(map[string]any)["id"].(string)
@@ -93,6 +94,13 @@ func TestProductionServerSourceManagementAndSnapshotContract(t *testing.T) {
 	productionContractRequest(t, server, http.MethodDelete, dataapi.APIPrefix+"/sources/"+dynamicID, "source-write-token", "", "source-dynamic-delete", http.StatusOK)
 	productionContractError(t, server, http.MethodGet, dataapi.APIPrefix+"/source-snapshot?page=1", "source-read-token", "", "source-query", http.StatusBadRequest, "INVALID_REQUEST")
 	productionContractError(t, server, http.MethodGet, dataapi.APIPrefix+"/source-snapshot", "source-write-token", "", "source-scope", http.StatusForbidden, "FORBIDDEN")
+	if _, err := db.Exec(`UPDATE sources SET config='{"source_levels":{"example.com":"INVALID"}}'::jsonb WHERE code='cls_telegraph'`); err != nil {
+		t.Fatal(err)
+	}
+	failedSnapshot := productionContractError(t, server, http.MethodGet, dataapi.APIPrefix+"/source-snapshot", "source-read-token", "", "source-invalid-state", http.StatusServiceUnavailable, "SOURCE_SNAPSHOT_FAILED")
+	if _, exists := failedSnapshot["result"]; exists {
+		t.Fatalf("failed snapshot exposed partial result: %#v", failedSnapshot)
+	}
 }
 
 func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *testing.T) {

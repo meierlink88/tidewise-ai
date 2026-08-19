@@ -91,34 +91,31 @@ func sourceError(err error, snapshot bool) error {
 		return context.Canceled
 	}
 	if errors.Is(err, context.DeadlineExceeded) {
-		if snapshot {
-			return v1.NewPublicError(v1.StatusServiceUnavailable, "SOURCE_SNAPSHOT_TIMEOUT", "Source snapshot exceeded its execution budget", nil)
-		}
-		return v1.NewPublicError(v1.StatusServiceUnavailable, "SOURCE_TIMEOUT", "Source operation exceeded its execution budget", nil)
+		return v1.NewPublicError(v1.StatusServiceUnavailable, sourceapi.ErrorTimeout, "Source operation exceeded its execution budget", nil)
 	}
 	if snapshot && (errors.Is(err, sourcebiz.ErrCapacityExceeded) || errors.Is(err, sourcebiz.ErrPersistence)) {
-		return v1.NewPublicError(v1.StatusServiceUnavailable, "SOURCE_SNAPSHOT_FAILED", "Complete Source snapshot is unavailable", nil)
+		return v1.NewPublicError(v1.StatusServiceUnavailable, sourceapi.ErrorSnapshotFailed, "Complete Source snapshot is unavailable", nil)
 	}
 	var validation *sourcebiz.ValidationError
 	if errors.As(err, &validation) {
-		return v1.NewPublicError(v1.StatusUnprocessableEntity, "SOURCE_INVALID", "Source data is invalid", map[string]any{"field": validation.Field, "message": validation.Message})
+		return v1.NewPublicError(v1.StatusUnprocessableEntity, sourceapi.ErrorInvalid, "Source data is invalid", map[string]any{"field": validation.Field, "message": validation.Message})
 	}
 	if errors.Is(err, sourcebiz.ErrNotFound) {
-		return v1.NewPublicError(v1.StatusNotFound, "SOURCE_NOT_FOUND", "Source was not found", nil)
+		return v1.NewPublicError(v1.StatusNotFound, sourceapi.ErrorNotFound, "Source was not found", nil)
 	}
 	if errors.Is(err, sourcebiz.ErrFixedDeleteForbidden) {
-		return v1.NewPublicError(v1.StatusConflict, "SOURCE_FIXED_DELETE_FORBIDDEN", "Fixed Source cannot be deleted", nil)
+		return v1.NewPublicError(v1.StatusConflict, sourceapi.ErrorFixedDeleteForbidden, "Fixed Source cannot be deleted", nil)
 	}
 	if errors.Is(err, sourcebiz.ErrCapacityExceeded) {
-		return v1.NewPublicError(v1.StatusConflict, "SOURCE_CAPACITY_EXCEEDED", "Source capacity would be exceeded", nil)
+		return v1.NewPublicError(v1.StatusConflict, sourceapi.ErrorCapacityExceeded, "Source capacity would be exceeded", nil)
 	}
 	if errors.Is(err, sourcebiz.ErrConflict) {
-		return v1.NewPublicError(v1.StatusConflict, "SOURCE_CONFLICT", "Source conflicts with stored state", nil)
+		return v1.NewPublicError(v1.StatusConflict, sourceapi.ErrorConflict, "Source conflicts with stored state", nil)
 	}
 	if errors.Is(err, sourcebiz.ErrPersistence) {
-		return v1.NewPublicError(v1.StatusServiceUnavailable, "SOURCE_SNAPSHOT_FAILED", "Source state is unavailable", nil)
+		return v1.NewPublicError(v1.StatusInternalServerError, sourceapi.ErrorFailed, "Source operation failed", nil)
 	}
-	return v1.NewPublicError(v1.StatusInternalServerError, "SOURCE_FAILED", "Source operation failed", nil)
+	return v1.NewPublicError(v1.StatusInternalServerError, sourceapi.ErrorFailed, "Source operation failed", nil)
 }
 
 func sourceDTOs(input []sourcebiz.Source) []sourceapi.Source {

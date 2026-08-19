@@ -46,6 +46,31 @@ func TestCreateDynamicSourceAppearsInTheCompleteActiveSnapshot(t *testing.T) {
 	}
 }
 
+func TestCurrentFixedManifestPreservesAgentOSDefaults(t *testing.T) {
+	manifest := CurrentFixedManifest(FixedManifestOptions{
+		Endpoints: map[string]string{"bocha": "https://override.example/search"},
+		AppKeys:   map[string]string{"bocha": "plain-key"},
+	})
+	if len(manifest) != 7 {
+		t.Fatalf("manifest length = %d, want 7", len(manifest))
+	}
+	activeWeb := 0
+	for _, item := range manifest {
+		if item.OwnershipType != OwnershipFixed {
+			t.Errorf("%s ownership = %q, want fixed", item.Code, item.OwnershipType)
+		}
+		if item.Enabled && item.ChannelType == ChannelWebSearch {
+			activeWeb++
+		}
+	}
+	if activeWeb != 1 {
+		t.Fatalf("active web Sources = %d, want 1", activeWeb)
+	}
+	if manifest[0].Endpoint != "https://override.example/search" || manifest[0].AppKey == nil || *manifest[0].AppKey != "plain-key" {
+		t.Fatalf("bocha deployment override not applied: %+v", manifest[0])
+	}
+}
+
 func TestFixedSourceAllowsIncompatibleAdapterUpdateButCannotBeDeleted(t *testing.T) {
 	store := newMemoryStore()
 	useCase, err := NewUseCase(store)
@@ -84,12 +109,12 @@ func TestImportPreservesTimestampsAndRejectsDriftOnReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	createdAt := time.Date(2026, 8, 1, 1, 2, 3, 0, time.UTC)
+	createdAt := time.Date(2026, 8, 1, 1, 2, 3, 123_456_400, time.UTC)
 	updatedAt := createdAt.Add(time.Hour)
 	input := Source{
 		Code: "imported-rss", Name: "Imported", OwnershipType: OwnershipDynamic, ChannelType: ChannelRSS,
 		AdapterKey: AdapterGenericRSS, Enabled: true, Endpoint: "https://example.test/imported.xml",
-		Config: []byte(`{}`), Priority: 3, TimeoutSeconds: 40, MaxResults: 20,
+		Config: []byte(`{"nested":{"z":1,"a":2},"max_bytes":5000000}`), Priority: 3, TimeoutSeconds: 40, MaxResults: 20,
 		DefaultSourceLevel: SourceLevelWire, CreatedAt: createdAt, UpdatedAt: updatedAt,
 	}
 
@@ -97,6 +122,9 @@ func TestImportPreservesTimestampsAndRejectsDriftOnReplay(t *testing.T) {
 	if err != nil || len(first) != 1 || !first[0].CreatedAt.Equal(createdAt) || !first[0].UpdatedAt.Equal(updatedAt) {
 		t.Fatalf("Import() = %#v, %v", first, err)
 	}
+	store.rows[0].Config = []byte(`{"max_bytes":5000000,"nested":{"a":2,"z":1}}`)
+	store.rows[0].CreatedAt = store.rows[0].CreatedAt.Round(time.Microsecond)
+	store.rows[0].UpdatedAt = store.rows[0].UpdatedAt.Round(time.Microsecond)
 	second, err := useCase.Import(context.Background(), []Source{input})
 	if err != nil || len(second) != 1 || second[0].ID != first[0].ID {
 		t.Fatalf("Import(replay) = %#v, %v", second, err)
@@ -106,6 +134,31 @@ func TestImportPreservesTimestampsAndRejectsDriftOnReplay(t *testing.T) {
 	drift.Name = "Drifted"
 	if _, err := useCase.Import(context.Background(), []Source{drift}); !errors.Is(err, ErrConflict) {
 		t.Fatalf("Import(drift) error = %v", err)
+	}
+}
+
+func TestActiveSnapshotReturnsTwoHundredSourcesInStableOrderWithinBudget(t *testing.T) {
+	store := newMemoryStore()
+	for index := MaxSources - 1; index >= 0; index-- {
+		store.rows = append(store.rows, validTestSource(t, index, true))
+	}
+	useCase, err := NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := time.Now()
+	snapshot, err := useCase.ActiveSnapshot(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if elapsed := time.Since(started); elapsed >= 3*time.Second {
+		t.Fatalf("200-Source snapshot took %s", elapsed)
+	}
+	if len(snapshot) != MaxSources || snapshot[0].Code != "source-000" || snapshot[len(snapshot)-1].Code != "source-199" {
+		t.Fatalf("snapshot order/count = %d, %q..%q", len(snapshot), snapshot[0].Code, snapshot[len(snapshot)-1].Code)
+	}
+	if size := snapshotEnvelopeSize(snapshot); size > MaxSnapshotEnvelopeSize {
+		t.Fatalf("snapshot envelope size = %d", size)
 	}
 }
 

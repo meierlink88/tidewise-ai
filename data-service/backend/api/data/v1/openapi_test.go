@@ -108,12 +108,16 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 func TestOpenAPIContractFreezesSourceManagementAndSnapshot(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
-	for _, expected := range []operationContract{
-		{method: "get", operationID: "listSources", driftAnchor: "data.v1.listSources", scope: "data.sources.read"},
-		{method: "post", operationID: "createSource", driftAnchor: "data.v1.createSource", scope: "data.sources.write"},
-		{method: "put", operationID: "updateSource", driftAnchor: "data.v1.updateSource", scope: "data.sources.write"},
-		{method: "delete", operationID: "deleteSource", driftAnchor: "data.v1.deleteSource", scope: "data.sources.write"},
-		{method: "get", operationID: "getSourceSnapshot", driftAnchor: "data.v1.getSourceSnapshot", scope: "data.sources.read"},
+	type sourceOperation struct {
+		operationContract
+		errorCodes []string
+	}
+	for _, expected := range []sourceOperation{
+		{operationContract: operationContract{method: "get", operationID: "listSources", driftAnchor: "data.v1.listSources", scope: "data.sources.read"}, errorCodes: []string{"SOURCE_FAILED", "SOURCE_TIMEOUT"}},
+		{operationContract: operationContract{method: "post", operationID: "createSource", driftAnchor: "data.v1.createSource", scope: "data.sources.write"}, errorCodes: []string{"SOURCE_INVALID", "SOURCE_CONFLICT", "SOURCE_CAPACITY_EXCEEDED", "SOURCE_TIMEOUT", "SOURCE_FAILED"}},
+		{operationContract: operationContract{method: "put", operationID: "updateSource", driftAnchor: "data.v1.updateSource", scope: "data.sources.write"}, errorCodes: []string{"SOURCE_INVALID", "SOURCE_NOT_FOUND", "SOURCE_CONFLICT", "SOURCE_CAPACITY_EXCEEDED", "SOURCE_TIMEOUT", "SOURCE_FAILED"}},
+		{operationContract: operationContract{method: "delete", operationID: "deleteSource", driftAnchor: "data.v1.deleteSource", scope: "data.sources.write"}, errorCodes: []string{"SOURCE_INVALID", "SOURCE_NOT_FOUND", "SOURCE_FIXED_DELETE_FORBIDDEN", "SOURCE_TIMEOUT", "SOURCE_FAILED"}},
+		{operationContract: operationContract{method: "get", operationID: "getSourceSnapshot", driftAnchor: "data.v1.getSourceSnapshot", scope: "data.sources.read"}, errorCodes: []string{"SOURCE_SNAPSHOT_FAILED", "SOURCE_TIMEOUT", "SOURCE_FAILED"}},
 	} {
 		path := namespace + "/sources"
 		if expected.method == "put" || expected.method == "delete" {
@@ -127,6 +131,19 @@ func TestOpenAPIContractFreezesSourceManagementAndSnapshot(t *testing.T) {
 		assertString(t, operation, "x-client-drift-anchor", expected.driftAnchor)
 		assertString(t, operation, "x-required-service-scope", expected.scope)
 		assertInt(t, operation, "x-timeout-budget-ms", 3000)
+		assertStringSet(t, operation["x-error-codes"], expected.errorCodes...)
+	}
+	createResponses := object(t, object(t, object(t, paths[namespace+"/sources"], "Source collection path")["post"], "Source create")["responses"], "Source create responses")
+	updateResponses := object(t, object(t, object(t, paths[namespace+"/sources/{source_id}"], "Source item path")["put"], "Source update")["responses"], "Source update responses")
+	deleteResponses := object(t, object(t, object(t, paths[namespace+"/sources/{source_id}"], "Source item path")["delete"], "Source delete")["responses"], "Source delete responses")
+	if _, exists := createResponses["413"]; !exists {
+		t.Fatal("Source create must document 413")
+	}
+	if _, exists := updateResponses["413"]; !exists {
+		t.Fatal("Source update must document 413")
+	}
+	if _, exists := deleteResponses["422"]; !exists {
+		t.Fatal("Source delete must document 422")
 	}
 
 	snapshot := object(t, object(t, paths[namespace+"/source-snapshot"], "snapshot path")["get"], "snapshot operation")
