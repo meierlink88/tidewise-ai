@@ -106,8 +106,9 @@ func (s Store) ListEvidence(ctx context.Context, filter evidencebiz.EvidenceList
 		return evidencebiz.EvidencePage{}, fmt.Errorf("count Evidence: %w", err)
 	}
 	rows, err := s.db.QueryContext(ctx, `
-SELECT evidence.id, evidence.raw_evidence_id, evidence.is_split, evidence.summary,
-       raw.title, raw.source_name, raw.source_level, raw.published_at, raw.collected_at,
+SELECT evidence.id, evidence.raw_evidence_id, evidence.is_split, evidence.summary, evidence.semantic,
+       raw.title, raw.source_name, raw.source_level, raw.source_url, raw.is_original, raw.quoted_source_name,
+       raw.published_at, raw.collected_at, array_to_json(raw.keywords),
        COALESCE((
            SELECT jsonb_agg(jsonb_build_object(
                'id', category.id,
@@ -154,11 +155,15 @@ type evidenceListScanner interface{ Scan(...any) error }
 func scanEvidenceListItem(scanner evidenceListScanner) (evidencebiz.EvidenceListItem, error) {
 	var item evidencebiz.EvidenceListItem
 	var title sql.NullString
+	var quotedSourceName sql.NullString
 	var publishedAt sql.NullTime
+	var semanticJSON []byte
+	var keywordsJSON []byte
 	var categoriesJSON []byte
 	if err := scanner.Scan(
-		&item.ID, &item.RawEvidenceID, &item.IsSplit, &item.Summary, &title,
-		&item.SourceName, &item.SourceLevel, &publishedAt, &item.CollectedAt, &categoriesJSON,
+		&item.ID, &item.RawEvidenceID, &item.IsSplit, &item.Summary, &semanticJSON, &title,
+		&item.SourceName, &item.SourceLevel, &item.SourceURL, &item.IsOriginal, &quotedSourceName,
+		&publishedAt, &item.CollectedAt, &keywordsJSON, &categoriesJSON,
 	); err != nil {
 		return evidencebiz.EvidenceListItem{}, fmt.Errorf("scan Evidence list: %w", err)
 	}
@@ -169,7 +174,16 @@ func scanEvidenceListItem(scanner evidenceListScanner) (evidencebiz.EvidenceList
 		value := publishedAt.Time.UTC()
 		item.PublishedAt = &value
 	}
+	if quotedSourceName.Valid {
+		item.QuotedSourceName = &quotedSourceName.String
+	}
 	item.CollectedAt = item.CollectedAt.UTC()
+	if err := decodeStoredSemantic(semanticJSON, &item.Semantic); err != nil {
+		return evidencebiz.EvidenceListItem{}, fmt.Errorf("decode Evidence list semantic: %w", err)
+	}
+	if err := json.Unmarshal(keywordsJSON, &item.Keywords); err != nil || item.Keywords == nil {
+		return evidencebiz.EvidenceListItem{}, persistedInvariant("Evidence list", "keywords", "value is not an array")
+	}
 	categories, err := decodeEvidenceListCategories(categoriesJSON)
 	if err != nil {
 		return evidencebiz.EvidenceListItem{}, fmt.Errorf("decode Evidence list categories: %w", err)
@@ -227,6 +241,9 @@ func validateEvidenceListItem(item evidencebiz.EvidenceListItem) error {
 	if err := validateStoredRequired("Evidence list", "source_name", item.SourceName, 100); err != nil {
 		return err
 	}
+	if err := validateStoredRequired("Evidence list", "source_url", item.SourceURL, 2048); err != nil {
+		return err
+	}
 	if !coreIDIsEvidence(item.ID) || !coreIDIsRawEvidence(item.RawEvidenceID) {
 		return persistedInvariant("Evidence list", "id", "value is not a stable domain identity")
 	}
@@ -237,6 +254,22 @@ func validateEvidenceListItem(item evidencebiz.EvidenceListItem) error {
 	case evidencebiz.SourceLevelOfficial, evidencebiz.SourceLevelWire, evidencebiz.SourceLevelMedia, evidencebiz.SourceLevelSocial:
 	default:
 		return persistedInvariant("Evidence list", "source_level", "value is not supported")
+	}
+	parsedURL, err := url.Parse(item.SourceURL)
+	if err != nil || parsedURL.Host == "" || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		return persistedInvariant("Evidence list", "source_url", "value is not an absolute HTTP(S) URL")
+	}
+	if item.IsOriginal && item.QuotedSourceName != nil {
+		return persistedInvariant("Evidence list", "is_original", "original content declares a quoted source")
+	}
+	if !item.IsOriginal && (item.QuotedSourceName == nil || strings.TrimSpace(*item.QuotedSourceName) == "") {
+		return persistedInvariant("Evidence list", "quoted_source_name", "reposted content has no quoted source name")
+	}
+	if err := validateStoredOptional("Evidence list", "quoted_source_name", item.QuotedSourceName, 100); err != nil {
+		return err
+	}
+	if err := validateStoredEvidence(&evidencebiz.StoredEvidence{Evidence: evidencebiz.Evidence{ID: item.ID, Summary: item.Summary, Semantic: item.Semantic}, RawEvidenceID: item.RawEvidenceID, IsSplit: item.IsSplit}); err != nil {
+		return err
 	}
 	if item.CollectedAt.IsZero() || item.Categories == nil {
 		return persistedInvariant("Evidence list", "time", "required projection value is missing")

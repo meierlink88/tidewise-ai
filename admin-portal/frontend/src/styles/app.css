@@ -53,3 +53,70 @@ body {
   color: var(--foreground);
   margin: 0;
 }
+
+@keyframes sheet-overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-overlay-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-left-in {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes sheet-left-out {
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes sheet-right-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes sheet-right-out {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.sheet-overlay[data-state='open'] {
+  animation: sheet-overlay-in 150ms ease-out;
+}
+
+.sheet-overlay[data-state='closed'] {
+  animation: sheet-overlay-out 150ms ease-in;
+}
+
+.sheet-content[data-state='open'][data-side='left'] {
+  animation: sheet-left-in 200ms ease-out;
+}
+
+.sheet-content[data-state='closed'][data-side='left'] {
+  animation: sheet-left-out 150ms ease-in;
+}
+
+.sheet-content[data-state='open'][data-side='right'] {
+  animation: sheet-right-in 200ms ease-out;
+}
+
+.sheet-content[data-state='closed'][data-side='right'] {
+  animation: sheet-right-out 150ms ease-in;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-overlay,
+  .sheet-content {
+    animation-duration: 1ms !important;
+  }
+}

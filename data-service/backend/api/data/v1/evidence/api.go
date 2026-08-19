@@ -61,16 +61,21 @@ type ListRequest struct {
 }
 
 type ListItem struct {
-	ID            string             `json:"id"`
-	RawEvidenceID string             `json:"raw_evidence_id"`
-	Title         *string            `json:"title"`
-	Summary       string             `json:"summary"`
-	Categories    []EvidenceCategory `json:"categories"`
-	SourceName    string             `json:"source_name"`
-	SourceLevel   string             `json:"source_level"`
-	IsSplit       bool               `json:"is_split"`
-	PublishedAt   *string            `json:"published_at"`
-	CollectedAt   string             `json:"collected_at"`
+	ID               string             `json:"id"`
+	RawEvidenceID    string             `json:"raw_evidence_id"`
+	Title            *string            `json:"title"`
+	Summary          string             `json:"summary"`
+	Semantic         EvidenceSemantic   `json:"semantic"`
+	Categories       []EvidenceCategory `json:"categories"`
+	SourceName       string             `json:"source_name"`
+	SourceLevel      string             `json:"source_level"`
+	SourceURL        string             `json:"source_url"`
+	IsOriginal       bool               `json:"is_original"`
+	QuotedSourceName *string            `json:"quoted_source_name"`
+	Keywords         []string           `json:"keywords"`
+	IsSplit          bool               `json:"is_split"`
+	PublishedAt      *string            `json:"published_at"`
+	CollectedAt      string             `json:"collected_at"`
 }
 
 type Page struct {

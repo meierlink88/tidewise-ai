@@ -1,6 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
-import { type ChangeEvent, type FormEvent, useMemo, useState } from 'react';
+import { type ChangeEvent, type FormEvent, useMemo, useRef, useState } from 'react';
 import {
   loadEvidenceCategories,
   loadEvidences,
@@ -24,10 +24,14 @@ import {
   sourceLevels,
   toRFC3339
 } from './shared';
+import { EvidenceDetailSheet } from './EvidenceDetailSheet';
 
 const emptyQuery: EvidenceQuery = { page: 1 };
 
 export default function EvidenceTab({ token }: { token: string }) {
+  const [selectedEvidenceId, setSelectedEvidenceId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const detailTrigger = useRef<HTMLTableRowElement | null>(null);
   const [form, setForm] = useState({
     title: '',
     summary: '',
@@ -52,6 +56,7 @@ export default function EvidenceTab({ token }: { token: string }) {
     queryFn: () => loadEvidenceCategories(token)
   });
   const page = result.data ?? { items: [], total: 0, page: query.page, page_size: pageSize };
+  const selectedEvidence = page.items.find((item) => item.id === selectedEvidenceId) ?? null;
   const columns = useMemo<DataTableColumn<EvidenceItem>[]>(
     () => [
       {
@@ -217,7 +222,14 @@ export default function EvidenceTab({ token }: { token: string }) {
         emptyText={result.isPending ? '正在加载证据' : '暂无证据'}
         getRowKey={(item) => item.id}
         items={page.items}
+        onRowActivate={(item, trigger) => {
+          detailTrigger.current = trigger;
+          setSelectedEvidenceId(item.id);
+          setDetailOpen(true);
+        }}
+        rowAccessibleName={(item) => `查看${item.title ?? '无标题证据'}详情`}
         scrollAreaLabel='证据表格滚动区域'
+        selectedRowKey={detailOpen ? (selectedEvidenceId ?? undefined) : undefined}
         tableClassName='min-w-[1320px] table-fixed text-xs [&_td]:py-2.5 [&_th]:h-9'
       />
       <Pagination
@@ -225,6 +237,15 @@ export default function EvidenceTab({ token }: { token: string }) {
         pageSize={page.page_size}
         total={page.total}
         onPageChange={(next) => setQuery((current) => ({ ...current, page: next }))}
+      />
+      <EvidenceDetailSheet
+        evidence={selectedEvidence}
+        open={detailOpen}
+        onOpenChange={(open) => {
+          if (open) return;
+          setDetailOpen(false);
+          window.setTimeout(() => detailTrigger.current?.focus(), 0);
+        }}
       />
     </CollectionPanel>
   );

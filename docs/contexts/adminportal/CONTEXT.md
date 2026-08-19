@@ -14,12 +14,15 @@ Backend Service 只通过 Data 的版本化 REST API 读取事实，不访问下
 
 **事件中心（Event Center）**：
 面向管理员查询 Data 已接纳的正式 Event。列表提供查询、分页、加载、错误与空状态，
+并通过列表行右侧详情展示 Event summary、modality、lifecycle、时间与完整六要素 semantic；
 不承载 Event 写入、采集执行、调度或配置控制面。
 _Avoid_: 浏览器直连 Data、在 Admin 保存 Data 事实、把列表扩展成外部 Agent 控制台
 
 **证据中心（Evidence Center）**：
 以 Data-owned Atomic Evidence 为分页单位，关联其唯一 Raw Evidence 的标题、信源快照、时间与完整
-Content Category 集合，构成 Admin 专用只读列表。
+Content Category 集合，构成 Admin 专用只读列表。列表行右侧详情继续展示 Atomic Evidence
+semantic，以及 Raw Evidence 的来源地址、原创/转载归因、条件引用信源、Keywords 与完整分类说明；
+不展示完整正文、技术身份、哈希或内部生成/入库时间。
 _Avoid_: 独立 Raw Evidence Tab、父子树、在 Admin 重新定义 Evidence 或 Category 事实
 
 **信源管理（Source Management）**：

@@ -51,14 +51,22 @@ func (s *Service) ListEvidence(ctx context.Context, request *evidenceapi.ListReq
 		}
 		items[index] = evidenceapi.ListItem{
 			ID: item.ID, RawEvidenceID: item.RawEvidenceID, Title: item.Title, Summary: item.Summary,
-			Categories: categories, SourceName: item.SourceName, SourceLevel: string(item.SourceLevel),
-			IsSplit: item.IsSplit, PublishedAt: formatOptionalListTime(item.PublishedAt),
+			Semantic: evidenceSemanticDTO(item.Semantic), Categories: categories, SourceName: item.SourceName, SourceLevel: string(item.SourceLevel),
+			SourceURL: item.SourceURL, IsOriginal: item.IsOriginal, QuotedSourceName: item.QuotedSourceName,
+			Keywords: append([]string{}, item.Keywords...),
+			IsSplit:  item.IsSplit, PublishedAt: formatOptionalListTime(item.PublishedAt),
 			CollectedAt: item.CollectedAt.UTC().Format(time.RFC3339Nano),
 		}
 	}
 	return &v1.Response[evidenceapi.Page]{Status: v1.StatusOK, Result: evidenceapi.Page{
 		Items: items, Total: result.Total, Page: result.Page, PageSize: result.PageSize,
 	}}, nil
+}
+
+func evidenceSemanticDTO(value evidencebiz.Semantic) evidenceapi.EvidenceSemantic {
+	return evidenceapi.EvidenceSemantic{
+		Who: value.Who, What: value.What, When: value.When, Where: value.Where, Why: value.Why, How: value.How,
+	}
 }
 
 func evidenceListFilter(request *evidenceapi.ListRequest) (evidencebiz.EvidenceListFilter, error) {

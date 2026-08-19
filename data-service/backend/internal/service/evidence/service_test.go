@@ -15,12 +15,15 @@ func TestListEvidenceMapsConfirmedQueryAndJoinedDTO(t *testing.T) {
 	publishedAt := time.Date(2026, 8, 18, 1, 0, 0, 0, time.UTC)
 	collectedAt := time.Date(2026, 8, 18, 1, 5, 0, 0, time.UTC)
 	title := "Source title"
+	who := "Example Corp"
+	quotedSourceName := "Example Corp filing"
 	useCase := &capturingListUseCase{page: evidencebiz.EvidencePage{
 		Items: []evidencebiz.EvidenceListItem{{
 			ID: "EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", RawEvidenceID: "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf",
-			Title: &title, Summary: "Atomic fact", Categories: []evidencebiz.Category{{
+			Title: &title, Summary: "Atomic fact", Semantic: evidencebiz.Semantic{Who: &who, What: "announced a production line"}, Categories: []evidencebiz.Category{{
 				ID: "EVCc18ddddb-14bc-5496-99ea-963ee2c25597", Code: "EVENT_BRIEF", Name: "事件快讯", Description: "事件材料",
-			}}, SourceName: "Example Wire", SourceLevel: evidencebiz.SourceLevelWire, IsSplit: true,
+			}}, SourceName: "Example Wire", SourceLevel: evidencebiz.SourceLevelWire, SourceURL: "https://example.com/report",
+			IsOriginal: false, QuotedSourceName: &quotedSourceName, Keywords: []string{}, IsSplit: true,
 			PublishedAt: &publishedAt, CollectedAt: collectedAt,
 		}}, Total: 1, Page: 2, PageSize: 10,
 	}}
@@ -47,7 +50,9 @@ func TestListEvidenceMapsConfirmedQueryAndJoinedDTO(t *testing.T) {
 	}
 	item := response.Result.Items[0]
 	if item.Title == nil || *item.Title != title || item.PublishedAt == nil || *item.PublishedAt != "2026-08-18T01:00:00Z" ||
-		item.CollectedAt != "2026-08-18T01:05:00Z" || len(item.Categories) != 1 {
+		item.CollectedAt != "2026-08-18T01:05:00Z" || len(item.Categories) != 1 || item.Semantic.Who == nil ||
+		*item.Semantic.Who != who || item.Semantic.What != "announced a production line" || item.SourceURL != "https://example.com/report" ||
+		item.IsOriginal || item.QuotedSourceName == nil || *item.QuotedSourceName != quotedSourceName || item.Keywords == nil || len(item.Keywords) != 0 {
 		t.Fatalf("item = %#v", item)
 	}
 }

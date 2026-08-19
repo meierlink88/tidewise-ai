@@ -16,7 +16,10 @@ interface DataTableProps<T> {
   emptyText: string;
   getRowKey: (item: T) => string;
   items: T[];
+  onRowActivate?: (item: T, trigger: HTMLTableRowElement) => void;
+  rowAccessibleName?: (item: T) => string;
   scrollAreaLabel: string;
+  selectedRowKey?: string;
   tableClassName?: string;
 }
 
@@ -26,7 +29,10 @@ export function DataTable<T>({
   emptyText,
   getRowKey,
   items,
+  onRowActivate,
+  rowAccessibleName,
   scrollAreaLabel,
+  selectedRowKey,
   tableClassName
 }: DataTableProps<T>) {
   if (items.length === 0) {
@@ -59,15 +65,47 @@ export function DataTable<T>({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((item) => (
-            <TableRow key={getRowKey(item)}>
-              {columns.map((column) => (
-                <TableCell className={column.cellClassName} key={column.key}>
-                  {column.render(item)}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
+          {items.map((item) => {
+            const rowKey = getRowKey(item);
+            const interactive = onRowActivate !== undefined;
+            return (
+              <TableRow
+                aria-label={rowAccessibleName?.(item)}
+                aria-selected={interactive ? rowKey === selectedRowKey : undefined}
+                className={cn(
+                  interactive &&
+                    'cursor-pointer focus-visible:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring data-[selected=true]:bg-muted'
+                )}
+                data-selected={interactive ? String(rowKey === selectedRowKey) : undefined}
+                key={rowKey}
+                onClick={
+                  interactive
+                    ? (event) => {
+                        event.currentTarget.focus();
+                        onRowActivate(item, event.currentTarget);
+                      }
+                    : undefined
+                }
+                onKeyDown={
+                  interactive
+                    ? (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          onRowActivate(item, event.currentTarget);
+                        }
+                      }
+                    : undefined
+                }
+                tabIndex={interactive ? 0 : undefined}
+              >
+                {columns.map((column) => (
+                  <TableCell className={column.cellClassName} key={column.key}>
+                    {column.render(item)}
+                  </TableCell>
+                ))}
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>

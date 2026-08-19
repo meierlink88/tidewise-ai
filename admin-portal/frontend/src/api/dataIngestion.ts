@@ -50,12 +50,26 @@ export interface EvidenceItem {
   raw_evidence_id: string;
   title: string | null;
   summary: string;
+  semantic: EvidenceSemantic;
   categories: EvidenceCategory[];
   source_name: string;
   source_level: SourceLevel;
+  source_url: string;
+  is_original: boolean;
+  quoted_source_name: string | null;
+  keywords: string[];
   is_split: boolean;
   published_at: string | null;
   collected_at: string;
+}
+
+export interface EvidenceSemantic {
+  who: string | null;
+  what: string;
+  when: string | null;
+  where: string | null;
+  why: string | null;
+  how: string | null;
 }
 
 export interface EvidenceQuery {
@@ -139,14 +153,42 @@ const evidenceItemSchema: z.ZodType<EvidenceItem> = z
     raw_evidence_id: z.string().regex(new RegExp(`^RAW${domainUUID}$`)),
     title: z.string().nullable(),
     summary: z.string().min(1),
+    semantic: z
+      .object({
+        who: z.string().min(1).nullable(),
+        what: z.string().min(1),
+        when: z.string().min(1).nullable(),
+        where: z.string().min(1).nullable(),
+        why: z.string().min(1).nullable(),
+        how: z.string().min(1).nullable()
+      })
+      .strict(),
     categories: z.array(evidenceCategorySchema),
     source_name: z.string().min(1),
     source_level: sourceLevelSchema,
+    source_url: z
+      .string()
+      .url()
+      .refine((value) => /^https?:\/\//.test(value)),
+    is_original: z.boolean(),
+    quoted_source_name: z.string().min(1).nullable(),
+    keywords: z.array(z.string()),
     is_split: z.boolean(),
     published_at: utcTimestamp.nullable(),
     collected_at: utcTimestamp
   })
-  .strict();
+  .strict()
+  .superRefine((item, context) => {
+    if (item.is_original && item.quoted_source_name !== null) {
+      context.addIssue({
+        code: 'custom',
+        message: 'original Evidence cannot declare quoted source'
+      });
+    }
+    if (!item.is_original && item.quoted_source_name === null) {
+      context.addIssue({ code: 'custom', message: 'reposted Evidence requires quoted source' });
+    }
+  });
 const sourceItemSchema: z.ZodType<SourceItem> = z
   .object({
     id: z.string().regex(new RegExp(`^SRC${domainUUID}$`)),

@@ -127,16 +127,21 @@ type EvidenceListFilter struct {
 }
 
 type EvidenceListItem struct {
-	ID            string
-	RawEvidenceID string
-	Title         *string
-	Summary       string
-	Categories    []Category
-	SourceName    string
-	SourceLevel   SourceLevel
-	IsSplit       bool
-	PublishedAt   *time.Time
-	CollectedAt   time.Time
+	ID               string
+	RawEvidenceID    string
+	Title            *string
+	Summary          string
+	Semantic         Semantic
+	Categories       []Category
+	SourceName       string
+	SourceLevel      SourceLevel
+	SourceURL        string
+	IsOriginal       bool
+	QuotedSourceName *string
+	Keywords         []string
+	IsSplit          bool
+	PublishedAt      *time.Time
+	CollectedAt      time.Time
 }
 
 type EvidencePage struct {

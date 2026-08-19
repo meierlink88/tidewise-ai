@@ -241,7 +241,9 @@ func evidence(value biz.Evidence) v1.Evidence {
 		categories = append(categories, evidenceCategory(category))
 	}
 	response := v1.Evidence{ID: value.ID, RawEvidenceID: value.RawEvidenceID, Title: value.Title, Summary: value.Summary,
-		Categories: categories, SourceName: value.SourceName, SourceLevel: value.SourceLevel, IsSplit: value.IsSplit,
+		Semantic:   v1.EvidenceSemantic{Who: value.Semantic.Who, What: value.Semantic.What, When: value.Semantic.When, Where: value.Semantic.Where, Why: value.Semantic.Why, How: value.Semantic.How},
+		Categories: categories, SourceName: value.SourceName, SourceLevel: value.SourceLevel, SourceURL: value.SourceURL,
+		IsOriginal: value.IsOriginal, QuotedSourceName: value.QuotedSourceName, Keywords: append([]string{}, value.Keywords...), IsSplit: value.IsSplit,
 		CollectedAt: value.CollectedAt.UTC().Format(time.RFC3339Nano)}
 	if value.PublishedAt != nil {
 		formatted := value.PublishedAt.UTC().Format(time.RFC3339Nano)
