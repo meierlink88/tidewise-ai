@@ -74,6 +74,10 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000062_add_subdivisions.sql`：新增严格从属于 Country 的独立 `subdivisions` 事实表、
   `SUB` 身份约束、Country 内 local code 组合唯一与四值 PostgreSQL 原生类型；不 seed、
   不建立 Region 或 Organization 关系，也不增加运行时 API wiring。
+- `000063_add_ministries_and_institutions.sql`：新增独立 `ministries` 与 `institutions` 事实表、
+  MIN/INS 身份、Country/Organization XOR 归属、受控枚举和公开 Data Adapter 持久化基础。
+- `000064_add_narrative_blueprints.sql`：新增独立 `geopolitic_rivalries` 与 `macro_economics`
+  静态叙事蓝图、GPR/MEC 身份和受控类型/生命周期枚举；不增加 Storyline 或外部对象关系。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -196,3 +200,11 @@ ledger 为 `63`、两个空表的 MIN/INS identity、Country/Organization owner 
 结构。若必须移除数据库结构，恢复 migration 63 前快照或使用另行审阅的 forward repair，
 不运行 down migration。初始化数据、Biz/API wiring、Event Actor wiring 与新关系均需后续
 独立发布。
+
+`000064` 是 Issue #300 的 additive、forward-only GeopoliticRivalry 与 MacroEconomic
+persistence 基础。操作员使用候选 Data 镜像执行 check-only，确认它是唯一 pending
+migration 后 apply，并验证 ledger 为 `64`、两个空表的 GPR/MEC identity、native enum、
+必填/可空文本、默认 ACTIVE 状态、稳定列表索引与时间默认值满足合同。旧应用不消费新增
+结构，可以与已应用 schema 共存；应用回退保留新增空结构。若必须移除数据库结构，恢复
+migration 64 前快照或使用另行审阅的 forward repair，不运行 down migration。Storyline、
+外部对象关系、OpenSPG、初始化数据、Biz/API wiring 与 UI 均需后续独立发布。
