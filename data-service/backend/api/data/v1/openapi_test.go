@@ -54,9 +54,9 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/organization-catalog":                                         {method: "get", operationID: "getOrganizationCatalog", driftAnchor: "data.v1.getOrganizationCatalog", scope: "data.organizations.read"},
 		namespace + "/entities/organizations/{organization_id}/members":             {method: "get", operationID: "listOrganizationMembers", driftAnchor: "data.v1.listOrganizationMembers", scope: "data.organizations.read"},
 		namespace + "/entities/organizations/{organization_id}/members/{member_id}": {method: "put", operationID: "updateOrganizationMember", driftAnchor: "data.v1.updateOrganizationMember", scope: "data.organizations.write"},
-		namespace + "/sources":                                                    {method: "get", operationID: "listSources", driftAnchor: "data.v1.listSources", scope: "data.sources.read"},
-		namespace + "/sources/{source_id}":                                       {method: "put", operationID: "updateSource", driftAnchor: "data.v1.updateSource", scope: "data.sources.write"},
-		namespace + "/source-snapshot":                                           {method: "get", operationID: "getSourceSnapshot", driftAnchor: "data.v1.getSourceSnapshot", scope: "data.sources.read"},
+		namespace + "/sources":                                                      {method: "get", operationID: "listSources", driftAnchor: "data.v1.listSources", scope: "data.sources.read"},
+		namespace + "/sources/{source_id}":                                          {method: "put", operationID: "updateSource", driftAnchor: "data.v1.updateSource", scope: "data.sources.write"},
+		namespace + "/source-snapshot":                                              {method: "get", operationID: "getSourceSnapshot", driftAnchor: "data.v1.getSourceSnapshot", scope: "data.sources.read"},
 	}
 	additionalMethods := map[string]map[string]struct{}{
 		namespace + "/entities/countries":                                           {"post": {}},
@@ -74,7 +74,7 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/entities/organizations/{organization_id}/members":             {"post": {}},
 		namespace + "/entities/organizations/{organization_id}/members/{member_id}": {"delete": {}},
 		namespace + "/sources":                                                      {"post": {}},
-		namespace + "/sources/{source_id}":                                         {"delete": {}},
+		namespace + "/sources/{source_id}":                                          {"delete": {}},
 	}
 
 	if len(paths) != len(want) {
