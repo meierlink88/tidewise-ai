@@ -1,0 +1,36 @@
+namespace Tidewise
+
+Event(事件): EventType
+    desc: 经过交叉验证并由正式原子证据支持的标准化事件事实
+    properties:
+        id(事件标识): Text
+            desc: 事件稳定标识，由 EVT 前缀直接连接 canonical lowercase UUID
+            constraint: NotNull, Regular="^EVT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        title(事件标题): Text
+            desc: 对事件事实的必填简短标题
+            constraint: NotNull
+        summary(事件摘要): Text
+            desc: 无需解释结构化语义即可阅读的必填事件事实摘要
+            constraint: NotNull
+        who(相关主体): Text
+            desc: 事件涉及、发起或影响的主体，语义未知时为空
+        what(发生事项): Text
+            desc: 事件已经发生、计划发生或推测发生的事项，语义未知时为空
+        when(语义时间): Text
+            desc: 事件内容表达的时间点或时间范围，语义未知时为空
+        where(发生地点): Text
+            desc: 事件发生或产生直接影响的地点，语义未知时为空
+        why(发生原因): Text
+            desc: 事件发生的原因、动机或背景，语义未知时为空
+        how(发生方式): Text
+            desc: 事件发生的方式、机制或过程，语义未知时为空
+        modality(事件模态): Text
+            desc: FACT 表示已断言事实；PLAN 表示计划；SPEC 表示推测
+            constraint: NotNull, Enum="FACT,PLAN,SPEC"
+        occurredAt(发生时间): Text
+            desc: 可空的事件实际发生时间，使用带时区时间快照
+        announcedAt(宣布时间): Text
+            desc: 可空的事件正式宣布时间，使用带时区时间快照
+        status(生命周期状态): Text
+            desc: ACTIVE 表示有效；DEPRECATED 表示已弃用；ARCHIVED 表示已归档
+            constraint: NotNull, Enum="ACTIVE,DEPRECATED,ARCHIVED"
