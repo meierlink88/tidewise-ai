@@ -208,6 +208,55 @@ def verify_country(parser, country_migration, identity_migration):
     ), "Country.regions has no matching restrictive, unique PostgreSQL relationship"
 
 
+def verify_event(parser):
+    event = parser.types.get("Tidewise.Event")
+    assert event is not None, "event.schema must define Tidewise.Event"
+    assert event.spg_type_enum.value == "EVENT_TYPE"
+    assert event.name_zh == "事件"
+    assert event.desc and event.desc.strip()
+    assert not event.relations, "Event reasoning schema must not expose Evidence relations"
+
+    semantic_properties = {"who", "what", "when", "where", "why", "how"}
+    expected_properties = {
+        "id",
+        "title",
+        "summary",
+        *semantic_properties,
+        "modality",
+        "occurredAt",
+        "announcedAt",
+        "status",
+    }
+    assert set(event.properties) == expected_properties
+    for name, prop in event.properties.items():
+        assert prop.name_zh and prop.name_zh.strip(), f"Event.{name} requires a Chinese name"
+        assert prop.desc and prop.desc.strip(), f"Event.{name} requires a description"
+        assert prop.object_type_name == "Text", f"Event.{name} must use OpenSPG Text"
+
+    required = {"id", "title", "summary", "modality", "status"}
+    for name in required:
+        assert "NOT_NULL" in constraint_values(event.properties[name]), (
+            f"Event.{name} must be NotNull"
+        )
+    for name in semantic_properties | {"occurredAt", "announcedAt"}:
+        assert "NOT_NULL" not in constraint_values(event.properties[name]), (
+            f"Event.{name} must preserve the nullable Data contract"
+        )
+    assert constraint_values(event.properties["id"])["REGULAR"] == (
+        "^EVT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-"
+        "[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    )
+    assert constraint_values(event.properties["modality"])["ENUM"] == [
+        "FACT",
+        "PLAN",
+        "SPEC",
+    ]
+    assert constraint_values(event.properties["status"])["ENUM"] == [
+        "ACTIVE",
+        "DEPRECATED",
+        "ARCHIVED",
+    ]
+
 def main():
     args = parse_args()
     assert args.kag_root.is_dir(), f"KAG root does not exist: {args.kag_root}"
@@ -219,6 +268,7 @@ def main():
     schema_names = {schema_file.name for schema_file in schema_files}
     assert "region.schema" in schema_names, "Region Object Schema is required"
     assert "country.schema" in schema_names, "Country Object Schema is required"
+    assert "event.schema" in schema_names, "Event Object Schema is required"
 
     combined_lines = ["namespace Tidewise", ""]
     for schema_file in schema_files:
@@ -250,6 +300,7 @@ def main():
     )
     assert identity_migration.is_file(), f"Identity migration is missing: {identity_migration}"
     verify_country(parsed, country_migration, identity_migration)
+    verify_event(parsed)
     print(
         f"verified {len(schema_files)} OpenSPG schema(s) with KAG {args.expected_revision}"
     )

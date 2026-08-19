@@ -168,29 +168,44 @@ ORDER BY ordinal_position`)
 			t.Errorf("retired table %q still exists", table)
 		}
 	}
-	assertPostgresCode(t, db, "23514", `INSERT INTO events (
-    id,title,summary,semantic,modality,status
-) VALUES (
-    'EVT11111111-1111-4111-8111-111111111112','bad semantic','bad semantic',
-    '{"who":null,"what":null,"when":null,"where":null,"why":null,"how":null,"extra":true}',
-	'FACT','ACTIVE'
-)`)
+	evidenceID := publishAtomicEvidence(t, db, "event-boundary-primary")
+	assertRejectedEvent := func(title, eventID, semantic, modality, status string) {
+		t.Helper()
+		assertPostgresCode(t, db, "23514", `WITH inserted_event AS (
+    INSERT INTO events (id,title,summary,semantic,modality,status)
+    VALUES ($1,$2::text,$2::text,$3,$4,$5)
+    RETURNING id
+)
+INSERT INTO event_evidence_links (id,event_id,evidence_id,contribution_weight)
+SELECT $6,id,$7,1 FROM inserted_event`, eventID, title, semantic, modality, status,
+			mustDomainID(t, coreid.EventEvidenceLink), evidenceID)
+	}
+	assertRejectedEvent("bad semantic", mustDomainID(t, coreid.Event),
+		`{"who":null,"what":null,"when":null,"where":null,"why":null,"how":null,"extra":true}`,
+		"FACT", "ACTIVE")
 	for name, semantic := range map[string]string{
 		"missing":    `{"who":null,"what":null,"when":null,"where":null,"why":null}`,
 		"non-string": `{"who":1,"what":null,"when":null,"where":null,"why":null,"how":null}`,
 	} {
 		t.Run("semantic "+name, func(t *testing.T) {
-			assertPostgresCode(t, db, "23514", `INSERT INTO events (id,title,summary,semantic,modality,status) VALUES ($1,'bad semantic','bad semantic',$2,'FACT','ACTIVE')`,
-				mustDomainID(t, coreid.Event), semantic)
+			assertRejectedEvent("bad semantic", mustDomainID(t, coreid.Event), semantic, "FACT", "ACTIVE")
 		})
 	}
 	validSemantic := `{"who":"","what":"","when":"","where":"","why":"","how":""}`
-	assertPostgresCode(t, db, "23514", `INSERT INTO events (id,title,summary,semantic,modality,status) VALUES ($1,'bad modality','bad modality',$2,'REAL','ACTIVE')`,
-		mustDomainID(t, coreid.Event), validSemantic)
-	assertPostgresCode(t, db, "23514", `INSERT INTO events (id,title,summary,semantic,modality,status) VALUES ($1,'bad status','bad status',$2,'FACT','CURRENT')`,
-		mustDomainID(t, coreid.Event), validSemantic)
+	for name, eventID := range map[string]string{
+		"wrong prefix":   "EVD11111111-1111-4111-8111-111111111111",
+		"uppercase UUID": "EVTAAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA",
+		"wrong version":  "EVT11111111-1111-6111-8111-111111111111",
+		"wrong variant":  "EVT11111111-1111-4111-7111-111111111111",
+		"truncated UUID": "EVT11111111-1111-4111-8111-11111111111",
+	} {
+		t.Run("identity "+name, func(t *testing.T) {
+			assertRejectedEvent("bad identity", eventID, validSemantic, "FACT", "ACTIVE")
+		})
+	}
+	assertRejectedEvent("bad modality", mustDomainID(t, coreid.Event), validSemantic, "REAL", "ACTIVE")
+	assertRejectedEvent("bad status", mustDomainID(t, coreid.Event), validSemantic, "FACT", "CURRENT")
 
-	evidenceID := publishAtomicEvidence(t, db, "event-boundary-primary")
 	store, err := NewStore(db)
 	if err != nil {
 		t.Fatal(err)
