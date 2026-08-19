@@ -208,3 +208,12 @@ migration 后 apply，并验证 ledger 为 `64`、两个空表的 GPR/MEC identi
 结构，可以与已应用 schema 共存；应用回退保留新增空结构。若必须移除数据库结构，恢复
 migration 64 前快照或使用另行审阅的 forward repair，不运行 down migration。Storyline、
 外部对象关系、OpenSPG、初始化数据、Biz/API wiring 与 UI 均需后续独立发布。
+
+`000065` 是 Issue #302 的 additive、forward-only StorylineDomain 与
+StorylineDomainTactic persistence 基础。操作员使用候选 Data 镜像执行 check-only，确认
+它是唯一 pending migration 后 apply，并验证 ledger 为 `65`、两个空表的 SLD/SDT identity、
+StorylineDomain native category enum、默认 active、Tactic 全局唯一机器 key、必填文本、
+稳定列表索引与时间默认值满足合同。两个对象当前没有外键或彼此关系；旧应用不消费新增结构，
+可以与已应用 schema 共存。应用回退保留新增空结构；若必须移除数据库结构，恢复 migration 65
+前快照或使用另行审阅的 forward repair，不运行 down migration。关系、初始化数据、Biz/API
+wiring、OpenSPG 与 UI 均需后续独立发布。
