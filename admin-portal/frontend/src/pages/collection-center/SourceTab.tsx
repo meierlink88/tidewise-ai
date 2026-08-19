@@ -1,4 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { Search } from 'lucide-react';
 import { type ChangeEvent, type FormEvent, useMemo, useState } from 'react';
 import { loadSources, type SourceItem, type SourceQuery } from '../../api/dataIngestion';
 import { DataTable, type DataTableColumn } from '../../components/admin/data-table';
@@ -30,6 +31,7 @@ export default function SourceTab({ token }: { token: string }) {
     updatedFrom: '',
     updatedTo: ''
   });
+  const filterFormId = 'source-filters';
   const [query, setQuery] = useState<SourceQuery>({ page: 1 });
   const result = useQuery({
     queryKey: ['collection-center', 'sources', query],
@@ -94,13 +96,27 @@ export default function SourceTab({ token }: { token: string }) {
     });
   };
   return (
-    <CollectionPanel>
+    <CollectionPanel
+      actions={
+        <Button className='text-xs' form={filterFormId} size='sm' type='submit'>
+          <Search aria-hidden='true' className='size-4' />
+          搜索信源
+        </Button>
+      }
+      description='查看固定与动态信源的渠道、优先级、等级和启停状态。'
+      title='信源管理'
+    >
       <QueryFailure
         error={result.error}
         fetching={result.isFetching}
         retry={() => void result.refetch()}
       />
-      <form className={filterGridClass} onSubmit={submit}>
+      <form
+        aria-label='信源筛选条件'
+        className={filterGridClass}
+        id={filterFormId}
+        onSubmit={submit}
+      >
         <Field label='名称 / 编码'>
           <Input aria-label='信源名称或编码' {...field('query')} />
         </Field>
@@ -166,9 +182,6 @@ export default function SourceTab({ token }: { token: string }) {
         <Field label='更新时间结束'>
           <Input aria-label='信源更新时间结束' type='datetime-local' {...field('updatedTo')} />
         </Field>
-        <Button className='text-xs' size='sm' type='submit'>
-          搜索信源
-        </Button>
       </form>
       <DataTable
         className='h-full'

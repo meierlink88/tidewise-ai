@@ -1,4 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { Search } from 'lucide-react';
 import { type ChangeEvent, type FormEvent, useMemo, useState } from 'react';
 import {
   loadEvidenceCategories,
@@ -39,6 +40,7 @@ export default function EvidenceTab({ token }: { token: string }) {
     collectedFrom: '',
     collectedTo: ''
   });
+  const filterFormId = 'evidence-filters';
   const [query, setQuery] = useState<EvidenceQuery>(emptyQuery);
   const result = useQuery({
     queryKey: ['collection-center', 'evidences', query],
@@ -135,7 +137,16 @@ export default function EvidenceTab({ token }: { token: string }) {
     ...(categories.data ?? []).map((category) => ({ label: category.name, value: category.id }))
   ];
   return (
-    <CollectionPanel>
+    <CollectionPanel
+      actions={
+        <Button className='text-xs' form={filterFormId} size='sm' type='submit'>
+          <Search aria-hidden='true' className='size-4' />
+          搜索证据
+        </Button>
+      }
+      description='以证据为主视角，关联原始资讯展示完整证据内容。'
+      title='证据中心'
+    >
       <QueryFailure
         error={result.error ?? categories.error}
         fetching={result.isFetching || categories.isFetching}
@@ -144,7 +155,12 @@ export default function EvidenceTab({ token }: { token: string }) {
           void categories.refetch();
         }}
       />
-      <form className={filterGridClass} onSubmit={submit}>
+      <form
+        aria-label='证据筛选条件'
+        className={filterGridClass}
+        id={filterFormId}
+        onSubmit={submit}
+      >
         <Field label='标题'>
           <Input aria-label='证据标题' {...field('title')} />
         </Field>
@@ -194,9 +210,6 @@ export default function EvidenceTab({ token }: { token: string }) {
         <Field label='采集时间结束'>
           <Input aria-label='证据采集时间结束' type='datetime-local' {...field('collectedTo')} />
         </Field>
-        <Button className='text-xs' size='sm' type='submit'>
-          搜索证据
-        </Button>
       </form>
       <DataTable
         className='h-full'

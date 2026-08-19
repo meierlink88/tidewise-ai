@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -43,6 +43,16 @@ describe('DataIngestionCenter', () => {
     expect(screen.getByRole('tab', { name: '事件中心' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: '证据中心' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: '信源管理' })).toBeInTheDocument();
+    const eventFilters = screen.getByRole('form', { name: '事件筛选条件' });
+    const eventSearch = screen.getByRole('button', { name: '搜索事件' });
+    expect(eventSearch).toHaveAttribute('form', 'event-filters');
+    expect(
+      within(eventFilters).queryByRole('button', { name: '搜索事件' })
+    ).not.toBeInTheDocument();
+    expect(within(screen.getByRole('toolbar', { name: '事件中心操作' })).getByRole('button')).toBe(
+      eventSearch
+    );
+    expect(screen.queryByRole('button', { name: /新增|删除|刷新|重置/ })).not.toBeInTheDocument();
     expect(await screen.findByText('全球市场事件')).toBeInTheDocument();
     expect(screen.getByText('FACT')).toBeInTheDocument();
     expect(screen.getByText('ACTIVE')).toBeInTheDocument();

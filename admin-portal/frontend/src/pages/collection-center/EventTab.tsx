@@ -1,4 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { Search } from 'lucide-react';
 import { type ChangeEvent, type FormEvent, useMemo, useState } from 'react';
 import { loadEvents, type EventItem, type EventQuery } from '../../api/dataIngestion';
 import { DataTable, type DataTableColumn } from '../../components/admin/data-table';
@@ -28,6 +29,7 @@ export default function EventTab({ token }: { token: string }) {
     announcedFrom: '',
     announcedTo: ''
   });
+  const filterFormId = 'event-filters';
   const [query, setQuery] = useState<EventQuery>({ page: 1, title: '' });
   const result = useQuery({
     queryKey: ['collection-center', 'events', query],
@@ -102,13 +104,27 @@ export default function EventTab({ token }: { token: string }) {
       setForm((current) => ({ ...current, [name]: event.target.value }))
   });
   return (
-    <CollectionPanel>
+    <CollectionPanel
+      actions={
+        <Button className='text-xs' form={filterFormId} size='sm' type='submit'>
+          <Search aria-hidden='true' className='size-4' />
+          搜索事件
+        </Button>
+      }
+      description='查询标准化事件及其生命周期状态。'
+      title='事件中心'
+    >
       <QueryFailure
         error={result.error}
         fetching={result.isFetching}
         retry={() => void result.refetch()}
       />
-      <form className={filterGridClass} onSubmit={submit}>
+      <form
+        aria-label='事件筛选条件'
+        className={filterGridClass}
+        id={filterFormId}
+        onSubmit={submit}
+      >
         <Field label='事件标题搜索'>
           <Input aria-label='事件标题搜索' {...field('title')} />
         </Field>
@@ -154,9 +170,6 @@ export default function EventTab({ token }: { token: string }) {
         <Field label='公布时间结束'>
           <Input aria-label='公布时间结束' type='datetime-local' {...field('announcedTo')} />
         </Field>
-        <Button className='text-xs' size='sm' type='submit'>
-          搜索事件
-        </Button>
       </form>
       <DataTable
         className='h-full'
