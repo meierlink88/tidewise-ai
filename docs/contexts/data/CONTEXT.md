@@ -461,6 +461,26 @@ Organization 的 `headquarters_subdivision_id` 继续只是预留文本，不因
 查询、关系语义或 API 合同。
 _Avoid_: Region、Subdivision Profile、Subdivision shadow Entity、全局唯一 local code、`SUB_` 身份、Country/Subdivision alias、Subdivision–Region crosswalk
 
+**Ministry（政府部门）**:
+一个严格归属于 Country 或 Organization 之一的独立政府部门与监管机构事实，以
+`MIN + canonical lowercase UUID` 为稳定身份。`code` 是在 Ministry 内唯一的人工业务编码，
+不与 Country ISO code 耦合。Country 所属行不是超国家对象，Organization 所属行是超国家
+对象；数据库以 XOR、限制删除外键与 `is_supranational` 一致性约束保证该归属。Ministry
+保存中英文名称、受控机构层级、三个明确权力布尔值、可空管辖范围、人工领域标签、可选说明
+和数据库生成时间。一个 Ministry 可以可选引用一个直接上级 Ministry；当前只保证外键存在，
+不判断跨归属、环路、深度或层级业务规则。
+_Avoid_: PublicAuthority、Ministry Profile、Ministry shadow Entity、Country ISO code 派生、调用方 ID、Subdivision 关系、层级推断
+
+**Institution（金融机构）**:
+一个严格归属于 Country 或 Organization 之一的独立金融机构事实，以
+`INS + canonical lowercase UUID` 为稳定身份。`code` 是在 Institution 内唯一的人工业务
+编码，不与 Country ISO code 耦合。归属与 `is_supranational` 使用和 Ministry 相同的数据库
+XOR 与限制删除合同。Institution 保存中英文名称、受控机构类型、可空清算货币、SWIFT BIC、
+LEI、受控系统重要性、可选说明和数据库生成时间；系统重要性空值表示未知或未评估，
+`NON_SIB` 表示已经评估为非系统重要性。Institution 没有父子关系，也不与 Ministry、
+Subdivision 或 Region 建立关系。
+_Avoid_: FinancialInstitution、Institution Profile、Institution shadow Entity、regulatory_authority_id、region_id、Ministry 关系、调用方 ID
+
 Industry Chain 的可选主要国家范围使用 `primary_country_id` 引用独立 Country；不得把国家
 写回 `geography` 自由文本或旧 Economy UUID。已退役的 Sector 持久化表不因 Country 切换而恢复。
 

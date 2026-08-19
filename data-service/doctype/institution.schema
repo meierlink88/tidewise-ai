@@ -1,0 +1,55 @@
+namespace Tidewise
+
+Institution(金融机构): EntityType
+    desc: 国家或超国家组织所属的金融机构事实
+    properties:
+        code(金融机构业务编码): Text
+            desc: 人工整理且在 Institution 内唯一的独立业务编码
+            constraint: NotNull
+        name(金融机构中文名称): Text
+            desc: 金融机构的中文正式名称
+            constraint: NotNull
+        nameEn(金融机构英文名称): Text
+            desc: 金融机构的英文正式名称
+            constraint: NotNull
+        isSupranational(是否超国家): Text
+            # TRUE：归属 Organization 的超国家机构。
+            # FALSE：归属 Country 的国家机构。
+            desc: 由 PostgreSQL 所有者归属约束确定的布尔值
+            constraint: NotNull, Enum="TRUE,FALSE"
+        institutionType(机构类型): Text
+            # CENTRAL_BANK：中央银行。
+            # COMMERCIAL_BANK：商业银行。
+            # CLEARING_HOUSE：清算机构。
+            # PAYMENT_SYSTEM：支付系统。
+            # DEVELOPMENT_BANK：开发性银行。
+            # INTERNATIONAL_FINANCIAL_INSTITUTION：国际金融机构。
+            desc: 金融机构的受控类型
+            constraint: NotNull, Enum="CENTRAL_BANK,COMMERCIAL_BANK,CLEARING_HOUSE,PAYMENT_SYSTEM,DEVELOPMENT_BANK,INTERNATIONAL_FINANCIAL_INSTITUTION"
+        clearingCurrency(清算货币): Text
+            desc: 可空三字符清算货币代码
+        swiftBic(银行识别码): Text
+            desc: 可空十一字符 SWIFT BIC
+        leiCode(法人机构识别编码): Text
+            desc: 可空二十字符法人机构识别编码
+        systemicImportance(系统重要性): Text
+            # G_SIB：全球系统重要性银行。
+            # D_SIB：国内系统重要性银行。
+            # NON_SIB：已评估为非系统重要性。
+            desc: 可空系统重要性，空值表示未知或未评估
+            constraint: Enum="G_SIB,D_SIB,NON_SIB"
+        strategicPositioning(战略定位): Text
+            desc: 金融机构的可选战略定位描述
+        description(说明): Text
+            desc: 金融机构的可选事实说明
+        createdAt(创建时间): Text
+            desc: PostgreSQL 生成的金融机构事实创建时间
+            constraint: NotNull
+        updatedAt(更新时间): Text
+            desc: PostgreSQL 生成的金融机构事实最近变更时间
+            constraint: NotNull
+    relations:
+        country(所属国家): Country
+            desc: 可选 Country 所有者，与 Organization 在数据库满足 XOR
+        organization(所属组织): Organization
+            desc: 可选 Organization 所有者，与 Country 在数据库满足 XOR

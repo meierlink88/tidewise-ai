@@ -187,3 +187,12 @@ web search，并用正式 token 读取完整管理集合与 active snapshot。�
 schema 共存；应用回退保留新增空结构。若必须移除数据库结构，恢复 migration 62 前快照或
 使用另行审阅的 forward repair，不运行 down migration。Subdivision 初始化、API wiring、
 Organization 总部行政区集成与任何事实写入均需后续独立发布。
+
+`000063` 是 Issue #298 的 additive、forward-only Ministry 与 Institution persistence 基础。
+操作员使用候选 Data 镜像执行 check-only，确认它是唯一 pending migration 后 apply，并验证
+ledger 为 `63`、两个空表的 MIN/INS identity、Country/Organization owner XOR、
+`is_supranational` 一致性、restrictive FK、表内 code unique、native enum、nullable 字段与
+时间默认值满足合同。旧应用不消费新增结构，可以与已应用 schema 共存；应用回退保留新增空
+结构。若必须移除数据库结构，恢复 migration 63 前快照或使用另行审阅的 forward repair，
+不运行 down migration。初始化数据、Biz/API wiring、Event Actor wiring 与新关系均需后续
+独立发布。

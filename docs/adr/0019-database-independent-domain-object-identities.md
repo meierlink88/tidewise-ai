@@ -33,7 +33,7 @@ Data 各领域曾并存裸 UUID、`PREFIX_ + code`、固定短码和非 UUID 自
 
 `ENT` Entity、`IND` Industry、`CON` Concept、`CND` ChainNode、`ICH` IndustryChain、
 `ERL` Entity Relation、`COU` Country、`REG` Region、`ORG` Organization、
-`SUB` Subdivision、
+`SUB` Subdivision、`MIN` Ministry、`INS` Institution、
 `OCA` Organization Category、`OFN` Organization Function、`ODT` Organization Domain Tag、
 `ODL` Organization Domain Tag Link、
 `RAW` Raw Evidence、`EVD` Evidence、`EVC` Evidence Category、`RCL` Raw Evidence Category Link、`CPC` Chain Node Physical
@@ -70,3 +70,8 @@ Variable Signal 持久化，因此从当前注册表删除 `DIA`、`ENL`、`ECS`
 Issue #277 通过 forward-only migration `000060` 重建 Event 领域，保留 `EVT` 和
 `EEL`，新增 `EAC` 与 `EAS`，并从当前注册表删除已退役的 `EER`、`ETD`、
 `ETA` 和 `EPR`。这些旧前缀在历史 migration 中的出现仍保留。
+
+Issue #298 通过 additive forward-only migration `000063` 增加独立 Ministry 与 Institution
+事实及 `MIN`、`INS` 身份。由于第一阶段明确只交付 persistence 和公开 Data Adapter，且不建立
+Biz UseCase，Adapter 的 Create input 不接收主键并在服务端调用同一随机生成原语；未来 Biz/API
+接入仍不得允许调用方提交主键或把人工业务 code 嵌入身份。

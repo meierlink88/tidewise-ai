@@ -1,0 +1,66 @@
+namespace Tidewise
+
+Ministry(政府部门): EntityType
+    desc: 国家或超国家组织所属的政府部门与监管机构事实
+    properties:
+        code(部门业务编码): Text
+            desc: 人工整理且在 Ministry 内唯一的独立业务编码
+            constraint: NotNull
+        name(部门中文名称): Text
+            desc: 政府部门或监管机构的中文正式名称
+            constraint: NotNull
+        nameEn(部门英文名称): Text
+            desc: 政府部门或监管机构的英文正式名称
+            constraint: NotNull
+        isSupranational(是否超国家): Text
+            # TRUE：归属 Organization 的超国家部门。
+            # FALSE：归属 Country 的国家部门。
+            desc: 由 PostgreSQL 所有者归属约束确定的布尔值
+            constraint: NotNull, Enum="TRUE,FALSE"
+        agencyLevel(机构层级): Text
+            # CABINET_LEVEL：内阁级部门。
+            # SUB_CABINET：次内阁级部门。
+            # INDEPENDENT_REGULATOR：独立监管机构。
+            desc: 政府部门在行政或监管体系中的机构层级
+            constraint: NotNull, Enum="CABINET_LEVEL,SUB_CABINET,INDEPENDENT_REGULATOR"
+        hasSanctionPower(是否有制裁权): Text
+            # TRUE：明确具有制裁权。
+            # FALSE：明确不具有制裁权。
+            desc: 部门是否具有制裁权的人工确认布尔值
+            constraint: NotNull, Enum="TRUE,FALSE"
+        hasRegulatoryPower(是否有监管权): Text
+            # TRUE：明确具有监管权。
+            # FALSE：明确不具有监管权。
+            desc: 部门是否具有监管权的人工确认布尔值
+            constraint: NotNull, Enum="TRUE,FALSE"
+        hasEnforcementPower(是否有执法权): Text
+            # TRUE：明确具有执法权。
+            # FALSE：明确不具有执法权。
+            desc: 部门是否具有执法权的人工确认布尔值
+            constraint: NotNull, Enum="TRUE,FALSE"
+        jurisdictionScope(管辖范围): Text
+            # FEDERAL：联邦层级管辖。
+            # STATE：州级管辖。
+            # SUPRANATIONAL：超国家管辖。
+            desc: 可空管辖范围，空值表示尚未人工确认
+            constraint: Enum="FEDERAL,STATE,SUPRANATIONAL"
+        domainTags(领域标签): Text
+            desc: 人工整理的可空多值领域标签，不推测额外业务语义
+            constraint: MultiValue
+        strategicPositioning(战略定位): Text
+            desc: 政府部门或监管机构的可选战略定位描述
+        description(说明): Text
+            desc: 政府部门或监管机构的可选事实说明
+        createdAt(创建时间): Text
+            desc: PostgreSQL 生成的政府部门事实创建时间
+            constraint: NotNull
+        updatedAt(更新时间): Text
+            desc: PostgreSQL 生成的政府部门事实最近变更时间
+            constraint: NotNull
+    relations:
+        country(所属国家): Country
+            desc: 可选 Country 所有者，与 Organization 在数据库满足 XOR
+        organization(所属组织): Organization
+            desc: 可选 Organization 所有者，与 Country 在数据库满足 XOR
+        parentMinistry(直接上级部门): Ministry
+            desc: 可选直接上级 Ministry，仅保证数据库外键存在

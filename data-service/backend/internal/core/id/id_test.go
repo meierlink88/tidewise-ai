@@ -149,6 +149,27 @@ func TestSubdivisionKindUsesReviewedPrefix(t *testing.T) {
 	}
 }
 
+func TestMinistryAndInstitutionKindsUseReviewedPrefixes(t *testing.T) {
+	for kind, expectedPrefix := range map[Kind]string{
+		Ministry:    "MIN",
+		Institution: "INS",
+	} {
+		value, err := New(kind)
+		if err != nil {
+			t.Fatalf("New(%q) error = %v", kind, err)
+		}
+		if !strings.HasPrefix(value, expectedPrefix) {
+			t.Fatalf("New(%q) = %q, want %q prefix", kind, value, expectedPrefix)
+		}
+		if len(value) != 39 {
+			t.Fatalf("New(%q) length = %d, want 39", kind, len(value))
+		}
+		if _, err := Parse(value, kind); err != nil {
+			t.Fatalf("Parse(New(%q)) error = %v", kind, err)
+		}
+	}
+}
+
 func TestCurrentEventKindsReplaceRetiredPublicationKinds(t *testing.T) {
 	for kind, expectedPrefix := range map[Kind]string{
 		Event:             "EVT",
