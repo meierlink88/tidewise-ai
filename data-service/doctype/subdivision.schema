@@ -1,0 +1,34 @@
+namespace Tidewise
+
+Subdivision(行政区域): EntityType
+    desc: 严格从属于一个 Country 的 ISO 3166-2 行政区域对象
+    properties:
+        code(行政区域代码): Text
+            desc: ISO 3166-2 代码中全大写字母或数字组成的本地部分
+            constraint: NotNull, Regular="^[A-Z0-9]+$"
+        name(行政区域中文名称): Text
+            desc: 行政区域的中文正式名称
+            constraint: NotNull
+        nameEn(行政区域英文名称): Text
+            desc: 行政区域的英文正式名称
+            constraint: NotNull
+        subdivisionType(行政区域类型): Text
+            # PROVINCE：省级行政区域。
+            # STATE：州级行政区域。
+            # SAR：特别行政区。
+            # TERRITORY：领地。
+            desc: 行政区域类型：省、州、特别行政区或领地
+            constraint: NotNull, Enum="PROVINCE,STATE,SAR,TERRITORY"
+        strategicPositioning(战略定位): Text
+            desc: 行政区域的可选战略定位描述
+        keyResources(关键资源): Text
+            desc: 行政区域的可选关键战略资源描述
+        createdAt(创建时间): Text
+            desc: PostgreSQL 生成的行政区域事实创建时间
+            constraint: NotNull
+        updatedAt(更新时间): Text
+            desc: PostgreSQL 生成的行政区域事实最近变更时间
+            constraint: NotNull
+    relations:
+        country(所属国家): Country
+            desc: 该行政区域唯一所属的 Country，由 country_id 持久化

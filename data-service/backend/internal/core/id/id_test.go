@@ -127,6 +127,28 @@ func TestIndependentEntityKindsUseDistinctReviewedPrefixes(t *testing.T) {
 	}
 }
 
+func TestSubdivisionKindUsesReviewedPrefix(t *testing.T) {
+	value, err := New(Subdivision)
+	if err != nil {
+		t.Fatalf("New(Subdivision) error = %v", err)
+	}
+	if !strings.HasPrefix(value, "SUB") {
+		t.Fatalf("New(Subdivision) = %q, want SUB prefix", value)
+	}
+	if strings.HasPrefix(value, "SUB_") || strings.HasPrefix(value, "SUB-") {
+		t.Fatalf("New(Subdivision) = %q, must not separate prefix and UUID", value)
+	}
+	if len(value) != 39 {
+		t.Fatalf("New(Subdivision) length = %d, want 39", len(value))
+	}
+	if _, err := Parse(value, Subdivision); err != nil {
+		t.Fatalf("Parse(New(Subdivision)) error = %v", err)
+	}
+	if _, err := Parse(value, Country); err == nil {
+		t.Fatalf("Parse(%q, Country) succeeded", value)
+	}
+}
+
 func TestCurrentEventKindsReplaceRetiredPublicationKinds(t *testing.T) {
 	for kind, expectedPrefix := range map[Kind]string{
 		Event:             "EVT",

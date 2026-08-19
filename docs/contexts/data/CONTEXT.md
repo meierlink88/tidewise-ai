@@ -449,6 +449,18 @@ Country 被纳入一个 Region 的正式集合关系；其含义继承目标 Reg
 一个事实。
 _Avoid_: 自由文本区域、单值 Region 字段、把关系类型写在 Country 行中
 
+**Subdivision（行政区域）**:
+严格从属于一个 Country 的独立 ISO 3166-2 行政区域事实，以
+`SUB + canonical lowercase UUID` 为稳定身份。`code` 只保存全大写字母或数字组成的
+ISO 3166-2 本地部分，并在所属 Country 内唯一；完整展示码由 Country alpha-2 code 与
+本地 code 组合。类型只允许 `PROVINCE | STATE | SAR | TERRITORY`。Subdivision 拥有中英文
+名称、可选战略定位、可选关键资源和数据库生成时间，不使用通用 Entity/Profile。
+香港、澳门可以同时作为 ISO 3166-1 Country 与中国下的 Subdivision 存在，两类对象语义
+不同，不建立继承、alias 或自动 crosswalk。Subdivision 与 Region 也不建立直接关系。
+Organization 的 `headquarters_subdivision_id` 继续只是预留文本，不因此获得外键、格式校验、
+查询、关系语义或 API 合同。
+_Avoid_: Region、Subdivision Profile、Subdivision shadow Entity、全局唯一 local code、`SUB_` 身份、Country/Subdivision alias、Subdivision–Region crosswalk
+
 Industry Chain 的可选主要国家范围使用 `primary_country_id` 引用独立 Country；不得把国家
 写回 `geography` 自由文本或旧 Economy UUID。已退役的 Sector 持久化表不因 Country 切换而恢复。
 
