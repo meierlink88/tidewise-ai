@@ -1,0 +1,25 @@
+services:
+  neo4j:
+    image: spg-registry.cn-hangzhou.cr.aliyuncs.com/spg/openspg-neo4j@sha256:4bc5b7f6b83d333b1d2c8f60ac145c068d77d50bca65b3a07c927f9e2a541eb9
+    environment: !override
+      TZ: Asia/Shanghai
+      NEO4J_AUTH: '${OPENSPG_NEO4J_USER:-neo4j}/${OPENSPG_NEO4J_PASSWORD:-neo4j@openspg}'
+      NEO4J_PLUGINS: '["apoc"]'
+      NEO4J_server_memory_heap_initial__size: 1G
+      NEO4J_server_memory_heap_max__size: 4G
+      NEO4J_server_memory_pagecache_size: 1G
+      NEO4J_apoc_export_file_enabled: 'true'
+      NEO4J_apoc_import_file_enabled: 'true'
+      NEO4J_dbms_security_procedures_unrestricted: '*'
+      NEO4J_dbms_security_procedures_allowlist: '*'
+    volumes: !override
+      - neo4j-legacy-data:/data
+      - neo4j-legacy-logs:/logs
+
+volumes:
+  neo4j-legacy-data:
+    external: true
+    name: tidewise-reason_neo4j-data
+  neo4j-legacy-logs:
+    external: true
+    name: tidewise-reason_neo4j-logs
