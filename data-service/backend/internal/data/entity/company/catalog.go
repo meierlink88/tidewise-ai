@@ -2,6 +2,7 @@ package company
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	companybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/company"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
 type CatalogPublicationMode string
@@ -41,7 +43,7 @@ type CatalogSourceSnapshot struct {
 }
 
 type CatalogItem struct {
-	ID                    string                    `json:"id"`
+	ID                    string                    `json:"id,omitempty"`
 	Code                  string                    `json:"code"`
 	Name                  string                    `json:"name"`
 	NameEn                *string                   `json:"name_en"`
@@ -64,6 +66,7 @@ type CatalogPublication struct {
 	PublicationMode      CatalogPublicationMode `json:"publication_mode"`
 	AsOf                 string                 `json:"as_of"`
 	ExpectedCompanyCount int                    `json:"expected_company_count"`
+	CompanyCodeSetSHA256 string                 `json:"company_code_set_sha256,omitempty"`
 	SourceSnapshot       CatalogSourceSnapshot  `json:"source_snapshot"`
 	Companies            []CatalogItem          `json:"companies"`
 }
@@ -139,7 +142,7 @@ INSERT INTO company_catalog_stage (
 	}
 	defer stageStatement.Close()
 	for index, item := range publication.Companies {
-		company, err := catalogCompany(item)
+		company, err := catalogCompany(publication.SchemaVersion, item)
 		if err != nil {
 			return fmt.Errorf("stage Company %d/%d code %q: %w", index+1, len(publication.Companies), item.Code, err)
 		}
@@ -297,8 +300,17 @@ WHERE tgrelid = 'company'::regclass
 }
 
 func validateCatalog(publication CatalogPublication) error {
-	if publication.SchemaVersion != 1 || publication.PublicationMode != CatalogPublicationModeReplace ||
+	if (publication.SchemaVersion != 1 && publication.SchemaVersion != 2) ||
+		publication.PublicationMode != CatalogPublicationModeReplace ||
 		publication.ExpectedCompanyCount <= 0 || publication.ExpectedCompanyCount != len(publication.Companies) {
+		return ErrInvalidCompanyCatalog
+	}
+	if publication.SchemaVersion == 1 && publication.CompanyCodeSetSHA256 != "" {
+		return ErrInvalidCompanyCatalog
+	}
+	if publication.SchemaVersion == 2 &&
+		(!hexSHA256.MatchString(publication.CompanyCodeSetSHA256) ||
+			publication.CompanyCodeSetSHA256 != companyCodeSetSHA256(publication.Companies)) {
 		return ErrInvalidCompanyCatalog
 	}
 	if _, err := time.Parse(time.DateOnly, publication.AsOf); err != nil {
@@ -311,23 +323,33 @@ func validateCatalog(publication CatalogPublication) error {
 	seenCodes := make(map[string]struct{}, len(publication.Companies))
 	previousCode, previousID := "", ""
 	for _, item := range publication.Companies {
-		if _, duplicate := seenIDs[item.ID]; duplicate {
+		company, err := catalogCompany(publication.SchemaVersion, item)
+		if err != nil {
+			return ErrInvalidCompanyCatalog
+		}
+		identity := string(company.ID)
+		if _, duplicate := seenIDs[identity]; duplicate {
 			return ErrInvalidCompanyCatalog
 		}
 		if _, duplicate := seenCodes[item.Code]; duplicate {
 			return ErrInvalidCompanyCatalog
 		}
-		seenIDs[item.ID] = struct{}{}
+		seenIDs[identity] = struct{}{}
 		seenCodes[item.Code] = struct{}{}
-		if previousCode > item.Code || (previousCode == item.Code && previousID >= item.ID) || !sort.StringsAreSorted(item.Aliases) {
+		if previousCode > item.Code || (previousCode == item.Code && previousID >= identity) || !sort.StringsAreSorted(item.Aliases) {
 			return ErrInvalidCompanyCatalog
 		}
-		previousCode, previousID = item.Code, item.ID
-		if _, err := catalogCompany(item); err != nil {
-			return ErrInvalidCompanyCatalog
-		}
+		previousCode, previousID = item.Code, identity
 	}
 	return nil
+}
+
+func companyCodeSetSHA256(companies []CatalogItem) string {
+	digest := sha256.New()
+	for _, company := range companies {
+		_, _ = fmt.Fprintln(digest, company.Code)
+	}
+	return fmt.Sprintf("%x", digest.Sum(nil))
 }
 
 func validSourceSnapshot(snapshot CatalogSourceSnapshot) bool {
@@ -355,7 +377,20 @@ func validSourceSnapshot(snapshot CatalogSourceSnapshot) bool {
 	return total == snapshot.ExcludedSecurityRows
 }
 
-func catalogCompany(item CatalogItem) (companybiz.Company, error) {
+func catalogCompany(schemaVersion int, item CatalogItem) (companybiz.Company, error) {
+	identifier := item.ID
+	if schemaVersion == 2 {
+		if identifier != "" {
+			return companybiz.Company{}, ErrInvalidCompanyCatalog
+		}
+		derived, err := coreid.Derive(coreid.Company, "company-initdata", item.Code)
+		if err != nil {
+			return companybiz.Company{}, ErrInvalidCompanyCatalog
+		}
+		identifier = derived
+	} else if identifier == "" {
+		return companybiz.Company{}, ErrInvalidCompanyCatalog
+	}
 	foundingDate, err := catalogDate(item.FoundingDate)
 	if err != nil {
 		return companybiz.Company{}, ErrInvalidCompanyCatalog
@@ -366,7 +401,7 @@ func catalogCompany(item CatalogItem) (companybiz.Company, error) {
 	}
 	now := time.Now().UTC()
 	company := companybiz.Company{
-		ID: companybiz.ID(item.ID), Code: item.Code, Name: item.Name, NameEn: item.NameEn,
+		ID: companybiz.ID(identifier), Code: item.Code, Name: item.Name, NameEn: item.NameEn,
 		LegalName: item.LegalName, Aliases: item.Aliases, RegistrationCountryID: item.RegistrationCountryID,
 		OperatingArea: item.OperatingArea, HeadquartersCity: item.HeadquartersCity,
 		FoundingDate: foundingDate, IPODate: ipoDate, LegalForm: item.LegalForm,
