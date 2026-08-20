@@ -5,7 +5,7 @@ schema migrations and UAT deployment must not publish them automatically.
 
 ## Company catalog
 
-`companies-v1.json` is the reviewed 2026-08-20 Company initialization package
+`companies-v1.json` is the reviewed 2026-08-20 base Company initialization package
 for active issuers found in the SSE, SZSE, BSE, HKEX, Nasdaq, NYSE, and NYSE
 American source snapshots. It contains 13,264 source-derived Company identities.
 The 77 pre-publication Company rows are not retained as a separate legacy set;
@@ -18,12 +18,40 @@ uses the reviewed A/H crosswalk where available, and excludes ETFs, funds,
 warrants, rights, units, preferred shares, test symbols, and other non-company
 securities. Unknown Company fields remain null. The package intentionally does
 not create Company-Industry Links or persist ticker/listing facts because those
-relations are outside the current Company contract.
+relations are outside the current Company contract. Version 1 is retained as
+the immutable pre-country package and rollback input.
+
+`companies-v2.json` enriches the same frozen Company code set. Every packaged
+Company has a `registration_country_id` that references the
+canonical Country catalog. For this one-time import the field is a pragmatic
+company-country inference, not a claim of legally proven domicile. The frozen
+result contains 10,593 high-confidence, 708 medium-confidence, and 1,963
+low-confidence assignments. `company-country-inferences-v1.csv` preserves the
+per-Company Country code, method, confidence, and evidence. The inference
+hierarchy and known limitations are documented in
+`docs/research/2026-08-20-company-country-inference.md`.
+Version 2 does not carry Company primary keys. The publisher derives every
+`COM` identity through the owning identity generator from the immutable Company
+code and verifies that the complete derived set matches the legacy v1 identities.
+
+`company-country-inferences-v1.csv` is the reviewed inference decision ledger,
+not a publisher output. It records the source-derived decision for every frozen
+Company identity. `companies-v2.json` is generated from the immutable v1 package
+and that ledger; do not edit v2 directly. Regenerate it with only the Python 3
+standard library:
+
+```text
+python3 data-service/initdata/tools/apply_company_country_inferences.py --base data-service/initdata/companies-v1.json --inferences data-service/initdata/company-country-inferences-v1.csv --output data-service/initdata/companies-v2.json
+```
+
+The generator validates the exact 13,264-row code set and confidence totals,
+writes the v2 code-set SHA-256, and records the ledger's checksum and byte count
+in the package source snapshot.
 
 Publish the package with the Data image's offline command:
 
 ```text
-/usr/local/bin/company-catalog-publish -file /app/initdata/companies-v1.json
+/usr/local/bin/company-catalog-publish -file /app/initdata/companies-v2.json
 ```
 
 For the local Compose environment after rebuilding the Data image:
@@ -35,10 +63,19 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 Publication is atomic and idempotent, and treats the package as the complete
 Company set. It retires Company rows outside the package, inserts or reconciles
 packaged facts, and fails closed if any Company-Industry Link or protected
-cross-domain reference exists. It never deletes those external facts. Take a
-database backup before the first publication and verify exactly 13,264 Company
-rows and zero Company-Industry Links afterward. Publication never runs
-automatically during deployment.
+cross-domain reference exists, or if a packaged Country reference does not
+exist. It never deletes those external facts. Publish the Country catalog first,
+take a database backup before the first Company publication, and verify exactly
+13,264 Company rows, zero null Country references, and zero Company-Industry
+Links afterward. Publication never runs automatically during deployment.
+
+The v2 publisher remains backward-compatible with the v1 package. An older
+image rejects v2 because it does not recognize the new contract field; this is
+an intentional fail-closed mixed-version boundary. Always run the package with
+the binary from the same image. Roll back the application with the previous
+image and restore the pre-publication database backup; republishing v1 is an
+available Company-only fallback but intentionally clears the inferred Country
+relationships.
 
 ## Country catalog
 

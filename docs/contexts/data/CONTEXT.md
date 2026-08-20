@@ -116,11 +116,12 @@ Entity 父领域下的独立公司事实，以 `COM + canonical lowercase UUID` 
 不可变且非空的 `code` 为业务自然键。Company 直接保存名称、可空英文名和法定名称、别名、
 经营区域、总部城市、成立/IPO 日期、法律形式、受控所有权类型、战略定位、说明、状态和时间戳；
 未知新增事实使用 null，不以空字符串代替。Company 不使用 `entity_nodes`、Profile 或 shadow
-Entity，只通过可空 `registration_country_id` restrictive 引用一个 Country，并通过
+Entity，只通过可空 `registration_country_id` restrictive 引用一个 Country。该关系优先表达已知注册国；
+经业务明确批准的批量目录也可表达有来源、方法和置信度审计的推断企业所属国；常规 CRUD 不得自动猜测。Company 通过
 Company–Industry Link 关联零个或多个正式 Industry。Company 不与 Storyline、Controller、
 Security 或总部 Country 建立关系。
 _Avoid_: Company Profile、Company shadow Entity、ticker 充当 code、自由文本 industry、
-controller 字段、Storyline/Security link、headquarters_country_id、伪造未知属性
+controller 字段、Storyline/Security link、headquarters_country_id、无审计的国家猜测、伪造未知属性
 
 **Company–Industry Link**:
 Company 的正式 Industry 分类关系，以 `CIL + canonical lowercase UUID` 为稳定身份；关系身份由

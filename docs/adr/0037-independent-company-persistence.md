@@ -2,6 +2,7 @@
 status: accepted
 date: 2026-08-20
 issue: 306
+amended_by: 0039-audited-company-country-inference.md
 amends: 0036-independent-storyline-persistence.md
 extends: 0019-database-independent-domain-object-identities.md, 0022-independent-industry-and-concept.md
 ---
@@ -24,7 +25,7 @@ Company 应是 Entity 父领域下的独立子领域事实，只保留注册 Cou
   founding_date、ipo_date、legal_form、ownership_type、strategic_positioning、description、
   status 与时间戳。新增且未知的字段保持 null；已知旧 name、aliases、area、status 和时间保留。
 - `registration_country_id` 是 Company 唯一的 Country 关系，restrictive 引用 Country。
-  不建立 `headquarters_country_id`。
+  不建立 `headquarters_country_id`。经批准批量初始化中的推断语义见 ADR-0039。
 - `CompanyIndustryLink` 使用 `CIL + canonical lowercase UUID`，端点对唯一并 restrictive 引用
   Company 与 Industry。完整 Industry 集合由 Company 聚合原子替换，link identity 由端点确定性
   生成。旧非空 `industry_name` 只允许精确且唯一匹配正式 Industry name；不进行模糊匹配。

@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	catalogPath := flag.String("file", "/app/initdata/companies-v1.json", "path to the Company initialization package")
+	catalogPath := flag.String("file", "/app/initdata/companies-v2.json", "path to the Company initialization package")
 	flag.Parse()
 
 	config, err := conf.LoadDatabaseOperation()
