@@ -496,6 +496,20 @@ Country、Region、Institution 或其他外部归属，也不拥有 Storyline；
 该蓝图，由 Storyline 侧另行建立关系。
 _Avoid_: Economy Entity、Storyline 外键、Country/Region/Institution 关系、业务 code、调用方 ID、名称去重
 
+**StorylineDomain（叙事线领域）**:
+以 `SLD + canonical lowercase UUID` 为稳定身份的独立静态叙事领域目录项，保存中英文名称、
+自然语言描述、内容边界、`GEOPOLITICAL | MACRO | INDUSTRY | CORPORATE` 受控分类、启用状态和
+数据库生成时间。名称不是自然键，允许重复。当前不拥有 Storyline，也不与
+StorylineDomainTactic、GeopoliticRivalry、MacroEconomic 或其他对象建立关系。
+_Avoid_: Storyline 外键、Tactic 外键、名称去重、调用方 ID、从分类推断蓝图关系
+
+**StorylineDomainTactic（叙事线领域手段）**:
+以 `SDT + canonical lowercase UUID` 为稳定身份的独立静态手段目录项，以全局唯一、不可变且
+只含大写 ASCII 字母、数字和下划线的 `key` 作为机器自然键，并保存中英文名称、自然语言描述
+和数据库生成时间。虽然名称表达叙事领域手段，本期不保存 `domain_id`，也不证明或推断其
+属于任何 StorylineDomain；未来关系必须另行定义方向、基数与迁移。
+_Avoid_: Domain 外键、Storyline Thread Template、复合 Domain key、调用方 ID、隐式领域归属
+
 Industry Chain 的可选主要国家范围使用 `primary_country_id` 引用独立 Country；不得把国家
 写回 `geography` 自由文本或旧 Economy UUID。已退役的 Sector 持久化表不因 Country 切换而恢复。
 

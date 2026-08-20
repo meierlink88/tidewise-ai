@@ -18,6 +18,9 @@ HTTP/OpenAPI、数据库、配置、认证、中间件、部署或测试技术�
    测试用例名中，不得成为业务 package 或手写源码文件名。
 5. 新功能进入已有固定主文件；不得为未来职责预建空文件。
 6. `transaction.go` 只在存在真实事务 seam 时创建；其他新增职责文件必须先通过设计审查。
+7. Context 明确定义父领域与稳定子领域时，`<domain>` 使用 `<parent>/<subdomain>` 路径；
+   同一子领域在 API、Biz、Data、Service 中保持相同路径。Data 的 Entity 子领域统一使用
+   `entity/<subdomain>`，该嵌套表达领域所有权，不属于场景 package。
 
 ## 标准结构
 
@@ -74,7 +77,8 @@ HTTP/OpenAPI、数据库、配置、认证、中间件、部署或测试技术�
 
 ## 命名与扩展
 
-- `<domain>` 使用领域语言的稳定单数名词，例如 `evidence`、`event`、`research`；禁止
+- `<domain>` 使用领域语言的稳定单数名词，例如 `evidence`、`event`、`research`；父子领域
+  使用经 Context 确认的稳定路径，例如 `entity/concept`，不得把子领域提升为与父领域平级；禁止
   `evidencepublication`、`evidencequery`、`researchthemeimport`、`adminquery`。
 - 普通功能不得新增 `publication.go`、`query.go`、`list.go`、`create.go` 等场景文件。
 - 不预建 `entity.go`、`model.go`、`port.go`、`repository.go`、`validation.go`、

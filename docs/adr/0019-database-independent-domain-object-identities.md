@@ -35,6 +35,7 @@ Data 各领域曾并存裸 UUID、`PREFIX_ + code`、固定短码和非 UUID 自
 `ERL` Entity Relation、`COU` Country、`REG` Region、`ORG` Organization、
 `SUB` Subdivision、`MIN` Ministry、`INS` Institution、
 `GPR` GeopoliticRivalry、`MEC` MacroEconomic、
+`SLD` StorylineDomain、`SDT` StorylineDomainTactic、
 `OCA` Organization Category、`OFN` Organization Function、`ODT` Organization Domain Tag、
 `ODL` Organization Domain Tag Link、
 `RAW` Raw Evidence、`EVD` Evidence、`EVC` Evidence Category、`RCL` Raw Evidence Category Link、`CPC` Chain Node Physical
@@ -81,3 +82,8 @@ Issue #300 通过 additive forward-only migration `000064` 增加独立 Geopolit
 MacroEconomic 静态叙事蓝图及 `GPR`、`MEC` 身份。第一阶段同样只交付 persistence 和公开
 Data Adapter，因此 Adapter 的 Create input 不接收主键并调用共享随机生成原语；未来 Biz/API
 接入必须把生成时机收敛到 owning Biz，且不得允许调用方提交主键或从名称、参与方文本派生身份。
+
+Issue #302 通过 additive forward-only migration `000065` 增加独立 StorylineDomain 与
+StorylineDomainTactic 静态目录事实及 `SLD`、`SDT` 身份。第一阶段同样由公开 Data Adapter
+调用共享随机生成原语；未来 Biz/API 接入必须将生成时机收敛到 owning Biz，不得从 Domain
+分类、Tactic key 或名称派生身份，也不得允许调用方提交主键。

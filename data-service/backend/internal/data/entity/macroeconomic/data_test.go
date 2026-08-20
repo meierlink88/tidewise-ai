@@ -206,7 +206,7 @@ func statusPointer(value Status) *Status { return &value }
 
 func openMacroEconomicTestDatabase(t *testing.T) *sql.DB {
 	t.Helper()
-	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "..", "migrations"))
+	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "migrations"))
 	if err != nil {
 		t.Fatal(err)
 	}
