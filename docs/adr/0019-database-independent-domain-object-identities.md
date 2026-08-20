@@ -36,6 +36,7 @@ Data 各领域曾并存裸 UUID、`PREFIX_ + code`、固定短码和非 UUID 自
 `SUB` Subdivision、`MIN` Ministry、`INS` Institution、
 `GPR` GeopoliticRivalry、`MEC` MacroEconomic、
 `SLD` StorylineDomain、`SDT` StorylineDomainTactic、
+`STL` Storyline、`SLE` Storyline Event Link、
 `OCA` Organization Category、`OFN` Organization Function、`ODT` Organization Domain Tag、
 `ODL` Organization Domain Tag Link、
 `RAW` Raw Evidence、`EVD` Evidence、`EVC` Evidence Category、`RCL` Raw Evidence Category Link、`CPC` Chain Node Physical
@@ -87,3 +88,8 @@ Issue #302 通过 additive forward-only migration `000065` 增加独立 Storylin
 StorylineDomainTactic 静态目录事实及 `SLD`、`SDT` 身份。第一阶段同样由公开 Data Adapter
 调用共享随机生成原语；未来 Biz/API 接入必须将生成时机收敛到 owning Biz，不得从 Domain
 分类、Tactic key 或名称派生身份，也不得允许调用方提交主键。
+
+Issue #304 通过 additive forward-only migration `000066` 增加独立 Storyline 与
+Storyline Event Link 事实及 `STL`、`SLE` 身份。第一阶段同样由公开 Data Adapter 调用共享
+随机生成原语；未来 Biz/API 接入必须将两个身份的生成时机收敛到 owning Biz，不得从类型、
+锚点、Event 端点或名称派生身份，也不得允许调用方提交主键。
