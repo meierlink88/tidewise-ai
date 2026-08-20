@@ -78,6 +78,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
   MIN/INS 身份、Country/Organization XOR 归属、受控枚举和公开 Data Adapter 持久化基础。
 - `000064_add_narrative_blueprints.sql`：新增独立 `geopolitic_rivalries` 与 `macro_economics`
   静态叙事蓝图、GPR/MEC 身份和受控类型/生命周期枚举；不增加 Storyline 或外部对象关系。
+- `000068_add_storyline_domain_codes.sql`：为确认为空的 `storyline_domains` 增加全局唯一、
+  非空且格式受控的机器 `code`；目录事实不在 migration 中 seed，需随后运行
+  `storyline-domain-catalog-publish -file /app/initdata/storyline-domains-v1.json`。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -236,3 +239,14 @@ Biz/API wiring、初始化数据、StorylineDomain 关系、对账历史、unlin
 Company–Industry 端点正确，Company shadow Entity 为零，`company_profiles` 不存在，且
 Storyline/Security 不再含 Company 引用列。controller 字段和两类明确取消的关系不会保留。
 旧应用不兼容新 schema；回滚必须同时恢复 migration 67 前快照和上一版应用，不运行 down migration。
+
+`000068` 是 Issue #308 的 StorylineDomain 目录发布前置 schema。操作员先停止任何直接写入者、
+确认 `storyline_domains` 为空并保留 PostgreSQL 恢复点，再以候选 Data 镜像执行 check-only，
+确认它是唯一 pending migration 后 apply；非空表会 fail closed，不从既有名称或分类猜测 code。
+迁移后使用同一候选/发布镜像运行
+`storyline-domain-catalog-publish -file /app/initdata/storyline-domains-v1.json`，确认 ledger 为
+`68`、目录共 35 条且均 active、code 全局唯一、GEOPOLITICAL/MACRO/INDUSTRY/CORPORATE
+数量分别为 7/12/8/8，并抽查
+`scope_definition = description`。旧应用没有 StorylineDomain 运行时 wiring，可与新 schema 和
+目录共存；应用回退保留 schema 与目录，不运行 down。失败时保持旧应用并使用恢复点或另行审阅的
+forward repair。

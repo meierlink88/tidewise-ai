@@ -1,0 +1,251 @@
+{
+  "schema_version": 1,
+  "publication_mode": "reconcile",
+  "storyline_domains": [
+    {
+      "code": "TECHNOLOGY",
+      "name": "科技线",
+      "name_en": "Technology",
+      "description": "围绕芯片、AI、技术标准、人才争夺的博弈",
+      "domain_category": "GEOPOLITICAL"
+    },
+    {
+      "code": "TRADE",
+      "name": "贸易线",
+      "name_en": "Trade",
+      "description": "围绕关税、供应链、贸易规则的博弈",
+      "domain_category": "GEOPOLITICAL"
+    },
+    {
+      "code": "FINANCE",
+      "name": "金融线",
+      "name_en": "Finance",
+      "description": "围绕货币、支付体系、投资管制、金融制裁的博弈",
+      "domain_category": "GEOPOLITICAL"
+    },
+    {
+      "code": "MILITARY",
+      "name": "军事线",
+      "name_en": "Military",
+      "description": "围绕正面战场、军事行动、军事援助的博弈",
+      "domain_category": "GEOPOLITICAL"
+    },
+    {
+      "code": "ENERGY",
+      "name": "能源/资源线",
+      "name_en": "Energy & Resources",
+      "description": "围绕能源价格、粮食安全、关键矿产的博弈",
+      "domain_category": "GEOPOLITICAL"
+    },
+    {
+      "code": "CYBER_SPACE",
+      "name": "网络/太空线",
+      "name_en": "Cyber & Space",
+      "description": "围绕网络攻击、卫星对抗、太空军事化的博弈",
+      "domain_category": "GEOPOLITICAL"
+    },
+    {
+      "code": "IDEOLOGY",
+      "name": "意识形态线",
+      "name_en": "Ideology",
+      "description": "围绕价值观博弈、制度对抗、民主叙事的博弈",
+      "domain_category": "GEOPOLITICAL"
+    },
+    {
+      "code": "RATE_DECISION",
+      "name": "利率决策线",
+      "name_en": "Rate Decision",
+      "description": "政策利率调整、降息/加息决策",
+      "domain_category": "MACRO"
+    },
+    {
+      "code": "ASSET_PURCHASE",
+      "name": "资产购买线",
+      "name_en": "Asset Purchase",
+      "description": "QE、QT、资产购买计划",
+      "domain_category": "MACRO"
+    },
+    {
+      "code": "POLICY_GUIDANCE",
+      "name": "政策指引线",
+      "name_en": "Policy Guidance",
+      "description": "前瞻指引、政策声明、点阵图",
+      "domain_category": "MACRO"
+    },
+    {
+      "code": "FISCAL_SPENDING",
+      "name": "财政支出线",
+      "name_en": "Fiscal Spending",
+      "description": "政府支出、基建投资、补贴",
+      "domain_category": "MACRO"
+    },
+    {
+      "code": "TAX_POLICY",
+      "name": "税收政策线",
+      "name_en": "Tax Policy",
+      "description": "税率调整、税收减免、税改",
+      "domain_category": "MACRO"
+    },
+    {
+      "code": "DEBT_MANAGEMENT",
+      "name": "债务管理线",
+      "name_en": "Debt Management",
+      "description": "国债发行、债务上限、财政赤字",
+      "domain_category": "MACRO"
+    },
+    {
+      "code": "TARIFF",
+      "name": "关税政策线",
+      "name_en": "Tariff",
+      "description": "关税加征、豁免、反制",
+      "domain_category": "MACRO"
+    },
+    {
+      "code": "TRADE_AGREEMENT",
+      "name": "贸易协定线",
+      "name_en": "Trade Agreement",
+      "description": "双边/多边贸易协定签署、谈判",
+      "domain_category": "MACRO"
+    },
+    {
+      "code": "REGULATION",
+      "name": "监管规则线",
+      "name_en": "Regulation",
+      "description": "监管新规、合规要求、执法行动",
+      "domain_category": "MACRO"
+    },
+    {
+      "code": "DATA_RELEASE",
+      "name": "数据发布线",
+      "name_en": "Data Release",
+      "description": "宏观数据发布（GDP/CPI/非农）",
+      "domain_category": "MACRO"
+    },
+    {
+      "code": "EXPECTATION_GAP",
+      "name": "预期差线",
+      "name_en": "Expectation Gap",
+      "description": "实际 vs 预期值偏差分析",
+      "domain_category": "MACRO"
+    },
+    {
+      "code": "MARKET_REACTION",
+      "name": "市场反应线",
+      "name_en": "Market Reaction",
+      "description": "市场对政策/数据的反应",
+      "domain_category": "MACRO"
+    },
+    {
+      "code": "UPSTREAM_SUPPLY",
+      "name": "上游供给线",
+      "name_en": "Upstream Supply",
+      "description": "原材料供应、矿产出产、上游产能",
+      "domain_category": "INDUSTRY"
+    },
+    {
+      "code": "MIDSTREAM_MANUFACTURING",
+      "name": "中游制造线",
+      "name_en": "Midstream Manufacturing",
+      "description": "加工制造、产能利用率、中间品价格",
+      "domain_category": "INDUSTRY"
+    },
+    {
+      "code": "DOWNSTREAM_DEMAND",
+      "name": "下游需求线",
+      "name_en": "Downstream Demand",
+      "description": "终端需求、订单数据、消费景气度",
+      "domain_category": "INDUSTRY"
+    },
+    {
+      "code": "TECHNOLOGY_BREAKTHROUGH",
+      "name": "技术突破线",
+      "name_en": "Technology Breakthrough",
+      "description": "研发突破、新材料/新工艺、专利",
+      "domain_category": "INDUSTRY"
+    },
+    {
+      "code": "TRADE_POLICY_IMPACT",
+      "name": "贸易政策线",
+      "name_en": "Trade Policy Impact",
+      "description": "关税、出口管制、贸易壁垒对产业链影响",
+      "domain_category": "INDUSTRY"
+    },
+    {
+      "code": "PRICE_TRANSMISSION",
+      "name": "价格传导线",
+      "name_en": "Price Transmission",
+      "description": "上下游价格传导、利润分配",
+      "domain_category": "INDUSTRY"
+    },
+    {
+      "code": "INVENTORY_CYCLE",
+      "name": "库存周期线",
+      "name_en": "Inventory Cycle",
+      "description": "库存变化、补库/去库周期",
+      "domain_category": "INDUSTRY"
+    },
+    {
+      "code": "COMPETITION_LANDSCAPE",
+      "name": "竞争格局线",
+      "name_en": "Competition Landscape",
+      "description": "市场份额变化、新进入者、行业整合",
+      "domain_category": "INDUSTRY"
+    },
+    {
+      "code": "IPO_PROGRESS",
+      "name": "IPO进程线",
+      "name_en": "IPO Progress",
+      "description": "招股书提交、过会、定价、上市、首日表现",
+      "domain_category": "CORPORATE"
+    },
+    {
+      "code": "EARNINGS",
+      "name": "财报/业绩线",
+      "name_en": "Earnings",
+      "description": "财报发布、业绩预告、分析师会议、盈利指引",
+      "domain_category": "CORPORATE"
+    },
+    {
+      "code": "M_A",
+      "name": "并购重组线",
+      "name_en": "M&A",
+      "description": "并购公告、审批、完成、整合",
+      "domain_category": "CORPORATE"
+    },
+    {
+      "code": "CAPITAL_MARKET",
+      "name": "资本运作线",
+      "name_en": "Capital Market",
+      "description": "增发、回购、分红、可转债、拆股",
+      "domain_category": "CORPORATE"
+    },
+    {
+      "code": "GOVERNANCE",
+      "name": "高管/治理线",
+      "name_en": "Governance",
+      "description": "高管任命/离职、董事会变动、股权激励",
+      "domain_category": "CORPORATE"
+    },
+    {
+      "code": "PRODUCT_TECH",
+      "name": "产品/技术线",
+      "name_en": "Product & Technology",
+      "description": "产品发布、技术突破、产能扩张、研发",
+      "domain_category": "CORPORATE"
+    },
+    {
+      "code": "LEGAL_COMPLIANCE",
+      "name": "法律/合规线",
+      "name_en": "Legal & Compliance",
+      "description": "诉讼、监管调查、反垄断审查、合规事件",
+      "domain_category": "CORPORATE"
+    },
+    {
+      "code": "MARKET_PERFORMANCE",
+      "name": "市场表现线",
+      "name_en": "Market Performance",
+      "description": "股价异动、交易量异动、估值变化、市值波动",
+      "domain_category": "CORPORATE"
+    }
+  ]
+}
