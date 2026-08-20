@@ -64,7 +64,14 @@ grep -q 'Existing host-native Neo4j contains' "$neo4j_root/adopt-reason-provider
 grep -q 'systemctl enable neo4j' "$neo4j_root/rollback-host-provider.sh"
 grep -q 'migrate-openspg-project-databases.sh" restore' "$neo4j_root/rollback-host-provider.sh"
 grep -q 'CREATE DATABASE' "$neo4j_root/migrate-openspg-project-databases.sh"
+grep -q 'PASS no UAT OpenSPG project databases are required yet' "$neo4j_root/migrate-openspg-project-databases.sh"
 grep -q 'DROP DATABASE' "$neo4j_root/verify.sh"
+grep -q 'PASS no UAT OpenSPG project databases require verification yet' "$neo4j_root/verify.sh"
+if grep -q '\[ -n "\$project_rows" \]' \
+  "$neo4j_root/migrate-openspg-project-databases.sh" "$neo4j_root/verify.sh"; then
+  echo 'Empty UAT OpenSPG projects must not block provider adoption' >&2
+  exit 1
+fi
 grep -q -- '--network tidewise-uat' "$neo4j_root/verify.sh"
 if grep -q -- '--add-host' "$neo4j_root/verify.sh"; then
   echo 'UAT provider verification must use Docker DNS without host injection' >&2

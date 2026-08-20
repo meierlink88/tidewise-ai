@@ -77,7 +77,6 @@ project_rows="$(docker exec -e MYSQL_PWD="$OPENSPG_MYSQL_ROOT_PASSWORD" \
       )
     ORDER BY id;
   ")"
-[ -n "$project_rows" ]
 
 databases="$(${compose[@]} exec -T neo4j bash -c '
   user="${NEO4J_AUTH%%/*}"
@@ -85,14 +84,17 @@ databases="$(${compose[@]} exec -T neo4j bash -c '
   cypher-shell -d system -u "$user" -p "$password" --format plain \
     "SHOW DATABASES YIELD name, currentStatus RETURN name, currentStatus ORDER BY name;"
 ')"
-while IFS=$'\t' read -r project_id namespace database; do
-  expected_database="$(tr '[:upper:]' '[:lower:]' <<<"$namespace")"
-  [ "$database" = "$expected_database" ]
-  grep -Fq "\"$database\", \"online\"" <<<"$databases"
-  if docker inspect reason-server-uat >/dev/null 2>&1; then
-    response="$(curl --fail-with-body --silent --show-error \
-      "http://127.0.0.1:8887/public/v1/graph/allLabels?projectId=$project_id")"
-    RESPONSE="$response" python3 - <<'PY'
+if [ -z "$project_rows" ]; then
+  echo 'PASS no UAT OpenSPG project databases require verification yet'
+else
+  while IFS=$'\t' read -r project_id namespace database; do
+    expected_database="$(tr '[:upper:]' '[:lower:]' <<<"$namespace")"
+    [ "$database" = "$expected_database" ]
+    grep -Fq "\"$database\", \"online\"" <<<"$databases"
+    if docker inspect reason-server-uat >/dev/null 2>&1; then
+      response="$(curl --fail-with-body --silent --show-error \
+        "http://127.0.0.1:8887/public/v1/graph/allLabels?projectId=$project_id")"
+      RESPONSE="$response" python3 - <<'PY'
 import json
 import os
 
@@ -100,9 +102,10 @@ value = json.loads(os.environ["RESPONSE"])
 if not isinstance(value, list):
     raise SystemExit("OpenSPG graph/allLabels did not return an array")
 PY
-  fi
-  echo "PASS UAT OpenSPG project $project_id ($namespace) database $database"
-done <<<"$project_rows"
+    fi
+    echo "PASS UAT OpenSPG project $project_id ($namespace) database $database"
+  done <<<"$project_rows"
+fi
 
 docker run --rm -i \
   --network tidewise-uat \

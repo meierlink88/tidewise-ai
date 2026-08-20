@@ -58,29 +58,28 @@ WHERE JSON_VALID(config) = 1
 ORDER BY id;
 SQL
 )"
-    [ -n "$project_rows" ] || {
-      echo 'No UAT OpenSPG projects use the Neo4j provider' >&2
-      exit 1
-    }
-
-    while IFS=$'\t' read -r project_id namespace database; do
-      [[ "$database" =~ ^[a-z][a-z0-9.-]{0,62}$ ]] || {
-        echo "Unsafe OpenSPG database name for project $project_id ($namespace)" >&2
-        exit 1
-      }
-      expected_database="$(tr '[:upper:]' '[:lower:]' <<<"$namespace")"
-      [ "$database" = "$expected_database" ] || {
-        echo "Project $project_id database $database does not match namespace $namespace" >&2
-        exit 1
-      }
-      "${compose[@]}" exec -T neo4j bash -c '
-        user="${NEO4J_AUTH%%/*}"
-        password="${NEO4J_AUTH#*/}"
-        cypher-shell -d system -u "$user" -p "$password" \
-          "CREATE DATABASE \`$1\` IF NOT EXISTS"
-      ' _ "$database" >/dev/null
-      echo "PASS prepared OpenSPG project $project_id ($namespace) database $database"
-    done <<<"$project_rows"
+    if [ -z "$project_rows" ]; then
+      echo 'PASS no UAT OpenSPG project databases are required yet'
+    else
+      while IFS=$'\t' read -r project_id namespace database; do
+        [[ "$database" =~ ^[a-z][a-z0-9.-]{0,62}$ ]] || {
+          echo "Unsafe OpenSPG database name for project $project_id ($namespace)" >&2
+          exit 1
+        }
+        expected_database="$(tr '[:upper:]' '[:lower:]' <<<"$namespace")"
+        [ "$database" = "$expected_database" ] || {
+          echo "Project $project_id database $database does not match namespace $namespace" >&2
+          exit 1
+        }
+        "${compose[@]}" exec -T neo4j bash -c '
+          user="${NEO4J_AUTH%%/*}"
+          password="${NEO4J_AUTH#*/}"
+          cypher-shell -d system -u "$user" -p "$password" \
+            "CREATE DATABASE \`$1\` IF NOT EXISTS"
+        ' _ "$database" >/dev/null
+        echo "PASS prepared OpenSPG project $project_id ($namespace) database $database"
+      done <<<"$project_rows"
+    fi
     ;;
   restore)
     ensure_backup_table
