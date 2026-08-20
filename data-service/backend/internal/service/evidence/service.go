@@ -51,7 +51,7 @@ func (s *Service) ListEvidence(ctx context.Context, request *evidenceapi.ListReq
 		}
 		items[index] = evidenceapi.ListItem{
 			ID: item.ID, RawEvidenceID: item.RawEvidenceID, Title: item.Title, Summary: item.Summary,
-			Semantic: evidenceSemanticDTO(item.Semantic), Categories: categories, SourceName: item.SourceName, SourceLevel: string(item.SourceLevel),
+			Semantic: evidenceSemanticDTO(item.Semantic), Categories: categories, SourceID: item.SourceID, SourceName: item.SourceName, SourceLevel: string(item.SourceLevel),
 			SourceURL: item.SourceURL, IsOriginal: item.IsOriginal, QuotedSourceName: item.QuotedSourceName,
 			Keywords: append([]string{}, item.Keywords...),
 			IsSplit:  item.IsSplit, PublishedAt: formatOptionalListTime(item.PublishedAt),
@@ -84,7 +84,7 @@ func evidenceListFilter(request *evidenceapi.ListRequest) (evidencebiz.EvidenceL
 	filter := evidencebiz.EvidenceListFilter{
 		Title: strings.TrimSpace(request.Title), Summary: strings.TrimSpace(request.Summary),
 		CategoryID: evidencebiz.CategoryID(strings.TrimSpace(request.CategoryID)),
-		SourceName: strings.TrimSpace(request.SourceName), SourceLevel: evidencebiz.SourceLevel(strings.TrimSpace(request.SourceLevel)),
+		SourceID:   strings.TrimSpace(request.SourceID), SourceName: strings.TrimSpace(request.SourceName), SourceLevel: evidencebiz.SourceLevel(strings.TrimSpace(request.SourceLevel)),
 		Page: page, PageSize: pageSize,
 	}
 	if raw := strings.TrimSpace(request.IsSplit); raw != "" {

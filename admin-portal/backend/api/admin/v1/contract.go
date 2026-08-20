@@ -49,9 +49,9 @@ type ListEventsRequest struct {
 }
 
 type ListEvidencesRequest struct {
-	Title, Summary, CategoryID, SourceName, SourceLevel, IsSplit string
-	PublishedFrom, PublishedTo, CollectedFrom, CollectedTo       string
-	Page, PageSize                                               int
+	Title, Summary, CategoryID, SourceID, SourceName, SourceLevel, IsSplit string
+	PublishedFrom, PublishedTo, CollectedFrom, CollectedTo                 string
+	Page, PageSize                                                         int
 }
 
 type ListSourcesRequest struct {
@@ -116,6 +116,7 @@ type Evidence struct {
 	Summary          string             `json:"summary"`
 	Semantic         EvidenceSemantic   `json:"semantic"`
 	Categories       []EvidenceCategory `json:"categories"`
+	SourceID         string             `json:"source_id"`
 	SourceName       string             `json:"source_name"`
 	SourceLevel      string             `json:"source_level"`
 	SourceURL        string             `json:"source_url"`

@@ -241,7 +241,7 @@ func eventListPath(query biz.EventListQuery) string {
 
 func evidenceListPath(query biz.EvidenceListQuery) string {
 	values := url.Values{}
-	for name, value := range map[string]string{"title": query.Title, "summary": query.Summary, "category_id": query.CategoryID, "source_name": query.SourceName, "source_level": query.SourceLevel} {
+	for name, value := range map[string]string{"title": query.Title, "summary": query.Summary, "category_id": query.CategoryID, "source_id": query.SourceID, "source_name": query.SourceName, "source_level": query.SourceLevel} {
 		if value != "" {
 			values.Set(name, value)
 		}

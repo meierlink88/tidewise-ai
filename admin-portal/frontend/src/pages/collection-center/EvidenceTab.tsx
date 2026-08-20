@@ -36,6 +36,7 @@ export default function EvidenceTab({ token }: { token: string }) {
     title: '',
     summary: '',
     categoryId: '',
+    sourceId: '',
     sourceName: '',
     sourceLevel: '',
     isSplit: '',
@@ -61,21 +62,21 @@ export default function EvidenceTab({ token }: { token: string }) {
     () => [
       {
         cellClassName: 'max-w-0',
-        headerClassName: 'w-[18%]',
+        headerClassName: 'w-[15%]',
         key: 'title',
         header: '标题',
         render: (item) => <OverflowTooltip className='font-semibold' value={item.title || '—'} />
       },
       {
         cellClassName: 'max-w-0',
-        headerClassName: 'w-[18%]',
+        headerClassName: 'w-[16%]',
         key: 'summary',
         header: '摘要',
         render: (item) => <OverflowTooltip value={item.summary} />
       },
       {
         cellClassName: 'max-w-0',
-        headerClassName: 'w-[15%]',
+        headerClassName: 'w-[10%]',
         key: 'categories',
         header: '内容分类',
         render: (item) => (
@@ -86,13 +87,28 @@ export default function EvidenceTab({ token }: { token: string }) {
       },
       {
         cellClassName: 'max-w-0',
-        headerClassName: 'w-[12%]',
+        headerClassName: 'w-[9%]',
         key: 'source_name',
         header: '信源名称',
         render: (item) => <OverflowTooltip value={item.source_name} />
       },
-      { key: 'source_level', header: '信源等级', render: (item) => item.source_level },
       {
+        cellClassName: 'max-w-0',
+        headerClassName: 'w-[11%]',
+        key: 'source_id',
+        header: '信源 ID',
+        render: (item) => <OverflowTooltip className='font-mono' value={item.source_id} />
+      },
+      {
+        cellClassName: 'max-w-0',
+        headerClassName: 'w-[8%]',
+        key: 'source_level',
+        header: '信源等级',
+        render: (item) => <OverflowTooltip value={item.source_level} />
+      },
+      {
+        cellClassName: 'max-w-0 overflow-hidden',
+        headerClassName: 'w-[7%]',
         key: 'is_split',
         header: '拆分状态',
         render: (item) => (
@@ -102,14 +118,20 @@ export default function EvidenceTab({ token }: { token: string }) {
         )
       },
       {
+        cellClassName: 'max-w-0',
+        headerClassName: 'w-[12%]',
         key: 'published_at',
         header: '发布时间',
-        render: (item) => (item.published_at ? formatDateTime(item.published_at) : '—')
+        render: (item) => (
+          <OverflowTooltip value={item.published_at ? formatDateTime(item.published_at) : '—'} />
+        )
       },
       {
+        cellClassName: 'max-w-0',
+        headerClassName: 'w-[12%]',
         key: 'collected_at',
         header: '采集时间',
-        render: (item) => formatDateTime(item.collected_at)
+        render: (item) => <OverflowTooltip value={formatDateTime(item.collected_at)} />
       }
     ],
     []
@@ -128,6 +150,7 @@ export default function EvidenceTab({ token }: { token: string }) {
       title: form.title || undefined,
       summary: form.summary || undefined,
       category_id: form.categoryId || undefined,
+      source_id: form.sourceId.trim() || undefined,
       source_name: form.sourceName || undefined,
       source_level: form.sourceLevel || undefined,
       is_split: form.isSplit || undefined,
@@ -180,6 +203,9 @@ export default function EvidenceTab({ token }: { token: string }) {
             value={form.categoryId || 'all'}
           />
         </Field>
+        <Field label='信源 ID'>
+          <Input aria-label='证据信源 ID' {...field('sourceId')} />
+        </Field>
         <Field label='信源名称'>
           <Input aria-label='证据信源名称' {...field('sourceName')} />
         </Field>
@@ -230,7 +256,7 @@ export default function EvidenceTab({ token }: { token: string }) {
         rowAccessibleName={(item) => `查看${item.title ?? '无标题证据'}详情`}
         scrollAreaLabel='证据表格滚动区域'
         selectedRowKey={detailOpen ? (selectedEvidenceId ?? undefined) : undefined}
-        tableClassName='min-w-[1320px] table-fixed text-xs [&_td]:py-2.5 [&_th]:h-9'
+        tableClassName='w-full table-fixed text-xs [&_td]:overflow-hidden [&_td]:px-2 [&_td]:py-2.5 [&_th]:h-9 [&_th]:px-2 [&_th]:whitespace-normal'
       />
       <Pagination
         page={page.page}

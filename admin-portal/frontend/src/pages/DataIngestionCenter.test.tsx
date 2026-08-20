@@ -177,6 +177,7 @@ describe('DataIngestionCenter', () => {
               description: '说明'
             }
           ],
+          source_id: 'SRC_example_00000000000000000000',
           source_name: '官方信源',
           source_level: 'L1_OFFICIAL',
           source_url: 'https://example.com/report',
@@ -194,6 +195,7 @@ describe('DataIngestionCenter', () => {
           summary: '无标题证据',
           semantic: { who: null, what: '另一事项', when: null, where: null, why: null, how: null },
           categories: [],
+          source_id: 'SRC_example_00000000000000000000',
           source_name: '官方信源',
           source_level: 'L1_OFFICIAL',
           source_url: 'https://example.com/other',
@@ -232,8 +234,18 @@ describe('DataIngestionCenter', () => {
     await user.click(screen.getByRole('tab', { name: '证据中心' }));
     expect(await screen.findByText('原始标题')).toBeInTheDocument();
     expect(screen.getByText('证据摘要')).toBeInTheDocument();
+    expect(screen.getAllByText('SRC_example_00000000000000000000').length).toBeGreaterThan(0);
     expect(screen.getAllByText('事件简报').length).toBeGreaterThan(0);
     expect(screen.getAllByText('—')).toHaveLength(2);
+
+    await user.type(screen.getByLabelText('证据信源 ID'), '  SRC_example_00000000000000000000  ');
+    await user.click(screen.getByRole('button', { name: '搜索证据' }));
+    await waitFor(() =>
+      expect(dataIngestionAPI.loadEvidences).toHaveBeenLastCalledWith(
+        'secret-token',
+        expect.objectContaining({ source_id: 'SRC_example_00000000000000000000' })
+      )
+    );
 
     await user.click(screen.getByRole('tab', { name: '信源管理' }));
     expect(await screen.findByText('official')).toBeInTheDocument();
@@ -280,6 +292,7 @@ describe('DataIngestionCenter', () => {
               description: '机构或个人对事件的评论、判断或观点。'
             }
           ],
+          source_id: 'SRC_example_00000000000000000000',
           source_name: '人民财讯',
           source_level: 'L3_MEDIA',
           source_url: 'https://example.com/reposted-report',
@@ -297,6 +310,7 @@ describe('DataIngestionCenter', () => {
           summary: '原创证据摘要',
           semantic: { who: null, what: '发布公告', when: null, where: null, why: null, how: null },
           categories: [],
+          source_id: 'SRC_example_00000000000000000000',
           source_name: '商务部',
           source_level: 'L1_OFFICIAL',
           source_url: 'https://example.com/original-report',
@@ -323,6 +337,7 @@ describe('DataIngestionCenter', () => {
       within(repostDialog).getByText('机构或个人对事件的评论、判断或观点。')
     ).toBeInTheDocument();
     expect(within(repostDialog).getByText('合作项目有序推进')).toBeInTheDocument();
+    expect(within(repostDialog).getByText('SRC_example_00000000000000000000')).toBeInTheDocument();
     expect(within(repostDialog).getByText('赛意信息投资者互动平台')).toBeInTheDocument();
     expect(within(repostDialog).getByText('业务合作')).toBeInTheDocument();
     expect(within(repostDialog).getByRole('link', { name: '访问原始文章' })).toHaveAttribute(

@@ -48,12 +48,13 @@ describe('data ingestion api client', () => {
       page: 1,
       title: '标题',
       category_id: 'category',
+      source_id: 'SRC_example_00000000000000000000',
       is_split: 'true'
     });
     await loadSources('token', { page: 2, query: 'official', enabled: 'true', priority: '1' });
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      '/api/admin/v1/evidences?page=1&page_size=50&title=%E6%A0%87%E9%A2%98&category_id=category&is_split=true',
+      '/api/admin/v1/evidences?page=1&page_size=50&title=%E6%A0%87%E9%A2%98&category_id=category&source_id=SRC_example_00000000000000000000&is_split=true',
       { headers: { Authorization: 'Bearer token' } }
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
@@ -121,6 +122,7 @@ describe('data ingestion api client', () => {
                   how: null
                 },
                 categories: [],
+                source_id: 'SRC_example_00000000000000000000',
                 source_name: '商务部',
                 source_level: 'L1_OFFICIAL',
                 source_url: 'https://example.com/report',
@@ -143,6 +145,7 @@ describe('data ingestion api client', () => {
     const page = await loadEvidences('token', { page: 1 });
     expect(page.items[0]).toMatchObject({
       semantic: { what: '发布公告' },
+      source_id: 'SRC_example_00000000000000000000',
       source_url: 'https://example.com/report',
       is_original: true,
       quoted_source_name: null,
@@ -173,6 +176,7 @@ describe('data ingestion api client', () => {
                   how: null
                 },
                 categories: [],
+                source_id: 'SRC_example_00000000000000000000',
                 source_name: '官方信源',
                 source_level: 'L1_OFFICIAL',
                 source_url: 'https://example.com/report',

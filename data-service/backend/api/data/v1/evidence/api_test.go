@@ -282,7 +282,7 @@ func TestAdminEvidenceListOpenAPIContract(t *testing.T) {
 			t.Fatalf("%s = %#v, want %#v", field, got, want)
 		}
 	}
-	wantParameters := []string{"X-Request-ID", "title", "summary", "category_id", "source_name", "source_level", "is_split", "published_from", "published_to", "collected_from", "collected_to", "page", "page_size"}
+	wantParameters := []string{"X-Request-ID", "title", "summary", "category_id", "source_id", "source_name", "source_level", "is_split", "published_from", "published_to", "collected_from", "collected_to", "page", "page_size"}
 	parameters := operation["parameters"].([]any)
 	if len(parameters) != len(wantParameters) {
 		t.Fatalf("parameters = %#v, want %d", parameters, len(wantParameters))
@@ -308,7 +308,7 @@ func TestAdminEvidenceListOpenAPIContract(t *testing.T) {
 	}
 	components := document["components"].(map[string]any)["schemas"].(map[string]any)
 	item := components["AdminEvidence"].(map[string]any)
-	wantFields := []string{"id", "raw_evidence_id", "title", "summary", "semantic", "categories", "source_name", "source_level", "source_url", "is_original", "quoted_source_name", "keywords", "is_split", "published_at", "collected_at"}
+	wantFields := []string{"id", "raw_evidence_id", "title", "summary", "semantic", "categories", "source_id", "source_name", "source_level", "source_url", "is_original", "quoted_source_name", "keywords", "is_split", "published_at", "collected_at"}
 	properties := item["properties"].(map[string]any)
 	if len(properties) != len(wantFields) || item["additionalProperties"] != false {
 		t.Fatalf("AdminEvidence = %#v", item)

@@ -25,7 +25,7 @@ func TestOpenAPIContractMatchesAdminTypedClient(t *testing.T) {
 			"AdminEventPageEnvelope",
 			[]string{"Page", "PageSize", "RequestID", "announced_from", "announced_to", "modality", "occurred_from", "occurred_to", "status", "title"},
 		},
-		{evidencesPath, "listAdminEvidence", "AdminEvidencePageEnvelope", []string{"Page", "PageSize", "RequestID", "category_id", "collected_from", "collected_to", "is_split", "published_from", "published_to", "source_level", "source_name", "summary", "title"}},
+		{evidencesPath, "listAdminEvidence", "AdminEvidencePageEnvelope", []string{"Page", "PageSize", "RequestID", "category_id", "collected_from", "collected_to", "is_split", "published_from", "published_to", "source_id", "source_level", "source_name", "summary", "title"}},
 		{rawEvidencesPath + "/{id}", "getRawEvidence", "RawEvidenceReadEnvelope", []string{"RequestID", "id"}},
 		{evidenceCategoriesPath, "listEvidenceCategories", "EvidenceCategoryCatalogEnvelope", []string{"RequestID"}},
 		{sourcesPath, "listSources", "SourceListEnvelope", []string{"RequestID"}},

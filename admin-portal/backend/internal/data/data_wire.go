@@ -262,6 +262,7 @@ type evidenceWire struct {
 	Summary          string                 `json:"summary"`
 	Semantic         *evidenceSemanticWire  `json:"semantic"`
 	Categories       []evidenceCategoryWire `json:"categories"`
+	SourceID         string                 `json:"source_id"`
 	SourceName       string                 `json:"source_name"`
 	SourceLevel      string                 `json:"source_level"`
 	SourceURL        string                 `json:"source_url"`
@@ -274,7 +275,7 @@ type evidenceWire struct {
 }
 
 func (w *evidenceWire) UnmarshalJSON(payload []byte) error {
-	if !hasExactJSONFields(payload, "id", "raw_evidence_id", "title", "summary", "semantic", "categories", "source_name", "source_level", "source_url", "is_original", "quoted_source_name", "keywords", "is_split", "published_at", "collected_at") {
+	if !hasExactJSONFields(payload, "id", "raw_evidence_id", "title", "summary", "semantic", "categories", "source_id", "source_name", "source_level", "source_url", "is_original", "quoted_source_name", "keywords", "is_split", "published_at", "collected_at") {
 		return &Error{Kind: ErrorKindDecode}
 	}
 	type alias evidenceWire
@@ -287,7 +288,7 @@ func (w *evidenceWire) UnmarshalJSON(payload []byte) error {
 }
 func (w evidenceWire) toBiz() (biz.Evidence, error) {
 	if !evidenceIDPattern.MatchString(w.ID) || !rawEvidenceIDPattern.MatchString(w.RawEvidenceID) || strings.TrimSpace(w.Summary) == "" || utf8.RuneCountInString(w.Summary) > 200 ||
-		strings.TrimSpace(w.SourceName) == "" || utf8.RuneCountInString(w.SourceName) > 100 || !validSourceLevel(w.SourceLevel) || w.CollectedAt.IsZero() || w.CollectedAt.Location() != time.UTC ||
+		strings.TrimSpace(w.SourceID) == "" || utf8.RuneCountInString(w.SourceID) > 32 || strings.TrimSpace(w.SourceName) == "" || utf8.RuneCountInString(w.SourceName) > 100 || !validSourceLevel(w.SourceLevel) || w.CollectedAt.IsZero() || w.CollectedAt.Location() != time.UTC ||
 		w.Semantic == nil || strings.TrimSpace(w.Semantic.What) == "" || w.Keywords == nil || utf8.RuneCountInString(w.SourceURL) > 2048 ||
 		(w.Title != nil && (strings.TrimSpace(*w.Title) == "" || utf8.RuneCountInString(*w.Title) > 500)) || (w.PublishedAt != nil && w.PublishedAt.Location() != time.UTC) {
 		return biz.Evidence{}, &Error{Kind: ErrorKindDecode}
@@ -318,7 +319,7 @@ func (w evidenceWire) toBiz() (biz.Evidence, error) {
 	}
 	return biz.Evidence{ID: w.ID, RawEvidenceID: w.RawEvidenceID, Title: w.Title, Summary: w.Summary,
 		Semantic:   biz.EvidenceSemantic{Who: w.Semantic.Who, What: w.Semantic.What, When: w.Semantic.When, Where: w.Semantic.Where, Why: w.Semantic.Why, How: w.Semantic.How},
-		Categories: categories, SourceName: w.SourceName, SourceLevel: w.SourceLevel, SourceURL: w.SourceURL,
+		Categories: categories, SourceID: w.SourceID, SourceName: w.SourceName, SourceLevel: w.SourceLevel, SourceURL: w.SourceURL,
 		IsOriginal: w.IsOriginal, QuotedSourceName: w.QuotedSourceName, Keywords: append([]string{}, w.Keywords...),
 		IsSplit: w.IsSplit, PublishedAt: w.PublishedAt, CollectedAt: w.CollectedAt}, nil
 }
