@@ -10,6 +10,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
   Index 等正式事实。
 - 完整 Raw Evidence、阅读辅助 Keywords、原子 Evidence 及其确定性正式身份。
 - 正式 Event、Event 与 Atomic Evidence 的证据关联，以及 Event-owned Actor/Asset 关系快照。
+- 独立 Storyline 事实、类型对应的唯一锚点，以及 Storyline 与 Event 的当前关联事实。
 - Research Theme、Theme Impact、Reason Tree 及其关联数据。
 - PostgreSQL schema、migration 和 repository。
 - 采集/清洗执行方使用的 Raw Evidence 与 Evidence Publication API、自然身份收敛、
@@ -88,6 +89,21 @@ Event-owned 的预留关系快照。`EAC` 记录 Actor 的 opaque ID、可选类
 强度与置信度；`EAS` 记录 Asset 的 opaque ID、可选类型/名称、影响方向与幅度。它们只外键到
 Event，不证明 Actor/Asset 存在，也不定义其归属或生命周期。
 _Avoid_: Actor/Asset entity、target 外键、lookup API、将快照当作主数据
+
+**Storyline**:
+围绕一个明确锚点持续演进的叙事主记录，以 `STL + canonical lowercase UUID` 为稳定身份，
+保存摘要、当前阶段、生命周期、置信度与最新一次数据对账快照。类型严格决定唯一锚点：
+`GEOPOLITICAL` 引用 GeopoliticRivalry，`MACRO` 引用 MacroEconomic，`INDUSTRY` 引用
+IndustryChain，`CORPORATE` 引用 Company Entity。Storyline 不属于 StorylineDomain，也不引用
+StorylineDomainTactic；对账历史不由 Storyline 主记录保存。
+_Avoid_: StorylineDomain 外键、Concept 锚点、多个或缺失锚点、对账历史表
+
+**Storyline Event Link**:
+Storyline 与 Event 的唯一当前多对多关系，以 `SLE + canonical lowercase UUID` 为稳定身份。
+同一 Storyline/Event 端点对只能出现一次，端点均使用 restrictive reference。Storyline 的首个
+和最新 Event 时间不是独立事实，只能从已关联 Event 的非空 `occurred_at` 计算；不得用
+`announced_at` 补值。
+_Avoid_: `first_event_at`/`last_event_at` 副本、用 announced time 代替 occurred time、重复端点
 
 **Organization**:
 以 `ORG + canonical lowercase UUID` 为稳定身份的独立多边组织事实，覆盖联盟、协会、国际机制、贸易集团和

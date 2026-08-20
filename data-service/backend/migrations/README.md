@@ -217,3 +217,13 @@ StorylineDomain native category enum、默认 active、Tactic 全局唯一机器
 可以与已应用 schema 共存。应用回退保留新增空结构；若必须移除数据库结构，恢复 migration 65
 前快照或使用另行审阅的 forward repair，不运行 down migration。关系、初始化数据、Biz/API
 wiring、OpenSPG 与 UI 均需后续独立发布。
+
+`000066` 是 Issue #304 的 additive、forward-only Storyline 与 StorylineEventLink
+persistence 基础。操作员使用候选 Data 镜像执行 check-only，确认它是唯一 pending migration
+后 apply，并验证 ledger 为 `66`、两个空表的 STL/SLE identity、Storyline 类型与唯一锚点、
+native lifecycle/alignment enum、数值边界、restrictive Event 外键、唯一端点和时间默认值满足
+合同。首末 Event 时间不持久化，只由 Data Adapter 从关联 Event 的非空 `occurred_at` 计算。
+旧应用不消费新增结构，可以与已应用 schema 共存；应用回退保留新增空结构。若必须移除数据库
+结构，恢复 migration 66 前快照或使用另行审阅的 forward repair，不运行 down migration。
+Biz/API wiring、初始化数据、StorylineDomain 关系、对账历史、unlink/delete、OpenSPG 与 UI
+均需后续独立发布。
