@@ -530,11 +530,13 @@ Country、Region、Institution 或其他外部归属，也不拥有 Storyline；
 _Avoid_: Economy Entity、Storyline 外键、Country/Region/Institution 关系、业务 code、调用方 ID、名称去重
 
 **StorylineDomain（叙事线领域）**:
-以 `SLD + canonical lowercase UUID` 为稳定身份的独立静态叙事领域目录项，保存中英文名称、
-自然语言描述、内容边界、`GEOPOLITICAL | MACRO | INDUSTRY | CORPORATE` 受控分类、启用状态和
-数据库生成时间。名称不是自然键，允许重复。当前不拥有 Storyline，也不与
+以 `SLD + canonical lowercase UUID` 为稳定身份的独立静态叙事领域目录项，以全局唯一、不可变且
+只含大写 ASCII 字母、数字和下划线的 `code` 作为机器自然键，并保存中英文名称、自然语言描述、
+内容边界、`GEOPOLITICAL | MACRO | INDUSTRY | CORPORATE` 受控分类、启用状态和数据库生成时间。
+名称不是自然键，允许重复。当前 35 条受控目录通过独立发布命令按 code 确定性生成正式身份；
+不保存 subtype 或展示顺序。StorylineDomain 当前不拥有 Storyline，也不与
 StorylineDomainTactic、GeopoliticRivalry、MacroEconomic 或其他对象建立关系。
-_Avoid_: Storyline 外键、Tactic 外键、名称去重、调用方 ID、从分类推断蓝图关系
+_Avoid_: Storyline 外键、Tactic 外键、名称去重、调用方 ID、subtype、展示顺序、从分类推断蓝图关系
 
 **StorylineDomainTactic（叙事线领域手段）**:
 以 `SDT + canonical lowercase UUID` 为稳定身份的独立静态手段目录项，以全局唯一、不可变且

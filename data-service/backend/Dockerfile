@@ -11,6 +11,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/dbmigra
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/research-theme-dev-reset ./data-service/backend/cmd/research-theme-dev-reset
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/organization-catalog-publish ./data-service/backend/cmd/organization-catalog-publish
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/region-catalog-publish ./data-service/backend/cmd/region-catalog-publish
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/storyline-domain-catalog-publish ./data-service/backend/cmd/storyline-domain-catalog-publish
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/source-initialize ./data-service/backend/cmd/source-initialize
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/source-import ./data-service/backend/cmd/source-import
 
@@ -26,6 +27,7 @@ COPY --from=builder /out/dbmigrate /usr/local/bin/dbmigrate
 COPY --from=builder /out/research-theme-dev-reset /usr/local/bin/research-theme-dev-reset
 COPY --from=builder /out/organization-catalog-publish /usr/local/bin/organization-catalog-publish
 COPY --from=builder /out/region-catalog-publish /usr/local/bin/region-catalog-publish
+COPY --from=builder /out/storyline-domain-catalog-publish /usr/local/bin/storyline-domain-catalog-publish
 COPY --from=builder /out/source-initialize /usr/local/bin/source-initialize
 COPY --from=builder /out/source-import /usr/local/bin/source-import
 COPY data-service/backend/configs ./configs
