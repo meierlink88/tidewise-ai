@@ -3,6 +3,43 @@
 These versioned packages are Data-owned publication inputs. They are not
 schema migrations and UAT deployment must not publish them automatically.
 
+## Company catalog
+
+`companies-v1.json` is the reviewed 2026-08-20 Company initialization package
+for active issuers found in the SSE, SZSE, BSE, HKEX, Nasdaq, NYSE, and NYSE
+American source snapshots. It contains 13,264 source-derived Company identities.
+The 77 pre-publication Company rows are not retained as a separate legacy set;
+companies found in the market sources are recreated from those sources and
+unmatched legacy rows are retired. Company `code` and `COM` identity remain
+independent from market tickers.
+
+The source preparation groups A/B and multiple US share classes by issuer,
+uses the reviewed A/H crosswalk where available, and excludes ETFs, funds,
+warrants, rights, units, preferred shares, test symbols, and other non-company
+securities. Unknown Company fields remain null. The package intentionally does
+not create Company-Industry Links or persist ticker/listing facts because those
+relations are outside the current Company contract.
+
+Publish the package with the Data image's offline command:
+
+```text
+/usr/local/bin/company-catalog-publish -file /app/initdata/companies-v1.json
+```
+
+For the local Compose environment after rebuilding the Data image:
+
+```text
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --no-deps --entrypoint /usr/local/bin/company-catalog-publish data
+```
+
+Publication is atomic and idempotent, and treats the package as the complete
+Company set. It retires Company rows outside the package, inserts or reconciles
+packaged facts, and fails closed if any Company-Industry Link or protected
+cross-domain reference exists. It never deletes those external facts. Take a
+database backup before the first publication and verify exactly 13,264 Company
+rows and zero Company-Industry Links afterward. Publication never runs
+automatically during deployment.
+
 ## Country catalog
 
 `countries-v1.json` is published from the `全球国家+地区` sheet in
