@@ -4,8 +4,11 @@ package storylinedomain
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -16,11 +19,15 @@ import (
 
 type DomainCategory string
 
+type CatalogPublicationMode string
+
 const (
 	DomainCategoryGeopolitical DomainCategory = "GEOPOLITICAL"
 	DomainCategoryMacro        DomainCategory = "MACRO"
 	DomainCategoryIndustry     DomainCategory = "INDUSTRY"
 	DomainCategoryCorporate    DomainCategory = "CORPORATE"
+
+	CatalogPublicationModeReconcile CatalogPublicationMode = "reconcile"
 )
 
 var (
@@ -69,54 +76,52 @@ type Filter struct {
 }
 
 type CatalogItem struct {
-	Code           string
-	Name           string
-	NameEn         string
-	Description    string
-	DomainCategory DomainCategory
+	Code           string         `json:"code"`
+	Name           string         `json:"name"`
+	NameEn         string         `json:"name_en"`
+	Description    string         `json:"description"`
+	DomainCategory DomainCategory `json:"domain_category"`
 }
 
-func CurrentCatalog() []CatalogItem {
-	return []CatalogItem{
-		{Code: "TECHNOLOGY", Name: "科技线", NameEn: "Technology", Description: "围绕芯片、AI、技术标准、人才争夺的博弈", DomainCategory: DomainCategoryGeopolitical},
-		{Code: "TRADE", Name: "贸易线", NameEn: "Trade", Description: "围绕关税、供应链、贸易规则的博弈", DomainCategory: DomainCategoryGeopolitical},
-		{Code: "FINANCE", Name: "金融线", NameEn: "Finance", Description: "围绕货币、支付体系、投资管制、金融制裁的博弈", DomainCategory: DomainCategoryGeopolitical},
-		{Code: "MILITARY", Name: "军事线", NameEn: "Military", Description: "围绕正面战场、军事行动、军事援助的博弈", DomainCategory: DomainCategoryGeopolitical},
-		{Code: "ENERGY", Name: "能源/资源线", NameEn: "Energy & Resources", Description: "围绕能源价格、粮食安全、关键矿产的博弈", DomainCategory: DomainCategoryGeopolitical},
-		{Code: "CYBER_SPACE", Name: "网络/太空线", NameEn: "Cyber & Space", Description: "围绕网络攻击、卫星对抗、太空军事化的博弈", DomainCategory: DomainCategoryGeopolitical},
-		{Code: "IDEOLOGY", Name: "意识形态线", NameEn: "Ideology", Description: "围绕价值观博弈、制度对抗、民主叙事的博弈", DomainCategory: DomainCategoryGeopolitical},
-		{Code: "RATE_DECISION", Name: "利率决策线", NameEn: "Rate Decision", Description: "政策利率调整、降息/加息决策", DomainCategory: DomainCategoryMacro},
-		{Code: "ASSET_PURCHASE", Name: "资产购买线", NameEn: "Asset Purchase", Description: "QE、QT、资产购买计划", DomainCategory: DomainCategoryMacro},
-		{Code: "POLICY_GUIDANCE", Name: "政策指引线", NameEn: "Policy Guidance", Description: "前瞻指引、政策声明、点阵图", DomainCategory: DomainCategoryMacro},
-		{Code: "FISCAL_SPENDING", Name: "财政支出线", NameEn: "Fiscal Spending", Description: "政府支出、基建投资、补贴", DomainCategory: DomainCategoryMacro},
-		{Code: "TAX_POLICY", Name: "税收政策线", NameEn: "Tax Policy", Description: "税率调整、税收减免、税改", DomainCategory: DomainCategoryMacro},
-		{Code: "DEBT_MANAGEMENT", Name: "债务管理线", NameEn: "Debt Management", Description: "国债发行、债务上限、财政赤字", DomainCategory: DomainCategoryMacro},
-		{Code: "TARIFF", Name: "关税政策线", NameEn: "Tariff", Description: "关税加征、豁免、反制", DomainCategory: DomainCategoryMacro},
-		{Code: "TRADE_AGREEMENT", Name: "贸易协定线", NameEn: "Trade Agreement", Description: "双边/多边贸易协定签署、谈判", DomainCategory: DomainCategoryMacro},
-		{Code: "REGULATION", Name: "监管规则线", NameEn: "Regulation", Description: "监管新规、合规要求、执法行动", DomainCategory: DomainCategoryMacro},
-		{Code: "DATA_RELEASE", Name: "数据发布线", NameEn: "Data Release", Description: "宏观数据发布（GDP/CPI/非农）", DomainCategory: DomainCategoryMacro},
-		{Code: "EXPECTATION_GAP", Name: "预期差线", NameEn: "Expectation Gap", Description: "实际 vs 预期值偏差分析", DomainCategory: DomainCategoryMacro},
-		{Code: "MARKET_REACTION", Name: "市场反应线", NameEn: "Market Reaction", Description: "市场对政策/数据的反应", DomainCategory: DomainCategoryMacro},
-		{Code: "UPSTREAM_SUPPLY", Name: "上游供给线", NameEn: "Upstream Supply", Description: "原材料供应、矿产出产、上游产能", DomainCategory: DomainCategoryIndustry},
-		{Code: "MIDSTREAM_MANUFACTURING", Name: "中游制造线", NameEn: "Midstream Manufacturing", Description: "加工制造、产能利用率、中间品价格", DomainCategory: DomainCategoryIndustry},
-		{Code: "DOWNSTREAM_DEMAND", Name: "下游需求线", NameEn: "Downstream Demand", Description: "终端需求、订单数据、消费景气度", DomainCategory: DomainCategoryIndustry},
-		{Code: "TECHNOLOGY_BREAKTHROUGH", Name: "技术突破线", NameEn: "Technology Breakthrough", Description: "研发突破、新材料/新工艺、专利", DomainCategory: DomainCategoryIndustry},
-		{Code: "TRADE_POLICY_IMPACT", Name: "贸易政策线", NameEn: "Trade Policy Impact", Description: "关税、出口管制、贸易壁垒对产业链影响", DomainCategory: DomainCategoryIndustry},
-		{Code: "PRICE_TRANSMISSION", Name: "价格传导线", NameEn: "Price Transmission", Description: "上下游价格传导、利润分配", DomainCategory: DomainCategoryIndustry},
-		{Code: "INVENTORY_CYCLE", Name: "库存周期线", NameEn: "Inventory Cycle", Description: "库存变化、补库/去库周期", DomainCategory: DomainCategoryIndustry},
-		{Code: "COMPETITION_LANDSCAPE", Name: "竞争格局线", NameEn: "Competition Landscape", Description: "市场份额变化、新进入者、行业整合", DomainCategory: DomainCategoryIndustry},
-		{Code: "IPO_PROGRESS", Name: "IPO进程线", NameEn: "IPO Progress", Description: "招股书提交、过会、定价、上市、首日表现", DomainCategory: DomainCategoryCorporate},
-		{Code: "EARNINGS", Name: "财报/业绩线", NameEn: "Earnings", Description: "财报发布、业绩预告、分析师会议、盈利指引", DomainCategory: DomainCategoryCorporate},
-		{Code: "M_A", Name: "并购重组线", NameEn: "M&A", Description: "并购公告、审批、完成、整合", DomainCategory: DomainCategoryCorporate},
-		{Code: "CAPITAL_MARKET", Name: "资本运作线", NameEn: "Capital Market", Description: "增发、回购、分红、可转债、拆股", DomainCategory: DomainCategoryCorporate},
-		{Code: "GOVERNANCE", Name: "高管/治理线", NameEn: "Governance", Description: "高管任命/离职、董事会变动、股权激励", DomainCategory: DomainCategoryCorporate},
-		{Code: "PRODUCT_TECH", Name: "产品/技术线", NameEn: "Product & Technology", Description: "产品发布、技术突破、产能扩张、研发", DomainCategory: DomainCategoryCorporate},
-		{Code: "LEGAL_COMPLIANCE", Name: "法律/合规线", NameEn: "Legal & Compliance", Description: "诉讼、监管调查、反垄断审查、合规事件", DomainCategory: DomainCategoryCorporate},
-		{Code: "MARKET_PERFORMANCE", Name: "市场表现线", NameEn: "Market Performance", Description: "股价异动、交易量异动、估值变化、市值波动", DomainCategory: DomainCategoryCorporate},
+type CatalogPublication struct {
+	SchemaVersion    int                    `json:"schema_version"`
+	PublicationMode  CatalogPublicationMode `json:"publication_mode"`
+	StorylineDomains []CatalogItem          `json:"storyline_domains"`
+}
+
+func LoadCatalog(ctx context.Context, path string) (CatalogPublication, error) {
+	if err := ctx.Err(); err != nil {
+		return CatalogPublication{}, err
 	}
+	file, err := os.Open(path)
+	if err != nil {
+		return CatalogPublication{}, fmt.Errorf("open StorylineDomain catalog: %w", err)
+	}
+	defer file.Close()
+
+	decoder := json.NewDecoder(file)
+	decoder.DisallowUnknownFields()
+	var publication CatalogPublication
+	if err := decoder.Decode(&publication); err != nil {
+		return CatalogPublication{}, fmt.Errorf("decode StorylineDomain catalog: %w", err)
+	}
+	if err := ctx.Err(); err != nil {
+		return CatalogPublication{}, err
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		if err == nil {
+			err = errors.New("multiple JSON values")
+		}
+		return CatalogPublication{}, fmt.Errorf("decode StorylineDomain catalog trailing data: %w", err)
+	}
+	if err := validateCatalog(publication); err != nil {
+		return CatalogPublication{}, err
+	}
+	return publication, nil
 }
 
-func PublishCatalog(ctx context.Context, db *sql.DB, publication []CatalogItem) error {
+func PublishCatalog(ctx context.Context, db *sql.DB, publication CatalogPublication) error {
 	if db == nil {
 		return errors.New("StorylineDomain catalog database is required")
 	}
@@ -128,7 +133,7 @@ func PublishCatalog(ctx context.Context, db *sql.DB, publication []CatalogItem) 
 		return classifyWriteError(err)
 	}
 	defer func() { _ = tx.Rollback() }()
-	for _, item := range publication {
+	for _, item := range publication.StorylineDomains {
 		id, err := coreid.Derive(coreid.StorylineDomain, "storyline-domain", item.Code)
 		if err != nil {
 			return ErrInvalidStorylineDomain
@@ -172,12 +177,14 @@ RETURNING id`, id, item.Code, item.Name, item.NameEn, item.Description, string(i
 	return nil
 }
 
-func validateCatalog(publication []CatalogItem) error {
-	if len(publication) == 0 {
+func validateCatalog(publication CatalogPublication) error {
+	if publication.SchemaVersion != 1 || publication.PublicationMode != CatalogPublicationModeReconcile ||
+		len(publication.StorylineDomains) != 35 {
 		return ErrInvalidStorylineDomain
 	}
-	seenCodes := make(map[string]struct{}, len(publication))
-	for _, item := range publication {
+	seenCodes := make(map[string]struct{}, len(publication.StorylineDomains))
+	categoryCounts := make(map[DomainCategory]int, 4)
+	for _, item := range publication.StorylineDomains {
 		if !validCatalogFields(item.Code, item.Name, item.NameEn, item.Description, item.DomainCategory) {
 			return ErrInvalidStorylineDomain
 		}
@@ -185,6 +192,11 @@ func validateCatalog(publication []CatalogItem) error {
 			return ErrInvalidStorylineDomain
 		}
 		seenCodes[item.Code] = struct{}{}
+		categoryCounts[item.DomainCategory]++
+	}
+	if categoryCounts[DomainCategoryGeopolitical] != 7 || categoryCounts[DomainCategoryMacro] != 12 ||
+		categoryCounts[DomainCategoryIndustry] != 8 || categoryCounts[DomainCategoryCorporate] != 8 {
+		return ErrInvalidStorylineDomain
 	}
 	return nil
 }

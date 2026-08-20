@@ -25,15 +25,19 @@ StorylineDomain 已有独立空表和公开 Data Adapter，但没有稳定机器
   `code` 通过 Data Application 统一身份原语确定性生成正式 `SLD` ID；现有列表排序合同不变。
 - Schema migration 只为确认为空的 `storyline_domains` 增加 `code` 约束，不包含目录数据。
   任意未知既有行都使 migration fail closed，不从名称或分类猜测 code。
-- 独立 `storyline-domain-catalog-publish` 运维命令以单事务幂等发布审阅目录。同一 code/正式
-  identity 可重放并校正描述事实；同一 code 对应其他 identity 时 fail closed；发布不删除目录外行。
+- 审阅目录以 Data-owned 版本化输入包 `data-service/initdata/storyline-domains-v1.json` 发布；
+  包只包含自然键与审阅描述/分类事实，不携带正式 ID、`scope_definition`、subtype 或排序字段。
+- 独立 `storyline-domain-catalog-publish -file /app/initdata/storyline-domains-v1.json` 运维命令
+  严格加载完整 v1 包并以单事务幂等发布。同一 code/正式 identity 可重放并校正描述事实；同一
+  code 对应其他 identity 时 fail closed；发布不删除目录外行，也不由部署自动运行。
 - 普通 Adapter Create 继续随机生成正式 ID，但必须接收 code；Update 不允许修改 code。本期仍
   不增加 Biz、Service、HTTP/OpenAPI、OpenSPG、UI 或 StorylineDomain 与其他对象的关系。
 
 ## 发布与回滚
 
 操作员停止任何 StorylineDomain 直接写入者并确认表为空，保留 PostgreSQL 恢复点，以候选镜像
-check-only 后应用 migration `000068`，再运行 `storyline-domain-catalog-publish`。发布后确认
+check-only 后应用 migration `000068`，再用同一发布镜像运行
+`storyline-domain-catalog-publish -file /app/initdata/storyline-domains-v1.json`。发布后确认
 ledger 为 68、35 条目录均 active、code 全局唯一且四类数量为 7/12/8/8。旧应用没有该目录的
 运行时 wiring，可与新增 schema 和目录共存；应用回退保留 schema 与目录事实，不运行 down。
 若 migration 或发布失败，保持旧应用并使用恢复点或另行审阅的 forward repair。

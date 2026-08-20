@@ -3,7 +3,9 @@ package storylinedomain
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -93,12 +95,80 @@ func TestStoreCreatesGetsListsAndUpdatesStorylineDomains(t *testing.T) {
 	}
 }
 
+func TestLoadCurrentCatalogPackage(t *testing.T) {
+	catalogPath := storylineDomainCatalogPath(t)
+	publication, err := LoadCatalog(context.Background(), catalogPath)
+	if err != nil {
+		t.Fatalf("LoadCatalog() error = %v", err)
+	}
+	if publication.SchemaVersion != 1 || publication.PublicationMode != CatalogPublicationModeReconcile {
+		t.Fatalf("catalog metadata = %#v", publication)
+	}
+	if len(publication.StorylineDomains) != 35 {
+		t.Fatalf("catalog StorylineDomains length = %d, want 35", len(publication.StorylineDomains))
+	}
+}
+
+func TestLoadCatalogRejectsInvalidPackages(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*CatalogPublication)
+	}{
+		{"unknown schema version", func(publication *CatalogPublication) { publication.SchemaVersion = 2 }},
+		{"unknown publication mode", func(publication *CatalogPublication) {
+			publication.PublicationMode = CatalogPublicationMode("replace")
+		}},
+		{"incomplete catalog", func(publication *CatalogPublication) {
+			publication.StorylineDomains = publication.StorylineDomains[:34]
+		}},
+		{"duplicate code", func(publication *CatalogPublication) {
+			publication.StorylineDomains[1].Code = publication.StorylineDomains[0].Code
+		}},
+		{"wrong category counts", func(publication *CatalogPublication) {
+			publication.StorylineDomains[0].DomainCategory = DomainCategoryMacro
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			publication := loadStorylineDomainCatalog(t)
+			test.mutate(&publication)
+			if _, err := LoadCatalog(context.Background(), writeStorylineDomainCatalog(t, publication)); !errors.Is(err, ErrInvalidStorylineDomain) {
+				t.Fatalf("LoadCatalog() error = %v, want ErrInvalidStorylineDomain", err)
+			}
+		})
+	}
+}
+
+func TestLoadCatalogRejectsUnownedFieldsAndTrailingData(t *testing.T) {
+	catalogPath := storylineDomainCatalogPath(t)
+	payload, err := os.ReadFile(catalogPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	withUnownedFields := strings.Replace(string(payload), `"code": "TECHNOLOGY",`, `"id": "TPL_TECHNOLOGY",
+      "applicable_sub_types": ["GEOPOLITICAL"],
+      "order_geo": 1,
+      "scope_definition": "not package-owned",
+      "code": "TECHNOLOGY",`, 1)
+	if _, err := LoadCatalog(context.Background(), writeStorylineDomainPayload(t, []byte(withUnownedFields))); err == nil {
+		t.Fatal("LoadCatalog() accepted unowned fields")
+	}
+	if _, err := LoadCatalog(context.Background(), writeStorylineDomainPayload(t, append(payload, []byte("\n{}")...))); err == nil {
+		t.Fatal("LoadCatalog() accepted trailing JSON")
+	}
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := LoadCatalog(cancelled, catalogPath); !errors.Is(err, context.Canceled) {
+		t.Fatalf("LoadCatalog(cancelled) error = %v, want context.Canceled", err)
+	}
+}
+
 func TestPublishCurrentCatalogInitializesStorylineDomains(t *testing.T) {
 	db := openStorylineDomainTestDatabase(t)
 	ctx := context.Background()
-	publication := CurrentCatalog()
-	if len(publication) != 35 {
-		t.Fatalf("CurrentCatalog() length = %d, want 35", len(publication))
+	publication := loadStorylineDomainCatalog(t)
+	if len(publication.StorylineDomains) != 35 {
+		t.Fatalf("catalog length = %d, want 35", len(publication.StorylineDomains))
 	}
 	if err := PublishCatalog(ctx, db, publication); err != nil {
 		t.Fatalf("PublishCatalog() error = %v", err)
@@ -220,7 +290,7 @@ func TestPublishCatalogFailsClosedOnStorylineDomainIdentityDrift(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := PublishCatalog(ctx, db, CurrentCatalog()); !errors.Is(err, ErrConflict) {
+	if err := PublishCatalog(ctx, db, loadStorylineDomainCatalog(t)); !errors.Is(err, ErrConflict) {
 		t.Fatalf("PublishCatalog(identity drift) error = %v, want ErrConflict", err)
 	}
 	listed, err := store.List(ctx, Filter{})
@@ -330,6 +400,42 @@ func TestStoreFailsClosedForUnknownPersistedStorylineDomainCategory(t *testing.T
 func domainCategoryPointer(value DomainCategory) *DomainCategory { return &value }
 
 func boolPointer(value bool) *bool { return &value }
+
+func loadStorylineDomainCatalog(t *testing.T) CatalogPublication {
+	t.Helper()
+	publication, err := LoadCatalog(context.Background(), storylineDomainCatalogPath(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return publication
+}
+
+func storylineDomainCatalogPath(t *testing.T) string {
+	t.Helper()
+	catalogPath, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "..", "initdata", "storyline-domains-v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return catalogPath
+}
+
+func writeStorylineDomainCatalog(t *testing.T, publication CatalogPublication) string {
+	t.Helper()
+	payload, err := json.Marshal(publication)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return writeStorylineDomainPayload(t, payload)
+}
+
+func writeStorylineDomainPayload(t *testing.T, payload []byte) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "storyline-domains.json")
+	if err := os.WriteFile(path, payload, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
 
 func openStorylineDomainTestDatabase(t *testing.T) *sql.DB {
 	t.Helper()

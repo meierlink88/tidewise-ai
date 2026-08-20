@@ -59,6 +59,29 @@ required operational backup and stop Region/Country-Region writes before
 running it. UAT publication remains a manual operation separate from the UAT
 deployment workflow.
 
+## StorylineDomain catalog
+
+`storyline-domains-v1.json` is the reviewed 35-row StorylineDomain catalog:
+7 GEOPOLITICAL, 12 MACRO, 8 INDUSTRY, and 8 CORPORATE definitions. The
+package contains natural `code` keys and descriptive/category facts but no
+primary IDs, `scope_definition`, `applicable_sub_types`, or `order_*` fields.
+Publication derives deterministic `SLD` identities from `code`, copies
+`description` to `scope_definition`, and activates every packaged definition.
+
+Publish the package with the Data image's offline command:
+
+```text
+/usr/local/bin/storyline-domain-catalog-publish -file /app/initdata/storyline-domains-v1.json
+```
+
+For UAT, first take the approved PostgreSQL recovery point, stop direct
+StorylineDomain writers, confirm the table is empty, and apply migration 68.
+Then run the command from the released Data image with `APP_ENV=uat` and the
+approved database secret. Verify 35 active rows, unique codes, category counts
+of 7/12/8/8, and `scope_definition = description`. Publication is atomic,
+idempotent, reconciles packaged facts, and fails closed if an existing code has
+a different formal identity. It never runs automatically during deployment.
+
 ## Organization facts
 
 `organizations-v1.json` is the reviewed initialization publication from the
