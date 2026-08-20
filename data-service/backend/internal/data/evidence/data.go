@@ -83,18 +83,18 @@ FROM evidences AS evidence
 JOIN raw_evidences AS raw ON raw.id = evidence.raw_evidence_id
 WHERE ($1 = '' OR strpos(lower(raw.title), lower($1)) > 0)
   AND ($2 = '' OR strpos(lower(evidence.summary), lower($2)) > 0)
-	  AND ($3 = '' OR EXISTS (
+  AND ($3 = '' OR EXISTS (
       SELECT 1 FROM raw_evidence_category_links AS selected_category
       WHERE selected_category.raw_evidence_id = raw.id AND selected_category.category_id = $3
-	  ))
-	  AND ($4 = '' OR raw.source_id = $4)
-	  AND ($5 = '' OR strpos(lower(raw.source_name), lower($5)) > 0)
-	  AND ($6 = '' OR raw.source_level = $6)
-	  AND ($7::boolean IS NULL OR evidence.is_split = $7)
-	  AND ($8::timestamptz IS NULL OR raw.published_at >= $8)
-	  AND ($9::timestamptz IS NULL OR raw.published_at <= $9)
-	  AND ($10::timestamptz IS NULL OR raw.collected_at >= $10)
-	  AND ($11::timestamptz IS NULL OR raw.collected_at <= $11)`
+  ))
+  AND ($4 = '' OR raw.source_id = $4)
+  AND ($5 = '' OR strpos(lower(raw.source_name), lower($5)) > 0)
+  AND ($6 = '' OR raw.source_level = $6)
+  AND ($7::boolean IS NULL OR evidence.is_split = $7)
+  AND ($8::timestamptz IS NULL OR raw.published_at >= $8)
+  AND ($9::timestamptz IS NULL OR raw.published_at <= $9)
+  AND ($10::timestamptz IS NULL OR raw.collected_at >= $10)
+  AND ($11::timestamptz IS NULL OR raw.collected_at <= $11)`
 
 func (s Store) ListEvidence(ctx context.Context, filter evidencebiz.EvidenceListFilter) (evidencebiz.EvidencePage, error) {
 	args := []any{
@@ -108,7 +108,7 @@ func (s Store) ListEvidence(ctx context.Context, filter evidencebiz.EvidenceList
 	}
 	rows, err := s.db.QueryContext(ctx, `
 SELECT evidence.id, evidence.raw_evidence_id, evidence.is_split, evidence.summary, evidence.semantic,
-	   raw.title, raw.source_id, raw.source_name, raw.source_level, raw.source_url, raw.is_original, raw.quoted_source_name,
+       raw.title, raw.source_id, raw.source_name, raw.source_level, raw.source_url, raw.is_original, raw.quoted_source_name,
        raw.published_at, raw.collected_at, array_to_json(raw.keywords),
        COALESCE((
            SELECT jsonb_agg(jsonb_build_object(

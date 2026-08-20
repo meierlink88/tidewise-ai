@@ -387,6 +387,11 @@ func TestOpenAPIContractFreezesEvidenceSourceIDProjection(t *testing.T) {
 		parameter := object(t, value, "Evidence parameter")
 		if parameter["name"] == "source_id" {
 			foundSourceID = true
+			assertInt(t, parameter, "x-trimmed-max-length", 32)
+			parameterSchema := object(t, parameter["schema"], "source_id schema")
+			if _, exists := parameterSchema["maxLength"]; exists {
+				t.Fatal("source_id query maxLength must apply after trimming, not to the raw query value")
+			}
 		}
 	}
 	if !foundSourceID {

@@ -102,6 +102,25 @@ func TestOpenAPIContractFreezesAdminRoutesSecurityAndEnvelopes(t *testing.T) {
 
 func TestOpenAPIContractPreservesRetainedDataListSchemas(t *testing.T) {
 	document := parseAdminDocument(t)
+	evidenceOperation := adminObject(t, adminObject(t, adminObject(t, document["paths"], "paths")["/api/admin/v1/evidences"], "Evidence path")["get"], "Evidence operation")
+	foundSourceID := false
+	for _, value := range adminArray(t, evidenceOperation["parameters"], "Evidence parameters") {
+		parameter := adminObject(t, value, "Evidence parameter")
+		if parameter["name"] != "source_id" {
+			continue
+		}
+		foundSourceID = true
+		if parameter["x-trimmed-max-length"] != 32 {
+			t.Fatalf("source_id x-trimmed-max-length = %v, want 32", parameter["x-trimmed-max-length"])
+		}
+		parameterSchema := adminObject(t, parameter["schema"], "source_id schema")
+		if _, exists := parameterSchema["maxLength"]; exists {
+			t.Fatal("source_id query maxLength must apply after trimming, not to the raw query value")
+		}
+	}
+	if !foundSourceID {
+		t.Fatal("Evidence parameters do not contain source_id")
+	}
 	components := adminObject(t, document["components"], "components")
 	parameters := adminObject(t, components["parameters"], "parameters")
 	pageSchema := adminObject(t, adminObject(t, parameters["Page"], "Page")["schema"], "Page.schema")

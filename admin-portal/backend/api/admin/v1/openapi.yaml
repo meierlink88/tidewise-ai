@@ -101,7 +101,7 @@ paths:
         - { name: title, in: query, required: false, schema: { type: string, maxLength: 500 } }
         - { name: summary, in: query, required: false, schema: { type: string, maxLength: 200 } }
         - { name: category_id, in: query, required: false, schema: { type: string, maxLength: 39, pattern: '^EVC[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' } }
-        - { name: source_id, in: query, required: false, description: Raw Evidence 发布时 source_id 快照；trim 后精确、区分大小写匹配。, schema: { type: string, maxLength: 32 } }
+        - { name: source_id, in: query, required: false, description: Raw Evidence 发布时 source_id 快照；trim 后最多 32 字符，并精确、区分大小写匹配。, x-trimmed-max-length: 32, schema: { type: string } }
         - { name: source_name, in: query, required: false, schema: { type: string, maxLength: 100 } }
         - { name: source_level, in: query, required: false, schema: { $ref: '#/components/schemas/SourceLevel' } }
         - { name: is_split, in: query, required: false, schema: { type: boolean } }
