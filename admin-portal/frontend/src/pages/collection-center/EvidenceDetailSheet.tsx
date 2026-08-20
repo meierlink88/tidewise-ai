@@ -102,6 +102,9 @@ export function EvidenceDetailSheet({
             </DetailSection>
             <DetailSection title='信源信息'>
               <DetailList>
+                <DetailItem full label='信源 ID'>
+                  <span className='font-mono'>{evidence.source_id}</span>
+                </DetailItem>
                 <DetailItem label='信源名称'>{evidence.source_name}</DetailItem>
                 <DetailItem label='信源等级'>{evidence.source_level}</DetailItem>
                 <DetailItem label='内容来源'>{evidence.is_original ? '原创' : '转载'}</DetailItem>

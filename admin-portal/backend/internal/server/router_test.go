@@ -164,9 +164,11 @@ func TestEventsAPIAlwaysEmitsNullableTimeFields(t *testing.T) {
 
 func TestCollectionCenterEvidenceAndSourceAPIsExposeConfirmedReadModels(t *testing.T) {
 	now := testTime()
+	var evidenceQuery biz.EvidenceListQuery
 	client := &biz.FakeDataServiceRepo{
-		ListEvidencesFunc: func(context.Context, biz.EvidenceListQuery) (biz.EvidencePage, error) {
-			return biz.EvidencePage{Items: []biz.Evidence{{ID: "EVD00000000-0000-5000-8000-000000000001", RawEvidenceID: "RAW00000000-0000-5000-8000-000000000001", Summary: "summary", Categories: []biz.EvidenceCategory{{ID: "EVC00000000-0000-5000-8000-000000000001", Code: "EVENT_BRIEF", Name: "Event brief", Description: "description"}}, SourceName: "Official", SourceLevel: "L1_OFFICIAL", CollectedAt: now}}, Total: 1, Page: 1, PageSize: 50}, nil
+		ListEvidencesFunc: func(_ context.Context, query biz.EvidenceListQuery) (biz.EvidencePage, error) {
+			evidenceQuery = query
+			return biz.EvidencePage{Items: []biz.Evidence{{ID: "EVD00000000-0000-5000-8000-000000000001", RawEvidenceID: "RAW00000000-0000-5000-8000-000000000001", Summary: "summary", Categories: []biz.EvidenceCategory{{ID: "EVC00000000-0000-5000-8000-000000000001", Code: "EVENT_BRIEF", Name: "Event brief", Description: "description"}}, SourceID: "SRC_example_00000000000000000000", SourceName: "Official", SourceLevel: "L1_OFFICIAL", CollectedAt: now}}, Total: 1, Page: 1, PageSize: 50}, nil
 		},
 		GetRawEvidenceDocumentFunc: func(context.Context, string) (biz.RawEvidenceDocument, error) {
 			return biz.RawEvidenceDocument{RawText: "/raw-evidence/documents/2026/08/17/11f0864fc4078b47a4cc758149a2b0b7923654d2c7c8a694ad5b2d5ced4fc998.md"}, nil
@@ -179,7 +181,7 @@ func TestCollectionCenterEvidenceAndSourceAPIsExposeConfirmedReadModels(t *testi
 		},
 	}
 	router := NewRouter(testConfig(), biz.NewService(client, biz.WithRawEvidencePublicBaseURL("https://tideai.tripwise.cn")), "secret")
-	for _, path := range []string{"/api/admin/v1/evidences?is_split=false", "/api/admin/v1/raw-evidences/RAW00000000-0000-5000-8000-000000000001/collection-document", "/api/admin/v1/evidence-categories", "/api/admin/v1/sources?query=official"} {
+	for _, path := range []string{"/api/admin/v1/evidences?source_id=%20SRC_example_00000000000000000000%20&is_split=false", "/api/admin/v1/raw-evidences/RAW00000000-0000-5000-8000-000000000001/collection-document", "/api/admin/v1/evidence-categories", "/api/admin/v1/sources?query=official"} {
 		response := performJSONRequest(t, router, http.MethodGet, path, nil, "secret", "collection-request")
 		if response.Code != http.StatusOK {
 			t.Fatalf("GET %s status=%d body=%s", path, response.Code, response.Body.String())
@@ -187,6 +189,12 @@ func TestCollectionCenterEvidenceAndSourceAPIsExposeConfirmedReadModels(t *testi
 		if strings.Contains(response.Body.String(), "adapter_key") || strings.Contains(response.Body.String(), "endpoint") || strings.Contains(response.Body.String(), "app_key") {
 			t.Fatalf("GET %s leaked Source internals: %s", path, response.Body.String())
 		}
+		if strings.HasPrefix(path, "/api/admin/v1/evidences") && !strings.Contains(response.Body.String(), `"source_id":"SRC_example_00000000000000000000"`) {
+			t.Fatalf("GET %s omitted source_id: %s", path, response.Body.String())
+		}
+	}
+	if evidenceQuery.SourceID != "SRC_example_00000000000000000000" {
+		t.Fatalf("Evidence query source ID = %q", evidenceQuery.SourceID)
 	}
 }
 

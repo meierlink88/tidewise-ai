@@ -115,6 +115,7 @@ type EvidenceListFilter struct {
 	Title         string
 	Summary       string
 	CategoryID    CategoryID
+	SourceID      string
 	SourceName    string
 	SourceLevel   SourceLevel
 	IsSplit       *bool
@@ -133,6 +134,7 @@ type EvidenceListItem struct {
 	Summary          string
 	Semantic         Semantic
 	Categories       []Category
+	SourceID         string
 	SourceName       string
 	SourceLevel      SourceLevel
 	SourceURL        string
@@ -288,6 +290,7 @@ func validateEvidenceListFilter(filter EvidenceListFilter) *Issue {
 	}{
 		{path: "title", value: filter.Title, max: 500},
 		{path: "summary", value: filter.Summary, max: 200},
+		{path: "source_id", value: filter.SourceID, max: 32},
 		{path: "source_name", value: filter.SourceName, max: 100},
 	} {
 		if utf8.RuneCountInString(text.value) > text.max {

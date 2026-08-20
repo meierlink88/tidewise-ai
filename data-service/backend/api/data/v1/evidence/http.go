@@ -32,7 +32,7 @@ func listEvidenceHandler(application Service, executionBudget time.Duration) kra
 		}
 		request := &ListRequest{
 			Title: ctx.Query().Get("title"), Summary: ctx.Query().Get("summary"),
-			CategoryID: ctx.Query().Get("category_id"), SourceName: ctx.Query().Get("source_name"),
+			CategoryID: ctx.Query().Get("category_id"), SourceID: ctx.Query().Get("source_id"), SourceName: ctx.Query().Get("source_name"),
 			SourceLevel: ctx.Query().Get("source_level"), IsSplit: ctx.Query().Get("is_split"),
 			PublishedFrom: ctx.Query().Get("published_from"), PublishedTo: ctx.Query().Get("published_to"),
 			CollectedFrom: ctx.Query().Get("collected_from"), CollectedTo: ctx.Query().Get("collected_to"),
@@ -48,7 +48,7 @@ func listEvidenceHandler(application Service, executionBudget time.Duration) kra
 
 func allowedEvidenceListParameter(name string) bool {
 	switch name {
-	case "title", "summary", "category_id", "source_name", "source_level", "is_split",
+	case "title", "summary", "category_id", "source_id", "source_name", "source_level", "is_split",
 		"published_from", "published_to", "collected_from", "collected_to", "page", "page_size":
 		return true
 	default:

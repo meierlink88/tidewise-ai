@@ -81,6 +81,28 @@ func TestEventListRejectsRetiredOrUnknownFilters(t *testing.T) {
 	}
 }
 
+func TestEvidenceListBindsSourceIDFilter(t *testing.T) {
+	stub := &capturingAdminHTTPServer{}
+	server := kratoshttp.NewServer()
+	RegisterAdminHTTPServer(server, stub)
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, APIPrefix+"/evidences?source_id=SRC_example_00000000000000000000", nil))
+	if response.Code != http.StatusOK || stub.evidenceRequest == nil ||
+		stub.evidenceRequest.SourceID != "SRC_example_00000000000000000000" {
+		t.Fatalf("status=%d request=%#v", response.Code, stub.evidenceRequest)
+	}
+}
+
+type capturingAdminHTTPServer struct {
+	stubAdminHTTPServer
+	evidenceRequest *ListEvidencesRequest
+}
+
+func (s *capturingAdminHTTPServer) ListEvidences(_ context.Context, request *ListEvidencesRequest) (*EvidenceListResponse, error) {
+	s.evidenceRequest = request
+	return &EvidenceListResponse{}, nil
+}
+
 type stubAdminHTTPServer struct{}
 
 func (stubAdminHTTPServer) ListEvents(context.Context, *ListEventsRequest) (*EventListResponse, error) {

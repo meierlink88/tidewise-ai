@@ -57,7 +57,7 @@ func listEvidencesHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {
 		query := ctx.Query()
 		request := &ListEvidencesRequest{
 			Title: query.Get("title"), Summary: query.Get("summary"), CategoryID: query.Get("category_id"),
-			SourceName: query.Get("source_name"), SourceLevel: query.Get("source_level"), IsSplit: query.Get("is_split"),
+			SourceID: query.Get("source_id"), SourceName: query.Get("source_name"), SourceLevel: query.Get("source_level"), IsSplit: query.Get("is_split"),
 			PublishedFrom: query.Get("published_from"), PublishedTo: query.Get("published_to"),
 			CollectedFrom: query.Get("collected_from"), CollectedTo: query.Get("collected_to"), Page: page, PageSize: pageSize,
 		}
@@ -69,7 +69,7 @@ func listEvidencesHandler(service AdminHTTPServer) kratoshttp.HandlerFunc {
 
 func allowedEvidenceQueryParameter(name string) bool {
 	switch name {
-	case "title", "summary", "category_id", "source_name", "source_level", "is_split", "published_from", "published_to", "collected_from", "collected_to", "page", "page_size":
+	case "title", "summary", "category_id", "source_id", "source_name", "source_level", "is_split", "published_from", "published_to", "collected_from", "collected_to", "page", "page_size":
 		return true
 	default:
 		return false

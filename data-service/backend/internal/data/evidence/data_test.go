@@ -28,7 +28,7 @@ func TestEvidenceListTextFiltersUseLiteralCaseInsensitiveContains(t *testing.T) 
 	for _, expression := range []string{
 		"strpos(lower(raw.title), lower($1)) > 0",
 		"strpos(lower(evidence.summary), lower($2)) > 0",
-		"strpos(lower(raw.source_name), lower($4)) > 0",
+		"strpos(lower(raw.source_name), lower($5)) > 0",
 	} {
 		if !strings.Contains(evidenceListWhere, expression) {
 			t.Fatalf("Evidence list predicate is missing %q", expression)
@@ -36,6 +36,9 @@ func TestEvidenceListTextFiltersUseLiteralCaseInsensitiveContains(t *testing.T) 
 	}
 	if strings.Contains(evidenceListWhere, "ILIKE") {
 		t.Fatal("Evidence list text filters must not interpret LIKE wildcard characters")
+	}
+	if !strings.Contains(evidenceListWhere, "raw.source_id = $4") || strings.Contains(evidenceListWhere, "lower(raw.source_id)") {
+		t.Fatal("Evidence source_id filter must use case-sensitive exact matching")
 	}
 }
 
@@ -337,16 +340,17 @@ func TestListEvidenceReturnsJoinedRawEvidenceAndCompleteCategories(t *testing.T)
 	collectedTo := publishedTo
 	categoryID := evidencebiz.CategoryID("EVCc18ddddb-14bc-5496-99ea-963ee2c25597")
 	filter := evidencebiz.EvidenceListFilter{
-		Title: "Source", Summary: "Atomic", CategoryID: categoryID, SourceName: "Example",
+		Title: "Source", Summary: "Atomic", CategoryID: categoryID,
+		SourceID: "SRC_example_00000000000000000000", SourceName: "Example",
 		SourceLevel: evidencebiz.SourceLevelWire, IsSplit: testBoolPointer(true),
 		PublishedFrom: &publishedFrom, PublishedTo: &publishedTo,
 		CollectedFrom: &collectedFrom, CollectedTo: &collectedTo, Page: 2, PageSize: 10,
 	}
 	args := []driver.Value{
-		"Source", "Atomic", string(categoryID), "Example", string(evidencebiz.SourceLevelWire), true,
+		"Source", "Atomic", string(categoryID), "SRC_example_00000000000000000000", "Example", string(evidencebiz.SourceLevelWire), true,
 		publishedFrom, publishedTo, collectedFrom, collectedTo,
 	}
-	mock.ExpectQuery("SELECT COUNT\\(\\*\\).*FROM evidences").WithArgs(args...).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\).*raw\\.source_id = \\$4").WithArgs(args...).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 	listArgs := append(append([]driver.Value{}, args...), int64(10), int64(10))
 	categoryCreatedAt := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
 	categories := fmt.Sprintf(`[{"id":"%s","code":"EVENT_BRIEF","name":"事件快讯","description":"事件材料","created_at":"%s"}]`, categoryID, categoryCreatedAt.Format(time.RFC3339))
@@ -354,10 +358,10 @@ func TestListEvidenceReturnsJoinedRawEvidenceAndCompleteCategories(t *testing.T)
 	keywords := []byte(`["advanced manufacturing","capacity expansion"]`)
 	quotedSourceName := "Example Corp filing"
 	mock.ExpectQuery("SELECT evidence.id, evidence.raw_evidence_id").WithArgs(listArgs...).WillReturnRows(sqlmock.NewRows([]string{
-		"id", "raw_evidence_id", "is_split", "summary", "semantic", "title", "source_name", "source_level", "source_url", "is_original", "quoted_source_name", "published_at", "collected_at", "keywords", "categories",
+		"id", "raw_evidence_id", "is_split", "summary", "semantic", "title", "source_id", "source_name", "source_level", "source_url", "is_original", "quoted_source_name", "published_at", "collected_at", "keywords", "categories",
 	}).AddRow(
 		"EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf", true, "Atomic fact", semantic,
-		"Source title", "Example Wire", "L2_WIRE", "https://example.com/report", false, quotedSourceName,
+		"Source title", "SRC_example_00000000000000000000", "Example Wire", "L2_WIRE", "https://example.com/report", false, quotedSourceName,
 		publishedFrom.Add(time.Hour), collectedFrom.Add(65*time.Minute), keywords, []byte(categories),
 	))
 
@@ -374,7 +378,7 @@ func TestListEvidenceReturnsJoinedRawEvidenceAndCompleteCategories(t *testing.T)
 	}
 	item := page.Items[0]
 	if item.Title == nil || *item.Title != "Source title" || item.Summary != "Atomic fact" ||
-		item.SourceName != "Example Wire" || item.SourceLevel != evidencebiz.SourceLevelWire || !item.IsSplit ||
+		item.SourceID != "SRC_example_00000000000000000000" || item.SourceName != "Example Wire" || item.SourceLevel != evidencebiz.SourceLevelWire || !item.IsSplit ||
 		item.Semantic.Who == nil || *item.Semantic.Who != "Example Corp" || item.Semantic.What != "announced a production line" ||
 		item.SourceURL != "https://example.com/report" || item.IsOriginal || item.QuotedSourceName == nil || *item.QuotedSourceName != quotedSourceName ||
 		len(item.Keywords) != 2 || item.Keywords[0] != "advanced manufacturing" ||

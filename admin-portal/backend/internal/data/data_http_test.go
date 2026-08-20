@@ -58,7 +58,7 @@ func TestHTTPClientListsEvidenceCategoriesAndSourcesWithStrictProjection(t *test
 		writer.Header().Set("Content-Type", "application/json")
 		switch request.URL.Path {
 		case evidencesPath:
-			_, _ = writer.Write([]byte(`{"request_id":"data-evidence","result":{"items":[{"id":"EVD22222222-2222-5222-8222-222222222222","raw_evidence_id":"RAW22222222-2222-5222-8222-222222222222","title":"raw title","summary":"summary","semantic":{"who":"Official","what":"announced a policy","when":null,"where":"China","why":null,"how":null},"categories":[{"id":"EVC22222222-2222-5222-8222-222222222222","code":"EVENT_BRIEF","name":"Event brief","description":"description"}],"source_name":"Official","source_level":"L1_OFFICIAL","source_url":"https://example.com/report","is_original":false,"quoted_source_name":"Agency filing","keywords":["policy","exports"],"is_split":true,"published_at":"2026-08-19T01:00:00Z","collected_at":"2026-08-19T02:00:00Z"}],"total":1,"page":1,"page_size":50}}`))
+			_, _ = writer.Write([]byte(`{"request_id":"data-evidence","result":{"items":[{"id":"EVD22222222-2222-5222-8222-222222222222","raw_evidence_id":"RAW22222222-2222-5222-8222-222222222222","title":"raw title","summary":"summary","semantic":{"who":"Official","what":"announced a policy","when":null,"where":"China","why":null,"how":null},"categories":[{"id":"EVC22222222-2222-5222-8222-222222222222","code":"EVENT_BRIEF","name":"Event brief","description":"description"}],"source_id":"SRC_example_00000000000000000000","source_name":"Official","source_level":"L1_OFFICIAL","source_url":"https://example.com/report","is_original":false,"quoted_source_name":"Agency filing","keywords":["policy","exports"],"is_split":true,"published_at":"2026-08-19T01:00:00Z","collected_at":"2026-08-19T02:00:00Z"}],"total":1,"page":1,"page_size":50}}`))
 		case evidenceCategoriesPath:
 			_, _ = writer.Write([]byte(`{"request_id":"data-category","result":{"categories":[{"id":"EVC22222222-2222-5222-8222-222222222222","code":"EVENT_BRIEF","name":"Event brief","description":"description"}]}}`))
 		case sourcesPath:
@@ -70,9 +70,9 @@ func TestHTTPClientListsEvidenceCategoriesAndSourcesWithStrictProjection(t *test
 	defer server.Close()
 	client := newTestClient(t, server.URL, server.Client(), "admin-service-token")
 	isSplit := true
-	page, err := client.ListEvidences(context.Background(), biz.EvidenceListQuery{Title: "raw", CategoryID: "EVC22222222-2222-5222-8222-222222222222", IsSplit: &isSplit, Page: 1, PageSize: 50})
+	page, err := client.ListEvidences(context.Background(), biz.EvidenceListQuery{Title: "raw", CategoryID: "EVC22222222-2222-5222-8222-222222222222", SourceID: "SRC_example_00000000000000000000", IsSplit: &isSplit, Page: 1, PageSize: 50})
 	if err != nil || len(page.Items) != 1 || len(page.Items[0].Categories) != 1 || page.Items[0].Semantic.What != "announced a policy" ||
-		page.Items[0].SourceURL != "https://example.com/report" || page.Items[0].IsOriginal || page.Items[0].QuotedSourceName == nil ||
+		page.Items[0].SourceID != "SRC_example_00000000000000000000" || page.Items[0].SourceURL != "https://example.com/report" || page.Items[0].IsOriginal || page.Items[0].QuotedSourceName == nil ||
 		*page.Items[0].QuotedSourceName != "Agency filing" || len(page.Items[0].Keywords) != 2 {
 		t.Fatalf("Evidence page/error = %#v/%v", page, err)
 	}
@@ -85,7 +85,7 @@ func TestHTTPClientListsEvidenceCategoriesAndSourcesWithStrictProjection(t *test
 		t.Fatalf("sources/error = %#v/%v", sources, err)
 	}
 	first, second, third := <-requests, <-requests, <-requests
-	if first.URL.Query().Get("title") != "raw" || first.URL.Query().Get("category_id") == "" || first.URL.Query().Get("is_split") != "true" || second.URL.RawQuery != "" || third.URL.RawQuery != "" {
+	if first.URL.Query().Get("title") != "raw" || first.URL.Query().Get("category_id") == "" || first.URL.Query().Get("source_id") != "SRC_example_00000000000000000000" || first.URL.Query().Get("is_split") != "true" || second.URL.RawQuery != "" || third.URL.RawQuery != "" {
 		t.Fatalf("requests = %s / %s / %s", first.URL.String(), second.URL.String(), third.URL.String())
 	}
 }

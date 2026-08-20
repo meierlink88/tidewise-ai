@@ -26,10 +26,10 @@ type CollectionDocument struct {
 }
 
 type EvidenceListQuery struct {
-	Title, Summary, CategoryID, SourceName, SourceLevel    string
-	IsSplit                                                *bool
-	PublishedFrom, PublishedTo, CollectedFrom, CollectedTo *time.Time
-	Page, PageSize                                         int
+	Title, Summary, CategoryID, SourceID, SourceName, SourceLevel string
+	IsSplit                                                       *bool
+	PublishedFrom, PublishedTo, CollectedFrom, CollectedTo        *time.Time
+	Page, PageSize                                                int
 }
 
 type EvidencePage struct {
@@ -42,6 +42,7 @@ type Evidence struct {
 	Summary                 string
 	Semantic                EvidenceSemantic
 	Categories              []EvidenceCategory
+	SourceID                string
 	SourceName, SourceLevel string
 	SourceURL               string
 	IsOriginal              bool

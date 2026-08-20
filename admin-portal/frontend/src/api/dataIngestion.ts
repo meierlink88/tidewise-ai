@@ -52,6 +52,7 @@ export interface EvidenceItem {
   summary: string;
   semantic: EvidenceSemantic;
   categories: EvidenceCategory[];
+  source_id: string;
   source_name: string;
   source_level: SourceLevel;
   source_url: string;
@@ -77,6 +78,7 @@ export interface EvidenceQuery {
   title?: string;
   summary?: string;
   category_id?: string;
+  source_id?: string;
   source_name?: string;
   source_level?: string;
   is_split?: string;
@@ -166,6 +168,7 @@ const evidenceItemSchema: z.ZodType<EvidenceItem> = z
       })
       .strict(),
     categories: z.array(evidenceCategorySchema),
+    source_id: z.string().min(1).max(32),
     source_name: z.string().min(1),
     source_level: sourceLevelSchema,
     source_url: z

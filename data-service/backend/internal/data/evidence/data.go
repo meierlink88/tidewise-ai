@@ -83,21 +83,22 @@ FROM evidences AS evidence
 JOIN raw_evidences AS raw ON raw.id = evidence.raw_evidence_id
 WHERE ($1 = '' OR strpos(lower(raw.title), lower($1)) > 0)
   AND ($2 = '' OR strpos(lower(evidence.summary), lower($2)) > 0)
-  AND ($3 = '' OR EXISTS (
+	  AND ($3 = '' OR EXISTS (
       SELECT 1 FROM raw_evidence_category_links AS selected_category
       WHERE selected_category.raw_evidence_id = raw.id AND selected_category.category_id = $3
-  ))
-  AND ($4 = '' OR strpos(lower(raw.source_name), lower($4)) > 0)
-  AND ($5 = '' OR raw.source_level = $5)
-  AND ($6::boolean IS NULL OR evidence.is_split = $6)
-  AND ($7::timestamptz IS NULL OR raw.published_at >= $7)
-  AND ($8::timestamptz IS NULL OR raw.published_at <= $8)
-  AND ($9::timestamptz IS NULL OR raw.collected_at >= $9)
-  AND ($10::timestamptz IS NULL OR raw.collected_at <= $10)`
+	  ))
+	  AND ($4 = '' OR raw.source_id = $4)
+	  AND ($5 = '' OR strpos(lower(raw.source_name), lower($5)) > 0)
+	  AND ($6 = '' OR raw.source_level = $6)
+	  AND ($7::boolean IS NULL OR evidence.is_split = $7)
+	  AND ($8::timestamptz IS NULL OR raw.published_at >= $8)
+	  AND ($9::timestamptz IS NULL OR raw.published_at <= $9)
+	  AND ($10::timestamptz IS NULL OR raw.collected_at >= $10)
+	  AND ($11::timestamptz IS NULL OR raw.collected_at <= $11)`
 
 func (s Store) ListEvidence(ctx context.Context, filter evidencebiz.EvidenceListFilter) (evidencebiz.EvidencePage, error) {
 	args := []any{
-		filter.Title, filter.Summary, string(filter.CategoryID), filter.SourceName, string(filter.SourceLevel),
+		filter.Title, filter.Summary, string(filter.CategoryID), filter.SourceID, filter.SourceName, string(filter.SourceLevel),
 		optionalBoolValue(filter.IsSplit), optionalTimeValue(filter.PublishedFrom), optionalTimeValue(filter.PublishedTo),
 		optionalTimeValue(filter.CollectedFrom), optionalTimeValue(filter.CollectedTo),
 	}
@@ -107,7 +108,7 @@ func (s Store) ListEvidence(ctx context.Context, filter evidencebiz.EvidenceList
 	}
 	rows, err := s.db.QueryContext(ctx, `
 SELECT evidence.id, evidence.raw_evidence_id, evidence.is_split, evidence.summary, evidence.semantic,
-       raw.title, raw.source_name, raw.source_level, raw.source_url, raw.is_original, raw.quoted_source_name,
+	   raw.title, raw.source_id, raw.source_name, raw.source_level, raw.source_url, raw.is_original, raw.quoted_source_name,
        raw.published_at, raw.collected_at, array_to_json(raw.keywords),
        COALESCE((
            SELECT jsonb_agg(jsonb_build_object(
@@ -123,7 +124,7 @@ SELECT evidence.id, evidence.raw_evidence_id, evidence.is_split, evidence.summar
        ), '[]'::jsonb) AS categories
 `+evidenceListWhere+`
 ORDER BY raw.published_at DESC NULLS LAST, raw.collected_at DESC, evidence.id COLLATE "C"
-LIMIT $11 OFFSET $12`, append(args, filter.PageSize, (filter.Page-1)*filter.PageSize)...)
+LIMIT $12 OFFSET $13`, append(args, filter.PageSize, (filter.Page-1)*filter.PageSize)...)
 	if err != nil {
 		return evidencebiz.EvidencePage{}, fmt.Errorf("query Evidence: %w", err)
 	}
@@ -162,7 +163,7 @@ func scanEvidenceListItem(scanner evidenceListScanner) (evidencebiz.EvidenceList
 	var categoriesJSON []byte
 	if err := scanner.Scan(
 		&item.ID, &item.RawEvidenceID, &item.IsSplit, &item.Summary, &semanticJSON, &title,
-		&item.SourceName, &item.SourceLevel, &item.SourceURL, &item.IsOriginal, &quotedSourceName,
+		&item.SourceID, &item.SourceName, &item.SourceLevel, &item.SourceURL, &item.IsOriginal, &quotedSourceName,
 		&publishedAt, &item.CollectedAt, &keywordsJSON, &categoriesJSON,
 	); err != nil {
 		return evidencebiz.EvidenceListItem{}, fmt.Errorf("scan Evidence list: %w", err)
@@ -236,6 +237,9 @@ func validateEvidenceListItem(item evidencebiz.EvidenceListItem) error {
 		return err
 	}
 	if err := validateStoredRequired("Evidence list", "summary", item.Summary, 200); err != nil {
+		return err
+	}
+	if err := validateStoredRequired("Evidence list", "source_id", item.SourceID, 32); err != nil {
 		return err
 	}
 	if err := validateStoredRequired("Evidence list", "source_name", item.SourceName, 100); err != nil {

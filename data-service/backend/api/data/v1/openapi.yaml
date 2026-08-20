@@ -453,12 +453,14 @@ paths:
       summary: 分页查询 Admin Evidence Center 读模型
       description: >-
         以 Atomic Evidence 为分页单位，关联其唯一 Raw Evidence 与完整 Evidence Category 集合。
-        文本筛选为不区分大小写的 contains；时间范围两端均包含且必须为 UTC RFC3339。
+        title、summary、source_name 文本筛选为不区分大小写的 contains；source_id 为 trim 后精确、
+        区分大小写匹配的 Raw Evidence 发布时快照。时间范围两端均包含且必须为 UTC RFC3339。
       parameters:
         - $ref: '#/components/parameters/RequestID'
         - {name: title, in: query, required: false, schema: {type: string, maxLength: 500}}
         - {name: summary, in: query, required: false, schema: {type: string, maxLength: 200}}
         - {name: category_id, in: query, required: false, schema: {type: string, maxLength: 39, pattern: '^EVC[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'}}
+        - {name: source_id, in: query, required: false, schema: {type: string, maxLength: 32}}
         - {name: source_name, in: query, required: false, schema: {type: string, maxLength: 100}}
         - {name: source_level, in: query, required: false, schema: {$ref: '#/components/schemas/SourceLevel'}}
         - {name: is_split, in: query, required: false, schema: {type: boolean}}
@@ -3279,7 +3281,7 @@ components:
     AdminEvidence:
       type: object
       additionalProperties: false
-      required: [id, raw_evidence_id, title, summary, semantic, categories, source_name, source_level, source_url, is_original, quoted_source_name, keywords, is_split, published_at, collected_at]
+      required: [id, raw_evidence_id, title, summary, semantic, categories, source_id, source_name, source_level, source_url, is_original, quoted_source_name, keywords, is_split, published_at, collected_at]
       properties:
         id:
           type: string
@@ -3298,6 +3300,7 @@ components:
         categories:
           type: array
           items: {$ref: '#/components/schemas/EvidenceCategory'}
+        source_id: {type: string, minLength: 1, maxLength: 32}
         source_name: {type: string, minLength: 1, maxLength: 100}
         source_level: {$ref: '#/components/schemas/SourceLevel'}
         source_url: {type: string, format: uri, minLength: 1, maxLength: 2048}

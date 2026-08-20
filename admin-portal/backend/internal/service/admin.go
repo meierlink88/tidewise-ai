@@ -121,7 +121,7 @@ func (s *AdminService) ListSources(ctx context.Context, request *v1.ListSourcesR
 }
 
 func evidenceQuery(request *v1.ListEvidencesRequest) (biz.EvidenceListQuery, error) {
-	if utf8.RuneCountInString(strings.TrimSpace(request.Title)) > 500 || utf8.RuneCountInString(strings.TrimSpace(request.Summary)) > 200 || utf8.RuneCountInString(strings.TrimSpace(request.SourceName)) > 100 {
+	if utf8.RuneCountInString(strings.TrimSpace(request.Title)) > 500 || utf8.RuneCountInString(strings.TrimSpace(request.Summary)) > 200 || utf8.RuneCountInString(strings.TrimSpace(request.SourceID)) > 32 || utf8.RuneCountInString(strings.TrimSpace(request.SourceName)) > 100 {
 		return biz.EvidenceListQuery{}, invalidRequest("Evidence text filter is too long")
 	}
 	if categoryID := strings.TrimSpace(request.CategoryID); categoryID != "" && !evidenceCategoryIDPattern.MatchString(categoryID) {
@@ -154,7 +154,7 @@ func evidenceQuery(request *v1.ListEvidencesRequest) (biz.EvidenceListQuery, err
 		return biz.EvidenceListQuery{}, invalidRequest("unsupported source level")
 	}
 	return biz.EvidenceListQuery{Title: strings.TrimSpace(request.Title), Summary: strings.TrimSpace(request.Summary), CategoryID: strings.TrimSpace(request.CategoryID),
-		SourceName: strings.TrimSpace(request.SourceName), SourceLevel: strings.TrimSpace(request.SourceLevel), IsSplit: isSplit,
+		SourceID: strings.TrimSpace(request.SourceID), SourceName: strings.TrimSpace(request.SourceName), SourceLevel: strings.TrimSpace(request.SourceLevel), IsSplit: isSplit,
 		PublishedFrom: publishedFrom, PublishedTo: publishedTo, CollectedFrom: collectedFrom, CollectedTo: collectedTo,
 		Page: request.Page, PageSize: request.PageSize}, nil
 }
@@ -260,7 +260,7 @@ func evidence(value biz.Evidence) v1.Evidence {
 	}
 	response := v1.Evidence{ID: value.ID, RawEvidenceID: value.RawEvidenceID, Title: value.Title, Summary: value.Summary,
 		Semantic:   v1.EvidenceSemantic{Who: value.Semantic.Who, What: value.Semantic.What, When: value.Semantic.When, Where: value.Semantic.Where, Why: value.Semantic.Why, How: value.Semantic.How},
-		Categories: categories, SourceName: value.SourceName, SourceLevel: value.SourceLevel, SourceURL: value.SourceURL,
+		Categories: categories, SourceID: value.SourceID, SourceName: value.SourceName, SourceLevel: value.SourceLevel, SourceURL: value.SourceURL,
 		IsOriginal: value.IsOriginal, QuotedSourceName: value.QuotedSourceName, Keywords: append([]string{}, value.Keywords...), IsSplit: value.IsSplit,
 		CollectedAt: value.CollectedAt.UTC().Format(time.RFC3339Nano)}
 	if value.PublishedAt != nil {

@@ -36,6 +36,7 @@ export default function EvidenceTab({ token }: { token: string }) {
     title: '',
     summary: '',
     categoryId: '',
+    sourceId: '',
     sourceName: '',
     sourceLevel: '',
     isSplit: '',
@@ -86,10 +87,17 @@ export default function EvidenceTab({ token }: { token: string }) {
       },
       {
         cellClassName: 'max-w-0',
-        headerClassName: 'w-[12%]',
+        headerClassName: 'w-[11%]',
         key: 'source_name',
         header: '信源名称',
         render: (item) => <OverflowTooltip value={item.source_name} />
+      },
+      {
+        cellClassName: 'max-w-0',
+        headerClassName: 'w-[16%]',
+        key: 'source_id',
+        header: '信源 ID',
+        render: (item) => <OverflowTooltip className='font-mono' value={item.source_id} />
       },
       { key: 'source_level', header: '信源等级', render: (item) => item.source_level },
       {
@@ -128,6 +136,7 @@ export default function EvidenceTab({ token }: { token: string }) {
       title: form.title || undefined,
       summary: form.summary || undefined,
       category_id: form.categoryId || undefined,
+      source_id: form.sourceId.trim() || undefined,
       source_name: form.sourceName || undefined,
       source_level: form.sourceLevel || undefined,
       is_split: form.isSplit || undefined,
@@ -180,6 +189,9 @@ export default function EvidenceTab({ token }: { token: string }) {
             value={form.categoryId || 'all'}
           />
         </Field>
+        <Field label='信源 ID'>
+          <Input aria-label='证据信源 ID' {...field('sourceId')} />
+        </Field>
         <Field label='信源名称'>
           <Input aria-label='证据信源名称' {...field('sourceName')} />
         </Field>
@@ -230,7 +242,7 @@ export default function EvidenceTab({ token }: { token: string }) {
         rowAccessibleName={(item) => `查看${item.title ?? '无标题证据'}详情`}
         scrollAreaLabel='证据表格滚动区域'
         selectedRowKey={detailOpen ? (selectedEvidenceId ?? undefined) : undefined}
-        tableClassName='min-w-[1320px] table-fixed text-xs [&_td]:py-2.5 [&_th]:h-9'
+        tableClassName='min-w-[1480px] table-fixed text-xs [&_td]:py-2.5 [&_th]:h-9'
       />
       <Pagination
         page={page.page}

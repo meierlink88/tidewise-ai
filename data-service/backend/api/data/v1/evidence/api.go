@@ -49,6 +49,7 @@ type ListRequest struct {
 	Title         string
 	Summary       string
 	CategoryID    string
+	SourceID      string
 	SourceName    string
 	SourceLevel   string
 	IsSplit       string
@@ -67,6 +68,7 @@ type ListItem struct {
 	Summary          string             `json:"summary"`
 	Semantic         EvidenceSemantic   `json:"semantic"`
 	Categories       []EvidenceCategory `json:"categories"`
+	SourceID         string             `json:"source_id"`
 	SourceName       string             `json:"source_name"`
 	SourceLevel      string             `json:"source_level"`
 	SourceURL        string             `json:"source_url"`

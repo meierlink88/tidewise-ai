@@ -22,7 +22,7 @@ func TestListEvidenceMapsConfirmedQueryAndJoinedDTO(t *testing.T) {
 			ID: "EVD5cb71bef-5b1d-5995-add0-7408eaa2be15", RawEvidenceID: "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf",
 			Title: &title, Summary: "Atomic fact", Semantic: evidencebiz.Semantic{Who: &who, What: "announced a production line"}, Categories: []evidencebiz.Category{{
 				ID: "EVCc18ddddb-14bc-5496-99ea-963ee2c25597", Code: "EVENT_BRIEF", Name: "事件快讯", Description: "事件材料",
-			}}, SourceName: "Example Wire", SourceLevel: evidencebiz.SourceLevelWire, SourceURL: "https://example.com/report",
+			}}, SourceID: "SRC_example_00000000000000000000", SourceName: "Example Wire", SourceLevel: evidencebiz.SourceLevelWire, SourceURL: "https://example.com/report",
 			IsOriginal: false, QuotedSourceName: &quotedSourceName, Keywords: []string{}, IsSplit: true,
 			PublishedAt: &publishedAt, CollectedAt: collectedAt,
 		}}, Total: 1, Page: 2, PageSize: 10,
@@ -33,7 +33,7 @@ func TestListEvidenceMapsConfirmedQueryAndJoinedDTO(t *testing.T) {
 	}
 	response, err := service.ListEvidence(context.Background(), &evidenceapi.ListRequest{
 		Title: " Source ", Summary: " Atomic ", CategoryID: "EVCc18ddddb-14bc-5496-99ea-963ee2c25597",
-		SourceName: " Example ", SourceLevel: "L2_WIRE", IsSplit: "true",
+		SourceID: " SRC_example_00000000000000000000 ", SourceName: " Example ", SourceLevel: "L2_WIRE", IsSplit: "true",
 		PublishedFrom: "2026-08-18T00:00:00Z", PublishedTo: "2026-08-19T00:00:00Z",
 		CollectedFrom: "2026-08-18T00:00:00Z", CollectedTo: "2026-08-19T00:00:00Z",
 		Page: "2", PageSize: "10",
@@ -41,7 +41,8 @@ func TestListEvidenceMapsConfirmedQueryAndJoinedDTO(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if useCase.filter.Title != "Source" || useCase.filter.Summary != "Atomic" || useCase.filter.IsSplit == nil ||
+	if useCase.filter.Title != "Source" || useCase.filter.Summary != "Atomic" ||
+		useCase.filter.SourceID != "SRC_example_00000000000000000000" || useCase.filter.IsSplit == nil ||
 		!*useCase.filter.IsSplit || useCase.filter.Page != 2 || useCase.filter.PageSize != 10 || useCase.filter.PublishedFrom == nil {
 		t.Fatalf("filter = %#v", useCase.filter)
 	}
@@ -51,7 +52,8 @@ func TestListEvidenceMapsConfirmedQueryAndJoinedDTO(t *testing.T) {
 	item := response.Result.Items[0]
 	if item.Title == nil || *item.Title != title || item.PublishedAt == nil || *item.PublishedAt != "2026-08-18T01:00:00Z" ||
 		item.CollectedAt != "2026-08-18T01:05:00Z" || len(item.Categories) != 1 || item.Semantic.Who == nil ||
-		*item.Semantic.Who != who || item.Semantic.What != "announced a production line" || item.SourceURL != "https://example.com/report" ||
+		*item.Semantic.Who != who || item.Semantic.What != "announced a production line" ||
+		item.SourceID != "SRC_example_00000000000000000000" || item.SourceURL != "https://example.com/report" ||
 		item.IsOriginal || item.QuotedSourceName == nil || *item.QuotedSourceName != quotedSourceName || item.Keywords == nil || len(item.Keywords) != 0 {
 		t.Fatalf("item = %#v", item)
 	}

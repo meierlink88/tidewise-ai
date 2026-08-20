@@ -34,6 +34,7 @@ it('retries a failed collection document query without removing the original art
           summary: '证据摘要',
           semantic: { who: null, what: '发布公告', when: null, where: null, why: null, how: null },
           categories: [],
+          source_id: 'SRC_example_00000000000000000000',
           source_name: '官方信源',
           source_level: 'L1_OFFICIAL',
           source_url: 'https://example.com/original-report',

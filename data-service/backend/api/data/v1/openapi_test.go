@@ -377,6 +377,27 @@ func TestOpenAPIContractFreezesCurrentEventReadContract(t *testing.T) {
 	}
 }
 
+func TestOpenAPIContractFreezesEvidenceSourceIDProjection(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	operation := object(t, object(t, paths[namespace+"/evidences"], "Evidence path")["get"], "Evidence operation")
+	parameters := array(t, operation["parameters"], "Evidence parameters")
+	foundSourceID := false
+	for _, value := range parameters {
+		parameter := object(t, value, "Evidence parameter")
+		if parameter["name"] == "source_id" {
+			foundSourceID = true
+		}
+	}
+	if !foundSourceID {
+		t.Fatal("Evidence parameters do not contain source_id")
+	}
+	assertRequired(t, schema(t, document, "AdminEvidence"),
+		"id", "raw_evidence_id", "title", "summary", "semantic", "categories", "source_id", "source_name",
+		"source_level", "source_url", "is_original", "quoted_source_name", "keywords", "is_split", "published_at", "collected_at",
+	)
+}
+
 func TestOpenAPIContractFreezesResearchReasoningTreeReadV1(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
