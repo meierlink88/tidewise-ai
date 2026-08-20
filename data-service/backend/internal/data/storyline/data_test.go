@@ -97,10 +97,7 @@ func TestStoreSupportsAllAnchorsListsAndUpdatesStorylines(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const (
-		industryChainID = "ICH11111111-1111-4111-8111-111111111111"
-		companyEntityID = "ENT22222222-2222-4222-8222-222222222222"
-	)
+	const industryChainID = "ICH11111111-1111-4111-8111-111111111111"
 	if _, err := db.ExecContext(ctx, `INSERT INTO industry_chain (
     id, name, aliases, scope, target_output, end_use, observable_variables,
     geography, as_of_date, review_status
@@ -108,21 +105,12 @@ func TestStoreSupportsAllAnchorsListsAndUpdatesStorylines(t *testing.T) {
     '高性能计算', ARRAY['capacity'], 'global', CURRENT_DATE, 'approved')`, industryChainID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO entity_nodes (
-    id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
-) VALUES ($1, 'company:test', 'company', 'company', '测试企业', '测试企业', '{}', 'active')`, companyEntityID); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO company_profiles (entity_id) VALUES ($1)`, companyEntityID); err != nil {
-		t.Fatal(err)
-	}
-
 	checkedAt := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
 	inputs := []CreateInput{
-		validStorylineInput("Delta", StorylineTypeGeopolitical, checkedAt, &rivalry.ID, nil, nil, nil),
-		validStorylineInput("Alpha", StorylineTypeMacro, checkedAt, nil, &macro.ID, nil, nil),
-		validStorylineInput("Shared", StorylineTypeIndustry, checkedAt, nil, nil, stringPointer(industryChainID), nil),
-		validStorylineInput("Shared", StorylineTypeCorporate, checkedAt, nil, nil, nil, stringPointer(companyEntityID)),
+		validStorylineInput("Delta", StorylineTypeGeopolitical, checkedAt, &rivalry.ID, nil, nil),
+		validStorylineInput("Alpha", StorylineTypeMacro, checkedAt, nil, &macro.ID, nil),
+		validStorylineInput("Shared", StorylineTypeIndustry, checkedAt, nil, nil, stringPointer(industryChainID)),
+		validStorylineInput("Shared", StorylineTypeCorporate, checkedAt, nil, nil, nil),
 	}
 	inputs[3].Status = StatusActive
 	created := make([]Storyline, 0, len(inputs))
@@ -193,19 +181,19 @@ func TestStoreLinksEventsAndDerivesOccurredAtBounds(t *testing.T) {
 	}
 	checkedAt := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
 	storyline, err := store.Create(ctx, validStorylineInput(
-		"事件演进", StorylineTypeGeopolitical, checkedAt, &rivalry.ID, nil, nil, nil,
+		"事件演进", StorylineTypeGeopolitical, checkedAt, &rivalry.ID, nil, nil,
 	))
 	if err != nil {
 		t.Fatal(err)
 	}
 	emptyStoryline, err := store.Create(ctx, validStorylineInput(
-		"尚无事件", StorylineTypeGeopolitical, checkedAt, &rivalry.ID, nil, nil, nil,
+		"尚无事件", StorylineTypeGeopolitical, checkedAt, &rivalry.ID, nil, nil,
 	))
 	if err != nil {
 		t.Fatal(err)
 	}
 	unknownOccurrenceStoryline, err := store.Create(ctx, validStorylineInput(
-		"事件发生时间未知", StorylineTypeGeopolitical, checkedAt, &rivalry.ID, nil, nil, nil,
+		"事件发生时间未知", StorylineTypeGeopolitical, checkedAt, &rivalry.ID, nil, nil,
 	))
 	if err != nil {
 		t.Fatal(err)
@@ -292,7 +280,7 @@ func TestStoreRejectsInvalidStorylineContracts(t *testing.T) {
 	}
 	checkedAt := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
 	valid := validStorylineInput(
-		"有效故事线", StorylineTypeGeopolitical, checkedAt, &rivalry.ID, nil, nil, nil,
+		"有效故事线", StorylineTypeGeopolitical, checkedAt, &rivalry.ID, nil, nil,
 	)
 	tests := []struct {
 		name   string
@@ -427,7 +415,7 @@ func TestStoreFailsClosedOnUnknownPersistedStatus(t *testing.T) {
 	}
 	storyline, err := store.Create(ctx, validStorylineInput(
 		"脏数据故事线", StorylineTypeGeopolitical,
-		time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC), &rivalry.ID, nil, nil, nil,
+		time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC), &rivalry.ID, nil, nil,
 	))
 	if err != nil {
 		t.Fatal(err)
@@ -454,12 +442,12 @@ func validStorylineInput(
 	name string,
 	storylineType StorylineType,
 	checkedAt time.Time,
-	rivalryID, macroEconomicID, industryChainID, companyEntityID *string,
+	rivalryID, macroEconomicID, industryChainID *string,
 ) CreateInput {
 	return CreateInput{
 		Name: name, Type: storylineType, RivalryID: rivalryID, MacroEconomicID: macroEconomicID,
-		IndustryChainID: industryChainID, CompanyEntityID: companyEntityID,
-		Summary: "有效叙事摘要。", CurrentStage: "发展阶段", Confidence: 0.70,
+		IndustryChainID: industryChainID,
+		Summary:         "有效叙事摘要。", CurrentStage: "发展阶段", Confidence: 0.70,
 		DataAlignmentStatus: DataAlignmentAligned, DataAlignmentScore: 0.80,
 		DataAlignmentReason: "事实与叙事保持一致。", LastAlignmentCheckedAt: checkedAt,
 	}

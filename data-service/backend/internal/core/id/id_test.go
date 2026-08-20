@@ -214,6 +214,24 @@ func TestStorylineKindsUseReviewedPrefixes(t *testing.T) {
 	}
 }
 
+func TestCompanyKindsUseReviewedPrefixes(t *testing.T) {
+	for kind, expectedPrefix := range map[Kind]string{
+		Company:             "COM",
+		CompanyIndustryLink: "CIL",
+	} {
+		value, err := New(kind)
+		if err != nil {
+			t.Fatalf("New(%q) error = %v", kind, err)
+		}
+		if !strings.HasPrefix(value, expectedPrefix) || len(value) != 39 {
+			t.Fatalf("New(%q) = %q, want %q plus UUID", kind, value, expectedPrefix)
+		}
+		if _, err := Parse(value, kind); err != nil {
+			t.Fatalf("Parse(New(%q)) error = %v", kind, err)
+		}
+	}
+}
+
 func TestCurrentEventKindsReplaceRetiredPublicationKinds(t *testing.T) {
 	for kind, expectedPrefix := range map[Kind]string{
 		Event:             "EVT",

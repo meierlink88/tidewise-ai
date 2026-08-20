@@ -34,6 +34,8 @@ const (
 	StorylineDomainTactic             Kind = "SDT"
 	Storyline                         Kind = "STL"
 	StorylineEventLink                Kind = "SLE"
+	Company                           Kind = "COM"
+	CompanyIndustryLink               Kind = "CIL"
 	Region                            Kind = "REG"
 	Organization                      Kind = "ORG"
 	OrganizationCategory              Kind = "OCA"
@@ -159,7 +161,7 @@ func prefix(kind Kind) (string, error) {
 
 func registered(kind Kind) bool {
 	switch kind {
-	case Entity, Industry, Concept, ChainNode, IndustryChain, EntityRelation, Country, Subdivision, Ministry, Institution, GeopoliticRivalry, MacroEconomic, StorylineDomain, StorylineDomainTactic, Storyline, StorylineEventLink, Region, Organization, OrganizationCategory, OrganizationFunction, OrganizationDomainTag,
+	case Entity, Industry, Concept, ChainNode, IndustryChain, EntityRelation, Country, Subdivision, Ministry, Institution, GeopoliticRivalry, MacroEconomic, StorylineDomain, StorylineDomainTactic, Storyline, StorylineEventLink, Company, CompanyIndustryLink, Region, Organization, OrganizationCategory, OrganizationFunction, OrganizationDomainTag,
 		OrganizationDomainTagLink, RawEvidence, Evidence, EvidenceCategory, RawEvidenceCategoryLink,
 		ChainNodePhysicalConstraint, ChainNodeRelation, CountryRegionLink,
 		EntityExternalIdentifier, EventEvidenceLink, EventActorLink, EventAssetLink, Event,

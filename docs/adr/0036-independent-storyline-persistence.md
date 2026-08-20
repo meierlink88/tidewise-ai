@@ -2,6 +2,7 @@
 status: accepted
 date: 2026-08-20
 issue: 304
+amended_by: 0037-independent-company-persistence
 extends: 0019-database-independent-domain-object-identities.md, 0028-rebuild-event-domain-around-atomic-evidence.md, 0034-independent-narrative-blueprint-objects.md, 0035-independent-storyline-domain-catalogs.md
 ---
 
@@ -23,6 +24,7 @@ Storyline 到这些目录的关系。最新对账状态属于主记录快照，�
   类型匹配的一个 restrictive anchor：`rivalry_id` 引用 GeopoliticRivalry，
   `macro_economic_id` 引用 MacroEconomic，`industry_chain_id` 引用 IndustryChain，
   `company_entity_id` 引用 Company Profile 的 Entity 身份。产业类锚点不是 Concept。
+  此处 Company 决策已由 ADR-0037 修订：`company_entity_id` 被移除，`CORPORATE` 类型当前无锚点。
 - 生命周期为 `EMERGING | ACTIVE | DORMANT | ARCHIVED`，默认 `EMERGING`；置信度范围为
   0.00–0.99。最新对账状态为 `ALIGNED | LAGGING | ACCUMULATING | DIVERGING | NEW_FACTOR`，
   对账分数范围为 0.00–1.00，并与原因和检查时间一起保存在主记录中。不建立对账历史表。

@@ -57,7 +57,7 @@ func TestResearchGraphAdapterRejectsMalformedPersistedSubgraph(t *testing.T) {
 	entityID := "ENT11111111-1111-4111-8111-111111111111"
 	valid := domain.ResearchGraphSubgraph{
 		Entities: []domain.ResearchGraphEntity{{
-			EntityID: entityID, EntityType: "company", Name: "Company", CanonicalName: "Company", Status: "active",
+			EntityID: entityID, EntityType: "security", Name: "Security", CanonicalName: "Security", Status: "active",
 		}},
 	}
 	if err := validatePersistedResearchGraph(valid, 2); err != nil {
@@ -188,7 +188,7 @@ func TestResearchGraphResolvesIndependentIndustryWithoutShadowEntity(t *testing.
 		!strings.Contains(err.Error(), "is still referenced and cannot change identity or be deleted") {
 		t.Fatalf("delete referenced IndustryChain error = %v", err)
 	}
-	if _, err := db.ExecContext(ctx, `TRUNCATE industry`); err == nil ||
+	if _, err := db.ExecContext(ctx, `TRUNCATE industry, company_industry_links`); err == nil ||
 		!strings.Contains(err.Error(), "still owns referenced facts and cannot be truncated") {
 		t.Fatalf("truncate referenced Industry table error = %v", err)
 	}
@@ -314,11 +314,11 @@ func TestIndependentObjectPrefixesSeparateOwnersWithTheSameUUIDSuffix(t *testing
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO entity_nodes (
 		id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
-	) VALUES ($1, 'company:same-suffix', 'company', 'company', '独立实体', '独立实体', '{}', 'active')`, "ENT"+suffix); err != nil {
+	) VALUES ($1, 'security:same-suffix', 'security', 'security', '独立证券', '独立证券', '{}', 'active')`, "ENT"+suffix); err != nil {
 		t.Fatal(err)
 	}
 	for objectID, wantType := range map[string]string{
-		"ENT" + suffix: "company",
+		"ENT" + suffix: "security",
 		"IND" + suffix: "industry",
 		"CON" + suffix: "concept",
 	} {

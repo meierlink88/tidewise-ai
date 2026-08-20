@@ -65,3 +65,4 @@
 000064	normal	schema	add empty forward-only GeopoliticRivalry and MacroEconomic blueprint storage with reviewed identities, no external references, and closed enum constraints
 000065	normal	schema	add empty forward-only StorylineDomain and StorylineDomainTactic catalogs with reviewed identities, no relationships, global tactic keys, and closed domain category constraints
 000066	normal	schema	add empty forward-only Storyline and Storyline Event Link persistence with reviewed identities, strict type-specific anchors, closed lifecycle and alignment enums, and no duplicated Event time
+000067	high	mixed	preserve and detach Company facts from shadow Entity rows, replace free-text Industry with formal links, and retire Controller, Storyline, and Security Company relations in a stop-write cutover

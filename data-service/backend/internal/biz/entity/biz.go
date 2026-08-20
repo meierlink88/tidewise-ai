@@ -258,7 +258,6 @@ const (
 	EntityTypeIndustryChain EntityType = "industry_chain"
 	EntityTypeChainNode     EntityType = "chain_node"
 	EntityTypeTheme         EntityType = "theme"
-	EntityTypeCompany       EntityType = "company"
 	EntityTypeSecurity      EntityType = "security"
 	EntityTypeInstrument    EntityType = "instrument"
 	EntityTypeCommodity     EntityType = "commodity"
@@ -590,27 +589,17 @@ func (p ThemeProfile) Validate() error {
 	return nil
 }
 
-type CompanyProfile struct {
-	EntityID              string
-	RegistrationCountryID string
-	Area                  string
-	IndustryName          string
-	ControllerName        string
-	ControllerType        string
-}
-
 type SecurityProfile struct {
-	EntityID              string
-	Ticker                string
-	Symbol                string
-	Exchange              string
-	MarketBoard           string
-	SecurityType          string
-	IssuerCompanyEntityID string
-	ListDate              *time.Time
-	DelistDate            *time.Time
-	ListStatus            string
-	CurrencyCode          string
+	EntityID     string
+	Ticker       string
+	Symbol       string
+	Exchange     string
+	MarketBoard  string
+	SecurityType string
+	ListDate     *time.Time
+	DelistDate   *time.Time
+	ListStatus   string
+	CurrencyCode string
 }
 
 type InstrumentProfile struct {
@@ -677,7 +666,6 @@ func validEntityType(value EntityType) bool {
 		EntityTypeIndex,
 		EntityTypeSector,
 		EntityTypeTheme,
-		EntityTypeCompany,
 		EntityTypeSecurity,
 		EntityTypeInstrument,
 		EntityTypeCommodity,
