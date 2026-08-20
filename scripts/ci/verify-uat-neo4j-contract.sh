@@ -60,8 +60,14 @@ if grep -REn --include='*.sh' --include='*.yml' --include='*.yaml' \
 fi
 
 grep -q 'systemctl disable --now neo4j' "$neo4j_root/adopt-reason-provider.sh"
+grep -q 'wait_for_host_neo4j_inactive' "$neo4j_root/adopt-reason-provider.sh"
+grep -q 'did not become inactive within 60 seconds' "$neo4j_root/adopt-reason-provider.sh"
+grep -q 'emit_candidate_diagnostics' "$neo4j_root/adopt-reason-provider.sh"
+grep -q 'logs --no-color --tail 100 neo4j' "$neo4j_root/adopt-reason-provider.sh"
 grep -q 'Existing host-native Neo4j contains' "$neo4j_root/adopt-reason-provider.sh"
 grep -q 'systemctl enable neo4j' "$neo4j_root/rollback-host-provider.sh"
+grep -q 'wait_for_host_neo4j_ready' "$neo4j_root/rollback-host-provider.sh"
+grep -q 'did not become HTTP-ready within 180 seconds' "$neo4j_root/rollback-host-provider.sh"
 grep -q 'migrate-openspg-project-databases.sh" restore' "$neo4j_root/rollback-host-provider.sh"
 grep -q 'CREATE DATABASE' "$neo4j_root/migrate-openspg-project-databases.sh"
 grep -q 'PASS no UAT OpenSPG project databases are required yet' "$neo4j_root/migrate-openspg-project-databases.sh"

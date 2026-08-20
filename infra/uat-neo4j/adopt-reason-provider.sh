@@ -79,10 +79,31 @@ unowned_fingerprint() {
   done
 }
 
+wait_for_host_neo4j_inactive() {
+  local attempt state
+  for attempt in $(seq 1 30); do
+    state="$(systemctl is-active neo4j 2>/dev/null || true)"
+    [ "$state" = inactive ] && return 0
+    sleep 2
+  done
+  echo "Host-native Neo4j did not become inactive within 60 seconds; state=$state" >&2
+  return 1
+}
+
+emit_candidate_diagnostics() {
+  local candidate_id
+  candidate_id="$("${compose[@]}" ps -aq neo4j 2>/dev/null || true)"
+  [ -n "$candidate_id" ] || return 0
+  echo 'Candidate OpenSPG Neo4j failed acceptance; container diagnostics follow' >&2
+  "${compose[@]}" ps -a >&2 || true
+  "${compose[@]}" logs --no-color --tail 100 neo4j >&2 || true
+}
+
 rollback_on_error() {
   local code="$1"
   trap - ERR
   if [ "$adoption_started" = true ]; then
+    emit_candidate_diagnostics
     set +e
     RUNTIME_ENV="$runtime_env" \
       OPENSPG_MYSQL_ROOT_PASSWORD="$mysql_password" \
@@ -126,7 +147,7 @@ done
 unowned_before="$(unowned_fingerprint)"
 adoption_started=true
 systemctl disable --now neo4j >/dev/null
-[ "$(systemctl is-active neo4j)" = inactive ]
+wait_for_host_neo4j_inactive
 "${compose[@]}" up -d --no-deps --force-recreate --wait --wait-timeout 180 neo4j
 RUNTIME_ENV="$runtime_env" \
   OPENSPG_MYSQL_ROOT_PASSWORD="$mysql_password" \
