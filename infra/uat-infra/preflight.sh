@@ -14,7 +14,7 @@ fail() { echo "FAIL $1: $2" >&2; exit 1; }
 [ "${RUNNER_NAME:-}" = "$expected_runner" ] || fail runner-name "expected $expected_runner"
 pass runtime-identity
 
-for command in docker curl python3 flock ss systemctl; do
+for command in docker curl python3 flock ss; do
   command -v "$command" >/dev/null || fail dependency "$command is missing"
 done
 docker info >/dev/null || fail docker-engine "docker info failed"
@@ -46,8 +46,10 @@ PY
 pass public-base-url
 
 curl -fsS --connect-timeout 3 --max-time 5 http://127.0.0.1:7474/ >/dev/null \
-  || fail neo4j "host-native Neo4j is unavailable"
-pass host-native-neo4j
+  || fail neo4j "OpenSPG Neo4j is unavailable"
+[ "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' tidewise-uat-openspg-neo4j)" = healthy ] \
+  || fail neo4j "OpenSPG Neo4j container is not healthy"
+pass openspg-neo4j
 
 for port in 3306 9000 9001; do
   while read -r container_id; do

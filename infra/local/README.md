@@ -68,36 +68,27 @@ npm run infra:down
 
 ## Neo4j provider
 
-Local Reason uses Neo4j 5.26.28 Community with APOC Core 5.26.28 and checksum-pinned GDS 2.13.4,
-matching the accepted UAT provider versions. The target database, logs and plugins use explicit
-5.26 volumes. `infra:up` prepares the reviewed plugins before starting infrastructure.
+Local Reason uses the digest-pinned OpenSPG Neo4j provider: Neo4j/DozerDB 5.25.1, APOC Core 5.25.1
+and OpenGDS 2.12.0. It mounts the retained `tidewise-reason_neo4j-data` and
+`tidewise-reason_neo4j-logs` volumes. OpenSPG project isolation is physical: each project database
+must be the lower-case project namespace, such as `tidewise` or `reasonsmoke`.
 
-Upgrade only Neo4j from the former 5.25.1 Enterprise provider:
+Generic Neo4j Community 5.26 is not an approved provider for OpenSPG v0.8. It exposes only one
+standard database and cannot preserve the project lifecycle, search indexes and GDS projection
+boundaries used by OpenSPG. Do not reintroduce the abandoned 5.26 data/log/plugin volumes or a
+single-database project-config migration unless a future exact DozerDB/APOC/OpenGDS combination
+passes the complete provider-consumer isolation suite.
 
-```bash
-npm run infra:upgrade:neo4j
-```
-
-The upgrade recreates only the `neo4j` service and performs authenticated version, plugin and
-read/write checks. Because Community exposes one standard database, it backs up each existing
-OpenSPG project's graph-store config in MySQL and changes only its database field to `neo4j`, then
-calls the real OpenSPG graph API for every affected project. The backup table remains available to
-the rollback command. The upgrade does not attach or remove the former `tidewise-reason_neo4j-data` and
-`tidewise-reason_neo4j-logs` volumes. Those legacy volumes remain the rollback source because the
-former Enterprise provider contained multiple standard databases that Community cannot mount as
-the same DBMS contract.
-
-If provider or Reason acceptance fails, the upgrade script automatically restores 5.25.1. A manual
-rollback remains available while the legacy volumes are retained:
+Verify the provider and the real OpenSPG consumer independently:
 
 ```bash
-npm run infra:rollback:neo4j
+npm run infra:verify:neo4j
+bash infra/local/verify-openspg-neo4j-consumer.sh
 ```
 
-The upgrade also verifies the Reason Web endpoint and runs the bundled KAG/KNEXT CLI load checks.
-Afterward, the provider check can be repeated independently with `npm run infra:verify:neo4j`, and
-the complete official Reason runtime check can be repeated from the `tidewise-reason` repository.
-Do not delete the legacy volumes until their retention is explicitly reviewed.
+The first command verifies the exact image, versions, mounts and standard databases. The second
+verifies the Reason Web endpoint, KAG/KNEXT CLIs and every local project's real Graph API against
+its namespace database.
 
 Follow logs with:
 

@@ -38,8 +38,9 @@ project_rows="$(${compose[@]} exec -T mysql bash -c '
 }
 
 while IFS=$'\t' read -r project_id namespace database; do
-  [ "$database" = neo4j ] || {
-    echo "OpenSPG project $project_id ($namespace) still uses database $database" >&2
+  expected_database="$(tr '[:upper:]' '[:lower:]' <<<"$namespace")"
+  [ "$database" = "$expected_database" ] || {
+    echo "OpenSPG project $project_id ($namespace) uses database $database; expected $expected_database" >&2
     exit 1
   }
   response="$(curl --fail-with-body --silent --show-error \

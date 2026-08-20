@@ -1,10 +1,15 @@
 ---
-status: accepted
+status: superseded
 date: 2026-08-20
 issue: 317
+superseded_by: 0041
 ---
 
 # Align the local Reason Neo4j provider with UAT
+
+This decision was reversed after source and runtime verification showed that OpenSPG v0.8 relies on
+one standard database per project and that generic Neo4j Community 5.26 does not preserve that
+contract. ADR 0041 owns the replacement decision.
 
 ## Decision
 
