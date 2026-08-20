@@ -23,6 +23,7 @@ unowned_containers=(
   tidewise-uat-adminportal-1
   tidewise-uat-admin-1
   tidewise-uat-qdrant
+  tidewise-uat-openspg-neo4j
   tidewise-agentos-uat-agentos-1
 )
 
@@ -56,7 +57,6 @@ unowned_fingerprint() {
   for container in "${unowned_containers[@]}"; do
     docker inspect --format '{{.Id}}|{{.State.StartedAt}}' "$container"
   done
-  systemctl show neo4j --property=InvocationID --value
 }
 
 verify_unowned_services() {
@@ -71,7 +71,7 @@ verify_unowned_services() {
   docker exec tidewise-uat-data-1 wget -qO- http://qdrant:6333/healthz >/dev/null
   curl -fsS --connect-timeout 3 --max-time 5 http://127.0.0.1:9081/health >/dev/null
   curl -fsS --connect-timeout 3 --max-time 5 http://127.0.0.1:7474/ >/dev/null
-  [ "$(systemctl is-active neo4j)" = active ]
+  [ "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' tidewise-uat-openspg-neo4j)" = healthy ]
   echo "PASS unowned-uat-services-and-rds-readiness"
 }
 

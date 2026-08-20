@@ -65,7 +65,7 @@ func TestLocalDockerProjectsSeparateApplicationsAndInfrastructure(t *testing.T) 
 	for _, want := range []string{
 		"name: tidewise-infra", "  postgres:", "  mysql:", "  neo4j:", "  minio:", "  qdrant:",
 		"external: true",
-		"local_tidewise_postgres_data", "tidewise-reason_mysql-data", "tidewise-reason_neo4j-5.26-data",
+		"local_tidewise_postgres_data", "tidewise-reason_mysql-data", "tidewise-reason_neo4j-data",
 		"tidewise-reason_minio-data", "tidewise-qdrant-local-storage", "name: '${COMPOSE_NETWORK_NAME:-tidewise-local}'",
 	} {
 		if !strings.Contains(infrastructureText, want) {
@@ -107,80 +107,54 @@ func TestLocalNeo4jMatchesUATProviderContract(t *testing.T) {
 	root := repositoryRoot()
 	compose := mustReadText(t, filepath.Join(root, "infra", "local", "docker-compose.infra.yaml"))
 	ensureVolumes := mustReadText(t, filepath.Join(root, "infra", "local", "ensure-volumes.sh"))
-	rollbackCompose := mustReadText(t, filepath.Join(root, "infra", "local", "docker-compose.neo4j-5.25-rollback.yaml"))
 	packageJSON := mustReadText(t, filepath.Join(root, "package.json"))
 
 	for _, want := range []string{
-		"image: neo4j:5.26.28-community@sha256:ff32db30b2baff97971e441b46bfd9c832c1b62c970398ef579244c06b21d357",
-		"NEO4J_dbms_security_procedures_unrestricted: 'apoc.*,gds.*'",
-		"NEO4J_dbms_security_procedures_allowlist: 'apoc.*,gds.*'",
-		"NEO4J_server_bolt_advertised__address: 'neo4j:7687'",
-		"- neo4j-plugins:/plugins",
-		"name: tidewise-reason_neo4j-5.26-data",
-		"name: tidewise-reason_neo4j-5.26-logs",
-		"name: tidewise-reason_neo4j-5.26-plugins",
+		"image: spg-registry.cn-hangzhou.cr.aliyuncs.com/spg/openspg-neo4j@sha256:4bc5b7f6b83d333b1d2c8f60ac145c068d77d50bca65b3a07c927f9e2a541eb9",
+		"NEO4J_PLUGINS: '[\"apoc\"]'",
+		"NEO4J_dbms_security_procedures_unrestricted: '*'",
+		"NEO4J_dbms_security_procedures_allowlist: '*'",
+		"name: tidewise-reason_neo4j-data",
+		"name: tidewise-reason_neo4j-logs",
+		"release-openspg-neo4j",
 	} {
 		if !strings.Contains(compose, want) {
 			t.Fatalf("local Neo4j compose contract missing %q", want)
 		}
 	}
 	for _, forbidden := range []string{
-		"spg-registry.cn-hangzhou.cr.aliyuncs.com/spg/openspg-neo4j",
-		"name: tidewise-reason_neo4j-data",
-		"NEO4J_PLUGINS:",
-	} {
-		if strings.Contains(compose, forbidden) {
-			t.Fatalf("local Neo4j compose retains legacy contract %q", forbidden)
-		}
-	}
-	for _, want := range []string{
-		"volumes: !override",
-		"environment: !override",
-		"NEO4J_dbms_security_procedures_unrestricted: '*'",
-		"NEO4J_dbms_security_procedures_allowlist: '*'",
-		"name: tidewise-reason_neo4j-data",
-		"name: tidewise-reason_neo4j-logs",
-	} {
-		if !strings.Contains(rollbackCompose, want) {
-			t.Fatalf("legacy Neo4j rollback Compose missing %q", want)
-		}
-	}
-	for _, forbidden := range []string{
+		"neo4j:5.26.28-community",
+		"neo4j-5.26-data",
+		"neo4j-5.26-logs",
 		"neo4j-5.26-plugins",
 		"NEO4J_server_bolt_advertised__address",
 	} {
-		if strings.Contains(rollbackCompose, forbidden) {
-			t.Fatalf("legacy Neo4j rollback Compose retains target contract %q", forbidden)
+		if strings.Contains(compose, forbidden) {
+			t.Fatalf("local Neo4j compose retains abandoned 5.26 contract %q", forbidden)
 		}
 	}
-
 	for _, want := range []string{
-		"tidewise-reason_neo4j-5.26-data",
-		"tidewise-reason_neo4j-5.26-logs",
-		"tidewise-reason_neo4j-5.26-plugins",
+		"tidewise-reason_neo4j-data",
+		"tidewise-reason_neo4j-logs",
 	} {
 		if !strings.Contains(ensureVolumes, want) {
 			t.Fatalf("local volume provisioning missing %q", want)
 		}
 	}
-	for _, want := range []string{
-		"infra/local/prepare-neo4j-plugins.sh",
-		"infra/local/upgrade-neo4j.sh",
-		"infra/local/verify-neo4j.sh",
-		"infra/local/rollback-neo4j.sh",
-	} {
-		if !strings.Contains(packageJSON, want) {
-			t.Fatalf("local Neo4j lifecycle script missing %q", want)
+	for _, forbidden := range []string{"neo4j-5.26-data", "neo4j-5.26-logs", "neo4j-5.26-plugins"} {
+		if strings.Contains(ensureVolumes, forbidden) {
+			t.Fatalf("local volume provisioning retains abandoned target %q", forbidden)
 		}
 	}
-	for _, relativePath := range []string{
-		"infra/local/prepare-neo4j-plugins.sh",
-		"infra/local/migrate-openspg-project-graph-store.sh",
-		"infra/local/verify-neo4j.sh",
-		"infra/local/verify-openspg-neo4j-consumer.sh",
-		"infra/local/rollback-neo4j.sh",
-		"infra/local/upgrade-neo4j.sh",
-	} {
+	if !strings.Contains(packageJSON, "infra/local/verify-neo4j.sh") {
+		t.Fatal("local Neo4j verification entrypoint is missing")
+	}
+	for _, forbidden := range []string{"prepare-neo4j-plugins.sh", "upgrade-neo4j.sh", "rollback-neo4j.sh"} {
+		if strings.Contains(packageJSON, forbidden) {
+			t.Fatalf("package scripts retain abandoned Neo4j lifecycle entrypoint %q", forbidden)
+		}
+	}
+	for _, relativePath := range []string{"infra/local/verify-neo4j.sh", "infra/local/verify-openspg-neo4j-consumer.sh"} {
 		info, err := os.Stat(filepath.Join(root, relativePath))
 		if err != nil {
 			t.Fatalf("stat local Neo4j lifecycle entrypoint %s: %v", relativePath, err)

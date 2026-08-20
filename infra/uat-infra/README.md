@@ -2,7 +2,7 @@
 
 This directory owns the independently managed MySQL and MinIO services on the Tidewise UAT ECS.
 It is not part of the four-service Tidewise application release and never owns Huawei RDS,
-host-native Neo4j, Qdrant, AgentOS, or Reason Server.
+the independently released OpenSPG Neo4j provider, Qdrant, AgentOS, or Reason Server.
 
 ## Topology
 
@@ -12,7 +12,7 @@ Huawei ECS
 │   ├── mysql:3306              # OpenSPG metadata, loopback host binding
 │   └── minio:9000              # shared S3 API, loopback host binding
 ├── MinIO Console :9001          # office-allowlisted ECS host binding
-├── host Neo4j :7474/:7687       # office-allowlisted Browser and Bolt
+├── OpenSPG Neo4j :7474/:7687    # independent container; office-allowlisted Browser and Bolt
 └── Nginx :443
     └── /raw-evidence/* -> 127.0.0.1:9000/raw-evidence/*
 

@@ -1,8 +1,9 @@
 ---
-status: accepted
+status: superseded
 date: 2026-08-18
 issue: 282
 amended_by: 284
+superseded_by: 0041
 ---
 
 # Operate the dedicated UAT Neo4j as independent infrastructure
