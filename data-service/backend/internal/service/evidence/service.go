@@ -84,7 +84,7 @@ func evidenceListFilter(request *evidenceapi.ListRequest) (evidencebiz.EvidenceL
 	filter := evidencebiz.EvidenceListFilter{
 		Title: strings.TrimSpace(request.Title), Summary: strings.TrimSpace(request.Summary),
 		CategoryID: evidencebiz.CategoryID(strings.TrimSpace(request.CategoryID)),
-		SourceID: strings.TrimSpace(request.SourceID), SourceName: strings.TrimSpace(request.SourceName), SourceLevel: evidencebiz.SourceLevel(strings.TrimSpace(request.SourceLevel)),
+		SourceID:   strings.TrimSpace(request.SourceID), SourceName: strings.TrimSpace(request.SourceName), SourceLevel: evidencebiz.SourceLevel(strings.TrimSpace(request.SourceLevel)),
 		Page: page, PageSize: pageSize,
 	}
 	if raw := strings.TrimSpace(request.IsSplit); raw != "" {
