@@ -10,7 +10,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
   Index 等正式事实。
 - 完整 Raw Evidence、阅读辅助 Keywords、原子 Evidence 及其确定性正式身份。
 - 正式 Event、Event 与 Atomic Evidence 的证据关联，以及 Event-owned Actor/Asset 关系快照。
-- 独立 Storyline 事实、类型对应的唯一锚点，以及 Storyline 与 Event 的当前关联事实。
+- 独立 Storyline 事实、三类蓝图锚点，以及 Storyline 与 Event 的当前关联事实。
 - Research Theme、Theme Impact、Reason Tree 及其关联数据。
 - PostgreSQL schema、migration 和 repository。
 - 采集/清洗执行方使用的 Raw Evidence 与 Evidence Publication API、自然身份收敛、
@@ -91,12 +91,12 @@ Event，不证明 Actor/Asset 存在，也不定义其归属或生命周期。
 _Avoid_: Actor/Asset entity、target 外键、lookup API、将快照当作主数据
 
 **Storyline**:
-围绕一个明确锚点持续演进的叙事主记录，以 `STL + canonical lowercase UUID` 为稳定身份，
-保存摘要、当前阶段、生命周期、置信度与最新一次数据对账快照。类型严格决定唯一锚点：
+持续演进的叙事主记录，以 `STL + canonical lowercase UUID` 为稳定身份，保存摘要、当前阶段、
+生命周期、置信度与最新一次数据对账快照。三类蓝图 Storyline 严格决定唯一锚点：
 `GEOPOLITICAL` 引用 GeopoliticRivalry，`MACRO` 引用 MacroEconomic，`INDUSTRY` 引用
-IndustryChain，`CORPORATE` 引用 Company Entity。Storyline 不属于 StorylineDomain，也不引用
-StorylineDomainTactic；对账历史不由 Storyline 主记录保存。
-_Avoid_: StorylineDomain 外键、Concept 锚点、多个或缺失锚点、对账历史表
+IndustryChain；`CORPORATE` 当前不拥有蓝图锚点，也不引用 Company。Storyline 不属于
+StorylineDomain，也不引用 StorylineDomainTactic；对账历史不由 Storyline 主记录保存。
+_Avoid_: StorylineDomain 外键、Concept/Company 锚点、蓝图类型多个或缺失锚点、对账历史表
 
 **Storyline Event Link**:
 Storyline 与 Event 的唯一当前多对多关系，以 `SLE + canonical lowercase UUID` 为稳定身份。
@@ -110,6 +110,23 @@ _Avoid_: `first_event_at`/`last_event_at` 副本、用 announced time 代替 occ
 安全联盟。Organization 不使用通用 Entity、Profile 或旧 `alliance_org` UUID；Category、
 Function 与 Domain Tag 通过 Data 目录连接稳定英文机器码和中文语义。
 _Avoid_: Alliance Org、Organization Profile、通用 Entity 的组织别名、member_count
+
+**Company**:
+Entity 父领域下的独立公司事实，以 `COM + canonical lowercase UUID` 为稳定身份，以全局唯一、
+不可变且非空的 `code` 为业务自然键。Company 直接保存名称、可空英文名和法定名称、别名、
+经营区域、总部城市、成立/IPO 日期、法律形式、受控所有权类型、战略定位、说明、状态和时间戳；
+未知新增事实使用 null，不以空字符串代替。Company 不使用 `entity_nodes`、Profile 或 shadow
+Entity，只通过可空 `registration_country_id` restrictive 引用一个 Country，并通过
+Company–Industry Link 关联零个或多个正式 Industry。Company 不与 Storyline、Controller、
+Security 或总部 Country 建立关系。
+_Avoid_: Company Profile、Company shadow Entity、ticker 充当 code、自由文本 industry、
+controller 字段、Storyline/Security link、headquarters_country_id、伪造未知属性
+
+**Company–Industry Link**:
+Company 的正式 Industry 分类关系，以 `CIL + canonical lowercase UUID` 为稳定身份；关系身份由
+Company/Industry 端点确定性生成，同一端点对唯一，两个外键均 restrictive。完整 Industry
+集合由 Company 聚合原子替换。
+_Avoid_: `industry_name`、模糊行业匹配、重复端点、部分替换
 
 **Organization Category**:
 Organization 唯一的可维护组织形态目录项，以 `OCA + canonical lowercase UUID`

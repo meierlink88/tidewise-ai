@@ -158,10 +158,10 @@ func TestIndustryChainMasterDataTypesValidateNewSchemaVocabulary(t *testing.T) {
 func TestEntityValidate(t *testing.T) {
 	node := Entity{
 		ID:            testEntityID,
-		EntityType:    EntityTypeCompany,
-		LayerCode:     "company",
-		Name:          "示例公司",
-		CanonicalName: "示例公司",
+		EntityType:    EntityTypeSecurity,
+		LayerCode:     "security",
+		Name:          "示例证券",
+		CanonicalName: "示例证券",
 		Status:        StatusActive,
 	}
 

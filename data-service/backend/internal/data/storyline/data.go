@@ -57,7 +57,6 @@ type CreateInput struct {
 	RivalryID              *string
 	MacroEconomicID        *string
 	IndustryChainID        *string
-	CompanyEntityID        *string
 	Summary                string
 	CurrentStage           string
 	Status                 Status
@@ -75,7 +74,6 @@ type UpdateInput struct {
 	RivalryID              *string
 	MacroEconomicID        *string
 	IndustryChainID        *string
-	CompanyEntityID        *string
 	Summary                string
 	CurrentStage           string
 	Status                 Status
@@ -93,7 +91,6 @@ type Storyline struct {
 	RivalryID              *string
 	MacroEconomicID        *string
 	IndustryChainID        *string
-	CompanyEntityID        *string
 	Summary                string
 	CurrentStage           string
 	Status                 Status
@@ -146,13 +143,13 @@ func (s *Store) Create(ctx context.Context, input CreateInput) (Storyline, error
 	row := s.db.QueryRowContext(ctx, `
 INSERT INTO storylines (
     id, storyline_name, storyline_type, rivalry_id, macro_economic_id,
-    industry_chain_id, company_entity_id, summary, current_stage, status,
+    industry_chain_id, summary, current_stage, status,
     confidence, data_alignment_status, data_alignment_score,
     data_alignment_reason, last_alignment_checked_at
-) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
 RETURNING `+storylineColumns,
 		id, input.Name, string(input.Type), input.RivalryID, input.MacroEconomicID,
-		input.IndustryChainID, input.CompanyEntityID, input.Summary, input.CurrentStage,
+		input.IndustryChainID, input.Summary, input.CurrentStage,
 		string(input.Status), input.Confidence, string(input.DataAlignmentStatus),
 		input.DataAlignmentScore, input.DataAlignmentReason, input.LastAlignmentCheckedAt.UTC(),
 	)
@@ -214,20 +211,19 @@ SET storyline_name = $2,
     rivalry_id = $4,
     macro_economic_id = $5,
     industry_chain_id = $6,
-    company_entity_id = $7,
-    summary = $8,
-    current_stage = $9,
-    status = $10,
-    confidence = $11,
-    data_alignment_status = $12,
-    data_alignment_score = $13,
-    data_alignment_reason = $14,
-    last_alignment_checked_at = $15,
+    summary = $7,
+    current_stage = $8,
+    status = $9,
+    confidence = $10,
+    data_alignment_status = $11,
+    data_alignment_score = $12,
+    data_alignment_reason = $13,
+    last_alignment_checked_at = $14,
     updated_at = now()
 WHERE id = $1
 RETURNING `+storylineColumns,
 		input.ID, input.Name, string(input.Type), input.RivalryID, input.MacroEconomicID,
-		input.IndustryChainID, input.CompanyEntityID, input.Summary, input.CurrentStage,
+		input.IndustryChainID, input.Summary, input.CurrentStage,
 		string(input.Status), input.Confidence, string(input.DataAlignmentStatus),
 		input.DataAlignmentScore, input.DataAlignmentReason, input.LastAlignmentCheckedAt.UTC(),
 	)
@@ -310,7 +306,7 @@ GROUP BY storylines.id`, storylineID).Scan(&first, &last)
 
 const storylineColumns = `
 id, storyline_name, storyline_type::text, rivalry_id, macro_economic_id,
-industry_chain_id, company_entity_id, summary, current_stage, status::text,
+industry_chain_id, summary, current_stage, status::text,
 confidence, data_alignment_status::text, data_alignment_score,
 data_alignment_reason, last_alignment_checked_at, created_at, updated_at`
 
@@ -319,10 +315,10 @@ type rowScanner interface{ Scan(...any) error }
 func scanStoryline(row rowScanner) (Storyline, error) {
 	var result Storyline
 	var storylineType, status, alignmentStatus string
-	var rivalryID, macroEconomicID, industryChainID, companyEntityID sql.NullString
+	var rivalryID, macroEconomicID, industryChainID sql.NullString
 	if err := row.Scan(
 		&result.ID, &result.Name, &storylineType, &rivalryID, &macroEconomicID,
-		&industryChainID, &companyEntityID, &result.Summary, &result.CurrentStage,
+		&industryChainID, &result.Summary, &result.CurrentStage,
 		&status, &result.Confidence, &alignmentStatus, &result.DataAlignmentScore,
 		&result.DataAlignmentReason, &result.LastAlignmentCheckedAt,
 		&result.CreatedAt, &result.UpdatedAt,
@@ -335,7 +331,6 @@ func scanStoryline(row rowScanner) (Storyline, error) {
 	result.RivalryID = nullStringPointer(rivalryID)
 	result.MacroEconomicID = nullStringPointer(macroEconomicID)
 	result.IndustryChainID = nullStringPointer(industryChainID)
-	result.CompanyEntityID = nullStringPointer(companyEntityID)
 	result.LastAlignmentCheckedAt = result.LastAlignmentCheckedAt.UTC()
 	result.CreatedAt = result.CreatedAt.UTC()
 	result.UpdatedAt = result.UpdatedAt.UTC()
@@ -362,7 +357,7 @@ func scanStorylineEventLink(row rowScanner) (StorylineEventLink, error) {
 func validateCreate(input CreateInput) error {
 	return validateValues(
 		input.Name, input.Type, input.RivalryID, input.MacroEconomicID,
-		input.IndustryChainID, input.CompanyEntityID, input.Summary, input.CurrentStage,
+		input.IndustryChainID, input.Summary, input.CurrentStage,
 		input.Status, input.Confidence, input.DataAlignmentStatus,
 		input.DataAlignmentScore, input.DataAlignmentReason, input.LastAlignmentCheckedAt,
 	)
@@ -374,7 +369,7 @@ func validateUpdate(input UpdateInput) error {
 	}
 	return validateValues(
 		input.Name, input.Type, input.RivalryID, input.MacroEconomicID,
-		input.IndustryChainID, input.CompanyEntityID, input.Summary, input.CurrentStage,
+		input.IndustryChainID, input.Summary, input.CurrentStage,
 		input.Status, input.Confidence, input.DataAlignmentStatus,
 		input.DataAlignmentScore, input.DataAlignmentReason, input.LastAlignmentCheckedAt,
 	)
@@ -397,7 +392,7 @@ func validateStored(input Storyline) error {
 	}
 	return validateValues(
 		input.Name, input.Type, input.RivalryID, input.MacroEconomicID,
-		input.IndustryChainID, input.CompanyEntityID, input.Summary, input.CurrentStage,
+		input.IndustryChainID, input.Summary, input.CurrentStage,
 		input.Status, input.Confidence, input.DataAlignmentStatus,
 		input.DataAlignmentScore, input.DataAlignmentReason, input.LastAlignmentCheckedAt,
 	)
@@ -406,7 +401,7 @@ func validateStored(input Storyline) error {
 func validateValues(
 	name string,
 	storylineType StorylineType,
-	rivalryID, macroEconomicID, industryChainID, companyEntityID *string,
+	rivalryID, macroEconomicID, industryChainID *string,
 	summary, currentStage string,
 	status Status,
 	confidence float64,
@@ -420,7 +415,7 @@ func validateValues(
 		!validStorylineType(storylineType) || !validStatus(status) ||
 		!validDataAlignmentStatus(alignmentStatus) || !validRange(confidence, 0.99) ||
 		!validRange(alignmentScore, 1.00) || lastAlignmentCheckedAt.IsZero() ||
-		!validAnchor(storylineType, rivalryID, macroEconomicID, industryChainID, companyEntityID) {
+		!validAnchor(storylineType, rivalryID, macroEconomicID, industryChainID) {
 		return ErrInvalidStoryline
 	}
 	return nil
@@ -464,21 +459,20 @@ func validRange(value, maximum float64) bool {
 
 func validAnchor(
 	storylineType StorylineType,
-	rivalryID, macroEconomicID, industryChainID, companyEntityID *string,
+	rivalryID, macroEconomicID, industryChainID *string,
 ) bool {
 	switch storylineType {
 	case StorylineTypeGeopolitical:
 		return validOptionalID(rivalryID, coreid.GeopoliticRivalry) &&
-			macroEconomicID == nil && industryChainID == nil && companyEntityID == nil
+			macroEconomicID == nil && industryChainID == nil
 	case StorylineTypeMacro:
 		return rivalryID == nil && validOptionalID(macroEconomicID, coreid.MacroEconomic) &&
-			industryChainID == nil && companyEntityID == nil
+			industryChainID == nil
 	case StorylineTypeIndustry:
 		return rivalryID == nil && macroEconomicID == nil &&
-			validOptionalID(industryChainID, coreid.IndustryChain) && companyEntityID == nil
+			validOptionalID(industryChainID, coreid.IndustryChain)
 	case StorylineTypeCorporate:
-		return rivalryID == nil && macroEconomicID == nil && industryChainID == nil &&
-			validOptionalID(companyEntityID, coreid.Entity)
+		return rivalryID == nil && macroEconomicID == nil && industryChainID == nil
 	default:
 		return false
 	}

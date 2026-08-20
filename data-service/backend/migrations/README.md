@@ -227,3 +227,12 @@ native lifecycle/alignment enum、数值边界、restrictive Event 外键、唯�
 结构，恢复 migration 66 前快照或使用另行审阅的 forward repair，不运行 down migration。
 Biz/API wiring、初始化数据、StorylineDomain 关系、对账历史、unlink/delete、OpenSPG 与 UI
 均需后续独立发布。
+
+`000067` 是 Issue #306 的零兼容协调切换。操作员必须停止 Data 及直接写入者、确认 PostgreSQL
+恢复点，并用候选镜像执行 check-only；只有确认 `000067` 是唯一 pending migration 后才 apply。
+迁移前会拒绝无法表示的 Company code/name/aliases、重复 code、不能精确唯一匹配 Industry name
+的旧行业标签，以及仍通过未批准通用 Entity 关系引用 Company 的事实。执行后确认 ledger 为
+`67`，Company 数量、UUID 后缀、已知名称/别名/经营区域/状态/时间戳和注册 Country 保持一致，
+Company–Industry 端点正确，Company shadow Entity 为零，`company_profiles` 不存在，且
+Storyline/Security 不再含 Company 引用列。controller 字段和两类明确取消的关系不会保留。
+旧应用不兼容新 schema；回滚必须同时恢复 migration 67 前快照和上一版应用，不运行 down migration。
