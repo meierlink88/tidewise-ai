@@ -7,8 +7,9 @@ directly and hand platform output to the native developer tools.
 
 The `tidewise-app` stack contains Data, Miniapp Backend, Admin Backend and Admin Web.
 Reason Server and Agent OS join the same Docker Desktop project only when started from their own
-repositories. The independently operated `tidewise-infra` stack contains PostgreSQL, MySQL, Neo4j,
-MinIO and Qdrant. Both projects use the `tidewise-local` network. Data and Agent OS keep
+repositories. The independently operated `tidewise-infra` stack contains PostgreSQL, MySQL, MinIO
+and Qdrant. Reasoning-specific Neo4j is owned by `tidewise-reason`; all projects use the
+`tidewise-local` network. Data and Agent OS keep
 independent PostgreSQL databases and roles; sharing the engine does not share data ownership.
 
 ## Start and stop
@@ -66,29 +67,12 @@ Infrastructure has a separate, explicit shutdown command and should normally rem
 npm run infra:down
 ```
 
-## Neo4j provider
+## Reasoning graph provider
 
-Local Reason uses the digest-pinned OpenSPG Neo4j provider: Neo4j/DozerDB 5.25.1, APOC Core 5.25.1
-and OpenGDS 2.12.0. It mounts the retained `tidewise-reason_neo4j-data` and
-`tidewise-reason_neo4j-logs` volumes. OpenSPG project isolation is physical: each project database
-must be the lower-case project namespace, such as `tidewise` or `reasonsmoke`.
-
-Generic Neo4j Community 5.26 is not an approved provider for OpenSPG v0.8. It exposes only one
-standard database and cannot preserve the project lifecycle, search indexes and GDS projection
-boundaries used by OpenSPG. Do not reintroduce the abandoned 5.26 data/log/plugin volumes or a
-single-database project-config migration unless a future exact DozerDB/APOC/OpenGDS combination
-passes the complete provider-consumer isolation suite.
-
-Verify the provider and the real OpenSPG consumer independently:
-
-```bash
-npm run infra:verify:neo4j
-bash infra/local/verify-openspg-neo4j-consumer.sh
-```
-
-The first command verifies the exact image, versions, mounts and standard databases. The second
-verifies the Reason Web endpoint, KAG/KNEXT CLIs and every local project's real Graph API against
-its namespace database.
+This repository does not provision, verify or stop local Neo4j. The reasoning repository owns its
+local graph provider, data volumes and evaluation lifecycle. Tidewise AI application startup has no
+Neo4j dependency. The UAT OpenSPG provider remains governed separately by this repository's UAT
+infrastructure contract.
 
 Follow logs with:
 
@@ -107,8 +91,8 @@ npm run runtime:logs
 | Miniapp H5 profile | `http://127.0.0.1:10086` |
 
 Application-to-application traffic uses Compose DNS (`data`, `miniapp`, `adminportal`).
-Applications reach local infrastructure through `postgres`, `qdrant`, `mysql`,
-`neo4j` and `minio` on the shared network.
+Applications reach local infrastructure through `postgres`, `qdrant`, `mysql` and `minio` on the
+shared network.
 
 Docker Desktop shows the long-running application containers as `admin-portal-web`,
 `admin-portal-service`, `miniapp-service`, and `data-service`. The transient Data migration
