@@ -42,36 +42,6 @@ services:
       retries: 20
     networks: [tidewise-local]
 
-  neo4j:
-    image: spg-registry.cn-hangzhou.cr.aliyuncs.com/spg/openspg-neo4j@sha256:4bc5b7f6b83d333b1d2c8f60ac145c068d77d50bca65b3a07c927f9e2a541eb9
-    restart: unless-stopped
-    ports:
-      - '127.0.0.1:${NEO4J_HTTP_PORT:-7474}:7474'
-      - '127.0.0.1:${NEO4J_BOLT_PORT:-7687}:7687'
-    environment:
-      TZ: Asia/Shanghai
-      NEO4J_AUTH: '${OPENSPG_NEO4J_USER:-neo4j}/${OPENSPG_NEO4J_PASSWORD:-neo4j@openspg}'
-      NEO4J_PLUGINS: '["apoc"]'
-      NEO4J_server_memory_heap_initial__size: 1G
-      NEO4J_server_memory_heap_max__size: 4G
-      NEO4J_server_memory_pagecache_size: 1G
-      NEO4J_apoc_export_file_enabled: 'true'
-      NEO4J_apoc_import_file_enabled: 'true'
-      NEO4J_dbms_security_procedures_unrestricted: '*'
-      NEO4J_dbms_security_procedures_allowlist: '*'
-    volumes:
-      - neo4j-data:/data
-      - neo4j-logs:/logs
-    healthcheck:
-      test: ['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:7474']
-      interval: 10s
-      timeout: 5s
-      retries: 20
-    networks:
-      tidewise-local:
-        aliases:
-          - release-openspg-neo4j
-
   minio:
     image: spg-registry.cn-hangzhou.cr.aliyuncs.com/spg/openspg-minio@sha256:9493c8e8f77edb10d556255d49ba8b5761b0fe57889235dfd10619c0513da007
     restart: unless-stopped
@@ -122,12 +92,6 @@ volumes:
   mysql-data:
     external: true
     name: tidewise-reason_mysql-data
-  neo4j-data:
-    external: true
-    name: tidewise-reason_neo4j-data
-  neo4j-logs:
-    external: true
-    name: tidewise-reason_neo4j-logs
   minio-data:
     external: true
     name: tidewise-reason_minio-data
