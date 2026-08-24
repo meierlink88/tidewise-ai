@@ -1,0 +1,34 @@
+namespace Tidewise
+
+MacroEconomic(宏观经济叙事蓝图): EntityType
+    desc: 独立静态宏观经济叙事蓝图
+    properties:
+        name(蓝图中文名称): Text
+            desc: 宏观经济叙事蓝图的中文正式名称
+            constraint: NotNull
+        nameEn(蓝图英文名称): Text
+            desc: 宏观经济叙事蓝图的英文正式名称
+            constraint: NotNull
+        macroType(宏观类型): Text
+            # MONETARY：货币政策。
+            # FISCAL：财政政策。
+            # TRADE_POLICY：贸易政策。
+            # REGULATORY：监管政策。
+            # DATA_ECONOMIC：数据经济。
+            desc: 宏观经济叙事蓝图的受控类型
+            constraint: NotNull, Enum="MONETARY,FISCAL,TRADE_POLICY,REGULATORY,DATA_ECONOMIC"
+        description(蓝图说明): Text
+            desc: 宏观经济叙事蓝图的非空自然语言说明
+            constraint: NotNull
+        status(生命周期状态): Text
+            # ACTIVE：蓝图持续活跃。
+            # DORMANT：蓝图暂时休眠。
+            # ARCHIVED：蓝图已经归档。
+            desc: 宏观经济叙事蓝图的受控生命周期状态
+            constraint: NotNull, Enum="ACTIVE,DORMANT,ARCHIVED"
+        createdAt(创建时间): Text
+            desc: PostgreSQL 生成的蓝图创建时间
+            constraint: NotNull
+        updatedAt(更新时间): Text
+            desc: PostgreSQL 生成的蓝图最近变更时间
+            constraint: NotNull

@@ -1,0 +1,31 @@
+namespace Tidewise
+
+Evidence(原子证据): EntityType
+    desc: 从 Raw Evidence 清洗得到且可直接消费的原子事实
+    properties:
+        rawEvidenceId(所属原始证据标识): Text
+            desc: 所属 Raw Evidence 的稳定标识
+            constraint: NotNull, Regular="^RAW[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        isSplit(是否拆分): Text
+            # TRUE：同一 Raw Evidence 产生多条 Atomic Evidence。
+            # FALSE：同一 Raw Evidence 只产生一条 Atomic Evidence。
+            desc: Data 根据完整 Evidence 集合基数派生的拆分状态
+            constraint: NotNull, Enum="TRUE,FALSE"
+        summary(事实摘要): Text
+            desc: 原子证据的非空简洁事实摘要
+            constraint: NotNull
+        who(相关主体): Text
+            desc: 严格 5W1H 语义中的相关主体，未知时为空
+        what(发生事项): Text
+            desc: 严格 5W1H 语义中的非空发生事项
+            constraint: NotNull
+        when(语义时间): Text
+            desc: 严格 5W1H 语义中的时间表达，未知时为空
+        where(发生地点): Text
+            desc: 严格 5W1H 语义中的地点表达，未知时为空
+        why(发生原因): Text
+            desc: 严格 5W1H 语义中的原因表达，未知时为空
+        how(发生方式): Text
+            desc: 严格 5W1H 语义中的方式表达，未知时为空
+        createdAt(创建时间): Text
+            desc: Data 为新记录生成的创建时间，历史记录可能为空
