@@ -77,7 +77,6 @@ func researchGraphMembershipDTOs(values []researchbiz.GraphIndustryChainMembersh
 		result = append(result, researchapi.ResearchGraphIndustryChainMembership{
 			IndustryChainID: item.IndustryChainID, ChainNodeID: item.ChainNodeID,
 			Position: item.Position, ContextualStage: item.ContextualStage,
-			ReviewStatus: item.ReviewStatus, Status: item.Status,
 		})
 	}
 	return result
@@ -90,8 +89,6 @@ func researchGraphIndustryEdgeDTOs(values []researchbiz.GraphIndustryChainEdge) 
 			IndustryChainGraphEdgeID: item.IndustryChainGraphEdgeID,
 			IndustryChainID:          item.IndustryChainID, FromChainNodeID: item.FromChainNodeID,
 			ToChainNodeID: item.ToChainNodeID, RelationType: item.RelationType,
-			Mechanism: item.Mechanism, ConditionNote: item.ConditionNote, SegmentKind: item.SegmentKind,
-			OmittedStepNote: item.OmittedStepNote, ReviewStatus: item.ReviewStatus, Status: item.Status,
 		})
 	}
 	return result

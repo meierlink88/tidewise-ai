@@ -2966,15 +2966,6 @@ components:
       properties:
         type: {type: string, enum: [event, relationship, metric]}
         summary: {type: string}
-    ResearchReasoningTreeGraphEdge:
-      type: object
-      additionalProperties: false
-      required: [id, relation_type, review_status, status]
-      properties:
-        id: {$ref: '#/components/schemas/IndustryChainGraphEdgeID'}
-        relation_type: {type: string}
-        review_status: {type: string}
-        status: {type: string}
     ResearchReasoningTreeNode:
       type: object
       additionalProperties: false
@@ -3632,7 +3623,7 @@ components:
       properties:
         contract_version:
           type: string
-          enum: [research-graph-search.v1]
+          enum: [research-graph-search.v2]
         analysis_as_of:
           $ref: '#/components/schemas/UTCTimestamp'
         query_fingerprint:
@@ -3680,32 +3671,24 @@ components:
           items:
             type: object
             additionalProperties: false
-            required: [industry_chain_id, chain_node_id, position, contextual_stage, review_status, status]
+            required: [industry_chain_id, chain_node_id, position, contextual_stage]
             properties:
               industry_chain_id: {$ref: '#/components/schemas/IndustryChainID'}
               chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
               position: {type: integer, minimum: 1}
               contextual_stage: {type: string}
-              review_status: {type: string, enum: [approved]}
-              status: {type: string, enum: [active]}
         industry_chain_graph_edges:
           type: array
           items:
             type: object
             additionalProperties: false
-            required: [industry_chain_graph_edge_id, industry_chain_id, from_chain_node_id, to_chain_node_id, relation_type, mechanism, condition_note, segment_kind, omitted_step_note, review_status, status]
+            required: [industry_chain_graph_edge_id, industry_chain_id, from_chain_node_id, to_chain_node_id, relation_type]
             properties:
               industry_chain_graph_edge_id: {$ref: '#/components/schemas/IndustryChainGraphEdgeID'}
               industry_chain_id: {$ref: '#/components/schemas/IndustryChainID'}
               from_chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
               to_chain_node_id: {$ref: '#/components/schemas/ChainNodeID'}
               relation_type: {type: string}
-              mechanism: {type: string}
-              condition_note: {type: string, nullable: true}
-              segment_kind: {type: string}
-              omitted_step_note: {type: string, nullable: true}
-              review_status: {type: string, enum: [approved]}
-              status: {type: string, enum: [active]}
 
     ResearchGraphSearchEnvelope:
       type: object

@@ -95,7 +95,7 @@ func reasoningTree(value biz.ResearchReasoningTreeDTO) v1.ResearchReasoningTree 
 		}
 		var edge *v1.ResearchReasoningTreeGraphEdge
 		if n.IncomingGraphEdge != nil {
-			edge = &v1.ResearchReasoningTreeGraphEdge{ID: n.IncomingGraphEdge.ID, RelationType: n.IncomingGraphEdge.RelationType, ReviewStatus: n.IncomingGraphEdge.ReviewStatus, Status: n.IncomingGraphEdge.Status}
+			edge = &v1.ResearchReasoningTreeGraphEdge{ID: n.IncomingGraphEdge.ID, RelationType: n.IncomingGraphEdge.RelationType}
 		}
 		nodes = append(nodes, v1.ResearchReasoningTreeNode{NodeKey: n.NodeKey, DisplayName: n.DisplayName, ID: n.ID, Position: n.Position, ChainNodeID: n.ChainNodeID, Name: n.Name, StateSummary: n.StateSummary, ImpactDirection: n.ImpactDirection, ImpactStrength: n.ImpactStrength, ImpactSummary: n.ImpactSummary, ReasoningBasisSummary: n.ReasoningBasisSummary, EvidenceGapSummary: n.EvidenceGapSummary, IncomingIndustryChainGraphEdgeID: n.IncomingIndustryChainGraphEdgeID, IncomingTransmissionTitle: n.IncomingTransmissionTitle, IncomingTransmissionMechanism: n.IncomingTransmissionMechanism, IncomingConditionSummary: n.IncomingConditionSummary, IncomingGraphEdge: edge, Signals: signals, PrimarySignal: signal(n.PrimarySignal), SignalDisplaySummary: n.SignalDisplaySummary})
 	}

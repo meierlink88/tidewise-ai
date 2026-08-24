@@ -74,7 +74,7 @@ type ResearchReasoningTreeList struct {
 }
 
 type ResearchCheckpoint struct{ Type, Summary string }
-type ResearchGraphEdge struct{ ID, RelationType, ReviewStatus, Status string }
+type ResearchGraphEdge struct{ ID, RelationType string }
 type ResearchSignal struct {
 	SignalKey                                                      string
 	VariableName, Direction                                        *string

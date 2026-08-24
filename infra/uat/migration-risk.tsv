@@ -70,3 +70,4 @@
 000069	high	mixed	delete the isolated simulated wafer fixture and move formal IndustryChain Industry and Concept mappings from generic Entity Relations into typed Links in a stop-write cutover
 000070	high	mixed	drop retired ChainNode relation and physical constraint facts plus legacy Industry relationship import receipts in a snapshot-protected stop-write cutover
 000071	high	mixed	drop retired Entity external identifiers and redirects while preserving remaining object reference guards in a snapshot-protected stop-write cutover
+000072	high	mixed	narrow IndustryChain membership and graph edge storage to current row-presence topology facts in a snapshot-protected stop-write contract cutover

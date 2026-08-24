@@ -419,24 +419,20 @@ func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 		    ('` + chainA + `', 'Graph Chain A', '{}', 'Graph Chain A scope', 'A', 'A use', ARRAY['supply'], 'CN', CURRENT_DATE, 'approved'),
 		    ('` + chainB + `', 'Graph Chain B', '{}', 'Graph Chain B scope', 'B', 'B use', ARRAY['demand'], 'CN', CURRENT_DATE, 'approved')`,
 		`INSERT INTO industry_chain_node_memberships (
-		    industry_chain_id, chain_node_id, position, contextual_stage,
-		    review_status, status, inclusion_reason, evidence_ids, source_name, source_url, verified_at
+		    industry_chain_id, chain_node_id, position, contextual_stage
 		) VALUES
-		    ('` + chainA + `', '` + nodeA + `', 1, 'upstream', 'approved', 'active', 'A seed', ARRAY['evidence:a'], 'integration', 'artifact://graph-a', now()),
-		    ('` + chainA + `', '` + nodeB + `', 2, 'midstream', 'approved', 'active', 'A target', ARRAY['evidence:b'], 'integration', 'artifact://graph-a', now()),
-		    ('` + chainB + `', '` + nodeA + `', 1, 'upstream', 'approved', 'active', 'B seed', ARRAY['evidence:c'], 'integration', 'artifact://graph-b', now()),
-		    ('` + chainB + `', '` + nodeC + `', 2, 'downstream', 'approved', 'active', 'B target', ARRAY['evidence:d'], 'integration', 'artifact://graph-b', now())`,
+		    ('` + chainA + `', '` + nodeA + `', 1, 'upstream'),
+		    ('` + chainA + `', '` + nodeB + `', 2, 'midstream'),
+		    ('` + chainB + `', '` + nodeA + `', 1, 'upstream'),
+		    ('` + chainB + `', '` + nodeC + `', 2, 'downstream')`,
 		`INSERT INTO industry_chain_graph_edges (
 		    id, industry_chain_id, from_chain_node_id, to_chain_node_id,
-		    relation_type, mechanism, segment_kind, review_status, status,
-		    evidence_ids, source_name, source_url, verified_at
+		    relation_type
 		) VALUES
 		    ('IGE20000000-0000-4000-8000-000000000006', '` + chainA + `', '` + nodeA + `', '` + nodeB + `',
-		     'input_to', 'A feeds B', 'direct_candidate', 'approved', 'active',
-		     ARRAY['evidence:e'], 'integration', 'artifact://graph-a', now()),
+		     'input_to'),
 		    ('IGE20000000-0000-4000-8000-000000000008', '` + chainB + `', '` + nodeA + `', '` + nodeC + `',
-		     'input_to', 'A feeds C in another chain', 'direct_candidate', 'approved', 'active',
-		     ARRAY['evidence:g'], 'integration', 'artifact://graph-b', now())`,
+		     'input_to')`,
 		`INSERT INTO entity_edges (
 		    id, from_entity_id, to_entity_id, relation_type, evidence_note, status
 		) VALUES (
@@ -482,6 +478,13 @@ func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 		if entity.EntityID == chainB || entity.EntityID == nodeC {
 			t.Fatalf("out-of-scope entity returned: %#v", entity)
 		}
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO industry_chain_graph_edges (
+		id, industry_chain_id, from_chain_node_id, to_chain_node_id, relation_type
+	) VALUES (
+		'IGE20000000-0000-4000-8000-000000000009', $1, $2, $3, 'depends_on'
+	)`, chainA, nodeB, nodeA); err == nil || !strings.Contains(err.Error(), "industry chain topology must remain acyclic") {
+		t.Fatalf("cycle insert error = %v, want acyclic topology rejection", err)
 	}
 }
 

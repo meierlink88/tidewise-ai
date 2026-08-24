@@ -471,12 +471,10 @@ components:
     ReasoningTreeGraphEdge:
       type: object
       additionalProperties: false
-      required: [id, relation_type, review_status, status]
+      required: [id, relation_type]
       properties:
         id: {$ref: '#/components/schemas/UUID'}
         relation_type: {type: string}
-        review_status: {type: string}
-        status: {type: string}
     ReasoningTreeCheckpoint:
       type: object
       additionalProperties: false

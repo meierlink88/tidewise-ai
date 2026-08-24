@@ -57,11 +57,7 @@ const researchGraphCTE = `
 	        NULL::text industry_chain_id,
 	        relation.from_entity_id,
 	        relation.to_entity_id,
-	        relation.relation_type,
-	        ''::text mechanism,
-	        NULL::text condition_note,
-	        ''::text segment_kind,
-	        NULL::text omitted_step_note
+	        relation.relation_type
 	    FROM all_entity_relations relation
 	    JOIN all_entities from_entity
 	      ON from_entity.id = relation.from_entity_id
@@ -85,11 +81,7 @@ const researchGraphCTE = `
 	        edge.industry_chain_id,
 	        edge.from_chain_node_id,
 	        edge.to_chain_node_id,
-	        edge.relation_type,
-	        edge.mechanism,
-	        edge.condition_note,
-	        edge.segment_kind,
-	        edge.omitted_step_note
+	        edge.relation_type
 	    FROM industry_chain_graph_edges edge
 	    JOIN industry_chain definition
 	      ON definition.id = edge.industry_chain_id
@@ -99,15 +91,11 @@ const researchGraphCTE = `
 	    JOIN industry_chain_node_memberships from_membership
 	      ON from_membership.industry_chain_id = edge.industry_chain_id
 	     AND from_membership.chain_node_id = edge.from_chain_node_id
-	     AND from_membership.review_status = $12
-	     AND from_membership.status = $13
 	     AND from_membership.created_at <= $1
 	     AND from_membership.updated_at <= $1
 	    JOIN industry_chain_node_memberships to_membership
 	      ON to_membership.industry_chain_id = edge.industry_chain_id
 	     AND to_membership.chain_node_id = edge.to_chain_node_id
-	     AND to_membership.review_status = $12
-	     AND to_membership.status = $13
 	     AND to_membership.created_at <= $1
 	     AND to_membership.updated_at <= $1
 	    JOIN all_entities from_entity
@@ -122,9 +110,7 @@ const researchGraphCTE = `
 	     AND to_entity.updated_at <= $1
 	    JOIN requested_filters filter
 	      ON filter.relation_type = edge.relation_type
-	    WHERE edge.status = $15
-	      AND edge.review_status = $14
-	      AND edge.created_at <= $1
+	    WHERE edge.created_at <= $1
 	      AND edge.updated_at <= $1
 	      AND ($6::text IS NULL OR edge.industry_chain_id = $6::text)
 	),
@@ -255,9 +241,7 @@ const researchGraphCTE = `
 	      ON selected_chain.industry_chain_id = membership.industry_chain_id
 	    JOIN reached_entities selected_node
 	      ON selected_node.entity_id = membership.chain_node_id
-	    WHERE membership.review_status = $12
-	      AND membership.status = $13
-	      AND membership.created_at <= $1
+	    WHERE membership.created_at <= $1
 	      AND membership.updated_at <= $1
 	),
 	selected_relation_types(relation_type) AS MATERIALIZED (
@@ -298,10 +282,6 @@ func (s *Store) SearchResearchGraph(
 		query.FactPolicy.EntityStatus,
 		query.FactPolicy.EntityRelationStatus,
 		query.FactPolicy.IndustryChainReviewStatus,
-		query.FactPolicy.MembershipReviewStatus,
-		query.FactPolicy.MembershipStatus,
-		query.FactPolicy.GraphEdgeReviewStatus,
-		query.FactPolicy.GraphEdgeStatus,
 	}
 	if err := s.validateResearchGraphReferences(
 		ctx,
@@ -393,9 +373,7 @@ func (s *Store) SearchResearchGraph(
 		            'industry_chain_id', membership.industry_chain_id,
 		            'chain_node_id', membership.chain_node_id,
 		            'position', membership.position,
-		            'contextual_stage', membership.contextual_stage,
-		            'review_status', membership.review_status,
-		            'status', membership.status
+		            'contextual_stage', membership.contextual_stage
 		        ) ORDER BY membership.industry_chain_id, membership.position, membership.chain_node_id)
 		        FROM selected_memberships membership
 		    ), '[]'::jsonb),
@@ -405,13 +383,7 @@ func (s *Store) SearchResearchGraph(
 		            'industry_chain_id', edge.industry_chain_id,
 		            'from_chain_node_id', edge.from_chain_node_id,
 		            'to_chain_node_id', edge.to_chain_node_id,
-		            'relation_type', edge.relation_type,
-		            'mechanism', edge.mechanism,
-		            'condition_note', edge.condition_note,
-		            'segment_kind', edge.segment_kind,
-		            'omitted_step_note', edge.omitted_step_note,
-		            'review_status', edge.review_status,
-		            'status', edge.status
+		            'relation_type', edge.relation_type
 		        ) ORDER BY edge.industry_chain_id, edge.from_chain_node_id, edge.to_chain_node_id, edge.id)
 		        FROM selected_graph_edges edge
 		    ), '[]'::jsonb)
@@ -746,8 +718,7 @@ func validatePersistedResearchGraph(graph biz.ResearchGraphSubgraph, maxDepth in
 		chains[chain.IndustryChainID] = struct{}{}
 	}
 	for _, membership := range graph.IndustryChainMemberships {
-		if membership.Position <= 0 || !oneOfResearchGraph(membership.ContextualStage, "upstream", "midstream", "downstream") ||
-			membership.ReviewStatus != "approved" || membership.Status != "active" {
+		if membership.Position <= 0 || !oneOfResearchGraph(membership.ContextualStage, "upstream", "midstream", "downstream") {
 			return errors.New("persisted Research Graph membership violates invariants")
 		}
 		if _, ok := chains[membership.IndustryChainID]; !ok {
@@ -759,9 +730,7 @@ func validatePersistedResearchGraph(graph biz.ResearchGraphSubgraph, maxDepth in
 	}
 	edgeIDs := make(map[string]struct{}, len(graph.IndustryChainGraphEdges))
 	for _, edge := range graph.IndustryChainGraphEdges {
-		if !coreid.Is(edge.IndustryChainGraphEdgeID, coreid.IndustryChainGraphEdge) || strings.TrimSpace(edge.Mechanism) == "" ||
-			!oneOfResearchGraph(edge.SegmentKind, "direct_candidate", "compressed_candidate") ||
-			edge.ReviewStatus != "approved" || edge.Status != "active" || edge.FromChainNodeID == edge.ToChainNodeID {
+		if !coreid.Is(edge.IndustryChainGraphEdgeID, coreid.IndustryChainGraphEdge) || edge.FromChainNodeID == edge.ToChainNodeID {
 			return errors.New("persisted Research Graph Industry Chain edge violates invariants")
 		}
 		if _, ok := chains[edge.IndustryChainID]; !ok {
@@ -1100,15 +1069,11 @@ func (s *Store) validateResearchGraphReferences(
 		            JOIN industry_chain_node_memberships from_membership
 		              ON from_membership.industry_chain_id = edge.industry_chain_id
 		             AND from_membership.chain_node_id = edge.from_chain_node_id
-		             AND from_membership.review_status = $8
-		             AND from_membership.status = $9
 		             AND from_membership.created_at <= $1
 		             AND from_membership.updated_at <= $1
 		            JOIN industry_chain_node_memberships to_membership
 		              ON to_membership.industry_chain_id = edge.industry_chain_id
 		             AND to_membership.chain_node_id = edge.to_chain_node_id
-		             AND to_membership.review_status = $8
-		             AND to_membership.status = $9
 		             AND to_membership.created_at <= $1
 		             AND to_membership.updated_at <= $1
 		            JOIN all_entities from_entity
@@ -1122,8 +1087,6 @@ func (s *Store) validateResearchGraphReferences(
 		             AND to_entity.created_at <= $1
 		             AND to_entity.updated_at <= $1
 		            WHERE edge.relation_type = requested.relation_type
-		              AND edge.status = $11
-		              AND edge.review_status = $10
 		              AND edge.created_at <= $1
 		              AND edge.updated_at <= $1
 		              AND ($4::text IS NULL OR edge.industry_chain_id = $4::text)
@@ -1148,10 +1111,6 @@ func (s *Store) validateResearchGraphReferences(
 		query.FactPolicy.EntityStatus,
 		query.FactPolicy.EntityRelationStatus,
 		query.FactPolicy.IndustryChainReviewStatus,
-		query.FactPolicy.MembershipReviewStatus,
-		query.FactPolicy.MembershipStatus,
-		query.FactPolicy.GraphEdgeReviewStatus,
-		query.FactPolicy.GraphEdgeStatus,
 	).Scan(&seedCount, &relationTypeCount, &chainCount); err != nil {
 		return err
 	}

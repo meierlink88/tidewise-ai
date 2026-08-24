@@ -69,7 +69,7 @@ func (*httpStub) GetResearchReasoningTree(context.Context, *ReasoningTreeDetailR
 func (s *httpStub) SearchResearchGraph(_ context.Context, request *ResearchGraphSearchRequest) (*v1.Response[ResearchGraphSearchResult], error) {
 	s.graphRequest = request
 	return &v1.Response[ResearchGraphSearchResult]{Status: v1.StatusOK, Result: ResearchGraphSearchResult{
-		ContractVersion: "research-graph-search.v1", AnalysisAsOf: request.AnalysisAsOf,
+		ContractVersion: "research-graph-search.v2", AnalysisAsOf: request.AnalysisAsOf,
 		Entities: []ResearchGraphEntity{}, RelationDefinitions: []ResearchGraphRelationDefinition{},
 		EntityRelations: []ResearchGraphEntityRelation{}, IndustryChains: []ResearchGraphIndustryChain{},
 		IndustryChainMemberships: []ResearchGraphIndustryChainMembership{},

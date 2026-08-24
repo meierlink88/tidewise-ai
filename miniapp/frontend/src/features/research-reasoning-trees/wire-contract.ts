@@ -280,12 +280,10 @@ function mapSignal(value: RecordValue, index: number): ResearchReasoningTreeSign
 }
 
 function mapGraphEdge(value: RecordValue) {
-  onlyKeys(value, ['id', 'relation_type', 'review_status', 'status']);
+  onlyKeys(value, ['id', 'relation_type']);
   return {
     id: uuid(value.id),
-    relationType: text(value.relation_type),
-    reviewStatus: text(value.review_status),
-    status: text(value.status)
+    relationType: text(value.relation_type)
   };
 }
 

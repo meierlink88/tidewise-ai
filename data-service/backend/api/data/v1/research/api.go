@@ -213,22 +213,14 @@ type ResearchGraphIndustryChainMembership struct {
 	ChainNodeID     string `json:"chain_node_id"`
 	Position        int    `json:"position"`
 	ContextualStage string `json:"contextual_stage"`
-	ReviewStatus    string `json:"review_status"`
-	Status          string `json:"status"`
 }
 
 type ResearchGraphIndustryChainGraphEdge struct {
-	IndustryChainGraphEdgeID string  `json:"industry_chain_graph_edge_id"`
-	IndustryChainID          string  `json:"industry_chain_id"`
-	FromChainNodeID          string  `json:"from_chain_node_id"`
-	ToChainNodeID            string  `json:"to_chain_node_id"`
-	RelationType             string  `json:"relation_type"`
-	Mechanism                string  `json:"mechanism"`
-	ConditionNote            *string `json:"condition_note"`
-	SegmentKind              string  `json:"segment_kind"`
-	OmittedStepNote          *string `json:"omitted_step_note"`
-	ReviewStatus             string  `json:"review_status"`
-	Status                   string  `json:"status"`
+	IndustryChainGraphEdgeID string `json:"industry_chain_graph_edge_id"`
+	IndustryChainID          string `json:"industry_chain_id"`
+	FromChainNodeID          string `json:"from_chain_node_id"`
+	ToChainNodeID            string `json:"to_chain_node_id"`
+	RelationType             string `json:"relation_type"`
 }
 
 type ResearchGraphSearchRequest struct {

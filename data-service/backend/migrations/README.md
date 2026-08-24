@@ -286,3 +286,11 @@ apply。执行前记录两张退役表及保留 Data Object/Relation 表数量�
 引用退役表，保留事实数量未变化。DDL 期间不允许新旧 Data binary 承载 mixed traffic；校验后
 只由候选 binary 恢复流量。上一版应用没有两张表的运行时 Adapter/API，物理 schema 兼容，但
 单独回退应用无法恢复已删除行；完整回滚必须同时恢复 migration 71 前快照和上一版应用。
+
+`000072` 是 Issue #336 的高风险破坏性拓扑事实收敛。操作员必须停止 Data 及直接写入者、
+取得 PostgreSQL 恢复点，并以候选镜像确认它是唯一 pending migration。执行前记录 Membership
+与 Graph Edge 行数、端点集合并确认时间顺序有效；执行后确认 ledger 为 `72`、两张表只包含
+ADR-0046 定义的保留列、行数与端点不变、replacement indexes 存在且 cycle guard 拒绝成环写入。
+该迁移删除旧 review/lifecycle/provenance/evidence/explanation 值，Data Research Graph 合同同时
+切换至 V2，禁止新旧 Data/Miniapp binary mixed traffic。完整回滚必须同时恢复 migration 72 前
+快照和上一版应用，不运行 down migration。

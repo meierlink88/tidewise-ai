@@ -268,13 +268,16 @@ _Avoid_: Industry Profile、Industry shadow Entity、持久化 classification le
 _Avoid_: Concept Profile、Concept shadow Entity、把 Concept 当作 Industry 分类层级
 
 **产业链节点归属（Industry Chain Node Membership）**:
-一个 Chain Node 被纳入某一特定 Industry Chain 的上下文关系；上中下游阶段和位置属于该关系，不是节点的全局属性。
-_Avoid_: 节点全局上下游标签、节点之间的图谱边
+一个 Chain Node 被纳入某一特定 Industry Chain 的当前正式上下文关系；行存在即表示当前归属。
+只保存 IndustryChain/ChainNode 端点、上中下游阶段、位置和审计时间；阶段和位置不是节点的
+全局属性。
+_Avoid_: 节点全局上下游标签、节点之间的图谱边、review/status、inclusion reason、Evidence、Source、verified at
 
 **产业链图谱边（Industry Chain Graph Edge）**:
-同一 Industry Chain 的两个成员节点之间，带有明确方向和结构机制的关系；这是 Data 当前唯一
-节点间拓扑事实。
-_Avoid_: `chain_node_relations`、发现映射、关键词相关、单次 Research Anchor 的临时传导路径
+同一 Industry Chain 的两个成员节点之间带明确方向和受控 relation type 的当前正式关系；行
+存在即表示当前拓扑。这是 Data 当前唯一节点间拓扑事实，只保存身份、IndustryChain、两个
+成员端点、relation type 和审计时间，并保持无环。
+_Avoid_: `chain_node_relations`、机制/条件/压缩段解释、review/status、Evidence、Source、verified at、发现映射、关键词相关、单次 Research Anchor 的临时传导路径
 
 **已退役：Chain Node Relation**:
 历史上脱离 IndustryChain 上下文保存的全局 ChainNode 关系。它不能确定性转换为要求同链成员
