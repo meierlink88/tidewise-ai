@@ -1,6 +1,6 @@
 # Country–Region 关系映射与本地发布记录
 
-日期：2026-08-24  
+日期：2026-08-24
 范围：本地 PostgreSQL `tidewise_local`，不包含 UAT 或生产环境
 
 ## 结论
