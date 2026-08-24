@@ -50,8 +50,6 @@ export interface ResearchReasoningTreeCheckpoint {
 export interface ResearchReasoningTreeGraphEdge {
   id: string;
   relationType: string;
-  reviewStatus: string;
-  status: string;
 }
 export interface ResearchReasoningTreeSignal {
   signalKey: string;

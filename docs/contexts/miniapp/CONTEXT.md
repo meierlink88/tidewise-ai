@@ -86,6 +86,9 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 - Miniapp BFF 将两个请求分别一对一代理到对应 Data API，并映射成页面可直接渲染的 DTO。
 - BFF 成功响应直接使用 Data envelope 的 `result` 内容，不向小程序返回 Data `request_id/result` 外壳。
 - BFF 保留每棵树的单一 `events` 数组、Tree 摘要、节点和 Variable Signal 展示快照，不拼接、推断或重排研究语义。
+- 节点的可空 `incoming_graph_edge` 只投影正式拓扑边的 `id` 与 `relation_type`；审核、生命周期、
+  机制和条件不属于该投影。分析师快照的 `incoming_transmission_mechanism` 与
+  `incoming_condition_summary` 独立保留。
 - BFF 使用 `tree_key`、`node_key`、`signal_key` 与发布时 display snapshot；不读取或补造
   已退役的 formal UUID。
 - BFF 不为一次请求扇出多个 Tree 查询，不访问 PostgreSQL/Neo4j，不补写或推断研究内容。

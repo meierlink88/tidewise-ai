@@ -127,10 +127,6 @@ type ResearchGraphFactPolicy struct {
 	EntityStatus              string
 	EntityRelationStatus      string
 	IndustryChainReviewStatus string
-	MembershipReviewStatus    string
-	MembershipStatus          string
-	GraphEdgeReviewStatus     string
-	GraphEdgeStatus           string
 }
 
 func ApprovedActiveResearchGraphFactPolicy() ResearchGraphFactPolicy {
@@ -138,10 +134,6 @@ func ApprovedActiveResearchGraphFactPolicy() ResearchGraphFactPolicy {
 		EntityStatus:              "active",
 		EntityRelationStatus:      "active",
 		IndustryChainReviewStatus: "approved",
-		MembershipReviewStatus:    "approved",
-		MembershipStatus:          "active",
-		GraphEdgeReviewStatus:     "approved",
-		GraphEdgeStatus:           "active",
 	}
 }
 
@@ -204,22 +196,14 @@ type ResearchGraphMembership struct {
 	ChainNodeID     string `json:"chain_node_id"`
 	Position        int    `json:"position"`
 	ContextualStage string `json:"contextual_stage"`
-	ReviewStatus    string `json:"review_status"`
-	Status          string `json:"status"`
 }
 
 type ResearchGraphIndustryEdge struct {
-	IndustryChainGraphEdgeID string  `json:"industry_chain_graph_edge_id"`
-	IndustryChainID          string  `json:"industry_chain_id"`
-	FromChainNodeID          string  `json:"from_chain_node_id"`
-	ToChainNodeID            string  `json:"to_chain_node_id"`
-	RelationType             string  `json:"relation_type"`
-	Mechanism                string  `json:"mechanism"`
-	ConditionNote            *string `json:"condition_note"`
-	SegmentKind              string  `json:"segment_kind"`
-	OmittedStepNote          *string `json:"omitted_step_note"`
-	ReviewStatus             string  `json:"review_status"`
-	Status                   string  `json:"status"`
+	IndustryChainGraphEdgeID string `json:"industry_chain_graph_edge_id"`
+	IndustryChainID          string `json:"industry_chain_id"`
+	FromChainNodeID          string `json:"from_chain_node_id"`
+	ToChainNodeID            string `json:"to_chain_node_id"`
+	RelationType             string `json:"relation_type"`
 }
 
 type ResearchGraphValidationError struct{ Reason string }
@@ -333,8 +317,6 @@ const (
 	IndustryChainContextualStageDownstream IndustryChainContextualStage = "downstream"
 )
 
-type IndustryChainSegmentKind string
-
 type IndustryChainGraphRelationType string
 
 const (
@@ -343,18 +325,11 @@ const (
 	IndustryChainGraphRelationDependsOn   IndustryChainGraphRelationType = "depends_on"
 )
 
-const (
-	IndustryChainSegmentDirectCandidate     IndustryChainSegmentKind = "direct_candidate"
-	IndustryChainSegmentCompressedCandidate IndustryChainSegmentKind = "compressed_candidate"
-)
-
 type IndustryChainNodeMembership struct {
 	IndustryChainID string
 	ChainNodeID     string
 	Position        int
 	ContextualStage IndustryChainContextualStage
-	ReviewStatus    ReviewStatus
-	Status          Status
 }
 
 func (m IndustryChainNodeMembership) Validate() error {
@@ -367,12 +342,6 @@ func (m IndustryChainNodeMembership) Validate() error {
 	if !validStatus(m.ContextualStage, IndustryChainContextualStageUpstream, IndustryChainContextualStageMidstream, IndustryChainContextualStageDownstream) {
 		return fmt.Errorf("unsupported industry chain contextual stage %q", m.ContextualStage)
 	}
-	if !validMasterDataReviewStatus(m.ReviewStatus) {
-		return fmt.Errorf("unsupported industry chain membership review status %q", m.ReviewStatus)
-	}
-	if !validStatus(m.Status, StatusActive, StatusInactive) {
-		return fmt.Errorf("unsupported industry chain membership status %q", m.Status)
-	}
 	return nil
 }
 
@@ -382,19 +351,12 @@ type IndustryChainGraphEdge struct {
 	FromChainNodeID string
 	ToChainNodeID   string
 	RelationType    IndustryChainGraphRelationType
-	Mechanism       string
-	ConditionNote   string
-	SegmentKind     IndustryChainSegmentKind
-	OmittedStepNote string
-	ReviewStatus    ReviewStatus
-	Status          Status
 }
 
 func (e IndustryChainGraphEdge) Validate() error {
 	if strings.TrimSpace(e.ID) == "" || strings.TrimSpace(e.IndustryChainID) == "" ||
-		strings.TrimSpace(e.FromChainNodeID) == "" || strings.TrimSpace(e.ToChainNodeID) == "" ||
-		strings.TrimSpace(e.Mechanism) == "" {
-		return fmt.Errorf("industry chain graph identity and mechanism are required")
+		strings.TrimSpace(e.FromChainNodeID) == "" || strings.TrimSpace(e.ToChainNodeID) == "" {
+		return fmt.Errorf("industry chain graph identities are required")
 	}
 	if e.FromChainNodeID == e.ToChainNodeID {
 		return fmt.Errorf("industry chain graph self edge is forbidden")
@@ -402,29 +364,7 @@ func (e IndustryChainGraphEdge) Validate() error {
 	if !validStatus(e.RelationType, IndustryChainGraphRelationInputTo, IndustryChainGraphRelationComponentOf, IndustryChainGraphRelationDependsOn) {
 		return fmt.Errorf("unsupported industry chain graph relation %q", e.RelationType)
 	}
-	if e.ConditionNote != "" && strings.TrimSpace(e.ConditionNote) == "" {
-		return fmt.Errorf("industry chain graph condition note must be nonblank when present")
-	}
-	if !validStatus(e.SegmentKind, IndustryChainSegmentDirectCandidate, IndustryChainSegmentCompressedCandidate) {
-		return fmt.Errorf("unsupported industry chain segment kind %q", e.SegmentKind)
-	}
-	if e.SegmentKind == IndustryChainSegmentDirectCandidate && e.OmittedStepNote != "" {
-		return fmt.Errorf("direct industry chain segment cannot omit steps")
-	}
-	if e.SegmentKind == IndustryChainSegmentCompressedCandidate && strings.TrimSpace(e.OmittedStepNote) == "" {
-		return fmt.Errorf("compressed industry chain segment requires omitted step note")
-	}
-	if !validMasterDataReviewStatus(e.ReviewStatus) {
-		return fmt.Errorf("unsupported industry chain graph review status %q", e.ReviewStatus)
-	}
-	if !validStatus(e.Status, StatusActive, StatusInactive) {
-		return fmt.Errorf("unsupported industry chain graph status %q", e.Status)
-	}
 	return nil
-}
-
-func validMasterDataReviewStatus(value ReviewStatus) bool {
-	return validStatus(value, ReviewStatusCandidate, ReviewStatusApproved)
 }
 
 type PolicyBodyProfile struct {

@@ -334,7 +334,7 @@ func TestGraphReturnsDeterministicReferenceCompleteGraph(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.ContractVersion != "research-graph-search.v1" ||
+	if result.ContractVersion != "research-graph-search.v2" ||
 		result.ActualDepth != 1 ||
 		!testGraphHashPattern(result.QueryFingerprint) ||
 		!testGraphHashPattern(result.GraphFingerprint) {

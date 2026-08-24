@@ -76,6 +76,11 @@ func TestOpenAPIContractFreezesMiniappRoutesAndEnvelopes(t *testing.T) {
 	if object(t, nodes["items"], "ReasoningTree.nodes.items")["$ref"] != "#/components/schemas/ReasoningTreeNode" {
 		t.Fatalf("ReasoningTree.nodes = %#v", nodes)
 	}
+	graphEdge := schema(t, document, "ReasoningTreeGraphEdge")
+	assertRequired(t, graphEdge, "id", "relation_type")
+	if got := strings.Join(sortedKeys(object(t, graphEdge["properties"], "ReasoningTreeGraphEdge.properties")), ","); got != "id,relation_type" {
+		t.Fatalf("ReasoningTreeGraphEdge properties = %q, want id,relation_type", got)
+	}
 	assertNoDanglingLocalReferences(t, document)
 }
 

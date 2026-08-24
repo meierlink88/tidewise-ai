@@ -3,7 +3,7 @@ status: accepted
 date: 2026-08-17
 issue: 263
 supersedes_in_part: 0013-data-entity-domain-and-projection-retirement.md, 0022-independent-industry-and-concept.md
-superseded_in_part_by: 0044-retire-legacy-industry-chain-tables.md
+superseded_in_part_by: 0044-retire-legacy-industry-chain-tables.md, 0046-simplify-industry-chain-topology-facts.md
 ---
 
 # 独立 ChainNode 与 IndustryChain 事实
@@ -58,3 +58,5 @@ Data Context、OpenSPG、API、Biz、Data、Service、Event Semantic、Research�
 
 ADR-0044 后续退役 ChainNode Relation 与 Physical Constraint；`industry_chain_graph_edges`
 成为唯一当前节点间拓扑事实。本 ADR 中对两张历史表的迁移与发布要求只描述 `000057` 当时的切换。
+ADR-0046 进一步把 Membership 与 Graph Edge 收敛为由行存在表达的当前拓扑事实，并取代本 ADR
+对其审核、生命周期、来源、证据和解释字段的历史保留。

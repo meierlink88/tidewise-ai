@@ -3,6 +3,7 @@ status: accepted
 date: 2026-08-24
 issue: 332
 supersedes_in_part: 0013-data-entity-domain-and-projection-retirement.md, 0019-database-independent-domain-object-identities.md, 0023-independent-chain-node-and-industry-chain.md
+superseded_in_part_by: 0046-simplify-industry-chain-topology-facts.md
 ---
 
 # Retire legacy Industry Chain relation and import receipt tables
@@ -48,3 +49,6 @@ after the drop, but starting it alone does not restore deleted historical rows.
 Application rollback alone cannot reconstruct the deleted historical rows. Rollback restores the
 pre-migration PostgreSQL recovery point together with the previous application; no down migration is
 provided.
+
+ADR-0046 retains these two topology owners but later narrows their current fact columns and changes their
+review/lifecycle semantics to row presence.

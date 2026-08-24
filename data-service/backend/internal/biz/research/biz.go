@@ -1620,7 +1620,7 @@ type GraphStore interface {
 type GraphQuery = entitybiz.ResearchGraphQuery
 
 const (
-	GraphContractVersion       = "research-graph-search.v1"
+	GraphContractVersion       = "research-graph-search.v2"
 	GraphStableOrderingVersion = "depth-seed-relation-endpoints-edge-id.v1"
 	GraphMaxDepth              = 5
 	GraphMaxSeedEntities       = 20

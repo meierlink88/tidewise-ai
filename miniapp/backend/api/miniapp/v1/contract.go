@@ -114,8 +114,6 @@ type ResearchReasoningTreeCheckpoint struct {
 type ResearchReasoningTreeGraphEdge struct {
 	ID           string `json:"id"`
 	RelationType string `json:"relation_type"`
-	ReviewStatus string `json:"review_status"`
-	Status       string `json:"status"`
 }
 type ResearchReasoningTreeSignal struct {
 	SignalKey         string  `json:"signal_key"`

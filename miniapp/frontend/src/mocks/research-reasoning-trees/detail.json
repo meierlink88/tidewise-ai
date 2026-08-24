@@ -103,9 +103,7 @@
           "incoming_condition_summary": "采购发生且可插拔路线延续",
           "incoming_graph_edge": {
             "id": "dddddddd-1111-4111-8111-111111111111",
-            "relation_type": "component_of",
-            "review_status": "approved",
-            "status": "active"
+            "relation_type": "component_of"
           },
           "signals": [
             {
@@ -149,9 +147,7 @@
           "incoming_condition_summary": "模块排产增加，且当前 DSP 技术方案延续",
           "incoming_graph_edge": {
             "id": "ffffffff-1111-4111-8111-111111111111",
-            "relation_type": "component_of",
-            "review_status": "approved",
-            "status": "active"
+            "relation_type": "component_of"
           },
           "signals": [
             {

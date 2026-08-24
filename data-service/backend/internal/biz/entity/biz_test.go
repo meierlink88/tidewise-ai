@@ -75,7 +75,7 @@ func TestGenericEntityRejectsIndependentObjectTypes(t *testing.T) {
 	}
 }
 
-func TestIndustryChainMasterDataTypesValidateNewSchemaVocabulary(t *testing.T) {
+func TestIndustryChainTopologyTypesValidateRetainedVocabulary(t *testing.T) {
 	tests := []struct {
 		name    string
 		value   interface{ Validate() error }
@@ -85,31 +85,29 @@ func TestIndustryChainMasterDataTypesValidateNewSchemaVocabulary(t *testing.T) {
 			name: "membership",
 			value: IndustryChainNodeMembership{
 				IndustryChainID: "chain", ChainNodeID: "node", Position: 1,
-				ContextualStage: IndustryChainContextualStageUpstream, ReviewStatus: ReviewStatusApproved, Status: StatusActive,
+				ContextualStage: IndustryChainContextualStageUpstream,
 			},
 		},
 		{
 			name: "direct graph edge",
 			value: IndustryChainGraphEdge{
 				ID: "edge", IndustryChainID: "chain", FromChainNodeID: "a", ToChainNodeID: "b",
-				RelationType: IndustryChainGraphRelationInputTo, Mechanism: "A 的产出进入 B", SegmentKind: IndustryChainSegmentDirectCandidate,
-				ReviewStatus: ReviewStatusCandidate, Status: StatusActive,
+				RelationType: IndustryChainGraphRelationInputTo,
 			},
 		},
 		{
 			name: "legacy stage is rejected",
 			value: IndustryChainNodeMembership{
 				IndustryChainID: "chain", ChainNodeID: "node", Position: 1,
-				ContextualStage: IndustryChainContextualStage("infrastructure"), ReviewStatus: ReviewStatusApproved, Status: StatusActive,
+				ContextualStage: IndustryChainContextualStage("infrastructure"),
 			},
 			wantErr: true,
 		},
 		{
-			name: "compressed edge requires omitted step",
+			name: "self edge is rejected",
 			value: IndustryChainGraphEdge{
-				ID: "edge", IndustryChainID: "chain", FromChainNodeID: "a", ToChainNodeID: "b",
-				RelationType: IndustryChainGraphRelationDependsOn, Mechanism: "跨环节依赖", SegmentKind: IndustryChainSegmentCompressedCandidate,
-				ReviewStatus: ReviewStatusCandidate, Status: StatusActive,
+				ID: "edge", IndustryChainID: "chain", FromChainNodeID: "a", ToChainNodeID: "a",
+				RelationType: IndustryChainGraphRelationDependsOn,
 			},
 			wantErr: true,
 		},

@@ -475,7 +475,7 @@ func TestOpenAPIContractFreezesSnapshotOnlyResearchPublication(t *testing.T) {
 	}
 }
 
-func TestOpenAPIContractFreezesControlledResearchGraphSearchV1(t *testing.T) {
+func TestOpenAPIContractFreezesControlledResearchGraphSearchV2(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
 	operation := object(t, object(t, paths[namespace+"/research-graph:search"], "Research Graph path")["post"], "Research Graph operation")
@@ -504,6 +504,12 @@ func TestOpenAPIContractFreezesControlledResearchGraphSearchV1(t *testing.T) {
 		"actual_depth", "entities", "relation_definitions", "entity_relations",
 		"industry_chains", "industry_chain_memberships", "industry_chain_graph_edges",
 	)
+	resultProperties := object(t, result["properties"], "ResearchGraphSearchResult properties")
+	assertStringSet(t, object(t, resultProperties["contract_version"], "contract_version")["enum"], "research-graph-search.v2")
+	memberships := object(t, object(t, resultProperties["industry_chain_memberships"], "industry_chain_memberships")["items"], "industry_chain_memberships items")
+	assertRequired(t, memberships, "industry_chain_id", "chain_node_id", "position", "contextual_stage")
+	edges := object(t, object(t, resultProperties["industry_chain_graph_edges"], "industry_chain_graph_edges")["items"], "industry_chain_graph_edges items")
+	assertRequired(t, edges, "industry_chain_graph_edge_id", "industry_chain_id", "from_chain_node_id", "to_chain_node_id", "relation_type")
 	details := schema(t, document, "ResearchResourceLimitDetails")
 	assertRequired(t, details, "component", "retry_guidance")
 }

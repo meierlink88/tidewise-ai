@@ -30,7 +30,7 @@ type ResearchReasoningTreeDetailResponse struct {
 	ReasoningTree ResearchReasoningTreeDTO
 }
 type ResearchCheckpointDTO struct{ Type, Summary string }
-type ResearchGraphEdgeDTO struct{ ID, RelationType, ReviewStatus, Status string }
+type ResearchGraphEdgeDTO struct{ ID, RelationType string }
 type ResearchSignalDTO struct {
 	SignalKey                                                      string
 	VariableName, Direction                                        *string
@@ -119,7 +119,7 @@ func reasoningTreeDTO(value ResearchReasoningTree) ResearchReasoningTreeDTO {
 		}
 		var edge *ResearchGraphEdgeDTO
 		if node.IncomingGraphEdge != nil {
-			edge = &ResearchGraphEdgeDTO{ID: node.IncomingGraphEdge.ID, RelationType: node.IncomingGraphEdge.RelationType, ReviewStatus: node.IncomingGraphEdge.ReviewStatus, Status: node.IncomingGraphEdge.Status}
+			edge = &ResearchGraphEdgeDTO{ID: node.IncomingGraphEdge.ID, RelationType: node.IncomingGraphEdge.RelationType}
 		}
 		nodes = append(nodes, ResearchReasoningTreeNodeDTO{
 			NodeKey: node.NodeKey, DisplayName: node.DisplayName,
