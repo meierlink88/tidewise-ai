@@ -3,6 +3,7 @@ status: accepted
 date: 2026-08-17
 issue: 263
 supersedes_in_part: 0013-data-entity-domain-and-projection-retirement.md, 0022-independent-industry-and-concept.md
+superseded_in_part_by: 0044-retire-legacy-industry-chain-tables.md
 ---
 
 # 独立 ChainNode 与 IndustryChain 事实
@@ -54,3 +55,6 @@ profile 表或单独回退消费者。
 Data Context、OpenSPG、API、Biz、Data、Service、Event Semantic、Research、Miniapp 消费合同
 和运维工具均使用独立对象及新 ID 字段。ADR-0022 中“Industry Chain 与 Chain Node ownership
 不变”的结论由本决策取代；Industry 与 Concept 的独立对象决策保持有效。
+
+ADR-0044 后续退役 ChainNode Relation 与 Physical Constraint；`industry_chain_graph_edges`
+成为唯一当前节点间拓扑事实。本 ADR 中对两张历史表的迁移与发布要求只描述 `000057` 当时的切换。

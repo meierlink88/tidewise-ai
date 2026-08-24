@@ -358,13 +358,12 @@ const (
 
 type IndustryChainSegmentKind string
 
-type ChainNodeRelationType string
+type IndustryChainGraphRelationType string
 
 const (
-	ChainNodeRelationSubcategoryOf ChainNodeRelationType = "is_subcategory_of"
-	ChainNodeRelationComponentOf   ChainNodeRelationType = "is_component_of"
-	ChainNodeRelationInputTo       ChainNodeRelationType = "input_to"
-	ChainNodeRelationDependsOn     ChainNodeRelationType = "depends_on"
+	IndustryChainGraphRelationComponentOf IndustryChainGraphRelationType = "is_component_of"
+	IndustryChainGraphRelationInputTo     IndustryChainGraphRelationType = "input_to"
+	IndustryChainGraphRelationDependsOn   IndustryChainGraphRelationType = "depends_on"
 )
 
 const (
@@ -405,7 +404,7 @@ type IndustryChainGraphEdge struct {
 	IndustryChainID string
 	FromChainNodeID string
 	ToChainNodeID   string
-	RelationType    ChainNodeRelationType
+	RelationType    IndustryChainGraphRelationType
 	Mechanism       string
 	ConditionNote   string
 	SegmentKind     IndustryChainSegmentKind
@@ -423,7 +422,7 @@ func (e IndustryChainGraphEdge) Validate() error {
 	if e.FromChainNodeID == e.ToChainNodeID {
 		return fmt.Errorf("industry chain graph self edge is forbidden")
 	}
-	if !validStatus(e.RelationType, ChainNodeRelationInputTo, ChainNodeRelationComponentOf, ChainNodeRelationDependsOn) {
+	if !validStatus(e.RelationType, IndustryChainGraphRelationInputTo, IndustryChainGraphRelationComponentOf, IndustryChainGraphRelationDependsOn) {
 		return fmt.Errorf("unsupported industry chain graph relation %q", e.RelationType)
 	}
 	if e.ConditionNote != "" && strings.TrimSpace(e.ConditionNote) == "" {

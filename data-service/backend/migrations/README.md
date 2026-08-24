@@ -84,6 +84,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000069_move_industry_chain_mappings_to_typed_links.sql`：删除已确认隔离的模拟晶圆测试夹具，
   将正式 IndustryChain–Industry 与 IndustryChain–Concept 映射完整迁移到两张 typed Link 表，
   保留 ERL 身份/端点/创建时间，并禁止通用 `entity_edges` 再写入两种保留关系类型。
+- `000070_retire_legacy_industry_chain_tables.sql`：删除不再由当前应用拥有的全局 ChainNode
+  Relation、Physical Constraint 和 Industry relationship import receipt 表及遗留回执触发函数；
+  Industry Chain Graph Edge 与 Membership 保持为当前拓扑和归属事实。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -261,3 +264,13 @@ Industry 覆盖，然后删除完整模拟晶圆夹具并移动全部正式 mapp
 两张 Link 表与迁移前正式端点集合完全一致、`entity_edges` 不含保留 mapping 类型、模拟夹具
 不存在，且每条剩余 IndustryChain 至少关联一个 Industry。旧应用不兼容新物理存储；回滚必须
 同时恢复 migration 69 前快照和上一版应用，不运行 down migration。
+
+`000070` 是 Issue #332 的高风险破坏性退役。操作员必须停止 Data 及直接写入者、确认当前
+PostgreSQL 恢复点，并用候选镜像执行 check-only；只有确认它是唯一 pending migration 后才
+apply。执行前记录 IndustryChain、ChainNode、Membership 与 Graph Edge 数量；执行后确认 ledger
+为 `70`、`chain_node_relations`、`chain_node_physical_constraints`、
+`industry_relationship_import_receipts` 及 `prevent_industry_relationship_import_receipt_mutation`
+函数均不存在，且四类当前事实数量未变化。旧表数据不会转换为 Graph Edge；回滚必须同时恢复
+migration 70 前快照和上一版应用，不运行 down migration。DDL 期间不允许新旧 Data binary
+承载 mixed traffic；校验完成后只由候选 binary 恢复流量。上一版应用不访问三类退役对象，物理
+schema 兼容，但单独回退应用无法恢复已删除的历史数据。
