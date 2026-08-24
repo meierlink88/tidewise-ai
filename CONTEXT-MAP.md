@@ -40,8 +40,9 @@ Data Domain Service
 ## Runtime
 
 四个应用服务为 Data Service、Miniapp Backend、Admin Backend 与 Admin Web。它们通过
-Docker image 和 Compose 运行。共享 PostgreSQL、MySQL、Neo4j、MinIO 与 Qdrant 属于独立
-基础设施项目，不属于应用发布单元。Admin Web 是浏览器唯一 Admin origin，并把相对
+Docker image 和 Compose 运行。共享 PostgreSQL、MySQL、MinIO 与 Qdrant 属于独立
+基础设施项目，不属于应用发布单元。本地推理专用 Neo4j 由外部 `tidewise-reason`
+repository 独立拥有，四个应用服务不依赖它。Admin Web 是浏览器唯一 Admin origin，并把相对
 `/api/admin/*` 请求代理到内部 Admin Backend。
 
 系统级退役决策见 `docs/adr/0027-retire-agent-run.md`。Source 所有权、Admin Backend 管理边界与
