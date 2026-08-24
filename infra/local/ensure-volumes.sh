@@ -4,8 +4,6 @@ set -euo pipefail
 volumes=(
   local_tidewise_postgres_data
   tidewise-reason_mysql-data
-  tidewise-reason_neo4j-data
-  tidewise-reason_neo4j-logs
   tidewise-reason_minio-data
   tidewise-qdrant-local-storage
 )
