@@ -33,6 +33,16 @@ const researchGraphCTE = `
 	    SELECT id, 'industry_chain', name, name, aliases, 'active', created_at, updated_at
 	    FROM industry_chain
 	),
+	all_entity_relations(id, from_entity_id, to_entity_id, relation_type, status, created_at, updated_at) AS MATERIALIZED (
+	    SELECT id, from_entity_id, to_entity_id, relation_type, status::text, created_at, updated_at
+	    FROM entity_edges
+	    UNION ALL
+	    SELECT id, industry_chain_id, industry_id, 'mapped_to_industry', 'active', created_at, created_at
+	    FROM industry_chain_industry_links
+	    UNION ALL
+	    SELECT id, industry_chain_id, concept_id, 'mapped_to_concept', 'active', created_at, created_at
+	    FROM industry_chain_concept_links
+	),
 	requested_seeds(entity_id) AS (
 	    SELECT unnest($2::text[])
 	),
@@ -52,7 +62,7 @@ const researchGraphCTE = `
 	        NULL::text condition_note,
 	        ''::text segment_kind,
 	        NULL::text omitted_step_note
-	    FROM entity_edges relation
+	    FROM all_entity_relations relation
 	    JOIN all_entities from_entity
 	      ON from_entity.id = relation.from_entity_id
 	     AND from_entity.status = $9
@@ -197,7 +207,7 @@ const researchGraphCTE = `
 	),
 	selected_entity_relations AS MATERIALIZED (
 	    SELECT relation.*
-	    FROM entity_edges relation
+	    FROM all_entity_relations relation
 	    JOIN used_edges used
 	      ON used.edge_kind = 'entity_relation'
 	     AND used.edge_id = relation.id
@@ -809,12 +819,17 @@ all_entities(id, created_at, updated_at) AS (
     UNION ALL SELECT id, created_at, updated_at FROM concept
 	UNION ALL SELECT id, created_at, updated_at FROM chain_node
 	UNION ALL SELECT id, created_at, updated_at FROM industry_chain
+),
+all_entity_relations(id, created_at, updated_at) AS (
+    SELECT id, created_at, updated_at FROM entity_edges
+    UNION ALL SELECT id, created_at, created_at FROM industry_chain_industry_links
+    UNION ALL SELECT id, created_at, created_at FROM industry_chain_concept_links
 )
 SELECT EXISTS (
     SELECT 1 FROM all_entities entity JOIN requested_entities requested ON requested.id = entity.id
     WHERE entity.created_at <= $1 AND entity.updated_at > $1
 ) OR EXISTS (
-    SELECT 1 FROM entity_edges relation JOIN requested_relations requested ON requested.id = relation.id
+    SELECT 1 FROM all_entity_relations relation JOIN requested_relations requested ON requested.id = relation.id
     WHERE relation.created_at <= $1 AND relation.updated_at > $1
 ) OR EXISTS (
     SELECT 1 FROM industry_chain definition JOIN requested_entities requested ON requested.id = definition.id
@@ -838,8 +853,18 @@ all_entities(id, entity_type, name, canonical_name, aliases, status, created_at,
 	UNION ALL SELECT id, 'chain_node', name, name, aliases, 'active', created_at, updated_at FROM chain_node
 	UNION ALL SELECT id, 'industry_chain', name, name, aliases, 'active', created_at, updated_at FROM industry_chain
 ),
+all_entity_relations(id, from_entity_id, to_entity_id, relation_type, status, created_at, updated_at) AS (
+    SELECT id, from_entity_id, to_entity_id, relation_type, status::text, created_at, updated_at
+    FROM entity_edges
+    UNION ALL
+    SELECT id, industry_chain_id, industry_id, 'mapped_to_industry', 'active', created_at, created_at
+    FROM industry_chain_industry_links
+    UNION ALL
+    SELECT id, industry_chain_id, concept_id, 'mapped_to_concept', 'active', created_at, created_at
+    FROM industry_chain_concept_links
+),
 selected_relations AS MATERIALIZED (
-    SELECT relation.* FROM entity_edges relation
+    SELECT relation.* FROM all_entity_relations relation
     JOIN requested_relations requested ON requested.id = relation.id
     WHERE relation.status = 'active' AND relation.created_at <= $1 AND relation.updated_at <= $1
 ),
@@ -1024,6 +1049,16 @@ func (s *Store) validateResearchGraphReferences(
 		    UNION ALL SELECT id, 'active', created_at, updated_at FROM concept
 		    UNION ALL SELECT id, 'active', created_at, updated_at FROM chain_node
 		    UNION ALL SELECT id, 'active', created_at, updated_at FROM industry_chain
+		),
+		all_entity_relations(id, from_entity_id, to_entity_id, relation_type, status, created_at, updated_at) AS MATERIALIZED (
+		    SELECT id, from_entity_id, to_entity_id, relation_type, status::text, created_at, updated_at
+		    FROM entity_edges
+		    UNION ALL
+		    SELECT id, industry_chain_id, industry_id, 'mapped_to_industry', 'active', created_at, created_at
+		    FROM industry_chain_industry_links
+		    UNION ALL
+		    SELECT id, industry_chain_id, concept_id, 'mapped_to_concept', 'active', created_at, created_at
+		    FROM industry_chain_concept_links
 		)
 		SELECT
 		    (
@@ -1039,7 +1074,7 @@ func (s *Store) validateResearchGraphReferences(
 		        FROM unnest($3::text[]) requested(relation_type)
 		        WHERE EXISTS (
 		            SELECT 1
-		            FROM entity_edges relation
+		            FROM all_entity_relations relation
 		            JOIN all_entities from_entity
 		              ON from_entity.id = relation.from_entity_id
 		             AND from_entity.status = $5

@@ -112,13 +112,15 @@ func TestResearchGraphResolvesIndependentOrganizationMembership(t *testing.T) {
 	}
 }
 
-func TestResearchGraphResolvesIndependentIndustryWithoutShadowEntity(t *testing.T) {
+func TestResearchGraphResolvesIndustryChainTypedLinksWithoutShadowEntities(t *testing.T) {
 	db := openEntityTestDatabase(t)
 	ctx := context.Background()
 	const (
-		industryID = "IND11111111-1111-4111-8111-111111111111"
-		chainID    = "ICH22222222-2222-4222-8222-222222222222"
-		relationID = "ERL33333333-3333-4333-8333-333333333333"
+		industryID     = "IND11111111-1111-4111-8111-111111111111"
+		conceptID      = "CON22222222-2222-4222-8222-222222222222"
+		chainID        = "ICH33333333-3333-4333-8333-333333333333"
+		industryLinkID = "ERL44444444-4444-4444-8444-444444444444"
+		conceptLinkID  = "ERL55555555-5555-4555-8555-555555555555"
 	)
 	if _, err := db.ExecContext(ctx, `
 		INSERT INTO industry (
@@ -128,6 +130,11 @@ func TestResearchGraphResolvesIndependentIndustryWithoutShadowEntity(t *testing.
 			'`+industryID+`', '半导体', ARRAY['集成电路'], 'sw', '801000',
 			NULL, ARRAY['801000'], '半导体行业', 'approved'
 		);
+		INSERT INTO concept (
+			id, name, aliases, concept_type, definition, review_status
+		) VALUES (
+			'`+conceptID+`', '先进制程', ARRAY['先进节点'], 'technology', '先进制程概念', 'approved'
+		);
 		INSERT INTO industry_chain (
 			id, name, aliases, scope, target_output, end_use, observable_variables,
 			geography, as_of_date, review_status
@@ -135,11 +142,15 @@ func TestResearchGraphResolvesIndependentIndustryWithoutShadowEntity(t *testing.
 			'`+chainID+`', '半导体产业链', '{}', '半导体产业链', '芯片', '计算', ARRAY['supply'],
 			'global', CURRENT_DATE, 'approved'
 		);
-		INSERT INTO entity_edges (
-			id, from_entity_id, to_entity_id, relation_type, evidence_note, status
+		INSERT INTO industry_chain_industry_links (
+			id, industry_chain_id, industry_id
 		) VALUES (
-			'`+relationID+`', '`+chainID+`', '`+industryID+`',
-			'mapped_to_industry', '正式行业映射', 'active'
+			'`+industryLinkID+`', '`+chainID+`', '`+industryID+`'
+		);
+		INSERT INTO industry_chain_concept_links (
+			id, industry_chain_id, concept_id
+		) VALUES (
+			'`+conceptLinkID+`', '`+chainID+`', '`+conceptID+`'
 		)`); err != nil {
 		t.Fatal(err)
 	}
@@ -148,30 +159,77 @@ func TestResearchGraphResolvesIndependentIndustryWithoutShadowEntity(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	graph, err := store.SearchResearchGraph(ctx, domain.ResearchGraphQuery{
-		AnalysisAsOf:  time.Now().UTC().Add(time.Minute),
-		SeedEntityIDs: []string{industryID},
-		RelationFilters: []domain.ResearchGraphRelationFilter{{
-			RelationType: "mapped_to_industry", Direction: domain.ResearchGraphDirectionIncoming,
-		}},
-		MaxDepth: 1, NodeBudget: 10, EdgeBudget: 10,
-		FactPolicy: domain.ApprovedActiveResearchGraphFactPolicy(),
+	for _, test := range []struct {
+		name, seedID, relationType, relationID, targetType, targetName string
+	}{
+		{name: "industry", seedID: industryID, relationType: "mapped_to_industry", relationID: industryLinkID, targetType: "industry", targetName: "半导体"},
+		{name: "concept", seedID: conceptID, relationType: "mapped_to_concept", relationID: conceptLinkID, targetType: "concept", targetName: "先进制程"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			graph, err := store.SearchResearchGraph(ctx, domain.ResearchGraphQuery{
+				AnalysisAsOf: time.Now().UTC().Add(time.Minute), SeedEntityIDs: []string{test.seedID},
+				RelationFilters: []domain.ResearchGraphRelationFilter{{
+					RelationType: test.relationType, Direction: domain.ResearchGraphDirectionIncoming,
+				}},
+				MaxDepth: 1, NodeBudget: 10, EdgeBudget: 10,
+				FactPolicy: domain.ApprovedActiveResearchGraphFactPolicy(),
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(graph.Entities) != 2 || len(graph.EntityRelations) != 1 {
+				t.Fatalf("%s Research Graph = %#v", test.name, graph)
+			}
+			relation := graph.EntityRelations[0]
+			if relation.EntityRelationID != test.relationID || relation.FromEntityID != chainID ||
+				relation.ToEntityID != test.seedID || relation.RelationType != test.relationType || relation.Status != "active" {
+				t.Fatalf("%s Research Graph relation = %#v", test.name, relation)
+			}
+			foundTarget := false
+			for _, entity := range graph.Entities {
+				if entity.EntityID == test.seedID {
+					foundTarget = entity.EntityType == test.targetType && entity.Name == test.targetName
+				}
+			}
+			if !foundTarget {
+				t.Fatalf("independent %s missing from graph: %#v", test.targetType, graph.Entities)
+			}
+		})
+	}
+	closure, err := store.ResearchReferenceClosure(ctx, domain.ResearchReferenceQuery{
+		AnalysisAsOf:      time.Now().UTC().Add(time.Minute),
+		EntityRelationIDs: []string{industryLinkID, conceptLinkID},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(graph.Entities) != 2 || len(graph.EntityRelations) != 1 {
-		t.Fatalf("Industry Research Graph = %#v", graph)
+	if len(closure.EntityRelations) != 2 || len(closure.Entities) != 3 {
+		t.Fatalf("typed Link reference closure = %#v", closure)
 	}
+	for name, statement := range map[string]string{
+		"duplicate Industry endpoint pair": `INSERT INTO industry_chain_industry_links (id, industry_chain_id, industry_id)
+			VALUES ('ERL66666666-6666-4666-8666-666666666666', '` + chainID + `', '` + industryID + `')`,
+		"reserved generic mapping type": `INSERT INTO entity_edges (id, from_entity_id, to_entity_id, relation_type, evidence_note, status)
+			VALUES ('ERL77777777-7777-4777-8777-777777777777', '` + chainID + `', '` + industryID + `', 'mapped_to_industry', 'legacy write', 'active')`,
+		"cross-store ERL identity": `INSERT INTO entity_edges (id, from_entity_id, to_entity_id, relation_type, evidence_note, status)
+			VALUES ('` + industryLinkID + `', '` + chainID + `', '` + conceptID + `', 'related_to', 'identity collision', 'active')`,
+		"unknown typed Industry": `INSERT INTO industry_chain_industry_links (id, industry_chain_id, industry_id)
+			VALUES ('ERL88888888-8888-4888-8888-888888888888', '` + chainID + `', 'IND99999999-9999-4999-8999-999999999999')`,
+	} {
+		if _, err := db.ExecContext(ctx, statement); err == nil {
+			t.Fatalf("%s write succeeded", name)
+		}
+	}
+
 	foundIndustry := false
-	for _, entity := range graph.Entities {
+	for _, entity := range closure.Entities {
 		if entity.EntityID == industryID {
 			foundIndustry = entity.EntityType == "industry" && entity.Name == "半导体" &&
 				len(entity.Aliases) == 1 && entity.Aliases[0] == "集成电路"
 		}
 	}
 	if !foundIndustry {
-		t.Fatalf("independent Industry missing from graph: %#v", graph.Entities)
+		t.Fatalf("independent Industry missing from closure: %#v", closure.Entities)
 	}
 	var shadowRows int
 	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM entity_nodes WHERE id = $1`, industryID).Scan(&shadowRows); err != nil {
@@ -188,7 +246,7 @@ func TestResearchGraphResolvesIndependentIndustryWithoutShadowEntity(t *testing.
 		!strings.Contains(err.Error(), "is still referenced and cannot change identity or be deleted") {
 		t.Fatalf("delete referenced IndustryChain error = %v", err)
 	}
-	if _, err := db.ExecContext(ctx, `TRUNCATE industry, company_industry_links`); err == nil ||
+	if _, err := db.ExecContext(ctx, `TRUNCATE industry, company_industry_links, industry_chain_industry_links`); err == nil ||
 		!strings.Contains(err.Error(), "still owns referenced facts and cannot be truncated") {
 		t.Fatalf("truncate referenced Industry table error = %v", err)
 	}
@@ -222,6 +280,12 @@ func TestIndependentEntityPersistenceSchemasStayAligned(t *testing.T) {
 			"end_use": "NO", "geography": "NO", "as_of_date": "NO", "review_status": "NO",
 			"review_note": "YES", "created_at": "NO", "updated_at": "NO",
 			"technology_route_qualifier": "YES", "observable_variables": "NO", "primary_country_id": "YES",
+		},
+		"industry_chain_industry_links": {
+			"id": "NO", "industry_chain_id": "NO", "industry_id": "NO", "created_at": "NO",
+		},
+		"industry_chain_concept_links": {
+			"id": "NO", "industry_chain_id": "NO", "concept_id": "NO", "created_at": "NO",
 		},
 	}
 	for tableName, want := range wantColumns {

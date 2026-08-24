@@ -232,6 +232,20 @@ _Avoid_: Neo4j/Qdrant 健康代理、读取业务事实、把健康检查结果�
 或 definition/profile 表。
 _Avoid_: Industry、Concept、Chain Node 列表、IndustryChain shadow Entity、definition profile
 
+**产业链–行业关系（Industry Chain–Industry Link）**:
+IndustryChain 当前关联的正式 Industry 分类集合。关系沿用 `ERL + canonical lowercase UUID`
+作为 Research Graph 稳定身份，只保存 IndustryChain 端点、Industry 端点和创建时间；同一端点
+对只能存在一次，两个端点均为 restrictive reference。表的所有权直接决定
+`mapped_to_industry` 语义，关系存在即表示当前映射。
+_Avoid_: 通用 `entity_edges`、relation type 字段、status、mapping note、source、verified_at、updated_at
+
+**产业链–概念关系（Industry Chain–Concept Link）**:
+IndustryChain 当前关联的正式 Concept 集合。关系沿用 `ERL + canonical lowercase UUID`
+作为 Research Graph 稳定身份，只保存 IndustryChain 端点、Concept 端点和创建时间；同一端点
+对只能存在一次，两个端点均为 restrictive reference。表的所有权直接决定
+`mapped_to_concept` 语义，关系存在即表示当前映射。
+_Avoid_: 通用 `entity_edges`、relation type 字段、status、mapping note、source、verified_at、updated_at
+
 **产业链节点（ChainNode）**:
 产业链中可复用的独立环节事实，以 `CND + canonical lowercase UUID` 为稳定身份，直接拥有
 名称、别名、定义、审核状态和审计时间。

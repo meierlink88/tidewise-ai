@@ -81,6 +81,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000068_add_storyline_domain_codes.sql`：为确认为空的 `storyline_domains` 增加全局唯一、
   非空且格式受控的机器 `code`；目录事实不在 migration 中 seed，需随后运行
   `storyline-domain-catalog-publish -file /app/initdata/storyline-domains-v1.json`。
+- `000069_move_industry_chain_mappings_to_typed_links.sql`：删除已确认隔离的模拟晶圆测试夹具，
+  将正式 IndustryChain–Industry 与 IndustryChain–Concept 映射完整迁移到两张 typed Link 表，
+  保留 ERL 身份/端点/创建时间，并禁止通用 `entity_edges` 再写入两种保留关系类型。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -250,3 +253,11 @@ Storyline/Security 不再含 Company 引用列。controller 字段和两类明�
 `scope_definition = description`。旧应用没有 StorylineDomain 运行时 wiring，可与新 schema 和
 目录共存；应用回退保留 schema 与目录，不运行 down。失败时保持旧应用并使用恢复点或另行审阅的
 forward repair。
+
+`000069` 是 Issue #330 的零兼容协调切换。操作员必须停止 Data 及直接写入者、确认 PostgreSQL
+恢复点，并用候选镜像执行 check-only；只有确认它是唯一 pending migration 后才 apply。迁移
+会 fail closed 校验端点类型、active 状态、创建/更新时间一致性、ERL 格式、重复端点、模拟夹具独占性和剩余产业链
+Industry 覆盖，然后删除完整模拟晶圆夹具并移动全部正式 mapping。执行后确认 ledger 为 `69`、
+两张 Link 表与迁移前正式端点集合完全一致、`entity_edges` 不含保留 mapping 类型、模拟夹具
+不存在，且每条剩余 IndustryChain 至少关联一个 Industry。旧应用不兼容新物理存储；回滚必须
+同时恢复 migration 69 前快照和上一版应用，不运行 down migration。
