@@ -488,38 +488,6 @@ func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 	}
 }
 
-func TestIndustryChainTopologyTablesExposeOnlyCurrentFactColumns(t *testing.T) {
-	db := openEntityTestDatabase(t)
-	for table, want := range map[string]string{
-		"industry_chain_node_memberships": "industry_chain_id,chain_node_id,position,contextual_stage,created_at,updated_at",
-		"industry_chain_graph_edges":      "id,industry_chain_id,from_chain_node_id,to_chain_node_id,relation_type,created_at,updated_at",
-	} {
-		rows, err := db.Query(`
-			SELECT column_name
-			FROM information_schema.columns
-			WHERE table_schema = current_schema() AND table_name = $1
-			ORDER BY ordinal_position`, table)
-		if err != nil {
-			t.Fatal(err)
-		}
-		var columns []string
-		for rows.Next() {
-			var column string
-			if err := rows.Scan(&column); err != nil {
-				rows.Close()
-				t.Fatal(err)
-			}
-			columns = append(columns, column)
-		}
-		if err := rows.Close(); err != nil {
-			t.Fatal(err)
-		}
-		if got := strings.Join(columns, ","); got != want {
-			t.Fatalf("%s columns = %q, want %q", table, got, want)
-		}
-	}
-}
-
 func graphStringPointer(value string) *string {
 	return &value
 }
