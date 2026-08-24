@@ -258,3 +258,9 @@ func TestRetiredIndustryChainLegacyKindsAreRejected(t *testing.T) {
 		}
 	}
 }
+
+func TestRetiredEntityExternalIdentifierKindIsRejected(t *testing.T) {
+	if _, err := New(Kind("EEI")); err == nil {
+		t.Fatal("New(EEI) succeeded for retired Entity External Identifier kind")
+	}
+}

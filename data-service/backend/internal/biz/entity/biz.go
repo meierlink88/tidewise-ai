@@ -325,29 +325,6 @@ func (r EntityRelation) Validate() error {
 	return nil
 }
 
-type EntityExternalIdentifier struct {
-	ID                 string
-	EntityID           string
-	SourceSystem       string
-	SourceTaxonomyType string
-	ExternalCode       string
-	ExternalName       string
-	Status             Status
-}
-
-func (i EntityExternalIdentifier) Validate() error {
-	if strings.TrimSpace(i.ID) == "" || strings.TrimSpace(i.EntityID) == "" {
-		return fmt.Errorf("external identifier id and entity id are required")
-	}
-	if strings.TrimSpace(i.SourceSystem) == "" || strings.TrimSpace(i.SourceTaxonomyType) == "" || strings.TrimSpace(i.ExternalCode) == "" || strings.TrimSpace(i.ExternalName) == "" {
-		return fmt.Errorf("external identifier identity fields are required")
-	}
-	if !validStatus(i.Status, StatusActive, StatusInactive) {
-		return fmt.Errorf("unsupported external identifier status %q", i.Status)
-	}
-	return nil
-}
-
 type IndustryChainContextualStage string
 
 const (
