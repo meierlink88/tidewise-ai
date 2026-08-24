@@ -67,3 +67,4 @@
 000066	normal	schema	add empty forward-only Storyline and Storyline Event Link persistence with reviewed identities, strict type-specific anchors, closed lifecycle and alignment enums, and no duplicated Event time
 000067	high	mixed	preserve and detach Company facts from shadow Entity rows, replace free-text Industry with formal links, and retire Controller, Storyline, and Security Company relations in a stop-write cutover
 000068	normal	schema	add required unique StorylineDomain machine codes to a confirmed-empty catalog before separate controlled publication
+000069	high	mixed	delete the isolated simulated wafer fixture and move formal IndustryChain Industry and Concept mappings from generic Entity Relations into typed Links in a stop-write cutover
