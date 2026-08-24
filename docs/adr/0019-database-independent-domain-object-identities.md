@@ -2,6 +2,7 @@
 status: accepted
 date: 2026-08-15
 supersedes_in_part: 0016-tidewise-ai-2-object-schema-and-independent-region.md, 0017-independent-country-and-economy-retirement.md, 0018-independent-organization-and-alliance-retirement.md
+superseded_in_part_by: 0044-retire-legacy-industry-chain-tables.md
 ---
 
 # 数据库无关的领域对象身份
@@ -40,10 +41,10 @@ Data 各领域曾并存裸 UUID、`PREFIX_ + code`、固定短码和非 UUID 自
 `COM` Company、`CIL` Company Industry Link、
 `OCA` Organization Category、`OFN` Organization Function、`ODT` Organization Domain Tag、
 `ODL` Organization Domain Tag Link、
-`RAW` Raw Evidence、`EVD` Evidence、`EVC` Evidence Category、`RCL` Raw Evidence Category Link、`CPC` Chain Node Physical
-Constraint、`CNR` Chain Node Relation、`CRL` Country Region Link、`EEI` Entity External Identifier、
+`RAW` Raw Evidence、`EVD` Evidence、`EVC` Evidence Category、`RCL` Raw Evidence Category Link、
+`CRL` Country Region Link、`EEI` Entity External Identifier、
 `EVT` Event、`EEL` Event Evidence Link、`EAC` Event Actor Link、`EAS` Event Asset Link、
-`IGE` Industry Chain Graph Edge、`IRI` Industry Relationship Import Receipt、
+`IGE` Industry Chain Graph Edge、
 `OMB` Organization Membership、`RRI` Research
 Reasoning Tree Import Receipt、`RRN` Research Reasoning Tree Node、`RRT` Research Reasoning Tree、
 `RTI` Research Theme Import Receipt、`RTH` Research Theme。
@@ -99,3 +100,7 @@ Issue #306 通过 stop-write forward-only migration `000067` 将 Company 从共�
 切换到独立 `COM` 身份并保留 canonical UUID 后缀，新增 `CIL` Company Industry Link 身份。
 普通 Company 写入由 owning Biz 随机生成 `COM`；完整 Industry 集合替换由 Biz 基于
 Company/Industry 端点确定性生成 `CIL`。Company 不加入通用 Entity/Research Graph 引用合同。
+
+Issue #332 通过 forward-only migration `000070` 退役 Chain Node Relation、Chain Node Physical
+Constraint 与 Industry Relationship Import Receipt，因此从当前注册表删除 `CNR`、`CPC` 和
+`IRI`。历史 migration 中的旧前缀仍是不可改写的账本事实。

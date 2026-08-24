@@ -250,3 +250,11 @@ func TestCurrentEventKindsReplaceRetiredPublicationKinds(t *testing.T) {
 		}
 	}
 }
+
+func TestRetiredIndustryChainLegacyKindsAreRejected(t *testing.T) {
+	for _, retired := range []Kind{"CPC", "CNR", "IRI"} {
+		if _, err := New(retired); err == nil {
+			t.Fatalf("New(%q) succeeded for retired Industry Chain kind", retired)
+		}
+	}
+}

@@ -122,7 +122,7 @@ func TestIndustryChainMasterDataTypesValidateNewSchemaVocabulary(t *testing.T) {
 			name: "direct graph edge",
 			value: IndustryChainGraphEdge{
 				ID: "edge", IndustryChainID: "chain", FromChainNodeID: "a", ToChainNodeID: "b",
-				RelationType: ChainNodeRelationInputTo, Mechanism: "A 的产出进入 B", SegmentKind: IndustryChainSegmentDirectCandidate,
+				RelationType: IndustryChainGraphRelationInputTo, Mechanism: "A 的产出进入 B", SegmentKind: IndustryChainSegmentDirectCandidate,
 				ReviewStatus: ReviewStatusCandidate, Status: StatusActive,
 			},
 		},
@@ -138,7 +138,7 @@ func TestIndustryChainMasterDataTypesValidateNewSchemaVocabulary(t *testing.T) {
 			name: "compressed edge requires omitted step",
 			value: IndustryChainGraphEdge{
 				ID: "edge", IndustryChainID: "chain", FromChainNodeID: "a", ToChainNodeID: "b",
-				RelationType: ChainNodeRelationDependsOn, Mechanism: "跨环节依赖", SegmentKind: IndustryChainSegmentCompressedCandidate,
+				RelationType: IndustryChainGraphRelationDependsOn, Mechanism: "跨环节依赖", SegmentKind: IndustryChainSegmentCompressedCandidate,
 				ReviewStatus: ReviewStatusCandidate, Status: StatusActive,
 			},
 			wantErr: true,

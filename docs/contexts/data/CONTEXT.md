@@ -272,8 +272,24 @@ _Avoid_: Concept Profile、Concept shadow Entity、把 Concept 当作 Industry �
 _Avoid_: 节点全局上下游标签、节点之间的图谱边
 
 **产业链图谱边（Industry Chain Graph Edge）**:
-同一 Industry Chain 的两个成员节点之间，带有明确方向和结构机制的关系。
-_Avoid_: 发现映射、关键词相关、单次 Research Anchor 的临时传导路径
+同一 Industry Chain 的两个成员节点之间，带有明确方向和结构机制的关系；这是 Data 当前唯一
+节点间拓扑事实。
+_Avoid_: `chain_node_relations`、发现映射、关键词相关、单次 Research Anchor 的临时传导路径
+
+**已退役：Chain Node Relation**:
+历史上脱离 IndustryChain 上下文保存的全局 ChainNode 关系。它不能确定性转换为要求同链成员
+端点的 Industry Chain Graph Edge，因此不再属于当前事实模型。
+_Avoid_: 与 Industry Chain Graph Edge 双写、把全局关系猜测为某条产业链拓扑
+
+**已退役：Chain Node Physical Constraint**:
+历史上附着于 ChainNode 或 Chain Node Relation 的约束记录。当前 ChainNode、Membership 与
+Industry Chain Graph Edge 均不拥有该事实。
+_Avoid_: 无 owner 的约束表、通过旧关系恢复约束生命周期
+
+**已退役：Industry Relationship Import Receipt**:
+历史 Industry relationship package importer 的不可变执行回执。Importer 已不属于 Data runtime，
+当前 typed IndustryChain Links 与 Graph Edge 不创建或依赖该回执。
+_Avoid_: 把历史执行审计当作当前关系事实、为已退役 importer 保留 receipt schema
 
 **实体关系类型（Entity Relation Type）**:
 对实体关系语义、允许端点、固定方向和遍历含义的规范谓词；正式关系只能使用已批准的稳定 code。
