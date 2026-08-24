@@ -295,6 +295,16 @@ _Avoid_: 把历史执行审计当作当前关系事实、为已退役 importer �
 对实体关系语义、允许端点、固定方向和遍历含义的规范谓词；正式关系只能使用已批准的稳定 code。
 _Avoid_: AI 自由关系字符串、无语义的 related_to
 
+**已退役：Entity External Identifier**:
+历史上把 Eastmoney、同花顺等外部分类代码映射到通用或独立 Data Object 的通用标识记录。
+当前 Data 不拥有该映射的 API、导入流程或生命周期，也不把历史行转换为 Company 标识。
+_Avoid_: 通用 `entity_external_identifiers`、从旧 Vendor code 猜测新领域映射
+
+**已退役：Entity Redirect**:
+历史上表达 Data Object merge 或 reclassification 的通用有向重定向。当前对象身份与正式关系
+不依赖 Redirect，历史行不转换为 aliases 或 Entity Relation。
+_Avoid_: 通用 `entity_redirects`、隐式 ID canonicalization、把 Redirect 当作正式业务关系
+
 **产品实体（Product Entity）**:
 企业生产、销售、采购或被市场需求的可识别产品对象。Product 不等同于表示经济环节或
 活动的 Chain Node，也不等同于标准化可交易的 Commodity。

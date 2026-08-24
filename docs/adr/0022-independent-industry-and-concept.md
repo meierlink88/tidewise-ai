@@ -3,6 +3,7 @@ status: accepted
 date: 2026-08-17
 issue: 258
 supersedes_in_part: 0013-data-entity-domain-and-projection-retirement.md, 0016-tidewise-ai-2-object-schema-and-independent-region.md
+superseded_in_part_by: 0045-retire-entity-identifiers-and-redirects.md
 ---
 
 # 独立 Industry 与 Concept 事实
@@ -57,3 +58,6 @@ Data Context、OpenSPG Industry/Concept Object Schema、Biz model、Data Adapter
 读取、Research Graph、操作工具与测试均以独立对象为当前合同。ADR-0013 的其他 Entity
 ownership 不变；Industry Chain 与 Chain Node 随后由 ADR-0023 独立化。ADR-0016 的
 每种 Object 独立 Schema 决策继续有效。
+
+ADR-0045 后续退役 Entity External Identifier 与 Entity Redirect；本 ADR 中对这两类历史
+引用的保留和前缀改写只描述 `000056`–`000058` 当时的切换，不再是当前事实合同。

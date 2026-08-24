@@ -87,6 +87,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000070_retire_legacy_industry_chain_tables.sql`：删除不再由当前应用拥有的全局 ChainNode
   Relation、Physical Constraint 和 Industry relationship import receipt 表及遗留回执触发函数；
   Industry Chain Graph Edge 与 Membership 保持为当前拓扑和归属事实。
+- `000071_retire_entity_identifiers_and_redirects.sql`：删除无当前应用 owner 的通用 Entity
+  External Identifier 与 Entity Redirect 表，移除 Redirect 专属函数，并重建剩余 Data Object
+  引用保护函数以继续覆盖 Entity Relations 和 typed IndustryChain Links。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -274,3 +277,12 @@ apply。执行前记录 IndustryChain、ChainNode、Membership 与 Graph Edge �
 migration 70 前快照和上一版应用，不运行 down migration。DDL 期间不允许新旧 Data binary
 承载 mixed traffic；校验完成后只由候选 binary 恢复流量。上一版应用不访问三类退役对象，物理
 schema 兼容，但单独回退应用无法恢复已删除的历史数据。
+
+`000071` 是 Issue #334 的高风险破坏性退役。操作员必须停止 Data 及直接写入者、确认当前
+PostgreSQL 恢复点，并用候选镜像执行 check-only；只有确认它是唯一 pending migration 后才
+apply。执行前记录两张退役表及保留 Data Object/Relation 表数量；执行后确认 ledger 为 `71`、
+`entity_external_identifiers`、`entity_redirects`、`validate_entity_redirect` 与
+`protect_profiled_entity_identity` 均不存在，保留的 owner delete/truncate guard 可执行且不再
+引用退役表，保留事实数量未变化。DDL 期间不允许新旧 Data binary 承载 mixed traffic；校验后
+只由候选 binary 恢复流量。上一版应用没有两张表的运行时 Adapter/API，物理 schema 兼容，但
+单独回退应用无法恢复已删除行；完整回滚必须同时恢复 migration 71 前快照和上一版应用。
