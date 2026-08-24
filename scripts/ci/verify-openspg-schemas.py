@@ -43,6 +43,16 @@ def constraint_values(prop):
     }
 
 
+def verify_enum_meanings(schema_file, declaration, meanings):
+    source = schema_member_block(schema_file, declaration)
+    for value, meaning in meanings.items():
+        assert re.search(
+            rf"^\s*#\s*{re.escape(value)}[：:].*{re.escape(meaning)}",
+            source,
+            re.MULTILINE,
+        ), f"{declaration} requires {value} meaning {meaning}"
+
+
 def schema_member_block(schema_file, declaration):
     lines = schema_file.read_text(encoding="utf-8").splitlines()
     start = next(
@@ -59,8 +69,38 @@ def schema_member_block(schema_file, declaration):
     return "\n".join(block)
 
 
+def verify_text_property_contract(
+    type_name,
+    spg_type,
+    expected_properties,
+    required_properties,
+    multi_value_properties=frozenset(),
+):
+    assert set(spg_type.properties) == expected_properties
+    for name, prop in spg_type.properties.items():
+        assert prop.name_zh and re.search(r"[\u4e00-\u9fff]", prop.name_zh), (
+            f"{type_name}.{name} requires a Chinese display name"
+        )
+        assert prop.desc and prop.desc.strip(), (
+            f"{type_name}.{name} requires a description"
+        )
+        assert prop.object_type_name == "Text", (
+            f"{type_name}.{name} must use OpenSPG Text"
+        )
+        constraints = constraint_values(prop)
+        assert ("NOT_NULL" in constraints) == (name in required_properties), (
+            f"{type_name}.{name} nullability does not match the Data contract"
+        )
+        assert ("MULTI_VALUE" in constraints) == (name in multi_value_properties), (
+            f"{type_name}.{name} cardinality does not match the Data contract"
+        )
+
+
 def verify_published_entity_contracts(parser):
     published_types = (
+        "Tidewise.Evidence",
+        "Tidewise.GeopoliticRivalry",
+        "Tidewise.MacroEconomic",
         "Tidewise.Region",
         "Tidewise.Subdivision",
         "Tidewise.Ministry",
@@ -341,6 +381,139 @@ def verify_event(parser):
     ]
 
 
+def verify_evidence(parser, schema_file):
+    evidence = parser.types.get("Tidewise.Evidence")
+    assert evidence is not None, "evidence.schema must define Tidewise.Evidence"
+    assert evidence.spg_type_enum.value == "ENTITY_TYPE"
+    assert evidence.name_zh == "原子证据"
+    assert not evidence.relations, "Evidence must not publish unresolved object relations"
+
+    semantic_properties = {"who", "what", "when", "where", "why", "how"}
+    expected_properties = {
+        "rawEvidenceId",
+        "isSplit",
+        "summary",
+        *semantic_properties,
+        "createdAt",
+    }
+    required = {"rawEvidenceId", "isSplit", "summary", "what"}
+    verify_text_property_contract("Evidence", evidence, expected_properties, required)
+    assert constraint_values(evidence.properties["rawEvidenceId"])["REGULAR"] == (
+        "^RAW[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-"
+        "[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    )
+    assert constraint_values(evidence.properties["isSplit"])["ENUM"] == [
+        "TRUE",
+        "FALSE",
+    ]
+    verify_enum_meanings(
+        schema_file,
+        "isSplit(是否拆分): Text",
+        {"TRUE": "多条", "FALSE": "一条"},
+    )
+
+
+def verify_geopolitic_rivalry(parser, schema_file):
+    rivalry = parser.types.get("Tidewise.GeopoliticRivalry")
+    assert rivalry is not None, (
+        "geopolitic-rivalry.schema must define Tidewise.GeopoliticRivalry"
+    )
+    assert rivalry.spg_type_enum.value == "ENTITY_TYPE"
+    assert rivalry.name_zh == "地缘政治对抗蓝图"
+    assert not rivalry.relations, "GeopoliticRivalry must not publish object relations"
+
+    expected_properties = {
+        "name",
+        "nameEn",
+        "rivalryType",
+        "description",
+        "coreActors",
+        "peripheralActors",
+        "influencedRegions",
+        "status",
+        "createdAt",
+        "updatedAt",
+    }
+    nullable = {"peripheralActors", "influencedRegions"}
+    verify_text_property_contract(
+        "GeopoliticRivalry",
+        rivalry,
+        expected_properties,
+        expected_properties - nullable,
+        {"influencedRegions"},
+    )
+    assert constraint_values(rivalry.properties["rivalryType"])["ENUM"] == [
+        "GEOPOLITICAL",
+        "MILITARY_WAR",
+    ]
+    assert constraint_values(rivalry.properties["status"])["ENUM"] == [
+        "ACTIVE",
+        "DORMANT",
+        "RESOLVED",
+    ]
+    for declaration, meanings in {
+        "rivalryType(对抗类型): Text": {
+            "GEOPOLITICAL": "地缘政治竞争",
+            "MILITARY_WAR": "军事战争",
+        },
+        "status(生命周期状态): Text": {
+            "ACTIVE": "持续活跃",
+            "DORMANT": "暂时休眠",
+            "RESOLVED": "已经解决",
+        },
+    }.items():
+        verify_enum_meanings(schema_file, declaration, meanings)
+
+
+def verify_macro_economic(parser, schema_file):
+    macro = parser.types.get("Tidewise.MacroEconomic")
+    assert macro is not None, "macro-economic.schema must define Tidewise.MacroEconomic"
+    assert macro.spg_type_enum.value == "ENTITY_TYPE"
+    assert macro.name_zh == "宏观经济叙事蓝图"
+    assert not macro.relations, "MacroEconomic must not publish object relations"
+
+    expected_properties = {
+        "name",
+        "nameEn",
+        "macroType",
+        "description",
+        "status",
+        "createdAt",
+        "updatedAt",
+    }
+    verify_text_property_contract(
+        "MacroEconomic", macro, expected_properties, expected_properties
+    )
+
+    assert constraint_values(macro.properties["macroType"])["ENUM"] == [
+        "MONETARY",
+        "FISCAL",
+        "TRADE_POLICY",
+        "REGULATORY",
+        "DATA_ECONOMIC",
+    ]
+    assert constraint_values(macro.properties["status"])["ENUM"] == [
+        "ACTIVE",
+        "DORMANT",
+        "ARCHIVED",
+    ]
+    for declaration, meanings in {
+        "macroType(宏观类型): Text": {
+            "MONETARY": "货币政策",
+            "FISCAL": "财政政策",
+            "TRADE_POLICY": "贸易政策",
+            "REGULATORY": "监管政策",
+            "DATA_ECONOMIC": "数据经济",
+        },
+        "status(生命周期状态): Text": {
+            "ACTIVE": "持续活跃",
+            "DORMANT": "暂时休眠",
+            "ARCHIVED": "已经归档",
+        },
+    }.items():
+        verify_enum_meanings(schema_file, declaration, meanings)
+
+
 def verify_ministry(parser, schema_file, migration_file):
     ministry = parser.types.get("Tidewise.Ministry")
     assert ministry is not None, "ministry.schema must define Tidewise.Ministry"
@@ -601,6 +774,13 @@ def main():
     assert "ministry.schema" in schema_names, "Ministry Object Schema is required"
     assert "institution.schema" in schema_names, "Institution Object Schema is required"
     assert "event.schema" in schema_names, "Event Object Schema is required"
+    assert "evidence.schema" in schema_names, "Evidence Object Schema is required"
+    assert "geopolitic-rivalry.schema" in schema_names, (
+        "GeopoliticRivalry Object Schema is required"
+    )
+    assert "macro-economic.schema" in schema_names, (
+        "MacroEconomic Object Schema is required"
+    )
 
     parser_type = load_parser(args.kag_root)
 
@@ -660,6 +840,15 @@ def main():
         parsed, args.schema_root / "institution.schema", object_migration
     )
     verify_event(parsed)
+    verify_evidence(parsed, args.schema_root / "evidence.schema")
+    verify_geopolitic_rivalry(
+        parsed,
+        args.schema_root / "geopolitic-rivalry.schema",
+    )
+    verify_macro_economic(
+        parsed,
+        args.schema_root / "macro-economic.schema",
+    )
     print(
         f"verified {len(schema_files)} OpenSPG schema(s) with KAG {args.expected_revision}"
     )
