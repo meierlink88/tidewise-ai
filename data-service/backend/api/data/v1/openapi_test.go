@@ -60,6 +60,7 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/source-snapshot":                                              {method: "get", operationID: "getSourceSnapshot", driftAnchor: "data.v1.getSourceSnapshot", scope: "data.sources.read"},
 	}
 	additionalMethods := map[string]map[string]struct{}{
+		namespace + "/events":                                                       {"post": {}},
 		namespace + "/entities/countries":                                           {"post": {}},
 		namespace + "/entities/countries/{country_id}":                              {"put": {}},
 		namespace + "/entities/industries":                                          {"post": {}},
@@ -363,7 +364,7 @@ func TestOpenAPIContractFreezesCurrentEventReadContract(t *testing.T) {
 	event := schema(t, document, "AdminEvent")
 	assertRequired(t, event, "id", "title", "summary", "semantic", "modality", "occurred_at", "announced_at", "status")
 	semantic := schema(t, document, "EventSemantic")
-	assertRequired(t, semantic, "who", "what", "when", "where", "why", "how")
+	assertRequired(t, semantic, "actors", "action", "objects", "stage", "jurisdictions", "effective_at", "time_precision")
 	if semantic["additionalProperties"] != false {
 		t.Fatal("EventSemantic must reject additional properties")
 	}

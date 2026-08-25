@@ -8,7 +8,21 @@ import (
 )
 
 func RegisterHTTPServer(server *kratoshttp.Server, application Service) {
-	server.Route(v1.APIPrefix).GET("/events", listHandler(application))
+	router := server.Route(v1.APIPrefix)
+	router.GET("/events", listHandler(application))
+	router.POST("/events", publishHandler(application))
+}
+
+func publishHandler(application Service) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		request, err := v1.DecodeStrictJSONBody[PublicationRequest](ctx)
+		if err != nil {
+			return err
+		}
+		return v1.Call(ctx, OperationPublishEvent, request, func(callContext context.Context) (*v1.Response[PublicationResult], error) {
+			return application.PublishEvent(callContext, request)
+		})
+	}
 }
 
 func listHandler(application Service) kratoshttp.HandlerFunc {

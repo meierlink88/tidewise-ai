@@ -8,16 +8,20 @@ import (
 
 const (
 	OperationListAdminEvents = "data.v1.listAdminEvents"
+	OperationPublishEvent    = "data.v1.publishEvent"
 
-	ErrorInvalidRequest        = "INVALID_REQUEST"
-	ErrorDataServiceNotReady   = "DATA_SERVICE_NOT_READY"
-	ErrorDataRepositoryFailure = "DATA_REPOSITORY_FAILURE"
+	ErrorInvalidRequest                = "INVALID_REQUEST"
+	ErrorDataServiceNotReady           = "DATA_SERVICE_NOT_READY"
+	ErrorDataRepositoryFailure         = "DATA_REPOSITORY_FAILURE"
+	ErrorEventPublishConflict          = "EVENT_PUBLISH_CONFLICT"
+	ErrorEventEvidenceReferenceInvalid = "EVENT_EVIDENCE_REFERENCE_INVALID"
 )
 
-func BusinessOperations() []string { return []string{OperationListAdminEvents} }
+func BusinessOperations() []string { return []string{OperationListAdminEvents, OperationPublishEvent} }
 
 type Service interface {
 	ListEvents(context.Context, *ListRequest) (*v1.Response[Page], error)
+	PublishEvent(context.Context, *PublicationRequest) (*v1.Response[PublicationResult], error)
 }
 
 type ListRequest struct {
@@ -33,12 +37,36 @@ type ListRequest struct {
 }
 
 type Semantic struct {
-	Who   *string `json:"who"`
-	What  *string `json:"what"`
-	When  *string `json:"when"`
-	Where *string `json:"where"`
-	Why   *string `json:"why"`
-	How   *string `json:"how"`
+	Actors        []string `json:"actors"`
+	Action        string   `json:"action"`
+	Objects       []string `json:"objects"`
+	Stage         string   `json:"stage"`
+	Jurisdictions []string `json:"jurisdictions"`
+	EffectiveAt   *string  `json:"effective_at"`
+	TimePrecision string   `json:"time_precision"`
+}
+
+type PublicationRequest struct {
+	PublicationKey string           `json:"publication_key"`
+	Event          PublicationEvent `json:"event"`
+	EvidenceIDs    []string         `json:"evidence_ids"`
+}
+
+type PublicationEvent struct {
+	Title       string   `json:"title"`
+	Summary     string   `json:"summary"`
+	Semantic    Semantic `json:"semantic"`
+	Modality    string   `json:"modality"`
+	OccurredAt  *string  `json:"occurred_at"`
+	AnnouncedAt *string  `json:"announced_at"`
+}
+
+type PublicationResult struct {
+	Event           Item     `json:"event"`
+	EvidenceLinkIDs []string `json:"evidence_link_ids"`
+	ReceiptID       string   `json:"receipt_id"`
+	PayloadHash     string   `json:"payload_hash"`
+	Replayed        bool     `json:"replayed"`
 }
 
 type Item struct {

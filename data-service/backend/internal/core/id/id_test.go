@@ -234,17 +234,18 @@ func TestCompanyKindsUseReviewedPrefixes(t *testing.T) {
 
 func TestCurrentEventKindsReplaceRetiredPublicationKinds(t *testing.T) {
 	for kind, expectedPrefix := range map[Kind]string{
-		Event:             "EVT",
-		EventEvidenceLink: "EEL",
-		EventActorLink:    "EAC",
-		EventAssetLink:    "EAS",
+		Event:                   "EVT",
+		EventEvidenceLink:       "EEL",
+		EventActorLink:          "EAC",
+		EventAssetLink:          "EAS",
+		EventPublicationReceipt: "EPR",
 	} {
 		value, err := New(kind)
 		if err != nil || !strings.HasPrefix(value, expectedPrefix) {
 			t.Fatalf("New(%q) = %q, %v", kind, value, err)
 		}
 	}
-	for _, retired := range []Kind{"EPR", "EER", "ETD", "ETA"} {
+	for _, retired := range []Kind{"EER", "ETD", "ETA"} {
 		if _, err := New(retired); err == nil {
 			t.Fatalf("New(%q) succeeded for retired Event kind", retired)
 		}

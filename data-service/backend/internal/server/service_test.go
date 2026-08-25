@@ -701,6 +701,10 @@ func (serverTestEventService) ListEvents(context.Context, *eventapi.ListRequest)
 	return serverTestResponse[eventapi.Page]()
 }
 
+func (serverTestEventService) PublishEvent(context.Context, *eventapi.PublicationRequest) (*dataapi.Response[eventapi.PublicationResult], error) {
+	return &dataapi.Response[eventapi.PublicationResult]{Status: dataapi.StatusCreated}, nil
+}
+
 func (serverTestEvidenceService) PublishRawEvidence(context.Context, *evidenceapi.RawEvidencePublicationRequest) (*dataapi.Response[evidenceapi.RawEvidencePublicationResult], error) {
 	return serverTestResponse[evidenceapi.RawEvidencePublicationResult]()
 }
@@ -757,6 +761,12 @@ func (s *principalRecordingEventService) ListEvents(ctx context.Context, _ *even
 		s.identity = principal.Identity
 	}
 	return serverTestResponse[eventapi.Page]()
+}
+
+func (s *principalRecordingEventService) PublishEvent(ctx context.Context, _ *eventapi.PublicationRequest) (*dataapi.Response[eventapi.PublicationResult], error) {
+	principal, _ := dataapi.PrincipalFromContext(ctx)
+	s.identity = principal.Identity
+	return &dataapi.Response[eventapi.PublicationResult]{Status: dataapi.StatusCreated}, nil
 }
 
 type panickingEventService struct{ serverTestEventService }

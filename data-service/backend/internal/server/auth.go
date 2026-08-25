@@ -28,6 +28,7 @@ const (
 	ScopeResearchRead         = "data.research.read"
 	ScopeResearchImport       = "data.research.import"
 	ScopeAdminRead            = "data.admin.read"
+	ScopeEventPublish         = "data.events.publish"
 	ScopeRawEvidenceImport    = "data.raw-evidences.import"
 	ScopeRawEvidenceRead      = "data.raw-evidences.read"
 	ScopeEvidenceImport       = "data.evidences.import"
@@ -134,6 +135,8 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeEvidenceCategoryRead, true
 	case researchapi.OperationPublishResearchTheme:
 		return ScopeResearchImport, true
+	case eventapi.OperationPublishEvent:
+		return ScopeEventPublish, true
 	case researchapi.OperationListResearchThemes, researchapi.OperationGetResearchTheme,
 		researchapi.OperationListResearchThemeReasoningTrees, researchapi.OperationGetResearchThemeReasoningTree,
 		researchapi.OperationSearchResearchGraph:

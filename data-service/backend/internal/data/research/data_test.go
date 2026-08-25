@@ -135,7 +135,15 @@ func TestPostgresSnapshotPublicationWorksOnCurrentSchema(t *testing.T) {
 		t.Fatal(err)
 	}
 	event, err := eventUseCase.Create(ctx, eventbiz.CreateInput{
-		Title: "Snapshot Event", Summary: "Snapshot Event summary.", Semantic: eventbiz.Semantic{},
+		Title: "Snapshot Event", Summary: "Snapshot Event summary.",
+		Semantic: eventbiz.Semantic{
+			Actors:        []string{"Research actor"},
+			Action:        "publishes",
+			Objects:       []string{"Research snapshot"},
+			Stage:         eventbiz.EventStageOccurred,
+			Jurisdictions: []string{},
+			TimePrecision: eventbiz.TimePrecisionDay,
+		},
 		Modality: eventbiz.ModalityFact,
 		Evidence: []eventbiz.EvidenceLinkInput{{EvidenceID: evidence.IDs[0], ContributionWeight: 1}},
 	})

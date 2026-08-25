@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/go-kratos/kratos/v3/middleware"
@@ -80,9 +81,29 @@ func TestHTTPRejectsRetiredOrUnknownEventFilters(t *testing.T) {
 	}
 }
 
-type capturingService struct{ request *eventapi.ListRequest }
+func TestHTTPAcceptsStrictEventPublicationContract(t *testing.T) {
+	service := new(capturingService)
+	server := kratoshttp.NewServer()
+	eventapi.RegisterHTTPServer(server, service)
+	body := `{"publication_key":"submission-1","event":{"title":"US expands HBM controls","summary":"The US announced expanded controls.","semantic":{"actors":["US government"],"action":"expands export controls","objects":["HBM"],"stage":"ANNOUNCED","jurisdictions":["China"],"effective_at":null,"time_precision":"DAY"},"modality":"FACT","occurred_at":"2026-08-25T00:00:00Z","announced_at":"2026-08-25T00:00:00Z"},"evidence_ids":["EVD11111111-1111-4111-8111-111111111111"]}`
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/events", strings.NewReader(body)))
+	if response.Code != http.StatusCreated || service.publication == nil || service.publication.PublicationKey != "submission-1" {
+		t.Fatalf("status = %d, request = %#v, body = %s", response.Code, service.publication, response.Body.String())
+	}
+}
+
+type capturingService struct {
+	request     *eventapi.ListRequest
+	publication *eventapi.PublicationRequest
+}
 
 func (s *capturingService) ListEvents(_ context.Context, request *eventapi.ListRequest) (*v1.Response[eventapi.Page], error) {
 	s.request = request
 	return &v1.Response[eventapi.Page]{Status: v1.StatusOK, Result: eventapi.Page{Items: []eventapi.Item{}}}, nil
+}
+
+func (s *capturingService) PublishEvent(_ context.Context, request *eventapi.PublicationRequest) (*v1.Response[eventapi.PublicationResult], error) {
+	s.publication = request
+	return &v1.Response[eventapi.PublicationResult]{Status: v1.StatusCreated}, nil
 }

@@ -82,6 +82,14 @@ func (s Store) CreateEvent(ctx context.Context, aggregate eventbiz.Aggregate) (r
 	return nil
 }
 
+func encodeSemantic(semantic eventbiz.Semantic) ([]byte, error) {
+	payload, err := json.Marshal(semantic)
+	if err != nil {
+		return nil, fmt.Errorf("encode Event semantic: %w", err)
+	}
+	return payload, nil
+}
+
 func (s Store) EventByID(ctx context.Context, eventID string) (eventbiz.Aggregate, error) {
 	var aggregate eventbiz.Aggregate
 	var semantic []byte

@@ -294,3 +294,12 @@ ADR-0046 定义的保留列、行数与端点不变、replacement indexes 存在
 该迁移删除旧 review/lifecycle/provenance/evidence/explanation 值，Data Research Graph 合同同时
 切换至 V2，禁止新旧 Data/Miniapp binary mixed traffic。完整回滚必须同时恢复 migration 72 前
 快照和上一版应用，不运行 down migration。
+
+`000073` 是 Issue #339 的高风险 Event 合同切换。操作员必须停止 Data、
+Reasoning 及所有 Event 直接写入者，取得 PostgreSQL 恢复点，并确认 `events`、
+`event_evidence_links`、`event_actor_links` 与 `event_asset_links` 均为空。该迁移会
+fail closed 拒绝任何历史 Event，因为旧 5W1H JSON 不能无损推导出新的事件身份语义。
+用候选镜像确认它是唯一 pending migration 后才可 apply；执行后确认 ledger 为
+`73`、`event_publication_receipts` 约束完整，并使用新 Data/Reasoning binary 发布一条
+Event 验证原子 Event + Evidence Link + Receipt。新旧 binary 不得 mixed traffic。完整
+回滚必须恢复 migration 73 前恢复点并同时回退 Data/Reasoning，不运行 down migration。

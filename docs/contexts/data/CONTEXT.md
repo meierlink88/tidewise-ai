@@ -72,17 +72,25 @@ Data Service 管理的每张表都使用名为 `id` 的唯一主键；自然键�
 _Avoid_: 裸 UUID、任意字符串前缀、`PREFIX_...`、`PREFIX-...`、调用方提交主键、数据库序列
 
 **Event**:
-经过交叉验证的标准化事件事实，仅包含 `EVT` 身份、title、summary、严格六键
-`semantic` （who/what/when/where/why/how）、FACT/PLAN/SPEC modality、可空
-occurred/announced 时间和 ACTIVE/DEPRECATED/ARCHIVED lifecycle。Semantic 值可为字符串
-或 null，空字符串与全 null 结构合法。Event 没有 Event Type、Tag、dedupe key、fact
-payload、first-seen/knowable 或双重审核状态。
-_Avoid_: 请求派生身份、内容去重、缺失/额外 semantic key、无证据 Event
+经过外部提炼与同一现实动作判定后发布的标准化事件事实，包含 `EVT` 身份、
+title、summary、严格七键身份语义 `semantic`（actors/action/objects/stage/jurisdictions/
+effective_at/time_precision）、FACT/PLAN/SPEC modality、可空 occurred/announced 时间和
+ACTIVE/DEPRECATED/ARCHIVED lifecycle。actors 与 objects 非空，action 非空；stage 与
+time_precision 使用受控值。Data 不进行 Event 语义去重，也不接收 Event ID；
+Reasoning 完成去重决定后才调用 Event 发布合同。
+_Avoid_: 5W1H 作为 Event 身份、Data 语义去重、调用方 Event ID、无证据 Event
 
 **Event Evidence Link**:
 Event 与 Atomic Evidence 的唯一当前证据关系，使用 `EEL` 身份、严格外键和 0.00–1.00 的独立
 `contribution_weight`。同一 Event/Evidence 端点对只能出现一次，各权重不要求合计为 1。
 _Avoid_: Artifact 引用、证据正文副本、Event Source 关系字段
+
+**Event Publication Receipt**:
+Reasoning 调用 Event 发布 API 时的最小传输幂等记录，使用 `EPR` 身份，按
+`publisher_subject + publication_key` 唯一。同 key 且同 payload hash 返回原 Event，不新增
+Event 或 Evidence Link；同 key 但不同 payload 冲突。Receipt 只解决 Data 成功但响应丢失的
+安全重试，不是 Event 业务身份、语义去重键或异步任务。
+_Avoid_: Event Dedupe Key、X-Request-ID 作为幂等键、发布重放创建新事实
 
 **Event Actor Link / Event Asset Link**:
 Event-owned 的预留关系快照。`EAC` 记录 Actor 的 opaque ID、可选类型/名称、关系类型、
