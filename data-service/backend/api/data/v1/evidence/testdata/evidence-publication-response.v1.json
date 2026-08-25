@@ -1,0 +1,17 @@
+{
+  "request_id": "evidence-publication-fixture-v1",
+  "result": {
+    "raw_evidence_id": "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf",
+    "ids": ["EVDdbd9e2bd-25b8-5cbb-a131-4dbea29740d6", "EVDdfc3fe7d-d881-5379-b391-e4c4f1281cf9"],
+    "items": [
+      {
+        "input_index": 0,
+        "id": "EVDdfc3fe7d-d881-5379-b391-e4c4f1281cf9"
+      },
+      {
+        "input_index": 1,
+        "id": "EVDdbd9e2bd-25b8-5cbb-a131-4dbea29740d6"
+      }
+    ]
+  }
+}

@@ -327,9 +327,14 @@ func rawEvidenceResultDTO(result evidencebiz.RawEvidenceResult) evidenceapi.RawE
 }
 
 func evidenceResultDTO(result evidencebiz.EvidenceResult) evidenceapi.EvidencePublicationResult {
+	items := make([]evidenceapi.EvidencePublicationResultItem, len(result.Items))
+	for index, item := range result.Items {
+		items[index] = evidenceapi.EvidencePublicationResultItem{InputIndex: item.InputIndex, ID: item.ID}
+	}
 	return evidenceapi.EvidencePublicationResult{
 		RawEvidenceID: result.RawEvidenceID,
 		IDs:           append([]string(nil), result.IDs...),
+		Items:         items,
 	}
 }
 

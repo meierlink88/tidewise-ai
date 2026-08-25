@@ -160,6 +160,12 @@ type RawEvidenceResult struct {
 type EvidenceResult struct {
 	RawEvidenceID string
 	IDs           []string
+	Items         []EvidenceResultItem
+}
+
+type EvidenceResultItem struct {
+	InputIndex int
+	ID         string
 }
 
 type RawEvidenceCategoryLink struct {
@@ -448,6 +454,10 @@ func (s *UseCase) PublishEvidence(ctx context.Context, rawEvidenceID string, inp
 	if err := validateEvidencePublication(rawEvidenceID, input); err != nil {
 		return EvidenceResult{}, err
 	}
+	items := make([]EvidenceResultItem, len(input))
+	for index, item := range input {
+		items[index] = EvidenceResultItem{InputIndex: index, ID: item.ID}
+	}
 
 	isSplit := len(input) > 1
 	records := make([]StoredEvidence, len(input))
@@ -508,7 +518,11 @@ func (s *UseCase) PublishEvidence(ctx context.Context, rawEvidenceID string, inp
 			}
 		}
 
-		result = EvidenceResult{RawEvidenceID: rawEvidenceID, IDs: append([]string(nil), ids...)}
+		result = EvidenceResult{
+			RawEvidenceID: rawEvidenceID,
+			IDs:           append([]string(nil), ids...),
+			Items:         append([]EvidenceResultItem(nil), items...),
+		}
 		return nil
 	})
 	if err != nil {

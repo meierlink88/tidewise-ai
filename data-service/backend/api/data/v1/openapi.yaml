@@ -577,8 +577,9 @@ paths:
       description: >-
         清洗完成后一次提交一个既有 Raw Evidence 的完整 1..N Evidence 集合。Data 根据
         集合基数派生 is_split；零项、部分成功、追加、覆盖和删除均不允许。接口不使用
-        Idempotency-Key；相同完整集合仅在内容一致时安全重试。成功响应只返回正式 Raw
-        Evidence ID 与按正式 Evidence ID 确定性排序的 Evidence IDs；该顺序不表达业务语义。
+        Idempotency-Key；相同完整集合仅在内容一致时安全重试。成功响应保留按正式 Evidence
+        ID 确定性排序的 ids 兼容字段，该顺序不表达业务语义；items 按本次请求数组位置返回
+        input_index 到正式 Evidence ID 的可靠逐项映射。
       parameters:
         - $ref: '#/components/parameters/RequestID'
       requestBody:
@@ -3555,7 +3556,7 @@ components:
     EvidencePublicationResult:
       type: object
       additionalProperties: false
-      required: [raw_evidence_id, ids]
+      required: [raw_evidence_id, ids, items]
       properties:
         raw_evidence_id:
           type: string
@@ -3570,6 +3571,27 @@ components:
             minLength: 1
             maxLength: 39
             pattern: '^EVD[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+        items:
+          type: array
+          minItems: 1
+          description: 按本次请求 evidences 数组顺序返回的逐项正式身份映射
+          items:
+            $ref: '#/components/schemas/EvidencePublicationResultItem'
+
+    EvidencePublicationResultItem:
+      type: object
+      additionalProperties: false
+      required: [input_index, id]
+      properties:
+        input_index:
+          type: integer
+          minimum: 0
+          description: 当前请求 evidences 数组中的零基位置
+        id:
+          type: string
+          minLength: 1
+          maxLength: 39
+          pattern: '^EVD[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
 
     EvidencePublicationEnvelope:
       type: object

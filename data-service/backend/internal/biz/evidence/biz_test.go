@@ -131,12 +131,20 @@ func TestPublishEvidenceCreatesCompleteSplitSetThenReusesIt(t *testing.T) {
 	if len(created.IDs) != 2 || !strings.HasPrefix(created.IDs[0], "EVD") || !strings.HasPrefix(created.IDs[1], "EVD") {
 		t.Fatalf("Evidence IDs = %#v", created.IDs)
 	}
+	if len(created.Items) != 2 ||
+		created.Items[0] != (EvidenceResultItem{InputIndex: 0, ID: "EVD3b60b328-211e-5ad3-8d07-4d904dc65284"}) ||
+		created.Items[1] != (EvidenceResultItem{InputIndex: 1, ID: "EVD61033f85-bf67-5dd2-b0be-b33b3ba498e6"}) {
+		t.Fatalf("Evidence request mappings = %#v", created.Items)
+	}
 
 	reused, err := service.PublishEvidence(context.Background(), raw.ID, evidences)
 	if err != nil {
 		t.Fatalf("replay Evidence: %v", err)
 	}
-	if !equalStrings(reused.IDs, created.IDs) || len(store.evidences) != 2 {
+	if !equalStrings(reused.IDs, created.IDs) || len(reused.Items) != 2 ||
+		reused.Items[0] != (EvidenceResultItem{InputIndex: 0, ID: "EVD3b60b328-211e-5ad3-8d07-4d904dc65284"}) ||
+		reused.Items[1] != (EvidenceResultItem{InputIndex: 1, ID: "EVD61033f85-bf67-5dd2-b0be-b33b3ba498e6"}) ||
+		len(store.evidences) != 2 {
 		t.Fatalf("retry result = %#v, stored Evidences = %d", reused, len(store.evidences))
 	}
 
@@ -199,6 +207,13 @@ func TestPublishEvidenceSingleIsNotSplitAndMultipleItemsAreOrderNeutral(t *testi
 	reordered, err := mustNewUseCase(t, otherStore).PublishEvidence(context.Background(), raw.ID, []Evidence{items[1], items[0]})
 	if err != nil || !equalStrings(created.IDs, reordered.IDs) {
 		t.Fatalf("order-neutral retry result=%#v error=%v, want %#v", reordered, err, created)
+	}
+	if len(created.Items) != 2 || len(reordered.Items) != 2 ||
+		created.Items[0] != (EvidenceResultItem{InputIndex: 0, ID: "EVD3b60b328-211e-5ad3-8d07-4d904dc65284"}) ||
+		created.Items[1] != (EvidenceResultItem{InputIndex: 1, ID: "EVDb6464622-7d08-5669-835a-681d4799bf04"}) ||
+		reordered.Items[0] != (EvidenceResultItem{InputIndex: 0, ID: "EVDb6464622-7d08-5669-835a-681d4799bf04"}) ||
+		reordered.Items[1] != (EvidenceResultItem{InputIndex: 1, ID: "EVD3b60b328-211e-5ad3-8d07-4d904dc65284"}) {
+		t.Fatalf("current request mappings: created=%#v reordered=%#v", created.Items, reordered.Items)
 	}
 }
 

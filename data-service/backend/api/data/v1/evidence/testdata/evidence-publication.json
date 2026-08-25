@@ -2,17 +2,6 @@
   "raw_evidence_id": "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf",
   "evidences": [
     {
-      "summary": "Example Corp expands production",
-      "semantic": {
-        "who": "Example Corp",
-        "what": "expanded production",
-        "when": "August 10, 2026",
-        "where": null,
-        "why": null,
-        "how": "by adding a new production line"
-      }
-    },
-    {
       "summary": "Example Corp secures additional capacity",
       "semantic": {
         "who": "Example Corp",
@@ -21,6 +10,17 @@
         "where": null,
         "why": "to meet rising demand",
         "how": null
+      }
+    },
+    {
+      "summary": "Example Corp expands production",
+      "semantic": {
+        "who": "Example Corp",
+        "what": "expanded production",
+        "when": "August 10, 2026",
+        "where": null,
+        "why": null,
+        "how": "by adding a new production line"
       }
     }
   ]
