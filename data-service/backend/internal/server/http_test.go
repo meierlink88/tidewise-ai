@@ -16,6 +16,7 @@ import (
 	"time"
 
 	dataapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
+	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
 	sourceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/source"
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
 	sourcebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/source"
@@ -127,6 +128,70 @@ func TestSourceProviderFixtureMatchesRuntimeHTTPOutput(t *testing.T) {
 	if !reflect.DeepEqual(actual, expected) {
 		t.Fatalf("runtime Source snapshot differs from provider fixture:\nactual=%#v\nexpected=%#v", actual, expected)
 	}
+}
+
+func TestEvidencePublicationProviderFixtureMatchesRuntimeHTTPOutput(t *testing.T) {
+	requestPayload, err := os.ReadFile(filepath.Join("..", "..", "api", "data", "v1", "evidence", "testdata", "evidence-publication.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	responsePayload, err := os.ReadFile(filepath.Join("..", "..", "api", "data", "v1", "evidence", "testdata", "evidence-publication-response.v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		RequestID string                                `json:"request_id"`
+		Result    evidenceapi.EvidencePublicationResult `json:"result"`
+	}
+	var expected map[string]any
+	if err := json.Unmarshal(responsePayload, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(responsePayload, &expected); err != nil {
+		t.Fatal(err)
+	}
+	application := &fixtureEvidencePublicationService{result: fixture.Result}
+	server := evidencePublicationContractServer(t, application)
+	actual := productionContractRequest(
+		t, server, http.MethodPost, dataapi.APIPrefix+"/evidence-publications", "evidence-write-token",
+		string(requestPayload), fixture.RequestID, http.StatusCreated,
+	)
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("runtime Evidence Publication response differs from provider fixture:\nactual=%#v\nexpected=%#v", actual, expected)
+	}
+	if application.request == nil || len(application.request.Evidences) != 2 {
+		t.Fatalf("runtime request binding = %#v", application.request)
+	}
+}
+
+type fixtureEvidencePublicationService struct {
+	serverTestEvidenceService
+	request *evidenceapi.EvidencePublicationRequest
+	result  evidenceapi.EvidencePublicationResult
+}
+
+func (s *fixtureEvidencePublicationService) PublishEvidence(_ context.Context, request *evidenceapi.EvidencePublicationRequest) (*dataapi.Response[evidenceapi.EvidencePublicationResult], error) {
+	s.request = request
+	return &dataapi.Response[evidenceapi.EvidencePublicationResult]{Status: http.StatusCreated, Result: s.result}, nil
+}
+
+func evidencePublicationContractServer(t *testing.T, application evidenceapi.Service) http.Handler {
+	t.Helper()
+	authenticator, err := NewAuthenticator([]Credential{{
+		Secret: "evidence-write-token", Principal: dataapi.Principal{Identity: "agentos", Scopes: []string{ScopeEvidenceImport}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := NewHTTPServer(
+		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{}, application,
+		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{},
+		serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, authenticator, nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return server
 }
 
 func TestSourceSnapshotHTTPReturnsTwoHundredSourcesWithinEnvelopeAndTimeBudgets(t *testing.T) {

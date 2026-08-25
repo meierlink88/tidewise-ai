@@ -217,6 +217,18 @@ func TestEvidencePublicationHTTPBindsSummaryAndSingleLayerSemantic(t *testing.T)
 		bound.Semantic.Why != nil || bound.Semantic.How == nil || *bound.Semantic.How != "by adding a new line" {
 		t.Fatalf("bound Evidence = %#v", bound)
 	}
+	var envelope map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+		t.Fatal(err)
+	}
+	items, ok := envelope["items"].([]any)
+	if !ok || len(items) != 1 {
+		t.Fatalf("response items = %#v", envelope["items"])
+	}
+	item := items[0].(map[string]any)
+	if item["input_index"] != float64(0) || item["id"] != "EVD5cb71bef-5b1d-5995-add0-7408eaa2be15" {
+		t.Fatalf("response item = %#v", item)
+	}
 }
 
 func (s *evidencePublicationHTTPStub) PublishRawEvidence(ctx context.Context, request *RawEvidencePublicationRequest) (*v1.Response[RawEvidencePublicationResult], error) {
@@ -252,6 +264,10 @@ func (s *evidencePublicationHTTPStub) PublishEvidence(ctx context.Context, reque
 	return &v1.Response[EvidencePublicationResult]{Status: v1.StatusCreated, Result: EvidencePublicationResult{
 		RawEvidenceID: request.RawEvidenceID,
 		IDs:           []string{"EVD5cb71bef-5b1d-5995-add0-7408eaa2be15"},
+		Items: []EvidencePublicationResultItem{{
+			InputIndex: 0,
+			ID:         "EVD5cb71bef-5b1d-5995-add0-7408eaa2be15",
+		}},
 	}}, nil
 }
 

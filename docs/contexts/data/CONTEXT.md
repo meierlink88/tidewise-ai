@@ -223,8 +223,10 @@ _Avoid_: Evidence Publication、异步 Import Job、Idempotency-Key
 **Evidence Publication**:
 清洗完成后，为一个既有 Raw Evidence 一次提交完整 `1..N` Atomic Evidence 集合的同步
 发布。整包只能首次创建或以完全一致内容安全重试，不能覆盖、追加、删除或发布零项；成功
-响应只返回外键 `raw_evidence_id` 和按正式 ID 确定性排序的 Evidence `ids`；该排序没有业务
-语义。发布不创建回执，也不返回创建/复用分类。
+响应返回外键 `raw_evidence_id`、按正式 ID 确定性排序的兼容字段 `ids`，以及按本次请求数组
+位置返回的 `items[{input_index,id}]`。`ids` 排序没有业务语义；`items` 才是发布方把当前每条
+输入 Evidence 可靠关联到正式 ID 的权威映射，完全一致或顺序变化的安全重试都按本次请求
+重建该映射。发布不创建回执，也不返回创建/复用分类。
 _Avoid_: Raw Evidence Publication、Group Publication、部分成功、可变清洗结果
 
 **Data Runtime Health**:

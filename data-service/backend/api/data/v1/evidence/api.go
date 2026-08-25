@@ -168,6 +168,12 @@ type RawEvidencePublicationResult struct {
 }
 
 type EvidencePublicationResult struct {
-	RawEvidenceID string   `json:"raw_evidence_id"`
-	IDs           []string `json:"ids"`
+	RawEvidenceID string                          `json:"raw_evidence_id"`
+	IDs           []string                        `json:"ids"`
+	Items         []EvidencePublicationResultItem `json:"items"`
+}
+
+type EvidencePublicationResultItem struct {
+	InputIndex int    `json:"input_index"`
+	ID         string `json:"id"`
 }
