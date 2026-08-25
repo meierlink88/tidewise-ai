@@ -488,7 +488,15 @@ func createStorylineTestEvent(
 	}
 	created, err := useCase.Create(context.Background(), eventbiz.CreateInput{
 		Title: "Storyline event " + key, Summary: "Storyline event summary " + key,
-		Semantic: eventbiz.Semantic{}, Modality: eventbiz.ModalityFact,
+		Semantic: eventbiz.Semantic{
+			Actors:        []string{"测试主体"},
+			Action:        "发生",
+			Objects:       []string{"测试事件"},
+			Stage:         eventbiz.EventStageOccurred,
+			Jurisdictions: []string{},
+			TimePrecision: eventbiz.TimePrecisionDay,
+		},
+		Modality:   eventbiz.ModalityFact,
 		OccurredAt: occurredAt, AnnouncedAt: announcedAt,
 		Evidence: []eventbiz.EvidenceLinkInput{{EvidenceID: evidence.IDs[0], ContributionWeight: 1}},
 	})
