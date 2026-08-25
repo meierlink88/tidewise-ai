@@ -13,6 +13,81 @@ import (
 
 type UseCase interface {
 	ListEvents(context.Context, eventbiz.EventListRequest) (eventbiz.EventPage, error)
+	Publish(context.Context, string, string, eventbiz.CreateInput) (eventbiz.PublicationResult, error)
+}
+
+func (s *Service) PublishEvent(ctx context.Context, request *eventapi.PublicationRequest) (*v1.Response[eventapi.PublicationResult], error) {
+	if request == nil {
+		return nil, publicError(v1.StatusBadRequest, eventapi.ErrorInvalidRequest, "Event publication is required")
+	}
+	if s == nil || s.useCase == nil {
+		return nil, publicError(v1.StatusInternalServerError, eventapi.ErrorDataServiceNotReady, "Event service is unavailable")
+	}
+	effectiveAt, err := optionalWireUTC(request.Event.Semantic.EffectiveAt)
+	if err != nil {
+		return nil, publicError(v1.StatusBadRequest, eventapi.ErrorInvalidRequest, "semantic.effective_at must be UTC RFC3339")
+	}
+	occurredAt, err := optionalWireUTC(request.Event.OccurredAt)
+	if err != nil {
+		return nil, publicError(v1.StatusBadRequest, eventapi.ErrorInvalidRequest, "event.occurred_at must be UTC RFC3339")
+	}
+	announcedAt, err := optionalWireUTC(request.Event.AnnouncedAt)
+	if err != nil {
+		return nil, publicError(v1.StatusBadRequest, eventapi.ErrorInvalidRequest, "event.announced_at must be UTC RFC3339")
+	}
+	evidence := make([]eventbiz.EvidenceLinkInput, 0, len(request.EvidenceIDs))
+	for _, evidenceID := range request.EvidenceIDs {
+		evidence = append(evidence, eventbiz.EvidenceLinkInput{EvidenceID: evidenceID, ContributionWeight: 1})
+	}
+	input := eventbiz.CreateInput{Title: request.Event.Title, Summary: request.Event.Summary,
+		Semantic: eventbiz.Semantic{Actors: request.Event.Semantic.Actors, Action: request.Event.Semantic.Action,
+			Objects: request.Event.Semantic.Objects, Stage: eventbiz.EventStage(request.Event.Semantic.Stage),
+			Jurisdictions: request.Event.Semantic.Jurisdictions, EffectiveAt: effectiveAt,
+			TimePrecision: eventbiz.TimePrecision(request.Event.Semantic.TimePrecision)},
+		Modality: eventbiz.Modality(request.Event.Modality), OccurredAt: occurredAt, AnnouncedAt: announcedAt,
+		Status: eventbiz.LifecycleStatusActive, Evidence: evidence}
+	principal, _ := v1.PrincipalFromContext(ctx)
+	result, err := s.useCase.Publish(ctx, principal.Identity, request.PublicationKey, input)
+	if err != nil {
+		if errors.Is(err, eventbiz.ErrPublicationPayloadConflict) {
+			return nil, publicError(v1.StatusConflict, eventapi.ErrorEventPublishConflict, "publication_key conflicts with another Event payload")
+		}
+		var validation *eventbiz.ValidationError
+		if errors.As(err, &validation) {
+			return nil, publicError(v1.StatusUnprocessableEntity, eventapi.ErrorInvalidRequest, validation.Error())
+		}
+		var reference *eventbiz.ReferenceError
+		if errors.As(err, &reference) {
+			return nil, publicError(v1.StatusUnprocessableEntity, eventapi.ErrorEventEvidenceReferenceInvalid,
+				"Event publication references unavailable Evidence")
+		}
+		return nil, publicError(v1.StatusInternalServerError, eventapi.ErrorDataRepositoryFailure, "Event publication failed")
+	}
+	status := v1.StatusCreated
+	if result.Replayed {
+		status = v1.StatusOK
+	}
+	evidenceLinkIDs := make([]string, 0, len(result.Evidence))
+	for _, link := range result.Evidence {
+		evidenceLinkIDs = append(evidenceLinkIDs, link.ID)
+	}
+	return &v1.Response[eventapi.PublicationResult]{Status: status, Result: eventapi.PublicationResult{
+		Event: eventapi.Item{ID: result.Event.ID, Title: result.Event.Title, Summary: result.Event.Summary,
+			Semantic: eventapi.Semantic{Actors: result.Event.Semantic.Actors, Action: result.Event.Semantic.Action,
+				Objects: result.Event.Semantic.Objects, Stage: string(result.Event.Semantic.Stage),
+				Jurisdictions: result.Event.Semantic.Jurisdictions, EffectiveAt: formatOptionalTime(result.Event.Semantic.EffectiveAt),
+				TimePrecision: string(result.Event.Semantic.TimePrecision)}, Modality: string(result.Event.Modality),
+			OccurredAt: formatOptionalTime(result.Event.OccurredAt), AnnouncedAt: formatOptionalTime(result.Event.AnnouncedAt),
+			Status: string(result.Event.Status)}, EvidenceLinkIDs: evidenceLinkIDs,
+		ReceiptID: result.ReceiptID, PayloadHash: result.PayloadHash, Replayed: result.Replayed,
+	}}, nil
+}
+
+func optionalWireUTC(raw *string) (*time.Time, error) {
+	if raw == nil {
+		return nil, nil
+	}
+	return optionalUTC(*raw)
 }
 
 type Service struct{ useCase UseCase }
@@ -72,10 +147,9 @@ func (s *Service) ListEvents(ctx context.Context, request *eventapi.ListRequest)
 	for _, item := range result.Items {
 		items = append(items, eventapi.Item{
 			ID: item.ID, Title: item.Title, Summary: item.Summary,
-			Semantic: eventapi.Semantic{
-				Who: item.Semantic.Who, What: item.Semantic.What, When: item.Semantic.When,
-				Where: item.Semantic.Where, Why: item.Semantic.Why, How: item.Semantic.How,
-			},
+			Semantic: eventapi.Semantic{Actors: item.Semantic.Actors, Action: item.Semantic.Action,
+				Objects: item.Semantic.Objects, Stage: string(item.Semantic.Stage), Jurisdictions: item.Semantic.Jurisdictions,
+				EffectiveAt: formatOptionalTime(item.Semantic.EffectiveAt), TimePrecision: string(item.Semantic.TimePrecision)},
 			Modality: string(item.Modality), OccurredAt: formatOptionalTime(item.OccurredAt),
 			AnnouncedAt: formatOptionalTime(item.AnnouncedAt), Status: string(item.Status),
 		})

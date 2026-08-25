@@ -239,6 +239,7 @@ func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 				server.ScopeResearchImport,
 				server.ScopeResearchRead,
 				server.ScopeAdminRead,
+				server.ScopeEventPublish,
 				server.ScopeCountryRead,
 				server.ScopeCountryWrite,
 				server.ScopeIndustryRead,

@@ -4,6 +4,8 @@
 - Date: 2026-08-18
 - Issue: #277
 
+The Event semantic-shape and external-publication clauses are superseded by ADR 0047.
+
 ## Context
 
 The accepted Event model still depended on lightweight `raw_documents`, `event_sources`, Event
