@@ -18,14 +18,21 @@ describe('DataIngestionCenter', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('loads and renders the current Event contract', async () => {
-    const what = '维持利率不变';
     vi.spyOn(dataIngestionAPI, 'loadEvents').mockResolvedValue({
       items: [
         {
           id: 'EVT00000000-0000-5000-8000-000000000001',
           title: '全球市场事件',
           summary: '摘要',
-          semantic: { who: null, what, when: null, where: null, why: null, how: null },
+          semantic: {
+            actors: ['Federal Reserve'],
+            action: 'holds target rate',
+            objects: ['federal funds rate'],
+            stage: 'ANNOUNCED',
+            jurisdictions: ['United States'],
+            effective_at: null,
+            time_precision: 'DAY'
+          },
           modality: 'FACT',
           occurred_at: '2026-07-09T08:00:00Z',
           announced_at: null,
@@ -103,12 +110,13 @@ describe('DataIngestionCenter', () => {
           title: '稀土出口管理新规',
           summary: '商务部公布新的出口许可安排。',
           semantic: {
-            who: '中华人民共和国商务部',
-            what: '调整稀土出口许可要求',
-            when: '2026-08-19',
-            where: '中国',
-            why: '加强战略性矿产出口管理',
-            how: '通过公告明确申报流程'
+            actors: ['中华人民共和国商务部'],
+            action: '调整出口许可要求',
+            objects: ['稀土'],
+            stage: 'ANNOUNCED',
+            jurisdictions: ['中国'],
+            effective_at: '2026-09-01T00:00:00Z',
+            time_precision: 'DAY'
           },
           modality: 'FACT',
           occurred_at: '2026-08-19T01:30:00Z',
@@ -129,8 +137,11 @@ describe('DataIngestionCenter', () => {
     const dialog = screen.getByRole('dialog', { name: '稀土出口管理新规' });
     expect(within(dialog).getByText('商务部公布新的出口许可安排。')).toBeInTheDocument();
     expect(within(dialog).getByText('中华人民共和国商务部')).toBeInTheDocument();
-    expect(within(dialog).getByText('调整稀土出口许可要求')).toBeInTheDocument();
-    expect(within(dialog).getByText('—')).toBeInTheDocument();
+    expect(within(dialog).getByText('调整出口许可要求')).toBeInTheDocument();
+    expect(within(dialog).getByText('稀土')).toBeInTheDocument();
+    expect(within(dialog).getByText('ANNOUNCED')).toBeInTheDocument();
+    expect(within(dialog).getByText('中国')).toBeInTheDocument();
+    expect(within(dialog).getByText('DAY')).toBeInTheDocument();
     expect(within(dialog).queryByText(/EVT00000000/)).not.toBeInTheDocument();
 
     await user.keyboard('{Escape}');

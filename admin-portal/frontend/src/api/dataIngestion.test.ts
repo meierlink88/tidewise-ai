@@ -8,6 +8,149 @@ import {
 } from './dataIngestion';
 
 describe('data ingestion api client', () => {
+  it('validates the complete seven-field Event semantic projection', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          request_id: 'admin-event-test',
+          result: {
+            items: [
+              {
+                id: 'EVT00000000-0000-5000-8000-000000000001',
+                title: '美联储维持利率不变',
+                summary: '美联储宣布维持联邦基金利率目标区间不变。',
+                semantic: {
+                  actors: ['Federal Reserve'],
+                  action: 'holds target rate',
+                  objects: ['federal funds rate'],
+                  stage: 'ANNOUNCED',
+                  jurisdictions: ['United States'],
+                  effective_at: null,
+                  time_precision: 'DAY'
+                },
+                modality: 'FACT',
+                occurred_at: '2026-07-09T08:00:00Z',
+                announced_at: null,
+                status: 'ACTIVE'
+              }
+            ],
+            total: 1,
+            page: 1,
+            page_size: 50
+          }
+        })
+      })
+    );
+
+    const page = await loadEvents('secret-token', { page: 1, title: '' });
+
+    expect(page.items[0]?.semantic).toEqual({
+      actors: ['Federal Reserve'],
+      action: 'holds target rate',
+      objects: ['federal funds rate'],
+      stage: 'ANNOUNCED',
+      jurisdictions: ['United States'],
+      effective_at: null,
+      time_precision: 'DAY'
+    });
+  });
+
+  it.each([
+    [
+      'missing field',
+      {
+        actors: ['Actor'],
+        action: 'acts',
+        objects: ['Object'],
+        stage: 'OCCURRED',
+        jurisdictions: [],
+        effective_at: null
+      }
+    ],
+    [
+      'extra field',
+      {
+        actors: ['Actor'],
+        action: 'acts',
+        objects: ['Object'],
+        stage: 'OCCURRED',
+        jurisdictions: [],
+        effective_at: null,
+        time_precision: 'DAY',
+        who: null
+      }
+    ],
+    [
+      'invalid stage',
+      {
+        actors: ['Actor'],
+        action: 'acts',
+        objects: ['Object'],
+        stage: 'INVALID',
+        jurisdictions: [],
+        effective_at: null,
+        time_precision: 'DAY'
+      }
+    ],
+    [
+      'blank actor',
+      {
+        actors: [' '],
+        action: 'acts',
+        objects: ['Object'],
+        stage: 'OCCURRED',
+        jurisdictions: [],
+        effective_at: null,
+        time_precision: 'DAY'
+      }
+    ],
+    [
+      'blank action',
+      {
+        actors: ['Actor'],
+        action: ' ',
+        objects: ['Object'],
+        stage: 'OCCURRED',
+        jurisdictions: [],
+        effective_at: null,
+        time_precision: 'DAY'
+      }
+    ]
+  ])('rejects Event semantic contract drift: %s', async (_name, semantic) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          request_id: 'admin-event-test',
+          result: {
+            items: [
+              {
+                id: 'EVT00000000-0000-5000-8000-000000000001',
+                title: 'Event',
+                summary: 'Summary',
+                semantic,
+                modality: 'FACT',
+                occurred_at: null,
+                announced_at: null,
+                status: 'ACTIVE'
+              }
+            ],
+            total: 1,
+            page: 1,
+            page_size: 50
+          }
+        })
+      })
+    );
+
+    await expect(loadEvents('secret-token', { page: 1, title: '' })).rejects.toThrow(
+      'Admin API returned an invalid response'
+    );
+  });
+
   it('loads current events with the frozen filters', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

@@ -108,6 +108,30 @@ const (
 	EventLifecycleArchived   EventLifecycleStatus = "ARCHIVED"
 )
 
+type EventStage string
+
+const (
+	EventStageOccurred    EventStage = "OCCURRED"
+	EventStageAnnounced   EventStage = "ANNOUNCED"
+	EventStageEffective   EventStage = "EFFECTIVE"
+	EventStageImplemented EventStage = "IMPLEMENTED"
+	EventStageUpdated     EventStage = "UPDATED"
+	EventStageSuspended   EventStage = "SUSPENDED"
+	EventStageTerminated  EventStage = "TERMINATED"
+	EventStageExpected    EventStage = "EXPECTED"
+)
+
+type EventTimePrecision string
+
+const (
+	EventTimePrecisionInstant EventTimePrecision = "INSTANT"
+	EventTimePrecisionDay     EventTimePrecision = "DAY"
+	EventTimePrecisionMonth   EventTimePrecision = "MONTH"
+	EventTimePrecisionQuarter EventTimePrecision = "QUARTER"
+	EventTimePrecisionYear    EventTimePrecision = "YEAR"
+	EventTimePrecisionUnknown EventTimePrecision = "UNKNOWN"
+)
+
 type EventPage struct {
 	Items    []Event
 	Total    int
@@ -127,12 +151,13 @@ type Event struct {
 }
 
 type EventSemantic struct {
-	Who   *string
-	What  *string
-	When  *string
-	Where *string
-	Why   *string
-	How   *string
+	Actors        []string
+	Action        string
+	Objects       []string
+	Stage         EventStage
+	Jurisdictions []string
+	EffectiveAt   *time.Time
+	TimePrecision EventTimePrecision
 }
 
 var ErrFakeMethodNotConfigured = errors.New("data service fake method is not configured")
