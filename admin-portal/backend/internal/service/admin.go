@@ -330,10 +330,16 @@ func event(value biz.Event) v1.Event {
 	response := v1.Event{
 		ID: value.ID, Title: value.Title, Summary: value.Summary,
 		Semantic: v1.EventSemantic{
-			Who: value.Semantic.Who, What: value.Semantic.What, When: value.Semantic.When,
-			Where: value.Semantic.Where, Why: value.Semantic.Why, How: value.Semantic.How,
+			Actors: append([]string{}, value.Semantic.Actors...), Action: value.Semantic.Action,
+			Objects: append([]string{}, value.Semantic.Objects...), Stage: string(value.Semantic.Stage),
+			Jurisdictions: append([]string{}, value.Semantic.Jurisdictions...),
+			TimePrecision: string(value.Semantic.TimePrecision),
 		},
 		Modality: string(value.Modality), Status: string(value.Status),
+	}
+	if value.Semantic.EffectiveAt != nil {
+		formatted := value.Semantic.EffectiveAt.Format(time.RFC3339)
+		response.Semantic.EffectiveAt = &formatted
 	}
 	if value.OccurredAt != nil {
 		formatted := value.OccurredAt.Format(time.RFC3339)

@@ -6,12 +6,21 @@ export interface PagedResponse<T> {
 }
 
 export interface EventSemantic {
-  who: string | null;
-  what: string | null;
-  when: string | null;
-  where: string | null;
-  why: string | null;
-  how: string | null;
+  actors: string[];
+  action: string;
+  objects: string[];
+  stage:
+    | 'OCCURRED'
+    | 'ANNOUNCED'
+    | 'EFFECTIVE'
+    | 'IMPLEMENTED'
+    | 'UPDATED'
+    | 'SUSPENDED'
+    | 'TERMINATED'
+    | 'EXPECTED';
+  jurisdictions: string[];
+  effective_at: string | null;
+  time_precision: 'INSTANT' | 'DAY' | 'MONTH' | 'QUARTER' | 'YEAR' | 'UNKNOWN';
 }
 
 export interface EventItem {
@@ -122,6 +131,9 @@ const utcTimestamp = z
   .refine((value) => value.endsWith('Z') && !Number.isNaN(Date.parse(value)));
 const domainUUID = '[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
 const sourceLevelSchema = z.enum(['L1_OFFICIAL', 'L2_WIRE', 'L3_MEDIA', 'L4_SOCIAL']);
+const uniqueNonEmptyStrings = z
+  .array(z.string().min(1))
+  .refine((values) => new Set(values).size === values.length);
 const evidenceCategorySchema: z.ZodType<EvidenceCategory> = z
   .object({
     id: z.string().regex(new RegExp(`^EVC${domainUUID}$`)),
@@ -137,12 +149,22 @@ const eventItemSchema: z.ZodType<EventItem> = z
     summary: z.string().min(1),
     semantic: z
       .object({
-        who: z.string().nullable(),
-        what: z.string().nullable(),
-        when: z.string().nullable(),
-        where: z.string().nullable(),
-        why: z.string().nullable(),
-        how: z.string().nullable()
+        actors: uniqueNonEmptyStrings.min(1),
+        action: z.string().min(1),
+        objects: uniqueNonEmptyStrings.min(1),
+        stage: z.enum([
+          'OCCURRED',
+          'ANNOUNCED',
+          'EFFECTIVE',
+          'IMPLEMENTED',
+          'UPDATED',
+          'SUSPENDED',
+          'TERMINATED',
+          'EXPECTED'
+        ]),
+        jurisdictions: uniqueNonEmptyStrings,
+        effective_at: utcTimestamp.nullable(),
+        time_precision: z.enum(['INSTANT', 'DAY', 'MONTH', 'QUARTER', 'YEAR', 'UNKNOWN'])
       })
       .strict(),
     modality: z.enum(['FACT', 'PLAN', 'SPEC']),

@@ -495,11 +495,20 @@ components:
     EventSemantic:
       type: object
       additionalProperties: false
-      required: [who, what, when, where, why, how]
+      required: [actors, action, objects, stage, jurisdictions, effective_at, time_precision]
       properties:
-        who: { type: string, nullable: true }
-        what: { type: string, nullable: true }
-        when: { type: string, nullable: true }
-        where: { type: string, nullable: true }
-        why: { type: string, nullable: true }
-        how: { type: string, nullable: true }
+        actors:
+          { type: array, minItems: 1, uniqueItems: true, items: { type: string, minLength: 1 } }
+        action: { type: string, minLength: 1 }
+        objects:
+          { type: array, minItems: 1, uniqueItems: true, items: { type: string, minLength: 1 } }
+        stage:
+          {
+            type: string,
+            enum: [OCCURRED, ANNOUNCED, EFFECTIVE, IMPLEMENTED, UPDATED, SUSPENDED, TERMINATED, EXPECTED]
+          }
+        jurisdictions: { type: array, uniqueItems: true, items: { type: string, minLength: 1 } }
+        effective_at:
+          allOf: [{ $ref: '#/components/schemas/UTCTimestamp' }]
+          nullable: true
+        time_precision: { type: string, enum: [INSTANT, DAY, MONTH, QUARTER, YEAR, UNKNOWN] }

@@ -94,12 +94,13 @@ type Event struct {
 }
 
 type EventSemantic struct {
-	Who   *string `json:"who"`
-	What  *string `json:"what"`
-	When  *string `json:"when"`
-	Where *string `json:"where"`
-	Why   *string `json:"why"`
-	How   *string `json:"how"`
+	Actors        []string `json:"actors"`
+	Action        string   `json:"action"`
+	Objects       []string `json:"objects"`
+	Stage         string   `json:"stage"`
+	Jurisdictions []string `json:"jurisdictions"`
+	EffectiveAt   *string  `json:"effective_at"`
+	TimePrecision string   `json:"time_precision"`
 }
 
 type EvidenceListResponse struct {

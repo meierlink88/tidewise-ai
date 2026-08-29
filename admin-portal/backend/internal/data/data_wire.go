@@ -47,29 +47,25 @@ func (w eventPageWire) toBiz() (biz.EventPage, error) {
 }
 
 type eventSemanticWire struct {
-	Who   *string `json:"who"`
-	What  *string `json:"what"`
-	When  *string `json:"when"`
-	Where *string `json:"where"`
-	Why   *string `json:"why"`
-	How   *string `json:"how"`
+	Actors        []string               `json:"actors"`
+	Action        string                 `json:"action"`
+	Objects       []string               `json:"objects"`
+	Stage         biz.EventStage         `json:"stage"`
+	Jurisdictions []string               `json:"jurisdictions"`
+	EffectiveAt   *time.Time             `json:"effective_at"`
+	TimePrecision biz.EventTimePrecision `json:"time_precision"`
 }
 
 func (w *eventSemanticWire) UnmarshalJSON(payload []byte) error {
-	var object map[string]json.RawMessage
-	if err := json.Unmarshal(payload, &object); err != nil || !hasExactJSONFields(payload, "who", "what", "when", "where", "why", "how") {
+	if !hasExactJSONFields(payload, "actors", "action", "objects", "stage", "jurisdictions", "effective_at", "time_precision") {
 		return &Error{Kind: ErrorKindDecode}
 	}
-	values := map[string]**string{
-		"who": &w.Who, "what": &w.What, "when": &w.When,
-		"where": &w.Where, "why": &w.Why, "how": &w.How,
+	type alias eventSemanticWire
+	var decoded alias
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		return &Error{Kind: ErrorKindDecode}
 	}
-	for name, target := range values {
-		raw, present := object[name]
-		if !present || json.Unmarshal(raw, target) != nil {
-			return &Error{Kind: ErrorKindDecode}
-		}
-	}
+	*w = eventSemanticWire(decoded)
 	return nil
 }
 
@@ -102,14 +98,45 @@ func (w eventWire) toBiz() (biz.Event, error) {
 		strings.TrimSpace(w.Summary) == "" || w.Semantic == nil || !validEventModality(w.Modality) || !validEventStatus(w.Status) {
 		return biz.Event{}, &Error{Kind: ErrorKindDecode}
 	}
+	semantic, err := w.Semantic.toBiz()
+	if err != nil {
+		return biz.Event{}, err
+	}
 	return biz.Event{
 		ID: w.ID, Title: w.Title, Summary: w.Summary,
-		Semantic: biz.EventSemantic{
-			Who: w.Semantic.Who, What: w.Semantic.What, When: w.Semantic.When,
-			Where: w.Semantic.Where, Why: w.Semantic.Why, How: w.Semantic.How,
-		},
+		Semantic: semantic,
 		Modality: w.Modality, OccurredAt: w.OccurredAt, AnnouncedAt: w.AnnouncedAt, Status: w.Status,
 	}, nil
+}
+
+func (w eventSemanticWire) toBiz() (biz.EventSemantic, error) {
+	if !validEventSemanticStrings(w.Actors, true) || strings.TrimSpace(w.Action) == "" ||
+		!validEventSemanticStrings(w.Objects, true) || !validEventStage(w.Stage) ||
+		!validEventSemanticStrings(w.Jurisdictions, false) || !validEventTimePrecision(w.TimePrecision) {
+		return biz.EventSemantic{}, &Error{Kind: ErrorKindDecode}
+	}
+	return biz.EventSemantic{
+		Actors: append([]string{}, w.Actors...), Action: w.Action, Objects: append([]string{}, w.Objects...),
+		Stage: w.Stage, Jurisdictions: append([]string{}, w.Jurisdictions...), EffectiveAt: w.EffectiveAt,
+		TimePrecision: w.TimePrecision,
+	}, nil
+}
+
+func validEventSemanticStrings(values []string, required bool) bool {
+	if values == nil || (required && len(values) == 0) {
+		return false
+	}
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if strings.TrimSpace(value) == "" {
+			return false
+		}
+		if _, exists := seen[value]; exists {
+			return false
+		}
+		seen[value] = struct{}{}
+	}
+	return true
 }
 
 var eventIDPattern = regexp.MustCompile(`^EVT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
@@ -133,6 +160,18 @@ func validEventModality(modality biz.EventModality) bool {
 
 func validEventStatus(status biz.EventLifecycleStatus) bool {
 	return status == biz.EventLifecycleActive || status == biz.EventLifecycleDeprecated || status == biz.EventLifecycleArchived
+}
+
+func validEventStage(stage biz.EventStage) bool {
+	return stage == biz.EventStageOccurred || stage == biz.EventStageAnnounced || stage == biz.EventStageEffective ||
+		stage == biz.EventStageImplemented || stage == biz.EventStageUpdated || stage == biz.EventStageSuspended ||
+		stage == biz.EventStageTerminated || stage == biz.EventStageExpected
+}
+
+func validEventTimePrecision(precision biz.EventTimePrecision) bool {
+	return precision == biz.EventTimePrecisionInstant || precision == biz.EventTimePrecisionDay ||
+		precision == biz.EventTimePrecisionMonth || precision == biz.EventTimePrecisionQuarter ||
+		precision == biz.EventTimePrecisionYear || precision == biz.EventTimePrecisionUnknown
 }
 
 type evidencePageWire struct {

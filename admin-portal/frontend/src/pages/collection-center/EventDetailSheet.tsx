@@ -2,8 +2,7 @@ import type { EventItem } from '../../api/dataIngestion';
 import {
   DetailItem,
   DetailList,
-  DetailSection,
-  nullableDetailValue
+  DetailSection
 } from '../../components/admin/detail-description-list';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../../components/ui/sheet';
@@ -61,21 +60,24 @@ export function EventDetailSheet({
             </DetailSection>
             <DetailSection title='事件语义'>
               <DetailList>
-                <DetailItem label='Who · 谁'>{nullableDetailValue(event.semantic.who)}</DetailItem>
-                <DetailItem label='When · 何时'>
-                  {nullableDetailValue(event.semantic.when)}
+                <DetailItem label='Actors · 参与方'>
+                  {listDetailValue(event.semantic.actors)}
                 </DetailItem>
-                <DetailItem full label='What · 什么'>
-                  {nullableDetailValue(event.semantic.what)}
+                <DetailItem full label='Action · 动作'>
+                  {event.semantic.action}
                 </DetailItem>
-                <DetailItem label='Where · 何地'>
-                  {nullableDetailValue(event.semantic.where)}
+                <DetailItem full label='Objects · 对象'>
+                  {listDetailValue(event.semantic.objects)}
                 </DetailItem>
-                <DetailItem label='Why · 为何'>
-                  {nullableDetailValue(event.semantic.why)}
+                <DetailItem label='Stage · 阶段'>{event.semantic.stage}</DetailItem>
+                <DetailItem label='Jurisdictions · 辖区'>
+                  {listDetailValue(event.semantic.jurisdictions)}
                 </DetailItem>
-                <DetailItem full label='How · 如何'>
-                  {nullableDetailValue(event.semantic.how)}
+                <DetailItem label='Effective at · 生效时间'>
+                  {formatNullableTime(event.semantic.effective_at)}
+                </DetailItem>
+                <DetailItem label='Time precision · 时间精度'>
+                  {event.semantic.time_precision}
                 </DetailItem>
               </DetailList>
             </DetailSection>
@@ -88,4 +90,8 @@ export function EventDetailSheet({
 
 function formatNullableTime(value: string | null): string {
   return value ? formatDateTime(value) : '—';
+}
+
+function listDetailValue(values: string[]): string {
+  return values.length > 0 ? values.join('、') : '—';
 }

@@ -45,6 +45,7 @@ func TestOpenAPIContractMatchesAdminTypedClient(t *testing.T) {
 	for schemaName, dataType := range map[string]reflect.Type{
 		"AdminEventPage":          reflect.TypeOf(eventPageWire{}),
 		"AdminEvent":              reflect.TypeOf(eventWire{}),
+		"EventSemantic":           reflect.TypeOf(eventSemanticWire{}),
 		"AdminEvidencePage":       reflect.TypeOf(evidencePageWire{}),
 		"AdminEvidence":           reflect.TypeOf(evidenceWire{}),
 		"RawEvidenceReadResult":   reflect.TypeOf(rawEvidenceResultWire{}),

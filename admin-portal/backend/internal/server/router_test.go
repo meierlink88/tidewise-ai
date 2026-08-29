@@ -104,7 +104,7 @@ func TestRetiredSchedulerEndpointsAreAbsent(t *testing.T) {
 func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T) {
 	eventTime := testTime()
 	announcedAt := eventTime.Add(30 * time.Minute)
-	what := "维持利率不变"
+	effectiveAt := eventTime.Add(24 * time.Hour)
 	calls := 0
 	var gotQuery biz.EventListQuery
 	client := &biz.FakeDataServiceRepo{ListEventsFunc: func(ctx context.Context, query biz.EventListQuery) (biz.EventPage, error) {
@@ -115,7 +115,11 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 		}
 		return biz.EventPage{Items: []biz.Event{{
 			ID: "EVT00000000-0000-5000-8000-000000000001", Title: "美联储维持利率不变", Summary: "摘要",
-			Semantic: biz.EventSemantic{What: &what}, Modality: biz.EventModalityFact,
+			Semantic: biz.EventSemantic{
+				Actors: []string{"美联储"}, Action: "维持利率不变", Objects: []string{"联邦基金利率"},
+				Stage: biz.EventStageAnnounced, Jurisdictions: []string{"美国"}, EffectiveAt: &effectiveAt,
+				TimePrecision: biz.EventTimePrecisionDay,
+			}, Modality: biz.EventModalityFact,
 			OccurredAt: &eventTime, AnnouncedAt: &announcedAt, Status: biz.EventLifecycleActive,
 		}}, Total: 1, Page: 1, PageSize: 50}, nil
 	}}
@@ -140,7 +144,14 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 	if envelope.RequestID != "admin-request-event" || response.Header().Get(data.RequestIDHeader) != envelope.RequestID {
 		t.Fatalf("request IDs = %q/%q", envelope.RequestID, response.Header().Get(data.RequestIDHeader))
 	}
-	if body.Total != 1 || len(body.Items) != 1 || body.Items[0].Status != "ACTIVE" || body.Items[0].AnnouncedAt == nil || *body.Items[0].AnnouncedAt != announcedAt.Format(time.RFC3339) || body.Items[0].Semantic.What == nil || *body.Items[0].Semantic.What != what {
+	if body.Total != 1 || len(body.Items) != 1 || body.Items[0].Status != "ACTIVE" ||
+		body.Items[0].AnnouncedAt == nil || *body.Items[0].AnnouncedAt != announcedAt.Format(time.RFC3339) ||
+		len(body.Items[0].Semantic.Actors) != 1 || body.Items[0].Semantic.Actors[0] != "美联储" ||
+		body.Items[0].Semantic.Action != "维持利率不变" || len(body.Items[0].Semantic.Objects) != 1 ||
+		body.Items[0].Semantic.Objects[0] != "联邦基金利率" || body.Items[0].Semantic.Stage != "ANNOUNCED" ||
+		len(body.Items[0].Semantic.Jurisdictions) != 1 || body.Items[0].Semantic.Jurisdictions[0] != "美国" ||
+		body.Items[0].Semantic.EffectiveAt == nil || *body.Items[0].Semantic.EffectiveAt != effectiveAt.Format(time.RFC3339) ||
+		body.Items[0].Semantic.TimePrecision != "DAY" {
 		t.Fatalf("response = %#v", body)
 	}
 }
@@ -149,6 +160,10 @@ func TestEventsAPIAlwaysEmitsNullableTimeFields(t *testing.T) {
 	client := &biz.FakeDataServiceRepo{ListEventsFunc: func(context.Context, biz.EventListQuery) (biz.EventPage, error) {
 		return biz.EventPage{Items: []biz.Event{{
 			ID: "EVT00000000-0000-5000-8000-000000000001", Title: "无时间事件", Summary: "摘要",
+			Semantic: biz.EventSemantic{
+				Actors: []string{"发布方"}, Action: "发布事件", Objects: []string{"事件"}, Stage: biz.EventStageAnnounced,
+				Jurisdictions: []string{}, TimePrecision: biz.EventTimePrecisionUnknown,
+			},
 			Modality: biz.EventModalityFact, Status: biz.EventLifecycleActive,
 		}}, Total: 1, Page: 1, PageSize: 50}, nil
 	}}

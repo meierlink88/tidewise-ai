@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -23,7 +24,7 @@ func TestHTTPClientListsAdminDataWithIdentityRequestIDAndTypedQueries(t *testing
 		writer.Header().Set("Content-Type", "application/json")
 		switch request.URL.Path {
 		case eventsPath:
-			_, _ = writer.Write([]byte(`{"request_id":"data-req-2","result":{"items":[{"id":"EVT22222222-2222-5222-8222-222222222222","title":"event","summary":"summary","semantic":{"who":null,"what":"rate hold","when":null,"where":null,"why":null,"how":null},"modality":"FACT","occurred_at":"2026-07-17T01:02:03Z","announced_at":null,"status":"ACTIVE"}],"total":1,"page":1,"page_size":20}}`))
+			_, _ = writer.Write([]byte(`{"request_id":"data-req-2","result":{"items":[{"id":"EVT22222222-2222-5222-8222-222222222222","title":"event","summary":"summary","semantic":{"actors":["Federal Reserve"],"action":"holds target rate","objects":["federal funds rate"],"stage":"ANNOUNCED","jurisdictions":["United States"],"effective_at":null,"time_precision":"DAY"},"modality":"FACT","occurred_at":"2026-07-17T01:02:03Z","announced_at":null,"status":"ACTIVE"}],"total":1,"page":1,"page_size":20}}`))
 		default:
 			writer.WriteHeader(http.StatusNotFound)
 		}
@@ -37,7 +38,13 @@ func TestHTTPClientListsAdminDataWithIdentityRequestIDAndTypedQueries(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(eventPage.Items) != 1 || eventPage.Items[0].Status != biz.EventLifecycleActive || eventPage.Items[0].Semantic.What == nil || *eventPage.Items[0].Semantic.What != "rate hold" {
+	if len(eventPage.Items) != 1 || eventPage.Items[0].Status != biz.EventLifecycleActive ||
+		!reflect.DeepEqual(eventPage.Items[0].Semantic.Actors, []string{"Federal Reserve"}) ||
+		eventPage.Items[0].Semantic.Action != "holds target rate" ||
+		!reflect.DeepEqual(eventPage.Items[0].Semantic.Objects, []string{"federal funds rate"}) ||
+		eventPage.Items[0].Semantic.Stage != biz.EventStageAnnounced ||
+		!reflect.DeepEqual(eventPage.Items[0].Semantic.Jurisdictions, []string{"United States"}) ||
+		eventPage.Items[0].Semantic.EffectiveAt != nil || eventPage.Items[0].Semantic.TimePrecision != biz.EventTimePrecisionDay {
 		t.Fatalf("events = %#v", eventPage)
 	}
 
@@ -242,14 +249,16 @@ func TestHTTPClientRejectsMalformedSuccessEnvelope(t *testing.T) {
 
 func TestHTTPClientRejectsEventContractDrift(t *testing.T) {
 	t.Parallel()
-	valid := `{"request_id":"data-req","result":{"items":[{"id":"EVT22222222-2222-5222-8222-222222222222","title":"event","summary":"summary","semantic":{"who":null,"what":"fact","when":null,"where":null,"why":null,"how":null},"modality":"FACT","occurred_at":null,"announced_at":null,"status":"ACTIVE"}],"total":1,"page":1,"page_size":50}}`
+	valid := `{"request_id":"data-req","result":{"items":[{"id":"EVT22222222-2222-5222-8222-222222222222","title":"event","summary":"summary","semantic":{"actors":["Federal Reserve"],"action":"holds target rate","objects":["federal funds rate"],"stage":"ANNOUNCED","jurisdictions":["United States"],"effective_at":null,"time_precision":"DAY"},"modality":"FACT","occurred_at":null,"announced_at":null,"status":"ACTIVE"}],"total":1,"page":1,"page_size":50}}`
 	for _, test := range []struct {
 		name    string
 		payload string
 	}{
-		{name: "missing semantic", payload: strings.Replace(valid, `,"semantic":{"who":null,"what":"fact","when":null,"where":null,"why":null,"how":null}`, "", 1)},
-		{name: "missing semantic key", payload: strings.Replace(valid, `,"how":null`, "", 1)},
-		{name: "extra semantic key", payload: strings.Replace(valid, `,"how":null`, `,"how":null,"extra":null`, 1)},
+		{name: "missing semantic", payload: strings.Replace(valid, `,"semantic":{"actors":["Federal Reserve"],"action":"holds target rate","objects":["federal funds rate"],"stage":"ANNOUNCED","jurisdictions":["United States"],"effective_at":null,"time_precision":"DAY"}`, "", 1)},
+		{name: "missing semantic key", payload: strings.Replace(valid, `,"time_precision":"DAY"`, "", 1)},
+		{name: "extra semantic key", payload: strings.Replace(valid, `,"time_precision":"DAY"`, `,"time_precision":"DAY","extra":null`, 1)},
+		{name: "legacy semantic keys", payload: strings.Replace(valid, `"semantic":{"actors":["Federal Reserve"],"action":"holds target rate","objects":["federal funds rate"],"stage":"ANNOUNCED","jurisdictions":["United States"],"effective_at":null,"time_precision":"DAY"}`, `"semantic":{"who":null,"what":"fact","when":null,"where":null,"why":null,"how":null}`, 1)},
+		{name: "invalid semantic stage", payload: strings.Replace(valid, `"stage":"ANNOUNCED"`, `"stage":"INVALID"`, 1)},
 		{name: "missing nullable time", payload: strings.Replace(valid, `,"occurred_at":null`, "", 1)},
 		{name: "wrong ID", payload: strings.Replace(valid, "EVT22222222-2222-5222-8222-222222222222", "not-an-event", 1)},
 		{name: "blank title", payload: strings.Replace(valid, `"title":"event"`, `"title":" "`, 1)},
