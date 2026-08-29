@@ -131,8 +131,12 @@ const utcTimestamp = z
   .refine((value) => value.endsWith('Z') && !Number.isNaN(Date.parse(value)));
 const domainUUID = '[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
 const sourceLevelSchema = z.enum(['L1_OFFICIAL', 'L2_WIRE', 'L3_MEDIA', 'L4_SOCIAL']);
+const nonBlankString = z
+  .string()
+  .min(1)
+  .refine((value) => value.trim().length > 0);
 const uniqueNonEmptyStrings = z
-  .array(z.string().min(1))
+  .array(nonBlankString)
   .refine((values) => new Set(values).size === values.length);
 const evidenceCategorySchema: z.ZodType<EvidenceCategory> = z
   .object({
@@ -150,7 +154,7 @@ const eventItemSchema: z.ZodType<EventItem> = z
     semantic: z
       .object({
         actors: uniqueNonEmptyStrings.min(1),
-        action: z.string().min(1),
+        action: nonBlankString,
         objects: uniqueNonEmptyStrings.min(1),
         stage: z.enum([
           'OCCURRED',

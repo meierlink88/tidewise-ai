@@ -259,6 +259,7 @@ func TestHTTPClientRejectsEventContractDrift(t *testing.T) {
 		{name: "extra semantic key", payload: strings.Replace(valid, `,"time_precision":"DAY"`, `,"time_precision":"DAY","extra":null`, 1)},
 		{name: "legacy semantic keys", payload: strings.Replace(valid, `"semantic":{"actors":["Federal Reserve"],"action":"holds target rate","objects":["federal funds rate"],"stage":"ANNOUNCED","jurisdictions":["United States"],"effective_at":null,"time_precision":"DAY"}`, `"semantic":{"who":null,"what":"fact","when":null,"where":null,"why":null,"how":null}`, 1)},
 		{name: "invalid semantic stage", payload: strings.Replace(valid, `"stage":"ANNOUNCED"`, `"stage":"INVALID"`, 1)},
+		{name: "non UTC semantic effective time", payload: strings.Replace(valid, `"effective_at":null`, `"effective_at":"2026-09-01T08:00:00+08:00"`, 1)},
 		{name: "missing nullable time", payload: strings.Replace(valid, `,"occurred_at":null`, "", 1)},
 		{name: "wrong ID", payload: strings.Replace(valid, "EVT22222222-2222-5222-8222-222222222222", "not-an-event", 1)},
 		{name: "blank title", payload: strings.Replace(valid, `"title":"event"`, `"title":" "`, 1)},

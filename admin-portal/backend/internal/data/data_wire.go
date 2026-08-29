@@ -110,9 +110,10 @@ func (w eventWire) toBiz() (biz.Event, error) {
 }
 
 func (w eventSemanticWire) toBiz() (biz.EventSemantic, error) {
-	if !validEventSemanticStrings(w.Actors, true) || strings.TrimSpace(w.Action) == "" ||
-		!validEventSemanticStrings(w.Objects, true) || !validEventStage(w.Stage) ||
-		!validEventSemanticStrings(w.Jurisdictions, false) || !validEventTimePrecision(w.TimePrecision) {
+	if !validEventSemanticStringArray(w.Actors, 1) || strings.TrimSpace(w.Action) == "" ||
+		!validEventSemanticStringArray(w.Objects, 1) || !validEventStage(w.Stage) ||
+		!validEventSemanticStringArray(w.Jurisdictions, 0) ||
+		(w.EffectiveAt != nil && w.EffectiveAt.Location() != time.UTC) || !validEventTimePrecision(w.TimePrecision) {
 		return biz.EventSemantic{}, &Error{Kind: ErrorKindDecode}
 	}
 	return biz.EventSemantic{
@@ -122,8 +123,8 @@ func (w eventSemanticWire) toBiz() (biz.EventSemantic, error) {
 	}, nil
 }
 
-func validEventSemanticStrings(values []string, required bool) bool {
-	if values == nil || (required && len(values) == 0) {
+func validEventSemanticStringArray(values []string, minimumItems int) bool {
+	if values == nil || len(values) < minimumItems {
 		return false
 	}
 	seen := make(map[string]struct{}, len(values))

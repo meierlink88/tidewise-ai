@@ -57,6 +57,100 @@ describe('data ingestion api client', () => {
     });
   });
 
+  it.each([
+    [
+      'missing field',
+      {
+        actors: ['Actor'],
+        action: 'acts',
+        objects: ['Object'],
+        stage: 'OCCURRED',
+        jurisdictions: [],
+        effective_at: null
+      }
+    ],
+    [
+      'extra field',
+      {
+        actors: ['Actor'],
+        action: 'acts',
+        objects: ['Object'],
+        stage: 'OCCURRED',
+        jurisdictions: [],
+        effective_at: null,
+        time_precision: 'DAY',
+        who: null
+      }
+    ],
+    [
+      'invalid stage',
+      {
+        actors: ['Actor'],
+        action: 'acts',
+        objects: ['Object'],
+        stage: 'INVALID',
+        jurisdictions: [],
+        effective_at: null,
+        time_precision: 'DAY'
+      }
+    ],
+    [
+      'blank actor',
+      {
+        actors: [' '],
+        action: 'acts',
+        objects: ['Object'],
+        stage: 'OCCURRED',
+        jurisdictions: [],
+        effective_at: null,
+        time_precision: 'DAY'
+      }
+    ],
+    [
+      'blank action',
+      {
+        actors: ['Actor'],
+        action: ' ',
+        objects: ['Object'],
+        stage: 'OCCURRED',
+        jurisdictions: [],
+        effective_at: null,
+        time_precision: 'DAY'
+      }
+    ]
+  ])('rejects Event semantic contract drift: %s', async (_name, semantic) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          request_id: 'admin-event-test',
+          result: {
+            items: [
+              {
+                id: 'EVT00000000-0000-5000-8000-000000000001',
+                title: 'Event',
+                summary: 'Summary',
+                semantic,
+                modality: 'FACT',
+                occurred_at: null,
+                announced_at: null,
+                status: 'ACTIVE'
+              }
+            ],
+            total: 1,
+            page: 1,
+            page_size: 50
+          }
+        })
+      })
+    );
+
+    await expect(loadEvents('secret-token', { page: 1, title: '' })).rejects.toThrow(
+      'Admin API returned an invalid response'
+    );
+  });
+
   it('loads current events with the frozen filters', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
