@@ -866,10 +866,10 @@ func missingCategoryIssue(requested []CategoryID, categories []Category) *Issue 
 }
 
 func cloneEvidence(input Evidence) Evidence {
-	input.Keywords = append([]string(nil), input.Keywords...)
-	input.Semantic.Actors = append([]string(nil), input.Semantic.Actors...)
-	input.Semantic.Objects = append([]string(nil), input.Semantic.Objects...)
-	input.Semantic.Jurisdictions = append([]string(nil), input.Semantic.Jurisdictions...)
+	input.Keywords = cloneSlice(input.Keywords)
+	input.Semantic.Actors = cloneSlice(input.Semantic.Actors)
+	input.Semantic.Objects = cloneSlice(input.Semantic.Objects)
+	input.Semantic.Jurisdictions = cloneSlice(input.Semantic.Jurisdictions)
 	input.Semantic.Reason = cloneString(input.Semantic.Reason)
 	input.Semantic.Method = cloneString(input.Semantic.Method)
 	input.Semantic.Time.Raw = cloneString(input.Semantic.Time.Raw)
@@ -881,7 +881,7 @@ func cloneEvidence(input Evidence) Evidence {
 	if input.Semantic.Time.EndAt != nil {
 		*input.Semantic.Time.EndAt = normalizePostgresTime(*input.Semantic.Time.EndAt)
 	}
-	input.Semantic.Metrics = append([]EvidenceMetric(nil), input.Semantic.Metrics...)
+	input.Semantic.Metrics = cloneSlice(input.Semantic.Metrics)
 	for index := range input.Semantic.Metrics {
 		metric := &input.Semantic.Metrics[index]
 		metric.Value = cloneString(metric.Value)
@@ -896,6 +896,15 @@ func cloneEvidence(input Evidence) Evidence {
 		input.Semantic.Attribution = &attribution
 	}
 	return input
+}
+
+func cloneSlice[T any](input []T) []T {
+	if input == nil {
+		return nil
+	}
+	result := make([]T, len(input))
+	copy(result, input)
+	return result
 }
 
 func normalizePostgresTime(value time.Time) time.Time {

@@ -125,6 +125,7 @@ func TestPostgresSnapshotPublicationWorksOnCurrentSchema(t *testing.T) {
 			Actors: []string{"Research Source"}, Action: "supports", Objects: []string{"Research snapshot"},
 			Stage: evidencebiz.EvidenceStageOccurred, Modality: evidencebiz.EvidenceModalityFact,
 			Time: evidencebiz.EvidenceTime{Precision: evidencebiz.EvidenceTimeUnknown}, Jurisdictions: []string{}, Metrics: []evidencebiz.EvidenceMetric{},
+			Attribution: &evidencebiz.EvidenceAttribution{},
 		},
 	}})
 	if err != nil {

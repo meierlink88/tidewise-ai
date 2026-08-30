@@ -439,6 +439,7 @@ func publishAtomicEvidence(t *testing.T, db *sql.DB, publicationKey string) stri
 			Actors: []string{"Example Corp"}, Action: "announced a new production line", Objects: []string{"production line"},
 			Stage: evidencebiz.EvidenceStageAnnounced, Modality: evidencebiz.EvidenceModalityFact,
 			Time: evidencebiz.EvidenceTime{Precision: evidencebiz.EvidenceTimeUnknown}, Jurisdictions: []string{}, Metrics: []evidencebiz.EvidenceMetric{},
+			Attribution: &evidencebiz.EvidenceAttribution{},
 		},
 	}})
 	if err != nil {

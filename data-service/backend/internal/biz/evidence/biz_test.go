@@ -133,6 +133,12 @@ func TestPublishEvidenceCreatesCompleteSplitSetThenReusesIt(t *testing.T) {
 		created.Items[1] != (EvidenceResultItem{InputIndex: 1, ID: "EVDae47f5e0-0367-52d1-9c93-963d8bd36535"}) {
 		t.Fatalf("Evidence request mappings = %#v", created.Items)
 	}
+	for _, evidenceID := range created.IDs {
+		stored := store.evidences[evidenceID]
+		if stored.Semantic.Jurisdictions == nil || stored.Semantic.Metrics == nil {
+			t.Fatalf("stored Evidence %q changed required empty semantic collections to null", evidenceID)
+		}
+	}
 
 	reused, err := service.PublishEvidence(context.Background(), raw.ID, evidences)
 	if err != nil {
