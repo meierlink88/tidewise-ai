@@ -46,8 +46,8 @@ func (s Store) CreateEvent(ctx context.Context, aggregate eventbiz.Aggregate) (r
     id, title, summary, semantic, modality, occurred_at, announced_at, status
 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
 		aggregate.Event.ID, aggregate.Event.Title, aggregate.Event.Summary, semantic,
-		aggregate.Event.Modality, nullableTime(aggregate.Event.OccurredAt),
-		nullableTime(aggregate.Event.AnnouncedAt), aggregate.Event.Status,
+		aggregate.Event.Semantic.Modality, nullableTime(aggregate.Event.Semantic.Time.OccurredAt),
+		nullableTime(aggregate.Event.Semantic.Time.AnnouncedAt), aggregate.Event.Status,
 	); err != nil {
 		return fmt.Errorf("insert Event %q: %w", aggregate.Event.ID, err)
 	}
@@ -94,10 +94,11 @@ func (s Store) EventByID(ctx context.Context, eventID string) (eventbiz.Aggregat
 	var aggregate eventbiz.Aggregate
 	var semantic []byte
 	var occurredAt, announcedAt sql.NullTime
+	var modality eventbiz.Modality
 	err := s.db.QueryRowContext(ctx, `SELECT id, title, summary, semantic, modality, occurred_at, announced_at, status
 FROM events WHERE id = $1`, eventID).Scan(
 		&aggregate.Event.ID, &aggregate.Event.Title, &aggregate.Event.Summary, &semantic,
-		&aggregate.Event.Modality, &occurredAt, &announcedAt, &aggregate.Event.Status,
+		&modality, &occurredAt, &announcedAt, &aggregate.Event.Status,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return eventbiz.Aggregate{}, eventbiz.ErrEventNotFound
@@ -108,8 +109,11 @@ FROM events WHERE id = $1`, eventID).Scan(
 	if err := decodeSemantic(semantic, &aggregate.Event.Semantic); err != nil {
 		return eventbiz.Aggregate{}, fmt.Errorf("read Event semantic invariant: %w", err)
 	}
-	aggregate.Event.OccurredAt = nullTimePointer(occurredAt)
-	aggregate.Event.AnnouncedAt = nullTimePointer(announcedAt)
+	if aggregate.Event.Semantic.Modality != modality ||
+		!sameOptionalTime(aggregate.Event.Semantic.Time.OccurredAt, nullTimePointer(occurredAt)) ||
+		!sameOptionalTime(aggregate.Event.Semantic.Time.AnnouncedAt, nullTimePointer(announcedAt)) {
+		return eventbiz.Aggregate{}, errors.New("persisted Event time projections conflict with semantic")
+	}
 	if err := validatePersistedEvent(aggregate.Event); err != nil {
 		return eventbiz.Aggregate{}, fmt.Errorf("read Event invariant: %w", err)
 	}
@@ -255,15 +259,19 @@ func scanEvent(scanner rowScanner) (eventbiz.Event, error) {
 	var item eventbiz.Event
 	var semantic []byte
 	var occurredAt, announcedAt sql.NullTime
-	if err := scanner.Scan(&item.ID, &item.Title, &item.Summary, &semantic, &item.Modality,
+	var modality eventbiz.Modality
+	if err := scanner.Scan(&item.ID, &item.Title, &item.Summary, &semantic, &modality,
 		&occurredAt, &announcedAt, &item.Status); err != nil {
 		return eventbiz.Event{}, fmt.Errorf("scan Event: %w", err)
 	}
 	if err := decodeSemantic(semantic, &item.Semantic); err != nil {
 		return eventbiz.Event{}, fmt.Errorf("decode Event semantic: %w", err)
 	}
-	item.OccurredAt = nullTimePointer(occurredAt)
-	item.AnnouncedAt = nullTimePointer(announcedAt)
+	if item.Semantic.Modality != modality ||
+		!sameOptionalTime(item.Semantic.Time.OccurredAt, nullTimePointer(occurredAt)) ||
+		!sameOptionalTime(item.Semantic.Time.AnnouncedAt, nullTimePointer(announcedAt)) {
+		return eventbiz.Event{}, errors.New("read Event projections conflict with semantic")
+	}
 	if err := validatePersistedEvent(item); err != nil {
 		return eventbiz.Event{}, fmt.Errorf("read Event invariant: %w", err)
 	}
@@ -274,13 +282,20 @@ func validatePersistedEvent(event eventbiz.Event) error {
 	if !coreid.Is(event.ID, coreid.Event) || strings.TrimSpace(event.Title) == "" || strings.TrimSpace(event.Summary) == "" {
 		return errors.New("required Event field is missing")
 	}
-	if event.Modality != eventbiz.ModalityFact && event.Modality != eventbiz.ModalityPlan && event.Modality != eventbiz.ModalitySpec {
+	if event.Semantic.Modality != eventbiz.ModalityFact && event.Semantic.Modality != eventbiz.ModalityPlan && event.Semantic.Modality != eventbiz.ModalitySpec {
 		return errors.New("Event modality is invalid")
 	}
 	if event.Status != eventbiz.LifecycleStatusActive && event.Status != eventbiz.LifecycleStatusDeprecated && event.Status != eventbiz.LifecycleStatusArchived {
 		return errors.New("Event status is invalid")
 	}
 	return nil
+}
+
+func sameOptionalTime(left, right *time.Time) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return left.Equal(*right)
 }
 
 func validatePersistedEvidenceLink(link eventbiz.EvidenceLink, eventID string) error {

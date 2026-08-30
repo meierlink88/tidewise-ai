@@ -77,12 +77,12 @@ _Avoid_: 裸 UUID、任意字符串前缀、`PREFIX_...`、`PREFIX-...`、调用
 
 **Event**:
 经过外部提炼与同一现实动作判定后发布的标准化事件事实，包含 `EVT` 身份、
-title、summary、严格七键身份语义 `semantic`（actors/action/objects/stage/jurisdictions/
-effective_at/time_precision）、FACT/PLAN/SPEC modality、可空 occurred/announced 时间和
-ACTIVE/DEPRECATED/ARCHIVED lifecycle。actors 与 objects 非空，action 非空；stage 与
-time_precision 使用受控值。Data 不进行 Event 语义去重，也不接收 Event ID；
+title、summary、严格十键业务语义 `semantic`（actors/action/objects/stage/modality/time/
+jurisdictions/reason/method/metrics）和 ACTIVE/DEPRECATED/ARCHIVED lifecycle。time 包含可空
+occurred/announced/effective UTC 时间与受控 precision，且至少一个时间锚点存在。Event 不复制
+Evidence attribution；来源由 Evidence Link 保持。Data 不进行 Event 语义去重，也不接收 Event ID；
 Reasoning 完成去重决定后才调用 Event 发布合同。
-_Avoid_: 5W1H 作为 Event 身份、Data 语义去重、调用方 Event ID、无证据 Event
+_Avoid_: 5W1H 作为 Event 身份、顶层 modality/occurred_at/announced_at 双写、Event attribution、Data 语义去重、调用方 Event ID、无证据 Event
 
 **Event Evidence Link**:
 Event 与 Atomic Evidence 的唯一当前证据关系，使用 `EEL` 身份、严格外键和 0.00–1.00 的独立

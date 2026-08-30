@@ -34,7 +34,7 @@ export function EventDetailSheet({
             </SheetTitle>
             <SheetDescription className='sr-only'>查看事件的完整业务信息</SheetDescription>
             <div className='mt-3 flex flex-wrap gap-2'>
-              <StatusBadge tone='running'>{event.modality}</StatusBadge>
+              <StatusBadge tone='running'>{event.semantic.modality}</StatusBadge>
               <StatusBadge
                 tone={
                   event.status === 'ACTIVE'
@@ -52,10 +52,14 @@ export function EventDetailSheet({
             <DetailSection title='基本信息'>
               <p className='rounded-md bg-muted px-4 py-3 text-sm leading-6'>{event.summary}</p>
               <DetailList>
-                <DetailItem label='模态'>{event.modality}</DetailItem>
+                <DetailItem label='模态'>{event.semantic.modality}</DetailItem>
                 <DetailItem label='状态'>{event.status}</DetailItem>
-                <DetailItem label='发生时间'>{formatNullableTime(event.occurred_at)}</DetailItem>
-                <DetailItem label='公布时间'>{formatNullableTime(event.announced_at)}</DetailItem>
+                <DetailItem label='发生时间'>
+                  {formatNullableTime(event.semantic.time.occurred_at)}
+                </DetailItem>
+                <DetailItem label='公布时间'>
+                  {formatNullableTime(event.semantic.time.announced_at)}
+                </DetailItem>
               </DetailList>
             </DetailSection>
             <DetailSection title='事件语义'>
@@ -74,10 +78,16 @@ export function EventDetailSheet({
                   {listDetailValue(event.semantic.jurisdictions)}
                 </DetailItem>
                 <DetailItem label='Effective at · 生效时间'>
-                  {formatNullableTime(event.semantic.effective_at)}
+                  {formatNullableTime(event.semantic.time.effective_at)}
                 </DetailItem>
                 <DetailItem label='Time precision · 时间精度'>
-                  {event.semantic.time_precision}
+                  {event.semantic.time.precision}
+                </DetailItem>
+                <DetailItem full label='Reason · 原因'>
+                  {event.semantic.reason ?? '—'}
+                </DetailItem>
+                <DetailItem full label='Method · 执行方式'>
+                  {event.semantic.method ?? '—'}
                 </DetailItem>
               </DetailList>
             </DetailSection>

@@ -21,8 +21,26 @@ const evidenceSemantic = {
   attribution: { reported_by: null, claimed_by: '商务部' }
 };
 
+const eventSemantic = {
+  actors: ['Federal Reserve'],
+  action: 'holds target rate',
+  objects: ['federal funds rate'],
+  stage: 'ANNOUNCED',
+  modality: 'FACT',
+  time: {
+    occurred_at: '2026-07-09T08:00:00Z',
+    announced_at: null,
+    effective_at: null,
+    precision: 'DAY'
+  },
+  jurisdictions: ['United States'],
+  reason: null,
+  method: null,
+  metrics: []
+};
+
 describe('data ingestion api client', () => {
-  it('validates the complete seven-field Event semantic projection', async () => {
+  it('validates the complete Event business proposition projection', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue({
@@ -35,18 +53,7 @@ describe('data ingestion api client', () => {
                 id: 'EVT00000000-0000-5000-8000-000000000001',
                 title: '美联储维持利率不变',
                 summary: '美联储宣布维持联邦基金利率目标区间不变。',
-                semantic: {
-                  actors: ['Federal Reserve'],
-                  action: 'holds target rate',
-                  objects: ['federal funds rate'],
-                  stage: 'ANNOUNCED',
-                  jurisdictions: ['United States'],
-                  effective_at: null,
-                  time_precision: 'DAY'
-                },
-                modality: 'FACT',
-                occurred_at: '2026-07-09T08:00:00Z',
-                announced_at: null,
+                semantic: eventSemantic,
                 status: 'ACTIVE'
               }
             ],
@@ -60,78 +67,15 @@ describe('data ingestion api client', () => {
 
     const page = await loadEvents('secret-token', { page: 1, title: '' });
 
-    expect(page.items[0]?.semantic).toEqual({
-      actors: ['Federal Reserve'],
-      action: 'holds target rate',
-      objects: ['federal funds rate'],
-      stage: 'ANNOUNCED',
-      jurisdictions: ['United States'],
-      effective_at: null,
-      time_precision: 'DAY'
-    });
+    expect(page.items[0]?.semantic).toEqual(eventSemantic);
   });
 
   it.each([
-    [
-      'missing field',
-      {
-        actors: ['Actor'],
-        action: 'acts',
-        objects: ['Object'],
-        stage: 'OCCURRED',
-        jurisdictions: [],
-        effective_at: null
-      }
-    ],
-    [
-      'extra field',
-      {
-        actors: ['Actor'],
-        action: 'acts',
-        objects: ['Object'],
-        stage: 'OCCURRED',
-        jurisdictions: [],
-        effective_at: null,
-        time_precision: 'DAY',
-        who: null
-      }
-    ],
-    [
-      'invalid stage',
-      {
-        actors: ['Actor'],
-        action: 'acts',
-        objects: ['Object'],
-        stage: 'INVALID',
-        jurisdictions: [],
-        effective_at: null,
-        time_precision: 'DAY'
-      }
-    ],
-    [
-      'blank actor',
-      {
-        actors: [' '],
-        action: 'acts',
-        objects: ['Object'],
-        stage: 'OCCURRED',
-        jurisdictions: [],
-        effective_at: null,
-        time_precision: 'DAY'
-      }
-    ],
-    [
-      'blank action',
-      {
-        actors: ['Actor'],
-        action: ' ',
-        objects: ['Object'],
-        stage: 'OCCURRED',
-        jurisdictions: [],
-        effective_at: null,
-        time_precision: 'DAY'
-      }
-    ]
+    ['missing field', { ...eventSemantic, metrics: undefined }],
+    ['extra field', { ...eventSemantic, who: null }],
+    ['invalid stage', { ...eventSemantic, stage: 'INVALID' }],
+    ['blank actor', { ...eventSemantic, actors: [' '] }],
+    ['blank action', { ...eventSemantic, action: ' ' }]
   ])('rejects Event semantic contract drift: %s', async (_name, semantic) => {
     vi.stubGlobal(
       'fetch',
@@ -146,9 +90,6 @@ describe('data ingestion api client', () => {
                 title: 'Event',
                 summary: 'Summary',
                 semantic,
-                modality: 'FACT',
-                occurred_at: null,
-                announced_at: null,
                 status: 'ACTIVE'
               }
             ],

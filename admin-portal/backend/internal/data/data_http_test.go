@@ -24,7 +24,7 @@ func TestHTTPClientListsAdminDataWithIdentityRequestIDAndTypedQueries(t *testing
 		writer.Header().Set("Content-Type", "application/json")
 		switch request.URL.Path {
 		case eventsPath:
-			_, _ = writer.Write([]byte(`{"request_id":"data-req-2","result":{"items":[{"id":"EVT22222222-2222-5222-8222-222222222222","title":"event","summary":"summary","semantic":{"actors":["Federal Reserve"],"action":"holds target rate","objects":["federal funds rate"],"stage":"ANNOUNCED","jurisdictions":["United States"],"effective_at":null,"time_precision":"DAY"},"modality":"FACT","occurred_at":"2026-07-17T01:02:03Z","announced_at":null,"status":"ACTIVE"}],"total":1,"page":1,"page_size":20}}`))
+			_, _ = writer.Write([]byte(`{"request_id":"data-req-2","result":{"items":[{"id":"EVT22222222-2222-5222-8222-222222222222","title":"event","summary":"summary","semantic":{"actors":["Federal Reserve"],"action":"holds target rate","objects":["federal funds rate"],"stage":"ANNOUNCED","modality":"FACT","time":{"occurred_at":"2026-07-17T01:02:03Z","announced_at":null,"effective_at":null,"precision":"DAY"},"jurisdictions":["United States"],"reason":null,"method":null,"metrics":[]},"status":"ACTIVE"}],"total":1,"page":1,"page_size":20}}`))
 		default:
 			writer.WriteHeader(http.StatusNotFound)
 		}
@@ -44,7 +44,9 @@ func TestHTTPClientListsAdminDataWithIdentityRequestIDAndTypedQueries(t *testing
 		!reflect.DeepEqual(eventPage.Items[0].Semantic.Objects, []string{"federal funds rate"}) ||
 		eventPage.Items[0].Semantic.Stage != biz.EventStageAnnounced ||
 		!reflect.DeepEqual(eventPage.Items[0].Semantic.Jurisdictions, []string{"United States"}) ||
-		eventPage.Items[0].Semantic.EffectiveAt != nil || eventPage.Items[0].Semantic.TimePrecision != biz.EventTimePrecisionDay {
+		eventPage.Items[0].Semantic.Modality != biz.EventModalityFact ||
+		eventPage.Items[0].Semantic.Time.OccurredAt == nil || !eventPage.Items[0].Semantic.Time.OccurredAt.Equal(time.Date(2026, 7, 17, 1, 2, 3, 0, time.UTC)) ||
+		eventPage.Items[0].Semantic.Time.EffectiveAt != nil || eventPage.Items[0].Semantic.Time.Precision != biz.EventTimePrecisionDay {
 		t.Fatalf("events = %#v", eventPage)
 	}
 
@@ -249,18 +251,20 @@ func TestHTTPClientRejectsMalformedSuccessEnvelope(t *testing.T) {
 
 func TestHTTPClientRejectsEventContractDrift(t *testing.T) {
 	t.Parallel()
-	valid := `{"request_id":"data-req","result":{"items":[{"id":"EVT22222222-2222-5222-8222-222222222222","title":"event","summary":"summary","semantic":{"actors":["Federal Reserve"],"action":"holds target rate","objects":["federal funds rate"],"stage":"ANNOUNCED","jurisdictions":["United States"],"effective_at":null,"time_precision":"DAY"},"modality":"FACT","occurred_at":null,"announced_at":null,"status":"ACTIVE"}],"total":1,"page":1,"page_size":50}}`
+	valid := `{"request_id":"data-req","result":{"items":[{"id":"EVT22222222-2222-5222-8222-222222222222","title":"event","summary":"summary","semantic":{"actors":["Federal Reserve"],"action":"holds target rate","objects":["federal funds rate"],"stage":"ANNOUNCED","modality":"FACT","time":{"occurred_at":null,"announced_at":"2026-07-17T01:02:03Z","effective_at":null,"precision":"DAY"},"jurisdictions":["United States"],"reason":null,"method":null,"metrics":[]},"status":"ACTIVE"}],"total":1,"page":1,"page_size":50}}`
+	semantic := `"semantic":{"actors":["Federal Reserve"],"action":"holds target rate","objects":["federal funds rate"],"stage":"ANNOUNCED","modality":"FACT","time":{"occurred_at":null,"announced_at":"2026-07-17T01:02:03Z","effective_at":null,"precision":"DAY"},"jurisdictions":["United States"],"reason":null,"method":null,"metrics":[]}`
 	for _, test := range []struct {
 		name    string
 		payload string
 	}{
-		{name: "missing semantic", payload: strings.Replace(valid, `,"semantic":{"actors":["Federal Reserve"],"action":"holds target rate","objects":["federal funds rate"],"stage":"ANNOUNCED","jurisdictions":["United States"],"effective_at":null,"time_precision":"DAY"}`, "", 1)},
-		{name: "missing semantic key", payload: strings.Replace(valid, `,"time_precision":"DAY"`, "", 1)},
-		{name: "extra semantic key", payload: strings.Replace(valid, `,"time_precision":"DAY"`, `,"time_precision":"DAY","extra":null`, 1)},
-		{name: "legacy semantic keys", payload: strings.Replace(valid, `"semantic":{"actors":["Federal Reserve"],"action":"holds target rate","objects":["federal funds rate"],"stage":"ANNOUNCED","jurisdictions":["United States"],"effective_at":null,"time_precision":"DAY"}`, `"semantic":{"who":null,"what":"fact","when":null,"where":null,"why":null,"how":null}`, 1)},
+		{name: "missing semantic", payload: strings.Replace(valid, `,`+semantic, "", 1)},
+		{name: "missing semantic key", payload: strings.Replace(valid, `,"metrics":[]`, "", 1)},
+		{name: "extra semantic key", payload: strings.Replace(valid, `,"metrics":[]`, `,"metrics":[],"extra":null`, 1)},
+		{name: "legacy semantic keys", payload: strings.Replace(valid, semantic, `"semantic":{"who":null,"what":"fact","when":null,"where":null,"why":null,"how":null}`, 1)},
 		{name: "invalid semantic stage", payload: strings.Replace(valid, `"stage":"ANNOUNCED"`, `"stage":"INVALID"`, 1)},
-		{name: "non UTC semantic effective time", payload: strings.Replace(valid, `"effective_at":null`, `"effective_at":"2026-09-01T08:00:00+08:00"`, 1)},
-		{name: "missing nullable time", payload: strings.Replace(valid, `,"occurred_at":null`, "", 1)},
+		{name: "non UTC semantic time", payload: strings.Replace(valid, `"effective_at":null`, `"effective_at":"2026-09-01T08:00:00+08:00"`, 1)},
+		{name: "missing nullable time", payload: strings.Replace(valid, `"occurred_at":null,`, "", 1)},
+		{name: "no business time anchor", payload: strings.Replace(valid, `"announced_at":"2026-07-17T01:02:03Z"`, `"announced_at":null`, 1)},
 		{name: "wrong ID", payload: strings.Replace(valid, "EVT22222222-2222-5222-8222-222222222222", "not-an-event", 1)},
 		{name: "blank title", payload: strings.Replace(valid, `"title":"event"`, `"title":" "`, 1)},
 		{name: "oversized page", payload: strings.Replace(valid, `"page_size":50`, `"page_size":101`, 1)},

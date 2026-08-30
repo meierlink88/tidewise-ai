@@ -14,8 +14,9 @@ Backend Service 只通过 Data 的版本化 REST API 读取事实，不访问下
 
 **事件中心（Event Center）**：
 面向管理员查询 Data 已接纳的正式 Event。列表提供查询、分页、加载、错误与空状态，
-并通过列表行右侧详情展示 Event summary、modality、lifecycle、时间与完整七键身份 semantic
-（actors、action、objects、stage、jurisdictions、effective_at、time_precision）；
+并通过列表行右侧详情展示 Event summary、lifecycle 与完整业务命题 semantic
+（actors、action、objects、stage、modality、time、jurisdictions、reason、method、metrics）；
+其中 time 统一承载 occurrence、announcement、effectiveness 时间及其 precision；
 不承载 Event 写入、采集执行、调度或配置控制面。
 _Avoid_: 浏览器直连 Data、在 Admin 保存 Data 事实、把列表扩展成外部 Agent 控制台
 

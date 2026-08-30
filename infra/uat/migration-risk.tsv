@@ -73,3 +73,4 @@
 000072	high	mixed	narrow IndustryChain membership and graph edge storage to current row-presence topology facts in a snapshot-protected stop-write contract cutover
 000073	high	mixed	require empty Event history, replace Event semantic identity, and add the Reason publication replay contract in a snapshot-protected stop-write cutover
 000074	high	mixed	require empty Raw Evidence, Evidence, and Event history while moving keywords and replacing Evidence semantics in a snapshot-protected stop-write cutover
+000075	high	mixed	require empty Event history while replacing Event semantic and removing duplicate top-level wire fields in a snapshot-protected stop-write cutover

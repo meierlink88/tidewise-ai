@@ -18,9 +18,23 @@ export interface EventSemantic {
     | 'SUSPENDED'
     | 'TERMINATED'
     | 'EXPECTED';
+  modality: 'FACT' | 'PLAN' | 'SPEC';
+  time: {
+    occurred_at: string | null;
+    announced_at: string | null;
+    effective_at: string | null;
+    precision: 'INSTANT' | 'DAY' | 'RANGE' | 'MONTH' | 'QUARTER' | 'YEAR' | 'UNKNOWN';
+  };
   jurisdictions: string[];
-  effective_at: string | null;
-  time_precision: 'INSTANT' | 'DAY' | 'MONTH' | 'QUARTER' | 'YEAR' | 'UNKNOWN';
+  reason: string | null;
+  method: string | null;
+  metrics: Array<{
+    name: string;
+    value: string | null;
+    unit: string | null;
+    change: string | null;
+    period: string | null;
+  }>;
 }
 
 export interface EventItem {
@@ -28,9 +42,6 @@ export interface EventItem {
   title: string;
   summary: string;
   semantic: EventSemantic;
-  modality: 'FACT' | 'PLAN' | 'SPEC';
-  occurred_at: string | null;
-  announced_at: string | null;
   status: 'ACTIVE' | 'DEPRECATED' | 'ARCHIVED';
 }
 
@@ -193,14 +204,42 @@ const eventItemSchema: z.ZodType<EventItem> = z
           'TERMINATED',
           'EXPECTED'
         ]),
+        modality: z.enum(['FACT', 'PLAN', 'SPEC']),
+        time: z
+          .object({
+            occurred_at: utcTimestamp.nullable(),
+            announced_at: utcTimestamp.nullable(),
+            effective_at: utcTimestamp.nullable(),
+            precision: z.enum(['INSTANT', 'DAY', 'RANGE', 'MONTH', 'QUARTER', 'YEAR', 'UNKNOWN'])
+          })
+          .strict()
+          .refine(
+            (value) =>
+              value.occurred_at !== null ||
+              value.announced_at !== null ||
+              value.effective_at !== null,
+            'Event requires at least one time anchor'
+          ),
         jurisdictions: uniqueNonEmptyStrings,
-        effective_at: utcTimestamp.nullable(),
-        time_precision: z.enum(['INSTANT', 'DAY', 'MONTH', 'QUARTER', 'YEAR', 'UNKNOWN'])
+        reason: z.string().nullable(),
+        method: z.string().nullable(),
+        metrics: z.array(
+          z
+            .object({
+              name: nonBlankString,
+              value: z.string().nullable(),
+              unit: z.string().nullable(),
+              change: z.string().nullable(),
+              period: z.string().nullable()
+            })
+            .strict()
+            .refine(
+              (value) => value.value !== null || value.change !== null,
+              'Event metric requires value or change'
+            )
+        )
       })
       .strict(),
-    modality: z.enum(['FACT', 'PLAN', 'SPEC']),
-    occurred_at: utcTimestamp.nullable(),
-    announced_at: utcTimestamp.nullable(),
     status: z.enum(['ACTIVE', 'DEPRECATED', 'ARCHIVED'])
   })
   .strict();

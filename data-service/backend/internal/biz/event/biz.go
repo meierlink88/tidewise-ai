@@ -65,32 +65,48 @@ type TimePrecision string
 const (
 	TimePrecisionInstant TimePrecision = "INSTANT"
 	TimePrecisionDay     TimePrecision = "DAY"
+	TimePrecisionRange   TimePrecision = "RANGE"
 	TimePrecisionMonth   TimePrecision = "MONTH"
 	TimePrecisionQuarter TimePrecision = "QUARTER"
 	TimePrecisionYear    TimePrecision = "YEAR"
 	TimePrecisionUnknown TimePrecision = "UNKNOWN"
 )
 
-// Semantic is the occurrence identity projection used by Event curation and deduplication.
+// Semantic is the canonical business proposition for one real-world Event.
 type Semantic struct {
-	Actors        []string      `json:"actors"`
-	Action        string        `json:"action"`
-	Objects       []string      `json:"objects"`
-	Stage         EventStage    `json:"stage"`
-	Jurisdictions []string      `json:"jurisdictions"`
-	EffectiveAt   *time.Time    `json:"effective_at"`
-	TimePrecision TimePrecision `json:"time_precision"`
+	Actors        []string   `json:"actors"`
+	Action        string     `json:"action"`
+	Objects       []string   `json:"objects"`
+	Stage         EventStage `json:"stage"`
+	Modality      Modality   `json:"modality"`
+	Time          EventTime  `json:"time"`
+	Jurisdictions []string   `json:"jurisdictions"`
+	Reason        *string    `json:"reason"`
+	Method        *string    `json:"method"`
+	Metrics       []Metric   `json:"metrics"`
+}
+
+type EventTime struct {
+	OccurredAt  *time.Time    `json:"occurred_at"`
+	AnnouncedAt *time.Time    `json:"announced_at"`
+	EffectiveAt *time.Time    `json:"effective_at"`
+	Precision   TimePrecision `json:"precision"`
+}
+
+type Metric struct {
+	Name   string  `json:"name"`
+	Value  *string `json:"value"`
+	Unit   *string `json:"unit"`
+	Change *string `json:"change"`
+	Period *string `json:"period"`
 }
 
 type Event struct {
-	ID          string
-	Title       string
-	Summary     string
-	Semantic    Semantic
-	Modality    Modality
-	OccurredAt  *time.Time
-	AnnouncedAt *time.Time
-	Status      LifecycleStatus
+	ID       string
+	Title    string
+	Summary  string
+	Semantic Semantic
+	Status   LifecycleStatus
 }
 
 type EvidenceLink struct {
@@ -190,16 +206,13 @@ type AssetLinkInput struct {
 }
 
 type CreateInput struct {
-	Title       string
-	Summary     string
-	Semantic    Semantic
-	Modality    Modality
-	OccurredAt  *time.Time
-	AnnouncedAt *time.Time
-	Status      LifecycleStatus
-	Evidence    []EvidenceLinkInput
-	Actors      []ActorLinkInput
-	Assets      []AssetLinkInput
+	Title    string
+	Summary  string
+	Semantic Semantic
+	Status   LifecycleStatus
+	Evidence []EvidenceLinkInput
+	Actors   []ActorLinkInput
+	Assets   []AssetLinkInput
 }
 
 type PublicationReceipt struct {
@@ -333,8 +346,7 @@ func buildAggregate(input CreateInput) (Aggregate, error) {
 		return Aggregate{}, fmt.Errorf("generate Event ID: %w", err)
 	}
 	aggregate := Aggregate{Event: Event{ID: eventID, Title: input.Title, Summary: input.Summary,
-		Semantic: cloneSemantic(input.Semantic), Modality: input.Modality, OccurredAt: cloneTime(input.OccurredAt),
-		AnnouncedAt: cloneTime(input.AnnouncedAt), Status: input.Status}}
+		Semantic: cloneSemantic(input.Semantic), Status: input.Status}}
 	for _, item := range input.Evidence {
 		linkID, idErr := coreid.New(coreid.EventEvidenceLink)
 		if idErr != nil {
@@ -418,10 +430,12 @@ func validateCreateInput(input CreateInput) error {
 		return invalidEvent("Event summary is required")
 	}
 	if len(input.Semantic.Actors) == 0 || len(input.Semantic.Objects) == 0 || strings.TrimSpace(input.Semantic.Action) == "" ||
+		input.Semantic.Jurisdictions == nil || input.Semantic.Metrics == nil ||
 		!validStatus(input.Semantic.Stage, EventStageOccurred, EventStageAnnounced, EventStageEffective, EventStageImplemented,
 			EventStageUpdated, EventStageSuspended, EventStageTerminated, EventStageExpected) ||
-		!validStatus(input.Semantic.TimePrecision, TimePrecisionInstant, TimePrecisionDay, TimePrecisionMonth,
-			TimePrecisionQuarter, TimePrecisionYear, TimePrecisionUnknown) {
+		!validStatus(input.Semantic.Modality, ModalityFact, ModalityPlan, ModalitySpec) ||
+		!validStatus(input.Semantic.Time.Precision, TimePrecisionInstant, TimePrecisionDay, TimePrecisionRange,
+			TimePrecisionMonth, TimePrecisionQuarter, TimePrecisionYear, TimePrecisionUnknown) {
 		return invalidEvent("Event semantic identity is invalid")
 	}
 	for _, values := range [][]string{input.Semantic.Actors, input.Semantic.Objects, input.Semantic.Jurisdictions} {
@@ -436,8 +450,13 @@ func validateCreateInput(input CreateInput) error {
 			seen[value] = struct{}{}
 		}
 	}
-	if !validStatus(input.Modality, ModalityFact, ModalityPlan, ModalitySpec) {
-		return invalidEvent("Event modality is invalid")
+	if input.Semantic.Time.OccurredAt == nil && input.Semantic.Time.AnnouncedAt == nil && input.Semantic.Time.EffectiveAt == nil {
+		return invalidEvent("Event semantic requires at least one time anchor")
+	}
+	for _, metric := range input.Semantic.Metrics {
+		if strings.TrimSpace(metric.Name) == "" || metric.Value == nil && metric.Change == nil {
+			return invalidEvent("Event semantic metric is invalid")
+		}
 	}
 	if !validStatus(input.Status, LifecycleStatusActive, LifecycleStatusDeprecated, LifecycleStatusArchived) {
 		return invalidEvent("Event status is invalid")
@@ -511,9 +530,23 @@ func cloneTime(value *time.Time) *time.Time {
 
 func cloneSemantic(value Semantic) Semantic {
 	return Semantic{Actors: cloneStrings(value.Actors), Action: value.Action,
-		Objects: cloneStrings(value.Objects), Stage: value.Stage,
-		Jurisdictions: cloneStrings(value.Jurisdictions), EffectiveAt: cloneTime(value.EffectiveAt),
-		TimePrecision: value.TimePrecision}
+		Objects: cloneStrings(value.Objects), Stage: value.Stage, Modality: value.Modality,
+		Time: EventTime{OccurredAt: cloneTime(value.Time.OccurredAt), AnnouncedAt: cloneTime(value.Time.AnnouncedAt),
+			EffectiveAt: cloneTime(value.Time.EffectiveAt), Precision: value.Time.Precision},
+		Jurisdictions: cloneStrings(value.Jurisdictions), Reason: cloneString(value.Reason),
+		Method: cloneString(value.Method), Metrics: cloneMetrics(value.Metrics)}
+}
+
+func cloneMetrics(values []Metric) []Metric {
+	if values == nil {
+		return nil
+	}
+	result := make([]Metric, len(values))
+	for index, value := range values {
+		result[index] = Metric{Name: value.Name, Value: cloneString(value.Value), Unit: cloneString(value.Unit),
+			Change: cloneString(value.Change), Period: cloneString(value.Period)}
+	}
+	return result
 }
 
 func cloneStrings(values []string) []string {

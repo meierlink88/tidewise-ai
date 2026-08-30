@@ -83,24 +83,39 @@ type EventListResponse struct {
 }
 
 type Event struct {
-	ID          string        `json:"id"`
-	Title       string        `json:"title"`
-	Summary     string        `json:"summary"`
-	Semantic    EventSemantic `json:"semantic"`
-	Modality    string        `json:"modality"`
-	OccurredAt  *string       `json:"occurred_at"`
-	AnnouncedAt *string       `json:"announced_at"`
-	Status      string        `json:"status"`
+	ID       string        `json:"id"`
+	Title    string        `json:"title"`
+	Summary  string        `json:"summary"`
+	Semantic EventSemantic `json:"semantic"`
+	Status   string        `json:"status"`
 }
 
 type EventSemantic struct {
-	Actors        []string `json:"actors"`
-	Action        string   `json:"action"`
-	Objects       []string `json:"objects"`
-	Stage         string   `json:"stage"`
-	Jurisdictions []string `json:"jurisdictions"`
-	EffectiveAt   *string  `json:"effective_at"`
-	TimePrecision string   `json:"time_precision"`
+	Actors        []string      `json:"actors"`
+	Action        string        `json:"action"`
+	Objects       []string      `json:"objects"`
+	Stage         string        `json:"stage"`
+	Modality      string        `json:"modality"`
+	Time          EventTime     `json:"time"`
+	Jurisdictions []string      `json:"jurisdictions"`
+	Reason        *string       `json:"reason"`
+	Method        *string       `json:"method"`
+	Metrics       []EventMetric `json:"metrics"`
+}
+
+type EventTime struct {
+	OccurredAt  *string `json:"occurred_at"`
+	AnnouncedAt *string `json:"announced_at"`
+	EffectiveAt *string `json:"effective_at"`
+	Precision   string  `json:"precision"`
+}
+
+type EventMetric struct {
+	Name   string  `json:"name"`
+	Value  *string `json:"value"`
+	Unit   *string `json:"unit"`
+	Change *string `json:"change"`
+	Period *string `json:"period"`
 }
 
 type EvidenceListResponse struct {

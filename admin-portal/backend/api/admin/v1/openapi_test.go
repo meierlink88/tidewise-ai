@@ -152,8 +152,8 @@ func TestOpenAPIContractPreservesRetainedDataListSchemas(t *testing.T) {
 	if event["additionalProperties"] != false {
 		t.Fatalf("Event additionalProperties = %v, want false", event["additionalProperties"])
 	}
-	assertAdminRequired(t, event, "id", "title", "summary", "semantic", "modality", "occurred_at", "announced_at", "status")
-	assertAdminRequired(t, adminSchema(t, document, "EventSemantic"), "actors", "action", "objects", "stage", "jurisdictions", "effective_at", "time_precision")
+	assertAdminRequired(t, event, "id", "title", "summary", "semantic", "status")
+	assertAdminRequired(t, adminSchema(t, document, "EventSemantic"), "actors", "action", "objects", "stage", "modality", "time", "jurisdictions", "reason", "method", "metrics")
 	assertAdminRequired(t, adminSchema(t, document, "Evidence"), "id", "raw_evidence_id", "title", "summary", "semantic", "categories", "source_id", "source_name", "source_level", "source_url", "is_original", "quoted_source_name", "keywords", "is_split", "published_at", "collected_at")
 	assertAdminRequired(t, adminSchema(t, document, "CollectionDocument"), "available", "url")
 	source := adminSchema(t, document, "Source")

@@ -397,12 +397,14 @@ func TestOpenAPIContractFreezesCurrentEventReadContract(t *testing.T) {
 	}
 
 	event := schema(t, document, "AdminEvent")
-	assertRequired(t, event, "id", "title", "summary", "semantic", "modality", "occurred_at", "announced_at", "status")
+	assertRequired(t, event, "id", "title", "summary", "semantic", "status")
 	semantic := schema(t, document, "EventSemantic")
-	assertRequired(t, semantic, "actors", "action", "objects", "stage", "jurisdictions", "effective_at", "time_precision")
+	assertRequired(t, semantic, "actors", "action", "objects", "stage", "modality", "time", "jurisdictions", "reason", "method", "metrics")
 	if semantic["additionalProperties"] != false {
 		t.Fatal("EventSemantic must reject additional properties")
 	}
+	assertRequired(t, schema(t, document, "EventTime"), "occurred_at", "announced_at", "effective_at", "precision")
+	assertRequired(t, schema(t, document, "EventMetric"), "name", "value", "unit", "change", "period")
 	assertStringSet(t, schema(t, document, "EventModality")["enum"], "FACT", "PLAN", "SPEC")
 	assertStringSet(t, schema(t, document, "EventLifecycleStatus")["enum"], "ACTIVE", "DEPRECATED", "ARCHIVED")
 

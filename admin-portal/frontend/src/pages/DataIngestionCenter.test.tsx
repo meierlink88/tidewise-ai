@@ -45,13 +45,18 @@ describe('DataIngestionCenter', () => {
             action: 'holds target rate',
             objects: ['federal funds rate'],
             stage: 'ANNOUNCED',
+            modality: 'FACT',
+            time: {
+              occurred_at: '2026-07-09T08:00:00Z',
+              announced_at: null,
+              effective_at: null,
+              precision: 'DAY'
+            },
             jurisdictions: ['United States'],
-            effective_at: null,
-            time_precision: 'DAY'
+            reason: null,
+            method: null,
+            metrics: []
           },
-          modality: 'FACT',
-          occurred_at: '2026-07-09T08:00:00Z',
-          announced_at: null,
           status: 'ACTIVE'
         }
       ],
@@ -130,13 +135,18 @@ describe('DataIngestionCenter', () => {
             action: '调整出口许可要求',
             objects: ['稀土'],
             stage: 'ANNOUNCED',
+            modality: 'FACT',
+            time: {
+              occurred_at: '2026-08-19T01:30:00Z',
+              announced_at: null,
+              effective_at: '2026-09-01T00:00:00Z',
+              precision: 'DAY'
+            },
             jurisdictions: ['中国'],
-            effective_at: '2026-09-01T00:00:00Z',
-            time_precision: 'DAY'
+            reason: null,
+            method: null,
+            metrics: []
           },
-          modality: 'FACT',
-          occurred_at: '2026-08-19T01:30:00Z',
-          announced_at: null,
           status: 'ACTIVE'
         }
       ],

@@ -2,6 +2,8 @@ package event
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 )
@@ -41,9 +43,64 @@ type Semantic struct {
 	Action        string   `json:"action"`
 	Objects       []string `json:"objects"`
 	Stage         string   `json:"stage"`
+	Modality      string   `json:"modality"`
+	Time          Time     `json:"time"`
 	Jurisdictions []string `json:"jurisdictions"`
-	EffectiveAt   *string  `json:"effective_at"`
-	TimePrecision string   `json:"time_precision"`
+	Reason        *string  `json:"reason"`
+	Method        *string  `json:"method"`
+	Metrics       []Metric `json:"metrics"`
+}
+
+func (s *Semantic) UnmarshalJSON(payload []byte) error {
+	if !hasExactFields(payload, "actors", "action", "objects", "stage", "modality", "time", "jurisdictions", "reason", "method", "metrics") {
+		return errors.New("Event semantic must contain the exact business proposition fields")
+	}
+	type semanticAlias Semantic
+	return json.Unmarshal(payload, (*semanticAlias)(s))
+}
+
+type Time struct {
+	OccurredAt  *string `json:"occurred_at"`
+	AnnouncedAt *string `json:"announced_at"`
+	EffectiveAt *string `json:"effective_at"`
+	Precision   string  `json:"precision"`
+}
+
+func (t *Time) UnmarshalJSON(payload []byte) error {
+	if !hasExactFields(payload, "occurred_at", "announced_at", "effective_at", "precision") {
+		return errors.New("Event time must contain the exact business time fields")
+	}
+	type timeAlias Time
+	return json.Unmarshal(payload, (*timeAlias)(t))
+}
+
+type Metric struct {
+	Name   string  `json:"name"`
+	Value  *string `json:"value"`
+	Unit   *string `json:"unit"`
+	Change *string `json:"change"`
+	Period *string `json:"period"`
+}
+
+func (m *Metric) UnmarshalJSON(payload []byte) error {
+	if !hasExactFields(payload, "name", "value", "unit", "change", "period") {
+		return errors.New("Event metric must contain the exact metric fields")
+	}
+	type metricAlias Metric
+	return json.Unmarshal(payload, (*metricAlias)(m))
+}
+
+func hasExactFields(payload []byte, fields ...string) bool {
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &object); err != nil || len(object) != len(fields) {
+		return false
+	}
+	for _, field := range fields {
+		if _, exists := object[field]; !exists {
+			return false
+		}
+	}
+	return true
 }
 
 type PublicationRequest struct {
@@ -53,12 +110,9 @@ type PublicationRequest struct {
 }
 
 type PublicationEvent struct {
-	Title       string   `json:"title"`
-	Summary     string   `json:"summary"`
-	Semantic    Semantic `json:"semantic"`
-	Modality    string   `json:"modality"`
-	OccurredAt  *string  `json:"occurred_at"`
-	AnnouncedAt *string  `json:"announced_at"`
+	Title    string   `json:"title"`
+	Summary  string   `json:"summary"`
+	Semantic Semantic `json:"semantic"`
 }
 
 type PublicationResult struct {
@@ -70,14 +124,11 @@ type PublicationResult struct {
 }
 
 type Item struct {
-	ID          string   `json:"id"`
-	Title       string   `json:"title"`
-	Summary     string   `json:"summary"`
-	Semantic    Semantic `json:"semantic"`
-	Modality    string   `json:"modality"`
-	OccurredAt  *string  `json:"occurred_at"`
-	AnnouncedAt *string  `json:"announced_at"`
-	Status      string   `json:"status"`
+	ID       string   `json:"id"`
+	Title    string   `json:"title"`
+	Summary  string   `json:"summary"`
+	Semantic Semantic `json:"semantic"`
+	Status   string   `json:"status"`
 }
 
 type Page struct {
