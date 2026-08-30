@@ -347,7 +347,7 @@ func evidenceInput(input evidenceapi.AtomicEvidence) evidencebiz.Evidence {
 			Objects: append([]string(nil), input.Semantic.Objects...), Stage: evidencebiz.EvidenceStage(input.Semantic.Stage),
 			Modality:      evidencebiz.EvidenceModality(input.Semantic.Modality),
 			Time:          evidencebiz.EvidenceTime{Raw: input.Semantic.Time.Raw, StartAt: input.Semantic.Time.StartAt, EndAt: input.Semantic.Time.EndAt, Precision: evidencebiz.EvidenceTimePrecision(input.Semantic.Time.Precision)},
-			Jurisdictions: append([]string(nil), input.Semantic.Jurisdictions...), Reason: input.Semantic.Reason, Method: input.Semantic.Method,
+			Jurisdictions: append([]string{}, input.Semantic.Jurisdictions...), Reason: input.Semantic.Reason, Method: input.Semantic.Method,
 			Metrics: metrics, Attribution: attribution,
 		},
 	}
