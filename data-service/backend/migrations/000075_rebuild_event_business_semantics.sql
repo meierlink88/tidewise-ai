@@ -38,7 +38,18 @@ ALTER TABLE events ADD CONSTRAINT chk_events_semantic CHECK (
         OR jsonb_typeof(semantic #> '{time,announced_at}') = 'string'
         OR jsonb_typeof(semantic #> '{time,effective_at}') = 'string'
     )
-    AND NOT jsonb_path_exists(semantic, '$.time.* ? (@.type() == "string" && !(@ like_regex "^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$"))')
+    AND (
+        (semantic #>> '{time,occurred_at}') IS NULL
+        OR (semantic #>> '{time,occurred_at}') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$'
+    )
+    AND (
+        (semantic #>> '{time,announced_at}') IS NULL
+        OR (semantic #>> '{time,announced_at}') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$'
+    )
+    AND (
+        (semantic #>> '{time,effective_at}') IS NULL
+        OR (semantic #>> '{time,effective_at}') ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T.*Z$'
+    )
     AND semantic #>> '{time,precision}' IN ('INSTANT','DAY','RANGE','MONTH','QUARTER','YEAR','UNKNOWN')
 	AND modality = semantic ->> 'modality'
 	AND occurred_at IS NOT DISTINCT FROM (semantic #>> '{time,occurred_at}')::timestamptz
