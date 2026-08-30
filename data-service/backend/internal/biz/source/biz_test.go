@@ -46,7 +46,7 @@ func TestCreateDynamicSourceAppearsInTheCompleteActiveSnapshot(t *testing.T) {
 	}
 }
 
-func TestCurrentFixedManifestPreservesAgentOSDefaults(t *testing.T) {
+func TestCurrentFixedManifestUsesDataOwnedDefaults(t *testing.T) {
 	manifest := CurrentFixedManifest(FixedManifestOptions{
 		Endpoints: map[string]string{"bocha": "https://override.example/search"},
 		AppKeys:   map[string]string{"bocha": "plain-key"},
@@ -58,6 +58,9 @@ func TestCurrentFixedManifestPreservesAgentOSDefaults(t *testing.T) {
 	for _, item := range manifest {
 		if item.OwnershipType != OwnershipFixed {
 			t.Errorf("%s ownership = %q, want fixed", item.Code, item.OwnershipType)
+		}
+		if item.MaxResults != 5 {
+			t.Errorf("%s max_results = %d, want 5", item.Code, item.MaxResults)
 		}
 		if item.Enabled && item.ChannelType == ChannelWebSearch {
 			activeWeb++
@@ -91,7 +94,7 @@ func TestCurrentResearchRSSManifestIsAValidTwentySourceCatalog(t *testing.T) {
 		if item.OwnershipType != OwnershipDynamic || item.ChannelType != ChannelRSS || item.AdapterKey != AdapterGenericRSS {
 			t.Fatalf("manifest[%d] has invalid protocol identity: %#v", index, item)
 		}
-		if !item.Enabled || item.MaxResults != 3 || item.TimeoutSeconds != 30 || item.Priority != 2 {
+		if !item.Enabled || item.MaxResults != 5 || item.TimeoutSeconds != 30 || item.Priority != 2 {
 			t.Fatalf("manifest[%d] has invalid runtime limits: %#v", index, item)
 		}
 		if item.DefaultSourceLevel == SourceLevelOfficial {

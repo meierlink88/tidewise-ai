@@ -23,6 +23,7 @@ const (
 	MaxSources              = 200
 	MaxSnapshotEnvelopeSize = 500_000
 	MaxConfigBytes          = 4_096
+	defaultSourceMaxResults = 5
 )
 
 type OwnershipType string
@@ -141,7 +142,7 @@ func CurrentFixedManifest(options FixedManifestOptions) []Source {
 			Code: item.code, Name: item.name, OwnershipType: OwnershipFixed,
 			ChannelType: item.channel, AdapterKey: item.adapter, Enabled: item.enabled,
 			Endpoint: endpoint, AppKey: appKey, Config: json.RawMessage(`{}`), Priority: 1,
-			TimeoutSeconds: 30, MaxResults: 10, DefaultSourceLevel: item.level,
+			TimeoutSeconds: 30, MaxResults: defaultSourceMaxResults, DefaultSourceLevel: item.level,
 		})
 	}
 	return result
@@ -182,7 +183,7 @@ func CurrentResearchRSSManifest() []Source {
 			Code: item.code, Name: item.name, OwnershipType: OwnershipDynamic,
 			ChannelType: ChannelRSS, AdapterKey: AdapterGenericRSS, Enabled: true,
 			Endpoint: item.endpoint, Config: json.RawMessage(`{"max_bytes":5000000}`), Priority: 2,
-			TimeoutSeconds: 30, MaxResults: 3, DefaultSourceLevel: item.level,
+			TimeoutSeconds: 30, MaxResults: defaultSourceMaxResults, DefaultSourceLevel: item.level,
 		})
 	}
 	return result
