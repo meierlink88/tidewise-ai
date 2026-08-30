@@ -16,9 +16,17 @@ function renderCenter() {
 
 function evidenceSemantic(actor: string, action: string) {
   return {
-    actors: [actor], action, objects: ['事项'], stage: 'ANNOUNCED' as const, modality: 'FACT' as const,
-    time: { raw: null, start_at: null, end_at: null, precision: 'UNKNOWN' as const }, jurisdictions: [],
-    reason: null, method: null, metrics: [], attribution: { reported_by: null, claimed_by: actor }
+    actors: [actor],
+    action,
+    objects: ['事项'],
+    stage: 'ANNOUNCED' as const,
+    modality: 'FACT' as const,
+    time: { raw: null, start_at: null, end_at: null, precision: 'UNKNOWN' as const },
+    jurisdictions: [],
+    reason: null,
+    method: null,
+    metrics: [],
+    attribution: { reported_by: null, claimed_by: actor }
   };
 }
 
@@ -290,8 +298,15 @@ describe('DataIngestionCenter', () => {
           summary: '原子证据摘要',
           semantic: {
             ...evidenceSemantic('赛意信息', '合作项目有序推进'),
-            time: { raw: '2026-08-17', start_at: '2026-08-16T16:00:00Z', end_at: '2026-08-17T15:59:59.999999Z', precision: 'DAY' as const },
-            jurisdictions: ['中国'], reason: '回应投资者关注', method: '通过公开互动渠道披露'
+            time: {
+              raw: '2026-08-17',
+              start_at: '2026-08-16T16:00:00Z',
+              end_at: '2026-08-17T15:59:59.999999Z',
+              precision: 'DAY' as const
+            },
+            jurisdictions: ['中国'],
+            reason: '回应投资者关注',
+            method: '通过公开互动渠道披露'
           },
           categories: [
             {

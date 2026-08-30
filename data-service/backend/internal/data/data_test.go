@@ -91,6 +91,7 @@ func TestPublishedObjectSchemasAndPersistenceStayAligned(t *testing.T) {
 				{name: "chk_evidences_created_at_new_rows", requiredTokens: []string{"created_at IS NOT NULL", "NOT VALID"}},
 				{name: "chk_evidences_domain_identity", requiredTokens: []string{"^EVD[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"}},
 				{name: "chk_evidences_id", requiredTokens: []string{"btrim(id::text) <> ''::text"}},
+				{name: "chk_evidences_keywords", requiredTokens: []string{"array_ndims(keywords)", "cardinality(keywords) >= 1", "cardinality(keywords) <= 5", "array_position(keywords, NULL::text) IS NULL"}},
 				{name: "chk_evidences_semantic", requiredTokens: evidenceSemanticConstraintTokens()},
 				{name: "chk_evidences_summary", requiredTokens: []string{"btrim(summary::text) <> ''::text"}},
 				{name: "evidences_pkey", requiredTokens: []string{"PRIMARY KEY (id)"}},

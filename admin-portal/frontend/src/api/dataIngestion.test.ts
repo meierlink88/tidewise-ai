@@ -8,9 +8,17 @@ import {
 } from './dataIngestion';
 
 const evidenceSemantic = {
-  actors: ['商务部'], action: '发布公告', objects: ['公告'], stage: 'ANNOUNCED', modality: 'FACT',
-  time: { raw: null, start_at: null, end_at: null, precision: 'UNKNOWN' }, jurisdictions: ['中国'],
-  reason: null, method: null, metrics: [], attribution: { reported_by: null, claimed_by: '商务部' }
+  actors: ['商务部'],
+  action: '发布公告',
+  objects: ['公告'],
+  stage: 'ANNOUNCED',
+  modality: 'FACT',
+  time: { raw: null, start_at: null, end_at: null, precision: 'UNKNOWN' },
+  jurisdictions: ['中国'],
+  reason: null,
+  method: null,
+  metrics: [],
+  attribution: { reported_by: null, claimed_by: '商务部' }
 };
 
 describe('data ingestion api client', () => {

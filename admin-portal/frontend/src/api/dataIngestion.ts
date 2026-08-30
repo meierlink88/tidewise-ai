@@ -77,7 +77,15 @@ export interface EvidenceSemantic {
   actors: string[];
   action: string;
   objects: string[];
-  stage: 'OCCURRED' | 'ANNOUNCED' | 'EFFECTIVE' | 'IMPLEMENTED' | 'UPDATED' | 'SUSPENDED' | 'TERMINATED' | 'EXPECTED';
+  stage:
+    | 'OCCURRED'
+    | 'ANNOUNCED'
+    | 'EFFECTIVE'
+    | 'IMPLEMENTED'
+    | 'UPDATED'
+    | 'SUSPENDED'
+    | 'TERMINATED'
+    | 'EXPECTED';
   modality: 'FACT' | 'PLAN' | 'SPEC';
   time: {
     raw: string | null;
@@ -207,7 +215,16 @@ const evidenceItemSchema: z.ZodType<EvidenceItem> = z
         actors: uniqueNonEmptyStrings.min(1).max(20),
         action: z.string().min(1).max(200),
         objects: uniqueNonEmptyStrings.min(1).max(20),
-        stage: z.enum(['OCCURRED', 'ANNOUNCED', 'EFFECTIVE', 'IMPLEMENTED', 'UPDATED', 'SUSPENDED', 'TERMINATED', 'EXPECTED']),
+        stage: z.enum([
+          'OCCURRED',
+          'ANNOUNCED',
+          'EFFECTIVE',
+          'IMPLEMENTED',
+          'UPDATED',
+          'SUSPENDED',
+          'TERMINATED',
+          'EXPECTED'
+        ]),
         modality: z.enum(['FACT', 'PLAN', 'SPEC']),
         time: z
           .object({

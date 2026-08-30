@@ -9,9 +9,17 @@ import { EvidenceDetailSheet } from './EvidenceDetailSheet';
 afterEach(() => vi.restoreAllMocks());
 
 const evidenceSemantic = {
-  actors: ['商务部'], action: '发布公告', objects: ['公告'], stage: 'ANNOUNCED' as const, modality: 'FACT' as const,
-  time: { raw: null, start_at: null, end_at: null, precision: 'UNKNOWN' as const }, jurisdictions: ['中国'],
-  reason: null, method: null, metrics: [], attribution: { reported_by: null, claimed_by: '商务部' }
+  actors: ['商务部'],
+  action: '发布公告',
+  objects: ['公告'],
+  stage: 'ANNOUNCED' as const,
+  modality: 'FACT' as const,
+  time: { raw: null, start_at: null, end_at: null, precision: 'UNKNOWN' as const },
+  jurisdictions: ['中国'],
+  reason: null,
+  method: null,
+  metrics: [],
+  attribution: { reported_by: null, claimed_by: '商务部' }
 };
 
 it('retries a failed collection document query without removing the original article', async () => {
