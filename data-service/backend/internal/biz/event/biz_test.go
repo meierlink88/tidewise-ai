@@ -110,7 +110,10 @@ func TestCreateRejectsInvalidAggregateBeforePersistence(t *testing.T) {
 		{name: "missing evidence", mutate: func(input *CreateInput) { input.Evidence = nil }},
 		{name: "unknown evidence identity", mutate: func(input *CreateInput) { input.Evidence[0].EvidenceID = "bad" }},
 		{name: "duplicate evidence", mutate: func(input *CreateInput) { input.Evidence = append(input.Evidence, input.Evidence[0]) }},
-		{name: "invalid modality", mutate: func(input *CreateInput) { input.Modality = "UNKNOWN" }},
+		{name: "invalid modality", mutate: func(input *CreateInput) { input.Semantic.Modality = "UNKNOWN" }},
+		{name: "missing jurisdictions", mutate: func(input *CreateInput) { input.Semantic.Jurisdictions = nil }},
+		{name: "missing metrics", mutate: func(input *CreateInput) { input.Semantic.Metrics = nil }},
+		{name: "missing time anchor", mutate: func(input *CreateInput) { input.Semantic.Time = EventTime{Precision: TimePrecisionUnknown} }},
 		{name: "duplicate semantic actor", mutate: func(input *CreateInput) {
 			input.Semantic.Actors = append(input.Semantic.Actors, input.Semantic.Actors[0])
 		}},
@@ -144,7 +147,9 @@ func validCreateInput() CreateInput {
 	return CreateInput{
 		Title: "Example Event", Summary: "Example Event summary.",
 		Semantic: Semantic{Actors: []string{"Example actor"}, Action: "announces", Objects: []string{"Example object"},
-			Stage: EventStageAnnounced, Jurisdictions: []string{}, TimePrecision: TimePrecisionDay}, Modality: ModalityFact,
+			Stage: EventStageAnnounced, Modality: ModalityFact, Jurisdictions: []string{},
+			Time:    EventTime{AnnouncedAt: timePointer(time.Date(2026, 8, 25, 0, 0, 0, 0, time.UTC)), Precision: TimePrecisionDay},
+			Metrics: []Metric{}},
 		Evidence: []EvidenceLinkInput{{EvidenceID: "EVD11111111-1111-4111-8111-111111111111", ContributionWeight: 0.8}},
 		Actors: []ActorLinkInput{{
 			ActorID: "actor:1", ActorType: ActorTypeCompany, RelationType: ActorRelationMentions,
@@ -154,6 +159,8 @@ func validCreateInput() CreateInput {
 		}},
 	}
 }
+
+func timePointer(value time.Time) *time.Time { return &value }
 
 type fakeStore struct {
 	aggregate       Aggregate

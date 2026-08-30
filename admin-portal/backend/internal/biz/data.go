@@ -148,6 +148,7 @@ type EventTimePrecision string
 const (
 	EventTimePrecisionInstant EventTimePrecision = "INSTANT"
 	EventTimePrecisionDay     EventTimePrecision = "DAY"
+	EventTimePrecisionRange   EventTimePrecision = "RANGE"
 	EventTimePrecisionMonth   EventTimePrecision = "MONTH"
 	EventTimePrecisionQuarter EventTimePrecision = "QUARTER"
 	EventTimePrecisionYear    EventTimePrecision = "YEAR"
@@ -162,14 +163,11 @@ type EventPage struct {
 }
 
 type Event struct {
-	ID          string
-	Title       string
-	Summary     string
-	Semantic    EventSemantic
-	Modality    EventModality
-	OccurredAt  *time.Time
-	AnnouncedAt *time.Time
-	Status      EventLifecycleStatus
+	ID       string
+	Title    string
+	Summary  string
+	Semantic EventSemantic
+	Status   EventLifecycleStatus
 }
 
 type EventSemantic struct {
@@ -177,9 +175,27 @@ type EventSemantic struct {
 	Action        string
 	Objects       []string
 	Stage         EventStage
+	Modality      EventModality
+	Time          EventTime
 	Jurisdictions []string
-	EffectiveAt   *time.Time
-	TimePrecision EventTimePrecision
+	Reason        *string
+	Method        *string
+	Metrics       []EventMetric
+}
+
+type EventTime struct {
+	OccurredAt  *time.Time
+	AnnouncedAt *time.Time
+	EffectiveAt *time.Time
+	Precision   EventTimePrecision
+}
+
+type EventMetric struct {
+	Name   string
+	Value  *string
+	Unit   *string
+	Change *string
+	Period *string
 }
 
 var ErrFakeMethodNotConfigured = errors.New("data service fake method is not configured")

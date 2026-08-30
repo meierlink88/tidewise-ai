@@ -343,27 +343,34 @@ func invalidRequest(message string) error {
 }
 
 func event(value biz.Event) v1.Event {
+	metrics := make([]v1.EventMetric, len(value.Semantic.Metrics))
+	for index, metric := range value.Semantic.Metrics {
+		metrics[index] = v1.EventMetric{Name: metric.Name, Value: metric.Value, Unit: metric.Unit,
+			Change: metric.Change, Period: metric.Period}
+	}
 	response := v1.Event{
 		ID: value.ID, Title: value.Title, Summary: value.Summary,
 		Semantic: v1.EventSemantic{
 			Actors: append([]string{}, value.Semantic.Actors...), Action: value.Semantic.Action,
 			Objects: append([]string{}, value.Semantic.Objects...), Stage: string(value.Semantic.Stage),
-			Jurisdictions: append([]string{}, value.Semantic.Jurisdictions...),
-			TimePrecision: string(value.Semantic.TimePrecision),
+			Modality:      string(value.Semantic.Modality),
+			Time:          v1.EventTime{Precision: string(value.Semantic.Time.Precision)},
+			Jurisdictions: append([]string{}, value.Semantic.Jurisdictions...), Reason: value.Semantic.Reason,
+			Method: value.Semantic.Method, Metrics: metrics,
 		},
-		Modality: string(value.Modality), Status: string(value.Status),
+		Status: string(value.Status),
 	}
-	if value.Semantic.EffectiveAt != nil {
-		formatted := value.Semantic.EffectiveAt.Format(time.RFC3339)
-		response.Semantic.EffectiveAt = &formatted
+	if value.Semantic.Time.EffectiveAt != nil {
+		formatted := value.Semantic.Time.EffectiveAt.Format(time.RFC3339)
+		response.Semantic.Time.EffectiveAt = &formatted
 	}
-	if value.OccurredAt != nil {
-		formatted := value.OccurredAt.Format(time.RFC3339)
-		response.OccurredAt = &formatted
+	if value.Semantic.Time.OccurredAt != nil {
+		formatted := value.Semantic.Time.OccurredAt.Format(time.RFC3339)
+		response.Semantic.Time.OccurredAt = &formatted
 	}
-	if value.AnnouncedAt != nil {
-		formatted := value.AnnouncedAt.Format(time.RFC3339)
-		response.AnnouncedAt = &formatted
+	if value.Semantic.Time.AnnouncedAt != nil {
+		formatted := value.Semantic.Time.AnnouncedAt.Format(time.RFC3339)
+		response.Semantic.Time.AnnouncedAt = &formatted
 	}
 	return response
 }

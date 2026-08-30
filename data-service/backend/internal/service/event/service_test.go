@@ -18,8 +18,9 @@ func TestListEventsMapsNewEventContract(t *testing.T) {
 		Items: []eventbiz.Event{{
 			ID: "EVT11111111-1111-4111-8111-111111111111", Title: "Event", Summary: "Summary",
 			Semantic: eventbiz.Semantic{Actors: []string{who}, Action: "acts", Objects: []string{"object"},
-				Stage: eventbiz.EventStageOccurred, Jurisdictions: []string{}, TimePrecision: eventbiz.TimePrecisionDay}, Modality: eventbiz.ModalityFact,
-			OccurredAt: &occurred, Status: eventbiz.LifecycleStatusActive,
+				Stage: eventbiz.EventStageOccurred, Modality: eventbiz.ModalityFact, Jurisdictions: []string{},
+				Time: eventbiz.EventTime{OccurredAt: &occurred, Precision: eventbiz.TimePrecisionDay}, Metrics: []eventbiz.Metric{}},
+			Status: eventbiz.LifecycleStatusActive,
 		}},
 		Total: 1, Page: 2, PageSize: 10,
 	}}
@@ -38,7 +39,7 @@ func TestListEventsMapsNewEventContract(t *testing.T) {
 		t.Fatalf("response = %#v", response)
 	}
 	item := response.Result.Items[0]
-	if item.Modality != "FACT" || item.Status != "ACTIVE" || item.OccurredAt == nil || len(item.Semantic.Actors) != 1 || item.Semantic.Actors[0] != who {
+	if item.Semantic.Modality != "FACT" || item.Status != "ACTIVE" || item.Semantic.Time.OccurredAt == nil || len(item.Semantic.Actors) != 1 || item.Semantic.Actors[0] != who {
 		t.Fatalf("item = %#v", item)
 	}
 	if useCase.request.Title != "Event" || useCase.request.OccurredFrom == nil || useCase.request.Page != 2 {
@@ -91,11 +92,11 @@ func TestPublishEventMapsUnknownEvidenceToStableUnprocessableEntity(t *testing.T
 	_, err = service.PublishEvent(context.Background(), &eventapi.PublicationRequest{
 		PublicationKey: "submission-1:create",
 		Event: eventapi.PublicationEvent{
-			Title: "Event", Summary: "Summary", Modality: "FACT",
+			Title: "Event", Summary: "Summary",
 			Semantic: eventapi.Semantic{
 				Actors: []string{"actor"}, Action: "acts", Objects: []string{"object"},
-				Stage: "OCCURRED", Jurisdictions: []string{}, EffectiveAt: &effective,
-				TimePrecision: "DAY",
+				Stage: "OCCURRED", Modality: "FACT", Jurisdictions: []string{},
+				Time: eventapi.Time{EffectiveAt: &effective, Precision: "DAY"}, Metrics: []eventapi.Metric{},
 			},
 		},
 		EvidenceIDs: []string{"EVD11111111-1111-4111-8111-111111111111"},

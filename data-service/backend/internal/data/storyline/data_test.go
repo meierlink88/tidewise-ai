@@ -497,11 +497,11 @@ func createStorylineTestEvent(
 			Action:        "发生",
 			Objects:       []string{"测试事件"},
 			Stage:         eventbiz.EventStageOccurred,
+			Modality:      eventbiz.ModalityFact,
+			Time:          eventbiz.EventTime{OccurredAt: occurredAt, AnnouncedAt: announcedAt, Precision: eventbiz.TimePrecisionDay},
 			Jurisdictions: []string{},
-			TimePrecision: eventbiz.TimePrecisionDay,
+			Metrics:       []eventbiz.Metric{},
 		},
-		Modality:   eventbiz.ModalityFact,
-		OccurredAt: occurredAt, AnnouncedAt: announcedAt,
 		Evidence: []eventbiz.EvidenceLinkInput{{EvidenceID: evidence.IDs[0], ContributionWeight: 1}},
 	})
 	if err != nil {

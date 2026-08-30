@@ -93,6 +93,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000074_rebuild_atomic_evidence_business_semantics.sql`：零兼容把 Atomic Evidence 重建为最小完整
   业务命题，将 Keywords 从 Raw Evidence 移至 Evidence，并以主体、动作、对象、阶段、情态、时间、
   辖区、原因、执行方式、指标和归因组成当前语义合同。
+- `000075_rebuild_event_business_semantics.sql`：零兼容把 Event 升级为事件级完整业务命题，情态与
+  occurrence/announcement/effectiveness 时间归入 `semantic`，增加原因、执行方式和指标，并移除
+  Event wire 顶层的重复 modality 与时间字段。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -319,3 +322,11 @@ Event 及其 Evidence/Actor/Asset Link 与 Publication Receipt 均为空。迁�
 `keywords`、Atomic Evidence 拥有 `keywords` 和新 `semantic` 约束，再用匹配的新 Data/AgentOS
 发布一个含多指标业务命题的 Evidence。新旧 binary 不得 mixed traffic；完整回滚必须恢复 migration
 74 前恢复点并同时回退 Data/AgentOS，不运行 down migration。
+
+`000075` 是 Issue #359 的高风险 Event 合同切换。操作员必须停止 Data、Admin、AgentOS 及所有
+Event 写入者，取得 PostgreSQL 恢复点，并确认 Event、Event Evidence/Actor/Asset Link 与 Event
+Publication Receipt 均为空。迁移会 fail closed 拒绝旧七键 Event semantic，不在 migration 中
+猜测或清理历史事实。确认它是唯一 pending migration 后才可 apply；执行后确认 ledger 为 `75`、
+Event semantic 十键和嵌套时间约束生效，再按 Data provider → Admin consumer → AgentOS producer 的
+顺序发布匹配二进制。新旧 binary 不得 mixed traffic；完整回滚必须恢复 migration 75 前恢复点并
+同时回退三个应用，不运行 down migration。

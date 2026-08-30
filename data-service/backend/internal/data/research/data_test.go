@@ -146,10 +146,11 @@ func TestPostgresSnapshotPublicationWorksOnCurrentSchema(t *testing.T) {
 			Action:        "publishes",
 			Objects:       []string{"Research snapshot"},
 			Stage:         eventbiz.EventStageOccurred,
+			Modality:      eventbiz.ModalityFact,
+			Time:          eventbiz.EventTime{OccurredAt: &publishedAt, Precision: eventbiz.TimePrecisionDay},
 			Jurisdictions: []string{},
-			TimePrecision: eventbiz.TimePrecisionDay,
+			Metrics:       []eventbiz.Metric{},
 		},
-		Modality: eventbiz.ModalityFact,
 		Evidence: []eventbiz.EvidenceLinkInput{{EvidenceID: evidence.IDs[0], ContributionWeight: 1}},
 	})
 	if err != nil {

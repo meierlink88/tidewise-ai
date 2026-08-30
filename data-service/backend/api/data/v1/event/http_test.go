@@ -85,11 +85,42 @@ func TestHTTPAcceptsStrictEventPublicationContract(t *testing.T) {
 	service := new(capturingService)
 	server := kratoshttp.NewServer()
 	eventapi.RegisterHTTPServer(server, service)
-	body := `{"publication_key":"submission-1","event":{"title":"US expands HBM controls","summary":"The US announced expanded controls.","semantic":{"actors":["US government"],"action":"expands export controls","objects":["HBM"],"stage":"ANNOUNCED","jurisdictions":["China"],"effective_at":null,"time_precision":"DAY"},"modality":"FACT","occurred_at":"2026-08-25T00:00:00Z","announced_at":"2026-08-25T00:00:00Z"},"evidence_ids":["EVD11111111-1111-4111-8111-111111111111"]}`
+	body := `{"publication_key":"submission-1","event":{"title":"US expands HBM controls","summary":"The US announced expanded controls.","semantic":{"actors":["US government"],"action":"expands export controls","objects":["HBM"],"stage":"ANNOUNCED","modality":"FACT","time":{"occurred_at":null,"announced_at":"2026-08-25T00:00:00Z","effective_at":null,"precision":"DAY"},"jurisdictions":["China"],"reason":null,"method":"rule update","metrics":[]}},"evidence_ids":["EVD11111111-1111-4111-8111-111111111111"]}`
 	response := httptest.NewRecorder()
 	server.ServeHTTP(response, httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/events", strings.NewReader(body)))
 	if response.Code != http.StatusCreated || service.publication == nil || service.publication.PublicationKey != "submission-1" {
 		t.Fatalf("status = %d, request = %#v, body = %s", response.Code, service.publication, response.Body.String())
+	}
+}
+
+func TestHTTPRejectsIncompleteOrExpandedEventSemantic(t *testing.T) {
+	const valid = `{"publication_key":"submission-1","event":{"title":"US expands HBM controls","summary":"The US announced expanded controls.","semantic":{"actors":["US government"],"action":"expands export controls","objects":["HBM"],"stage":"ANNOUNCED","modality":"FACT","time":{"occurred_at":null,"announced_at":"2026-08-25T00:00:00Z","effective_at":null,"precision":"DAY"},"jurisdictions":["China"],"reason":null,"method":"rule update","metrics":[]}},"evidence_ids":["EVD11111111-1111-4111-8111-111111111111"]}`
+	for _, test := range []struct {
+		name string
+		body string
+	}{
+		{name: "missing semantic field", body: strings.Replace(valid, `,"metrics":[]`, "", 1)},
+		{name: "extra semantic field", body: strings.Replace(valid, `,"metrics":[]`, `,"metrics":[],"attribution":null`, 1)},
+		{name: "missing time field", body: strings.Replace(valid, `"occurred_at":null,`, "", 1)},
+		{name: "extra metric field", body: strings.Replace(valid, `"metrics":[]`, `"metrics":[{"name":"capacity","value":"10","unit":"units","change":null,"period":null,"extra":null}]`, 1)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			service := new(capturingService)
+			server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(func(writer http.ResponseWriter, _ *http.Request, err error) {
+				var public *v1.PublicError
+				if errors.As(err, &public) {
+					writer.WriteHeader(public.Status)
+					return
+				}
+				writer.WriteHeader(http.StatusInternalServerError)
+			}))
+			eventapi.RegisterHTTPServer(server, service)
+			response := httptest.NewRecorder()
+			server.ServeHTTP(response, httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/events", strings.NewReader(test.body)))
+			if response.Code != http.StatusBadRequest || service.publication != nil {
+				t.Fatalf("status = %d, request = %#v, body = %s", response.Code, service.publication, response.Body.String())
+			}
+		})
 	}
 }
 

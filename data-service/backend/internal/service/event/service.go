@@ -23,17 +23,17 @@ func (s *Service) PublishEvent(ctx context.Context, request *eventapi.Publicatio
 	if s == nil || s.useCase == nil {
 		return nil, publicError(v1.StatusInternalServerError, eventapi.ErrorDataServiceNotReady, "Event service is unavailable")
 	}
-	effectiveAt, err := optionalWireUTC(request.Event.Semantic.EffectiveAt)
+	effectiveAt, err := optionalWireUTC(request.Event.Semantic.Time.EffectiveAt)
 	if err != nil {
-		return nil, publicError(v1.StatusBadRequest, eventapi.ErrorInvalidRequest, "semantic.effective_at must be UTC RFC3339")
+		return nil, publicError(v1.StatusBadRequest, eventapi.ErrorInvalidRequest, "semantic.time.effective_at must be UTC RFC3339")
 	}
-	occurredAt, err := optionalWireUTC(request.Event.OccurredAt)
+	occurredAt, err := optionalWireUTC(request.Event.Semantic.Time.OccurredAt)
 	if err != nil {
-		return nil, publicError(v1.StatusBadRequest, eventapi.ErrorInvalidRequest, "event.occurred_at must be UTC RFC3339")
+		return nil, publicError(v1.StatusBadRequest, eventapi.ErrorInvalidRequest, "semantic.time.occurred_at must be UTC RFC3339")
 	}
-	announcedAt, err := optionalWireUTC(request.Event.AnnouncedAt)
+	announcedAt, err := optionalWireUTC(request.Event.Semantic.Time.AnnouncedAt)
 	if err != nil {
-		return nil, publicError(v1.StatusBadRequest, eventapi.ErrorInvalidRequest, "event.announced_at must be UTC RFC3339")
+		return nil, publicError(v1.StatusBadRequest, eventapi.ErrorInvalidRequest, "semantic.time.announced_at must be UTC RFC3339")
 	}
 	evidence := make([]eventbiz.EvidenceLinkInput, 0, len(request.EvidenceIDs))
 	for _, evidenceID := range request.EvidenceIDs {
@@ -42,9 +42,11 @@ func (s *Service) PublishEvent(ctx context.Context, request *eventapi.Publicatio
 	input := eventbiz.CreateInput{Title: request.Event.Title, Summary: request.Event.Summary,
 		Semantic: eventbiz.Semantic{Actors: request.Event.Semantic.Actors, Action: request.Event.Semantic.Action,
 			Objects: request.Event.Semantic.Objects, Stage: eventbiz.EventStage(request.Event.Semantic.Stage),
-			Jurisdictions: request.Event.Semantic.Jurisdictions, EffectiveAt: effectiveAt,
-			TimePrecision: eventbiz.TimePrecision(request.Event.Semantic.TimePrecision)},
-		Modality: eventbiz.Modality(request.Event.Modality), OccurredAt: occurredAt, AnnouncedAt: announcedAt,
+			Modality: eventbiz.Modality(request.Event.Semantic.Modality),
+			Time: eventbiz.EventTime{OccurredAt: occurredAt, AnnouncedAt: announcedAt, EffectiveAt: effectiveAt,
+				Precision: eventbiz.TimePrecision(request.Event.Semantic.Time.Precision)},
+			Jurisdictions: request.Event.Semantic.Jurisdictions, Reason: request.Event.Semantic.Reason,
+			Method: request.Event.Semantic.Method, Metrics: eventMetrics(request.Event.Semantic.Metrics)},
 		Status: eventbiz.LifecycleStatusActive, Evidence: evidence}
 	principal, _ := v1.PrincipalFromContext(ctx)
 	result, err := s.useCase.Publish(ctx, principal.Identity, request.PublicationKey, input)
@@ -72,13 +74,7 @@ func (s *Service) PublishEvent(ctx context.Context, request *eventapi.Publicatio
 		evidenceLinkIDs = append(evidenceLinkIDs, link.ID)
 	}
 	return &v1.Response[eventapi.PublicationResult]{Status: status, Result: eventapi.PublicationResult{
-		Event: eventapi.Item{ID: result.Event.ID, Title: result.Event.Title, Summary: result.Event.Summary,
-			Semantic: eventapi.Semantic{Actors: result.Event.Semantic.Actors, Action: result.Event.Semantic.Action,
-				Objects: result.Event.Semantic.Objects, Stage: string(result.Event.Semantic.Stage),
-				Jurisdictions: result.Event.Semantic.Jurisdictions, EffectiveAt: formatOptionalTime(result.Event.Semantic.EffectiveAt),
-				TimePrecision: string(result.Event.Semantic.TimePrecision)}, Modality: string(result.Event.Modality),
-			OccurredAt: formatOptionalTime(result.Event.OccurredAt), AnnouncedAt: formatOptionalTime(result.Event.AnnouncedAt),
-			Status: string(result.Event.Status)}, EvidenceLinkIDs: evidenceLinkIDs,
+		Event: eventItem(result.Event), EvidenceLinkIDs: evidenceLinkIDs,
 		ReceiptID: result.ReceiptID, PayloadHash: result.PayloadHash, Replayed: result.Replayed,
 	}}, nil
 }
@@ -145,18 +141,42 @@ func (s *Service) ListEvents(ctx context.Context, request *eventapi.ListRequest)
 	}
 	items := make([]eventapi.Item, 0, len(result.Items))
 	for _, item := range result.Items {
-		items = append(items, eventapi.Item{
-			ID: item.ID, Title: item.Title, Summary: item.Summary,
-			Semantic: eventapi.Semantic{Actors: item.Semantic.Actors, Action: item.Semantic.Action,
-				Objects: item.Semantic.Objects, Stage: string(item.Semantic.Stage), Jurisdictions: item.Semantic.Jurisdictions,
-				EffectiveAt: formatOptionalTime(item.Semantic.EffectiveAt), TimePrecision: string(item.Semantic.TimePrecision)},
-			Modality: string(item.Modality), OccurredAt: formatOptionalTime(item.OccurredAt),
-			AnnouncedAt: formatOptionalTime(item.AnnouncedAt), Status: string(item.Status),
-		})
+		items = append(items, eventItem(item))
 	}
 	return &v1.Response[eventapi.Page]{Status: v1.StatusOK, Result: eventapi.Page{
 		Items: items, Total: result.Total, Page: result.Page, PageSize: result.PageSize,
 	}}, nil
+}
+
+func eventItem(item eventbiz.Event) eventapi.Item {
+	return eventapi.Item{ID: item.ID, Title: item.Title, Summary: item.Summary,
+		Semantic: eventapi.Semantic{Actors: item.Semantic.Actors, Action: item.Semantic.Action,
+			Objects: item.Semantic.Objects, Stage: string(item.Semantic.Stage),
+			Modality: string(item.Semantic.Modality), Jurisdictions: item.Semantic.Jurisdictions,
+			Time: eventapi.Time{OccurredAt: formatOptionalTime(item.Semantic.Time.OccurredAt),
+				AnnouncedAt: formatOptionalTime(item.Semantic.Time.AnnouncedAt),
+				EffectiveAt: formatOptionalTime(item.Semantic.Time.EffectiveAt),
+				Precision:   string(item.Semantic.Time.Precision)},
+			Reason: item.Semantic.Reason, Method: item.Semantic.Method, Metrics: apiEventMetrics(item.Semantic.Metrics)},
+		Status: string(item.Status)}
+}
+
+func eventMetrics(values []eventapi.Metric) []eventbiz.Metric {
+	result := make([]eventbiz.Metric, len(values))
+	for index, value := range values {
+		result[index] = eventbiz.Metric{Name: value.Name, Value: value.Value, Unit: value.Unit,
+			Change: value.Change, Period: value.Period}
+	}
+	return result
+}
+
+func apiEventMetrics(values []eventbiz.Metric) []eventapi.Metric {
+	result := make([]eventapi.Metric, len(values))
+	for index, value := range values {
+		result[index] = eventapi.Metric{Name: value.Name, Value: value.Value, Unit: value.Unit,
+			Change: value.Change, Period: value.Period}
+	}
+	return result
 }
 
 func optionalUTC(raw string) (*time.Time, error) {

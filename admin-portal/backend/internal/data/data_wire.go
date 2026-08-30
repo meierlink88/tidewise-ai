@@ -47,17 +47,20 @@ func (w eventPageWire) toBiz() (biz.EventPage, error) {
 }
 
 type eventSemanticWire struct {
-	Actors        []string               `json:"actors"`
-	Action        string                 `json:"action"`
-	Objects       []string               `json:"objects"`
-	Stage         biz.EventStage         `json:"stage"`
-	Jurisdictions []string               `json:"jurisdictions"`
-	EffectiveAt   *time.Time             `json:"effective_at"`
-	TimePrecision biz.EventTimePrecision `json:"time_precision"`
+	Actors        []string          `json:"actors"`
+	Action        string            `json:"action"`
+	Objects       []string          `json:"objects"`
+	Stage         biz.EventStage    `json:"stage"`
+	Modality      biz.EventModality `json:"modality"`
+	Time          *eventTimeWire    `json:"time"`
+	Jurisdictions []string          `json:"jurisdictions"`
+	Reason        *string           `json:"reason"`
+	Method        *string           `json:"method"`
+	Metrics       []eventMetricWire `json:"metrics"`
 }
 
 func (w *eventSemanticWire) UnmarshalJSON(payload []byte) error {
-	if !hasExactJSONFields(payload, "actors", "action", "objects", "stage", "jurisdictions", "effective_at", "time_precision") {
+	if !hasExactJSONFields(payload, "actors", "action", "objects", "stage", "modality", "time", "jurisdictions", "reason", "method", "metrics") {
 		return &Error{Kind: ErrorKindDecode}
 	}
 	type alias eventSemanticWire
@@ -70,18 +73,15 @@ func (w *eventSemanticWire) UnmarshalJSON(payload []byte) error {
 }
 
 type eventWire struct {
-	ID          string                   `json:"id"`
-	Title       string                   `json:"title"`
-	Summary     string                   `json:"summary"`
-	Semantic    *eventSemanticWire       `json:"semantic"`
-	Modality    biz.EventModality        `json:"modality"`
-	OccurredAt  *time.Time               `json:"occurred_at"`
-	AnnouncedAt *time.Time               `json:"announced_at"`
-	Status      biz.EventLifecycleStatus `json:"status"`
+	ID       string                   `json:"id"`
+	Title    string                   `json:"title"`
+	Summary  string                   `json:"summary"`
+	Semantic *eventSemanticWire       `json:"semantic"`
+	Status   biz.EventLifecycleStatus `json:"status"`
 }
 
 func (w *eventWire) UnmarshalJSON(payload []byte) error {
-	if !hasExactJSONFields(payload, "id", "title", "summary", "semantic", "modality", "occurred_at", "announced_at", "status") {
+	if !hasExactJSONFields(payload, "id", "title", "summary", "semantic", "status") {
 		return &Error{Kind: ErrorKindDecode}
 	}
 	type alias eventWire
@@ -95,7 +95,7 @@ func (w *eventWire) UnmarshalJSON(payload []byte) error {
 
 func (w eventWire) toBiz() (biz.Event, error) {
 	if !eventIDPattern.MatchString(w.ID) || strings.TrimSpace(w.Title) == "" || utf8.RuneCountInString(w.Title) > 200 ||
-		strings.TrimSpace(w.Summary) == "" || w.Semantic == nil || !validEventModality(w.Modality) || !validEventStatus(w.Status) {
+		strings.TrimSpace(w.Summary) == "" || w.Semantic == nil || !validEventStatus(w.Status) {
 		return biz.Event{}, &Error{Kind: ErrorKindDecode}
 	}
 	semantic, err := w.Semantic.toBiz()
@@ -104,23 +104,83 @@ func (w eventWire) toBiz() (biz.Event, error) {
 	}
 	return biz.Event{
 		ID: w.ID, Title: w.Title, Summary: w.Summary,
-		Semantic: semantic,
-		Modality: w.Modality, OccurredAt: w.OccurredAt, AnnouncedAt: w.AnnouncedAt, Status: w.Status,
+		Semantic: semantic, Status: w.Status,
 	}, nil
 }
 
 func (w eventSemanticWire) toBiz() (biz.EventSemantic, error) {
 	if !validEventSemanticStringArray(w.Actors, 1) || strings.TrimSpace(w.Action) == "" ||
-		!validEventSemanticStringArray(w.Objects, 1) || !validEventStage(w.Stage) ||
-		!validEventSemanticStringArray(w.Jurisdictions, 0) ||
-		(w.EffectiveAt != nil && w.EffectiveAt.Location() != time.UTC) || !validEventTimePrecision(w.TimePrecision) {
+		!validEventSemanticStringArray(w.Objects, 1) || !validEventStage(w.Stage) || !validEventModality(w.Modality) ||
+		w.Time == nil || !w.Time.valid() || !validEventSemanticStringArray(w.Jurisdictions, 0) || w.Metrics == nil {
 		return biz.EventSemantic{}, &Error{Kind: ErrorKindDecode}
+	}
+	metrics := make([]biz.EventMetric, len(w.Metrics))
+	for index, metric := range w.Metrics {
+		if !metric.valid() {
+			return biz.EventSemantic{}, &Error{Kind: ErrorKindDecode}
+		}
+		metrics[index] = biz.EventMetric{Name: metric.Name, Value: metric.Value, Unit: metric.Unit,
+			Change: metric.Change, Period: metric.Period}
 	}
 	return biz.EventSemantic{
 		Actors: append([]string{}, w.Actors...), Action: w.Action, Objects: append([]string{}, w.Objects...),
-		Stage: w.Stage, Jurisdictions: append([]string{}, w.Jurisdictions...), EffectiveAt: w.EffectiveAt,
-		TimePrecision: w.TimePrecision,
+		Stage: w.Stage, Modality: w.Modality,
+		Time: biz.EventTime{OccurredAt: w.Time.OccurredAt, AnnouncedAt: w.Time.AnnouncedAt,
+			EffectiveAt: w.Time.EffectiveAt, Precision: w.Time.Precision},
+		Jurisdictions: append([]string{}, w.Jurisdictions...), Reason: w.Reason, Method: w.Method, Metrics: metrics,
 	}, nil
+}
+
+type eventTimeWire struct {
+	OccurredAt  *time.Time             `json:"occurred_at"`
+	AnnouncedAt *time.Time             `json:"announced_at"`
+	EffectiveAt *time.Time             `json:"effective_at"`
+	Precision   biz.EventTimePrecision `json:"precision"`
+}
+
+func (w *eventTimeWire) UnmarshalJSON(payload []byte) error {
+	if !hasExactJSONFields(payload, "occurred_at", "announced_at", "effective_at", "precision") {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	type alias eventTimeWire
+	var decoded alias
+	if json.Unmarshal(payload, &decoded) != nil {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	*w = eventTimeWire(decoded)
+	return nil
+}
+
+func (w eventTimeWire) valid() bool {
+	return (w.OccurredAt != nil || w.AnnouncedAt != nil || w.EffectiveAt != nil) &&
+		(w.OccurredAt == nil || w.OccurredAt.Location() == time.UTC) &&
+		(w.AnnouncedAt == nil || w.AnnouncedAt.Location() == time.UTC) &&
+		(w.EffectiveAt == nil || w.EffectiveAt.Location() == time.UTC) && validEventTimePrecision(w.Precision)
+}
+
+type eventMetricWire struct {
+	Name   string  `json:"name"`
+	Value  *string `json:"value"`
+	Unit   *string `json:"unit"`
+	Change *string `json:"change"`
+	Period *string `json:"period"`
+}
+
+func (w *eventMetricWire) UnmarshalJSON(payload []byte) error {
+	if !hasExactJSONFields(payload, "name", "value", "unit", "change", "period") {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	type alias eventMetricWire
+	var decoded alias
+	if json.Unmarshal(payload, &decoded) != nil {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	*w = eventMetricWire(decoded)
+	return nil
+}
+
+func (w eventMetricWire) valid() bool {
+	return strings.TrimSpace(w.Name) != "" && (w.Value != nil || w.Change != nil)
 }
 
 func validEventSemanticStringArray(values []string, minimumItems int) bool {
@@ -171,7 +231,7 @@ func validEventStage(stage biz.EventStage) bool {
 
 func validEventTimePrecision(precision biz.EventTimePrecision) bool {
 	return precision == biz.EventTimePrecisionInstant || precision == biz.EventTimePrecisionDay ||
-		precision == biz.EventTimePrecisionMonth || precision == biz.EventTimePrecisionQuarter ||
+		precision == biz.EventTimePrecisionRange || precision == biz.EventTimePrecisionMonth || precision == biz.EventTimePrecisionQuarter ||
 		precision == biz.EventTimePrecisionYear || precision == biz.EventTimePrecisionUnknown
 }
 

@@ -117,10 +117,10 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 			ID: "EVT00000000-0000-5000-8000-000000000001", Title: "美联储维持利率不变", Summary: "摘要",
 			Semantic: biz.EventSemantic{
 				Actors: []string{"美联储"}, Action: "维持利率不变", Objects: []string{"联邦基金利率"},
-				Stage: biz.EventStageAnnounced, Jurisdictions: []string{"美国"}, EffectiveAt: &effectiveAt,
-				TimePrecision: biz.EventTimePrecisionDay,
-			}, Modality: biz.EventModalityFact,
-			OccurredAt: &eventTime, AnnouncedAt: &announcedAt, Status: biz.EventLifecycleActive,
+				Stage: biz.EventStageAnnounced, Modality: biz.EventModalityFact,
+				Time:          biz.EventTime{OccurredAt: &eventTime, AnnouncedAt: &announcedAt, EffectiveAt: &effectiveAt, Precision: biz.EventTimePrecisionDay},
+				Jurisdictions: []string{"美国"}, Metrics: []biz.EventMetric{},
+			}, Status: biz.EventLifecycleActive,
 		}}, Total: 1, Page: 1, PageSize: 50}, nil
 	}}
 	router := NewRouter(testConfig(), biz.NewService(client, nil), "secret")
@@ -145,13 +145,13 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 		t.Fatalf("request IDs = %q/%q", envelope.RequestID, response.Header().Get(data.RequestIDHeader))
 	}
 	if body.Total != 1 || len(body.Items) != 1 || body.Items[0].Status != "ACTIVE" ||
-		body.Items[0].AnnouncedAt == nil || *body.Items[0].AnnouncedAt != announcedAt.Format(time.RFC3339) ||
+		body.Items[0].Semantic.Time.AnnouncedAt == nil || *body.Items[0].Semantic.Time.AnnouncedAt != announcedAt.Format(time.RFC3339) ||
 		len(body.Items[0].Semantic.Actors) != 1 || body.Items[0].Semantic.Actors[0] != "美联储" ||
 		body.Items[0].Semantic.Action != "维持利率不变" || len(body.Items[0].Semantic.Objects) != 1 ||
 		body.Items[0].Semantic.Objects[0] != "联邦基金利率" || body.Items[0].Semantic.Stage != "ANNOUNCED" ||
 		len(body.Items[0].Semantic.Jurisdictions) != 1 || body.Items[0].Semantic.Jurisdictions[0] != "美国" ||
-		body.Items[0].Semantic.EffectiveAt == nil || *body.Items[0].Semantic.EffectiveAt != effectiveAt.Format(time.RFC3339) ||
-		body.Items[0].Semantic.TimePrecision != "DAY" {
+		body.Items[0].Semantic.Time.EffectiveAt == nil || *body.Items[0].Semantic.Time.EffectiveAt != effectiveAt.Format(time.RFC3339) ||
+		body.Items[0].Semantic.Time.Precision != "DAY" || body.Items[0].Semantic.Modality != "FACT" {
 		t.Fatalf("response = %#v", body)
 	}
 }
@@ -162,9 +162,11 @@ func TestEventsAPIAlwaysEmitsNullableTimeFields(t *testing.T) {
 			ID: "EVT00000000-0000-5000-8000-000000000001", Title: "无时间事件", Summary: "摘要",
 			Semantic: biz.EventSemantic{
 				Actors: []string{"发布方"}, Action: "发布事件", Objects: []string{"事件"}, Stage: biz.EventStageAnnounced,
-				Jurisdictions: []string{}, TimePrecision: biz.EventTimePrecisionUnknown,
+				Modality:      biz.EventModalityFact,
+				Time:          biz.EventTime{AnnouncedAt: func() *time.Time { value := testTime(); return &value }(), Precision: biz.EventTimePrecisionUnknown},
+				Jurisdictions: []string{}, Metrics: []biz.EventMetric{},
 			},
-			Modality: biz.EventModalityFact, Status: biz.EventLifecycleActive,
+			Status: biz.EventLifecycleActive,
 		}}, Total: 1, Page: 1, PageSize: 50}, nil
 	}}
 	router := NewRouter(testConfig(), biz.NewService(client, nil), "secret")
@@ -172,7 +174,7 @@ func TestEventsAPIAlwaysEmitsNullableTimeFields(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
 	}
-	if !strings.Contains(response.Body.String(), `"occurred_at":null`) || !strings.Contains(response.Body.String(), `"announced_at":null`) {
+	if !strings.Contains(response.Body.String(), `"occurred_at":null`) || !strings.Contains(response.Body.String(), `"effective_at":null`) {
 		t.Fatalf("nullable time fields are not explicit: %s", response.Body.String())
 	}
 }
