@@ -495,7 +495,7 @@ func validEventSemantic() eventbiz.Semantic {
 	return eventbiz.Semantic{
 		Actors: []string{"Example actor"}, Action: "acts", Objects: []string{"Example object"},
 		Stage: eventbiz.EventStageOccurred, Modality: eventbiz.ModalityFact, Jurisdictions: []string{},
-		Time: eventbiz.EventTime{OccurredAt: timePointer(time.Date(2026, 8, 25, 0, 0, 0, 0, time.UTC)),
+		Time: eventbiz.EventTime{OccurredAt: timePointer(time.Date(2026, 8, 25, 0, 0, 0, 123456789, time.UTC)),
 			Precision: eventbiz.TimePrecisionDay}, Metrics: []eventbiz.Metric{},
 	}
 }

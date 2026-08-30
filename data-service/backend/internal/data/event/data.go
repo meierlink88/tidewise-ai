@@ -44,10 +44,15 @@ func (s Store) CreateEvent(ctx context.Context, aggregate eventbiz.Aggregate) (r
 	}
 	if _, err := tx.ExecContext(ctx, `INSERT INTO events (
     id, title, summary, semantic, modality, occurred_at, announced_at, status
-) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+) VALUES (
+    $1,$2,$3,$4,
+    $4::jsonb ->> 'modality',
+    ($4::jsonb #>> '{time,occurred_at}')::timestamptz,
+    ($4::jsonb #>> '{time,announced_at}')::timestamptz,
+    $5
+)`,
 		aggregate.Event.ID, aggregate.Event.Title, aggregate.Event.Summary, semantic,
-		aggregate.Event.Semantic.Modality, nullableTime(aggregate.Event.Semantic.Time.OccurredAt),
-		nullableTime(aggregate.Event.Semantic.Time.AnnouncedAt), aggregate.Event.Status,
+		aggregate.Event.Status,
 	); err != nil {
 		return fmt.Errorf("insert Event %q: %w", aggregate.Event.ID, err)
 	}
@@ -295,7 +300,9 @@ func sameOptionalTime(left, right *time.Time) bool {
 	if left == nil || right == nil {
 		return left == nil && right == nil
 	}
-	return left.Equal(*right)
+	// PostgreSQL timestamptz stores microseconds, while the canonical semantic JSON
+	// may retain Go's nanosecond precision. Compare at the projection's precision.
+	return left.Round(time.Microsecond).Equal(right.Round(time.Microsecond))
 }
 
 func validatePersistedEvidenceLink(link eventbiz.EvidenceLink, eventID string) error {
