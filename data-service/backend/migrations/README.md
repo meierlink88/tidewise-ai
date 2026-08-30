@@ -197,6 +197,10 @@ web search，并用正式 token 读取完整管理集合与 active snapshot。�
 回滚 Data 应用时保留表与已导入数据，不运行 down；外部消费方切换后的回滚必须停止
 新 workflow/管理写入并按 ADR-0031 恢复切换前 AgentOS 快照，不使用部分快照或反向同步。
 
+已完成 Source 所有权切换的环境可显式运行 `source-research-rss-initialize`，以 Git 审查过的
+目录补齐全球投研 RSS Source。该命令只插入缺失的 dynamic/rss/generic_rss Source，重复执行
+保留既有运营配置；同 code 存在但协议身份不兼容时原子失败。它不属于 migration 或普通 Deploy。
+
 `000062` 是 Issue #293 的 additive、forward-only Subdivision persistence 基础。操作员使用
 候选 Data 镜像执行 check-only，确认它是唯一 pending migration 后 apply，并验证 ledger 为
 `62`、空表字段/组合唯一/FK/enum/时间默认值满足合同。旧应用不消费新增结构，可以与已应用
