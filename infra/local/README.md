@@ -7,8 +7,8 @@ directly and hand platform output to the native developer tools.
 
 The `tidewise-app` stack contains Data, Miniapp Backend, Admin Backend and Admin Web.
 Reason Server and Agent OS join the same Docker Desktop project only when started from their own
-repositories. The independently operated `tidewise-infra` stack contains PostgreSQL, MySQL, MinIO
-and Qdrant. Reasoning-specific Neo4j is owned by `tidewise-reason`; all projects use the
+repositories. The independently operated `tidewise-infra` stack contains PostgreSQL and MinIO.
+Reasoning-specific Neo4j is owned by `tidewise-reason`; all projects use the
 `tidewise-local` network. Data and Agent OS keep
 independent PostgreSQL databases and roles; sharing the engine does not share data ownership.
 
@@ -91,8 +91,7 @@ npm run runtime:logs
 | Miniapp H5 profile | `http://127.0.0.1:10086` |
 
 Application-to-application traffic uses Compose DNS (`data`, `miniapp`, `adminportal`).
-Applications reach local infrastructure through `postgres`, `qdrant`, `mysql` and `minio` on the
-shared network.
+Applications reach local infrastructure through `postgres` and `minio` on the shared network.
 
 Docker Desktop shows the long-running application containers as `admin-portal-web`,
 `admin-portal-service`, `miniapp-service`, and `data-service`. The transient Data migration
