@@ -96,6 +96,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000075_rebuild_event_business_semantics.sql`：零兼容把 Event 升级为事件级完整业务命题，情态与
   occurrence/announcement/effectiveness 时间归入 `semantic`，增加原因、执行方式和指标，并移除
   Event wire 顶层的重复 modality 与时间字段。
+- `000076_relax_event_metric_storage_constraint.sql`：修复 `000075` 对所有非空 Event metrics 的
+  错误拒绝；数据库保留 Event 核心语义和指标数组/对象外形，具体指标属性由 typed HTTP 与 Biz
+  边界校验。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -330,3 +333,8 @@ Publication Receipt 均为空。迁移会 fail closed 拒绝旧七键 Event sema
 Event semantic 十键和嵌套时间约束生效，再按 Data provider → Admin consumer → AgentOS producer 的
 顺序发布匹配二进制。新旧 binary 不得 mixed traffic；完整回滚必须恢复 migration 75 前恢复点并
 同时回退三个应用，不运行 down migration。
+
+`000076` 是 Issue #361 的向后兼容约束修复。它不转换或删除 Event，只重建
+`chk_events_semantic`，删除重复且错误的深层 metric 属性检查，同时保留 Event 核心语义、时间投影和
+metrics 数组/对象外形。迁移前后 Data API 与 Biz 合同不变，旧版与新版 Data binary 均可写入；正常
+Schema migration 路径即可执行，回滚使用恢复点或后续 forward repair，不恢复 `000075` 的错误约束。

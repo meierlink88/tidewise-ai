@@ -113,6 +113,13 @@ func TestCreateRejectsInvalidAggregateBeforePersistence(t *testing.T) {
 		{name: "invalid modality", mutate: func(input *CreateInput) { input.Semantic.Modality = "UNKNOWN" }},
 		{name: "missing jurisdictions", mutate: func(input *CreateInput) { input.Semantic.Jurisdictions = nil }},
 		{name: "missing metrics", mutate: func(input *CreateInput) { input.Semantic.Metrics = nil }},
+		{name: "blank metric name", mutate: func(input *CreateInput) {
+			value := "10"
+			input.Semantic.Metrics = []Metric{{Name: " ", Value: &value}}
+		}},
+		{name: "metric without value or change", mutate: func(input *CreateInput) {
+			input.Semantic.Metrics = []Metric{{Name: "capacity"}}
+		}},
 		{name: "missing time anchor", mutate: func(input *CreateInput) { input.Semantic.Time = EventTime{Precision: TimePrecisionUnknown} }},
 		{name: "duplicate semantic actor", mutate: func(input *CreateInput) {
 			input.Semantic.Actors = append(input.Semantic.Actors, input.Semantic.Actors[0])
