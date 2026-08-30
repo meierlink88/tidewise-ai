@@ -63,7 +63,7 @@ func TestListCategoriesFailsClosedForInvalidCatalog(t *testing.T) {
 	}
 }
 
-func TestPublishRawEvidenceReturnsFormalIdentityAndPreservesKeywordsAcrossRetry(t *testing.T) {
+func TestPublishRawEvidenceReturnsFormalIdentityAcrossRetry(t *testing.T) {
 	store := newMemoryStore()
 	service := mustNewUseCase(t, store)
 
@@ -75,9 +75,6 @@ func TestPublishRawEvidenceReturnsFormalIdentityAndPreservesKeywordsAcrossRetry(
 	}
 	if !strings.HasPrefix(created.ID, "RAW") {
 		t.Fatalf("Raw Evidence ID = %q", created.ID)
-	}
-	if got, want := store.raw[created.ID].Keywords, []string{" AI芯片 ", "供应链", "AI芯片"}; !equalStrings(got, want) {
-		t.Fatalf("keywords = %#v, want exact publisher order %#v", got, want)
 	}
 	if store.raw[created.ID].ContentHash != "1b46f625a140463536b92ffb1718d101bbcdfe09a76ef63089af6a0d99b8aa33" {
 		t.Fatalf("content hash = %q", store.raw[created.ID].ContentHash)
@@ -132,8 +129,8 @@ func TestPublishEvidenceCreatesCompleteSplitSetThenReusesIt(t *testing.T) {
 		t.Fatalf("Evidence IDs = %#v", created.IDs)
 	}
 	if len(created.Items) != 2 ||
-		created.Items[0] != (EvidenceResultItem{InputIndex: 0, ID: "EVD3b60b328-211e-5ad3-8d07-4d904dc65284"}) ||
-		created.Items[1] != (EvidenceResultItem{InputIndex: 1, ID: "EVD61033f85-bf67-5dd2-b0be-b33b3ba498e6"}) {
+		created.Items[0] != (EvidenceResultItem{InputIndex: 0, ID: "EVDad19519d-0c06-54ab-9f71-9543851b8a30"}) ||
+		created.Items[1] != (EvidenceResultItem{InputIndex: 1, ID: "EVDae47f5e0-0367-52d1-9c93-963d8bd36535"}) {
 		t.Fatalf("Evidence request mappings = %#v", created.Items)
 	}
 
@@ -142,14 +139,14 @@ func TestPublishEvidenceCreatesCompleteSplitSetThenReusesIt(t *testing.T) {
 		t.Fatalf("replay Evidence: %v", err)
 	}
 	if !equalStrings(reused.IDs, created.IDs) || len(reused.Items) != 2 ||
-		reused.Items[0] != (EvidenceResultItem{InputIndex: 0, ID: "EVD3b60b328-211e-5ad3-8d07-4d904dc65284"}) ||
-		reused.Items[1] != (EvidenceResultItem{InputIndex: 1, ID: "EVD61033f85-bf67-5dd2-b0be-b33b3ba498e6"}) ||
+		reused.Items[0] != (EvidenceResultItem{InputIndex: 0, ID: "EVDad19519d-0c06-54ab-9f71-9543851b8a30"}) ||
+		reused.Items[1] != (EvidenceResultItem{InputIndex: 1, ID: "EVDae47f5e0-0367-52d1-9c93-963d8bd36535"}) ||
 		len(store.evidences) != 2 {
 		t.Fatalf("retry result = %#v, stored Evidences = %d", reused, len(store.evidences))
 	}
 
 	drifted := append([]Evidence(nil), evidences...)
-	drifted[1].Semantic.What = "Changed fact"
+	drifted[1].Semantic.Action = "Changed fact"
 	_, err = service.PublishEvidence(context.Background(), raw.ID, drifted)
 	var conflict *ConflictError
 	if !errors.As(err, &conflict) {
@@ -209,10 +206,10 @@ func TestPublishEvidenceSingleIsNotSplitAndMultipleItemsAreOrderNeutral(t *testi
 		t.Fatalf("order-neutral retry result=%#v error=%v, want %#v", reordered, err, created)
 	}
 	if len(created.Items) != 2 || len(reordered.Items) != 2 ||
-		created.Items[0] != (EvidenceResultItem{InputIndex: 0, ID: "EVD3b60b328-211e-5ad3-8d07-4d904dc65284"}) ||
-		created.Items[1] != (EvidenceResultItem{InputIndex: 1, ID: "EVDb6464622-7d08-5669-835a-681d4799bf04"}) ||
-		reordered.Items[0] != (EvidenceResultItem{InputIndex: 0, ID: "EVDb6464622-7d08-5669-835a-681d4799bf04"}) ||
-		reordered.Items[1] != (EvidenceResultItem{InputIndex: 1, ID: "EVD3b60b328-211e-5ad3-8d07-4d904dc65284"}) {
+		created.Items[0] != (EvidenceResultItem{InputIndex: 0, ID: "EVDad19519d-0c06-54ab-9f71-9543851b8a30"}) ||
+		created.Items[1] != (EvidenceResultItem{InputIndex: 1, ID: "EVDac380931-f9d5-5e03-a585-d6e6572d95ab"}) ||
+		reordered.Items[0] != (EvidenceResultItem{InputIndex: 0, ID: "EVDac380931-f9d5-5e03-a585-d6e6572d95ab"}) ||
+		reordered.Items[1] != (EvidenceResultItem{InputIndex: 1, ID: "EVDad19519d-0c06-54ab-9f71-9543851b8a30"}) {
 		t.Fatalf("current request mappings: created=%#v reordered=%#v", created.Items, reordered.Items)
 	}
 }
@@ -238,16 +235,62 @@ func TestPublishEvidenceRejectsCollectionReferenceAndSemanticFailures(t *testing
 			item.Summary = ""
 			return []Evidence{item}
 		}(), code: IssueRequired},
-		{name: "missing semantic what", items: func() []Evidence {
+		{name: "missing semantic action", items: func() []Evidence {
 			item := validEvidence(0)
-			item.Semantic.What = ""
+			item.Semantic.Action = ""
 			return []Evidence{item}
 		}(), code: IssueRequired},
-		{name: "blank optional semantic", items: func() []Evidence {
+		{name: "blank semantic actor", items: func() []Evidence {
 			item := validEvidence(0)
-			item.Semantic.Who = stringPointer(" ")
+			item.Semantic.Actors = []string{" "}
 			return []Evidence{item}
 		}(), code: IssueRequired},
+		{name: "unsupported stage", items: func() []Evidence {
+			item := validEvidence(0)
+			item.Semantic.Stage = "RUMORED"
+			return []Evidence{item}
+		}(), code: IssueInvalidEnum},
+		{name: "unsupported modality", items: func() []Evidence {
+			item := validEvidence(0)
+			item.Semantic.Modality = "OPINION"
+			return []Evidence{item}
+		}(), code: IssueInvalidEnum},
+		{name: "one-sided time range", items: func() []Evidence {
+			item := validEvidence(0)
+			start := time.Date(2026, 8, 10, 0, 0, 0, 0, time.UTC)
+			item.Semantic.Time.StartAt = &start
+			return []Evidence{item}
+		}(), code: IssueInvalidTimestamp},
+		{name: "metric without value or change", items: func() []Evidence {
+			item := validEvidence(0)
+			item.Semantic.Metrics = []EvidenceMetric{{Name: "revenue"}}
+			return []Evidence{item}
+		}(), code: IssueRequired},
+		{name: "null jurisdictions", items: func() []Evidence {
+			item := validEvidence(0)
+			item.Semantic.Jurisdictions = nil
+			return []Evidence{item}
+		}(), code: IssueRequired},
+		{name: "null metrics", items: func() []Evidence {
+			item := validEvidence(0)
+			item.Semantic.Metrics = nil
+			return []Evidence{item}
+		}(), code: IssueRequired},
+		{name: "null attribution", items: func() []Evidence {
+			item := validEvidence(0)
+			item.Semantic.Attribution = nil
+			return []Evidence{item}
+		}(), code: IssueRequired},
+		{name: "duplicate keyword", items: func() []Evidence {
+			item := validEvidence(0)
+			item.Keywords = []string{"扩产", "扩产"}
+			return []Evidence{item}
+		}(), code: IssueDuplicate},
+		{name: "keyword over six characters", items: func() []Evidence {
+			item := validEvidence(0)
+			item.Keywords = []string{"先进封装产业链"}
+			return []Evidence{item}
+		}(), code: IssueTooLong},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -270,10 +313,14 @@ func TestPublishEvidenceRejectsCollectionReferenceAndSemanticFailures(t *testing
 
 func validEvidence(variant int) Evidence {
 	return Evidence{
-		Summary: fmt.Sprintf("Example Corp expands production %d", variant),
+		Summary:  fmt.Sprintf("Example Corp expands production %d", variant),
+		Keywords: []string{"扩产", "产能"},
 		Semantic: Semantic{
-			Who: stringPointer("Example Corp"), What: fmt.Sprintf("expanded production line %d", variant),
-			When: stringPointer("2026-08-10"), Where: nil, Why: nil, How: stringPointer("by adding capacity"),
+			Actors: []string{"Example Corp"}, Action: fmt.Sprintf("expanded production line %d", variant),
+			Objects: []string{"production capacity"}, Stage: EvidenceStageOccurred, Modality: EvidenceModalityFact,
+			Time:          EvidenceTime{Raw: stringPointer("2026-08-10"), Precision: EvidenceTimeDay},
+			Jurisdictions: []string{}, Method: stringPointer("by adding capacity"), Metrics: []EvidenceMetric{},
+			Attribution: &EvidenceAttribution{ReportedBy: stringPointer("Example Wire")},
 		},
 	}
 }
@@ -291,7 +338,6 @@ func validRawEvidence() RawEvidence {
 		RawText:        "Complete original article.",
 		PublishedAt:    &publishedAt,
 		CollectedAt:    time.Date(2026, 8, 11, 1, 5, 0, 0, time.UTC),
-		Keywords:       []string{" AI芯片 ", "供应链", "AI芯片"},
 	}
 }
 

@@ -90,6 +90,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000071_retire_entity_identifiers_and_redirects.sql`：删除无当前应用 owner 的通用 Entity
   External Identifier 与 Entity Redirect 表，移除 Redirect 专属函数，并重建剩余 Data Object
   引用保护函数以继续覆盖 Entity Relations 和 typed IndustryChain Links。
+- `000074_rebuild_atomic_evidence_business_semantics.sql`：零兼容把 Atomic Evidence 重建为最小完整
+  业务命题，将 Keywords 从 Raw Evidence 移至 Evidence，并以主体、动作、对象、阶段、情态、时间、
+  辖区、原因、执行方式、指标和归因组成当前语义合同。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -307,3 +310,12 @@ fail closed 拒绝任何历史 Event，因为旧 5W1H JSON 不能无损推导出
 `73`、`event_publication_receipts` 约束完整，并使用新 Data/Reasoning binary 发布一条
 Event 验证原子 Event + Evidence Link + Receipt。新旧 binary 不得 mixed traffic。完整
 回滚必须恢复 migration 73 前恢复点并同时回退 Data/Reasoning，不运行 down migration。
+
+`000074` 是 Issue #351 的高风险 Atomic Evidence 合同切换。操作员必须停止 Data、AgentOS
+及所有 Evidence/Event 写入者，取得 PostgreSQL 恢复点，并确认 Raw Evidence、Atomic Evidence、
+Event 及其 Evidence/Actor/Asset Link 与 Publication Receipt 均为空。迁移会 fail closed 拒绝任何
+历史链路，因为旧 5W1H 无法无损转换为最小完整业务命题；不得在 migration 内静默删除历史事实。
+确认它是唯一 pending migration 后才可 apply。执行后确认 ledger 为 `74`、Raw Evidence 不再拥有
+`keywords`、Atomic Evidence 拥有 `keywords` 和新 `semantic` 约束，再用匹配的新 Data/AgentOS
+发布一个含多指标业务命题的 Evidence。新旧 binary 不得 mixed traffic；完整回滚必须恢复 migration
+74 前恢复点并同时回退 Data/AgentOS，不运行 down migration。

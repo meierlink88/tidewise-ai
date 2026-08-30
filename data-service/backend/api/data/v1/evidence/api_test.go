@@ -82,7 +82,7 @@ func TestEvidencePublicationProviderFixturesAreContractNeutralAndTwoPhase(t *tes
 		t.Fatalf("fixture Raw Evidence categories = %#v", rawRequest.RawEvidence.CategoryIDs)
 	}
 	if len(evidenceRequest.Evidences) != 2 || evidenceRequest.Evidences[0].Summary == "" ||
-		evidenceRequest.Evidences[0].Semantic.What == "" || evidenceRequest.Evidences[1].Semantic.What == "" {
+		evidenceRequest.Evidences[0].Semantic.Action == "" || evidenceRequest.Evidences[1].Semantic.Action == "" {
 		t.Fatalf("fixture must contain complete summary and semantic Evidence items: %#v", evidenceRequest.Evidences)
 	}
 }
@@ -207,7 +207,7 @@ func TestEvidencePublicationOpenAPISuccessResultsContainOnlyFormalIdentities(t *
 	}
 }
 
-func TestAtomicEvidenceOpenAPIUsesSummaryAndExactSingleLayerSemantic(t *testing.T) {
+func TestAtomicEvidenceOpenAPIPublishesBusinessPropositionSemanticAndEvidenceKeywords(t *testing.T) {
 	var document map[string]any
 	if err := yaml.Unmarshal(v1.Document(), &document); err != nil {
 		t.Fatal(err)
@@ -215,18 +215,31 @@ func TestAtomicEvidenceOpenAPIUsesSummaryAndExactSingleLayerSemantic(t *testing.
 	components := document["components"].(map[string]any)["schemas"].(map[string]any)
 	atomic := components["AtomicEvidence"].(map[string]any)
 	atomicProperties := atomic["properties"].(map[string]any)
-	if len(atomicProperties) != 2 || atomicProperties["summary"] == nil || atomicProperties["semantic"] == nil || atomic["additionalProperties"] != false {
+	if len(atomicProperties) != 3 || atomicProperties["summary"] == nil || atomicProperties["keywords"] == nil || atomicProperties["semantic"] == nil || atomic["additionalProperties"] != false {
 		t.Fatalf("AtomicEvidence contract = %#v", atomic)
+	}
+	keywords := atomicProperties["keywords"].(map[string]any)
+	if keywords["type"] != "array" || keywords["minItems"] != 1 || keywords["maxItems"] != 5 || keywords["uniqueItems"] != true {
+		t.Fatalf("AtomicEvidence keywords = %#v", keywords)
 	}
 	semantic := components["EvidenceSemantic"].(map[string]any)
 	semanticProperties := semantic["properties"].(map[string]any)
-	for _, field := range []string{"who", "what", "when", "where", "why", "how"} {
+	for _, field := range []string{"actors", "action", "objects", "stage", "modality", "time", "jurisdictions", "reason", "method", "metrics", "attribution"} {
 		if _, exists := semanticProperties[field]; !exists {
 			t.Fatalf("EvidenceSemantic is missing %q", field)
 		}
 	}
-	if len(semanticProperties) != 6 || semantic["additionalProperties"] != false {
+	if len(semanticProperties) != 11 || semantic["additionalProperties"] != false {
 		t.Fatalf("EvidenceSemantic contract = %#v", semantic)
+	}
+	for _, schema := range []string{"EvidenceTime", "EvidenceMetric", "EvidenceAttribution"} {
+		if components[schema] == nil {
+			t.Fatalf("Evidence contract is missing %q", schema)
+		}
+	}
+	raw := components["RawEvidence"].(map[string]any)
+	if _, exists := raw["properties"].(map[string]any)["keywords"]; exists {
+		t.Fatalf("RawEvidence must not own keywords: %#v", raw)
 	}
 	for _, removed := range []string{"EvidenceLayerType", "expression_key", "fingerprint_version", "source_what", "source_what_core", "split_order"} {
 		if _, exists := components[removed]; exists {

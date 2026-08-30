@@ -61,20 +61,29 @@ func TestPublishedObjectSchemasAndPersistenceStayAligned(t *testing.T) {
 				"rawEvidenceId(所属原始证据标识): Text",
 				"isSplit(是否拆分): Text",
 				"summary(事实摘要): Text",
-				"who(相关主体): Text",
-				"what(发生事项): Text",
-				"when(语义时间): Text",
-				"where(发生地点): Text",
-				"why(发生原因): Text",
-				"how(发生方式): Text",
+				"keywords(关键词): Text",
+				"actors(业务主体): Text",
+				"action(核心动作): Text",
+				"objects(作用对象): Text",
+				"stage(现实阶段): Text",
+				"modality(事实情态): Text",
+				"time(语义时间): Text",
+				"jurisdictions(作用辖区): Text",
+				"reason(发生原因): Text",
+				"method(执行方式): Text",
+				"metrics(业务指标): Text",
+				"attribution(信息归因): Text",
 				"createdAt(创建时间): Text",
 				`Enum="TRUE,FALSE"`,
+				`Enum="OCCURRED,ANNOUNCED,EFFECTIVE,IMPLEMENTED,UPDATED,SUSPENDED,TERMINATED,EXPECTED"`,
+				`Enum="FACT,PLAN,SPEC"`,
 			},
 			columns: []schemaColumn{
 				{name: "id", nullable: "NO", dataType: "varchar", maxLength: 39},
 				{name: "raw_evidence_id", nullable: "NO", dataType: "varchar", maxLength: 39},
 				{name: "is_split", nullable: "NO", dataType: "bool"},
 				{name: "summary", nullable: "NO", dataType: "varchar", maxLength: 200},
+				{name: "keywords", nullable: "NO", dataType: "_text"},
 				{name: "created_at", nullable: "YES", dataType: "timestamptz", defaultContains: "transaction_timestamp()"},
 				{name: "semantic", nullable: "NO", dataType: "jsonb"},
 			},
@@ -180,23 +189,20 @@ func TestPublishedObjectSchemasAndPersistenceStayAligned(t *testing.T) {
 }
 
 func evidenceSemanticConstraintTokens() []string {
-	tokens := []string{
+	return []string{
 		"jsonb_typeof(semantic) = 'object'::text",
 		"semantic = jsonb_build_object(",
-		"jsonb_typeof(semantic -> 'what'::text) = 'string'::text",
-		"btrim(semantic ->> 'what'::text) <> ''::text",
+		"jsonb_typeof(semantic -> 'actors'::text) = 'array'::text",
+		"jsonb_typeof(semantic -> 'action'::text) = 'string'::text",
+		"btrim(semantic ->> 'action'::text) <> ''::text",
+		"jsonb_typeof(semantic -> 'objects'::text) = 'array'::text",
+		"semantic ->> 'stage'::text = ANY",
+		"semantic ->> 'modality'::text = ANY",
+		"jsonb_typeof(semantic -> 'time'::text) = 'object'::text",
+		"jsonb_typeof(semantic -> 'jurisdictions'::text) = 'array'::text",
+		"jsonb_typeof(semantic -> 'metrics'::text) = 'array'::text",
+		"jsonb_typeof(semantic -> 'attribution'::text) = 'object'::text",
 	}
-	for _, name := range []string{"who", "what", "when", "where", "why", "how"} {
-		tokens = append(tokens, "'"+name+"', semantic -> '"+name+"'::text")
-	}
-	for _, name := range []string{"who", "when", "where", "why", "how"} {
-		tokens = append(tokens,
-			"jsonb_typeof(semantic -> '"+name+"'::text) = 'null'::text",
-			"jsonb_typeof(semantic -> '"+name+"'::text) = 'string'::text",
-			"btrim(semantic ->> '"+name+"'::text) <> ''::text",
-		)
-	}
-	return tokens
 }
 
 func assertObjectSchemaMembers(t *testing.T, schemaPath string, members []string) {

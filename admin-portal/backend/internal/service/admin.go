@@ -258,8 +258,24 @@ func evidence(value biz.Evidence) v1.Evidence {
 	for _, category := range value.Categories {
 		categories = append(categories, evidenceCategory(category))
 	}
+	metrics := make([]v1.EvidenceMetric, 0, len(value.Semantic.Metrics))
+	for _, metric := range value.Semantic.Metrics {
+		metrics = append(metrics, v1.EvidenceMetric{Name: metric.Name, Value: metric.Value, Unit: metric.Unit, Change: metric.Change, Period: metric.Period})
+	}
+	semanticTime := v1.EvidenceTime{Raw: value.Semantic.Time.Raw, Precision: value.Semantic.Time.Precision}
+	if value.Semantic.Time.StartAt != nil {
+		formatted := value.Semantic.Time.StartAt.UTC().Format(time.RFC3339Nano)
+		semanticTime.StartAt = &formatted
+	}
+	if value.Semantic.Time.EndAt != nil {
+		formatted := value.Semantic.Time.EndAt.UTC().Format(time.RFC3339Nano)
+		semanticTime.EndAt = &formatted
+	}
 	response := v1.Evidence{ID: value.ID, RawEvidenceID: value.RawEvidenceID, Title: value.Title, Summary: value.Summary,
-		Semantic:   v1.EvidenceSemantic{Who: value.Semantic.Who, What: value.Semantic.What, When: value.Semantic.When, Where: value.Semantic.Where, Why: value.Semantic.Why, How: value.Semantic.How},
+		Semantic: v1.EvidenceSemantic{Actors: append([]string{}, value.Semantic.Actors...), Action: value.Semantic.Action,
+			Objects: append([]string{}, value.Semantic.Objects...), Stage: value.Semantic.Stage, Modality: value.Semantic.Modality,
+			Time: semanticTime, Jurisdictions: append([]string{}, value.Semantic.Jurisdictions...), Reason: value.Semantic.Reason,
+			Method: value.Semantic.Method, Metrics: metrics, Attribution: v1.EvidenceAttribution{ReportedBy: value.Semantic.Attribution.ReportedBy, ClaimedBy: value.Semantic.Attribution.ClaimedBy}},
 		Categories: categories, SourceID: value.SourceID, SourceName: value.SourceName, SourceLevel: value.SourceLevel, SourceURL: value.SourceURL,
 		IsOriginal: value.IsOriginal, QuotedSourceName: value.QuotedSourceName, Keywords: append([]string{}, value.Keywords...), IsSplit: value.IsSplit,
 		CollectedAt: value.CollectedAt.UTC().Format(time.RFC3339Nano)}

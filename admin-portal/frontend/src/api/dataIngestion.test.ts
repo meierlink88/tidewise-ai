@@ -7,6 +7,12 @@ import {
   loadSources
 } from './dataIngestion';
 
+const evidenceSemantic = {
+  actors: ['商务部'], action: '发布公告', objects: ['公告'], stage: 'ANNOUNCED', modality: 'FACT',
+  time: { raw: null, start_at: null, end_at: null, precision: 'UNKNOWN' }, jurisdictions: ['中国'],
+  reason: null, method: null, metrics: [], attribution: { reported_by: null, claimed_by: '商务部' }
+};
+
 describe('data ingestion api client', () => {
   it('validates the complete seven-field Event semantic projection', async () => {
     vi.stubGlobal(
@@ -256,14 +262,7 @@ describe('data ingestion api client', () => {
                 raw_evidence_id: 'RAW00000000-0000-5000-8000-000000000001',
                 title: '材料标题',
                 summary: '原子证据摘要',
-                semantic: {
-                  who: '商务部',
-                  what: '发布公告',
-                  when: null,
-                  where: '中国',
-                  why: null,
-                  how: null
-                },
+                semantic: evidenceSemantic,
                 categories: [],
                 source_id: 'SRC_example_00000000000000000000',
                 source_name: '商务部',
@@ -271,7 +270,7 @@ describe('data ingestion api client', () => {
                 source_url: 'https://example.com/report',
                 is_original: true,
                 quoted_source_name: null,
-                keywords: [],
+                keywords: ['公告'],
                 is_split: false,
                 published_at: null,
                 collected_at: '2026-08-19T02:00:00Z'
@@ -287,12 +286,12 @@ describe('data ingestion api client', () => {
 
     const page = await loadEvidences('token', { page: 1 });
     expect(page.items[0]).toMatchObject({
-      semantic: { what: '发布公告' },
+      semantic: { action: '发布公告' },
       source_id: 'SRC_example_00000000000000000000',
       source_url: 'https://example.com/report',
       is_original: true,
       quoted_source_name: null,
-      keywords: []
+      keywords: ['公告']
     });
   });
 
@@ -310,14 +309,7 @@ describe('data ingestion api client', () => {
                 raw_evidence_id: 'RAW00000000-0000-5000-8000-000000000001',
                 title: null,
                 summary: '摘要',
-                semantic: {
-                  who: null,
-                  what: '事项',
-                  when: null,
-                  where: null,
-                  why: null,
-                  how: null
-                },
+                semantic: evidenceSemantic,
                 categories: [],
                 source_id: 'SRC_example_00000000000000000000',
                 source_name: '官方信源',
@@ -325,7 +317,7 @@ describe('data ingestion api client', () => {
                 source_url: 'https://example.com/report',
                 is_original: false,
                 quoted_source_name: null,
-                keywords: [],
+                keywords: ['公告'],
                 is_split: false,
                 published_at: null,
                 collected_at: '2026-08-19T02:00:00Z'

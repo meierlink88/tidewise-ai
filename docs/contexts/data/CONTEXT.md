@@ -8,7 +8,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 
 - Entity 事实、独立 Object 事实、Object Schema、产业链节点及关系、
   Index 等正式事实。
-- 完整 Raw Evidence、阅读辅助 Keywords、原子 Evidence 及其确定性正式身份。
+- 完整 Raw Evidence、原子 Evidence、Evidence 阅读辅助 Keywords 及其确定性正式身份。
 - 正式 Event、Event 与 Atomic Evidence 的证据关联，以及 Event-owned Actor/Asset 关系快照。
 - 独立 Storyline 事实、三类蓝图锚点，以及 Storyline 与 Event 的当前关联事实。
 - Research Theme、Theme Impact、Reason Tree 及其关联数据。
@@ -37,7 +37,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 ## Acquisition And Agent Boundary
 
 Data 拥有 Source 配置与正式 Raw Evidence、Evidence 及发布合同；外部 Agent OS 只拥有
-采集、关键词生成、清洗和语义提取执行。AgentOS 在每次 Raw Collection Workflow
+采集、Evidence 关键词生成、清洗和语义提取执行。AgentOS 在每次 Raw Collection Workflow
 开始前通过 Data 版本化 API 读取一次完整 active Source 快照，之后为该 workflow
 冻结。执行方也必须通过 Data API 发布结果，不直接访问 Data 数据库。Data 不反向调用、
 不读取 AgentOS 数据库或本地 Artifact，也不执行 connector、parser、prompt、schedule
@@ -166,16 +166,11 @@ _Avoid_: member_count、重叠历史、用追加行表达 expiry_date 修正
 **Raw Evidence**:
 Data 正式保存的一份完整原始采集材料，以 `RAW + canonical lowercase UUID` 为 `id`，
 包含来源与转载快照、完整正文、文章发布时间、
-采集时间、正文哈希、有序 Keywords 和受控内容分类。它可以在清洗完成前暂时没有 Evidence，但不能以
+采集时间、正文哈希和受控内容分类。它可以在清洗完成前暂时没有 Evidence，但不能以
 零 Evidence 作为正式清洗结果。
 Data 还为新建 Raw Evidence 保存数据库生成的内部 `created_at`；发布方不提交，发布 API
 不返回，历史行不回填。
 _Avoid_: Event Evidence Record、外部执行 Artifact、Raw Document、只含摘录的证据链接
-
-**Raw Evidence Keywords**:
-发布方随 Raw Evidence 提交的有序阅读辅助字符串列表，顺序表达重要性。其内容规则由
-发布方治理；Data 原样保存，不生成、不规范化，也不将它用于 Evidence 拆分或去重。
-_Avoid_: Evidence、Tag、Expression Key、Data 生成关键词
 
 **Raw Evidence Content Category**:
 描述一份完整 Raw Evidence 的内容形态或编辑目的的受控分类；同一材料可以拥有多个分类，
@@ -198,24 +193,25 @@ _Avoid_: AgentOS 自建或持久化 Catalog 副本、Prompt/YAML 中复制分类
 _Avoid_: Primary Category、分类置信度、Atomic Evidence Category
 
 **Atomic Evidence**:
-清洗流程从一个 Raw Evidence 得到的、可直接消费的一条原子事实表达，以
+清洗流程从一个 Raw Evidence 得到的、可直接消费的一条最小完整业务命题，以
 `EVD + canonical lowercase UUID` 为 `id`。每条 Atomic Evidence 包含一条非空简洁事实摘要
-`summary`，以及严格一层 `who`、`what`、`when`、`where`、`why`、`how` 的结构化
-`semantic`；`what` 必须为非空字符串，其余五项必须存在且允许为非空字符串或 `null`，
-`semantic` 不重复保存 `summary`。一个 Raw Evidence 正式清洗后必须拥有一至多条 Atomic
+`summary`、一至五个有序中文 `keywords`，以及由主体、动作、对象、阶段、情态、时间、辖区、
+原因、执行方式、指标和归因组成的结构化 `semantic`。它按业务命题聚合而不是按句子、单个三元组
+或单项指标机械拆分：媒体归因不是业务主体，同一披露中的同类经营指标可以同属一条 Evidence，
+已经发生的结果与未来指引可以拆分。一个 Raw Evidence 正式清洗后必须拥有一至多条 Atomic
 Evidence；`1:1` 的 `is_split` 为 false，`1:N` 的每条 `is_split` 均为 true。
 Data 为新建 Atomic Evidence 保存数据库生成的内部 `created_at`；发布方不提交，发布 API
 不返回，历史行不回填。Evidence 不可变，因此没有 `updated_at`。
 _Avoid_: Event Evidence Link、完整 Raw Evidence、Evidence Group、Event
 
 **Atomic Evidence Identity**:
-Data 根据所属 Raw Evidence 身份与 Atomic Evidence 的 `summary + semantic` 规范内容确定性
+Data 根据所属 Raw Evidence 身份与 Atomic Evidence 的 `summary + keywords + semantic` 规范内容确定性
 派生正式 ID；调用方不提交 ID。该身份只保证同一 Raw Evidence 完整集合的安全重试，不执行
 跨 Raw Evidence 的语义去重，不把相同语义的多来源 Evidence 合并为 Group。
 _Avoid_: 调用方 Evidence ID、Expression Key、Evidence Group、Data 语义召回、embedding
 
 **Raw Evidence Publication**:
-采集完成后把一份完整 Raw Evidence、Keywords 及可选 Content Category 集合原子接纳为正式 Data 事实的同步发布。
+采集完成后把一份完整 Raw Evidence 及可选 Content Category 集合原子接纳为正式 Data 事实的同步发布。
 相同身份的全部内容及无序分类集合一致时允许安全重试，内容或分类漂移时冲突；成功响应只返回正式 Raw Evidence ID，
 不创建发布回执或返回创建/复用分类；响应以 `id` 字段返回该身份。
 _Avoid_: Evidence Publication、异步 Import Job、Idempotency-Key

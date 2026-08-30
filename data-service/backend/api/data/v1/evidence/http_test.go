@@ -15,6 +15,10 @@ import (
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 )
 
+const validRawEvidencePublicationBody = `{"raw_evidence":{"publication_key":"example-article-1","source_id":"SRC_example_00000000000000000000","source_name":"Example Wire","source_level":"L2_WIRE","source_url":"https://example.test/article/1","is_original":true,"raw_text":"article","collected_at":"2026-08-11T01:05:00Z"}}`
+
+const validEvidencePublicationBody = `{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"summary":"Example Corp expands production","keywords":["扩产","产能"],"semantic":{"actors":["Example Corp"],"action":"expands production","objects":["production capacity"],"stage":"ANNOUNCED","modality":"FACT","time":{"raw":null,"start_at":null,"end_at":null,"precision":"UNKNOWN"},"jurisdictions":["Shanghai"],"reason":null,"method":"by adding a new line","metrics":[],"attribution":{"reported_by":"Example Wire","claimed_by":"Example Corp"}}}]}`
+
 type evidencePublicationHTTPStub struct {
 	rawRequest      *RawEvidencePublicationRequest
 	evidenceRequest *EvidencePublicationRequest
@@ -168,12 +172,12 @@ func TestEvidencePublicationHTTPRunsMiddlewareWithStableOperation(t *testing.T) 
 	}{
 		{
 			path:      v1.APIPrefix + "/raw-evidence-publications",
-			body:      `{"raw_evidence":{"publication_key":"example-article-1","source_id":"SRC_example_00000000000000000000","source_name":"Example Wire","source_level":"L2_WIRE","source_url":"https://example.test/article/1","is_original":true,"raw_text":"article","collected_at":"2026-08-11T01:05:00Z","keywords":[]}}`,
+			body:      validRawEvidencePublicationBody,
 			operation: OperationPublishRawEvidence,
 		},
 		{
 			path:      v1.APIPrefix + "/evidence-publications",
-			body:      `{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"summary":"fact","semantic":{"who":null,"what":"happened","when":null,"where":null,"why":null,"how":null}}]}`,
+			body:      validEvidencePublicationBody,
 			operation: OperationPublishEvidence,
 		},
 	} {
@@ -196,11 +200,11 @@ func TestEvidencePublicationHTTPRunsMiddlewareWithStableOperation(t *testing.T) 
 	}
 }
 
-func TestEvidencePublicationHTTPBindsSummaryAndSingleLayerSemantic(t *testing.T) {
+func TestEvidencePublicationHTTPBindsBusinessPropositionSemantic(t *testing.T) {
 	stub := &evidencePublicationHTTPStub{}
 	server := kratoshttp.NewServer()
 	RegisterHTTPServer(server, stub)
-	body := `{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"summary":"Example Corp expands production","semantic":{"who":"Example Corp","what":"expands production","when":null,"where":"Shanghai","why":null,"how":"by adding a new line"}}]}`
+	body := validEvidencePublicationBody
 	response := httptest.NewRecorder()
 	server.ServeHTTP(response, httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/evidence-publications", strings.NewReader(body)))
 
@@ -211,10 +215,11 @@ func TestEvidencePublicationHTTPBindsSummaryAndSingleLayerSemantic(t *testing.T)
 		t.Fatalf("bound request = %#v", stub.evidenceRequest)
 	}
 	bound := stub.evidenceRequest.Evidences[0]
-	if bound.Summary != "Example Corp expands production" || bound.Semantic.Who == nil ||
-		*bound.Semantic.Who != "Example Corp" || bound.Semantic.What != "expands production" ||
-		bound.Semantic.When != nil || bound.Semantic.Where == nil || *bound.Semantic.Where != "Shanghai" ||
-		bound.Semantic.Why != nil || bound.Semantic.How == nil || *bound.Semantic.How != "by adding a new line" {
+	if bound.Summary != "Example Corp expands production" || !equalStrings(bound.Keywords, []string{"扩产", "产能"}) ||
+		!equalStrings(bound.Semantic.Actors, []string{"Example Corp"}) || bound.Semantic.Action != "expands production" ||
+		!equalStrings(bound.Semantic.Objects, []string{"production capacity"}) || bound.Semantic.Stage != "ANNOUNCED" ||
+		bound.Semantic.Modality != "FACT" || bound.Semantic.Method == nil || *bound.Semantic.Method != "by adding a new line" ||
+		bound.Semantic.Attribution.ReportedBy == nil || *bound.Semantic.Attribution.ReportedBy != "Example Wire" {
 		t.Fatalf("bound Evidence = %#v", bound)
 	}
 	var envelope map[string]any
@@ -250,7 +255,7 @@ func (s *evidencePublicationHTTPStub) GetRawEvidence(ctx context.Context, reques
 		return nil, v1.NewPublicError(v1.StatusServiceUnavailable, ErrorRawEvidenceReadTimeout, "Raw Evidence read execution budget exceeded", nil)
 	}
 	return &v1.Response[RawEvidenceReadResult]{Status: v1.StatusOK, Result: RawEvidenceReadResult{
-		RawEvidence: RawEvidenceRead{ID: request.ID, Keywords: []string{}, Categories: []EvidenceCategory{}},
+		RawEvidence: RawEvidenceRead{ID: request.ID, Categories: []EvidenceCategory{}},
 	}}, nil
 }
 
@@ -271,26 +276,22 @@ func (s *evidencePublicationHTTPStub) PublishEvidence(ctx context.Context, reque
 	}}, nil
 }
 
-func TestRawEvidencePublicationHTTPPreservesPublisherKeywords(t *testing.T) {
+func TestRawEvidencePublicationHTTPRejectsLegacyKeywords(t *testing.T) {
 	stub := &evidencePublicationHTTPStub{}
-	server := kratoshttp.NewServer()
+	server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(func(response http.ResponseWriter, _ *http.Request, err error) {
+		public, ok := err.(*v1.PublicError)
+		if !ok {
+			t.Fatalf("error = %T %v, want PublicError", err, err)
+		}
+		response.WriteHeader(public.Status)
+	}))
 	RegisterHTTPServer(server, stub)
 	body := `{"raw_evidence":{"publication_key":"example-article-1","source_id":"SRC_example_00000000000000000000","source_name":"Example Wire","source_level":"L2_WIRE","source_url":"https://example.test/article/1","is_original":true,"raw_text":"Complete original article.","collected_at":"2026-08-11T01:05:00Z","keywords":[" AI芯片 ","供应链","AI芯片"]}}`
 	response := httptest.NewRecorder()
 	server.ServeHTTP(response, httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/raw-evidence-publications", strings.NewReader(body)))
 
-	if response.Code != v1.StatusCreated {
-		t.Fatalf("status = %d, want 201: %s", response.Code, response.Body.String())
-	}
-	if stub.rawRequest == nil || !equalStrings(stub.rawRequest.RawEvidence.Keywords, []string{" AI芯片 ", "供应链", "AI芯片"}) {
-		t.Fatalf("bound keywords = %#v", stub.rawRequest)
-	}
-	var result RawEvidencePublicationResult
-	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if result.ID != "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf" {
-		t.Fatalf("response ID = %q", result.ID)
+	if response.Code != v1.StatusBadRequest || stub.rawRequest != nil {
+		t.Fatalf("status = %d request=%#v, want strict 400", response.Code, stub.rawRequest)
 	}
 }
 
@@ -327,12 +328,12 @@ func TestEvidencePublicationHTTPAppliesInternalExecutionBudget(t *testing.T) {
 		{
 			name: "Raw Evidence",
 			path: v1.APIPrefix + "/raw-evidence-publications",
-			body: `{"raw_evidence":{"publication_key":"example-article-1","source_id":"SRC_example_00000000000000000000","source_name":"Example Wire","source_level":"L2_WIRE","source_url":"https://example.test/article/1","is_original":true,"raw_text":"article","collected_at":"2026-08-11T01:05:00Z","keywords":[]}}`,
+			body: validRawEvidencePublicationBody,
 		},
 		{
 			name: "Evidence",
 			path: v1.APIPrefix + "/evidence-publications",
-			body: `{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"summary":"fact","semantic":{"who":null,"what":"happened","when":null,"where":null,"why":null,"how":null}}]}`,
+			body: validEvidencePublicationBody,
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -359,11 +360,11 @@ func TestEvidencePublicationHTTPReturnsSafe503WhenInternalBudgetExpires(t *testi
 	}{
 		{
 			path: v1.APIPrefix + "/raw-evidence-publications",
-			body: `{"raw_evidence":{"publication_key":"example-article-1","source_id":"SRC_example_00000000000000000000","source_name":"Example Wire","source_level":"L2_WIRE","source_url":"https://example.test/article/1","is_original":true,"raw_text":"article","collected_at":"2026-08-11T01:05:00Z","keywords":[]}}`,
+			body: validRawEvidencePublicationBody,
 		},
 		{
 			path: v1.APIPrefix + "/evidence-publications",
-			body: `{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"summary":"fact","semantic":{"who":null,"what":"happened","when":null,"where":null,"why":null,"how":null}}]}`,
+			body: validEvidencePublicationBody,
 		},
 	} {
 		server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(func(response http.ResponseWriter, request *http.Request, err error) {

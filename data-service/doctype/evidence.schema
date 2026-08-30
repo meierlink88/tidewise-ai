@@ -1,7 +1,7 @@
 namespace Tidewise
 
 Evidence(原子证据): EntityType
-    desc: 从 Raw Evidence 清洗得到且可直接消费的原子事实
+    desc: 从 Raw Evidence 清洗得到且可直接消费的最小完整业务命题
     properties:
         rawEvidenceId(所属原始证据标识): Text
             desc: 所属 Raw Evidence 的稳定标识
@@ -12,20 +12,41 @@ Evidence(原子证据): EntityType
             desc: Data 根据完整 Evidence 集合基数派生的拆分状态
             constraint: NotNull, Enum="TRUE,FALSE"
         summary(事实摘要): Text
-            desc: 原子证据的非空简洁事实摘要
+            desc: 最小完整业务命题的非空简洁摘要
             constraint: NotNull
-        who(相关主体): Text
-            desc: 严格 5W1H 语义中的相关主体，未知时为空
-        what(发生事项): Text
-            desc: 严格 5W1H 语义中的非空发生事项
+        keywords(关键词): Text
+            desc: 一至五个有序中文关键词的 JSON 数组
             constraint: NotNull
-        when(语义时间): Text
-            desc: 严格 5W1H 语义中的时间表达，未知时为空
-        where(发生地点): Text
-            desc: 严格 5W1H 语义中的地点表达，未知时为空
-        why(发生原因): Text
-            desc: 严格 5W1H 语义中的原因表达，未知时为空
-        how(发生方式): Text
-            desc: 严格 5W1H 语义中的方式表达，未知时为空
+        actors(业务主体): Text
+            desc: 实施核心业务动作的主体 JSON 数组，不以报道媒体替代业务主体
+            constraint: NotNull
+        action(核心动作): Text
+            desc: 该业务命题唯一的非空核心动作
+            constraint: NotNull
+        objects(作用对象): Text
+            desc: 核心动作作用对象的 JSON 数组
+            constraint: NotNull
+        stage(现实阶段): Text
+            desc: 业务命题所处的现实阶段
+            constraint: NotNull, Enum="OCCURRED,ANNOUNCED,EFFECTIVE,IMPLEMENTED,UPDATED,SUSPENDED,TERMINATED,EXPECTED"
+        modality(事实情态): Text
+            desc: 区分已发生事实、计划和规格说明
+            constraint: NotNull, Enum="FACT,PLAN,SPEC"
+        time(语义时间): Text
+            desc: 原文时间、UTC 时间边界和精度组成的 JSON 对象
+            constraint: NotNull
+        jurisdictions(作用辖区): Text
+            desc: 业务动作适用或影响辖区的 JSON 数组
+            constraint: NotNull
+        reason(发生原因): Text
+            desc: 原文明确给出的业务原因，未知时为空
+        method(执行方式): Text
+            desc: 原文明确给出的执行方法，未知时为空
+        metrics(业务指标): Text
+            desc: 同一业务命题中相关指标的 JSON 数组
+            constraint: NotNull
+        attribution(信息归因): Text
+            desc: 报道方与声称方组成的 JSON 对象，不替代业务主体
+            constraint: NotNull
         createdAt(创建时间): Text
             desc: Data 为新记录生成的创建时间，历史记录可能为空

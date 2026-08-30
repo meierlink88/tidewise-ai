@@ -102,14 +102,14 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 	var keywords []string
 	var keywordsJSON []byte
 	var evidenceCount int
-	if err := db.QueryRowContext(ctx, `SELECT array_to_json(keywords) FROM raw_evidences WHERE id = $1`, rawID).Scan(&keywordsJSON); err != nil {
+	if err := db.QueryRowContext(ctx, `SELECT array_to_json(keywords) FROM evidences WHERE id = $1`, published.Items[0].ID).Scan(&keywordsJSON); err != nil {
 		t.Fatal(err)
 	}
 	if err := json.Unmarshal(keywordsJSON, &keywords); err != nil {
 		t.Fatal(err)
 	}
-	if !sameTestStrings(keywords, raw.Keywords) {
-		t.Fatalf("stored keywords = %#v, want %#v", keywords, raw.Keywords)
+	if !sameTestStrings(keywords, items[0].Keywords) {
+		t.Fatalf("stored keywords = %#v, want %#v", keywords, items[0].Keywords)
 	}
 	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM evidences WHERE raw_evidence_id = $1`, rawID).Scan(&evidenceCount); err != nil {
 		t.Fatal(err)
@@ -132,12 +132,12 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 	if err := json.Unmarshal(storedSemanticJSON, &storedSemanticFields); err != nil {
 		t.Fatal(err)
 	}
-	for _, field := range []string{"who", "what", "when", "where", "why", "how"} {
+	for _, field := range []string{"actors", "action", "objects", "stage", "modality", "time", "jurisdictions", "reason", "method", "metrics", "attribution"} {
 		if _, exists := storedSemanticFields[field]; !exists {
 			t.Fatalf("stored Evidence semantic is missing %q: %s", field, storedSemanticJSON)
 		}
 	}
-	if storedSummary != items[0].Summary || !storedIsSplit || len(storedSemanticFields) != 6 ||
+	if storedSummary != items[0].Summary || !storedIsSplit || len(storedSemanticFields) != 11 ||
 		!sameTestSemantic(storedSemantic, items[0].Semantic) {
 		t.Fatalf("stored Evidence summary=%q semantic=%#v is_split=%t", storedSummary, storedSemantic, storedIsSplit)
 	}
@@ -169,11 +169,11 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 		t.Fatalf("Raw Evidence Category Link ID = %q", categoryLinkID)
 	}
 	assertPostgresCode(t, db, "23514", `
-INSERT INTO raw_evidences(id,source_id,source_name,source_level,source_url,is_original,raw_text,collected_at,keywords)
-VALUES('BAD','SRC_bad_raw_identity','Bad Source','L1_OFFICIAL','https://example.test/bad',true,'bad identity',now(),'{}')`)
+INSERT INTO raw_evidences(id,source_id,source_name,source_level,source_url,is_original,raw_text,collected_at)
+VALUES('BAD','SRC_bad_raw_identity','Bad Source','L1_OFFICIAL','https://example.test/bad',true,'bad identity',now())`)
 	assertPostgresCode(t, db, "23514", `
-INSERT INTO evidences(id,raw_evidence_id,is_split,summary,semantic)
-VALUES('BAD',$1,false,'bad identity','{"who":null,"what":"bad identity","when":null,"where":null,"why":null,"how":null}')`, rawID)
+INSERT INTO evidences(id,raw_evidence_id,is_split,summary,keywords,semantic)
+VALUES('BAD',$1,false,'bad identity',ARRAY['无效'],'{"actors":["Example"],"action":"bad identity","objects":["record"],"stage":"OCCURRED","modality":"FACT","time":{"raw":null,"start_at":null,"end_at":null,"precision":"UNKNOWN"},"jurisdictions":[],"reason":null,"method":null,"metrics":[],"attribution":{"reported_by":null,"claimed_by":null}}')`, rawID)
 	assertPostgresCode(t, db, "23514", `
 INSERT INTO raw_evidence_category_links(id,raw_evidence_id,category_id)
 VALUES('BAD',$1,'EVCc18ddddb-14bc-5496-99ea-963ee2c25597')`, rawID)
@@ -181,14 +181,14 @@ VALUES('BAD',$1,'EVCc18ddddb-14bc-5496-99ea-963ee2c25597')`, rawID)
 INSERT INTO raw_evidence_category_links(id,raw_evidence_id,category_id)
 VALUES('RCL11111111-1111-4111-8111-111111111111',$1,'EVCc18ddddb-14bc-5496-99ea-963ee2c25597')`, rawID)
 	assertPostgresCode(t, db, "23503", `
-INSERT INTO evidences(id,raw_evidence_id,is_split,summary,semantic)
-VALUES('EVD11111111-1111-4111-8111-111111111111','RAW11111111-1111-4111-8111-111111111111',false,'missing parent','{"who":null,"what":"missing parent","when":null,"where":null,"why":null,"how":null}')`)
+INSERT INTO evidences(id,raw_evidence_id,is_split,summary,keywords,semantic)
+VALUES('EVD11111111-1111-4111-8111-111111111111','RAW11111111-1111-4111-8111-111111111111',false,'missing parent',ARRAY['缺失'],'{"actors":["Example"],"action":"missing parent","objects":["record"],"stage":"OCCURRED","modality":"FACT","time":{"raw":null,"start_at":null,"end_at":null,"precision":"UNKNOWN"},"jurisdictions":[],"reason":null,"method":null,"metrics":[],"attribution":{"reported_by":null,"claimed_by":null}}')`)
 	assertPostgresCode(t, db, "23514", `
-INSERT INTO evidences(id,raw_evidence_id,is_split,summary,semantic)
-VALUES('EVD11111111-1111-4111-8111-111111111112',$1,false,'invalid semantic','{"who":null,"what":"","when":null,"where":null,"why":null,"how":null,"summary":"duplicate"}')`, rawID)
+INSERT INTO evidences(id,raw_evidence_id,is_split,summary,keywords,semantic)
+VALUES('EVD11111111-1111-4111-8111-111111111112',$1,false,'invalid semantic',ARRAY['无效'],'{"actors":[],"action":"","objects":[],"stage":"OCCURRED","modality":"FACT","time":{"raw":null,"start_at":null,"end_at":null,"precision":"UNKNOWN"},"jurisdictions":[],"reason":null,"method":null,"metrics":[],"attribution":{"reported_by":null,"claimed_by":null},"summary":"duplicate"}')`, rawID)
 
 	drift := append([]evidencebiz.Evidence(nil), items...)
-	drift[0].Semantic.What = "drifted"
+	drift[0].Semantic.Action = "drifted"
 	_, err = publication.PublishEvidence(ctx, rawID, drift)
 	var conflict *evidencebiz.ConflictError
 	if !errors.As(err, &conflict) {
@@ -254,7 +254,7 @@ ORDER BY tc.table_name, kcu.ordinal_position`)
 	}
 }
 
-func TestPostgresAtomicEvidenceSchemaUsesSummaryAndSemantic(t *testing.T) {
+func TestPostgresAtomicEvidenceSchemaUsesSummaryKeywordsAndSemantic(t *testing.T) {
 	db := openEvidencePublicationTestDatabase(t)
 	rows, err := db.Query(`
 SELECT column_name, data_type
@@ -277,7 +277,7 @@ WHERE table_schema = current_schema() AND table_name = 'evidences'`)
 	}
 	want := map[string]string{
 		"id": "character varying", "raw_evidence_id": "character varying", "is_split": "boolean",
-		"summary": "character varying", "semantic": "jsonb", "created_at": "timestamp with time zone",
+		"summary": "character varying", "keywords": "ARRAY", "semantic": "jsonb", "created_at": "timestamp with time zone",
 	}
 	if len(columns) != len(want) {
 		t.Fatalf("Evidence columns = %#v, want exactly %#v", columns, want)
@@ -354,8 +354,8 @@ func TestListEvidenceReturnsJoinedRawEvidenceAndCompleteCategories(t *testing.T)
 	listArgs := append(append([]driver.Value{}, args...), int64(10), int64(10))
 	categoryCreatedAt := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
 	categories := fmt.Sprintf(`[{"id":"%s","code":"EVENT_BRIEF","name":"事件快讯","description":"事件材料","created_at":"%s"}]`, categoryID, categoryCreatedAt.Format(time.RFC3339))
-	semantic := []byte(`{"who":"Example Corp","what":"announced a production line","when":null,"where":"China","why":null,"how":"through an exchange filing"}`)
-	keywords := []byte(`["advanced manufacturing","capacity expansion"]`)
+	semantic := []byte(`{"actors":["Example Corp"],"action":"announced a production line","objects":["production line"],"stage":"ANNOUNCED","modality":"FACT","time":{"raw":null,"start_at":null,"end_at":null,"precision":"UNKNOWN"},"jurisdictions":["China"],"reason":null,"method":"through an exchange filing","metrics":[],"attribution":{"reported_by":"Example Wire","claimed_by":"Example Corp"}}`)
+	keywords := []byte(`["扩产","产能"]`)
 	quotedSourceName := "Example Corp filing"
 	mock.ExpectQuery("SELECT evidence.id, evidence.raw_evidence_id").WithArgs(listArgs...).WillReturnRows(sqlmock.NewRows([]string{
 		"id", "raw_evidence_id", "is_split", "summary", "semantic", "title", "source_id", "source_name", "source_level", "source_url", "is_original", "quoted_source_name", "published_at", "collected_at", "keywords", "categories",
@@ -379,9 +379,9 @@ func TestListEvidenceReturnsJoinedRawEvidenceAndCompleteCategories(t *testing.T)
 	item := page.Items[0]
 	if item.Title == nil || *item.Title != "Source title" || item.Summary != "Atomic fact" ||
 		item.SourceID != "SRC_example_00000000000000000000" || item.SourceName != "Example Wire" || item.SourceLevel != evidencebiz.SourceLevelWire || !item.IsSplit ||
-		item.Semantic.Who == nil || *item.Semantic.Who != "Example Corp" || item.Semantic.What != "announced a production line" ||
+		len(item.Semantic.Actors) != 1 || item.Semantic.Actors[0] != "Example Corp" || item.Semantic.Action != "announced a production line" ||
 		item.SourceURL != "https://example.com/report" || item.IsOriginal || item.QuotedSourceName == nil || *item.QuotedSourceName != quotedSourceName ||
-		len(item.Keywords) != 2 || item.Keywords[0] != "advanced manufacturing" ||
+		len(item.Keywords) != 2 || item.Keywords[0] != "扩产" ||
 		len(item.Categories) != 1 || item.Categories[0].ID != categoryID {
 		t.Fatalf("item = %#v", item)
 	}
@@ -487,12 +487,12 @@ func TestEvidenceTransactionRejectsInvalidPersistedRawEvidence(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id", "source_id", "source_name", "source_level", "source_url", "is_original",
 			"quoted_source_id", "quoted_source_name", "title", "raw_text", "published_at", "collected_at",
-			"content_hash", "keywords",
+			"content_hash",
 		}).AddRow(
 			rawEvidenceID, "SRC_0000000000000000000000000000", "Source", "INVALID",
 			"https://example.test/article", true, nil, nil, nil, "hello", nil,
 			time.Date(2026, 8, 11, 1, 2, 3, 0, time.UTC),
-			"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824", []byte(`[]`),
+			"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
 		))
 	mock.ExpectRollback()
 
@@ -526,7 +526,7 @@ func TestEvidenceTransactionRejectsInvalidPersistedEvidenceSet(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 	mock.ExpectBegin()
-	rows := sqlmock.NewRows([]string{"id", "raw_evidence_id", "is_split", "summary", "semantic"})
+	rows := sqlmock.NewRows([]string{"id", "raw_evidence_id", "is_split", "summary", "keywords", "semantic"})
 	rows.AddRow(persistedEvidenceRow("EVD0f10cab3-e6ca-5bbc-ac33-5b09d3ff1602", rawEvidenceID, false, "first fact")...)
 	rows.AddRow(persistedEvidenceRow("EVDc8222fc3-a24f-5d44-b204-09dfb2b8960f", rawEvidenceID, false, "second fact")...)
 	mock.ExpectQuery("FROM evidences").
@@ -556,10 +556,41 @@ func TestEvidenceTransactionRejectsInvalidPersistedEvidenceSet(t *testing.T) {
 	}
 }
 
+func TestEvidenceTransactionRejectsPersistedSemanticOutsidePublicLimits(t *testing.T) {
+	const rawEvidenceID = "RAW5b6ecd34-8a1a-56e4-8a7c-79efd7843473"
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	mock.ExpectBegin()
+	semantic := fmt.Sprintf(`{"actors":[%q],"action":"atomic fact","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"raw":null,"start_at":null,"end_at":null,"precision":"UNKNOWN"},"jurisdictions":[],"reason":null,"method":null,"metrics":[],"attribution":{"reported_by":null,"claimed_by":null}}`, strings.Repeat("a", 101))
+	rows := sqlmock.NewRows([]string{"id", "raw_evidence_id", "is_split", "summary", "keywords", "semantic"}).
+		AddRow("EVD0f10cab3-e6ca-5bbc-ac33-5b09d3ff1602", rawEvidenceID, false, "fact", []byte(`["事实"]`), []byte(semantic))
+	mock.ExpectQuery("FROM evidences").WithArgs(rawEvidenceID).WillReturnRows(rows)
+	mock.ExpectRollback()
+
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = store.InTransaction(context.Background(), func(tx evidencebiz.Transaction) error {
+		_, readErr := tx.EvidencesByRawEvidence(context.Background(), rawEvidenceID)
+		return readErr
+	})
+	var invariantErr *persistedInvariantError
+	if !errors.As(err, &invariantErr) || invariantErr.field != "semantic.actors" {
+		t.Fatalf("EvidencesByRawEvidence() error = %v, want persisted semantic.actors invariant error", err)
+	}
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func persistedEvidenceRow(id, rawEvidenceID string, isSplit bool, summary string) []driver.Value {
 	return []driver.Value{
-		id, rawEvidenceID, isSplit, summary,
-		[]byte(`{"who":null,"what":"atomic fact","when":null,"where":null,"why":null,"how":null}`),
+		id, rawEvidenceID, isSplit, summary, []byte(`["事实"]`),
+		[]byte(`{"actors":["Example"],"action":"atomic fact","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"raw":null,"start_at":null,"end_at":null,"precision":"UNKNOWN"},"jurisdictions":[],"reason":null,"method":null,"metrics":[],"attribution":{"reported_by":null,"claimed_by":null}}`),
 	}
 }
 
@@ -570,7 +601,6 @@ func postgresEvidenceRaw(publicationKey string) evidencebiz.RawEvidence {
 		SourceLevel: "L2_WIRE", SourceURL: "https://example.test/evidence", IsOriginal: true,
 		RawText: "Complete PostgreSQL Evidence Publication article.", PublishedAt: &publishedAt,
 		CollectedAt: time.Date(2026, 8, 11, 1, 5, 0, 987654321, time.UTC),
-		Keywords:    []string{" AI芯片 ", "供应链", "AI芯片"},
 	}
 }
 
@@ -581,10 +611,14 @@ func postgresRawEvidenceID(raw evidencebiz.RawEvidence) string {
 
 func postgresEvidence(variant int) evidencebiz.Evidence {
 	return evidencebiz.Evidence{
-		Summary: fmt.Sprintf("Example Corp expands production %d", variant),
+		Summary:  fmt.Sprintf("Example Corp expands production %d", variant),
+		Keywords: []string{"扩产", "产能"},
 		Semantic: evidencebiz.Semantic{
-			Who: testStringPointer("Example Corp"), What: fmt.Sprintf("expanded production line %d", variant),
-			When: testStringPointer("2026-08-10"), How: testStringPointer("by adding capacity"),
+			Actors: []string{"Example Corp"}, Action: fmt.Sprintf("expanded production line %d", variant),
+			Objects: []string{"production capacity"}, Stage: evidencebiz.EvidenceStageOccurred, Modality: evidencebiz.EvidenceModalityFact,
+			Time:          evidencebiz.EvidenceTime{Raw: testStringPointer("2026-08-10"), Precision: evidencebiz.EvidenceTimeDay},
+			Jurisdictions: []string{}, Method: testStringPointer("by adding capacity"), Metrics: []evidencebiz.EvidenceMetric{},
+			Attribution: &evidencebiz.EvidenceAttribution{ReportedBy: testStringPointer("Example Wire")},
 		},
 	}
 }
@@ -604,9 +638,9 @@ func sameTestStrings(left, right []string) bool {
 }
 
 func sameTestSemantic(left, right evidencebiz.Semantic) bool {
-	return sameTestOptionalString(left.Who, right.Who) && left.What == right.What &&
-		sameTestOptionalString(left.When, right.When) && sameTestOptionalString(left.Where, right.Where) &&
-		sameTestOptionalString(left.Why, right.Why) && sameTestOptionalString(left.How, right.How)
+	leftJSON, leftErr := json.Marshal(left)
+	rightJSON, rightErr := json.Marshal(right)
+	return leftErr == nil && rightErr == nil && string(leftJSON) == string(rightJSON)
 }
 
 func sameTestOptionalString(left, right *string) bool {

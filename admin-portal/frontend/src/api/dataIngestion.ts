@@ -74,12 +74,31 @@ export interface EvidenceItem {
 }
 
 export interface EvidenceSemantic {
-  who: string | null;
-  what: string;
-  when: string | null;
-  where: string | null;
-  why: string | null;
-  how: string | null;
+  actors: string[];
+  action: string;
+  objects: string[];
+  stage: 'OCCURRED' | 'ANNOUNCED' | 'EFFECTIVE' | 'IMPLEMENTED' | 'UPDATED' | 'SUSPENDED' | 'TERMINATED' | 'EXPECTED';
+  modality: 'FACT' | 'PLAN' | 'SPEC';
+  time: {
+    raw: string | null;
+    start_at: string | null;
+    end_at: string | null;
+    precision: 'INSTANT' | 'DAY' | 'RANGE' | 'MONTH' | 'QUARTER' | 'YEAR' | 'UNKNOWN';
+  };
+  jurisdictions: string[];
+  reason: string | null;
+  method: string | null;
+  metrics: Array<{
+    name: string;
+    value: string | null;
+    unit: string | null;
+    change: string | null;
+    period: string | null;
+  }>;
+  attribution: {
+    reported_by: string | null;
+    claimed_by: string | null;
+  };
 }
 
 export interface EvidenceQuery {
@@ -185,12 +204,40 @@ const evidenceItemSchema: z.ZodType<EvidenceItem> = z
     summary: z.string().min(1),
     semantic: z
       .object({
-        who: z.string().min(1).nullable(),
-        what: z.string().min(1),
-        when: z.string().min(1).nullable(),
-        where: z.string().min(1).nullable(),
-        why: z.string().min(1).nullable(),
-        how: z.string().min(1).nullable()
+        actors: uniqueNonEmptyStrings.min(1).max(20),
+        action: z.string().min(1).max(200),
+        objects: uniqueNonEmptyStrings.min(1).max(20),
+        stage: z.enum(['OCCURRED', 'ANNOUNCED', 'EFFECTIVE', 'IMPLEMENTED', 'UPDATED', 'SUSPENDED', 'TERMINATED', 'EXPECTED']),
+        modality: z.enum(['FACT', 'PLAN', 'SPEC']),
+        time: z
+          .object({
+            raw: z.string().min(1).max(200).nullable(),
+            start_at: utcTimestamp.nullable(),
+            end_at: utcTimestamp.nullable(),
+            precision: z.enum(['INSTANT', 'DAY', 'RANGE', 'MONTH', 'QUARTER', 'YEAR', 'UNKNOWN'])
+          })
+          .strict(),
+        jurisdictions: uniqueNonEmptyStrings.max(20),
+        reason: z.string().min(1).max(500).nullable(),
+        method: z.string().min(1).max(500).nullable(),
+        metrics: z.array(
+          z
+            .object({
+              name: z.string().min(1).max(100),
+              value: z.string().min(1).max(100).nullable(),
+              unit: z.string().min(1).max(50).nullable(),
+              change: z.string().min(1).max(100).nullable(),
+              period: z.string().min(1).max(100).nullable()
+            })
+            .strict()
+            .refine((metric) => metric.value !== null || metric.change !== null)
+        ),
+        attribution: z
+          .object({
+            reported_by: z.string().min(1).max(100).nullable(),
+            claimed_by: z.string().min(1).max(100).nullable()
+          })
+          .strict()
       })
       .strict(),
     categories: z.array(evidenceCategorySchema),
@@ -203,7 +250,7 @@ const evidenceItemSchema: z.ZodType<EvidenceItem> = z
       .refine((value) => /^https?:\/\//.test(value)),
     is_original: z.boolean(),
     quoted_source_name: z.string().min(1).nullable(),
-    keywords: z.array(z.string()),
+    keywords: z.array(z.string().min(1).max(6)).min(1).max(5),
     is_split: z.boolean(),
     published_at: utcTimestamp.nullable(),
     collected_at: utcTimestamp
