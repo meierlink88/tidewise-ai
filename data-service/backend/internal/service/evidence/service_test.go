@@ -79,6 +79,42 @@ func TestNewServiceRejectsMissingUseCase(t *testing.T) {
 	}
 }
 
+func TestPublishEvidencePreservesEmptyJurisdictions(t *testing.T) {
+	useCase := &capturingPublicationUseCase{}
+	service, err := NewService(useCase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = service.PublishEvidence(context.Background(), &evidenceapi.EvidencePublicationRequest{
+		RawEvidenceID: "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf",
+		Evidences: []evidenceapi.AtomicEvidence{{
+			Semantic: evidenceapi.EvidenceSemantic{Jurisdictions: []string{}},
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(useCase.evidences) != 1 {
+		t.Fatalf("evidences = %#v", useCase.evidences)
+	}
+	if useCase.evidences[0].Semantic.Jurisdictions == nil {
+		t.Fatal("jurisdictions = nil, want non-nil empty collection")
+	}
+	if len(useCase.evidences[0].Semantic.Jurisdictions) != 0 {
+		t.Fatalf("jurisdictions = %#v, want empty collection", useCase.evidences[0].Semantic.Jurisdictions)
+	}
+}
+
+type capturingPublicationUseCase struct {
+	failingUseCase
+	evidences []evidencebiz.Evidence
+}
+
+func (u *capturingPublicationUseCase) PublishEvidence(_ context.Context, _ string, evidences []evidencebiz.Evidence) (evidencebiz.EvidenceResult, error) {
+	u.evidences = evidences
+	return evidencebiz.EvidenceResult{}, nil
+}
+
 func TestListEvidenceCategoriesMapsExactCatalogDTO(t *testing.T) {
 	description := "简短报告已经发生或正在发生的事件，核心目的是说明发生了什么。"
 	service, err := NewService(failingUseCase{catalog: evidencebiz.CategoryCatalog{Categories: []evidencebiz.Category{{
