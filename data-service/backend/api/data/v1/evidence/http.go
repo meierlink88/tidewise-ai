@@ -137,13 +137,13 @@ func rawEvidenceShape() *v1.StrictJSONShape {
 	nullableStringShape := v1.StrictJSONNullableString()
 	raw := v1.StrictJSONRequiredObject([]string{
 		"publication_key", "source_id", "source_name", "source_level", "source_url",
-		"is_original", "raw_text", "collected_at", "keywords",
+		"is_original", "raw_text", "collected_at",
 	}, map[string]*v1.StrictJSONShape{
 		"publication_key": stringShape, "source_id": stringShape, "source_name": stringShape,
 		"source_level": stringShape, "source_url": stringShape, "is_original": v1.StrictJSONBoolean(),
 		"quoted_source_id": nullableStringShape, "quoted_source_name": nullableStringShape,
 		"title": nullableStringShape, "raw_text": stringShape, "published_at": nullableStringShape,
-		"collected_at": stringShape, "keywords": v1.StrictJSONArray(stringShape),
+		"collected_at": stringShape,
 		"category_ids": v1.StrictJSONArray(stringShape),
 	})
 	return v1.StrictJSONRequiredObject([]string{"raw_evidence"}, map[string]*v1.StrictJSONShape{"raw_evidence": raw})
@@ -152,14 +152,27 @@ func rawEvidenceShape() *v1.StrictJSONShape {
 func evidenceShape() *v1.StrictJSONShape {
 	stringShape := v1.StrictJSONString()
 	nullableStringShape := v1.StrictJSONNullableString()
-	semantic := v1.StrictJSONRequiredObject([]string{
-		"who", "what", "when", "where", "why", "how",
-	}, map[string]*v1.StrictJSONShape{
-		"who": nullableStringShape, "what": stringShape, "when": nullableStringShape,
-		"where": nullableStringShape, "why": nullableStringShape, "how": nullableStringShape,
+	timeShape := v1.StrictJSONRequiredObject([]string{"raw", "start_at", "end_at", "precision"}, map[string]*v1.StrictJSONShape{
+		"raw": nullableStringShape, "start_at": nullableStringShape, "end_at": nullableStringShape,
+		"precision": stringShape,
 	})
-	item := v1.StrictJSONRequiredObject([]string{"summary", "semantic"}, map[string]*v1.StrictJSONShape{
-		"summary": stringShape, "semantic": semantic,
+	metricShape := v1.StrictJSONRequiredObject([]string{"name", "value", "unit", "change", "period"}, map[string]*v1.StrictJSONShape{
+		"name": stringShape, "value": nullableStringShape, "unit": nullableStringShape,
+		"change": nullableStringShape, "period": nullableStringShape,
+	})
+	attributionShape := v1.StrictJSONRequiredObject([]string{"reported_by", "claimed_by"}, map[string]*v1.StrictJSONShape{
+		"reported_by": nullableStringShape, "claimed_by": nullableStringShape,
+	})
+	semantic := v1.StrictJSONRequiredObject([]string{
+		"actors", "action", "objects", "stage", "modality", "time", "jurisdictions", "reason", "method", "metrics", "attribution",
+	}, map[string]*v1.StrictJSONShape{
+		"actors": v1.StrictJSONArray(stringShape), "action": stringShape, "objects": v1.StrictJSONArray(stringShape),
+		"stage": stringShape, "modality": stringShape, "time": timeShape,
+		"jurisdictions": v1.StrictJSONArray(stringShape), "reason": nullableStringShape, "method": nullableStringShape,
+		"metrics": v1.StrictJSONArray(metricShape), "attribution": attributionShape,
+	})
+	item := v1.StrictJSONRequiredObject([]string{"summary", "keywords", "semantic"}, map[string]*v1.StrictJSONShape{
+		"summary": stringShape, "keywords": v1.StrictJSONArray(stringShape), "semantic": semantic,
 	})
 	return v1.StrictJSONRequiredObject([]string{"raw_evidence_id", "evidences"}, map[string]*v1.StrictJSONShape{
 		"raw_evidence_id": stringShape, "evidences": v1.StrictJSONArray(item),

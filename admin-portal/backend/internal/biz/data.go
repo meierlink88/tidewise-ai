@@ -53,12 +53,34 @@ type Evidence struct {
 	CollectedAt             time.Time
 }
 type EvidenceSemantic struct {
-	Who   *string
-	What  string
-	When  *string
-	Where *string
-	Why   *string
-	How   *string
+	Actors        []string
+	Action        string
+	Objects       []string
+	Stage         string
+	Modality      string
+	Time          EvidenceTime
+	Jurisdictions []string
+	Reason        *string
+	Method        *string
+	Metrics       []EvidenceMetric
+	Attribution   EvidenceAttribution
+}
+type EvidenceTime struct {
+	Raw       *string
+	StartAt   *time.Time
+	EndAt     *time.Time
+	Precision string
+}
+type EvidenceMetric struct {
+	Name   string
+	Value  *string
+	Unit   *string
+	Change *string
+	Period *string
+}
+type EvidenceAttribution struct {
+	ReportedBy *string
+	ClaimedBy  *string
 }
 type EvidenceCategory struct{ ID, Code, Name, Description string }
 

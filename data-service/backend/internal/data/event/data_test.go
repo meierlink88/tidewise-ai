@@ -428,14 +428,19 @@ func publishAtomicEvidence(t *testing.T, db *sql.DB, publicationKey string) stri
 		PublicationKey: publicationKey, SourceID: "SRC_event_aggregate", SourceName: "Example Wire",
 		SourceLevel: evidencebiz.SourceLevelWire, SourceURL: "https://example.test/event-aggregate", IsOriginal: true,
 		RawText: "Example Corp announced a new production line.", PublishedAt: &publishedAt,
-		CollectedAt: publishedAt.Add(5 * time.Minute), Keywords: []string{"production"},
+		CollectedAt: publishedAt.Add(5 * time.Minute),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	evidence, err := useCase.PublishEvidence(context.Background(), raw.ID, []evidencebiz.Evidence{{
-		Summary:  "Example Corp announced a new production line.",
-		Semantic: evidencebiz.Semantic{Who: stringPointer("Example Corp"), What: "announced a new production line"},
+		Summary: "Example Corp announced a new production line.", Keywords: []string{"新产线"},
+		Semantic: evidencebiz.Semantic{
+			Actors: []string{"Example Corp"}, Action: "announced a new production line", Objects: []string{"production line"},
+			Stage: evidencebiz.EvidenceStageAnnounced, Modality: evidencebiz.EvidenceModalityFact,
+			Time: evidencebiz.EvidenceTime{Precision: evidencebiz.EvidenceTimeUnknown}, Jurisdictions: []string{}, Metrics: []evidencebiz.EvidenceMetric{},
+			Attribution: &evidencebiz.EvidenceAttribution{},
+		},
 	}})
 	if err != nil {
 		t.Fatal(err)

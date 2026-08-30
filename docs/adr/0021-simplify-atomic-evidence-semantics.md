@@ -1,7 +1,8 @@
 ---
-status: accepted
+status: superseded
 date: 2026-08-16
 supersedes_in_part: 0011-data-owns-raw-evidence-and-evidence-publication.md
+superseded_by: 0049-model-atomic-evidence-as-business-proposition.md
 issue: 255
 ---
 

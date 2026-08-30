@@ -65,7 +65,7 @@ func TestHTTPClientListsEvidenceCategoriesAndSourcesWithStrictProjection(t *test
 		writer.Header().Set("Content-Type", "application/json")
 		switch request.URL.Path {
 		case evidencesPath:
-			_, _ = writer.Write([]byte(`{"request_id":"data-evidence","result":{"items":[{"id":"EVD22222222-2222-5222-8222-222222222222","raw_evidence_id":"RAW22222222-2222-5222-8222-222222222222","title":"raw title","summary":"summary","semantic":{"who":"Official","what":"announced a policy","when":null,"where":"China","why":null,"how":null},"categories":[{"id":"EVC22222222-2222-5222-8222-222222222222","code":"EVENT_BRIEF","name":"Event brief","description":"description"}],"source_id":"SRC_example_00000000000000000000","source_name":"Official","source_level":"L1_OFFICIAL","source_url":"https://example.com/report","is_original":false,"quoted_source_name":"Agency filing","keywords":["policy","exports"],"is_split":true,"published_at":"2026-08-19T01:00:00Z","collected_at":"2026-08-19T02:00:00Z"}],"total":1,"page":1,"page_size":50}}`))
+			_, _ = writer.Write([]byte(`{"request_id":"data-evidence","result":{"items":[{"id":"EVD22222222-2222-5222-8222-222222222222","raw_evidence_id":"RAW22222222-2222-5222-8222-222222222222","title":"raw title","summary":"summary","semantic":{"actors":["Official"],"action":"announced","objects":["policy"],"stage":"ANNOUNCED","modality":"FACT","time":{"raw":"2026-08-19","start_at":"2026-08-18T16:00:00Z","end_at":"2026-08-19T15:59:59.999999Z","precision":"DAY"},"jurisdictions":["China"],"reason":null,"method":null,"metrics":[],"attribution":{"reported_by":null,"claimed_by":"Official"}},"categories":[{"id":"EVC22222222-2222-5222-8222-222222222222","code":"EVENT_BRIEF","name":"Event brief","description":"description"}],"source_id":"SRC_example_00000000000000000000","source_name":"Official","source_level":"L1_OFFICIAL","source_url":"https://example.com/report","is_original":false,"quoted_source_name":"Agency filing","keywords":["policy","export"],"is_split":true,"published_at":"2026-08-19T01:00:00Z","collected_at":"2026-08-19T02:00:00Z"}],"total":1,"page":1,"page_size":50}}`))
 		case evidenceCategoriesPath:
 			_, _ = writer.Write([]byte(`{"request_id":"data-category","result":{"categories":[{"id":"EVC22222222-2222-5222-8222-222222222222","code":"EVENT_BRIEF","name":"Event brief","description":"description"}]}}`))
 		case sourcesPath:
@@ -78,7 +78,7 @@ func TestHTTPClientListsEvidenceCategoriesAndSourcesWithStrictProjection(t *test
 	client := newTestClient(t, server.URL, server.Client(), "admin-service-token")
 	isSplit := true
 	page, err := client.ListEvidences(context.Background(), biz.EvidenceListQuery{Title: "raw", CategoryID: "EVC22222222-2222-5222-8222-222222222222", SourceID: "SRC_example_00000000000000000000", IsSplit: &isSplit, Page: 1, PageSize: 50})
-	if err != nil || len(page.Items) != 1 || len(page.Items[0].Categories) != 1 || page.Items[0].Semantic.What != "announced a policy" ||
+	if err != nil || len(page.Items) != 1 || len(page.Items[0].Categories) != 1 || page.Items[0].Semantic.Action != "announced" ||
 		page.Items[0].SourceID != "SRC_example_00000000000000000000" || page.Items[0].SourceURL != "https://example.com/report" || page.Items[0].IsOriginal || page.Items[0].QuotedSourceName == nil ||
 		*page.Items[0].QuotedSourceName != "Agency filing" || len(page.Items[0].Keywords) != 2 {
 		t.Fatalf("Evidence page/error = %#v/%v", page, err)
@@ -104,7 +104,7 @@ func TestHTTPClientGetsRawEvidenceDocumentWithStrictContract(t *testing.T) {
 		if request.URL.Path != rawEvidencesPath+"/"+id || request.Header.Get("Authorization") != "Bearer token" {
 			t.Fatalf("request = %s auth=%q", request.URL.Path, request.Header.Get("Authorization"))
 		}
-		_, _ = writer.Write([]byte(`{"request_id":"raw-document","result":{"raw_evidence":{"id":"RAW22222222-2222-5222-8222-222222222222","source_id":"SRC_example_00000000000000000000","source_name":"Official","source_level":"L1_OFFICIAL","source_url":"https://example.test/article","is_original":true,"quoted_source_id":null,"quoted_source_name":null,"title":"Title","raw_text":"/raw-evidence/documents/2026/08/17/11f0864fc4078b47a4cc758149a2b0b7923654d2c7c8a694ad5b2d5ced4fc998.md","published_at":null,"collected_at":"2026-08-19T02:00:00Z","keywords":[],"categories":[]}}}`))
+		_, _ = writer.Write([]byte(`{"request_id":"raw-document","result":{"raw_evidence":{"id":"RAW22222222-2222-5222-8222-222222222222","source_id":"SRC_example_00000000000000000000","source_name":"Official","source_level":"L1_OFFICIAL","source_url":"https://example.test/article","is_original":true,"quoted_source_id":null,"quoted_source_name":null,"title":"Title","raw_text":"/raw-evidence/documents/2026/08/17/11f0864fc4078b47a4cc758149a2b0b7923654d2c7c8a694ad5b2d5ced4fc998.md","published_at":null,"collected_at":"2026-08-19T02:00:00Z","categories":[]}}}`))
 	}))
 	defer server.Close()
 	client := newTestClient(t, server.URL, server.Client(), "token")
@@ -131,7 +131,7 @@ func TestHTTPClientMapsRawEvidenceNotFound(t *testing.T) {
 func TestHTTPClientRejectsInvalidRawEvidenceDocumentProjection(t *testing.T) {
 	t.Parallel()
 	const id = "RAW22222222-2222-5222-8222-222222222222"
-	const valid = `{"request_id":"raw-document","result":{"raw_evidence":{"id":"RAW22222222-2222-5222-8222-222222222222","source_id":"SRC_example_00000000000000000000","source_name":"Official","source_level":"L1_OFFICIAL","source_url":"https://example.test/article","is_original":true,"quoted_source_id":null,"quoted_source_name":null,"title":"Title","raw_text":"/raw-evidence/documents/2026/08/17/11f0864fc4078b47a4cc758149a2b0b7923654d2c7c8a694ad5b2d5ced4fc998.md","published_at":null,"collected_at":"2026-08-19T02:00:00Z","keywords":[],"categories":[]}}}`
+	const valid = `{"request_id":"raw-document","result":{"raw_evidence":{"id":"RAW22222222-2222-5222-8222-222222222222","source_id":"SRC_example_00000000000000000000","source_name":"Official","source_level":"L1_OFFICIAL","source_url":"https://example.test/article","is_original":true,"quoted_source_id":null,"quoted_source_name":null,"title":"Title","raw_text":"/raw-evidence/documents/2026/08/17/11f0864fc4078b47a4cc758149a2b0b7923654d2c7c8a694ad5b2d5ced4fc998.md","published_at":null,"collected_at":"2026-08-19T02:00:00Z","categories":[]}}}`
 	for _, test := range []struct {
 		name    string
 		payload string

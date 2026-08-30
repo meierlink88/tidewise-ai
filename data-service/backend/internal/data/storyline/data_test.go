@@ -474,14 +474,18 @@ func createStorylineTestEvent(
 		PublicationKey: "storyline-" + key, SourceID: "SRC_storyline_test", SourceName: "Storyline Test",
 		SourceLevel: evidencebiz.SourceLevelWire, SourceURL: "https://example.test/storyline/" + key,
 		IsOriginal: true, RawText: "Storyline event " + key, PublishedAt: &publishedAt,
-		CollectedAt: publishedAt.Add(time.Minute), Keywords: []string{"storyline"},
+		CollectedAt: publishedAt.Add(time.Minute),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	evidence, err := evidenceUseCase.PublishEvidence(context.Background(), raw.ID, []evidencebiz.Evidence{{
-		Summary:  "Storyline event " + key,
-		Semantic: evidencebiz.Semantic{Who: stringPointer("测试主体"), What: "发生测试事件"},
+		Summary: "Storyline event " + key, Keywords: []string{"测试事件"},
+		Semantic: evidencebiz.Semantic{
+			Actors: []string{"测试主体"}, Action: "发生", Objects: []string{"测试事件"},
+			Stage: evidencebiz.EvidenceStageOccurred, Modality: evidencebiz.EvidenceModalityFact,
+			Time: evidencebiz.EvidenceTime{Precision: evidencebiz.EvidenceTimeUnknown}, Jurisdictions: []string{}, Metrics: []evidencebiz.EvidenceMetric{},
+		},
 	}})
 	if err != nil {
 		t.Fatal(err)

@@ -115,13 +115,18 @@ func TestPostgresSnapshotPublicationWorksOnCurrentSchema(t *testing.T) {
 		PublicationKey: "research-snapshot-ledger", SourceID: "SRC_research_snapshot", SourceName: "Research Source",
 		SourceLevel: evidencebiz.SourceLevelOfficial, SourceURL: "https://example.test/research", IsOriginal: true,
 		RawText: "Research snapshot source.", PublishedAt: &publishedAt, CollectedAt: publishedAt.Add(time.Minute),
-		Keywords: []string{"research"},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	evidence, err := evidenceUseCase.PublishEvidence(ctx, raw.ID, []evidencebiz.Evidence{{
-		Summary: "Research snapshot evidence.", Semantic: evidencebiz.Semantic{What: "supports a Research snapshot"},
+		Summary: "Research snapshot evidence.", Keywords: []string{"研究快照"},
+		Semantic: evidencebiz.Semantic{
+			Actors: []string{"Research Source"}, Action: "supports", Objects: []string{"Research snapshot"},
+			Stage: evidencebiz.EvidenceStageOccurred, Modality: evidencebiz.EvidenceModalityFact,
+			Time: evidencebiz.EvidenceTime{Precision: evidencebiz.EvidenceTimeUnknown}, Jurisdictions: []string{}, Metrics: []evidencebiz.EvidenceMetric{},
+			Attribution: &evidencebiz.EvidenceAttribution{},
+		},
 	}})
 	if err != nil {
 		t.Fatal(err)

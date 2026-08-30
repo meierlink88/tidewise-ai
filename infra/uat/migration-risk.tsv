@@ -72,3 +72,4 @@
 000071	high	mixed	drop retired Entity external identifiers and redirects while preserving remaining object reference guards in a snapshot-protected stop-write cutover
 000072	high	mixed	narrow IndustryChain membership and graph edge storage to current row-presence topology facts in a snapshot-protected stop-write contract cutover
 000073	high	mixed	require empty Event history, replace Event semantic identity, and add the Reason publication replay contract in a snapshot-protected stop-write cutover
+000074	high	mixed	require empty Raw Evidence, Evidence, and Event history while moving keywords and replacing Evidence semantics in a snapshot-protected stop-write cutover

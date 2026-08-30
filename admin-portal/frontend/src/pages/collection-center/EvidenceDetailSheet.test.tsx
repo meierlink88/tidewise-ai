@@ -8,6 +8,20 @@ import { EvidenceDetailSheet } from './EvidenceDetailSheet';
 
 afterEach(() => vi.restoreAllMocks());
 
+const evidenceSemantic = {
+  actors: ['商务部'],
+  action: '发布公告',
+  objects: ['公告'],
+  stage: 'ANNOUNCED' as const,
+  modality: 'FACT' as const,
+  time: { raw: null, start_at: null, end_at: null, precision: 'UNKNOWN' as const },
+  jurisdictions: ['中国'],
+  reason: null,
+  method: null,
+  metrics: [],
+  attribution: { reported_by: null, claimed_by: '商务部' }
+};
+
 it('retries a failed collection document query without removing the original article', async () => {
   const user = userEvent.setup();
   let rejectFirstRequest: ((reason: Error) => void) | undefined;
@@ -32,7 +46,7 @@ it('retries a failed collection document query without removing the original art
           raw_evidence_id: 'RAW00000000-0000-5000-8000-000000000001',
           title: '材料标题',
           summary: '证据摘要',
-          semantic: { who: null, what: '发布公告', when: null, where: null, why: null, how: null },
+          semantic: evidenceSemantic,
           categories: [],
           source_id: 'SRC_example_00000000000000000000',
           source_name: '官方信源',
@@ -40,7 +54,7 @@ it('retries a failed collection document query without removing the original art
           source_url: 'https://example.com/original-report',
           is_original: true,
           quoted_source_name: null,
-          keywords: [],
+          keywords: ['公告'],
           is_split: false,
           published_at: null,
           collected_at: '2026-08-19T02:00:00Z'

@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
 	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
@@ -109,7 +110,7 @@ func (s Store) ListEvidence(ctx context.Context, filter evidencebiz.EvidenceList
 	rows, err := s.db.QueryContext(ctx, `
 SELECT evidence.id, evidence.raw_evidence_id, evidence.is_split, evidence.summary, evidence.semantic,
        raw.title, raw.source_id, raw.source_name, raw.source_level, raw.source_url, raw.is_original, raw.quoted_source_name,
-       raw.published_at, raw.collected_at, array_to_json(raw.keywords),
+       raw.published_at, raw.collected_at, array_to_json(evidence.keywords),
        COALESCE((
            SELECT jsonb_agg(jsonb_build_object(
                'id', category.id,
@@ -272,7 +273,7 @@ func validateEvidenceListItem(item evidencebiz.EvidenceListItem) error {
 	if err := validateStoredOptional("Evidence list", "quoted_source_name", item.QuotedSourceName, 100); err != nil {
 		return err
 	}
-	if err := validateStoredEvidence(&evidencebiz.StoredEvidence{Evidence: evidencebiz.Evidence{ID: item.ID, Summary: item.Summary, Semantic: item.Semantic}, RawEvidenceID: item.RawEvidenceID, IsSplit: item.IsSplit}); err != nil {
+	if err := validateStoredEvidence(&evidencebiz.StoredEvidence{Evidence: evidencebiz.Evidence{ID: item.ID, Summary: item.Summary, Keywords: item.Keywords, Semantic: item.Semantic}, RawEvidenceID: item.RawEvidenceID, IsSplit: item.IsSplit}); err != nil {
 		return err
 	}
 	if item.CollectedAt.IsZero() || item.Categories == nil {
@@ -396,9 +397,6 @@ func validateStoredRawEvidenceBase(record *evidencebiz.StoredRawEvidence, expect
 	if record.ContentHash != hex.EncodeToString(digest[:]) {
 		return persistedInvariant(resource, "content_hash", "value does not match raw_text")
 	}
-	if record.Keywords == nil {
-		return persistedInvariant(resource, "keywords", "array is null")
-	}
 	return nil
 }
 
@@ -441,25 +439,136 @@ func validateStoredEvidence(record *evidencebiz.StoredEvidence) error {
 		{name: "id", value: record.ID, max: 39},
 		{name: "raw_evidence_id", value: record.RawEvidenceID, max: 39},
 		{name: "summary", value: record.Summary, max: 200},
-		{name: "semantic.what", value: record.Semantic.What},
+		{name: "semantic.action", value: record.Semantic.Action, max: 200},
 	} {
 		if err := validateStoredRequired(resource, field.name, field.value, field.max); err != nil {
 			return err
 		}
 	}
-	for _, field := range []struct {
-		name  string
+	validateStoredSemanticCollections := func(path string, values []string, min, max, maxRunes int) error {
+		if values == nil || len(values) < min || len(values) > max {
+			return persistedInvariant(resource, path, "collection is incomplete")
+		}
+		seen := make(map[string]struct{}, len(values))
+		for _, value := range values {
+			if strings.TrimSpace(value) == "" || utf8.RuneCountInString(value) > maxRunes {
+				return persistedInvariant(resource, path, "collection contains a blank value")
+			}
+			if _, duplicate := seen[value]; duplicate {
+				return persistedInvariant(resource, path, "collection contains a duplicate value")
+			}
+			seen[value] = struct{}{}
+		}
+		return nil
+	}
+	if err := validateStoredSemanticCollections("semantic.actors", record.Semantic.Actors, 1, 20, 100); err != nil {
+		return err
+	}
+	if err := validateStoredSemanticCollections("semantic.objects", record.Semantic.Objects, 1, 20, 200); err != nil {
+		return err
+	}
+	if err := validateStoredSemanticCollections("semantic.jurisdictions", record.Semantic.Jurisdictions, 0, 20, 100); err != nil {
+		return err
+	}
+	switch record.Semantic.Stage {
+	case evidencebiz.EvidenceStageOccurred, evidencebiz.EvidenceStageAnnounced, evidencebiz.EvidenceStageEffective,
+		evidencebiz.EvidenceStageImplemented, evidencebiz.EvidenceStageUpdated, evidencebiz.EvidenceStageSuspended,
+		evidencebiz.EvidenceStageTerminated, evidencebiz.EvidenceStageExpected:
+	default:
+		return persistedInvariant(resource, "semantic.stage", "value is not supported")
+	}
+	switch record.Semantic.Modality {
+	case evidencebiz.EvidenceModalityFact, evidencebiz.EvidenceModalityPlan, evidencebiz.EvidenceModalitySpec:
+	default:
+		return persistedInvariant(resource, "semantic.modality", "value is not supported")
+	}
+	switch record.Semantic.Time.Precision {
+	case evidencebiz.EvidenceTimeInstant, evidencebiz.EvidenceTimeDay, evidencebiz.EvidenceTimeRange,
+		evidencebiz.EvidenceTimeMonth, evidencebiz.EvidenceTimeQuarter, evidencebiz.EvidenceTimeYear,
+		evidencebiz.EvidenceTimeUnknown:
+	default:
+		return persistedInvariant(resource, "semantic.time.precision", "value is not supported")
+	}
+	if (record.Semantic.Time.StartAt == nil) != (record.Semantic.Time.EndAt == nil) {
+		return persistedInvariant(resource, "semantic.time", "bounds must both be present or both be null")
+	}
+	if record.Semantic.Time.StartAt != nil && record.Semantic.Time.EndAt != nil {
+		_, startOffset := record.Semantic.Time.StartAt.Zone()
+		_, endOffset := record.Semantic.Time.EndAt.Zone()
+		if startOffset != 0 || endOffset != 0 || record.Semantic.Time.StartAt.After(*record.Semantic.Time.EndAt) {
+			return persistedInvariant(resource, "semantic.time", "bounds are not ordered UTC timestamps")
+		}
+	}
+	for _, value := range []struct {
+		path  string
 		value *string
+		max   int
 	}{
-		{name: "semantic.who", value: record.Semantic.Who},
-		{name: "semantic.when", value: record.Semantic.When},
-		{name: "semantic.where", value: record.Semantic.Where},
-		{name: "semantic.why", value: record.Semantic.Why},
-		{name: "semantic.how", value: record.Semantic.How},
+		{path: "semantic.reason", value: record.Semantic.Reason, max: 500},
+		{path: "semantic.method", value: record.Semantic.Method, max: 500},
+		{path: "semantic.time.raw", value: record.Semantic.Time.Raw, max: 200},
 	} {
-		if err := validateStoredOptional(resource, field.name, field.value, 0); err != nil {
+		if err := validateStoredOptional(resource, value.path, value.value, value.max); err != nil {
 			return err
 		}
+	}
+	if record.Semantic.Attribution == nil {
+		return persistedInvariant(resource, "semantic.attribution", "object is null")
+	}
+	for _, value := range []struct {
+		path  string
+		value *string
+	}{
+		{path: "semantic.attribution.reported_by", value: record.Semantic.Attribution.ReportedBy},
+		{path: "semantic.attribution.claimed_by", value: record.Semantic.Attribution.ClaimedBy},
+	} {
+		if err := validateStoredOptional(resource, value.path, value.value, 100); err != nil {
+			return err
+		}
+	}
+	if record.Semantic.Metrics == nil {
+		return persistedInvariant(resource, "semantic.metrics", "collection is null")
+	}
+	seenMetrics := make(map[string]struct{}, len(record.Semantic.Metrics))
+	for _, metric := range record.Semantic.Metrics {
+		if strings.TrimSpace(metric.Name) == "" || utf8.RuneCountInString(metric.Name) > 100 || metric.Value == nil && metric.Change == nil {
+			return persistedInvariant(resource, "semantic.metrics", "metric is incomplete")
+		}
+		for _, value := range []struct {
+			path  string
+			value *string
+			max   int
+		}{
+			{path: "value", value: metric.Value, max: 100},
+			{path: "unit", value: metric.Unit, max: 50},
+			{path: "change", value: metric.Change, max: 100},
+			{path: "period", value: metric.Period, max: 100},
+		} {
+			if err := validateStoredOptional(resource, "semantic.metrics."+value.path, value.value, value.max); err != nil {
+				return err
+			}
+		}
+		identity := strings.ToLower(strings.TrimSpace(metric.Name)) + "\x00"
+		if metric.Period != nil {
+			identity += strings.ToLower(strings.TrimSpace(*metric.Period))
+		}
+		if _, duplicate := seenMetrics[identity]; duplicate {
+			return persistedInvariant(resource, "semantic.metrics", "metric identity is duplicated")
+		}
+		seenMetrics[identity] = struct{}{}
+	}
+	if record.Keywords == nil || len(record.Keywords) < 1 || len(record.Keywords) > 5 {
+		return persistedInvariant(resource, "keywords", "collection must contain one to five values")
+	}
+	seenKeywords := make(map[string]struct{}, len(record.Keywords))
+	for _, keyword := range record.Keywords {
+		if strings.TrimSpace(keyword) == "" || utf8.RuneCountInString(keyword) > 6 {
+			return persistedInvariant(resource, "keywords", "collection contains an invalid value")
+		}
+		if _, duplicate := seenKeywords[keyword]; duplicate {
+			return persistedInvariant(resource, "keywords", "collection contains a duplicate value")
+		}
+		seenKeywords[keyword] = struct{}{}
 	}
 	return nil
 }

@@ -80,23 +80,56 @@ export function EvidenceDetailSheet({
             </DetailSection>
             <DetailSection title='语义信息'>
               <DetailList>
-                <DetailItem label='Who · 谁'>
-                  {nullableDetailValue(evidence.semantic.who)}
+                <DetailItem label='业务主体'>{evidence.semantic.actors.join('、')}</DetailItem>
+                <DetailItem label='现实阶段'>{evidence.semantic.stage}</DetailItem>
+                <DetailItem full label='核心动作'>
+                  {evidence.semantic.action}
                 </DetailItem>
-                <DetailItem label='When · 何时'>
-                  {nullableDetailValue(evidence.semantic.when)}
+                <DetailItem full label='作用对象'>
+                  {evidence.semantic.objects.join('、')}
                 </DetailItem>
-                <DetailItem full label='What · 什么'>
-                  {evidence.semantic.what}
+                <DetailItem label='事实情态'>{evidence.semantic.modality}</DetailItem>
+                <DetailItem label='时间精度'>{evidence.semantic.time.precision}</DetailItem>
+                <DetailItem full label='原文时间'>
+                  {nullableDetailValue(evidence.semantic.time.raw)}
                 </DetailItem>
-                <DetailItem label='Where · 何地'>
-                  {nullableDetailValue(evidence.semantic.where)}
+                <DetailItem label='开始时间'>
+                  {evidence.semantic.time.start_at
+                    ? formatDateTime(evidence.semantic.time.start_at)
+                    : '—'}
                 </DetailItem>
-                <DetailItem label='Why · 为何'>
-                  {nullableDetailValue(evidence.semantic.why)}
+                <DetailItem label='结束时间'>
+                  {evidence.semantic.time.end_at
+                    ? formatDateTime(evidence.semantic.time.end_at)
+                    : '—'}
                 </DetailItem>
-                <DetailItem full label='How · 如何'>
-                  {nullableDetailValue(evidence.semantic.how)}
+                <DetailItem full label='作用辖区'>
+                  {evidence.semantic.jurisdictions.length > 0
+                    ? evidence.semantic.jurisdictions.join('、')
+                    : '—'}
+                </DetailItem>
+                <DetailItem full label='发生原因'>
+                  {nullableDetailValue(evidence.semantic.reason)}
+                </DetailItem>
+                <DetailItem full label='执行方式'>
+                  {nullableDetailValue(evidence.semantic.method)}
+                </DetailItem>
+                <DetailItem label='报道方'>
+                  {nullableDetailValue(evidence.semantic.attribution.reported_by)}
+                </DetailItem>
+                <DetailItem label='声称方'>
+                  {nullableDetailValue(evidence.semantic.attribution.claimed_by)}
+                </DetailItem>
+                <DetailItem full label='业务指标'>
+                  {evidence.semantic.metrics.length === 0
+                    ? '—'
+                    : evidence.semantic.metrics
+                        .map((metric) =>
+                          [metric.name, metric.value, metric.unit, metric.change, metric.period]
+                            .filter((value) => value !== null)
+                            .join(' · ')
+                        )
+                        .join('；')}
                 </DetailItem>
               </DetailList>
             </DetailSection>
