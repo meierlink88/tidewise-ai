@@ -12,6 +12,7 @@ import (
 
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	chainnodeapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/chainnode"
+	companyapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/company"
 	conceptapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/concept"
 	countryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/country"
 	industryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/industry"
@@ -47,6 +48,7 @@ const (
 	ScopeOrganizationWrite    = "data.organizations.write"
 	ScopeSourceRead           = "data.sources.read"
 	ScopeSourceWrite          = "data.sources.write"
+	ScopeCompanyRead          = "data.companies.read"
 	operationHealth           = "data.health"
 	operationReady            = "data.ready"
 )
@@ -172,6 +174,8 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeSourceRead, true
 	case sourceapi.OperationCreate, sourceapi.OperationUpdate, sourceapi.OperationDelete:
 		return ScopeSourceWrite, true
+	case companyapi.OperationList:
+		return ScopeCompanyRead, true
 	default:
 		return "", false
 	}

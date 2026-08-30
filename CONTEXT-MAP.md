@@ -28,7 +28,7 @@ Admin Portal Frontend
       -> Data Domain Service REST API, including Source management
 
 External Agent OS
-  -> Data Domain Service versioned Source snapshot and publication/read REST APIs
+  -> Data Domain Service versioned Source/Company snapshots and publication/read REST APIs
 
 Data Domain Service
   -> no external Agent runtime, database, Artifact, or code dependency
@@ -47,6 +47,8 @@ repository 独立拥有，四个应用服务不依赖它。Admin Web 是浏览�
 
 系统级退役决策见 `docs/adr/0027-retire-agent-run.md`。Source 所有权、Admin Backend 管理边界与
 AgentOS 运行时快照见 `docs/adr/0031-data-owns-source-management.md`。
+Company 投影只能通过 Data 版本化快照 API，不得直连 PostgreSQL；该边界见
+`docs/adr/0050-expose-company-projection-snapshot.md`。
 
 UAT 中的 OpenSPG MySQL 与共享 MinIO 由独立 `tidewise-infra-uat` 项目运行，不属于四个
 应用服务、AgentOS 或 Reason Server 的发布事务；详见

@@ -20,6 +20,8 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 - Data Application 内数据库无关的 Domain Object ID 技术原语与格式合同。
 - Source 管理、校验、固定清单初始化、持久化、动态 RSS Source 生命周期与
   完整 active Source 运行时快照。
+- 面向外部 AgentOS 的版本化 Company 投影快照，包含 Data-owned Company 事实与
+  formal CompanyIndustryLink。
 
 ## Does Not Own
 
@@ -42,6 +44,8 @@ Data 拥有 Source 配置与正式 Raw Evidence、Evidence 及发布合同；外
 冻结。执行方也必须通过 Data API 发布结果，不直接访问 Data 数据库。Data 不反向调用、
 不读取 AgentOS 数据库或本地 Artifact，也不执行 connector、parser、prompt、schedule
 或 workflow。一次性迁移文件由操作员发布，不构成运行时 import 或数据库依赖。
+外部 AgentOS 投影 Company 时同样只能读取 Data 版本化快照 API，不得直连
+Data PostgreSQL；Data 不拥有由 AgentOS 产生的行业或产业链模型推断。
 
 Event 直接通过 `event_evidence_links` 引用 Data-owned Atomic Evidence；轻量
 `raw_documents`、`event_sources`、Event Tag 和旧 Event Publication 已退役。新 Event
@@ -136,6 +140,14 @@ Company 的正式 Industry 分类关系，以 `CIL + canonical lowercase UUID` �
 Company/Industry 端点确定性生成，同一端点对唯一，两个外键均 restrictive。完整 Industry
 集合由 Company 聚合原子替换。
 _Avoid_: `industry_name`、模糊行业匹配、重复端点、部分替换
+
+**Company Projection Snapshot**:
+外部 AgentOS 投影用的 Data-owned 只读快照合同，`schema_version` 固定为
+`company-projection-snapshot.v1`，以 Company 与 formal CompanyIndustryLink 全集计算
+lowercase SHA-256 `snapshot_id`。列表按 `(code, id)` 稳定分页；cursor 绑定快照，
+事实漂移后必须以 409 fail closed 并从首页重启。`industry_links` 只是 formal Data
+事实，不承载模型判断。
+_Avoid_: AgentOS 直连 PostgreSQL、跨快照混合分页、部分结果、把推断写成 formal link
 
 **Organization Category**:
 Organization 唯一的可维护组织形态目录项，以 `OCA + canonical lowercase UUID`

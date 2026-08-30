@@ -40,6 +40,19 @@ COALESCE(
     ),
     '[]'::jsonb
 ),
+COALESCE(
+    (
+        SELECT jsonb_agg(jsonb_build_object(
+            'id', link.id,
+            'company_id', link.company_id,
+            'industry_id', link.industry_id,
+            'created_at', link.created_at
+        ) ORDER BY link.industry_id, link.id)
+        FROM company_industry_links link
+        WHERE link.company_id = c.id
+    ),
+    '[]'::jsonb
+),
 (c.registration_country_id IS NULL OR EXISTS (
     SELECT 1 FROM countries country WHERE country.id = c.registration_country_id
 )),
@@ -116,6 +129,82 @@ ORDER BY c.code, c.id`)
 	return result, nil
 }
 
+func (s *Store) ListProjection(ctx context.Context, query companybiz.ProjectionListQuery) (companybiz.ProjectionListResult, error) {
+	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true})
+	if err != nil {
+		return companybiz.ProjectionListResult{}, classifyReadError(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, `SET LOCAL TIME ZONE 'UTC'`); err != nil {
+		return companybiz.ProjectionListResult{}, classifyReadError(err)
+	}
+
+	var snapshotID string
+	if err := tx.QueryRowContext(ctx, `
+SELECT encode(public.digest(convert_to(
+    COALESCE((
+        SELECT string_agg(to_jsonb(c)::text, E'\n' ORDER BY c.code, c.id)
+        FROM company c
+    ), '') || E'\ncompany_industry_links\n' || COALESCE((
+        SELECT string_agg(to_jsonb(link)::text, E'\n' ORDER BY link.company_id, link.industry_id, link.id)
+        FROM company_industry_links link
+    ), ''),
+    'UTF8'
+), 'sha256'), 'hex')`).Scan(&snapshotID); err != nil {
+		return companybiz.ProjectionListResult{}, classifyReadError(err)
+	}
+	if query.SnapshotID != "" && query.SnapshotID != snapshotID {
+		return companybiz.ProjectionListResult{}, companybiz.ErrProjectionSnapshotChanged
+	}
+
+	var rows *sql.Rows
+	if query.After == nil {
+		rows, err = tx.QueryContext(ctx, `
+SELECT `+companyColumns+`
+FROM company c
+ORDER BY c.code, c.id
+LIMIT $1`, query.PageSize+1)
+	} else {
+		rows, err = tx.QueryContext(ctx, `
+SELECT `+companyColumns+`
+FROM company c
+WHERE (c.code, c.id) > ($1::text, $2::text)
+ORDER BY c.code, c.id
+LIMIT $3`, query.After.Code, query.After.ID, query.PageSize+1)
+	}
+	if err != nil {
+		return companybiz.ProjectionListResult{}, classifyReadError(err)
+	}
+	result := make([]companybiz.Company, 0, query.PageSize+1)
+	for rows.Next() {
+		item, err := scanCompany(rows, classifyReadError)
+		if err != nil {
+			_ = rows.Close()
+			return companybiz.ProjectionListResult{}, err
+		}
+		if err := companybiz.ValidateProjectionCompany(item); err != nil {
+			_ = rows.Close()
+			return companybiz.ProjectionListResult{}, companybiz.ErrPersistence
+		}
+		result = append(result, item)
+	}
+	if err := rows.Err(); err != nil {
+		_ = rows.Close()
+		return companybiz.ProjectionListResult{}, classifyReadError(err)
+	}
+	if err := rows.Close(); err != nil {
+		return companybiz.ProjectionListResult{}, classifyReadError(err)
+	}
+	hasMore := len(result) > query.PageSize
+	if hasMore {
+		result = result[:query.PageSize]
+	}
+	if err := tx.Commit(); err != nil {
+		return companybiz.ProjectionListResult{}, classifyReadError(err)
+	}
+	return companybiz.ProjectionListResult{SnapshotID: snapshotID, Items: result, HasMore: hasMore}, nil
+}
+
 func (s *Store) Update(ctx context.Context, id companybiz.ID, input companybiz.Update) (companybiz.Company, error) {
 	row := s.db.QueryRowContext(ctx, `
 WITH updated AS (
@@ -156,14 +245,14 @@ func scanCompany(row rowScanner, classify func(error) error) (companybiz.Company
 	var headquartersCity, legalForm, ownershipType sql.NullString
 	var strategicPositioning, description sql.NullString
 	var foundingDate, ipoDate sql.NullTime
-	var aliasesJSON, industriesJSON []byte
+	var aliasesJSON, industriesJSON, industryLinksJSON []byte
 	var registrationCountryValid, industryLinksValid bool
 	if err := row.Scan(
 		&result.ID, &result.Code, &result.Name, &nameEn, &legalName, &aliasesJSON,
 		&registrationCountryID, &operatingArea, &headquartersCity,
 		&foundingDate, &ipoDate, &legalForm, &ownershipType,
 		&strategicPositioning, &description, &result.Status,
-		&result.CreatedAt, &result.UpdatedAt, &industriesJSON,
+		&result.CreatedAt, &result.UpdatedAt, &industriesJSON, &industryLinksJSON,
 		&registrationCountryValid, &industryLinksValid,
 	); err != nil {
 		return companybiz.Company{}, classify(err)
@@ -171,6 +260,8 @@ func scanCompany(row rowScanner, classify func(error) error) (companybiz.Company
 	if !registrationCountryValid || !industryLinksValid {
 		return companybiz.Company{}, companybiz.ErrPersistence
 	}
+	result.CreatedAt = result.CreatedAt.UTC()
+	result.UpdatedAt = result.UpdatedAt.UTC()
 	if err := json.Unmarshal(aliasesJSON, &result.Aliases); err != nil {
 		return companybiz.Company{}, companybiz.ErrPersistence
 	}
@@ -200,6 +291,21 @@ func scanCompany(row rowScanner, classify func(error) error) (companybiz.Company
 	result.Industries = make([]companybiz.Industry, len(industries))
 	for index, industry := range industries {
 		result.Industries[index] = companybiz.Industry(industry)
+	}
+	var industryLinks []struct {
+		ID         string                `json:"id"`
+		CompanyID  companybiz.ID         `json:"company_id"`
+		IndustryID companybiz.IndustryID `json:"industry_id"`
+		CreatedAt  time.Time             `json:"created_at"`
+	}
+	if err := json.Unmarshal(industryLinksJSON, &industryLinks); err != nil {
+		return companybiz.Company{}, companybiz.ErrPersistence
+	}
+	result.IndustryLinks = make([]companybiz.IndustryLink, len(industryLinks))
+	for index, link := range industryLinks {
+		result.IndustryLinks[index] = companybiz.IndustryLink{
+			ID: link.ID, CompanyID: link.CompanyID, IndustryID: link.IndustryID, CreatedAt: link.CreatedAt.UTC(),
+		}
 	}
 	if err := companybiz.ValidatePersisted(result); err != nil {
 		return companybiz.Company{}, companybiz.ErrPersistence
@@ -255,3 +361,4 @@ func classifyReadError(err error) error {
 }
 
 var _ companybiz.Repository = (*Store)(nil)
+var _ companybiz.ProjectionRepository = (*Store)(nil)

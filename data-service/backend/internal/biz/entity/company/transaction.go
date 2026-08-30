@@ -1,10 +1,15 @@
 package company
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type IndustryLink struct {
 	ID         string
+	CompanyID  ID
 	IndustryID IndustryID
+	CreatedAt  time.Time
 }
 
 type IndustryTransaction interface {
