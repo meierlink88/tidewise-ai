@@ -21,6 +21,11 @@ END;
 $$;
 -- +goose StatementEnd
 
+-- Legacy local deployments may still contain this unmanaged compatibility
+-- view. It is absent from the current runtime contract and depends on the
+-- Raw Evidence keywords column retired by this cutover.
+DROP VIEW IF EXISTS evidence_view;
+
 ALTER TABLE raw_evidences
     DROP CONSTRAINT chk_raw_evidences_keywords_one_dimension,
     DROP COLUMN keywords;

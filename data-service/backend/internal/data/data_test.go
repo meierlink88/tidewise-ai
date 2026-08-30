@@ -189,6 +189,45 @@ func TestPublishedObjectSchemasAndPersistenceStayAligned(t *testing.T) {
 	}
 }
 
+func TestEvidenceSemanticCutoverRemovesLegacyEvidenceView(t *testing.T) {
+	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "migrations"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := postgresfixture.OpenIsolated(t, "tw_evidence_cutover", migrationDir, 73)
+	if _, err := db.ExecContext(context.Background(), `
+CREATE VIEW evidence_view AS
+SELECT evidence.id AS evidence_id, raw.keywords
+FROM evidences AS evidence
+JOIN raw_evidences AS raw ON raw.id = evidence.raw_evidence_id`); err != nil {
+		t.Fatal(err)
+	}
+
+	postgresfixture.ApplyMigration(t, db, migrationDir, 74)
+
+	var legacyViewExists bool
+	if err := db.QueryRowContext(context.Background(), `SELECT to_regclass(current_schema() || '.evidence_view') IS NOT NULL`).Scan(&legacyViewExists); err != nil {
+		t.Fatal(err)
+	}
+	if legacyViewExists {
+		t.Fatal("legacy evidence_view still exists after Evidence semantic cutover")
+	}
+	for table, want := range map[string]bool{"raw_evidences": false, "evidences": true} {
+		var exists bool
+		if err := db.QueryRowContext(context.Background(), `
+SELECT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = current_schema() AND table_name = $1 AND column_name = 'keywords'
+)`, table).Scan(&exists); err != nil {
+			t.Fatal(err)
+		}
+		if exists != want {
+			t.Fatalf("%s.keywords exists = %t, want %t", table, exists, want)
+		}
+	}
+}
+
 func evidenceSemanticConstraintTokens() []string {
 	return []string{
 		"jsonb_typeof(semantic) = 'object'::text",
