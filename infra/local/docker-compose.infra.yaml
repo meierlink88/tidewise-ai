@@ -20,28 +20,6 @@ services:
       retries: 10
     networks: [tidewise-local]
 
-  mysql:
-    image: spg-registry.cn-hangzhou.cr.aliyuncs.com/spg/openspg-mysql@sha256:71eb546d5fc5faf70b3d8a358c022f601591b54a029b79298f2fa0302e46de9a
-    restart: unless-stopped
-    ports:
-      - '127.0.0.1:${MYSQL_PORT:-3306}:3306'
-    environment:
-      TZ: Asia/Shanghai
-      LANG: C.UTF-8
-      MYSQL_ROOT_PASSWORD: '${OPENSPG_MYSQL_ROOT_PASSWORD:-openspg}'
-      MYSQL_DATABASE: openspg
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_general_ci
-    volumes:
-      - mysql-data:/var/lib/mysql
-    healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '--silent']
-      interval: 10s
-      timeout: 5s
-      retries: 20
-    networks: [tidewise-local]
-
   minio:
     image: spg-registry.cn-hangzhou.cr.aliyuncs.com/spg/openspg-minio@sha256:9493c8e8f77edb10d556255d49ba8b5761b0fe57889235dfd10619c0513da007
     restart: unless-stopped
@@ -66,21 +44,6 @@ services:
       retries: 20
     networks: [tidewise-local]
 
-  qdrant:
-    image: qdrant/qdrant:v1.15.5
-    restart: unless-stopped
-    ports:
-      - '127.0.0.1:${QDRANT_HTTP_PORT:-6333}:6333'
-      - '127.0.0.1:${QDRANT_GRPC_PORT:-6334}:6334'
-    volumes:
-      - qdrant-data:/qdrant/storage
-    healthcheck:
-      test: ['CMD', 'bash', '-c', ': >/dev/tcp/127.0.0.1/6333']
-      interval: 10s
-      timeout: 5s
-      retries: 20
-    networks: [tidewise-local]
-
 networks:
   tidewise-local:
     name: '${COMPOSE_NETWORK_NAME:-tidewise-local}'
@@ -89,12 +52,6 @@ volumes:
   postgres-data:
     external: true
     name: local_tidewise_postgres_data
-  mysql-data:
-    external: true
-    name: tidewise-reason_mysql-data
   minio-data:
     external: true
     name: tidewise-reason_minio-data
-  qdrant-data:
-    external: true
-    name: tidewise-qdrant-local-storage
