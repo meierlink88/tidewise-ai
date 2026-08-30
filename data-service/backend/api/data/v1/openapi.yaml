@@ -25,6 +25,7 @@ tags:
   - name: Research Reason Tree import
   - name: Country
   - name: Industry
+  - name: Company projection
   - name: Concept
   - name: Organization
   - name: Source
@@ -877,6 +878,36 @@ paths:
         '500': {$ref: '#/components/responses/InternalError'}
         '503': {$ref: '#/components/responses/ServiceUnavailable'}
 
+  /api/data/v1/entities/companies:
+    get:
+      tags: [Company projection]
+      operationId: listCompanies
+      x-client-drift-anchor: data.v1.listCompanies
+      x-required-service-scope: data.companies.read
+      x-retry-policy: safe-get-restart-from-first-page-on-snapshot-change
+      x-timeout-budget-ms: 5000
+      x-error-codes: [INVALID_REQUEST, COMPANY_PROJECTION_SNAPSHOT_CHANGED, COMPANY_PROJECTION_TIMEOUT, COMPANY_PROJECTION_PERSISTENCE_FAILED, COMPANY_PROJECTION_FAILED]
+      summary: 分页读取 Company 投影快照
+      description: >-
+        按 (code, id) 稳定升序返回 Data 拥有的 Company 事实和 formal CompanyIndustryLink。
+        cursor 只能在其 snapshot_id 对应的快照中继续；Company 或 CompanyIndustryLink
+        发生变化后继续分页返回 409 COMPANY_PROJECTION_SNAPSHOT_CHANGED，消费方必须从首页重启。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/CompanyProjectionCursor'
+      responses:
+        '200':
+          description: Company 投影快照分页
+          headers: {X-Request-ID: {$ref: '#/components/headers/RequestID'}}
+          content: {application/json: {schema: {$ref: '#/components/schemas/CompanyProjectionPageEnvelope'}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalError'}
+        '503': {$ref: '#/components/responses/ServiceUnavailable'}
+
   /api/data/v1/entities/industries/{industry_id}:
     parameters:
       - $ref: '#/components/parameters/IndustryID'
@@ -1649,6 +1680,15 @@ components:
         type: string
         minLength: 1
         maxLength: 256
+    CompanyProjectionCursor:
+      name: cursor
+      in: query
+      required: false
+      description: 上一页返回的、绑定 Company snapshot identity 的 opaque cursor。
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 512
     Page:
       name: page
       in: query
@@ -2135,6 +2175,62 @@ components:
           additionalProperties: false
           required: [deleted]
           properties: {deleted: {type: boolean, enum: [true]}}
+    CompanyIndustryLink:
+      type: object
+      additionalProperties: false
+      required: [id, company_id, industry_id, created_at]
+      properties:
+        id: {$ref: '#/components/schemas/CompanyIndustryLinkID'}
+        company_id: {$ref: '#/components/schemas/CompanyID'}
+        industry_id: {$ref: '#/components/schemas/IndustryID'}
+        created_at: {$ref: '#/components/schemas/UTCTimestamp'}
+    CompanyProjectionItem:
+      type: object
+      additionalProperties: false
+      required: [id, code, name, name_en, legal_name, aliases, registration_country_id, operating_area, headquarters_city, founding_date, ipo_date, legal_form, ownership_type, strategic_positioning, description, status, created_at, updated_at, industry_links]
+      properties:
+        id: {$ref: '#/components/schemas/CompanyID'}
+        code: {type: string, minLength: 1, maxLength: 30}
+        name: {type: string, minLength: 1, maxLength: 200}
+        name_en: {type: string, minLength: 1, maxLength: 200, nullable: true}
+        legal_name: {type: string, minLength: 1, maxLength: 300, nullable: true}
+        aliases:
+          type: array
+          uniqueItems: true
+          items: {type: string, minLength: 1, maxLength: 200}
+        registration_country_id: {type: string, pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', maxLength: 39, nullable: true}
+        operating_area: {type: string, minLength: 1, nullable: true}
+        headquarters_city: {type: string, minLength: 1, maxLength: 100, nullable: true}
+        founding_date: {type: string, format: date, nullable: true}
+        ipo_date: {type: string, format: date, nullable: true}
+        legal_form: {type: string, minLength: 1, maxLength: 64, nullable: true}
+        ownership_type: {type: string, enum: [STATE_CONTROLLED, FAMILY_CONTROLLED, FOUNDER_CONTROLLED, INSTITUTION_CONTROLLED, DISPERSED, OTHER], nullable: true}
+        strategic_positioning: {type: string, minLength: 1, nullable: true}
+        description: {type: string, minLength: 1, nullable: true}
+        status: {type: string, enum: [active, inactive, merged]}
+        created_at: {$ref: '#/components/schemas/UTCTimestamp'}
+        updated_at: {$ref: '#/components/schemas/UTCTimestamp'}
+        industry_links:
+          type: array
+          items: {$ref: '#/components/schemas/CompanyIndustryLink'}
+    CompanyProjectionPage:
+      type: object
+      additionalProperties: false
+      required: [schema_version, snapshot_id, items, next_cursor]
+      properties:
+        schema_version: {type: string, enum: [company-projection-snapshot.v1]}
+        snapshot_id: {$ref: '#/components/schemas/PayloadHash'}
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/CompanyProjectionItem'}
+        next_cursor: {type: string, minLength: 1, maxLength: 512, nullable: true}
+    CompanyProjectionPageEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string, minLength: 1, maxLength: 128}
+        result: {$ref: '#/components/schemas/CompanyProjectionPage'}
     IndustryCreateRequest:
       type: object
       additionalProperties: false
@@ -2495,6 +2591,16 @@ components:
       type: string
       pattern: '^IND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
       description: Industry 领域前缀直接连接 canonical lowercase UUID。
+    CompanyID:
+      type: string
+      pattern: '^COM[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      maxLength: 39
+      description: Company 领域前缀直接连接 canonical lowercase UUID。
+    CompanyIndustryLinkID:
+      type: string
+      pattern: '^CIL[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      maxLength: 39
+      description: CompanyIndustryLink 领域前缀直接连接 canonical lowercase UUID。
     ConceptID:
       type: string
       pattern: '^CON[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
@@ -2541,6 +2647,7 @@ components:
         - $ref: '#/components/schemas/ConceptID'
         - $ref: '#/components/schemas/ChainNodeID'
         - $ref: '#/components/schemas/IndustryChainID'
+        - $ref: '#/components/schemas/CompanyID'
         - type: string
           pattern: '^COU[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
         - type: string

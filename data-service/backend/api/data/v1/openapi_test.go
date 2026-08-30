@@ -42,6 +42,7 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/entities/countries/{country_id}":                              {method: "get", operationID: "getCountry", driftAnchor: "data.v1.getCountry", scope: "data.countries.read"},
 		namespace + "/entities/countries/{country_id}/regions":                      {method: "put", operationID: "replaceCountryRegions", driftAnchor: "data.v1.replaceCountryRegions", scope: "data.countries.write"},
 		namespace + "/entities/industries":                                          {method: "get", operationID: "listIndustries", driftAnchor: "data.v1.listIndustries", scope: "data.industries.read"},
+		namespace + "/entities/companies":                                           {method: "get", operationID: "listCompanies", driftAnchor: "data.v1.listCompanies", scope: "data.companies.read"},
 		namespace + "/entities/industries/{industry_id}":                            {method: "get", operationID: "getIndustry", driftAnchor: "data.v1.getIndustry", scope: "data.industries.read"},
 		namespace + "/entities/concepts":                                            {method: "get", operationID: "listConcepts", driftAnchor: "data.v1.listConcepts", scope: "data.concepts.read"},
 		namespace + "/entities/concepts/{concept_id}":                               {method: "get", operationID: "getConcept", driftAnchor: "data.v1.getConcept", scope: "data.concepts.read"},
@@ -105,6 +106,40 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestOpenAPIContractFreezesCompanyProjectionSnapshot(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	operation := object(t, object(t, paths[namespace+"/entities/companies"], "Company projection path")["get"], "Company projection operation")
+	assertString(t, operation, "x-retry-policy", "safe-get-restart-from-first-page-on-snapshot-change")
+	assertInt(t, operation, "x-timeout-budget-ms", 5000)
+	assertStringSet(t, operation["x-error-codes"],
+		"INVALID_REQUEST", "COMPANY_PROJECTION_SNAPSHOT_CHANGED", "COMPANY_PROJECTION_TIMEOUT",
+		"COMPANY_PROJECTION_PERSISTENCE_FAILED", "COMPANY_PROJECTION_FAILED",
+	)
+	parameters := array(t, operation["parameters"], "Company projection parameters")
+	if len(parameters) != 3 || stringValue(t, object(t, parameters[2], "Company cursor parameter")["$ref"], "Company cursor ref") != "#/components/parameters/CompanyProjectionCursor" {
+		t.Fatalf("Company projection cursor parameter = %#v", parameters)
+	}
+	responses := object(t, operation["responses"], "Company projection responses")
+	for _, status := range []string{"200", "400", "401", "403", "409", "500", "503"} {
+		if _, exists := responses[status]; !exists {
+			t.Errorf("Company projection response %s is missing", status)
+		}
+	}
+	page := schema(t, document, "CompanyProjectionPage")
+	assertRequired(t, page, "schema_version", "snapshot_id", "items", "next_cursor")
+	properties := object(t, page["properties"], "CompanyProjectionPage properties")
+	assertStringSet(t, object(t, properties["schema_version"], "schema_version")["enum"], "company-projection-snapshot.v1")
+	assertString(t, object(t, properties["snapshot_id"], "snapshot_id"), "$ref", "#/components/schemas/PayloadHash")
+	company := schema(t, document, "CompanyProjectionItem")
+	assertRequired(t, company,
+		"id", "code", "name", "name_en", "legal_name", "aliases", "registration_country_id",
+		"operating_area", "headquarters_city", "founding_date", "ipo_date", "legal_form", "ownership_type",
+		"strategic_positioning", "description", "status", "created_at", "updated_at", "industry_links",
+	)
+	assertRequired(t, schema(t, document, "CompanyIndustryLink"), "id", "company_id", "industry_id", "created_at")
 }
 
 func TestOpenAPIContractFreezesSourceManagementAndSnapshot(t *testing.T) {

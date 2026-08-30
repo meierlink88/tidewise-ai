@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
@@ -209,6 +210,115 @@ INSERT INTO company (
 func TestNewStoreRequiresDatabase(t *testing.T) {
 	if _, err := NewStore(nil); err == nil {
 		t.Fatal("NewStore(nil) error = nil")
+	}
+}
+
+func TestStoreListsStableCompanyProjectionAndRejectsSnapshotDrift(t *testing.T) {
+	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "migrations"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := postgresfixture.OpenIsolated(t, "tw_company_projection", migrationDir, 0)
+	ctx := context.Background()
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstID := companybiz.ID("COMaaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+	secondID := companybiz.ID("COMbbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+	for _, input := range []companybiz.Company{
+		{ID: secondID, Code: "000002.SZ", Name: "Second", Aliases: []string{}, Status: companybiz.StatusActive},
+		{ID: firstID, Code: "000001.SZ", Name: "First", Aliases: []string{}, Status: companybiz.StatusActive},
+	} {
+		if _, err := store.Create(ctx, input); err != nil {
+			t.Fatal(err)
+		}
+	}
+	first, err := store.ListProjection(ctx, companybiz.ProjectionListQuery{PageSize: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !regexp.MustCompile(`^[0-9a-f]{64}$`).MatchString(first.SnapshotID) || len(first.Items) != 1 || first.Items[0].ID != firstID || !first.HasMore || first.Items[0].IndustryLinks == nil {
+		t.Fatalf("first projection page = %#v", first)
+	}
+	second, err := store.ListProjection(ctx, companybiz.ProjectionListQuery{
+		PageSize: 1, SnapshotID: first.SnapshotID,
+		After: &companybiz.ProjectionListKey{Code: first.Items[0].Code, ID: first.Items[0].ID},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(second.Items) != 1 || second.Items[0].ID != secondID || second.HasMore || second.SnapshotID != first.SnapshotID {
+		t.Fatalf("second projection page = %#v", second)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE company SET name = 'Changed', updated_at = now() WHERE id = $1`, secondID); err != nil {
+		t.Fatal(err)
+	}
+	_, err = store.ListProjection(ctx, companybiz.ProjectionListQuery{
+		PageSize: 1, SnapshotID: first.SnapshotID,
+		After: &companybiz.ProjectionListKey{Code: first.Items[0].Code, ID: first.Items[0].ID},
+	})
+	if !errors.Is(err, companybiz.ErrProjectionSnapshotChanged) {
+		t.Fatalf("projection drift error = %v", err)
+	}
+	current, err := store.ListProjection(ctx, companybiz.ProjectionListQuery{PageSize: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO industry (
+    id, classification_system, industry_code, hierarchy_path_codes,
+    definition, review_status, name, aliases
+) VALUES (
+    'IND33333333-3333-4333-8333-333333333333', 'TIDEWISE', 'PROJECTION', ARRAY['PROJECTION'],
+    'Projection Industry', 'approved', 'Projection Industry', '{}'
+)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO company_industry_links (id, company_id, industry_id) VALUES (
+    'CIL44444444-4444-4444-8444-444444444444', $1, 'IND33333333-3333-4333-8333-333333333333'
+)`, firstID); err != nil {
+		t.Fatal(err)
+	}
+	_, err = store.ListProjection(ctx, companybiz.ProjectionListQuery{PageSize: 1, SnapshotID: current.SnapshotID})
+	if !errors.Is(err, companybiz.ErrProjectionSnapshotChanged) {
+		t.Fatalf("CompanyIndustryLink drift error = %v", err)
+	}
+}
+
+func TestProjectionSnapshotIsIndependentOfTheDatabaseSessionTimezone(t *testing.T) {
+	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "migrations"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := postgresfixture.OpenIsolated(t, "tw_company_projection_timezone", migrationDir, 0)
+	db.SetMaxOpenConns(1)
+	ctx := context.Background()
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Create(ctx, companybiz.Company{
+		ID: companyID, Code: "TIMEZONE", Name: "Timezone", Aliases: []string{}, Status: companybiz.StatusActive,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := db.ExecContext(ctx, `SET TIME ZONE 'Asia/Shanghai'`); err != nil {
+		t.Fatal(err)
+	}
+	shanghai, err := store.ListProjection(ctx, companybiz.ProjectionListQuery{PageSize: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `SET TIME ZONE 'UTC'`); err != nil {
+		t.Fatal(err)
+	}
+	utc, err := store.ListProjection(ctx, companybiz.ProjectionListQuery{PageSize: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if shanghai.SnapshotID != utc.SnapshotID {
+		t.Fatalf("snapshot depends on session timezone: Asia/Shanghai=%s UTC=%s", shanghai.SnapshotID, utc.SnapshotID)
 	}
 }
 
