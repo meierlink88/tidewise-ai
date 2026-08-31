@@ -2686,20 +2686,56 @@ components:
         method: {type: string, nullable: true}
         metrics: {type: array, items: {$ref: '#/components/schemas/EventMetric'}}
     EventTime:
+      description: Canonical response time with either business timestamps or an observed-only fallback.
+      oneOf:
+        - {$ref: '#/components/schemas/EventBusinessTime'}
+        - {$ref: '#/components/schemas/EventObservedTime'}
+    EventBusinessTime:
       type: object
       additionalProperties: false
       required: [occurred_at, announced_at, effective_at, observed_at, precision]
+      description: >-
+        Canonical business time. At least one business timestamp is non-null and observed_at is null.
       anyOf:
         - properties: {occurred_at: {$ref: '#/components/schemas/UTCTimestamp'}}
         - properties: {announced_at: {$ref: '#/components/schemas/UTCTimestamp'}}
         - properties: {effective_at: {$ref: '#/components/schemas/UTCTimestamp'}}
-        - properties: {observed_at: {$ref: '#/components/schemas/UTCTimestamp'}}
       properties:
         occurred_at: {allOf: [{$ref: '#/components/schemas/UTCTimestamp'}], nullable: true}
         announced_at: {allOf: [{$ref: '#/components/schemas/UTCTimestamp'}], nullable: true}
         effective_at: {allOf: [{$ref: '#/components/schemas/UTCTimestamp'}], nullable: true}
-        observed_at: {allOf: [{$ref: '#/components/schemas/UTCTimestamp'}], nullable: true}
+        observed_at: {type: string, nullable: true, enum: [null]}
         precision: {type: string, enum: [INSTANT, DAY, RANGE, MONTH, QUARTER, YEAR, UNKNOWN]}
+    EventObservedTime:
+      type: object
+      additionalProperties: false
+      required: [occurred_at, announced_at, effective_at, observed_at, precision]
+      description: Canonical fallback time with observed_at non-null and all business timestamps null.
+      properties:
+        occurred_at: {type: string, nullable: true, enum: [null]}
+        announced_at: {type: string, nullable: true, enum: [null]}
+        effective_at: {type: string, nullable: true, enum: [null]}
+        observed_at: {$ref: '#/components/schemas/UTCTimestamp'}
+        precision: {type: string, enum: [INSTANT, DAY, RANGE, MONTH, QUARTER, YEAR, UNKNOWN]}
+    EventLegacyTime:
+      type: object
+      additionalProperties: false
+      required: [occurred_at, announced_at, effective_at, precision]
+      description: Coordinated-rollout request compatibility for the previous four-key time object.
+      anyOf:
+        - properties: {occurred_at: {$ref: '#/components/schemas/UTCTimestamp'}}
+        - properties: {announced_at: {$ref: '#/components/schemas/UTCTimestamp'}}
+        - properties: {effective_at: {$ref: '#/components/schemas/UTCTimestamp'}}
+      properties:
+        occurred_at: {allOf: [{$ref: '#/components/schemas/UTCTimestamp'}], nullable: true}
+        announced_at: {allOf: [{$ref: '#/components/schemas/UTCTimestamp'}], nullable: true}
+        effective_at: {allOf: [{$ref: '#/components/schemas/UTCTimestamp'}], nullable: true}
+        precision: {type: string, enum: [INSTANT, DAY, RANGE, MONTH, QUARTER, YEAR, UNKNOWN]}
+    EventPublicationTime:
+      description: Publication input accepts the canonical five-key time or the previous four-key time during rollout.
+      oneOf:
+        - {$ref: '#/components/schemas/EventTime'}
+        - {$ref: '#/components/schemas/EventLegacyTime'}
     EventMetric:
       type: object
       additionalProperties: false
@@ -2720,7 +2756,22 @@ components:
       properties:
         title: {type: string, minLength: 1, maxLength: 200}
         summary: {type: string, minLength: 1}
-        semantic: {$ref: '#/components/schemas/EventSemantic'}
+        semantic: {$ref: '#/components/schemas/EventPublicationSemantic'}
+    EventPublicationSemantic:
+      type: object
+      additionalProperties: false
+      required: [actors, action, objects, stage, modality, time, jurisdictions, reason, method, metrics]
+      properties:
+        actors: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
+        action: {type: string, minLength: 1}
+        objects: {type: array, minItems: 1, uniqueItems: true, items: {type: string, minLength: 1}}
+        stage: {type: string, enum: [OCCURRED, ANNOUNCED, EFFECTIVE, IMPLEMENTED, UPDATED, SUSPENDED, TERMINATED, EXPECTED]}
+        modality: {$ref: '#/components/schemas/EventModality'}
+        time: {$ref: '#/components/schemas/EventPublicationTime'}
+        jurisdictions: {type: array, uniqueItems: true, items: {type: string, minLength: 1}}
+        reason: {type: string, nullable: true}
+        method: {type: string, nullable: true}
+        metrics: {type: array, items: {$ref: '#/components/schemas/EventMetric'}}
     EventPublicationRequest:
       type: object
       additionalProperties: false

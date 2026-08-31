@@ -451,9 +451,10 @@ func validateCreateInput(input CreateInput) error {
 			seen[value] = struct{}{}
 		}
 	}
-	if input.Semantic.Time.OccurredAt == nil && input.Semantic.Time.AnnouncedAt == nil &&
-		input.Semantic.Time.EffectiveAt == nil && input.Semantic.Time.ObservedAt == nil {
-		return invalidEvent("Event semantic requires at least one time anchor")
+	businessTimePresent := input.Semantic.Time.OccurredAt != nil || input.Semantic.Time.AnnouncedAt != nil ||
+		input.Semantic.Time.EffectiveAt != nil
+	if businessTimePresent == (input.Semantic.Time.ObservedAt != nil) {
+		return invalidEvent("Event semantic requires either business time or observed time, but not both")
 	}
 	for _, metric := range input.Semantic.Metrics {
 		if strings.TrimSpace(metric.Name) == "" || metric.Value == nil && metric.Change == nil {

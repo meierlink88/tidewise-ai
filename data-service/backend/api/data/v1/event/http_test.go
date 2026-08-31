@@ -115,6 +115,7 @@ func TestHTTPRejectsIncompleteOrExpandedEventSemantic(t *testing.T) {
 		{name: "missing semantic field", body: strings.Replace(valid, `,"metrics":[]`, "", 1)},
 		{name: "extra semantic field", body: strings.Replace(valid, `,"metrics":[]`, `,"metrics":[],"attribution":null`, 1)},
 		{name: "missing legacy time field", body: strings.Replace(valid, `"occurred_at":null,`, "", 1)},
+		{name: "extra time field", body: strings.Replace(valid, `,"precision":"DAY"`, `,"source_time":null,"precision":"DAY"`, 1)},
 		{name: "extra metric field", body: strings.Replace(valid, `"metrics":[]`, `"metrics":[{"name":"capacity","value":"10","unit":"units","change":null,"period":null,"extra":null}]`, 1)},
 	} {
 		t.Run(test.name, func(t *testing.T) {

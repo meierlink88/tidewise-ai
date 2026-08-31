@@ -76,7 +76,14 @@ describe('data ingestion api client', () => {
     ['extra field', { ...eventSemantic, who: null }],
     ['invalid stage', { ...eventSemantic, stage: 'INVALID' }],
     ['blank actor', { ...eventSemantic, actors: [' '] }],
-    ['blank action', { ...eventSemantic, action: ' ' }]
+    ['blank action', { ...eventSemantic, action: ' ' }],
+    [
+      'business and observed time together',
+      {
+        ...eventSemantic,
+        time: { ...eventSemantic.time, observed_at: '2026-07-09T09:00:00Z' }
+      }
+    ]
   ])('rejects Event semantic contract drift: %s', async (_name, semantic) => {
     vi.stubGlobal(
       'fetch',

@@ -33,6 +33,7 @@ Data、Admin consumer 与 AgentOS producer 必须协调停止旧写入后切换�
 Migration 000075 对非空 Event 历史 fail closed，不转换或删除旧事实。完整回滚必须恢复 migration
 75 前恢复点，并同时回退 Data、Admin 与 AgentOS。
 
-Issue #363 追加 `observed_at` 兼容扩展。Data 与 Admin 在切换期同时接受旧四键和新五键时间对象，
+Issue #363 追加 `observed_at` 兼容扩展。`observed_at` 由上游 Workflow 使用支持该 Event 的
+Evidence `published_at`、否则 `collected_at` 确定性编译。Data 与 Admin 在切换期同时接受旧四键和新五键时间对象，
 Data 输出新五键合同；业务时间 Event 的既有 publication hash 与存储 JSON 保持不变，observed-only
 Event 才持久化第五个时间键。该扩展不新增 Event 置信度、时间来源枚举或查询投影。

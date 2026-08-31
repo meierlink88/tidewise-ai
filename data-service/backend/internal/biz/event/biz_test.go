@@ -121,6 +121,10 @@ func TestCreateRejectsInvalidAggregateBeforePersistence(t *testing.T) {
 			input.Semantic.Metrics = []Metric{{Name: "capacity"}}
 		}},
 		{name: "missing time anchor", mutate: func(input *CreateInput) { input.Semantic.Time = EventTime{Precision: TimePrecisionUnknown} }},
+		{name: "business and observed time together", mutate: func(input *CreateInput) {
+			observedAt := time.Date(2026, 8, 29, 13, 46, 38, 0, time.UTC)
+			input.Semantic.Time.ObservedAt = &observedAt
+		}},
 		{name: "duplicate semantic actor", mutate: func(input *CreateInput) {
 			input.Semantic.Actors = append(input.Semantic.Actors, input.Semantic.Actors[0])
 		}},

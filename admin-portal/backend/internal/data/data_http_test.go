@@ -13,8 +13,74 @@ import (
 	"testing"
 	"time"
 
+	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	"github.com/meierlink88/tidewise-ai/admin-portal/backend/internal/biz"
+	datav1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
+	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 )
+
+func TestObservedOnlyEventRoundTripsFromDataProviderThroughAdminConsumer(t *testing.T) {
+	t.Parallel()
+	provider := new(observedEventProvider)
+	server := kratoshttp.NewServer(kratoshttp.ResponseEncoder(func(writer http.ResponseWriter, request *http.Request, result any) error {
+		writer.Header().Set("Content-Type", "application/json")
+		return json.NewEncoder(writer).Encode(map[string]any{
+			"request_id": request.Header.Get(RequestIDHeader),
+			"result":     result,
+		})
+	}))
+	eventapi.RegisterHTTPServer(server, provider)
+	httpServer := httptest.NewServer(server)
+	defer httpServer.Close()
+
+	publication := `{"publication_key":"observed-contract-seam","event":{"title":"World Bank warns about growth","summary":"The World Bank warned about global growth.","semantic":{"actors":["World Bank"],"action":"warns","objects":["global growth"],"stage":"EXPECTED","modality":"SPEC","time":{"occurred_at":null,"announced_at":null,"effective_at":null,"observed_at":"2026-08-29T13:46:38Z","precision":"INSTANT"},"jurisdictions":[],"reason":null,"method":null,"metrics":[]}},"evidence_ids":["EVD11111111-1111-4111-8111-111111111111"]}`
+	response, err := httpServer.Client().Post(httpServer.URL+eventsPath, "application/json", strings.NewReader(publication))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusCreated {
+		t.Fatalf("publication status = %d", response.StatusCode)
+	}
+
+	client := newTestClient(t, httpServer.URL, httpServer.Client(), "admin-service-token")
+	page, err := client.ListEvents(context.Background(), biz.EventListQuery{Page: 1, PageSize: 20})
+	if err != nil || len(page.Items) != 1 {
+		t.Fatalf("Admin Event page/error = %#v/%v", page, err)
+	}
+	observedAt := page.Items[0].Semantic.Time.ObservedAt
+	if observedAt == nil || !observedAt.Equal(time.Date(2026, 8, 29, 13, 46, 38, 0, time.UTC)) {
+		t.Fatalf("observed_at = %v", observedAt)
+	}
+}
+
+type observedEventProvider struct {
+	publication *eventapi.PublicationRequest
+}
+
+func (s *observedEventProvider) PublishEvent(_ context.Context, request *eventapi.PublicationRequest) (*datav1.Response[eventapi.PublicationResult], error) {
+	s.publication = request
+	return &datav1.Response[eventapi.PublicationResult]{Status: datav1.StatusCreated}, nil
+}
+
+func (s *observedEventProvider) ListEvents(context.Context, *eventapi.ListRequest) (*datav1.Response[eventapi.Page], error) {
+	if s.publication == nil {
+		return &datav1.Response[eventapi.Page]{Status: datav1.StatusOK, Result: eventapi.Page{Items: []eventapi.Item{}}}, nil
+	}
+	return &datav1.Response[eventapi.Page]{
+		Status: datav1.StatusOK,
+		Result: eventapi.Page{
+			Items: []eventapi.Item{{
+				ID:       "EVT22222222-2222-5222-8222-222222222222",
+				Title:    s.publication.Event.Title,
+				Summary:  s.publication.Event.Summary,
+				Semantic: s.publication.Event.Semantic,
+				Status:   "ACTIVE",
+			}},
+			Total: 1, Page: 1, PageSize: 20,
+		},
+	}, nil
+}
 
 func TestHTTPClientListsAdminDataWithIdentityRequestIDAndTypedQueries(t *testing.T) {
 	t.Parallel()
@@ -266,6 +332,7 @@ func TestHTTPClientRejectsEventContractDrift(t *testing.T) {
 		{name: "non UTC semantic time", payload: strings.Replace(valid, `"effective_at":null`, `"effective_at":"2026-09-01T08:00:00+08:00"`, 1)},
 		{name: "missing nullable time", payload: strings.Replace(valid, `"occurred_at":null,`, "", 1)},
 		{name: "no business time anchor", payload: strings.Replace(valid, `"announced_at":"2026-07-17T01:02:03Z"`, `"announced_at":null`, 1)},
+		{name: "business and observed time together", payload: strings.Replace(valid, `"precision":"DAY"`, `"observed_at":"2026-07-17T02:02:03Z","precision":"DAY"`, 1)},
 		{name: "wrong ID", payload: strings.Replace(valid, "EVT22222222-2222-5222-8222-222222222222", "not-an-event", 1)},
 		{name: "blank title", payload: strings.Replace(valid, `"title":"event"`, `"title":" "`, 1)},
 		{name: "oversized page", payload: strings.Replace(valid, `"page_size":50`, `"page_size":101`, 1)},

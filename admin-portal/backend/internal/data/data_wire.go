@@ -154,7 +154,8 @@ func (w *eventTimeWire) UnmarshalJSON(payload []byte) error {
 }
 
 func (w eventTimeWire) valid() bool {
-	return (w.OccurredAt != nil || w.AnnouncedAt != nil || w.EffectiveAt != nil || w.ObservedAt != nil) &&
+	businessTimePresent := w.OccurredAt != nil || w.AnnouncedAt != nil || w.EffectiveAt != nil
+	return businessTimePresent != (w.ObservedAt != nil) &&
 		(w.OccurredAt == nil || w.OccurredAt.Location() == time.UTC) &&
 		(w.AnnouncedAt == nil || w.AnnouncedAt.Location() == time.UTC) &&
 		(w.EffectiveAt == nil || w.EffectiveAt.Location() == time.UTC) &&

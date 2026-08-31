@@ -20,8 +20,16 @@ ALTER TABLE events ADD CONSTRAINT chk_events_semantic CHECK (
     AND semantic ->> 'stage' IN ('OCCURRED','ANNOUNCED','EFFECTIVE','IMPLEMENTED','UPDATED','SUSPENDED','TERMINATED','EXPECTED')
     AND semantic ->> 'modality' IN ('FACT','PLAN','SPEC')
     AND jsonb_typeof(semantic -> 'time') = 'object'
-    AND jsonb_array_length(jsonb_path_query_array(semantic -> 'time', '$.keyvalue()')) IN (4, 5)
-    AND semantic -> 'time' ?& ARRAY['occurred_at','announced_at','effective_at','precision']
+    AND (
+        (
+            jsonb_array_length(jsonb_path_query_array(semantic -> 'time', '$.keyvalue()')) = 4
+            AND semantic -> 'time' ?& ARRAY['occurred_at','announced_at','effective_at','precision']
+        )
+        OR (
+            jsonb_array_length(jsonb_path_query_array(semantic -> 'time', '$.keyvalue()')) = 5
+            AND semantic -> 'time' ?& ARRAY['occurred_at','announced_at','effective_at','observed_at','precision']
+        )
+    )
     AND (
         NOT (semantic -> 'time' ? 'observed_at')
         OR jsonb_typeof(semantic #> '{time,observed_at}') IN ('string','null')
@@ -30,10 +38,20 @@ ALTER TABLE events ADD CONSTRAINT chk_events_semantic CHECK (
     AND jsonb_typeof(semantic #> '{time,announced_at}') IN ('string','null')
     AND jsonb_typeof(semantic #> '{time,effective_at}') IN ('string','null')
     AND (
-        (semantic #>> '{time,occurred_at}') IS NOT NULL
-        OR (semantic #>> '{time,announced_at}') IS NOT NULL
-        OR (semantic #>> '{time,effective_at}') IS NOT NULL
-        OR (semantic #>> '{time,observed_at}') IS NOT NULL
+        (
+            (semantic #>> '{time,observed_at}') IS NULL
+            AND (
+                (semantic #>> '{time,occurred_at}') IS NOT NULL
+                OR (semantic #>> '{time,announced_at}') IS NOT NULL
+                OR (semantic #>> '{time,effective_at}') IS NOT NULL
+            )
+        )
+        OR (
+            (semantic #>> '{time,observed_at}') IS NOT NULL
+            AND (semantic #>> '{time,occurred_at}') IS NULL
+            AND (semantic #>> '{time,announced_at}') IS NULL
+            AND (semantic #>> '{time,effective_at}') IS NULL
+        )
     )
     AND (
         (semantic #>> '{time,occurred_at}') IS NULL

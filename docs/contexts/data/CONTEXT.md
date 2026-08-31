@@ -80,7 +80,8 @@ _Avoid_: 裸 UUID、任意字符串前缀、`PREFIX_...`、`PREFIX-...`、调用
 title、summary、严格十键业务语义 `semantic`（actors/action/objects/stage/modality/time/
 jurisdictions/reason/method/metrics）和 ACTIVE/DEPRECATED/ARCHIVED lifecycle。time 包含可空
 occurred/announced/effective 业务时间、source observed UTC 时间与受控 precision，且至少一个时间锚点存在。
-observed 只表达来源首次向系统提供该命题的时间，不替代业务发生、宣布或生效时间。Event 不复制
+observed 只表达来源首次向系统提供该命题的时间，由上游使用 Evidence published_at、
+否则 collected_at 确定性生成，不替代业务发生、宣布或生效时间。Event 不复制
 Evidence attribution；来源由 Evidence Link 保持。Data 不进行 Event 语义去重，也不接收 Event ID；
 Reasoning 完成去重决定后才调用 Event 发布合同。HTTP 与 Biz 边界校验完整 typed semantic；数据库
 只保护 Event 核心语义、查询投影及 `metrics` 数组/对象外形，不重复校验模型生成的可选指标属性。
