@@ -69,7 +69,7 @@ type Time struct {
 
 func (t *Time) UnmarshalJSON(payload []byte) error {
 	// Accept the previous four-field request during the coordinated rollout.
-	// Every response and persisted semantic is emitted with observed_at.
+	// Responses emit observed_at; legacy business-time persistence remains four-field.
 	if !hasExactFields(payload, "occurred_at", "announced_at", "effective_at", "precision") &&
 		!hasExactFields(payload, "occurred_at", "announced_at", "effective_at", "observed_at", "precision") {
 		return errors.New("Event time must contain the exact business time fields")
