@@ -187,6 +187,7 @@ type EventTime struct {
 	OccurredAt  *time.Time
 	AnnouncedAt *time.Time
 	EffectiveAt *time.Time
+	ObservedAt  *time.Time
 	Precision   EventTimePrecision
 }
 

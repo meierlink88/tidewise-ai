@@ -372,5 +372,9 @@ func event(value biz.Event) v1.Event {
 		formatted := value.Semantic.Time.AnnouncedAt.Format(time.RFC3339)
 		response.Semantic.Time.AnnouncedAt = &formatted
 	}
+	if value.Semantic.Time.ObservedAt != nil {
+		formatted := value.Semantic.Time.ObservedAt.Format(time.RFC3339)
+		response.Semantic.Time.ObservedAt = &formatted
+	}
 	return response
 }

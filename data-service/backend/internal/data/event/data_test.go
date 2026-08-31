@@ -263,9 +263,11 @@ SELECT $6,id,$7,1 FROM inserted_event`, eventID, title, semantic, modality, stat
 		`{"actors":["actor"],"action":"acts","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"occurred_at":"2026-08-25T00:00:00Z","announced_at":null,"effective_at":null,"precision":"DAY"},"jurisdictions":[],"reason":null,"method":null,"metrics":[],"extra":true}`,
 		"FACT", "ACTIVE")
 	for name, semantic := range map[string]string{
-		"missing":    `{"actors":["actor"],"action":"acts","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"occurred_at":"2026-08-25T00:00:00Z","announced_at":null,"effective_at":null,"precision":"DAY"},"jurisdictions":[],"reason":null,"method":null}`,
-		"non-string": `{"actors":[1],"action":"acts","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"occurred_at":"2026-08-25T00:00:00Z","announced_at":null,"effective_at":null,"precision":"DAY"},"jurisdictions":[],"reason":null,"method":null,"metrics":[]}`,
-		"no time":    `{"actors":["actor"],"action":"acts","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"occurred_at":null,"announced_at":null,"effective_at":null,"precision":"UNKNOWN"},"jurisdictions":[],"reason":null,"method":null,"metrics":[]}`,
+		"missing":               `{"actors":["actor"],"action":"acts","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"occurred_at":"2026-08-25T00:00:00Z","announced_at":null,"effective_at":null,"precision":"DAY"},"jurisdictions":[],"reason":null,"method":null}`,
+		"non-string":            `{"actors":[1],"action":"acts","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"occurred_at":"2026-08-25T00:00:00Z","announced_at":null,"effective_at":null,"precision":"DAY"},"jurisdictions":[],"reason":null,"method":null,"metrics":[]}`,
+		"no time":               `{"actors":["actor"],"action":"acts","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"occurred_at":null,"announced_at":null,"effective_at":null,"precision":"UNKNOWN"},"jurisdictions":[],"reason":null,"method":null,"metrics":[]}`,
+		"unknown fifth key":     `{"actors":["actor"],"action":"acts","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"occurred_at":"2026-08-25T00:00:00Z","announced_at":null,"effective_at":null,"source_time":null,"precision":"DAY"},"jurisdictions":[],"reason":null,"method":null,"metrics":[]}`,
+		"business and observed": `{"actors":["actor"],"action":"acts","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"occurred_at":"2026-08-25T00:00:00Z","announced_at":null,"effective_at":null,"observed_at":"2026-08-29T13:46:38Z","precision":"DAY"},"jurisdictions":[],"reason":null,"method":null,"metrics":[]}`,
 	} {
 		t.Run("semantic "+name, func(t *testing.T) {
 			assertRejectedEvent("bad semantic", mustDomainID(t, coreid.Event), semantic, "FACT", "ACTIVE")
@@ -326,6 +328,14 @@ SELECT $6,id,$7,1 FROM inserted_event`, eventID, title, semantic, modality, stat
 	})
 	if err != nil || len(created.Actors) != 4 || len(created.Assets) != 6 {
 		t.Fatalf("accepted relationship boundaries = %#v, error = %v", created, err)
+	}
+	observedAt := time.Date(2026, 8, 29, 13, 46, 38, 0, time.UTC)
+	observedInput := validCreateInput("Observed Event", evidenceID)
+	observedInput.Semantic.Time = eventbiz.EventTime{ObservedAt: &observedAt, Precision: eventbiz.TimePrecisionInstant}
+	observed, err := useCase.Create(context.Background(), observedInput)
+	if err != nil || observed.Event.Semantic.Time.ObservedAt == nil ||
+		!observed.Event.Semantic.Time.ObservedAt.Equal(observedAt) {
+		t.Fatalf("accepted observed-only Event = %#v, error = %v", observed.Event.Semantic.Time, err)
 	}
 	for index, pair := range []struct {
 		modality eventbiz.Modality

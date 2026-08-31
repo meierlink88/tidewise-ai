@@ -75,3 +75,4 @@
 000074	high	mixed	require empty Raw Evidence, Evidence, and Event history while moving keywords and replacing Evidence semantics in a snapshot-protected stop-write cutover
 000075	high	mixed	require empty Event history while replacing Event semantic and removing duplicate top-level wire fields in a snapshot-protected stop-write cutover
 000076	normal	schema	repair the Event semantic check so valid non-empty metrics persist while typed HTTP and Biz boundaries retain metric-field validation
+000077	normal	schema	allow observed_at as an Event time anchor while preserving existing business-time Event JSON and publication replay hashes

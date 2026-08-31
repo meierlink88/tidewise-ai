@@ -60,6 +60,9 @@ export function EventDetailSheet({
                 <DetailItem label='公布时间'>
                   {formatNullableTime(event.semantic.time.announced_at)}
                 </DetailItem>
+                <DetailItem label='观察时间'>
+                  {formatNullableTime(event.semantic.time.observed_at)}
+                </DetailItem>
               </DetailList>
             </DetailSection>
             <DetailSection title='事件语义'>

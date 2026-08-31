@@ -35,6 +35,10 @@ func (s *Service) PublishEvent(ctx context.Context, request *eventapi.Publicatio
 	if err != nil {
 		return nil, publicError(v1.StatusBadRequest, eventapi.ErrorInvalidRequest, "semantic.time.announced_at must be UTC RFC3339")
 	}
+	observedAt, err := optionalWireUTC(request.Event.Semantic.Time.ObservedAt)
+	if err != nil {
+		return nil, publicError(v1.StatusBadRequest, eventapi.ErrorInvalidRequest, "semantic.time.observed_at must be UTC RFC3339")
+	}
 	evidence := make([]eventbiz.EvidenceLinkInput, 0, len(request.EvidenceIDs))
 	for _, evidenceID := range request.EvidenceIDs {
 		evidence = append(evidence, eventbiz.EvidenceLinkInput{EvidenceID: evidenceID, ContributionWeight: 1})
@@ -44,7 +48,7 @@ func (s *Service) PublishEvent(ctx context.Context, request *eventapi.Publicatio
 			Objects: request.Event.Semantic.Objects, Stage: eventbiz.EventStage(request.Event.Semantic.Stage),
 			Modality: eventbiz.Modality(request.Event.Semantic.Modality),
 			Time: eventbiz.EventTime{OccurredAt: occurredAt, AnnouncedAt: announcedAt, EffectiveAt: effectiveAt,
-				Precision: eventbiz.TimePrecision(request.Event.Semantic.Time.Precision)},
+				ObservedAt: observedAt, Precision: eventbiz.TimePrecision(request.Event.Semantic.Time.Precision)},
 			Jurisdictions: request.Event.Semantic.Jurisdictions, Reason: request.Event.Semantic.Reason,
 			Method: request.Event.Semantic.Method, Metrics: eventMetrics(request.Event.Semantic.Metrics)},
 		Status: eventbiz.LifecycleStatusActive, Evidence: evidence}
@@ -156,6 +160,7 @@ func eventItem(item eventbiz.Event) eventapi.Item {
 			Time: eventapi.Time{OccurredAt: formatOptionalTime(item.Semantic.Time.OccurredAt),
 				AnnouncedAt: formatOptionalTime(item.Semantic.Time.AnnouncedAt),
 				EffectiveAt: formatOptionalTime(item.Semantic.Time.EffectiveAt),
+				ObservedAt:  formatOptionalTime(item.Semantic.Time.ObservedAt),
 				Precision:   string(item.Semantic.Time.Precision)},
 			Reason: item.Semantic.Reason, Method: item.Semantic.Method, Metrics: apiEventMetrics(item.Semantic.Metrics)},
 		Status: string(item.Status)}

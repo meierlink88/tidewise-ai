@@ -126,7 +126,7 @@ func (w eventSemanticWire) toBiz() (biz.EventSemantic, error) {
 		Actors: append([]string{}, w.Actors...), Action: w.Action, Objects: append([]string{}, w.Objects...),
 		Stage: w.Stage, Modality: w.Modality,
 		Time: biz.EventTime{OccurredAt: w.Time.OccurredAt, AnnouncedAt: w.Time.AnnouncedAt,
-			EffectiveAt: w.Time.EffectiveAt, Precision: w.Time.Precision},
+			EffectiveAt: w.Time.EffectiveAt, ObservedAt: w.Time.ObservedAt, Precision: w.Time.Precision},
 		Jurisdictions: append([]string{}, w.Jurisdictions...), Reason: w.Reason, Method: w.Method, Metrics: metrics,
 	}, nil
 }
@@ -135,11 +135,13 @@ type eventTimeWire struct {
 	OccurredAt  *time.Time             `json:"occurred_at"`
 	AnnouncedAt *time.Time             `json:"announced_at"`
 	EffectiveAt *time.Time             `json:"effective_at"`
+	ObservedAt  *time.Time             `json:"observed_at"`
 	Precision   biz.EventTimePrecision `json:"precision"`
 }
 
 func (w *eventTimeWire) UnmarshalJSON(payload []byte) error {
-	if !hasExactJSONFields(payload, "occurred_at", "announced_at", "effective_at", "precision") {
+	if !hasExactJSONFields(payload, "occurred_at", "announced_at", "effective_at", "precision") &&
+		!hasExactJSONFields(payload, "occurred_at", "announced_at", "effective_at", "observed_at", "precision") {
 		return &Error{Kind: ErrorKindDecode}
 	}
 	type alias eventTimeWire
@@ -152,10 +154,12 @@ func (w *eventTimeWire) UnmarshalJSON(payload []byte) error {
 }
 
 func (w eventTimeWire) valid() bool {
-	return (w.OccurredAt != nil || w.AnnouncedAt != nil || w.EffectiveAt != nil) &&
+	businessTimePresent := w.OccurredAt != nil || w.AnnouncedAt != nil || w.EffectiveAt != nil
+	return businessTimePresent != (w.ObservedAt != nil) &&
 		(w.OccurredAt == nil || w.OccurredAt.Location() == time.UTC) &&
 		(w.AnnouncedAt == nil || w.AnnouncedAt.Location() == time.UTC) &&
-		(w.EffectiveAt == nil || w.EffectiveAt.Location() == time.UTC) && validEventTimePrecision(w.Precision)
+		(w.EffectiveAt == nil || w.EffectiveAt.Location() == time.UTC) &&
+		(w.ObservedAt == nil || w.ObservedAt.Location() == time.UTC) && validEventTimePrecision(w.Precision)
 }
 
 type eventMetricWire struct {

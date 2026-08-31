@@ -13,6 +13,7 @@ import (
 
 func TestListEventsMapsNewEventContract(t *testing.T) {
 	occurred := time.Date(2026, 8, 18, 1, 0, 0, 0, time.UTC)
+	observed := time.Date(2026, 8, 19, 2, 0, 0, 0, time.UTC)
 	who := "Example Corp"
 	useCase := &eventUseCaseStub{page: eventbiz.EventPage{
 		Items: []eventbiz.Event{{
@@ -21,8 +22,14 @@ func TestListEventsMapsNewEventContract(t *testing.T) {
 				Stage: eventbiz.EventStageOccurred, Modality: eventbiz.ModalityFact, Jurisdictions: []string{},
 				Time: eventbiz.EventTime{OccurredAt: &occurred, Precision: eventbiz.TimePrecisionDay}, Metrics: []eventbiz.Metric{}},
 			Status: eventbiz.LifecycleStatusActive,
+		}, {
+			ID: "EVT22222222-2222-4222-8222-222222222222", Title: "Observed Event", Summary: "Observed summary",
+			Semantic: eventbiz.Semantic{Actors: []string{who}, Action: "warns", Objects: []string{"object"},
+				Stage: eventbiz.EventStageExpected, Modality: eventbiz.ModalitySpec, Jurisdictions: []string{},
+				Time: eventbiz.EventTime{ObservedAt: &observed, Precision: eventbiz.TimePrecisionInstant}, Metrics: []eventbiz.Metric{}},
+			Status: eventbiz.LifecycleStatusActive,
 		}},
-		Total: 1, Page: 2, PageSize: 10,
+		Total: 2, Page: 2, PageSize: 10,
 	}}
 	service, err := NewService(useCase)
 	if err != nil {
@@ -35,12 +42,17 @@ func TestListEventsMapsNewEventContract(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if response.Status != v1.StatusOK || len(response.Result.Items) != 1 {
+	if response.Status != v1.StatusOK || len(response.Result.Items) != 2 {
 		t.Fatalf("response = %#v", response)
 	}
 	item := response.Result.Items[0]
 	if item.Semantic.Modality != "FACT" || item.Status != "ACTIVE" || item.Semantic.Time.OccurredAt == nil || len(item.Semantic.Actors) != 1 || item.Semantic.Actors[0] != who {
 		t.Fatalf("item = %#v", item)
+	}
+	observedItem := response.Result.Items[1]
+	if observedItem.Semantic.Time.ObservedAt == nil || *observedItem.Semantic.Time.ObservedAt != observed.Format(time.RFC3339) ||
+		observedItem.Semantic.Time.OccurredAt != nil || observedItem.Semantic.Time.AnnouncedAt != nil || observedItem.Semantic.Time.EffectiveAt != nil {
+		t.Fatalf("observed item = %#v", observedItem)
 	}
 	if useCase.request.Title != "Event" || useCase.request.OccurredFrom == nil || useCase.request.Page != 2 {
 		t.Fatalf("Biz request = %#v", useCase.request)

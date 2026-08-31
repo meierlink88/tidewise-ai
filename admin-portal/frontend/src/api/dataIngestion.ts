@@ -23,6 +23,7 @@ export interface EventSemantic {
     occurred_at: string | null;
     announced_at: string | null;
     effective_at: string | null;
+    observed_at: string | null;
     precision: 'INSTANT' | 'DAY' | 'RANGE' | 'MONTH' | 'QUARTER' | 'YEAR' | 'UNKNOWN';
   };
   jurisdictions: string[];
@@ -210,16 +211,17 @@ const eventItemSchema: z.ZodType<EventItem> = z
             occurred_at: utcTimestamp.nullable(),
             announced_at: utcTimestamp.nullable(),
             effective_at: utcTimestamp.nullable(),
+            observed_at: utcTimestamp.nullable(),
             precision: z.enum(['INSTANT', 'DAY', 'RANGE', 'MONTH', 'QUARTER', 'YEAR', 'UNKNOWN'])
           })
           .strict()
-          .refine(
-            (value) =>
+          .refine((value) => {
+            const hasBusinessTime =
               value.occurred_at !== null ||
               value.announced_at !== null ||
-              value.effective_at !== null,
-            'Event requires at least one time anchor'
-          ),
+              value.effective_at !== null;
+            return hasBusinessTime !== (value.observed_at !== null);
+          }, 'Event requires either business time or observed time, but not both'),
         jurisdictions: uniqueNonEmptyStrings,
         reason: z.string().nullable(),
         method: z.string().nullable(),

@@ -403,7 +403,18 @@ func TestOpenAPIContractFreezesCurrentEventReadContract(t *testing.T) {
 	if semantic["additionalProperties"] != false {
 		t.Fatal("EventSemantic must reject additional properties")
 	}
-	assertRequired(t, schema(t, document, "EventTime"), "occurred_at", "announced_at", "effective_at", "precision")
+	eventTimeVariants := array(t, schema(t, document, "EventTime")["oneOf"], "EventTime oneOf")
+	if len(eventTimeVariants) != 2 {
+		t.Fatalf("EventTime oneOf = %d, want business and observed-only time", len(eventTimeVariants))
+	}
+	assertRequired(t, schema(t, document, "EventBusinessTime"), "occurred_at", "announced_at", "effective_at", "observed_at", "precision")
+	assertRequired(t, schema(t, document, "EventObservedTime"), "occurred_at", "announced_at", "effective_at", "observed_at", "precision")
+	assertRequired(t, schema(t, document, "EventLegacyTime"), "occurred_at", "announced_at", "effective_at", "precision")
+	publicationTime := schema(t, document, "EventPublicationTime")
+	publicationTimeVariants := array(t, publicationTime["oneOf"], "EventPublicationTime oneOf")
+	if len(publicationTimeVariants) != 2 {
+		t.Fatalf("EventPublicationTime oneOf = %d, want canonical and legacy time", len(publicationTimeVariants))
+	}
 	assertRequired(t, schema(t, document, "EventMetric"), "name", "value", "unit", "change", "period")
 	assertStringSet(t, schema(t, document, "EventModality")["enum"], "FACT", "PLAN", "SPEC")
 	assertStringSet(t, schema(t, document, "EventLifecycleStatus")["enum"], "ACTIVE", "DEPRECATED", "ARCHIVED")

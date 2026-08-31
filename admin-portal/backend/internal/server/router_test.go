@@ -151,6 +151,7 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 		body.Items[0].Semantic.Objects[0] != "联邦基金利率" || body.Items[0].Semantic.Stage != "ANNOUNCED" ||
 		len(body.Items[0].Semantic.Jurisdictions) != 1 || body.Items[0].Semantic.Jurisdictions[0] != "美国" ||
 		body.Items[0].Semantic.Time.EffectiveAt == nil || *body.Items[0].Semantic.Time.EffectiveAt != effectiveAt.Format(time.RFC3339) ||
+		body.Items[0].Semantic.Time.ObservedAt != nil ||
 		body.Items[0].Semantic.Time.Precision != "DAY" || body.Items[0].Semantic.Modality != "FACT" {
 		t.Fatalf("response = %#v", body)
 	}
@@ -174,7 +175,9 @@ func TestEventsAPIAlwaysEmitsNullableTimeFields(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
 	}
-	if !strings.Contains(response.Body.String(), `"occurred_at":null`) || !strings.Contains(response.Body.String(), `"effective_at":null`) {
+	if !strings.Contains(response.Body.String(), `"occurred_at":null`) ||
+		!strings.Contains(response.Body.String(), `"effective_at":null`) ||
+		!strings.Contains(response.Body.String(), `"observed_at":null`) {
 		t.Fatalf("nullable time fields are not explicit: %s", response.Body.String())
 	}
 }

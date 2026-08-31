@@ -107,6 +107,7 @@ type EventTime struct {
 	OccurredAt  *string `json:"occurred_at"`
 	AnnouncedAt *string `json:"announced_at"`
 	EffectiveAt *string `json:"effective_at"`
+	ObservedAt  *string `json:"observed_at"`
 	Precision   string  `json:"precision"`
 }
 
