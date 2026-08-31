@@ -338,3 +338,8 @@ Event semantic 十键和嵌套时间约束生效，再按 Data provider → Admi
 `chk_events_semantic`，删除重复且错误的深层 metric 属性检查，同时保留 Event 核心语义、时间投影和
 metrics 数组/对象外形。迁移前后 Data API 与 Biz 合同不变，旧版与新版 Data binary 均可写入；正常
 Schema migration 路径即可执行，回滚使用恢复点或后续 forward repair，不恢复 `000075` 的错误约束。
+
+`000077` 是 Issue #363 的向前兼容 Event 时间扩展。它不转换或删除历史 Event，只允许
+`semantic.time.observed_at` 作为第四类时间锚点；既有四键业务时间 JSON 继续合法，observed-only Event
+使用五键 JSON。先发布兼容的 Admin/Data binary，再启用 AgentOS observed-only 写入。回滚优先回退
+AgentOS 写入，再回退应用；Schema 保持兼容或通过后续 forward repair，不运行 down migration。

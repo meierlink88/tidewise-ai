@@ -63,11 +63,15 @@ type Time struct {
 	OccurredAt  *string `json:"occurred_at"`
 	AnnouncedAt *string `json:"announced_at"`
 	EffectiveAt *string `json:"effective_at"`
+	ObservedAt  *string `json:"observed_at"`
 	Precision   string  `json:"precision"`
 }
 
 func (t *Time) UnmarshalJSON(payload []byte) error {
-	if !hasExactFields(payload, "occurred_at", "announced_at", "effective_at", "precision") {
+	// Accept the previous four-field request during the coordinated rollout.
+	// Every response and persisted semantic is emitted with observed_at.
+	if !hasExactFields(payload, "occurred_at", "announced_at", "effective_at", "precision") &&
+		!hasExactFields(payload, "occurred_at", "announced_at", "effective_at", "observed_at", "precision") {
 		return errors.New("Event time must contain the exact business time fields")
 	}
 	type timeAlias Time

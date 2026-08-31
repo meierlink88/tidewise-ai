@@ -403,7 +403,7 @@ func TestOpenAPIContractFreezesCurrentEventReadContract(t *testing.T) {
 	if semantic["additionalProperties"] != false {
 		t.Fatal("EventSemantic must reject additional properties")
 	}
-	assertRequired(t, schema(t, document, "EventTime"), "occurred_at", "announced_at", "effective_at", "precision")
+	assertRequired(t, schema(t, document, "EventTime"), "occurred_at", "announced_at", "effective_at", "observed_at", "precision")
 	assertRequired(t, schema(t, document, "EventMetric"), "name", "value", "unit", "change", "period")
 	assertStringSet(t, schema(t, document, "EventModality")["enum"], "FACT", "PLAN", "SPEC")
 	assertStringSet(t, schema(t, document, "EventLifecycleStatus")["enum"], "ACTIVE", "DEPRECATED", "ARCHIVED")

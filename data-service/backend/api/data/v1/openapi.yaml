@@ -2688,15 +2688,17 @@ components:
     EventTime:
       type: object
       additionalProperties: false
-      required: [occurred_at, announced_at, effective_at, precision]
+      required: [occurred_at, announced_at, effective_at, observed_at, precision]
       anyOf:
         - properties: {occurred_at: {$ref: '#/components/schemas/UTCTimestamp'}}
         - properties: {announced_at: {$ref: '#/components/schemas/UTCTimestamp'}}
         - properties: {effective_at: {$ref: '#/components/schemas/UTCTimestamp'}}
+        - properties: {observed_at: {$ref: '#/components/schemas/UTCTimestamp'}}
       properties:
         occurred_at: {allOf: [{$ref: '#/components/schemas/UTCTimestamp'}], nullable: true}
         announced_at: {allOf: [{$ref: '#/components/schemas/UTCTimestamp'}], nullable: true}
         effective_at: {allOf: [{$ref: '#/components/schemas/UTCTimestamp'}], nullable: true}
+        observed_at: {allOf: [{$ref: '#/components/schemas/UTCTimestamp'}], nullable: true}
         precision: {type: string, enum: [INSTANT, DAY, RANGE, MONTH, QUARTER, YEAR, UNKNOWN]}
     EventMetric:
       type: object

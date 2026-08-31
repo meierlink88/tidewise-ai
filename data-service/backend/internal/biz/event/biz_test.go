@@ -150,6 +150,25 @@ func TestCreateRejectsInvalidAggregateBeforePersistence(t *testing.T) {
 	}
 }
 
+func TestCreateAcceptsObservedOnlyEventTime(t *testing.T) {
+	store := new(fakeStore)
+	useCase, err := NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := validCreateInput()
+	observedAt := time.Date(2026, 8, 29, 13, 46, 38, 0, time.UTC)
+	input.Semantic.Time = EventTime{ObservedAt: &observedAt, Precision: TimePrecisionInstant}
+
+	if _, err := useCase.Create(context.Background(), input); err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+	if store.createCalls != 1 || store.aggregate.Event.Semantic.Time.ObservedAt == nil ||
+		!store.aggregate.Event.Semantic.Time.ObservedAt.Equal(observedAt) {
+		t.Fatalf("stored observed time = %#v, create calls = %d", store.aggregate.Event.Semantic.Time, store.createCalls)
+	}
+}
+
 func validCreateInput() CreateInput {
 	return CreateInput{
 		Title: "Example Event", Summary: "Example Event summary.",

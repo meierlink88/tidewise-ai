@@ -31,6 +31,7 @@ const eventSemantic = {
     occurred_at: '2026-07-09T08:00:00Z',
     announced_at: null,
     effective_at: null,
+    observed_at: null,
     precision: 'DAY'
   },
   jurisdictions: ['United States'],

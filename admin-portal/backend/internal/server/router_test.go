@@ -105,6 +105,7 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 	eventTime := testTime()
 	announcedAt := eventTime.Add(30 * time.Minute)
 	effectiveAt := eventTime.Add(24 * time.Hour)
+	observedAt := eventTime.Add(45 * time.Minute)
 	calls := 0
 	var gotQuery biz.EventListQuery
 	client := &biz.FakeDataServiceRepo{ListEventsFunc: func(ctx context.Context, query biz.EventListQuery) (biz.EventPage, error) {
@@ -118,7 +119,7 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 			Semantic: biz.EventSemantic{
 				Actors: []string{"美联储"}, Action: "维持利率不变", Objects: []string{"联邦基金利率"},
 				Stage: biz.EventStageAnnounced, Modality: biz.EventModalityFact,
-				Time:          biz.EventTime{OccurredAt: &eventTime, AnnouncedAt: &announcedAt, EffectiveAt: &effectiveAt, Precision: biz.EventTimePrecisionDay},
+				Time:          biz.EventTime{OccurredAt: &eventTime, AnnouncedAt: &announcedAt, EffectiveAt: &effectiveAt, ObservedAt: &observedAt, Precision: biz.EventTimePrecisionDay},
 				Jurisdictions: []string{"美国"}, Metrics: []biz.EventMetric{},
 			}, Status: biz.EventLifecycleActive,
 		}}, Total: 1, Page: 1, PageSize: 50}, nil
@@ -151,6 +152,7 @@ func TestEventsAPIUsesOneDataCallAndPreservesFiltersAndPublicShape(t *testing.T)
 		body.Items[0].Semantic.Objects[0] != "联邦基金利率" || body.Items[0].Semantic.Stage != "ANNOUNCED" ||
 		len(body.Items[0].Semantic.Jurisdictions) != 1 || body.Items[0].Semantic.Jurisdictions[0] != "美国" ||
 		body.Items[0].Semantic.Time.EffectiveAt == nil || *body.Items[0].Semantic.Time.EffectiveAt != effectiveAt.Format(time.RFC3339) ||
+		body.Items[0].Semantic.Time.ObservedAt == nil || *body.Items[0].Semantic.Time.ObservedAt != observedAt.Format(time.RFC3339) ||
 		body.Items[0].Semantic.Time.Precision != "DAY" || body.Items[0].Semantic.Modality != "FACT" {
 		t.Fatalf("response = %#v", body)
 	}
@@ -174,7 +176,9 @@ func TestEventsAPIAlwaysEmitsNullableTimeFields(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, body=%s", response.Code, response.Body.String())
 	}
-	if !strings.Contains(response.Body.String(), `"occurred_at":null`) || !strings.Contains(response.Body.String(), `"effective_at":null`) {
+	if !strings.Contains(response.Body.String(), `"occurred_at":null`) ||
+		!strings.Contains(response.Body.String(), `"effective_at":null`) ||
+		!strings.Contains(response.Body.String(), `"observed_at":null`) {
 		t.Fatalf("nullable time fields are not explicit: %s", response.Body.String())
 	}
 }

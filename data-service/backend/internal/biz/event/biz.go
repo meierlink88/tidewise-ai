@@ -90,6 +90,7 @@ type EventTime struct {
 	OccurredAt  *time.Time    `json:"occurred_at"`
 	AnnouncedAt *time.Time    `json:"announced_at"`
 	EffectiveAt *time.Time    `json:"effective_at"`
+	ObservedAt  *time.Time    `json:"observed_at,omitempty"`
 	Precision   TimePrecision `json:"precision"`
 }
 
@@ -450,7 +451,8 @@ func validateCreateInput(input CreateInput) error {
 			seen[value] = struct{}{}
 		}
 	}
-	if input.Semantic.Time.OccurredAt == nil && input.Semantic.Time.AnnouncedAt == nil && input.Semantic.Time.EffectiveAt == nil {
+	if input.Semantic.Time.OccurredAt == nil && input.Semantic.Time.AnnouncedAt == nil &&
+		input.Semantic.Time.EffectiveAt == nil && input.Semantic.Time.ObservedAt == nil {
 		return invalidEvent("Event semantic requires at least one time anchor")
 	}
 	for _, metric := range input.Semantic.Metrics {
@@ -532,7 +534,8 @@ func cloneSemantic(value Semantic) Semantic {
 	return Semantic{Actors: cloneStrings(value.Actors), Action: value.Action,
 		Objects: cloneStrings(value.Objects), Stage: value.Stage, Modality: value.Modality,
 		Time: EventTime{OccurredAt: cloneTime(value.Time.OccurredAt), AnnouncedAt: cloneTime(value.Time.AnnouncedAt),
-			EffectiveAt: cloneTime(value.Time.EffectiveAt), Precision: value.Time.Precision},
+			EffectiveAt: cloneTime(value.Time.EffectiveAt), ObservedAt: cloneTime(value.Time.ObservedAt),
+			Precision: value.Time.Precision},
 		Jurisdictions: cloneStrings(value.Jurisdictions), Reason: cloneString(value.Reason),
 		Method: cloneString(value.Method), Metrics: cloneMetrics(value.Metrics)}
 }

@@ -327,6 +327,14 @@ SELECT $6,id,$7,1 FROM inserted_event`, eventID, title, semantic, modality, stat
 	if err != nil || len(created.Actors) != 4 || len(created.Assets) != 6 {
 		t.Fatalf("accepted relationship boundaries = %#v, error = %v", created, err)
 	}
+	observedAt := time.Date(2026, 8, 29, 13, 46, 38, 0, time.UTC)
+	observedInput := validCreateInput("Observed Event", evidenceID)
+	observedInput.Semantic.Time = eventbiz.EventTime{ObservedAt: &observedAt, Precision: eventbiz.TimePrecisionInstant}
+	observed, err := useCase.Create(context.Background(), observedInput)
+	if err != nil || observed.Event.Semantic.Time.ObservedAt == nil ||
+		!observed.Event.Semantic.Time.ObservedAt.Equal(observedAt) {
+		t.Fatalf("accepted observed-only Event = %#v, error = %v", observed.Event.Semantic.Time, err)
+	}
 	for index, pair := range []struct {
 		modality eventbiz.Modality
 		status   eventbiz.LifecycleStatus
