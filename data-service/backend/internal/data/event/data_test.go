@@ -80,7 +80,10 @@ func TestPostgresEventPublicationCommitsAggregateAndReplaysWithoutWrites(t *test
 			Objects: []string{"HBM"}, Stage: eventbiz.EventStageAnnounced, Jurisdictions: []string{"China"},
 			Modality: eventbiz.ModalityFact,
 			Time: eventbiz.EventTime{AnnouncedAt: timePointer(time.Date(2026, 8, 25, 0, 0, 0, 0, time.UTC)),
-				Precision: eventbiz.TimePrecisionDay}, Metrics: []eventbiz.Metric{}},
+				Precision: eventbiz.TimePrecisionDay}, Metrics: []eventbiz.Metric{
+				{Name: "restricted products", Value: stringPointer("12"), Unit: stringPointer("types")},
+				{Name: "export decline", Value: stringPointer("75"), Unit: stringPointer("%"), Period: stringPointer("2026")},
+			}},
 		Evidence: []eventbiz.EvidenceLinkInput{{EvidenceID: evidenceID, ContributionWeight: 1}}}
 	first, err := useCase.Publish(context.Background(), "reasoning-server", "submission-1", input)
 	if err != nil {
