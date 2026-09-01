@@ -161,6 +161,7 @@ func TestOpenAPIContractFreezesImmutableReportPublicationAndReadModels(t *testin
 		"confidence", "time_window", "impact_items", "evidence_count",
 	)
 	assertRequired(t, schema(t, document, "ReportImpactItemRead"), "ref", "name", "result", "confidence", "time_window", "evidence_count")
+	assertRequired(t, schema(t, document, "ReportHome"), "report", "industry_chain_count", "report_cards", "company")
 	assertRequired(t, schema(t, document, "ReportEvidenceItem"), "evidence_id", "role", "display_order", "published_at", "summary", "keywords")
 
 	for _, path := range []string{

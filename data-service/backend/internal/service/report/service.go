@@ -109,7 +109,8 @@ func (s *Service) GetReportHome(ctx context.Context, request *reportapi.ReportRe
 		cards[index] = reportCardRead(card, home.EvidenceCounts)
 	}
 	return &v1.Response[reportapi.Home]{Status: v1.StatusOK, Result: reportapi.Home{
-		Report: summary(home.Report), ReportCards: cards, Company: apiCompany(home.Company),
+		Report: summary(home.Report), IndustryChainCount: home.Report.Statistics.IndustryChainCount,
+		ReportCards: cards, Company: apiCompany(home.Company),
 	}}, nil
 }
 

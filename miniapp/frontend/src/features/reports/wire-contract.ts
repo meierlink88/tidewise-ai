@@ -148,8 +148,9 @@ export function parseReportEvidenceListWire(
 }
 
 function parseHomeGroup(value: unknown): ReportHomeGroup {
-  const group = exactRecord(value, ['report', 'cards', 'company']);
+  const group = exactRecord(value, ['report', 'industry_chain_count', 'cards', 'company']);
   const report = parseReportSummary(group.report);
+  const industryChainCount = nonNegativeInteger(group.industry_chain_count);
   const cards = parseOrderedArray(group.cards, parseCard);
   const companyWire = exactRecord(group.company, [
     'key',
@@ -176,6 +177,7 @@ function parseHomeGroup(value: unknown): ReportHomeGroup {
 
   return {
     report,
+    industryChainCount,
     cards,
     company: {
       key: 'company',
@@ -793,6 +795,11 @@ function dateString(value: unknown): string {
 
 function positiveInteger(value: unknown): number {
   if (!Number.isInteger(value) || (value as number) < 1) invalid();
+  return value as number;
+}
+
+function nonNegativeInteger(value: unknown): number {
+  if (!Number.isInteger(value) || (value as number) < 0) invalid();
   return value as number;
 }
 

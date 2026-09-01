@@ -471,9 +471,10 @@ type IndustryChainRead struct {
 }
 
 type Home struct {
-	Report      Summary          `json:"report"`
-	ReportCards []ReportCardRead `json:"report_cards"`
-	Company     CompanyBoundary  `json:"company"`
+	Report             Summary          `json:"report"`
+	IndustryChainCount int              `json:"industry_chain_count"`
+	ReportCards        []ReportCardRead `json:"report_cards"`
+	Company            CompanyBoundary  `json:"company"`
 }
 
 type LayerDetail struct {

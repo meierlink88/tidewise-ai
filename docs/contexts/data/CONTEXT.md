@@ -452,7 +452,8 @@ _Avoid_: 独立 publication key、Receipt、请求 ID 作为幂等键、失败�
 
 **Report Read Projection**:
 Data 按 `published_at DESC, id ASC` 稳定列出全部 Report，并按 Report-local layer、chain 和
-Evidence scope 返回固定投影。Evidence 投影可级联 `report_evidence_links → evidences →
+Evidence scope 返回固定投影；首页投影同时直接返回发布时 `statistics.industry_chain_count`，
+作为报告内全部产业链总数，不从首页卡片数反推。Evidence 投影可级联 `report_evidence_links → evidences →
 raw_evidences`，项目顺序严格使用 Report 发布的 `display_order`，每项只返回发布时间、摘要和有序关键词；
 其它投影只读取 Report 自有 snapshot，
 不关联 Event、IndustryChain、ChainNode、Company 或其它领域。

@@ -106,9 +106,10 @@ type CompanyBoundary struct {
 }
 
 type HomeReport struct {
-	Report  Summary         `json:"report"`
-	Cards   []Card          `json:"cards"`
-	Company CompanyBoundary `json:"company"`
+	Report             Summary         `json:"report"`
+	IndustryChainCount int             `json:"industry_chain_count"`
+	Cards              []Card          `json:"cards"`
+	Company            CompanyBoundary `json:"company"`
 }
 
 type HomeResponse struct {

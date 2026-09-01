@@ -86,6 +86,7 @@ export interface ReportCompanyBoundary {
 
 export interface ReportHomeGroup {
   report: ReportSummary;
+  industryChainCount: number;
   cards: ReportCard[];
   company: ReportCompanyBoundary;
 }

@@ -77,6 +77,7 @@ const cards = [
 function homeGroup(summary: typeof report = report) {
   return {
     report: summary,
+    industry_chain_count: 54,
     cards,
     company: {
       key: 'company',
@@ -256,6 +257,7 @@ describe('Report BFF wire contract', () => {
       'card-chn-21'
     ]);
     expect(home.reports[1].report.id).toBe(second.id);
+    expect(home.reports[0].industryChainCount).toBe(54);
   });
 
   it('accepts today empty and fails closed on legacy/surplus/fallback-empty shapes', () => {
@@ -278,6 +280,13 @@ describe('Report BFF wire contract', () => {
     expect(() => parseReportHomeWire({ report: homeGroup() })).toThrow(
       'invalid Report wire contract'
     );
+    const { industry_chain_count: _missingIndustryChainCount, ...missingCount } = homeGroup();
+    expect(() =>
+      parseReportHomeWire({
+        selection: { mode: 'today', date: '2026-09-01', timezone: 'Asia/Shanghai' },
+        reports: [missingCount]
+      })
+    ).toThrow('invalid Report wire contract');
     expect(() =>
       parseReportHomeWire({
         selection: { mode: 'today', date: '2026-09-01', timezone: 'Asia/Shanghai' },

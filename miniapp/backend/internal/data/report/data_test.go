@@ -63,9 +63,31 @@ func TestRepositoryMapsPersistedCardsAndRejectsContractDrift(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(home.Cards) != 2 || !home.Cards[0].HasEvidence || len(home.Cards[0].ImpactItems) != 1 ||
+		if home.IndustryChainCount != 54 || len(home.Cards) != 2 || !home.Cards[0].HasEvidence || len(home.Cards[0].ImpactItems) != 1 ||
 			home.Cards[0].ImpactItems[0].HasEvidence || home.Cards[0].DetailRef.Key != biz.LayerGeopolitics {
 			t.Fatalf("home = %#v", home)
+		}
+	})
+
+	t.Run("industry chain count must match the persisted statistics projection", func(t *testing.T) {
+		for _, test := range []struct {
+			name  string
+			count *int
+		}{
+			{name: "missing", count: nil},
+			{name: "mismatched", count: func() *int { count := 53; return &count }()},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				fixture := homeFixture()
+				fixture.IndustryChainCount = test.count
+				server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+					writeDataResult(t, writer, fixture)
+				}))
+				defer server.Close()
+				if _, err := newTestRepository(t, server).GetHome(context.Background(), testReportID); !errors.Is(err, biz.ErrDataUnavailable) {
+					t.Fatalf("invalid industry chain count error = %v", err)
+				}
+			})
 		}
 	})
 
@@ -252,12 +274,14 @@ func summaryFixture() wireSummary {
 	return wireSummary{ID: testReportID, SourceReportID: "source-report-1", ReportType: "investment_reasoning",
 		Title: "传导推理报告", Status: "published", GeneratedAt: "2026-09-01T12:00:00+08:00",
 		Timezone: "Asia/Shanghai", PublishedLayers: []string{"geopolitics", "macroeconomics", "industry_chain"},
-		Statistics:  wireStatistics{AdaptiveInclusionThreshold: 0.6, AdaptiveContinuationThreshold: 0.5},
+		Statistics: wireStatistics{AdaptiveInclusionThreshold: 0.6, AdaptiveContinuationThreshold: 0.5,
+			IndustryChainCount: 54},
 		PublishedAt: "2026-09-01T04:01:00Z"}
 }
 
 func homeFixture() wireHome {
-	return wireHome{Report: summaryFixture(), ReportCards: []wireCard{
+	industryChainCount := 54
+	return wireHome{Report: summaryFixture(), IndustryChainCount: &industryChainCount, ReportCards: []wireCard{
 		{Key: "geo-card", Kind: biz.LayerGeopolitics,
 			DisplayOrder: 1, DetailRef: wireReference{Type: biz.ScopeLayer, Key: biz.LayerGeopolitics},
 			Title: "地缘政治", Subtitle: "风险主线", Conclusion: "海湾安全风险升温。",

@@ -139,7 +139,8 @@ func TestReportHomeAndEvidenceTraverseRealDataHTTPWithoutLeakingInternalFields(t
 	if err := json.Unmarshal(homeResponse.Body.Bytes(), &homeEnvelope); err != nil {
 		t.Fatal(err)
 	}
-	if len(homeEnvelope.Result.Reports) != 1 || len(homeEnvelope.Result.Reports[0].Cards) != 2 ||
+	if len(homeEnvelope.Result.Reports) != 1 || homeEnvelope.Result.Reports[0].IndustryChainCount != 54 ||
+		len(homeEnvelope.Result.Reports[0].Cards) != 2 ||
 		homeEnvelope.Result.Reports[0].Cards[0].Key != "geo-card" {
 		t.Fatalf("home result = %#v", homeEnvelope.Result)
 	}
@@ -221,13 +222,13 @@ func dataSummary() map[string]any {
 			"adaptive_stopped_by_confidence": 0, "adaptive_stopped_by_no_unvisited_neighbor": 0,
 			"adaptive_rejected_below_inclusion": 0, "geopolitic_anchor_count": 1,
 			"macroeconomic_anchor_count": 1, "signaled_chain_node_count": 0,
-			"industry_chain_count": 0, "unmapped_chain_node_count": 0,
+			"industry_chain_count": 54, "unmapped_chain_node_count": 0,
 		}, "published_at": "2026-09-01T04:01:00Z",
 	}
 }
 
 func dataHome() map[string]any {
-	return map[string]any{"report": dataSummary(), "report_cards": []any{
+	return map[string]any{"report": dataSummary(), "industry_chain_count": 54, "report_cards": []any{
 		map[string]any{
 			"key": "geo-card", "kind": "geopolitics", "display_order": 1,
 			"detail_ref": map[string]any{"type": "layer", "key": "geopolitics"},

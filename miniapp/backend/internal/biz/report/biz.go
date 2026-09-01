@@ -121,9 +121,10 @@ type CompanyBoundary struct {
 }
 
 type Home struct {
-	Report  Summary
-	Cards   []Card
-	Company CompanyBoundary
+	Report             Summary
+	IndustryChainCount int
+	Cards              []Card
+	Company            CompanyBoundary
 }
 
 type HomeSelection struct {

@@ -401,10 +401,13 @@ components:
     HomeReport:
       type: object
       additionalProperties: false
-      required: [report, cards, company]
+      required: [report, industry_chain_count, cards, company]
       properties:
         report:
           $ref: '#/components/schemas/Summary'
+        industry_chain_count:
+          type: integer
+          minimum: 0
         cards:
           type: array
           items:

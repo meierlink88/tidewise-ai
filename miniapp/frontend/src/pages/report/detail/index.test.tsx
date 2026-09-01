@@ -188,7 +188,8 @@ describe('Report detail page', () => {
 
     expect(copy).toContain('产业链图');
     expect(copy).toContain('依赖');
-    expect(copy).toContain('交付周期与销售价格上升');
+    expect(copy).toContain('交付周期 UP/HIGH');
+    expect(copy).toContain('销售价格 UP/HIGH');
     const canvas = captured.views.find((props) => props.className === 'report-chain-canvas');
     const edge = captured.views.find(
       (props) => props.className === 'report-chain-edge report-chain-edge--adjacent'

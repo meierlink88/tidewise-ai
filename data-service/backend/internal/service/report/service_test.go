@@ -49,7 +49,7 @@ func TestPublishReportMapsOffsetInputAndReturnsCanonicalUTCPublication(t *testin
 	}
 }
 
-func TestReadModelsCanonicalizeAllReportTimestampsAndExposeExplicitImpactCounts(t *testing.T) {
+func TestReadModelsCanonicalizeAllReportTimestampsAndExposeExplicitCounts(t *testing.T) {
 	content := reportfixture.Content()
 	publishedAt := time.Date(2026, 9, 1, 8, 0, 0, 0, time.FixedZone("CST", 8*60*60))
 	summary := reportbiz.Summary{
@@ -81,6 +81,7 @@ func TestReadModelsCanonicalizeAllReportTimestampsAndExposeExplicitImpactCounts(
 		t.Fatal(err)
 	}
 	if home.Result.Report.GeneratedAt != "2026-09-01T00:30:00Z" ||
+		home.Result.IndustryChainCount != content.Statistics.IndustryChainCount ||
 		home.Result.ReportCards[0].EvidenceCount != 1 || home.Result.ReportCards[0].ImpactItems[0].EvidenceCount != 2 {
 		t.Fatalf("home read model = %#v", home.Result)
 	}

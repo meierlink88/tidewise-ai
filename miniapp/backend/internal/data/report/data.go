@@ -343,9 +343,10 @@ type wireCompanyBoundary struct {
 }
 
 type wireHome struct {
-	Report      wireSummary         `json:"report"`
-	ReportCards []wireCard          `json:"report_cards"`
-	Company     wireCompanyBoundary `json:"company"`
+	Report             wireSummary         `json:"report"`
+	IndustryChainCount *int                `json:"industry_chain_count"`
+	ReportCards        []wireCard          `json:"report_cards"`
+	Company            wireCompanyBoundary `json:"company"`
 }
 
 type wireAnchor struct {
@@ -561,7 +562,9 @@ func mapSummary(wire wireSummary) (biz.Summary, error) {
 
 func mapHome(wire wireHome, expectedReportID string) (biz.Home, error) {
 	summary, err := mapSummary(wire.Report)
-	if err != nil || summary.ID != expectedReportID || wire.ReportCards == nil || len(wire.ReportCards) == 0 {
+	if err != nil || summary.ID != expectedReportID || wire.IndustryChainCount == nil ||
+		*wire.IndustryChainCount < 0 || *wire.IndustryChainCount != wire.Report.Statistics.IndustryChainCount ||
+		wire.ReportCards == nil || len(wire.ReportCards) == 0 {
 		return biz.Home{}, biz.ErrDataUnavailable
 	}
 	cards := make([]biz.Card, len(wire.ReportCards))
@@ -598,7 +601,7 @@ func mapHome(wire wireHome, expectedReportID string) (biz.Home, error) {
 		!validText(company.Title, 500) || !validText(company.Boundary, 10_000) {
 		return biz.Home{}, biz.ErrDataUnavailable
 	}
-	return biz.Home{Report: summary, Cards: cards, Company: biz.CompanyBoundary{
+	return biz.Home{Report: summary, IndustryChainCount: *wire.IndustryChainCount, Cards: cards, Company: biz.CompanyBoundary{
 		Key: company.Key, DisplayOrder: company.DisplayOrder, Title: company.Title,
 		Published: company.Published, Boundary: company.Boundary,
 	}}, nil

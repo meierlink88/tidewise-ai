@@ -114,10 +114,11 @@ func mapHome(value biz.Home) api.HomeReport {
 			Conclusion: card.Conclusion, Result: mapResult(card.Result), Confidence: mapConfidence(card.Confidence),
 			TimeWindow: card.TimeWindow, ImpactItems: impacts, HasEvidence: card.HasEvidence}
 	}
-	return api.HomeReport{Report: mapSummary(value.Report), Cards: cards, Company: api.CompanyBoundary{
-		Key: value.Company.Key, DisplayOrder: value.Company.DisplayOrder, Title: value.Company.Title,
-		Published: value.Company.Published, Boundary: value.Company.Boundary,
-	}}
+	return api.HomeReport{Report: mapSummary(value.Report), IndustryChainCount: value.IndustryChainCount,
+		Cards: cards, Company: api.CompanyBoundary{
+			Key: value.Company.Key, DisplayOrder: value.Company.DisplayOrder, Title: value.Company.Title,
+			Published: value.Company.Published, Boundary: value.Company.Boundary,
+		}}
 }
 
 func mapLayerDetail(value biz.LayerDetail) *api.LayerDetail {

@@ -4002,9 +4002,10 @@ components:
     ReportHome:
       type: object
       additionalProperties: false
-      required: [report, report_cards, company]
+      required: [report, industry_chain_count, report_cards, company]
       properties:
         report: {$ref: '#/components/schemas/ReportSummary'}
+        industry_chain_count: {type: integer, minimum: 0}
         report_cards: {type: array, minItems: 2, items: {$ref: '#/components/schemas/ReportCardRead'}}
         company: {$ref: '#/components/schemas/ReportCompanyBoundary'}
 
