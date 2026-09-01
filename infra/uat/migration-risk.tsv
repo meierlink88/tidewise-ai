@@ -76,3 +76,5 @@
 000075	high	mixed	require empty Event history while replacing Event semantic and removing duplicate top-level wire fields in a snapshot-protected stop-write cutover
 000076	normal	schema	repair the Event semantic check so valid non-empty metrics persist while typed HTTP and Biz boundaries retain metric-field validation
 000077	normal	schema	allow observed_at as an Event time anchor while preserving existing business-time Event JSON and publication replay hashes
+000078	high	mixed	remove Research Theme and Reason Tree tables and data in a snapshot-protected zero-compatibility cutover
+000079	normal	schema	add immutable Report and Report Evidence Link storage after the coordinated legacy-domain retirement

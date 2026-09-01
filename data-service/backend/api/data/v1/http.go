@@ -22,6 +22,7 @@ type StrictJSONShape = bindingShape
 func StrictJSONString() *StrictJSONShape         { return stringShape }
 func StrictJSONScalar() *StrictJSONShape         { return scalarShape }
 func StrictJSONBoolean() *StrictJSONShape        { return booleanShape }
+func StrictJSONNumber() *StrictJSONShape         { return numberShape }
 func StrictJSONInteger() *StrictJSONShape        { return integerShape }
 func StrictJSONNullableString() *StrictJSONShape { return nullableStringShape }
 func StrictJSONAny() *StrictJSONShape            { return anyShape }

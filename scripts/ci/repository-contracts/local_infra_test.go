@@ -32,8 +32,8 @@ func TestLocalDockerProjectsSeparateApplicationsAndInfrastructure(t *testing.T) 
 
 	for _, want := range []string{
 		"name: tidewise-app",
-		"container_name: data-service",
-		"container_name: miniapp-service",
+		"container_name: ${DATA_SERVICE_CONTAINER_NAME:-data-service}",
+		"container_name: ${MINIAPP_SERVICE_CONTAINER_NAME:-miniapp-service}",
 		"container_name: admin-portal-service",
 		"container_name: admin-portal-web",
 		"disable: true",

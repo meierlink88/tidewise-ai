@@ -1,8 +1,8 @@
 export default defineAppConfig({
   pages: [
     'pages/index/index',
-    'pages/research-theme/history/index',
-    'pages/research-theme/reasoning-trees/index'
+    'pages/report/detail/index',
+    'pages/report/evidences/index'
   ],
   window: {
     backgroundTextStyle: 'light',

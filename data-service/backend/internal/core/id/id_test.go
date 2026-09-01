@@ -265,3 +265,23 @@ func TestRetiredEntityExternalIdentifierKindIsRejected(t *testing.T) {
 		t.Fatal("New(EEI) succeeded for retired Entity External Identifier kind")
 	}
 }
+
+func TestReportKindsReplaceRetiredThemeAndReasonTreeKinds(t *testing.T) {
+	for kind, expectedPrefix := range map[Kind]string{
+		Report:             "RPT",
+		ReportEvidenceLink: "RPE",
+	} {
+		value, err := New(kind)
+		if err != nil || !strings.HasPrefix(value, expectedPrefix) || len(value) != 39 {
+			t.Fatalf("New(%q) = %q, %v; want %s plus canonical UUID", kind, value, err, expectedPrefix)
+		}
+		if _, err := Parse(value, kind); err != nil {
+			t.Fatalf("Parse(New(%q)) error = %v", kind, err)
+		}
+	}
+	for _, retired := range []Kind{"RTH", "RTI", "RRT", "RRI", "RRN"} {
+		if _, err := New(retired); err == nil {
+			t.Fatalf("New(%q) succeeded for retired Theme/Reason Tree kind", retired)
+		}
+	}
+}

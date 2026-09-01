@@ -99,6 +99,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000076_relax_event_metric_storage_constraint.sql`：修复 `000075` 对所有非空 Event metrics 的
   错误拒绝；数据库保留 Event 核心语义和指标数组/对象外形，具体指标属性由 typed HTTP 与 Biz
   边界校验。
+- `000078_retire_research_theme_reason_tree.sql`：Issue #367 授权的高风险零兼容退役，按依赖顺序
+  删除 Research Theme/Reason Tree 九表、其中全部数据、九个不可变 trigger 与专属函数；不创建
+  Report schema，也不使用 `CASCADE`。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -343,3 +346,21 @@ Schema migration 路径即可执行，回滚使用恢复点或后续 forward rep
 `semantic.time.observed_at` 作为第四类时间锚点；既有四键业务时间 JSON 继续合法，observed-only Event
 使用五键 JSON。先发布兼容的 Admin/Data binary，再启用 AgentOS observed-only 写入。回滚优先回退
 AgentOS 写入，再回退应用；Schema 保持兼容或通过后续 forward repair，不运行 down migration。
+
+`000078` 是 Issue #367 的高风险破坏性退役。操作员必须停止旧 AgentOS publisher、Data、Miniapp
+及所有直接写入者，取得并确认 PostgreSQL 恢复点，用候选 Data 镜像执行 check-only，并确认当前
+版本为 `77` 且唯一 pending migration 为 `78`。执行前记录九张退役表各自行数；apply 后确认 ledger
+为 `78`，九表、九个 trigger 与 `prevent_research_publication_mutation` 均不存在，同时 Research
+Graph、Event、Raw Evidence 与 Atomic Evidence 表及事实保持不变。该阶段不创建 Report 表，Report
+schema 由后续 migration 独立安装。新旧 binary 不得 mixed traffic；完整回滚必须恢复 migration 78
+前快照并同时回退应用与 publisher，不运行 down migration。
+
+`000079` 是 Issue #367 的不可变 Report 发布 schema。它仅新建 `reports` 与
+`report_evidence_links` 两张表；Report 全量 typed JSONB 快照只持久化一次，其显式
+Evidence ID 引用通过受约束的 Link 表关联现有 `evidences`。上线前必须停止写入、
+取得恢复点，确认 ledger 为 `78` 且 `79` 是唯一 pending migration；apply 后确认
+两表列集合、RPT/RPE/EVD 身份约束、两类唯一约束、反向索引、RESTRICT FK 和禁止
+UPDATE/DELETE/TRUNCATE 的 statement trigger，再使用候选 Data binary 完成首次发布、安全重放与
+Evidence 读取验证。新旧 publisher/Data/Miniapp binary 不得 mixed traffic。该迁移为
+forward-only；完整回滚必须恢复 migration 79 前快照并同时回退相关应用，不运行
+down migration。

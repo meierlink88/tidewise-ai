@@ -139,7 +139,7 @@ func TestUATDeployExecutorSuccessRecordsCompleteReleaseWithoutLeakingSecrets(t *
 	}
 	for _, want := range []string{
 		"http://127.0.0.1:9012/healthz",
-		"http://127.0.0.1:9012/api/miniapp/v1/research/themes?limit=1",
+		"http://127.0.0.1:9012/api/miniapp/v1/reports/home",
 		"http://127.0.0.1:9014/api/admin/v1/events?page=1&page_size=1",
 	} {
 		if !strings.Contains(string(curlLog), want) {
@@ -577,6 +577,90 @@ func TestUATDeployExecutorRequiresData60CutoverConfirmations(t *testing.T) {
 				t.Fatalf("missing Data 60 confirmation was not blocked: err=%v output=%s", result.err, result.output)
 			}
 		})
+	}
+}
+
+func TestUATDeployExecutorRunsBoundedData78To79CutoverWithRecoveryCheckpoint(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:       true,
+		deploymentMode:       "data_78_79_cutover",
+		destructiveConfirmed: true,
+		backupConfirmed:      true,
+		migrationReport:      `{"current_version":"77","pending":[{"Version":"78"},{"Version":"79"}],"applied":[],"remaining":[]}`,
+		migrationApplyReport: `{"current_version":"79","pending":[],"applied":[],"remaining":[]}`,
+	})
+	if result.err != nil {
+		t.Fatalf("Data 78 cutover fixture failed: %v\n%s", result.err, result.output)
+	}
+	for _, want := range []string{
+		"PASS data78-79-cutover-gate",
+		"PASS application-write-stop",
+		"PASS data78-79-target-version",
+		"PASS release-state-recorded",
+	} {
+		if !strings.Contains(result.output, want) {
+			t.Fatalf("Data 78 cutover output missing %q: %s", want, result.output)
+		}
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logText := string(dockerLog)
+	stop := strings.Index(logText, " stop ")
+	apply := strings.Index(logText, "dbmigrate -apply -target-version 79")
+	start := strings.Index(logText, " up -d --remove-orphans --wait --wait-timeout 120")
+	if stop < 0 || apply < 0 || start < 0 || stop > apply || apply > start {
+		t.Fatalf("Data 78 cutover must stop writers before migration and start candidates afterward: %s", logText)
+	}
+	if _, err := os.Stat(filepath.Join(result.root, "state", "tidewise-2-cutover-in-progress")); !os.IsNotExist(err) {
+		t.Fatalf("successful Data 78 cutover retained recovery marker: %v", err)
+	}
+	assertFileContent(t, filepath.Join(result.root, "state", "pre-data78.sha"), previousFixtureSHA)
+}
+
+func TestUATDeployExecutorRequiresData78To79CutoverConfirmations(t *testing.T) {
+	for _, test := range []struct {
+		name                   string
+		destructiveConfirmed   bool
+		backupConfirmed        bool
+		expectedFailureMessage string
+	}{
+		{name: "destructive change", backupConfirmed: true, expectedFailureMessage: "confirm_destructive_data_change=true is required"},
+		{name: "recovery point", destructiveConfirmed: true, expectedFailureMessage: "confirm_high_risk_backup=true is required"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result := runDeployFixture(t, deployFixtureOptions{
+				currentRelease:       true,
+				deploymentMode:       "data_78_79_cutover",
+				destructiveConfirmed: test.destructiveConfirmed,
+				backupConfirmed:      test.backupConfirmed,
+				migrationReport:      `{"current_version":"77","pending":[{"Version":"78"},{"Version":"79"}],"applied":[],"remaining":[]}`,
+			})
+			if result.err == nil || !strings.Contains(result.output, test.expectedFailureMessage) {
+				t.Fatalf("missing Data 78 confirmation was not blocked: err=%v output=%s", result.err, result.output)
+			}
+		})
+	}
+}
+
+func TestUATDeployExecutorRejectsUnexpectedData78To79MigrationRangeBeforeStoppingServices(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:       true,
+		deploymentMode:       "data_78_79_cutover",
+		destructiveConfirmed: true,
+		backupConfirmed:      true,
+		migrationReport:      `{"current_version":"76","pending":[{"Version":"77"},{"Version":"78"},{"Version":"79"}],"applied":[],"remaining":[]}`,
+	})
+	if result.err == nil || !strings.Contains(result.output, "FAIL data78-79-cutover-gate") {
+		t.Fatalf("unexpected Data 78-79 migration range was not blocked: err=%v output=%s", result.err, result.output)
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(dockerLog), " stop ") || strings.Contains(string(dockerLog), "dbmigrate -apply") {
+		t.Fatalf("invalid Data 78-79 cutover reached destructive work: %s", dockerLog)
 	}
 }
 
@@ -1238,7 +1322,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		migrationScope = "schema"
 	}
 	manifestRows := ""
-	for version := 1; version <= 60; version++ {
+	for version := 1; version <= 79; version++ {
 		risk := "normal"
 		scope := "schema"
 		reason := "fixture migration"
@@ -1272,6 +1356,14 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 			risk = "high"
 			scope = "mixed"
 			reason = "fixture Data 60 cutover migration"
+		}
+		if version == 78 {
+			risk = "high"
+			scope = "mixed"
+			reason = "fixture Data 78 cutover migration"
+		}
+		if version == 79 {
+			reason = "fixture Report schema migration"
 		}
 		manifestRows += fmt.Sprintf("%06d\t%s\t%s\t%s\n", version, risk, scope, reason)
 	}
@@ -1323,6 +1415,12 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 			writeFixture(t, filepath.Join(state, "pre-data60.images.env"), "DATA_IMAGE=fixture/data:"+previousFixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+previousFixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+previousFixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+previousFixtureSHA+"\n")
 			writeFixture(t, filepath.Join(state, "pre-data60.compose.yaml"), composeContent)
 			writeFixture(t, filepath.Join(state, "pre-data60.sha"), previousFixtureSHA+"\n")
+		}
+		if options.releaseStateWritePhase == "pre-data78" {
+			writeFixture(t, filepath.Join(root, "pre-data78.runtime.env"), "ADMIN_SERVICE_TOKEN=previous-admin-secret\n")
+			writeFixture(t, filepath.Join(state, "pre-data78.images.env"), "DATA_IMAGE=fixture/data:"+previousFixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+previousFixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+previousFixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+previousFixtureSHA+"\n")
+			writeFixture(t, filepath.Join(state, "pre-data78.compose.yaml"), composeContent)
+			writeFixture(t, filepath.Join(state, "pre-data78.sha"), previousFixtureSHA+"\n")
 		}
 	}
 	if options.cutoverMarkerPhase != "" {
@@ -1410,7 +1508,7 @@ case " $* " in
 	    if [ -n "$compose_file" ] && grep -q 'qdrant:' "$compose_file"; then echo qdrant; fi
 	    printf 'data\nminiapp\nadminportal\nadmin\n'
     ;;
-	  *" run "*" /usr/local/bin/dbmigrate -apply -target-version 58 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 59 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 60 "*)
+	  *" run "*" /usr/local/bin/dbmigrate -apply -target-version 58 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 59 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 60 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 79 "*)
 	    touch "$FAKE_CUTOVER_APPLIED"
 	    cat "$FAKE_MIGRATION_APPLY_REPORT"
 	    ;;

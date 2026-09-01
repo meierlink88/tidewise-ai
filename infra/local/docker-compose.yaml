@@ -20,7 +20,7 @@ services:
     networks: [tidewise-local]
 
   data:
-    container_name: data-service
+    container_name: ${DATA_SERVICE_CONTAINER_NAME:-data-service}
     build:
       context: ../..
       dockerfile: data-service/backend/Dockerfile
@@ -45,7 +45,7 @@ services:
     networks: [tidewise-local]
 
   miniapp:
-    container_name: miniapp-service
+    container_name: ${MINIAPP_SERVICE_CONTAINER_NAME:-miniapp-service}
     build:
       context: ../..
       dockerfile: miniapp/backend/Dockerfile

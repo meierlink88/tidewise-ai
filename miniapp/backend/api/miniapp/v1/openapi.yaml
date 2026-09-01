@@ -2,13 +2,13 @@ openapi: 3.0.4
 info:
   title: Tidewise Miniapp Service API
   version: 1.0.0
-  description: Miniapp BFF 的手写 REST + JSON 合同。当前公开业务接口不要求认证。
+  description: Miniapp BFF 的手写 REST + JSON 合同。
 servers:
   - url: /
     description: 由运行环境注入 Miniapp Service origin。
 tags:
   - name: Operations
-  - name: Research
+  - name: Reports
 paths:
   /healthz:
     get:
@@ -34,238 +34,132 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReadinessResponse'
-  /api/miniapp/v1/research/themes:
+  /api/miniapp/v1/reports/home:
     get:
-      tags: [Research]
-      operationId: listMiniappResearchThemes
-      summary: 获取首页 Research Theme 列表
-      description: >-
-        period=today 返回上海时区今日自然日主题；period=history 返回今日之前 30
-        个完整自然日的主题。period 与兼容参数 window_hours 互斥，cursor 为不透明分页游标。
-      parameters:
-        - $ref: '#/components/parameters/RequestID'
-        - $ref: '#/components/parameters/Period'
-        - $ref: '#/components/parameters/WindowHours'
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Cursor'
+      tags: [Reports]
+      operationId: getReportHome
+      summary: 读取上海当日全部 Report 首页投影；空日回退最新一份
       responses:
         '200':
-          $ref: '#/components/responses/ResearchThemePageSuccess'
+          description: Report 首页集合或明确空集合
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HomeEnvelope'
         '400':
-          $ref: '#/components/responses/BadRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-  /api/miniapp/v1/research/themes/{theme_id}:
+          $ref: '#/components/responses/InvalidRequest'
+        '503':
+          $ref: '#/components/responses/ReportServiceUnavailable'
+  /api/miniapp/v1/reports/{report_id}/layers/{layer_key}:
     get:
-      tags: [Research]
-      operationId: getMiniappResearchTheme
-      summary: 获取一个 Research Theme 详情
-      description: 按 theme_id 读取已发布主题，不受列表时间窗口限制。
+      tags: [Reports]
+      operationId: getReportLayer
+      summary: 读取一份 Report 的上层推理详情
       parameters:
-        - $ref: '#/components/parameters/RequestID'
-        - $ref: '#/components/parameters/ThemeID'
-        - $ref: '#/components/parameters/WindowHours'
+        - $ref: '#/components/parameters/ReportID'
+        - name: layer_key
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [geopolitics, macroeconomics]
       responses:
         '200':
-          $ref: '#/components/responses/ResearchThemeDetailSuccess'
+          description: 上层推理详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayerEnvelope'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/InvalidRequest'
         '404':
           $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-  /api/miniapp/v1/research/themes/{theme_id}/reasoning-trees:
+        '503':
+          $ref: '#/components/responses/ReportServiceUnavailable'
+  /api/miniapp/v1/reports/{report_id}/industry-chains/{chain_key}:
     get:
-      tags: [Research]
-      operationId: listMiniappResearchReasoningTrees
-      summary: 获取 Theme 的推理树 Tab 列表
+      tags: [Reports]
+      operationId: getReportIndustryChain
+      summary: 读取一份 Report 的产业链推理详情
       parameters:
-        - $ref: '#/components/parameters/RequestID'
-        - $ref: '#/components/parameters/ThemeID'
+        - $ref: '#/components/parameters/ReportID'
+        - name: chain_key
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/LocalKey'
       responses:
         '200':
-          $ref: '#/components/responses/ReasoningTreeListSuccess'
+          description: 产业链推理详情
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndustryChainEnvelope'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/InvalidRequest'
         '404':
           $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '502':
-          $ref: '#/components/responses/BadGateway'
-  /api/miniapp/v1/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}:
+        '503':
+          $ref: '#/components/responses/ReportServiceUnavailable'
+  /api/miniapp/v1/reports/{report_id}/evidences:
     get:
-      tags: [Research]
-      operationId: getMiniappResearchReasoningTree
-      summary: 获取 Theme 下的一棵推理树
+      tags: [Reports]
+      operationId: listReportEvidences
+      summary: 读取一个显式 Report scope 的相关 Evidence 产品投影
       parameters:
-        - $ref: '#/components/parameters/RequestID'
-        - $ref: '#/components/parameters/ThemeID'
-        - $ref: '#/components/parameters/ReasoningTreeID'
+        - $ref: '#/components/parameters/ReportID'
+        - name: scope_type
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/ScopeType'
+        - name: scope_key
+          in: query
+          required: true
+          schema:
+            $ref: '#/components/schemas/LocalKey'
       responses:
         '200':
-          $ref: '#/components/responses/ReasoningTreeDetailSuccess'
+          description: 按 Report 显式 display_order 排列的 Evidence 展示列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvidenceEnvelope'
         '400':
-          $ref: '#/components/responses/BadRequest'
+          $ref: '#/components/responses/InvalidRequest'
         '404':
           $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
-        '502':
-          $ref: '#/components/responses/BadGateway'
+        '503':
+          $ref: '#/components/responses/ReportServiceUnavailable'
 components:
   parameters:
-    RequestID:
-      name: X-Request-ID
-      in: header
-      required: false
-      description: 可选 caller request id；缺失或不合法时由 Miniapp Service 生成。
-      schema:
-        type: string
-        minLength: 1
-        maxLength: 128
-    ThemeID:
-      name: theme_id
+    ReportID:
+      name: report_id
       in: path
       required: true
       schema:
-        $ref: '#/components/schemas/UUID'
-    ReasoningTreeID:
-      name: reasoning_tree_id
-      in: path
-      required: true
-      schema:
-        $ref: '#/components/schemas/UUID'
-    WindowHours:
-      name: window_hours
-      in: query
-      required: false
-      deprecated: true
-      description: 兼容旧列表客户端；不得与 period 同时传入。详情路由仅校验该参数，不用于限制主题可读性。
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 168
-        default: 24
-    Period:
-      name: period
-      in: query
-      required: false
-      description: 新版列表的时间范围；新客户端必须传入。
-      schema:
         type: string
-        enum: [today, history]
-    Limit:
-      name: limit
-      in: query
-      required: false
-      schema:
-        type: integer
-        minimum: 1
-        maximum: 50
-      description: history 默认 5，today 和兼容模式默认 20。
-    Cursor:
-      name: cursor
-      in: query
-      required: false
-      schema:
-        type: string
-        minLength: 1
-        maxLength: 2048
-  headers:
-    RequestID:
-      required: true
-      description: 与响应 body 中 request_id 一致。
-      schema:
-        type: string
-        minLength: 1
-        maxLength: 128
+        pattern: '^RPT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
   responses:
-    ResearchThemePageSuccess:
-      description: 首页 Theme 列表
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ResearchThemePageEnvelope'
-    ResearchThemeDetailSuccess:
-      description: Theme 详情
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ResearchThemeDetailEnvelope'
-    ReasoningTreeListSuccess:
-      description: 推理树 Tab 列表
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ReasoningTreeListEnvelope'
-    ReasoningTreeDetailSuccess:
-      description: 单棵推理树
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ReasoningTreeDetailEnvelope'
-    BadRequest:
-      description: 请求参数不合法
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
+    InvalidRequest:
+      description: 请求参数无效
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
     NotFound:
-      description: Theme 或推理树不存在
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
+      description: Report、详情或 Evidence scope 不存在
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
-    InternalError:
-      description: Miniapp Service 内部错误
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
-    BadGateway:
-      description: Data Service 暂时不可用或返回不可信结果
-      headers:
-        X-Request-ID:
-          $ref: '#/components/headers/RequestID'
+    ReportServiceUnavailable:
+      description: Data Report 服务暂不可用或返回无效合同
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
   schemas:
-    UUID:
-      type: string
-      format: uuid
-    ResearchLocalKey:
-      type: string
-      pattern: '^[a-z0-9][a-z0-9._:-]{0,127}$'
-    UTCTimestamp:
-      type: string
-      format: date-time
-      description: UTC RFC3339 timestamp。
     HealthResponse:
       type: object
       additionalProperties: false
@@ -294,291 +188,628 @@ components:
           type: object
           additionalProperties:
             type: string
-    ErrorDetail:
+    HomeEnvelope:
       type: object
       additionalProperties: false
-      required: [code, message, details]
+      required: [request_id, result]
       properties:
-        code:
+        request_id:
           type: string
-        message:
+        result:
+          $ref: '#/components/schemas/HomeResponse'
+    LayerEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
           type: string
-        details:
-          type: object
-          additionalProperties: true
+        result:
+          $ref: '#/components/schemas/LayerDetail'
+    IndustryChainEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/IndustryChainDetail'
+    EvidenceEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/EvidenceCollection'
     ErrorEnvelope:
       type: object
       additionalProperties: false
       required: [error, request_id]
       properties:
+        request_id:
+          type: string
         error:
-          $ref: '#/components/schemas/ErrorDetail'
-        request_id:
-          type: string
-    ResearchThemePageEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/ResearchThemePage'
-    ResearchThemeDetailEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/ResearchThemeDetail'
-    ReasoningTreeListEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/ReasoningTreeList'
-    ReasoningTreeDetailEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/ReasoningTreeDetail'
-    ResearchThemePage:
-      type: object
-      additionalProperties: false
-      required: [window_start, window_end, as_of, theme_count, event_count, items, next_cursor]
-      properties:
-        window_start: {$ref: '#/components/schemas/UTCTimestamp'}
-        window_end: {$ref: '#/components/schemas/UTCTimestamp'}
-        as_of: {$ref: '#/components/schemas/UTCTimestamp'}
-        theme_count: {type: integer, minimum: 0}
-        event_count: {type: integer, minimum: 0}
-        items: {type: array, items: {$ref: '#/components/schemas/ResearchTheme'}}
-        next_cursor: {type: string, nullable: true}
-    ResearchTheme:
-      type: object
-      additionalProperties: false
-      required: [id, analysis_batch_id, title, one_line_conclusion, conclusion_direction, impact_strength, attention_level, conclusion_status, transmission_stage, investment_guidance_action, investment_guidance_summary, time_horizon_category, time_horizon_summary, transmission_summary, checkpoint_summary, risk_summary, analysis_as_of, window_start, window_end, published_at, impacts, evidence_event_count, reasoning_tree_count]
-      properties:
-        id: {$ref: '#/components/schemas/UUID'}
-        analysis_batch_id: {type: string}
-        title: {type: string}
-        one_line_conclusion: {type: string}
-        conclusion_direction: {type: string, enum: [positive, negative, mixed, neutral, uncertain]}
-        impact_strength: {type: string, enum: [strong, medium, weak, unknown]}
-        attention_level: {type: string, enum: [high, medium, low], nullable: true}
-        conclusion_status: {type: string, enum: [supported, partial, conflicted], nullable: true}
-        transmission_stage: {type: string, enum: [identification, validation, diffusion, dampening]}
-        investment_guidance_action: {type: string, enum: [focus, avoid, observe, differentiate]}
-        investment_guidance_summary: {type: string}
-        time_horizon_category: {type: string, enum: [short_term, medium_term, long_term, custom]}
-        time_horizon_summary: {type: string, nullable: true}
-        transmission_summary: {type: string, nullable: true}
-        checkpoint_summary: {type: string, nullable: true}
-        risk_summary: {type: string, nullable: true}
-        analysis_as_of: {$ref: '#/components/schemas/UTCTimestamp'}
-        window_start: {$ref: '#/components/schemas/UTCTimestamp'}
-        window_end: {$ref: '#/components/schemas/UTCTimestamp'}
-        published_at: {$ref: '#/components/schemas/UTCTimestamp'}
-        impacts: {type: array, items: {$ref: '#/components/schemas/ResearchThemeImpact'}}
-        evidence_event_count: {type: integer, minimum: 0}
-        reasoning_tree_count: {type: integer, minimum: 0}
-    ResearchThemeDetail:
-      allOf:
-        - $ref: '#/components/schemas/ResearchTheme'
-        - type: object
-          required: [events]
+          type: object
+          additionalProperties: false
+          required: [code, message, details]
           properties:
-            events: {type: array, items: {$ref: '#/components/schemas/ResearchEvent'}}
-    ResearchThemeImpact:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+    LocalKey:
+      type: string
+      pattern: '^[a-z0-9][a-z0-9._-]{0,127}$'
+    ScopeType:
+      type: string
+      enum: [report_card, layer, anchor, reasoning_step, transmission_path, candidate_mechanism, industry_chain, industry_chain_node]
+    ReferenceType:
+      type: string
+      enum: [layer, anchor, industry_chain, industry_chain_node]
+    Result:
       type: object
       additionalProperties: false
-      required: [node_key, display_name, chain_node_id, name, relation_role, impact_direction, impact_summary, display_order]
+      required: [code, label]
       properties:
-        node_key: {$ref: '#/components/schemas/ResearchLocalKey'}
-        display_name: {type: string}
-        chain_node_id: {type: string, pattern: '^(|CND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$', description: Empty for analyst_snapshot publications.}
-        name: {type: string}
-        relation_role: {type: string}
-        impact_direction: {type: string}
-        impact_summary: {type: string, nullable: true}
-        display_order: {type: integer}
-    ResearchEvent:
+        code:
+          type: string
+          enum: [warming, cooling, diverging, pending]
+        label:
+          type: string
+    Nature:
       type: object
       additionalProperties: false
-      required: [event_id, evidence_ids, title, summary, event_time, evidence_role, supported_claim, display_order]
+      required: [code, label]
       properties:
-        event_id: {$ref: '#/components/schemas/UUID'}
-        evidence_ids: {type: array, items: {$ref: '#/components/schemas/UUID'}}
-        title: {type: string}
-        summary: {type: string}
-        event_time:
-          allOf: [{$ref: '#/components/schemas/UTCTimestamp'}]
+        code:
+          type: string
+          enum: [direct_evidence, reasoning_hypothesis, pending_validation]
+        label:
+          type: string
+    Confidence:
+      type: object
+      additionalProperties: false
+      required: [label, score]
+      properties:
+        label:
+          type: string
+        score:
+          type: number
           nullable: true
-        evidence_role: {type: string}
-        supported_claim: {type: string, nullable: true}
-        display_order: {type: integer}
-    ReasoningTreeList:
+          minimum: 0
+          maximum: 1
+    Reference:
       type: object
       additionalProperties: false
-      required: [theme, reasoning_trees]
+      required: [type, key]
       properties:
-        theme: {$ref: '#/components/schemas/ResearchTheme'}
-        reasoning_trees: {type: array, items: {$ref: '#/components/schemas/ReasoningTreeSummary'}}
-    ReasoningTreeSummary:
+        type:
+          $ref: '#/components/schemas/ReferenceType'
+        key:
+          $ref: '#/components/schemas/LocalKey'
+    Scope:
       type: object
       additionalProperties: false
-      required: [tree_key, display_name, reasoning_tree_id, industry_chain_id, industry_chain_name, title, display_order, event_count, published_at]
+      required: [type, key]
       properties:
-        tree_key: {$ref: '#/components/schemas/ResearchLocalKey'}
-        display_name: {type: string}
-        reasoning_tree_id: {$ref: '#/components/schemas/UUID'}
-        industry_chain_id: {type: string, pattern: '^(|ICH[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$', description: Empty for analyst_snapshot publications.}
-        industry_chain_name: {type: string}
-        title: {type: string}
-        display_order: {type: integer}
-        event_count: {type: integer}
-        published_at: {$ref: '#/components/schemas/UTCTimestamp'}
-    ReasoningTreeDetail:
+        type:
+          $ref: '#/components/schemas/ScopeType'
+        key:
+          $ref: '#/components/schemas/LocalKey'
+    Summary:
       type: object
       additionalProperties: false
-      required: [theme_id, impact_node_ids, reasoning_tree]
+      required: [id, title, generated_at, published_at]
       properties:
-        theme_id: {$ref: '#/components/schemas/UUID'}
-        impact_node_ids: {type: array, items: {$ref: '#/components/schemas/ResearchLocalKey'}}
-        reasoning_tree: {$ref: '#/components/schemas/ReasoningTree'}
-    ReasoningTreeSignal:
+        id:
+          type: string
+        title:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+        published_at:
+          type: string
+          format: date-time
+    Selection:
       type: object
       additionalProperties: false
-      required: [signal_key, variable_name, direction, variable_signal_key, signal_role, signal_direction, display_summary, display_order]
+      required: [mode, date, timezone]
       properties:
-        signal_key: {$ref: '#/components/schemas/ResearchLocalKey'}
-        variable_name: {type: string, nullable: true}
-        direction: {type: string, enum: [increase, decrease, mixed, unchanged, uncertain], nullable: true}
-        variable_signal_key: {type: string}
-        signal_role: {type: string, enum: [primary, supporting, contradicting]}
-        signal_direction: {type: string, description: Empty for analyst_snapshot publications; use direction instead.}
-        display_summary: {type: string}
-        display_order: {type: integer}
-    ReasoningTreeGraphEdge:
+        mode:
+          type: string
+          enum: [today, latest_fallback]
+        date:
+          type: string
+          format: date
+        timezone:
+          type: string
+          enum: [Asia/Shanghai]
+    CardImpactItem:
       type: object
       additionalProperties: false
-      required: [id, relation_type]
+      required: [ref, name, result, confidence, time_window, has_evidence]
       properties:
-        id: {$ref: '#/components/schemas/UUID'}
-        relation_type: {type: string}
-    ReasoningTreeCheckpoint:
+        ref:
+          $ref: '#/components/schemas/Reference'
+        name:
+          type: string
+        result:
+          $ref: '#/components/schemas/Result'
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+        time_window:
+          type: string
+        has_evidence:
+          type: boolean
+    Card:
       type: object
       additionalProperties: false
-      required: [type, summary]
+      required: [key, kind, display_order, detail_ref, title, subtitle, conclusion, result, confidence, time_window, impact_items, has_evidence]
       properties:
-        type: {type: string, enum: [event, relationship, metric]}
-        summary: {type: string}
-    ReasoningTreeNode:
+        key:
+          $ref: '#/components/schemas/LocalKey'
+        kind:
+          type: string
+          enum: [geopolitics, macroeconomics, industry_chain]
+        display_order:
+          type: integer
+          minimum: 1
+        detail_ref:
+          $ref: '#/components/schemas/Reference'
+        title:
+          type: string
+        subtitle:
+          type: string
+        conclusion:
+          type: string
+        result:
+          $ref: '#/components/schemas/Result'
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+        time_window:
+          type: string
+        impact_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardImpactItem'
+        has_evidence:
+          type: boolean
+    CompanyBoundary:
       type: object
       additionalProperties: false
-      required:
-        - node_key
-        - display_name
-        - id
-        - position
-        - chain_node_id
-        - name
-        - state_summary
-        - impact_direction
-        - impact_strength
-        - impact_summary
-        - reasoning_basis_summary
-        - evidence_gap_summary
-        - incoming_industry_chain_graph_edge_id
-        - incoming_transmission_title
-        - incoming_transmission_mechanism
-        - incoming_condition_summary
-        - incoming_graph_edge
-        - signals
-        - primary_signal
-        - signal_display_summary
+      required: [key, display_order, title, published, boundary]
       properties:
-        node_key: {$ref: '#/components/schemas/ResearchLocalKey'}
-        display_name: {type: string}
-        id: {$ref: '#/components/schemas/UUID'}
-        position: {type: integer}
-        chain_node_id: {type: string, pattern: '^(|CND[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$', description: Empty for analyst_snapshot publications.}
-        name: {type: string}
-        state_summary: {type: string, nullable: true}
-        impact_direction: {type: string, enum: [positive, negative, mixed, neutral, uncertain]}
-        impact_strength: {type: string, enum: [strong, medium, weak, unknown]}
-        impact_summary: {type: string, nullable: true}
-        reasoning_basis_summary: {type: string, nullable: true}
-        evidence_gap_summary: {type: string, nullable: true}
-        incoming_industry_chain_graph_edge_id:
-          allOf: [{$ref: '#/components/schemas/UUID'}]
+        key:
+          type: string
+          enum: [company]
+        display_order:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+        published:
+          type: boolean
+          enum: [false]
+        boundary:
+          type: string
+    HomeReport:
+      type: object
+      additionalProperties: false
+      required: [report, cards, company]
+      properties:
+        report:
+          $ref: '#/components/schemas/Summary'
+        cards:
+          type: array
+          items:
+            $ref: '#/components/schemas/Card'
+        company:
+          $ref: '#/components/schemas/CompanyBoundary'
+    HomeResponse:
+      type: object
+      additionalProperties: false
+      required: [selection, reports]
+      properties:
+        selection:
+          $ref: '#/components/schemas/Selection'
+        reports:
+          type: array
+          items:
+            $ref: '#/components/schemas/HomeReport'
+    Anchor:
+      type: object
+      additionalProperties: false
+      required: [key, display_order, name, current_state, result, nature, reasoning, time_window, confidence, scope, has_evidence]
+      properties:
+        key:
+          $ref: '#/components/schemas/LocalKey'
+        display_order:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+        current_state:
+          type: string
+        result:
+          $ref: '#/components/schemas/Result'
+        nature:
+          $ref: '#/components/schemas/Nature'
+        reasoning:
+          type: string
+        time_window:
+          type: string
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+        scope:
+          $ref: '#/components/schemas/Scope'
+        has_evidence:
+          type: boolean
+    ReasoningStep:
+      type: object
+      additionalProperties: false
+      required: [key, display_order, input, mechanism, output, type, confidence, scope, has_evidence]
+      properties:
+        key:
+          $ref: '#/components/schemas/LocalKey'
+        display_order:
+          type: integer
+          minimum: 1
+        input:
+          type: string
+        mechanism:
+          type: string
+        output:
+          type: string
+        type:
+          type: string
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+        scope:
+          $ref: '#/components/schemas/Scope'
+        has_evidence:
+          type: boolean
+    TransmissionTarget:
+      type: object
+      additionalProperties: false
+      required: [ref, label, result]
+      properties:
+        ref:
+          $ref: '#/components/schemas/Reference'
+        label:
+          type: string
+        result:
+          $ref: '#/components/schemas/Result'
+    TransmissionPath:
+      type: object
+      additionalProperties: false
+      required: [key, display_order, source_conclusion, target_refs, logic, relation_nature, evidence_role, confidence, status, scope, has_evidence]
+      properties:
+        key:
+          $ref: '#/components/schemas/LocalKey'
+        display_order:
+          type: integer
+          minimum: 1
+        source_conclusion:
+          type: string
+        target_refs:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/TransmissionTarget'
+        logic:
+          type: string
+        relation_nature:
+          type: string
+        evidence_role:
+          type: string
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+        status:
+          type: string
+        scope:
+          $ref: '#/components/schemas/Scope'
+        has_evidence:
+          type: boolean
+    CandidateMechanism:
+      type: object
+      additionalProperties: false
+      required: [key, display_order, mechanism, evidence_gap, confidence, scope, has_evidence]
+      properties:
+        key:
+          $ref: '#/components/schemas/LocalKey'
+        display_order:
+          type: integer
+          minimum: 1
+        mechanism:
+          type: string
+        evidence_gap:
+          type: string
           nullable: true
-        incoming_transmission_title: {type: string, nullable: true}
-        incoming_transmission_mechanism: {type: string, nullable: true}
-        incoming_condition_summary: {type: string, nullable: true}
-        incoming_graph_edge:
-          allOf: [{$ref: '#/components/schemas/ReasoningTreeGraphEdge'}]
-          nullable: true
-        signals: {type: array, items: {$ref: '#/components/schemas/ReasoningTreeSignal'}}
-        primary_signal: {$ref: '#/components/schemas/ReasoningTreeSignal'}
-        signal_display_summary: {type: string}
-    ReasoningTree:
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+        scope:
+          $ref: '#/components/schemas/Scope'
+        has_evidence:
+          type: boolean
+    Checkpoint:
       type: object
       additionalProperties: false
-      required:
-        - tree_key
-        - display_name
-        - reasoning_tree_id
-        - theme_id
-        - industry_chain_id
-        - industry_chain_name
-        - title
-        - display_order
-        - one_line_conclusion
-        - fact_summary
-        - transmission_summary
-        - impact_direction
-        - impact_strength
-        - impact_summary
-        - conclusion_boundary_summary
-        - support_summary
-        - counter_summary
-        - invalidation_conditions
-        - checkpoints
-        - published_at
-        - event_count
-        - events
-        - nodes
+      required: [key, display_order, summary]
       properties:
-        tree_key: {$ref: '#/components/schemas/ResearchLocalKey'}
-        display_name: {type: string}
-        reasoning_tree_id: {$ref: '#/components/schemas/UUID'}
-        theme_id: {$ref: '#/components/schemas/UUID'}
-        industry_chain_id: {type: string, pattern: '^(|ICH[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$', description: Empty for analyst_snapshot publications.}
-        industry_chain_name: {type: string}
-        title: {type: string}
-        display_order: {type: integer}
-        one_line_conclusion: {type: string}
-        fact_summary: {type: string, nullable: true}
-        transmission_summary: {type: string, nullable: true}
-        impact_direction: {type: string, enum: [positive, negative, mixed, neutral, uncertain]}
-        impact_strength: {type: string, enum: [strong, medium, weak, unknown]}
-        impact_summary: {type: string, nullable: true}
-        conclusion_boundary_summary: {type: string, nullable: true}
-        support_summary: {type: string, nullable: true}
-        counter_summary: {type: string, nullable: true}
-        invalidation_conditions: {type: array, items: {type: string}}
-        checkpoints: {type: array, items: {$ref: '#/components/schemas/ReasoningTreeCheckpoint'}}
-        published_at: {$ref: '#/components/schemas/UTCTimestamp'}
-        event_count: {type: integer, minimum: 0}
-        events: {type: array, items: {$ref: '#/components/schemas/ResearchEvent'}}
-        nodes: {type: array, items: {$ref: '#/components/schemas/ReasoningTreeNode'}}
+        key:
+          $ref: '#/components/schemas/LocalKey'
+        display_order:
+          type: integer
+          minimum: 1
+        summary:
+          type: string
+    DownwardTransmission:
+      type: object
+      additionalProperties: false
+      required: [summary, published_paths, candidate_mechanisms, boundary_notes]
+      properties:
+        summary:
+          type: string
+        published_paths:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransmissionPath'
+        candidate_mechanisms:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandidateMechanism'
+        boundary_notes:
+          type: array
+          items:
+            type: string
+    LayerUncertainty:
+      type: object
+      additionalProperties: false
+      required: [counterevidence, evidence_gap, boundary, reversal_condition, checkpoints]
+      properties:
+        counterevidence:
+          type: string
+          nullable: true
+        evidence_gap:
+          type: string
+          nullable: true
+        boundary:
+          type: string
+          nullable: true
+        reversal_condition:
+          type: string
+          nullable: true
+        checkpoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/Checkpoint'
+    Layer:
+      type: object
+      additionalProperties: false
+      required: [key, display_order, title, conclusion, result, confidence, time_window, anchors, reasoning_steps, related_anchor_keys, related_chain_keys, downward_transmission, uncertainty, scope, has_evidence]
+      properties:
+        key:
+          type: string
+          enum: [geopolitics, macroeconomics]
+        display_order:
+          type: integer
+          minimum: 1
+        title:
+          type: string
+        conclusion:
+          type: string
+        result:
+          $ref: '#/components/schemas/Result'
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+        time_window:
+          type: string
+        anchors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Anchor'
+        reasoning_steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReasoningStep'
+        related_anchor_keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocalKey'
+        related_chain_keys:
+          type: array
+          items:
+            $ref: '#/components/schemas/LocalKey'
+        downward_transmission:
+          $ref: '#/components/schemas/DownwardTransmission'
+        uncertainty:
+          $ref: '#/components/schemas/LayerUncertainty'
+        scope:
+          $ref: '#/components/schemas/Scope'
+        has_evidence:
+          type: boolean
+    IndustryChainSummary:
+      type: object
+      additionalProperties: false
+      required: [key, display_order, name, conclusion, status, result, confidence, time_window, scope, has_evidence]
+      properties:
+        key:
+          $ref: '#/components/schemas/LocalKey'
+        display_order:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+        conclusion:
+          type: string
+        status:
+          type: string
+        result:
+          $ref: '#/components/schemas/Result'
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+        time_window:
+          type: string
+        scope:
+          $ref: '#/components/schemas/Scope'
+        has_evidence:
+          type: boolean
+    LayerDetail:
+      type: object
+      additionalProperties: false
+      required: [report, layer, related_industry_chains]
+      properties:
+        report:
+          $ref: '#/components/schemas/Summary'
+        layer:
+          $ref: '#/components/schemas/Layer'
+        related_industry_chains:
+          type: array
+          items:
+            $ref: '#/components/schemas/IndustryChainSummary'
+    IndustryChainNode:
+      type: object
+      additionalProperties: false
+      required: [key, display_order, name, impact, result, nature, reasoning, time_window, confidence, scope, has_evidence]
+      properties:
+        key:
+          $ref: '#/components/schemas/LocalKey'
+        display_order:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+        impact:
+          type: string
+        result:
+          $ref: '#/components/schemas/Result'
+        nature:
+          $ref: '#/components/schemas/Nature'
+        reasoning:
+          type: string
+        time_window:
+          type: string
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+        scope:
+          $ref: '#/components/schemas/Scope'
+        has_evidence:
+          type: boolean
+    IndustryChainEdge:
+      type: object
+      additionalProperties: false
+      required: [key, display_order, from_node_key, to_node_key, relation_label]
+      properties:
+        key:
+          $ref: '#/components/schemas/LocalKey'
+        display_order:
+          type: integer
+          minimum: 1
+        from_node_key:
+          $ref: '#/components/schemas/LocalKey'
+        to_node_key:
+          $ref: '#/components/schemas/LocalKey'
+        relation_label:
+          type: string
+    ChainUncertainty:
+      type: object
+      additionalProperties: false
+      required: [counterevidence_and_gap, stop_condition, checkpoints]
+      properties:
+        counterevidence_and_gap:
+          type: string
+          nullable: true
+        stop_condition:
+          type: string
+          nullable: true
+        checkpoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/Checkpoint'
+    IndustryChain:
+      type: object
+      additionalProperties: false
+      required: [key, claim_key, display_order, name, conclusion, status, result, confidence, time_window, path_summary, accepted_hypothesis_summary, nodes, edges, uncertainty, scope, has_evidence]
+      properties:
+        key:
+          $ref: '#/components/schemas/LocalKey'
+        claim_key:
+          $ref: '#/components/schemas/LocalKey'
+        display_order:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+        conclusion:
+          type: string
+        status:
+          type: string
+        result:
+          $ref: '#/components/schemas/Result'
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+        time_window:
+          type: string
+        path_summary:
+          type: string
+          nullable: true
+        accepted_hypothesis_summary:
+          type: string
+          nullable: true
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/IndustryChainNode'
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/IndustryChainEdge'
+        uncertainty:
+          $ref: '#/components/schemas/ChainUncertainty'
+        scope:
+          $ref: '#/components/schemas/Scope'
+        has_evidence:
+          type: boolean
+    IndustryChainDetail:
+      type: object
+      additionalProperties: false
+      required: [report, industry_chain]
+      properties:
+        report:
+          $ref: '#/components/schemas/Summary'
+        industry_chain:
+          $ref: '#/components/schemas/IndustryChain'
+    EvidenceItem:
+      type: object
+      additionalProperties: false
+      required: [published_at, summary, keywords]
+      properties:
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        summary:
+          type: string
+        keywords:
+          type: array
+          items:
+            type: string
+    EvidenceCollection:
+      type: object
+      additionalProperties: false
+      required: [report_id, scope, items]
+      properties:
+        report_id:
+          type: string
+        scope:
+          $ref: '#/components/schemas/Scope'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceItem'

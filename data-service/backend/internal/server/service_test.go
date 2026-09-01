@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -22,6 +24,7 @@ import (
 	organizationapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/organization"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
+	reportapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/report"
 	researchapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/research"
 	runtimehealthapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/runtimehealth"
 	sourceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/source"
@@ -181,11 +184,11 @@ func TestServerEnforcesResearchReadScopeOnResearchRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server, err := NewHTTPServer(testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{}, serverTestEvidenceService{}, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, serverTestCompanyService{}, authenticator, nil)
+	server, err := NewHTTPServer(testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{}, serverTestEvidenceService{}, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, serverTestCompanyService{}, serverTestReportService{}, authenticator, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	target := dataapi.APIPrefix + "/research/themes?window_hours=24&limit=20"
+	target := dataapi.APIPrefix + "/research-graph:search"
 	for _, test := range []struct {
 		token string
 		want  int
@@ -194,12 +197,56 @@ func TestServerEnforcesResearchReadScopeOnResearchRoutes(t *testing.T) {
 		{token: "admin-token", want: http.StatusForbidden},
 	} {
 		response := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodGet, target, nil)
+		request := httptest.NewRequest(http.MethodPost, target, strings.NewReader(`{}`))
+		request.Header.Set("Content-Type", "application/json")
 		request.Header.Set("Authorization", "Bearer "+test.token)
 		server.ServeHTTP(response, request)
 		if response.Code != test.want {
 			t.Fatalf("token=%s status=%d want=%d body=%s", test.token, response.Code, test.want, response.Body.String())
 		}
+	}
+}
+
+func TestServerEnforcesReportScopesAndRejectsDuplicateQueries(t *testing.T) {
+	payload, err := os.ReadFile(filepath.Join("..", "..", "api", "data", "v1", "report", "testdata", "report-publication.v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	authenticator, err := NewAuthenticator([]Credential{
+		{Secret: "report-read-token", Principal: dataapi.Principal{Identity: "miniapp-bff", Scopes: []string{ScopeReportRead}}},
+		{Secret: "report-publish-token", Principal: dataapi.Principal{Identity: "agentos", Scopes: []string{ScopeReportPublish}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := NewHTTPServer(testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{}, serverTestEvidenceService{}, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, serverTestCompanyService{}, serverTestReportService{}, authenticator, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name, method, path, token string
+		body                      []byte
+		want                      int
+	}{
+		{name: "read", method: http.MethodGet, path: dataapi.APIPrefix + "/reports", token: "report-read-token", want: http.StatusNoContent},
+		{name: "read with publisher token", method: http.MethodGet, path: dataapi.APIPrefix + "/reports", token: "report-publish-token", want: http.StatusForbidden},
+		{name: "publish", method: http.MethodPost, path: dataapi.APIPrefix + "/report-publications", token: "report-publish-token", body: payload, want: http.StatusNoContent},
+		{name: "publish with reader token", method: http.MethodPost, path: dataapi.APIPrefix + "/report-publications", token: "report-read-token", body: payload, want: http.StatusForbidden},
+		{name: "duplicate list query", method: http.MethodGet, path: dataapi.APIPrefix + "/reports?limit=1&limit=2", token: "report-read-token", want: http.StatusBadRequest},
+		{name: "duplicate evidence scope", method: http.MethodGet, path: dataapi.APIPrefix + "/reports/RPT11111111-1111-4111-8111-111111111111/evidences?scope_type=anchor&scope_type=layer&scope_key=geo-anchor", token: "report-read-token", want: http.StatusBadRequest},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(test.method, test.path, bytes.NewReader(test.body))
+			request.Header.Set("Authorization", "Bearer "+test.token)
+			if len(test.body) > 0 {
+				request.Header.Set("Content-Type", "application/json")
+			}
+			server.ServeHTTP(response, request)
+			if response.Code != test.want {
+				t.Fatalf("status=%d want=%d body=%s", response.Code, test.want, response.Body.String())
+			}
+		})
 	}
 }
 
@@ -266,7 +313,7 @@ func TestServerEnforcesDedicatedCountryReadAndWriteScopes(t *testing.T) {
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{},
 		serverTestEvidenceService{},
-		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, serverTestCompanyService{}, authenticator, nil,
+		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, serverTestCompanyService{}, serverTestReportService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -312,7 +359,7 @@ func TestServerEnforcesDedicatedIndependentObjectScopes(t *testing.T) {
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{},
 		serverTestEvidenceService{},
-		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, serverTestCompanyService{}, authenticator, nil,
+		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, serverTestCompanyService{}, serverTestReportService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -408,6 +455,7 @@ func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
 		organization  organizationapi.Service
 		source        sourceapi.Service
 		company       companyapi.Service
+		report        reportapi.Service
 		auth          *Authenticator
 	}{
 		{name: "Runtime Health API", research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, source: serverTestSourceService{}, auth: authenticator},
@@ -422,6 +470,7 @@ func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
 		{name: "Organization API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, auth: authenticator},
 		{name: "Source API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, auth: authenticator},
 		{name: "Company projection API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, source: serverTestSourceService{}, auth: authenticator},
+		{name: "Report API", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}, source: serverTestSourceService{}, company: serverTestCompanyService{}, auth: authenticator},
 		{name: "authenticator", application: serverTestDataService{}, research: researchfixture.Service{}, event: serverTestEventService{}, evidence: serverTestEvidenceService{}, country: serverTestCountryService{}, industry: serverTestIndustryService{}, concept: serverTestConceptService{}, organization: serverTestOrganizationService{}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -437,7 +486,10 @@ func TestNewHTTPServerRejectsMissingRequiredApplications(t *testing.T) {
 			if test.name != "Company projection API" && test.company == nil {
 				test.company = serverTestCompanyService{}
 			}
-			if _, err := NewHTTPServer(testConfig(), test.application, test.research, test.event, test.evidence, test.country, test.industry, test.concept, test.chainNode, test.industryChain, test.organization, test.source, test.company, test.auth, nil); err == nil {
+			if test.name != "Report API" && test.report == nil {
+				test.report = serverTestReportService{}
+			}
+			if _, err := NewHTTPServer(testConfig(), test.application, test.research, test.event, test.evidence, test.country, test.industry, test.concept, test.chainNode, test.industryChain, test.organization, test.source, test.company, test.report, test.auth, nil); err == nil {
 				t.Fatal("NewHTTPServer() error = nil")
 			}
 		})
@@ -485,6 +537,7 @@ func TestEveryBusinessOperationHasAnAuthenticationScope(t *testing.T) {
 	businessOperations = append(businessOperations, organizationapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, sourceapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, companyapi.BusinessOperations()...)
+	businessOperations = append(businessOperations, reportapi.BusinessOperations()...)
 	for _, operation := range businessOperations {
 		if _, exists := openAPIOperations[operation]; !exists {
 			t.Errorf("business operation %q is absent from OpenAPI", operation)
@@ -551,7 +604,7 @@ func newTestHTTPServer(config conf.Config, application runtimehealthapi.Service,
 }
 
 func newTestHTTPServerWithEvent(config conf.Config, application runtimehealthapi.Service, eventApplication eventapi.Service, evidenceApplication evidenceapi.Service, authenticator *Authenticator) *kratoshttp.Server {
-	server, err := NewHTTPServer(config, application, researchfixture.Service{}, eventApplication, evidenceApplication, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, serverTestCompanyService{}, authenticator, nil)
+	server, err := NewHTTPServer(config, application, researchfixture.Service{}, eventApplication, evidenceApplication, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, serverTestCompanyService{}, serverTestReportService{}, authenticator, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -575,6 +628,35 @@ type serverTestOrganizationService struct{}
 type serverTestSourceService struct{}
 
 type serverTestCompanyService struct{}
+
+type serverTestReportService struct{}
+
+func (serverTestReportService) PublishReport(context.Context, *reportapi.PublicationRequest) (*dataapi.Response[reportapi.PublicationResult], error) {
+	return serverTestResponse[reportapi.PublicationResult]()
+}
+
+func (serverTestReportService) ListReports(context.Context, *reportapi.ListRequest) (*dataapi.Response[reportapi.Collection], error) {
+	return serverTestResponse[reportapi.Collection]()
+}
+
+func (serverTestReportService) GetReportHome(context.Context, *reportapi.ReportRequest) (*dataapi.Response[reportapi.Home], error) {
+	return serverTestResponse[reportapi.Home]()
+}
+
+func (serverTestReportService) GetReportLayer(context.Context, *reportapi.LayerRequest) (*dataapi.Response[reportapi.LayerDetail], error) {
+	return serverTestResponse[reportapi.LayerDetail]()
+}
+
+func (serverTestReportService) GetReportIndustryChain(context.Context, *reportapi.ChainRequest) (*dataapi.Response[reportapi.IndustryChainDetail], error) {
+	return serverTestResponse[reportapi.IndustryChainDetail]()
+}
+
+func (serverTestReportService) ListReportEvidence(_ context.Context, request *reportapi.EvidenceRequest) (*dataapi.Response[reportapi.EvidenceCollection], error) {
+	if request != nil && request.HasUnknownQuery {
+		return nil, dataapi.NewPublicError(dataapi.StatusBadRequest, reportapi.ErrorInvalidRequest, "invalid query", nil)
+	}
+	return serverTestResponse[reportapi.EvidenceCollection]()
+}
 
 func (serverTestCompanyService) List(context.Context, *companyapi.ListRequest) (*dataapi.Response[companyapi.CompanyProjectionPage], error) {
 	return &dataapi.Response[companyapi.CompanyProjectionPage]{
@@ -751,21 +833,6 @@ func (serverTestEvidenceService) ListEvidenceCategories(context.Context) (*dataa
 
 func serverTestResponse[T any]() (*dataapi.Response[T], error) {
 	return &dataapi.Response[T]{Status: http.StatusNoContent}, nil
-}
-func (serverTestDataService) PublishResearchTheme(context.Context, *researchapi.ResearchThemeImportRequest) (*dataapi.Response[researchapi.ResearchThemeImportResult], error) {
-	return serverTestResponse[researchapi.ResearchThemeImportResult]()
-}
-func (serverTestDataService) ListResearchThemes(context.Context, *researchapi.ListResearchThemesRequest) (*dataapi.Response[researchapi.ResearchThemePage], error) {
-	return serverTestResponse[researchapi.ResearchThemePage]()
-}
-func (serverTestDataService) GetResearchTheme(context.Context, *researchapi.GetResearchThemeRequest) (*dataapi.Response[researchapi.ResearchThemeDetail], error) {
-	return serverTestResponse[researchapi.ResearchThemeDetail]()
-}
-func (serverTestDataService) ListResearchReasoningTrees(context.Context, *researchapi.ReasoningTreeListRequest) (*dataapi.Response[researchapi.ResearchReasoningTreeList], error) {
-	return serverTestResponse[researchapi.ResearchReasoningTreeList]()
-}
-func (serverTestDataService) GetResearchReasoningTree(context.Context, *researchapi.ReasoningTreeDetailRequest) (*dataapi.Response[researchapi.ResearchReasoningTreeDetail], error) {
-	return serverTestResponse[researchapi.ResearchReasoningTreeDetail]()
 }
 func (serverTestDataService) SearchResearchGraph(context.Context, *researchapi.ResearchGraphSearchRequest) (*dataapi.Response[researchapi.ResearchGraphSearchResult], error) {
 	return serverTestResponse[researchapi.ResearchGraphSearchResult]()

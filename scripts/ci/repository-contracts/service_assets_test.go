@@ -412,7 +412,7 @@ func TestCIConsumesServiceOwnedImagesAndBoundaryContracts(t *testing.T) {
 		"tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified",
 		"tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified",
 		"tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified",
-		"/api/miniapp/v1/research/themes",
+		"/api/miniapp/v1/reports/home",
 		"APP_ENV=prod",
 		"/docs/",
 		"--signal=SIGTERM",

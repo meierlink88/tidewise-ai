@@ -1,257 +1,166 @@
 import { Children, isValidElement, type ReactElement, type ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  mockResearchThemeDetail,
-  mockResearchThemeFeed
-} from '../../mocks/research-themes/mock-port';
-import type { ResearchThemeHomepagePort } from '../../features/research-themes/contract';
-import {
-  ResearchThemeHomeSession,
-  type ResearchThemeHomeSessionState
-} from '../../features/research-themes/session';
-import {
-  IndexView,
-  loadMoreAtPageBottom,
-  navigateThemePeriod,
-  refreshHomeFeed
-} from './theme-list-page';
+import { ReportError } from '../../features/reports/contract';
+import { mockReportPort } from '../../mocks/reports/mock-port';
+import { IndexView, stopHomeRefresh } from './index';
 
 vi.mock('@tarojs/taro', () => ({
   default: {
-    getSystemInfoSync: vi.fn(() => ({ statusBarHeight: 44, screenWidth: 390 })),
-    getMenuButtonBoundingClientRect: vi.fn(() => ({ top: 50, bottom: 82, height: 32 })),
     navigateTo: vi.fn(),
     showToast: vi.fn(),
     stopPullDownRefresh: vi.fn()
   },
-  usePullDownRefresh: vi.fn(),
-  useReachBottom: vi.fn()
+  usePullDownRefresh: vi.fn()
 }));
 
 vi.mock('@tarojs/components', () => ({
   Button: 'button',
   Image: 'image',
   Input: 'input',
-  ScrollView: 'scroll-view',
   Text: 'text',
   View: 'view'
 }));
 
-describe('Theme homepage', () => {
-  it('wires today/history navigation and history-only bottom loading', () => {
-    const api = { navigateTo: vi.fn(), navigateBack: vi.fn() };
-    const session = { loadMore: vi.fn().mockResolvedValue('updated') };
+const chrome = { statusBarHeight: 44, navigationBarHeight: 44, rightReservedWidth: 102 };
 
-    navigateThemePeriod('today', api);
-    navigateThemePeriod('history', api);
-    loadMoreAtPageBottom('today', session as Pick<ResearchThemeHomeSession, 'loadMore'>);
-    loadMoreAtPageBottom('history', session as Pick<ResearchThemeHomeSession, 'loadMore'>);
-
-    expect(api.navigateTo).toHaveBeenCalledWith({
-      url: '/pages/research-theme/history/index'
-    });
-    expect(api.navigateBack).toHaveBeenCalledOnce();
-    expect(session.loadMore).toHaveBeenCalledOnce();
-  });
-  it('renders the Theme feed without the removed static category and tracking bar', () => {
-    const state: ResearchThemeHomeSessionState = {
-      feed: { status: 'ready', value: mockResearchThemeFeed },
-      pagination: 'exhausted',
-      selectedThemeId: null,
-      detailsByThemeId: {}
-    };
-
+describe('Report homepage', () => {
+  it('keeps the application shell and renders every persisted card in one Report group', async () => {
+    const home = await mockReportPort.getHome();
     const page = IndexView({
-      state,
+      chrome,
       query: '',
-      chrome: { statusBarHeight: 44, navigationBarHeight: 44, rightReservedWidth: 16 },
       onQueryChange: vi.fn(),
-      onRetryFeed: vi.fn(),
-      onOpenEvents: vi.fn(),
-      onCloseEvents: vi.fn(),
-      onRetryEvents: vi.fn()
+      state: { status: 'ready', data: home, refreshing: false, refreshFailed: false },
+      onRetry: vi.fn(),
+      onOpenDetail: vi.fn(),
+      onOpenEvidence: vi.fn()
     });
+    const copy = textContent(page);
 
-    expect(findAllByClass(page, 'category-bar')).toEqual([]);
-    expect(textContent(page)).not.toContain('跟踪中');
-    expect(textContent(page)).toContain('今日主题');
-    expect(textContent(page)).toContain(mockResearchThemeFeed.items[0].oneLineConclusion);
-    const periodAction = findByClass(page, 'home-history-button');
-    expect(periodAction.props.ariaLabel).toBe('查看历史主题');
-    expect(textContent(periodAction)).toBe('');
+    expect(copy).toContain('观潮');
+    expect(copy).toContain('今日推理');
+    expect(copy).toContain('当前事件如何从地缘政治与宏观经济传导至产业链');
+    expect(copy).toContain('地缘政治');
+    expect(copy).toContain('宏观经济');
+    expect(copy).toContain('人形机器人产业链');
+    expect(copy).toContain('AI数据中心液冷服务器产业链');
+    expect(copy).toContain('AI算力基础设施服务产业链');
+    expect(copy).toContain('油品石化贸易服务产业链');
+    expect(copy).not.toContain('RPT11111111');
+    expect(copy).not.toContain('EVT');
+    expect(findAllByClass(page, 'report-evidence-button')).toHaveLength(22);
+    expect(findAllByClass(page, 'home-report-card__kind-icon')).toHaveLength(6);
+    expect(findAllByClass(page, 'home-report-card__arrow')).toHaveLength(6);
+    expect(findAllByClass(page, 'home-company-boundary__icon')).toHaveLength(1);
+    expect(findAllByClass(page, 'home-report-card__kind-icon').every(hasSvgSource)).toBe(true);
+    expect(findAllByClass(page, 'home-report-card__arrow').every(hasSvgSource)).toBe(true);
+    expect(findAllByClass(page, 'home-company-boundary__icon').every(hasSvgSource)).toBe(true);
   });
 
-  it('preserves the last feed and always stops native refresh when refresh fails', async () => {
-    const port: ResearchThemeHomepagePort = {
-      list: vi.fn().mockResolvedValueOnce(mockResearchThemeFeed).mockRejectedValueOnce(new Error()),
-      getDetail: vi.fn()
-    };
-    const session = new ResearchThemeHomeSession(port);
-    const api = {
-      showToast: vi.fn(),
-      stopPullDownRefresh: vi.fn()
-    };
-    await session.start();
-
-    await refreshHomeFeed(session, api);
-
-    expect(session.getState().feed).toEqual({ status: 'ready', value: mockResearchThemeFeed });
-    expect(api.showToast).toHaveBeenCalledWith({
-      title: '刷新失败，请稍后重试',
-      icon: 'none',
-      duration: 1600
+  it('opens direct-impact Evidence with the object scope without opening the card', async () => {
+    const home = await mockReportPort.getHome();
+    const onOpenEvidence = vi.fn();
+    const page = IndexView({
+      chrome,
+      query: '',
+      onQueryChange: vi.fn(),
+      state: { status: 'ready', data: home, refreshing: false, refreshFailed: false },
+      onRetry: vi.fn(),
+      onOpenDetail: vi.fn(),
+      onOpenEvidence
     });
+    const button = findByAriaLabel(page, '查看伊朗—美以及海湾安全对抗证据');
+    const stopPropagation = vi.fn();
+
+    button.props.onClick?.({ stopPropagation });
+
+    expect(stopPropagation).toHaveBeenCalledOnce();
+    expect(onOpenEvidence).toHaveBeenCalledWith({
+      reportId: 'RPT11111111-1111-4111-8111-111111111111',
+      scopeType: 'anchor',
+      scopeKey: 'geo-a01',
+      title: '伊朗—美以及海湾安全对抗证据'
+    });
+  });
+
+  it('labels the historical fallback without changing the actual publication time', async () => {
+    const home = await mockReportPort.getHome();
+    const page = IndexView({
+      chrome,
+      query: '',
+      onQueryChange: vi.fn(),
+      state: {
+        status: 'ready',
+        data: { ...home, selection: { ...home.selection, mode: 'latest_fallback' } },
+        refreshing: false,
+        refreshFailed: false
+      },
+      onRetry: vi.fn(),
+      onOpenDetail: vi.fn(),
+      onOpenEvidence: vi.fn()
+    });
+    expect(textContent(page)).toContain('今日暂无 · 展示最近发布');
+    expect(textContent(page)).toContain('最近发布');
+    expect(textContent(page)).toContain('2026.09.01 12:45');
+  });
+
+  it('renders explicit loading, empty and retryable error states', () => {
+    const base = {
+      chrome,
+      query: '',
+      onQueryChange: vi.fn(),
+      onRetry: vi.fn(),
+      onOpenDetail: vi.fn(),
+      onOpenEvidence: vi.fn()
+    };
+    expect(textContent(IndexView({ ...base, state: { status: 'loading' } }))).toContain(
+      '正在读取报告'
+    );
+    expect(
+      textContent(
+        IndexView({
+          ...base,
+          state: { status: 'empty', refreshing: false, refreshFailed: false }
+        })
+      )
+    ).toContain('暂无推理报告');
+    expect(
+      textContent(
+        IndexView({
+          ...base,
+          state: { status: 'error', error: new ReportError('serviceUnavailable') }
+        })
+      )
+    ).toContain('重新加载');
+  });
+
+  it('always stops the native pull-down refresh', async () => {
+    const api = { stopPullDownRefresh: vi.fn(), showToast: vi.fn() };
+    await stopHomeRefresh(api);
     expect(api.stopPullDownRefresh).toHaveBeenCalledOnce();
-  });
-
-  it('includes newly appended history items in the active search', async () => {
-    const appendedTheme = {
-      ...mockResearchThemeFeed.items[0],
-      id: 'bbbbbbbb-1111-4111-8111-111111111111',
-      title: '历史独有主题'
-    };
-    const port: ResearchThemeHomepagePort = {
-      list: vi
-        .fn()
-        .mockResolvedValueOnce({ ...mockResearchThemeFeed, nextCursor: 'next-page' })
-        .mockResolvedValueOnce({
-          ...mockResearchThemeFeed,
-          items: [appendedTheme],
-          nextCursor: null
-        }),
-      getDetail: vi.fn()
-    };
-    const session = new ResearchThemeHomeSession(port, { period: 'history' });
-    await session.start();
-    await session.loadMore();
-
-    const page = IndexView({
-      state: session.getState(),
-      period: 'history',
-      query: '历史独有',
-      chrome: { statusBarHeight: 44, navigationBarHeight: 44, rightReservedWidth: 16 },
-      onQueryChange: vi.fn(),
-      onRetryFeed: vi.fn(),
-      onOpenEvents: vi.fn(),
-      onCloseEvents: vi.fn(),
-      onRetryEvents: vi.fn()
-    });
-
-    expect(textContent(page)).toContain('历史独有主题');
-    expect(textContent(page)).not.toContain(mockResearchThemeFeed.items[0].title);
-  });
-
-  it('opens the event timeline through the page interaction and closes it independently', async () => {
-    const port: ResearchThemeHomepagePort = {
-      list: vi.fn().mockResolvedValue(mockResearchThemeFeed),
-      getDetail: vi.fn().mockResolvedValue(mockResearchThemeDetail)
-    };
-    const session = new ResearchThemeHomeSession(port);
-    await session.start();
-    const render = () =>
-      IndexView({
-        state: session.getState(),
-        query: '',
-        chrome: { statusBarHeight: 44, navigationBarHeight: 44, rightReservedWidth: 16 },
-        onQueryChange: vi.fn(),
-        onRetryFeed: () => void session.retryFeed(),
-        onOpenEvents: (themeId) => session.openThemeEvents(themeId),
-        onCloseEvents: () => session.closeThemeEvents(),
-        onRetryEvents: () => session.retryThemeEvents()
-      });
-
-    findByClass(render(), 'theme-card__event-button').props.onClick?.(tapEvent());
-
-    const loadingPage = render();
-    expect(findByClass(loadingPage, 'theme-card__event-action').props.catchMove).toBe(true);
-    expect(findByClass(loadingPage, 'theme-events-overlay').props.catchMove).toBe(true);
-    expect(textContent(loadingPage)).toContain('正在整理关联事件');
-
-    await flushPromises();
-    const readyPage = render();
-    expect(textContent(readyPage)).toContain('端口计划上调');
-    expect(textContent(readyPage)).toContain('时间待确认');
-
-    findByClass(readyPage, 'theme-events-sheet__close').props.onClick?.(tapEvent());
-    expect(findAllByClass(render(), 'theme-events-overlay')).toEqual([]);
-    expect(port.getDetail).toHaveBeenCalledOnce();
-  });
-
-  it('exposes a visible retry action for an initial feed error', () => {
-    const onRetryFeed = vi.fn();
-    const page = IndexView({
-      state: {
-        feed: { status: 'error' },
-        pagination: 'idle',
-        selectedThemeId: null,
-        detailsByThemeId: {}
-      },
-      query: '',
-      chrome: { statusBarHeight: 44, navigationBarHeight: 44, rightReservedWidth: 16 },
-      onQueryChange: vi.fn(),
-      onRetryFeed,
-      onOpenEvents: vi.fn(),
-      onCloseEvents: vi.fn(),
-      onRetryEvents: vi.fn()
-    });
-
-    findByClass(page, 'home-state__retry').props.onClick?.(tapEvent());
-
-    expect(textContent(page)).toContain('主题数据暂时不可用');
-    expect(textContent(page)).toContain('重新加载');
-    expect(onRetryFeed).toHaveBeenCalledOnce();
-  });
-
-  it('labels the history action and provides an explicit return-to-today action', () => {
-    const onPeriodAction = vi.fn();
-    const page = IndexView({
-      state: {
-        feed: { status: 'ready', value: mockResearchThemeFeed },
-        pagination: 'exhausted',
-        selectedThemeId: null,
-        detailsByThemeId: {}
-      },
-      period: 'history',
-      query: '',
-      chrome: { statusBarHeight: 44, navigationBarHeight: 44, rightReservedWidth: 16 },
-      onQueryChange: vi.fn(),
-      onRetryFeed: vi.fn(),
-      onOpenEvents: vi.fn(),
-      onCloseEvents: vi.fn(),
-      onRetryEvents: vi.fn(),
-      onPeriodAction
-    });
-
-    const action = findByClass(page, 'home-history-button');
-    action.props.onClick?.(tapEvent());
-
-    expect(textContent(page)).toContain('历史主题');
-    expect(action.props.ariaLabel).toBe('返回今日主题');
-    expect(textContent(action)).toBe('');
-    expect(onPeriodAction).toHaveBeenCalledOnce();
   });
 });
 
 interface TestElementProps {
   className?: string;
-  children?: ReactNode;
-  catchMove?: boolean;
   ariaLabel?: string;
-  onClick?: (event: ReturnType<typeof tapEvent>) => void;
+  onClick?: (event: { stopPropagation: () => void }) => void;
+  src?: string;
+  children?: ReactNode;
 }
 
 type TestElement = ReactElement<TestElementProps>;
-
-function findByClass(root: ReactNode, className: string): TestElement {
-  const match = findAllByClass(root, className)[0];
-  if (!match) throw new Error(`missing element .${className}`);
-  return match;
-}
 
 function findAllByClass(root: ReactNode, className: string): TestElement[] {
   return flattenElements(root).filter((element) =>
     element.props.className?.split(/\s+/).includes(className)
   );
+}
+
+function findByAriaLabel(root: ReactNode, ariaLabel: string): TestElement {
+  const element = flattenElements(root).find((item) => item.props.ariaLabel === ariaLabel);
+  if (!element) throw new Error(`missing element: ${ariaLabel}`);
+  return element;
 }
 
 function flattenElements(node: ReactNode): TestElement[] {
@@ -260,10 +169,7 @@ function flattenElements(node: ReactNode): TestElement[] {
     const component = node.type as (props: TestElementProps) => ReactNode;
     return flattenElements(component(node.props));
   }
-  return [
-    node,
-    ...Children.toArray(node.props.children).flatMap((child) => flattenElements(child))
-  ];
+  return [node, ...Children.toArray(node.props.children).flatMap(flattenElements)];
 }
 
 function textContent(node: ReactNode): string {
@@ -276,11 +182,6 @@ function textContent(node: ReactNode): string {
   return Children.toArray(node.props.children).map(textContent).join('');
 }
 
-function tapEvent() {
-  return { stopPropagation: vi.fn() };
-}
-
-async function flushPromises() {
-  await Promise.resolve();
-  await Promise.resolve();
+function hasSvgSource(element: TestElement): boolean {
+  return typeof element.props.src === 'string' && element.props.src.endsWith('.svg');
 }

@@ -6,140 +6,159 @@ Miniapp 是用户产品系统，由 Miniapp Frontend 和 Miniapp Application Bac
 
 ## Dependency Rule
 
-Miniapp Frontend 只能调用 Miniapp Application Backend Service。Miniapp Application Backend Service 需要 Data、User 或 Payment 能力时，只能调用对应 Domain Service 的 REST API。
+Miniapp Frontend 只能调用 Miniapp Application Backend Service。Miniapp Application Backend
+Service 需要 Data、User 或 Payment 能力时，只能调用对应 Domain Service 的 REST API。
 
 ## Application Backend Service Owns
 
 - Miniapp 对外 API、认证入口和前端专用 DTO。
 - 多个 Domain Service 的产品编排。
 - Data API 错误、分页、时间和字段到 Miniapp contract 的转换。
+- “上海当日全部优先、当日没有则最新一份”的首页 Report 集合选择语义。
 - Miniapp 专用缓存和降级策略，但不拥有 Data 事实。
 
 ## Backend Implementation
 
-Miniapp Application Backend Service 是仓库内首个完整 Kratos v3 Application：
+Miniapp Application Backend Service 是完整 Kratos v3 Application：
 
 - `api/miniapp/v1` 保存 OpenAPI 3.0.4、wire DTO 和 HTTP 绑定；
 - `cmd/server` 显式构造依赖并运行 `kratos.App`；
 - `internal/service` 实现 Miniapp API；
-- `internal/biz` 承载 Research Use Case、业务校验和 `ResearchRepo` Port；
+- `internal/biz` 承载 Report Use Case、产品时间窗口和 `ReportRepo` Port；
 - `internal/data` 使用 Kratos HTTP Client 调用 Data Service；
 - `internal/server` 拥有 Kratos HTTP Server、Request ID、Recovery、错误 envelope、
   health/readiness 与 Swagger UI；
 - `internal/conf` 和 `configs` 承载本地/UAT 启动配置。
 
-Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发现、Wire 或
-远程配置中心。Miniapp binary dependency closure 不得包含 Gin。
+Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发现、Wire 或远程配置
+中心。Miniapp binary dependency closure 不得包含 Gin。
 
 ## Does Not Own
 
 - Data PostgreSQL、migration、repository、Neo4j 或 Data domain model。
-- Entity、Raw Document、Event、Research Theme、Theme Impact 和 Reason Tree 的事实数据。
+- Entity、Raw Evidence、Atomic Evidence、Event 或 Report 正式事实。
+- AgentOS 推理、报告转换、报告发布或运行状态。
 - Admin Portal contract。
 
 ## Product Language
 
-- **研究主题（Research Theme）**：Data Context 拥有的研究结果事实，是 Miniapp 首页主线内容的数据来源。
-- **今日主题**：上海时区当日 `00:00` 至次日 `00:00` 的已发布研究主题。
-- **历史主题**：今日之前 30 个完整上海自然日的已发布研究主题，不包含今日。
-- **主题卡片**：主题列表中呈现一条研究主题的界面单元，不拥有独立业务事实。
-- **主题跟踪**：用户选择持续关注某个研究主题的产品行为；“跟踪中”数量是当前用户已跟踪的主题数，不是 Research Theme 的事实属性。
-- **主题影响（Theme Impact）**：Theme 的有序关注对象集合，节点之间没有主次。
-  `analyst_snapshot` 使用 aggregate-local `node_key` 与 publication-time `display_name`。
-  首页按 Data 稳定顺序展示名称及由 `impact_direction`
-  机械映射的机会/风险/不确定判断，不展示 `relation_role`、`impact_summary` 或变量状态。
-- **影响路径页**：从首页 Theme 卡片进入的研究依据页。一个 Theme 页面可包含多棵 Reason
-  Tree；每棵 Tree 对应分析师命名的产业、宏观、估值或商业模式传导路径，页面统一通过
-  Tab 切换。
-- **产品可见主题**：按 Theme 查询合同处于发布窗口内的 Research Theme。新
-  publication 都原子包含 1..N 棵 Reason Tree；历史零 Tree Theme 仍可读，并由影响路径页
-  展示“影响路径暂未生成”。
+**首页 Report 集合**:
+首页本次会话展示的不可变 Data Report 集合。Miniapp Backend 在上海自然日当日有发布时选择
+当日全部 Report；当日没有发布时只回退到全部历史中最后发布的一份。每份 Report 独立分组，
+不得跨报告合并卡片、锚点、产业链或 Evidence。
+_Avoid_: 今日 Theme、只取当日最后一份、前端自行选择、跨 Report 聚合
 
-## Theme Homepage
+**今日推理**:
+首页 Report 集合的产品入口标题。它不承诺 Report 一定在当日生成；发生历史回退时继续展示
+该份 Report 的实际发布时间。
+_Avoid_: 今日主题、今日观潮、隐藏回退来源
 
-- 首页标题固定为“今日主题”；列表由 Miniapp BFF 以 `period=today` 查询，时间边界由
-  BFF 时钟统一计算并以 UTC 半开区间传给 Data API。
-- 右上角日历历史图标使用 `Taro.navigateTo` 打开非 Tab 历史页
-  `pages/research-theme/history/index`；历史页提供返回今日主题的明确图标操作。
-- 历史页以 `period=history&limit=5` 首次读取，触底时使用不透明 cursor 追加下一页；
-  cursor 冻结 period 和发布区间，页面展示加载中、续页失败可重试和全部加载完成状态。
-- 今日与历史页复用同一列表会话和呈现组件；搜索仅过滤已加载主题。按 theme_id
-  读取详情不受列表时间窗口限制。
-- 首页不展示没有真实用户数据合同的分类栏或“跟踪中”数量；Theme 搜索继续只在当前
-  feed 内生效。
-- 首页使用 Taro 页面级原生下拉刷新重新读取 Theme feed；刷新失败时保留最近一次成功
-  数据，并在所有结果路径结束原生刷新状态。
-- Theme 卡片的非零“政经事件”数量只打开当前页面内的关联事件底部面板；它不触发
-  Reason Tree 导航，零事件数量保持只读。
-- 关联事件面板按 Theme 详情 API 的稳定顺序纵向展示完整事件列表，每条只展示
-  `event_time`、`title` 和 `summary`；空时间显示“时间待确认”，不展示
-  `evidence_role`、`supported_claim`、来源、事件分类或额外详情入口。
-- Theme 详情按 `theme_id` 缓存在当前首页会话，feed 刷新成功后失效并重新读取当前已
-  打开的 Theme；旧请求晚到不得覆盖刷新后或新选中的 Theme。
-- 事件面板使用页面局部状态和基础 Taro 组件覆盖微信、抖音小程序；面板滚动与触控不得
-  传递到底层页面或触发页面下拉刷新。
+**Report 层投影**:
+每份 Report 持久化的地缘政治、宏观经济与产业链卡片，以及明确未发布的公司层边界。页面可按
+原型组织入口，但每张卡片始终保留所属 `report_id`，不得把不同 Report 伪装为同一推理结果。
+_Avoid_: 前端生成卡片、四份独立 Report、跨 Report 聚合
 
-## Reasoning Trees API
+**Report 卡片详情目标**:
+每张首页 Report 卡片随发布快照携带的结构化层或产业链目标。Miniapp 只把 `report_id`、目标类型
+和 Report-local Key 传入 Taro 非 Tab 详情页；锚点或节点的 Evidence 入口同样使用自身显式作用域。
+_Avoid_: 从标题解析路由、前端检索完整 Report JSON、Reason Tree ID
 
-- Miniapp Frontend 先调用 `GET /api/miniapp/v1/research/themes/{theme_id}/reasoning-trees` 获取 Theme 与全部 Reason Tree Tab 摘要。
-- Miniapp Frontend 在某个 Tab 首次选中时调用 `GET /api/miniapp/v1/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}` 获取单棵完整推理树。
-- Miniapp BFF 将两个请求分别一对一代理到对应 Data API，并映射成页面可直接渲染的 DTO。
-- BFF 成功响应直接使用 Data envelope 的 `result` 内容，不向小程序返回 Data `request_id/result` 外壳。
-- BFF 保留每棵树的单一 `events` 数组、Tree 摘要、节点和 Variable Signal 展示快照，不拼接、推断或重排研究语义。
-- 节点的可空 `incoming_graph_edge` 只投影正式拓扑边的 `id` 与 `relation_type`；审核、生命周期、
-  机制和条件不属于该投影。分析师快照的 `incoming_transmission_mechanism` 与
-  `incoming_condition_summary` 独立保留。
-- BFF 使用 `tree_key`、`node_key`、`signal_key` 与发布时 display snapshot；不读取或补造
-  已退役的 formal UUID。
-- BFF 不为一次请求扇出多个 Tree 查询，不访问 PostgreSQL/Neo4j，不补写或推断研究内容。
-- BFF 对 Theme 不存在、Theme 尚未发布推理树、Tree 不属于该 Theme 三种 `404` 状态分别返回 `RESEARCH_THEME_NOT_FOUND`、`RESEARCH_REASONING_TREES_NOT_FOUND`、`RESEARCH_REASONING_TREE_NOT_FOUND`；它们是 Miniapp 的稳定错误语义，不透传 Data 的 request ID 或错误外壳。
-- 现有 Theme 详情 API 保持不变。
-- 不提供旧 Research Anchor API、字段或兼容别名；Reason Tree 只作为 Theme 子资源读取。
+**产业链推理详情**:
+一条 Report-owned 产业链快照的独立详情页。图节点和边只来自该 Report；相同名称不证明
+存在正式 Data IndustryChain 或 ChainNode 关系。
+_Avoid_: Reason Tree、正式产业链动态查询、把无边节点串联
 
-## Reasoning Trees Frontend Route
+**相关 Evidence**:
+某一 Report 卡片、层、锚点、产业链或节点直接关联的 Atomic Evidence 产品投影。列表只展示发布时间、
+摘要和有序关键词，列表项保持 Report Evidence Reference 的显式 `display_order`；Evidence ID 只在
+Data 内部用于持久化关联与诊断，Miniapp BFF 不向 Frontend 透出。
+_Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence 正文、来源技术元数据
 
-- 影响路径页固定注册为 `pages/research-theme/reasoning-trees/index`。
-- 首页 Theme 卡片仅由“推导详情”按钮使用 `Taro.navigateTo` 跳转到
-  `/pages/research-theme/reasoning-trees/index?theme_id=<uuid>`；整张卡片、关注节点和
-  事件数量不触发该导航。
-- 页面是非 Tab 页面，不引入自定义路由器；推理树 V1 以微信和抖音小程序为目标平台，不实现或验收 H5 专属路由、刷新与深链行为。
-- `theme_id` 缺失或不是标准小写 UUID 时，页面展示参数错误且不得请求 BFF。
-- 页面数据访问必须经过独立 typed port 和 adapter，页面组件不得直接实现 HTTP 调用。
-- 页面打开后加载 Tab 摘要和排序后的第一棵树；其他 Tab 首次选中时才加载详情。
-- Tab 摘要可用后所有 Tab 立即允许切换；各 Tab 的详情请求与 loading、ready、error 状态相互独立，切换 Tab 不取消其他在途请求，也不允许较晚完成的请求覆盖当前选中项。
-- 已成功加载的单树按 `reasoning_tree_id` 缓存在当前页面会话，再次切换不重复请求；重新进入或刷新页面时重新加载。
-- 单个 Tab 详情加载失败时，仅该 Tab 内容区显示错误与重试操作；其他已加载缓存保持可用，页面不自动切换 Tab。
-- 单 Tab 重试只请求当前 `reasoning_tree_id` 的详情，不连带刷新列表或其他推理树。
-- Theme 不存在时，小程序展示“该研究主题暂不可用”；Theme 存在但推理树尚未发布时展示“影响路径暂未生成”。两种状态均提供返回操作，且不向用户暴露内部错误码。
-- 列表网络或服务故障展示可重试错误；推理树列表不存在合法空集合，因此不设计正常空态。
+## Home Report Selection
 
-## Reasoning Tree Page Presentation
+- Miniapp Backend 使用 `Asia/Shanghai` 计算当日 `[00:00, next 00:00)`，转为 UTC 后向 Data
+  Report 列表读取该范围内全部结果。
+- 当日查询非空时按 Data 的 `published_at DESC, id ASC` 权威顺序返回全部 Report；当日查询
+  为空时，Backend 立即查询全部历史的最新一份。
+- 首页每份 Report 独立投影自己的持久化卡片；详情和 Evidence 导航必须携带所属 `report_id`。
+- 当日读取不得用固定 `limit=1` 截断；若 Data 列表分页，Backend 必须完整消费当日分页或使用
+  Data 提供的有界首页集合合同，并对超出合同容量显式失败。
+- 历史回退查询按 Data 的
+  `published_at DESC, id ASC` 权威顺序。
+- 全部没有 Report 是正常产品空态，不生成占位 Report、不回退 mock、不读取数据库。
+- Report 已发布后不可变；Backend 不缓存或拼接研究语义，只把 Data 投影映射为 Miniapp DTO。
+- 首页刷新重新执行完整选择流程。刷新失败保留本会话最近一次成功内容，并显示可重试错误；
+  旧请求晚到不得覆盖更新后的 Report。
 
-- 页面视觉与交互唯一基准为 `prototype/theme-direct-impact-investment-outlook-prototype.html`；原型业务文本仅为样例，正式页面全部由 API 数据生成。
-- Reason Tree Tab 使用 Data 返回的 Tree `display_name`，直接展示分析师发布的路径名称。
-  切换 Tab 后滚动到新树内容顶部，只复用数据缓存，不保存每个 Tab 的历史阅读位置。
-- 原子事件按 BFF 稳定顺序全部展示，不折叠；每条显示标题、摘要和可用时间，不展示内部证据角色。
-- 当前支持与当前反证是 Tree 级结论性描述；无反证时保留卡片并显示“当前暂无明确反证”。
-- 推理路径使用横向 ScrollView 展示全部紧凑节点与箭头，默认选择最大 `position` 节点；
-  选择节点只更新下方单个详情面板。节点名称、变量名称和变量状态均直接使用发布时
-  display snapshot，不要求存在正式 Entity、VariableDefinition 或 VariableSignal。
-- 紧凑节点只展示节点序号、Data 返回的节点 `display_name`、primary Signal
-  `display_summary`、机会/风险/不确定判断和影响强度，不展示第二个 Signal、数据缺口或选择状态文案。
-- 节点详情展示节点序号/名称、机会/风险/不确定判断、影响强度、完整有序 `signals[]` 变量状态和节点 `impact_summary` 投资含义；不展示 Signal 内部角色。
-- 位置大于 1 时继续展示所选节点的真实 `incoming_*` 传导标题、机制和成立条件；首节点不展示或伪造传入关系。
-- 页面不展示“直接影响节点”“后续推导节点”“直接/间接”“信号入口”“路径节点”“结果节点”“变量信号”“推导依据”“数据缺口”或派生的节点路由标签。
-- “判断边界”只展示 `conclusion_boundary_summary`；“后续验证”按分析师顺序展示完整 `checkpoints[].summary`，不与 `invalidation_conditions` 按索引组合。
-- 所有已展示的研究文本自然换行并完整展示，不使用省略号截断；未展示的依据、缺口和
-  失效条件继续保留在现有合同中。只保留调用方实际提交的可选 Evidence 引用，不为展示
-  补造 formal lineage。
+## Report API
+
+- `GET /api/miniapp/v1/reports/home` 返回当日全部 Report 的首页卡片；当日为空时返回历史最新一份，
+  全部为空时返回明确空集合。
+- `GET /api/miniapp/v1/reports/{report_id}/layers/{layer_key}` 一对一读取
+  `geopolitics | macroeconomics` 上层详情。
+- `GET /api/miniapp/v1/reports/{report_id}/industry-chains/{chain_key}` 一对一读取单条产业链详情。
+- `GET /api/miniapp/v1/reports/{report_id}/evidences?scope_type=&scope_key=` 一对一读取相关 Evidence。
+- BFF 成功响应只返回 Miniapp DTO，不透传 Data `result/request_id` envelope、Data token、URL、
+  SQL 或内部错误。
+- Report、层、产业链或 Evidence scope 不存在时返回稳定 Miniapp 错误分类；网络/下游错误
+  保持显式可重试，不伪造空集合。
+- BFF 不扇出读取 Event、IndustryChain、ChainNode 或 Company，不补写或推断报告内容。
+
+## Frontend Routes And State
+
+- 首页保持 `pages/index/index` 和既有应用/底部 Tab 框架。
+- 推理详情注册为 `pages/report/detail/index`，query 为
+  `reportId + targetType=layer|industry_chain + targetKey`；`layer` 的 `targetKey` 只允许
+  `geopolitics | macroeconomics`。
+- Evidence 列表注册为 `pages/report/evidences/index`，query 为
+  `reportId + scopeType + scopeKey + title`。
+- 两页都是非 Tab 页面，使用官方 `Taro.navigateTo`/`navigateBack`，不引入自定义 Router；
+  query 输入不可信，缺失、重复或非法参数必须在请求前进入明确参数错误状态。
+- 首页、详情和 Evidence 页面分别拥有 `loading | ready | empty/not-found | error` 状态与重试；
+  route 参数变化或重新进入时，较早请求不得覆盖新状态。
+- 已成功读取的不可变详情可以在当前页面会话内按 Report/scope 缓存；重新进入页面重新读取。
+
+## Homepage Presentation
+
+- 首页标题固定为 `今日推理`，当日多份 Report 按 `published_at DESC, id ASC` 分组展示；每组
+  明确保留 Report 身份与实际发布时间。
+- 每份 Report 的地缘政治和宏观经济各展示且只展示一张持久化卡片，顺序为层结论、锚点、下游结论/锚点或
+  相关产业链；不同 Report 的卡片不得合并。
+- 每份 Report 的产业链卡片按自身 `display_order` 展示，每卡展示自己的结论和有序节点预览。
+- 企业 Tab 保持明确未发布空边界，不从 Company 事实生成卡片。
+- 状态同时显示中文文字与颜色，只允许 `升温 / 降温 / 分化 / 待验证`；锚点或节点每行名称
+  靠左，结果、置信度和时间窗口统一靠右并自然换行。
+- 卡片 Evidence 入口是带 `查看证据` 可访问名称的 icon-only 文档控件，不显示 ID 或数量。
+
+## Report Detail Presentation
+
+- 地缘政治和宏观详情从各自结论与锚点开始，展示报告拥有的为什么、向下传导、不确定性、
+  Evidence Gap、检查点和反转/停止条件；不引入报告之外的研究判断。
+- 传导目标保留层、锚点、产业链和链节点四种结构化引用；只有层与产业链目标可进入
+  v1 独立详情页，锚点与链节点目标仅展示，不生成无法加载的跳转。
+- 上层详情末尾列出该层在同一 Report 中显式关联的产业链名称与结果；上层页不嵌入
+  链节点或产业链推理图，选择产业链进入独立详情页。空关联是有效报告状态，不用全部
+  产业链填充。
+- 产业链详情先展示名称、一句话结论、结果、时间窗口和置信度；不在图前重复路径、状态或
+  已接受假设文案。
+- 图在一个横向 `ScrollView` 画布中布局全部节点，只绘制 Report 显式有向边；长边使用独立
+  正交通道和端口，不把没有边的相邻节点表现成关系。
+- 图节点和选中节点卡都展示结果、置信度、时间窗口及 `直接证据 / 推理假设 / 待验证`。
+  选中节点额外展示本次影响、传导逻辑，以及链级反证与 Gap、停止条件。
+
+## Evidence Presentation
+
+- Evidence 页面直接从 Report Evidence Reference 的显式顺序列表开始，不显示内部 scope
+  标题、来源类型、关系立场、Evidence ID 或技术边界说明。
+- 每项只展示 `published_at`、`summary` 和有序 `keywords`；空发布时间显示明确的时间待确认。
+- Keywords 使用有边框的蓝色轻量 chip；发布时间与摘要优先级更高。
+- 页面不按 `published_at` 重排；发布时间只是列表项属性，不添加装饰时间线点或连线。
 
 ## Frontend Mock Policy
 
-真实 API 尚未接入时，可以在 Miniapp Frontend 内保留仍被页面使用的 mock。mock 必须收敛到明确的 `mocks/` 或 `devdata/` 目录，并通过可替换 adapter 注入。未被页面、测试或开发场景引用的 mock、model、service 和 component 应删除。
-
-本次源码治理不把 Miniapp Frontend 接入真实 BFF；该行为变更单独实施。
-
-推理树前端与首页 Theme 列表共用构建期变量 `TARO_APP_RESEARCH_SOURCE`。`mock` 模式下两者都使用匹配的 Mock Adapter，`api` 模式下两者都调用真实 Miniapp BFF；不增加推理树专属开关，也不允许 API 失败后静默回退到 mock。TW-06 使用共享 fixture 验收页面状态，并实现 API Adapter 及合同测试；真实 Data、BFF 与小程序全链路验收留给 TW-08。
+真实 API 与开发 mock 必须实现同一 `ReportPort`。mock 只保留页面实际使用的固定 Report
+fixture，并收敛到 `mocks/reports/`；API 失败不得静默回退 mock。构建期来源开关使用
+`TARO_APP_REPORT_SOURCE=api|mock`，不保留旧领域命名的兼容变量。
 
 ## Runtime
 

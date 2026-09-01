@@ -55,11 +55,8 @@ const (
 	IndustryChainGraphEdge       Kind = "IGE"
 	OrganizationMembership       Kind = "OMB"
 	Source                       Kind = "SRC"
-	ResearchReasoningTreeReceipt Kind = "RRI"
-	ResearchReasoningTreeNode    Kind = "RRN"
-	ResearchReasoningTree        Kind = "RRT"
-	ResearchThemeReceipt         Kind = "RTI"
-	ResearchTheme                Kind = "RTH"
+	Report                       Kind = "RPT"
+	ReportEvidenceLink           Kind = "RPE"
 )
 
 var (
@@ -164,8 +161,7 @@ func registered(kind Kind) bool {
 		EventEvidenceLink, EventActorLink, EventAssetLink, Event, EventPublicationReceipt,
 		IndustryChainGraphEdge, OrganizationMembership,
 		Source,
-		ResearchReasoningTreeReceipt, ResearchReasoningTreeNode, ResearchReasoningTree,
-		ResearchThemeReceipt, ResearchTheme:
+		Report, ReportEvidenceLink:
 		return true
 	default:
 		return false

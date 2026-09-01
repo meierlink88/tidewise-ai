@@ -1,0 +1,337 @@
+{
+  "contract_version": "report-publication.v1",
+  "source_report_id": "agentos-report-2026-09-01-a",
+  "content": {
+    "report_type": "investment_reasoning",
+    "title": "每日推理报告",
+    "status": "published",
+    "simulation": false,
+    "generated_at": "2026-09-01T08:30:00+08:00",
+    "timezone": "Asia/Shanghai",
+    "published_layers": ["geopolitics", "macroeconomics", "industry_chain"],
+    "statistics": {
+      "event_count": 0,
+      "ordinary_fact_count": 0,
+      "signal_fact_count": 0,
+      "transmission_hypothesis_count": 0,
+      "remaining_topology_pending_count": 0,
+      "adaptive_inclusion_threshold": 0.6,
+      "adaptive_continuation_threshold": 0.5,
+      "adaptive_hard_max_hops": 0,
+      "adaptive_observed_max_hops": 0,
+      "adaptive_stopped_by_confidence": 0,
+      "adaptive_stopped_by_no_unvisited_neighbor": 0,
+      "adaptive_rejected_below_inclusion": 0,
+      "geopolitic_anchor_count": 1,
+      "macroeconomic_anchor_count": 1,
+      "signaled_chain_node_count": 0,
+      "industry_chain_count": 1,
+      "unmapped_chain_node_count": 0
+    },
+    "report_cards": [
+      {
+        "key": "geo-card",
+        "kind": "geopolitics",
+        "display_order": 1,
+        "detail_ref": {"type": "layer", "key": "geopolitics"},
+        "title": "地缘政治",
+        "subtitle": "推理层",
+        "conclusion": "地缘风险升温。",
+        "result": {"code": "warming", "label": "升温"},
+        "confidence": {"label": "高", "score": 0.88},
+        "time_window": "短期",
+        "impact_items": [
+          {
+            "ref": {"type": "anchor", "key": "geo-anchor"},
+            "name": "地缘锚点",
+            "result": {"code": "warming", "label": "升温"},
+            "confidence": {"label": "高", "score": 0.88},
+            "time_window": "短期"
+          }
+        ],
+        "evidence_refs": [
+          {"evidence_id": "EVD11111111-1111-4111-8111-111111111111", "role": "直接依据", "display_order": 1}
+        ]
+      },
+      {
+        "key": "macro-card",
+        "kind": "macroeconomics",
+        "display_order": 2,
+        "detail_ref": {"type": "layer", "key": "macroeconomics"},
+        "title": "宏观经济",
+        "subtitle": "推理层",
+        "conclusion": "宏观路径分化。",
+        "result": {"code": "diverging", "label": "分化"},
+        "confidence": {"label": "中", "score": 0.66},
+        "time_window": "中期",
+        "impact_items": [
+          {
+            "ref": {"type": "anchor", "key": "macro-anchor"},
+            "name": "宏观锚点",
+            "result": {"code": "diverging", "label": "分化"},
+            "confidence": {"label": "中", "score": 0.66},
+            "time_window": "中期"
+          }
+        ],
+        "evidence_refs": [
+          {"evidence_id": "EVD22222222-2222-4222-8222-222222222222", "role": "直接依据", "display_order": 1}
+        ]
+      },
+      {
+        "key": "chain-01-card",
+        "kind": "industry_chain",
+        "display_order": 3,
+        "detail_ref": {"type": "industry_chain", "key": "chain-01"},
+        "title": "产业链 01",
+        "subtitle": "产业链",
+        "conclusion": "产业链压力降温。",
+        "result": {"code": "cooling", "label": "降温"},
+        "confidence": {"label": "中", "score": 0.72},
+        "time_window": "长期",
+        "impact_items": [
+          {
+            "ref": {"type": "industry_chain_node", "key": "node-01"},
+            "name": "产业节点 01",
+            "result": {"code": "cooling", "label": "降温"},
+            "confidence": {"label": "中", "score": 0.72},
+            "time_window": "长期"
+          }
+        ],
+        "evidence_refs": [
+          {"evidence_id": "EVD11111111-1111-4111-8111-111111111111", "role": "直接依据", "display_order": 1}
+        ]
+      }
+    ],
+    "geopolitics": {
+      "key": "geopolitics",
+      "display_order": 1,
+      "title": "地缘政治",
+      "conclusion": "地缘风险升温。",
+      "result": {"code": "warming", "label": "升温"},
+      "confidence": {"label": "高", "score": 0.88},
+      "time_window": "短期",
+      "anchors": [
+        {
+          "key": "geo-anchor",
+          "display_order": 1,
+          "name": "地缘锚点",
+          "current_state": "风险抬升",
+          "result": {"code": "warming", "label": "升温"},
+          "nature": {"code": "direct_evidence", "label": "直接证据"},
+          "reasoning": "公开事实支持风险抬升。",
+          "time_window": "短期",
+          "confidence": {"label": "高", "score": 0.88},
+          "evidence_refs": [
+            {"evidence_id": "EVD11111111-1111-4111-8111-111111111111", "role": "直接依据", "display_order": 1}
+          ]
+        }
+      ],
+      "reasoning_steps": [
+        {
+          "key": "geo-step",
+          "display_order": 1,
+          "input": "地缘事实",
+          "mechanism": "风险传导",
+          "output": "风险溢价上升",
+          "type": "causal",
+          "confidence": {"label": "高", "score": 0.88},
+          "evidence_refs": [
+            {"evidence_id": "EVD11111111-1111-4111-8111-111111111111", "role": "直接依据", "display_order": 1}
+          ]
+        }
+      ],
+      "related_anchor_keys": ["geo-anchor"],
+      "related_chain_keys": ["chain-01"],
+      "downward_transmission": {
+        "summary": "风险向产业链传导。",
+        "published_paths": [
+          {
+            "key": "geo-path",
+            "display_order": 1,
+            "source_conclusion": "地缘风险升温。",
+            "target_refs": [
+              {
+                "ref": {"type": "industry_chain", "key": "chain-01"},
+                "label": "链级目标",
+                "result": {"code": "cooling", "label": "降温"}
+              },
+              {
+                "ref": {"type": "industry_chain_node", "key": "node-01"},
+                "label": "节点目标",
+                "result": {"code": "cooling", "label": "降温"}
+              }
+            ],
+            "logic": "风险影响供应。",
+            "relation_nature": "推理关系",
+            "evidence_role": "传导依据",
+            "confidence": {"label": "高", "score": 0.88},
+            "status": "published",
+            "evidence_refs": [
+              {"evidence_id": "EVD11111111-1111-4111-8111-111111111111", "role": "直接依据", "display_order": 1}
+            ]
+          }
+        ],
+        "candidate_mechanisms": [
+          {
+            "key": "geo-candidate",
+            "display_order": 1,
+            "mechanism": "替代路径待验证",
+            "evidence_gap": "缺少后续事实",
+            "confidence": {"label": "中", "score": 0.66},
+            "evidence_refs": [
+              {"evidence_id": "EVD22222222-2222-4222-8222-222222222222", "role": "直接依据", "display_order": 1}
+            ]
+          }
+        ],
+        "boundary_notes": []
+      },
+      "uncertainty": {
+        "counterevidence": null,
+        "evidence_gap": null,
+        "boundary": null,
+        "reversal_condition": null,
+        "checkpoints": []
+      },
+      "evidence_refs": [
+        {"evidence_id": "EVD22222222-2222-4222-8222-222222222222", "role": "直接依据", "display_order": 1}
+      ]
+    },
+    "macroeconomics": {
+      "key": "macroeconomics",
+      "display_order": 2,
+      "title": "宏观经济",
+      "conclusion": "宏观路径分化。",
+      "result": {"code": "diverging", "label": "分化"},
+      "confidence": {"label": "中", "score": 0.66},
+      "time_window": "中期",
+      "anchors": [
+        {
+          "key": "macro-anchor",
+          "display_order": 1,
+          "name": "宏观锚点",
+          "current_state": "路径分化",
+          "result": {"code": "diverging", "label": "分化"},
+          "nature": {"code": "reasoning_hypothesis", "label": "推理假设"},
+          "reasoning": "宏观路径仍然分化。",
+          "time_window": "中期",
+          "confidence": {"label": "中", "score": 0.66},
+          "evidence_refs": [
+            {"evidence_id": "EVD22222222-2222-4222-8222-222222222222", "role": "直接依据", "display_order": 1}
+          ]
+        }
+      ],
+      "reasoning_steps": [
+        {
+          "key": "macro-step",
+          "display_order": 1,
+          "input": "宏观事实",
+          "mechanism": "需求传导",
+          "output": "需求路径分化",
+          "type": "causal",
+          "confidence": {"label": "中", "score": 0.66},
+          "evidence_refs": [
+            {"evidence_id": "EVD22222222-2222-4222-8222-222222222222", "role": "直接依据", "display_order": 1}
+          ]
+        }
+      ],
+      "related_anchor_keys": ["macro-anchor"],
+      "related_chain_keys": ["chain-01"],
+      "downward_transmission": {
+        "summary": "宏观条件向产业链传导。",
+        "published_paths": [
+          {
+            "key": "macro-path",
+            "display_order": 1,
+            "source_conclusion": "宏观路径分化。",
+            "target_refs": [
+              {
+                "ref": {"type": "anchor", "key": "macro-anchor"},
+                "label": "宏观锚点",
+                "result": {"code": "diverging", "label": "分化"}
+              }
+            ],
+            "logic": "条件影响需求。",
+            "relation_nature": "推理关系",
+            "evidence_role": "传导依据",
+            "confidence": {"label": "中", "score": 0.66},
+            "status": "published",
+            "evidence_refs": [
+              {"evidence_id": "EVD22222222-2222-4222-8222-222222222222", "role": "直接依据", "display_order": 1}
+            ]
+          }
+        ],
+        "candidate_mechanisms": [
+          {
+            "key": "macro-candidate",
+            "display_order": 1,
+            "mechanism": "需求路径待验证",
+            "evidence_gap": null,
+            "confidence": {"label": "中", "score": 0.66},
+            "evidence_refs": [
+              {"evidence_id": "EVD11111111-1111-4111-8111-111111111111", "role": "直接依据", "display_order": 1}
+            ]
+          }
+        ],
+        "boundary_notes": []
+      },
+      "uncertainty": {
+        "counterevidence": null,
+        "evidence_gap": null,
+        "boundary": null,
+        "reversal_condition": null,
+        "checkpoints": []
+      },
+      "evidence_refs": [
+        {"evidence_id": "EVD11111111-1111-4111-8111-111111111111", "role": "直接依据", "display_order": 1}
+      ]
+    },
+    "industry_chains": [
+      {
+        "key": "chain-01",
+        "claim_key": "claim-01",
+        "display_order": 1,
+        "name": "产业链 01",
+        "conclusion": "产业链压力降温。",
+        "status": "published",
+        "result": {"code": "cooling", "label": "降温"},
+        "confidence": {"label": "中", "score": 0.72},
+        "time_window": "长期",
+        "path_summary": null,
+        "accepted_hypothesis_summary": null,
+        "evidence_refs": [
+          {"evidence_id": "EVD11111111-1111-4111-8111-111111111111", "role": "直接依据", "display_order": 1}
+        ],
+        "nodes": [
+          {
+            "key": "node-01",
+            "display_order": 1,
+            "name": "产业节点 01",
+            "impact": "供应压力缓解",
+            "result": {"code": "cooling", "label": "降温"},
+            "nature": {"code": "reasoning_hypothesis", "label": "推理假设"},
+            "reasoning": "供应条件改善。",
+            "time_window": "长期",
+            "confidence": {"label": "中", "score": 0.72},
+            "evidence_refs": [
+              {"evidence_id": "EVD11111111-1111-4111-8111-111111111111", "role": "节点依据一", "display_order": 1},
+              {"evidence_id": "EVD22222222-2222-4222-8222-222222222222", "role": "节点依据二", "display_order": 2}
+            ]
+          }
+        ],
+        "edges": [],
+        "uncertainty": {
+          "counterevidence_and_gap": null,
+          "stop_condition": null,
+          "checkpoints": []
+        }
+      }
+    ],
+    "company": {
+      "key": "company",
+      "display_order": 4,
+      "title": "公司",
+      "published": false,
+      "boundary": "本版本不发布公司层。"
+    }
+  }
+}

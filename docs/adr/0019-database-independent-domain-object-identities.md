@@ -4,6 +4,7 @@ date: 2026-08-15
 supersedes_in_part: 0016-tidewise-ai-2-object-schema-and-independent-region.md, 0017-independent-country-and-economy-retirement.md, 0018-independent-organization-and-alliance-retirement.md
 superseded_in_part_by: 0044-retire-legacy-industry-chain-tables.md
 superseded_in_part_by_2: 0045-retire-entity-identifiers-and-redirects.md
+superseded_in_part_by_3: 0052-replace-research-theme-with-report-publications.md
 ---
 
 # 数据库无关的领域对象身份
@@ -46,9 +47,7 @@ Data 各领域曾并存裸 UUID、`PREFIX_ + code`、固定短码和非 UUID 自
 `CRL` Country Region Link、
 `EVT` Event、`EEL` Event Evidence Link、`EAC` Event Actor Link、`EAS` Event Asset Link、
 `IGE` Industry Chain Graph Edge、
-`OMB` Organization Membership、`RRI` Research
-Reasoning Tree Import Receipt、`RRN` Research Reasoning Tree Node、`RRT` Research Reasoning Tree、
-`RTI` Research Theme Import Receipt、`RTH` Research Theme。
+`OMB` Organization Membership、`RPT` Report、`RPE` Report Evidence Link。
 
 ## 切换与回滚
 
@@ -109,3 +108,8 @@ Constraint 与 Industry Relationship Import Receipt，因此从当前注册表�
 Issue #334 通过 forward-only migration `000071` 退役 Entity External Identifier 与 Entity
 Redirect，因此从当前注册表删除 `EEI`。Entity Redirect 没有独立 ID kind；两者的历史
 migration 仍是不可改写的账本事实。
+
+Issue #367 通过 forward-only migration `000078` 物理退役 Research Theme 与 Reason Tree，
+因此从当前注册表删除 `RRI`、`RRN`、`RRT`、`RTI` 和 `RTH`，并新增 `RPT` Report 与 `RPE`
+Report Evidence Link。历史 migration 中的旧前缀继续作为
+不可改写的账本记录存在。

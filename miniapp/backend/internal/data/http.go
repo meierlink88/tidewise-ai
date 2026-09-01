@@ -17,14 +17,11 @@ import (
 
 	"github.com/go-kratos/kratos/v3/transport"
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
-
-	"github.com/meierlink88/tidewise-ai/miniapp/backend/internal/biz"
 )
 
 const (
 	RequestIDHeader      = "X-Request-ID"
 	DataAPIPrefix        = "/api/data/v1"
-	ResearchThemesPath   = DataAPIPrefix + "/research/themes"
 	maxResponseBodyBytes = 1 << 20
 	maxErrorCodeLength   = 100
 	maxReadAttempts      = 3
@@ -107,46 +104,6 @@ func (c *HTTPClient) Close() error {
 	return c.httpClient.Close()
 }
 
-func (c *HTTPClient) ListResearchThemes(ctx context.Context, query biz.ResearchListQuery) (biz.ResearchThemePage, error) {
-	var envelope responseEnvelope[wireResearchThemePage]
-	err := c.doJSON(ctx, http.MethodGet, researchListPath(ResearchThemesPath, query), nil, &envelope)
-	value, err := unwrapEnvelope(envelope, err)
-	if err != nil {
-		return biz.ResearchThemePage{}, mapThemeDataError(err)
-	}
-	return value.toBiz(), nil
-}
-
-func (c *HTTPClient) GetResearchTheme(ctx context.Context, id string) (biz.ResearchThemeDetail, error) {
-	var envelope responseEnvelope[wireResearchThemeDetail]
-	err := c.doJSON(ctx, http.MethodGet, researchDetailPath(ResearchThemesPath, id), nil, &envelope)
-	value, err := unwrapEnvelope(envelope, err)
-	if err != nil {
-		return biz.ResearchThemeDetail{}, mapThemeDataError(err)
-	}
-	return value.toBiz(), nil
-}
-
-func (c *HTTPClient) ListResearchThemeReasoningTrees(ctx context.Context, themeID string) (biz.ResearchReasoningTreeList, error) {
-	var envelope responseEnvelope[wireResearchReasoningTreeList]
-	err := c.doJSON(ctx, http.MethodGet, researchReasoningTreeListPath(themeID), nil, &envelope)
-	value, err := unwrapEnvelope(envelope, err)
-	if err != nil {
-		return biz.ResearchReasoningTreeList{}, mapReasoningTreeDataError(err)
-	}
-	return value.toBiz(), nil
-}
-
-func (c *HTTPClient) GetResearchThemeReasoningTree(ctx context.Context, themeID, reasoningTreeID string) (biz.ResearchReasoningTreeDetail, error) {
-	var envelope responseEnvelope[wireResearchReasoningTreeDetail]
-	err := c.doJSON(ctx, http.MethodGet, researchReasoningTreeDetailPath(themeID, reasoningTreeID), nil, &envelope)
-	value, err := unwrapEnvelope(envelope, err)
-	if err != nil {
-		return biz.ResearchReasoningTreeDetail{}, mapReasoningTreeDataError(err)
-	}
-	return value.toBiz(), nil
-}
-
 type responseEnvelope[T any] struct {
 	RequestID string `json:"request_id"`
 	Result    *T     `json:"result"`
@@ -161,45 +118,6 @@ func unwrapEnvelope[T any](envelope responseEnvelope[T], err error) (T, error) {
 		return zero, &Error{Kind: ErrorKindDecode}
 	}
 	return *envelope.Result, nil
-}
-
-func researchListPath(path string, query biz.ResearchListQuery) string {
-	values := url.Values{}
-	if query.WindowHours != 0 {
-		values.Set("window_hours", strconv.Itoa(query.WindowHours))
-	}
-	if query.PublishedFrom != nil {
-		values.Set("published_from", query.PublishedFrom.UTC().Format(time.RFC3339Nano))
-	}
-	if query.PublishedTo != nil {
-		values.Set("published_to", query.PublishedTo.UTC().Format(time.RFC3339Nano))
-	}
-	if query.Limit != 0 {
-		values.Set("limit", strconv.Itoa(query.Limit))
-	}
-	if query.Cursor != "" {
-		values.Set("cursor", query.Cursor)
-	}
-	return appendQuery(path, values)
-}
-
-func researchDetailPath(path string, id string) string {
-	return path + "/" + url.PathEscape(id)
-}
-
-func researchReasoningTreeListPath(themeID string) string {
-	return ResearchThemesPath + "/" + url.PathEscape(themeID) + "/reasoning-trees"
-}
-
-func researchReasoningTreeDetailPath(themeID, reasoningTreeID string) string {
-	return researchReasoningTreeListPath(themeID) + "/" + url.PathEscape(reasoningTreeID)
-}
-
-func appendQuery(path string, values url.Values) string {
-	if encoded := values.Encode(); encoded != "" {
-		return path + "?" + encoded
-	}
-	return path
 }
 
 type requestIDContextKey struct{}
@@ -253,6 +171,15 @@ func (c *HTTPClient) doJSON(ctx context.Context, method string, path string, req
 		}
 	}
 	return err
+}
+
+// GetJSON performs one authenticated, retry-bounded Data API read. Domain
+// adapters own the versioned path and strict response decoding.
+func (c *HTTPClient) GetJSON(ctx context.Context, path string, responseBody any) error {
+	if c == nil || c.httpClient == nil {
+		return &Error{Kind: ErrorKindConnection}
+	}
+	return c.doJSON(ctx, http.MethodGet, path, nil, responseBody)
 }
 
 func marshalRequest(body any) ([]byte, error) {

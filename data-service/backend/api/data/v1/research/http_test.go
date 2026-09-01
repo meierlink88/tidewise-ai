@@ -3,7 +3,7 @@ package research
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,94 +15,75 @@ import (
 )
 
 type httpStub struct {
-	graphRequest      *ResearchGraphSearchRequest
-	themeReadDeadline time.Time
+	graphRequest  *ResearchGraphSearchRequest
+	graphDeadline time.Time
 }
 
-func TestHTTPRegistersTheCompleteExistingResearchContract(t *testing.T) {
-	application := &httpStub{}
-	server := kratoshttp.NewServer()
-	RegisterHTTPServer(server, application)
-	routes := []struct {
-		method string
-		path   string
-		body   string
-	}{
-		{http.MethodPost, v1.APIPrefix + "/research-theme-imports", `{}`},
-		{http.MethodGet, v1.APIPrefix + "/research/themes", ""},
-		{http.MethodGet, v1.APIPrefix + "/research/themes/theme-id", ""},
-		{http.MethodGet, v1.APIPrefix + "/research/themes/theme-id/reasoning-trees", ""},
-		{http.MethodGet, v1.APIPrefix + "/research/themes/theme-id/reasoning-trees/tree-id", ""},
-		{http.MethodPost, v1.APIPrefix + "/research-graph:search", `{}`},
-	}
-	for _, route := range routes {
-		recorder := httptest.NewRecorder()
-		request := httptest.NewRequest(route.method, route.path, strings.NewReader(route.body))
-		server.ServeHTTP(recorder, request)
-		if recorder.Code == http.StatusNotFound {
-			t.Errorf("%s %s is not registered", route.method, route.path)
-		}
-	}
-}
-
-func (*httpStub) PublishResearchTheme(context.Context, *ResearchThemeImportRequest) (*v1.Response[ResearchThemeImportResult], error) {
-	return nil, nil
-}
-
-func (s *httpStub) ListResearchThemes(ctx context.Context, _ *ListResearchThemesRequest) (*v1.Response[ResearchThemePage], error) {
-	s.themeReadDeadline, _ = ctx.Deadline()
-	return &v1.Response[ResearchThemePage]{Status: v1.StatusOK}, nil
-}
-
-func (*httpStub) GetResearchTheme(context.Context, *GetResearchThemeRequest) (*v1.Response[ResearchThemeDetail], error) {
-	return nil, nil
-}
-
-func (*httpStub) ListResearchReasoningTrees(context.Context, *ReasoningTreeListRequest) (*v1.Response[ResearchReasoningTreeList], error) {
-	return nil, nil
-}
-
-func (*httpStub) GetResearchReasoningTree(context.Context, *ReasoningTreeDetailRequest) (*v1.Response[ResearchReasoningTreeDetail], error) {
-	return nil, nil
-}
-
-func (s *httpStub) SearchResearchGraph(_ context.Context, request *ResearchGraphSearchRequest) (*v1.Response[ResearchGraphSearchResult], error) {
+func (s *httpStub) SearchResearchGraph(ctx context.Context, request *ResearchGraphSearchRequest) (*v1.Response[ResearchGraphSearchResult], error) {
 	s.graphRequest = request
+	s.graphDeadline, _ = ctx.Deadline()
 	return &v1.Response[ResearchGraphSearchResult]{Status: v1.StatusOK, Result: ResearchGraphSearchResult{
-		ContractVersion: "research-graph-search.v2", AnalysisAsOf: request.AnalysisAsOf,
-		Entities: []ResearchGraphEntity{}, RelationDefinitions: []ResearchGraphRelationDefinition{},
-		EntityRelations: []ResearchGraphEntityRelation{}, IndustryChains: []ResearchGraphIndustryChain{},
+		ContractVersion:          "research-graph-search.v2",
+		AnalysisAsOf:             request.AnalysisAsOf,
+		Entities:                 []ResearchGraphEntity{},
+		RelationDefinitions:      []ResearchGraphRelationDefinition{},
+		EntityRelations:          []ResearchGraphEntityRelation{},
+		IndustryChains:           []ResearchGraphIndustryChain{},
 		IndustryChainMemberships: []ResearchGraphIndustryChainMembership{},
 		IndustryChainGraphEdges:  []ResearchGraphIndustryChainGraphEdge{},
 	}}, nil
 }
 
-func TestResearchThemeReadHTTPAppliesFiveSecondBudget(t *testing.T) {
+func TestHTTPRegistersOnlyResearchGraphContract(t *testing.T) {
+	application := &httpStub{}
+	server := kratoshttp.NewServer()
+	RegisterHTTPServer(server, application)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/research-graph:search", strings.NewReader(`{}`))
+	request.Header.Set("Content-Type", "application/json")
+	server.ServeHTTP(recorder, request)
+	if recorder.Code == http.StatusNotFound {
+		t.Fatal("Research Graph route is not registered")
+	}
+
+	for _, route := range []struct {
+		method string
+		path   string
+	}{
+		{http.MethodPost, v1.APIPrefix + "/research-theme-imports"},
+		{http.MethodGet, v1.APIPrefix + "/research/themes"},
+		{http.MethodGet, v1.APIPrefix + "/research/themes/theme-id"},
+		{http.MethodGet, v1.APIPrefix + "/research/themes/theme-id/reasoning-trees"},
+		{http.MethodGet, v1.APIPrefix + "/research/themes/theme-id/reasoning-trees/tree-id"},
+	} {
+		recorder := httptest.NewRecorder()
+		server.ServeHTTP(recorder, httptest.NewRequest(route.method, route.path, nil))
+		if recorder.Code != http.StatusNotFound {
+			t.Errorf("retired route %s %s returned %d, want 404", route.method, route.path, recorder.Code)
+		}
+	}
+}
+
+func TestResearchGraphHTTPBindsStrictRequestAndAppliesBudget(t *testing.T) {
+	valid := `{"analysis_as_of":"2026-07-30T00:00:00Z","seed_entity_ids":["11111111-1111-4111-8111-111111111111"],"relation_filters":[{"relation_type":"produces","direction":"outgoing"}],"max_depth":2,"node_budget":100,"edge_budget":200}`
 	application := &httpStub{}
 	server := kratoshttp.NewServer()
 	RegisterHTTPServer(server, application)
 	recorder := httptest.NewRecorder()
-	server.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, v1.APIPrefix+"/research/themes?window_hours=24&limit=20", nil))
-	remaining := time.Until(application.themeReadDeadline)
-	if recorder.Code != http.StatusOK || application.themeReadDeadline.IsZero() || remaining <= 0 || remaining > ReadExecutionBudget {
-		t.Fatalf("status=%d read deadline remaining=%s", recorder.Code, remaining)
+	request := httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/research-graph:search", strings.NewReader(valid))
+	request.Header.Set("Content-Type", "application/json")
+	server.ServeHTTP(recorder, request)
+	remaining := time.Until(application.graphDeadline)
+	if recorder.Code != http.StatusOK || application.graphRequest == nil || application.graphRequest.MaxDepth != 2 {
+		t.Fatalf("status=%d request=%#v body=%s", recorder.Code, application.graphRequest, recorder.Body.String())
+	}
+	if application.graphDeadline.IsZero() || remaining <= 0 || remaining > HeavyExecutionBudget {
+		t.Fatalf("graph deadline remaining=%s", remaining)
 	}
 }
 
-func TestResearchGraphHTTPBindsStrictRequestAndRejectsUnknownOrOversizedBodies(t *testing.T) {
-	valid := `{"analysis_as_of":"2026-07-30T00:00:00Z","seed_entity_ids":["11111111-1111-4111-8111-111111111111"],"relation_filters":[{"relation_type":"produces","direction":"outgoing"}],"max_depth":2,"node_budget":100,"edge_budget":200}`
-	t.Run("valid", func(t *testing.T) {
-		application := &httpStub{}
-		server := kratoshttp.NewServer()
-		RegisterHTTPServer(server, application)
-		recorder := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/research-graph:search", strings.NewReader(valid))
-		request.Header.Set("Content-Type", "application/json")
-		server.ServeHTTP(recorder, request)
-		if recorder.Code != http.StatusOK || application.graphRequest == nil || application.graphRequest.MaxDepth != 2 {
-			t.Fatalf("status=%d request=%#v body=%s", recorder.Code, application.graphRequest, recorder.Body.String())
-		}
-	})
+func TestResearchGraphHTTPRejectsUnknownOrOversizedBodies(t *testing.T) {
 	for _, test := range []struct {
 		name, payload string
 		want          int
@@ -111,124 +92,26 @@ func TestResearchGraphHTTPBindsStrictRequestAndRejectsUnknownOrOversizedBodies(t
 		{name: "oversized", payload: string(bytes.Repeat([]byte("x"), v1.MaxRequestBodySize+1)), want: http.StatusRequestEntityTooLarge},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			application := &httpStub{}
-			server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(publicErrorStatusEncoder(t)))
-			RegisterHTTPServer(server, application)
+			server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(publicErrorStatusEncoder))
+			RegisterHTTPServer(server, &httpStub{})
 			recorder := httptest.NewRecorder()
 			request := httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/research-graph:search", strings.NewReader(test.payload))
 			request.Header.Set("Content-Type", "application/json")
 			server.ServeHTTP(recorder, request)
-			if recorder.Code != test.want || application.graphRequest != nil {
-				t.Fatalf("status=%d request=%#v", recorder.Code, application.graphRequest)
+			if recorder.Code != test.want {
+				t.Fatalf("status=%d, want=%d body=%s", recorder.Code, test.want, recorder.Body.String())
 			}
 		})
 	}
 }
 
-func publicErrorStatusEncoder(t *testing.T) func(http.ResponseWriter, *http.Request, error) {
-	t.Helper()
-	return func(response http.ResponseWriter, _ *http.Request, err error) {
-		public, ok := err.(*v1.PublicError)
-		if !ok {
-			t.Fatalf("error = %T %v", err, err)
-		}
-		response.WriteHeader(public.Status)
+func publicErrorStatusEncoder(writer http.ResponseWriter, _ *http.Request, err error) {
+	var public *v1.PublicError
+	if errors.As(err, &public) {
+		writer.WriteHeader(public.Status)
+		return
 	}
+	writer.WriteHeader(http.StatusInternalServerError)
 }
 
-func TestResearchThemeBindingRejectsDuplicateAndUnknownFieldsWithPath(t *testing.T) {
-	for _, test := range []struct {
-		name    string
-		payload string
-		path    string
-	}{
-		{
-			name:    "duplicate nested field",
-			payload: `{"analysis_batch_id":"batch","analysis_as_of":"as-of","discovery_window_start":"start","discovery_window_end":"end","theme":{"theme_key":"theme-1","theme_key":"theme-2"},"reasoning_trees":[]}`,
-			path:    "theme.theme_key",
-		},
-		{
-			name:    "unknown nested field",
-			payload: `{"analysis_batch_id":"batch","analysis_as_of":"as-of","discovery_window_start":"start","discovery_window_end":"end","theme":{"theme_key":"theme-1","unexpected":true},"reasoning_trees":[]}`,
-			path:    "theme.unexpected",
-		},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			_, err := decodeResearchThemeImport([]byte(test.payload))
-			publicError, ok := err.(*v1.PublicError)
-			if !ok {
-				t.Fatalf("error = %T %v, want *v1.PublicError", err, err)
-			}
-			details, ok := publicError.Details.(map[string]any)
-			if !ok || details["path"] != test.path {
-				t.Fatalf("details = %#v, want path %q", publicError.Details, test.path)
-			}
-		})
-	}
-}
-
-func TestResearchThemeBindingAcceptsIsolatedAnalystSnapshotAndRejectsFormalIDs(t *testing.T) {
-	request := ResearchThemeImportRequest{
-		PublicationMode: "analyst_snapshot", AnalysisBatchID: "batch-snapshot",
-		AnalysisAsOf: "2026-08-03T11:00:00Z", DiscoveryWindowStart: "2026-08-03T03:00:00Z",
-		DiscoveryWindowEnd: "2026-08-03T07:00:00Z",
-		Theme: ResearchThemeSnapshotItem{
-			ThemeKey: "theme:snapshot", Title: "Theme", OneLineConclusion: "Conclusion",
-			ConclusionDirection: "uncertain", ImpactStrength: "unknown", TransmissionStage: "validation",
-			InvestmentGuidanceAction: "observe", InvestmentGuidanceSummary: "Observe",
-			TimeHorizonCategory: "medium_term",
-			Impacts:             []ResearchThemeSnapshotImpact{{NodeKey: "node:a", DisplayName: "Focus name", RelationRole: "driver", ImpactDirection: "uncertain", DisplayOrder: 1}},
-			Events:              []ResearchThemeSnapshotEvent{{EventID: "11111111-1111-4111-8111-111111111111", EvidenceRole: "driver"}},
-		},
-		ReasoningTrees: []ResearchReasoningTreeSnapshotImportItem{{
-			TreeKey: "tree:a", DisplayName: "Analysis path", Title: "Tree", DisplayOrder: 1,
-			OneLineConclusion: "Tree conclusion", ImpactDirection: "uncertain", ImpactStrength: "unknown",
-			InvalidationConditions: []string{}, Checkpoints: []ResearchReasoningTreeImportCheckpoint{},
-			Events: []ResearchReasoningTreeSnapshotEvent{{EventID: "11111111-1111-4111-8111-111111111111", EvidenceRole: "driver", DisplayOrder: 1}},
-			Nodes: []ResearchReasoningTreeSnapshotNode{{
-				NodeKey: "node:a", DisplayName: "Detailed node name", Position: 1,
-				ImpactDirection: "uncertain", ImpactStrength: "unknown",
-				Signals: []ResearchReasoningTreeSnapshotSignal{{SignalKey: "signal:a", DisplaySummary: "完成流片", Role: "primary", DisplayOrder: 1}},
-			}},
-		}},
-	}
-	payload, err := json.Marshal(request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	decoded, err := decodeResearchThemeImport(payload)
-	if err != nil || decoded == nil {
-		t.Fatalf("decode analyst_snapshot = %#v, %v", decoded, err)
-	}
-
-	formalID := `,"chain_node_id":"CND33333333-3333-4333-8333-333333333333"`
-	mixed := strings.Replace(string(payload), `"node_key":"node:a"`, `"node_key":"node:a"`+formalID, 1)
-	if _, err := decodeResearchThemeImport([]byte(mixed)); err == nil {
-		t.Fatal("analyst_snapshot carrying formal ontology ID was accepted")
-	}
-}
-
-func TestResearchThemeBindingRejectsRetiredFormalAggregateShape(t *testing.T) {
-	payload := `{
-		"analysis_batch_id":"batch","analysis_as_of":"2026-07-02T00:00:00Z",
-		"discovery_window_start":"2026-07-01T00:00:00Z","discovery_window_end":"2026-07-02T00:00:00Z",
-		"theme":{},"reasoning_trees":[{
-			"industry_chain_id":"ICH22222222-2222-4222-8222-222222222222",
-			"title":"tree","display_order":1,"one_line_conclusion":"conclusion",
-			"fact_summary":null,"transmission_summary":null,"impact_direction":"positive",
-			"impact_strength":"medium","impact_summary":null,"conclusion_boundary_summary":null,
-			"support_summary":null,"counter_summary":null,"invalidation_conditions":[],
-			"checkpoints":[],"events":[],"nodes":[{
-				"position":1,"chain_node_id":"CND33333333-3333-4333-8333-333333333333",
-				"state_summary":null,"impact_direction":"positive","impact_strength":"medium",
-				"impact_summary":null,"reasoning_basis_summary":null,"evidence_gap_summary":null,
-				"incoming_industry_chain_graph_edge_id":null,"incoming_transmission_title":null,
-				"incoming_transmission_mechanism":null,"incoming_condition_summary":null,
-				"incoming_lineage":null,"signals":[]
-			}]
-		}]
-	}`
-	if _, err := decodeResearchThemeImport([]byte(payload)); err == nil {
-		t.Fatal("retired formal Research aggregate was accepted")
-	}
-}
+var _ Service = (*httpStub)(nil)

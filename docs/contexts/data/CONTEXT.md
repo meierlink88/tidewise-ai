@@ -11,7 +11,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 - 完整 Raw Evidence、原子 Evidence、Evidence 阅读辅助 Keywords 及其确定性正式身份。
 - 正式 Event、Event 与 Atomic Evidence 的证据关联，以及 Event-owned Actor/Asset 关系快照。
 - 独立 Storyline 事实、三类蓝图锚点，以及 Storyline 与 Event 的当前关联事实。
-- Research Theme、Theme Impact、Reason Tree 及其关联数据。
+- 不可变 Report，以及 Report 到 Atomic Evidence 的直接关联。
 - PostgreSQL schema、migration 和 repository。
 - 采集/清洗执行方使用的 Raw Evidence 与 Evidence Publication API、自然身份收敛、
   正式身份响应和事务规则。
@@ -33,8 +33,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
   投影 Entity 的执行能力；这些 authoring 能力转移给 Tidewise Reason。
 - Neo4j、Qdrant、embedding Provider 的写入、同步、运行健康或生命周期管理。
 - Event Semantic 候选、租约、审核、Submission、Resolution 或 Variable Signal 能力与持久化。
-- Research formal publication/lineage 与 Research Analysis Context；Research 只保留
-  `analyst_snapshot` 发布、读取与无状态图检索。
+- AgentOS 的报告生成、Markdown 转换、推理正确性判断、发布调度或运行状态。
 
 ## Acquisition And Agent Boundary
 
@@ -46,6 +45,12 @@ Data 拥有 Source 配置与正式 Raw Evidence、Evidence 及发布合同；外
 或 workflow。一次性迁移文件由操作员发布，不构成运行时 import 或数据库依赖。
 外部 AgentOS 投影 Company 时同样只能读取 Data 版本化快照 API，不得直连
 Data PostgreSQL；Data 不拥有由 AgentOS 产生的行业或产业链模型推断。
+
+外部 AgentOS 发布 Report 时必须先把推理产物转换成 Data 版本化的固定报告包，再通过
+Report Publication API 同步发布。Data 不读取 AgentOS 文件、数据库或 Artifact，也不从
+Markdown、Event 或正式产业链事实补造报告内容。Report 内除 Atomic Evidence ID 外的全部
+展示事实都是 publication-time snapshot；Data 只验证固定结构、包内引用闭包、幂等和
+Evidence 存在性，不比较报告的分析窗口、知识截止时间或生成时间。
 
 Event 直接通过 `event_evidence_links` 引用 Data-owned Atomic Evidence；轻量
 `raw_documents`、`event_sources`、Event Tag 和旧 Event Publication 已退役。新 Event
@@ -389,135 +394,69 @@ _Avoid_: Event UUID、Import Idempotency Key、可覆盖的事件名称
 有效的 Event 进入下游读取；Data 不用发布时间、采集时间或首次发现时间补写该字段。
 _Avoid_: 覆盖 Event 核心事实、删除旧证据、用新 Receipt 表示新 Event
 
-**研究主题（Research Theme）**:
-一次完成分析侧校验并由授权发布主体提交的单 Theme Aggregate 内，对一组 Event 及其
-分析对象影响形成的不可变、可发布研究判断快照，包含一句话结论、传导路径和结论演进
-阶段。唯一当前发布模式 `analyst_snapshot` 的对象、变量和传导是分析师报告快照，
-不是本体事实。同一现实议题在不同 Aggregate 中生成不同 Research
-Theme；首页展示查询时间范围内全部成功发布的 Theme Aggregate，并按发布时间稳定分页。
-已发布内容的纠错必须由分析侧使用新的 `analysis_batch_id` 发布完整修正 Aggregate，旧 Aggregate 保留审计。本期不提供更新、删除或撤回 Theme/Aggregate 的 API。
-_Avoid_: 覆盖或删除历史 Theme、把 `theme_key` 当作跨 Aggregate 稳定身份、原地修订已发布 Aggregate
+**Report**:
+外部 AgentOS 一次推理完成后发布的不可变、完整产品报告快照，以
+`RPT + canonical lowercase UUID` 为稳定身份。Data 保存全部成功发布的 Report，不更新、
+覆盖、删除或按标题合并。AgentOS 提供全局唯一、重试稳定的 `source_report_id`；同 ID 同
+content hash 返回原 Report，同 ID 不同 hash 冲突，纠错必须使用新 ID 发布新 Report。
+_Avoid_: Research Theme、Reason Tree、长期主题身份、原地修订、只保存当前报告
 
-**聚合内主题键（Theme Key）**:
-分析侧为单个 Research Theme 提供的 Aggregate 内稳定键，与 `analysis_batch_id` 共同用于确定性 Theme 身份、回执映射和错误定位。合法键长度为 1 至 128，只允许小写 ASCII 字母、数字及 `.`、`_`、`:`、`-`，不接受服务端规范化。`theme:` 前缀推荐但不强制。它不跨 Aggregate 合并主题，也不等同于未来 Research Thesis 身份；新 Aggregate 即使复用同一 Theme Key，也产生不同 Research Theme。
-_Avoid_: 调用方提交 Theme UUID、把 Theme Key 当作长期主题身份
+**Report Publication Package**:
+`report-publication.v1` 固定结构包，原子提交一份 Report 的元数据、地缘政治层、宏观经济层、
+产业链集合、公司层未发布边界，以及各层的结论、锚点、推导、反证、Gap、停止条件、节点和
+显式有向边。所有有序集合携带连续 `display_order`，所有引用都在包内闭合；Data 只验证
+结构和引用，不从自由文本推断状态、关系或研究结论。
+_Avoid_: Markdown 上传、任意 JSON、按现有 Data 图谱补全报告、服务端报告转换器
 
-**长期研究命题（Research Thesis）**:
-未来用于跨批次持续跟踪同一研究议题或产业瓶颈的独立对象。Research Theme 不承担该职责。
+**Report Card**:
+AgentOS 在 Report 内显式发布的不可变首页值对象，保存卡片结论、影响项和详情目标；它与所引用
+层或产业链的展示快照一致，但不由 Data 或 Miniapp 读取时临时生成。两个固定上层各有一张卡片；
+产业链卡片是 AgentOS 从本 Report 全部产业链中显式选择的首页子集，不要求覆盖每条产业链。卡片 Evidence 是独立显式
+作用域，不继承层、锚点、产业链或节点 Evidence。
+_Avoid_: 查询时拼装卡片、要求每条产业链都上首页、硬编码首页产业链、跨 Report 卡片、子对象 Evidence 自动聚合
 
-**研究主题发布聚合（Research Theme Publication Aggregate）**:
-一次同步请求只发布一条 Theme 及其 1..N 棵完整 Reason Tree；二者是最小事务聚合，
-要么全部可见，要么全部回滚。一次 Codex 分析产生多个 Theme 时分别提交，彼此不共享
-事务。零 Theme 是 Codex 合法结果，不向 Data 提交占位对象。Data 按 `analyst_snapshot`
-校验 DTO、结构、来源引用和事务，只校验 local key 闭包、路径、正式 Event 及调用方可选提交的
-Evidence 归属。Data 不判断投研结论是否正确，也不把分析师快照晋升为正式本体事实。
-_Avoid_: Theme 先可见再补 Tree、独立 Tree 写入口、部分入库、零 Theme 占位
+**Report Target Reference**:
+Report 内从卡片、传导路径或影响项指向层、锚点、产业链或链节点的结构化引用，由 target type
+与 Report-local Key 共同定位。一个传导路径可以拥有多个目标及各自结果；读取方不得从名称、
+结论文案或 `CHN-xx` 字符串中解析导航目标。Miniapp v1 只把层与产业链引用作为独立详情
+页路由；锚点与链节点引用仍是有效传导目标，但不伪造独立页面跳转。
+_Avoid_: 展示文案路由、单目标覆盖多目标结果、正式图谱对象引用
 
-**主题聚合发布时间（Theme Aggregate Published At）**:
-一条完整 Research Theme Publication Aggregate 正式成为产品可见事实的服务端时间。Data 在该单 Theme 及其全部 Reason Tree 校验通过并提交事务时统一生成；失败发布不产生发布时间，幂等重放保留首次成功发布的时间。首页在调用方指定的查询时间范围内返回全部成功发布的 Aggregate，按 `published_at DESC, id ASC` 稳定排序并通过游标分页；范围内没有 Aggregate 时返回空集合。
-_Avoid_: 调用方指定发布时间、只返回范围内最新 Aggregate、重放时刷新发布时间
+**Report Result / Nature**:
+Report 显式发布的展示状态。Result 只允许 `warming | cooling | diverging | pending`，Nature
+只允许 `direct_evidence | reasoning_hypothesis | pending_validation`；机器 code 与中文 label
+一起保存，Data 不从文案、颜色、置信度或 Evidence 是否存在推断。
+_Avoid_: Event 状态、Signal、仅颜色状态、自由文本枚举
 
-**分析批次身份（Analysis Batch ID）**:
-工程外部 Codex 为一条 Theme Publication Aggregate 提供的稳定、不可变发布身份，仅承担
-幂等和审计关联，不表示 Data 拥有 Codex Run 或任务。同一 Analysis Batch ID 和相同
-canonical 聚合属于幂等重放；同一身份对应不同内容返回冲突。校验失败不占用该身份；
-新结论必须使用新身份创建新 Theme，不更新旧 Theme。
-_Avoid_: 第二套幂等键、覆盖已发布批次、失败校验生成成功 receipt
+**Report-local Key**:
+持久化 Report Card、锚点、推导路径、产业链、节点和边在单个 Report 内使用的稳定键，只用于
+包内闭包、查询范围和展示定位，不证明同名 Data Object 存在，也不承担跨 Report 身份。同一
+Report、同一 scope type 下 key 唯一；key 使用 lowercase ASCII 字母、数字、点、下划线与连字符，
+结构化 `target_refs` 承担目标定位；只有存在 v1 详情页的层与产业链目标承担页面跳转，
+不解析展示文案。
+_Avoid_: IndustryChain ID、ChainNode ID、Event ID、跨报告自动合并
 
-**分析窗口（Analysis Window）**:
-一条 Theme Aggregate 实际查询 Event 的知识可得时间范围，由
-`discovery_window_start`（含）和 `discovery_window_end`（不含）表达，并固定
-`analysis_as_of`。三者使用 UTC，结束时间必须晚于开始时间且不得晚于
-`analysis_as_of`；它们与服务端发布时间相互独立。
-_Avoid_: 零长度窗口、为 Tree 另设窗口、用发布时间替代分析窗口
+**Report Evidence Reference**:
+Report 对既有 Atomic Evidence 的直接、带作用域引用。每项只发布 canonical `EVD` ID、role
+和展示顺序；Data 以独立 `RPE` 关系保存并 restrictive 引用 `evidences.id`。它不经 Event 或
+Event Evidence Link，不复制 Evidence 内容，也不允许 `EVT` 或 `EEL` 身份。scope 支持
+`report_card`、层、锚点、推导步骤、传导路径、候选机制、产业链和链节点；JSON refs 与关系行
+逐项一致，不自动把子对象 Evidence 聚合到卡片、层或产业链。
+_Avoid_: Report Event、Evidence 正文副本、Event-to-Evidence 动态展开、跨域 Evidence 推断
 
-**研究主题发布主体（Research Theme Publisher Subject）**:
-Data 内唯一内部 service token 对应的稳定 trust-domain 身份，由 Data 从认证上下文解析，不由请求声明。首次成功发布时该主体取得 Aggregate 所有权；后续幂等重放必须来自同一 trust-domain 主体。主体身份独立于可轮换 token，审计只保存主体 ID，不保存凭据。本期不以调用方服务区分 Theme 所有权，所有持有 Data service token 的受信内部消费者处于同一发布信任域。
-_Avoid_: 在请求体中声明发布者、以 token 字符串作为长期身份、把同一 trust-domain 内的消费者伪装成独立鉴权主体
+**Report Publication Replay**:
+Data 对 `contract_version + canonical content` 计算 lowercase SHA-256，并以唯一
+`source_report_id` 作为安全发布重试键。首次成功时 Report 与全部 Evidence 关系在同一事务提交，
+由 Data 统一产生 `published_at`；重放不刷新该时间。不创建 Receipt 表，认证主体只进入请求审计。
+_Avoid_: 独立 publication key、Receipt、请求 ID 作为幂等键、失败占位、调用方提交 Report ID
 
-**Theme 发布未知结果恢复（Theme Publication Unknown-outcome Recovery）**:
-同步 Theme 发布请求超时后，发布器以完全相同的 Analysis Batch ID 和发布内容重试 POST。首次事务已成功时返回原结果并标记重放，未成功时正常执行，内容变化时返回冲突。本期不提供状态查询、轮询或异步任务接口。
-
-**Theme 发布回执（Theme Publication Receipt）**:
-一个成功 Theme Aggregate 的不可变技术回执，持久化 Analysis Batch ID、发布主体、
-payload hash、唯一 Theme ID、publication contract/mode、Tree identity 到 Tree ID 的映射、
-首次发布时间及整棵聚合的写入计数。`analyst_snapshot` 使用 aggregate-local `tree_key`
-映射。Theme、全部 Trees、来源关联和
-两类既有回执在同一事务内提交。
-首次成功返回 `201 + replayed:false`，相同主体和载荷重放返回
-`200 + replayed:true`；重放不得刷新结果。
-_Avoid_: 在单条 Theme 上设置批次 ID 唯一约束、业务数据失败后保留回执、修改成功回执
-
-**Theme 发布载荷哈希（Theme Publication Payload Hash）**:
-对完整 Theme 发布请求体按 RFC 8785 规范化后计算的小写十六进制 SHA-256，用于批次幂等重放和内容冲突检测。哈希只覆盖调用方提交的批次身份、分析窗口和 Theme 内容，不包含认证信息、请求 ID、服务端发布时间或响应字段；由 Data 计算并返回，调用方不提交。
-`analyst_snapshot` 计算前仅将无展示顺序的 `Theme.events` 按 `event_id` 规范化；
-其余数组顺序仍属于载荷内容。
-
-**Theme 发布规范数组顺序（Theme Publication Canonical Array Order）**:
-Theme 发布请求只有一个 `theme`。`analyst_snapshot` 除 `Theme.events` 外的数组均使用合同
-规定的唯一稳定顺序。`Theme.events` 是无展示顺序的唯一关联集合，调用方数组顺序不
-构成发布门禁；Data 只在计算 hash 的副本中按 `event_id` 规范化，不改变请求、持久化或
-Tree Event 展示顺序。UUID 必须使用标准小写字符串，同一作用域不得重复键或 ID。
-_Avoid_: 大小写混合 UUID、重复关联、重排有展示语义的数组、将 V3 Theme Event 的 caller 顺序误作校验门禁
-
-**Theme Aggregate Analyst Snapshot 发布 V3（Theme Aggregate Analyst Snapshot Publication V3）**:
-`POST /api/data/v1/research-theme-imports` 顶层以
-`publication_mode=analyst_snapshot` 明确判别。它发布分析师拥有的不可变报告快照：Theme
-Impact、Tree、Node 和 Signal 使用 aggregate-local key 与 publication-time display snapshot，
-不提交也不依赖 Entity、IndustryChain、Variable Definition、Variable Signal、Direct Impact、
-Relation 或 GraphEdge formal ID。每个 Theme 与每棵 Tree 至少关联一个正式 Event；
-Evidence ID 可选，提供时才校验存在且属于所声明 Event。JSON/schema 错误返回 `400`，
-local-key closure、路径、Event/Evidence 等业务结构或引用错误返回 `422`。
-_Avoid_: 根据 formal ID 是否存在猜测分支、将本体覆盖作为发布门禁、从 display 文案反推
-formal identity、发布时晋升本体事实
-
-**主题影响（Theme Impact）**:
-Research Theme 的不可变关注对象快照，保存角色、方向、可空摘要和稳定展示顺序。所有
-Impact 平等，不存在 subject、primary 或主要影响节点；一个 Theme 至少有一个 Impact。
-`analyst_snapshot` Impact 使用 aggregate-local
-`node_key + display_name`，只要求该 key 在至少一棵 Tree 中被覆盖。Theme 卡片短名称与
-Tree Node 具体名称是独立 presentation snapshot，Data 不比较二者文案。
-_Avoid_: `is_primary`、把展示顺序解释为影响优先级、要求 V3 分析对象先成为正式 Entity
-
-**产品可见 Theme（Product-visible Research Theme）**:
-属于一次成功 Theme Aggregate 事务且满足读取窗口的 Theme。新 `analyst_snapshot` Theme
-必然同时拥有至少一棵完整 Tree。退役的 formal 历史行由 retirement migration 删除，
-不转换为 snapshot。
-_Avoid_: 新 Theme 无 Tree 可见、读取时动态补写 Tree
-
-**推理树（Reason Tree）**:
-一个 Theme 的不可变线性推导链路。`analyst_snapshot` Tree 使用 aggregate-local
-`tree_key + display_name`，display name 可以是产业链、宏观、估值或商业模式传导路径，
-不要求正式 Industry Chain。它可以解释一个或多个 Theme Impact，也可以包含
-只承担传导上下文的节点。Tree 没有中心节点或主要影响节点。
-_Avoid_: Research Anchor、中心节点、任意图、分叉、循环、用 Tree `display_order`
-表达影响优先级
-
-**Reason Tree 发布集合（Reason Tree Publication Set）**:
-Reason Trees 只能通过 `POST /api/data/v1/research-theme-imports` 随所属 Theme
-Aggregate 同步发布，不存在独立写入口。请求至少包含一棵 Tree，全部 Tree 与 Theme
-共同使用 `analysis_batch_id` 幂等身份和同一事务。
-_Avoid_: `research-reasoning-tree-imports` 写入口、先 Theme 后 Tree、第二套幂等键
-
-**Reason Tree 身份与回执（Reason Tree Identity and Receipt）**:
-`analyst_snapshot` Tree 身份由 `theme_id + NUL + tree_key` 确定性生成。每个 Theme
-最多一条 Tree 集合回执，保存发布主体、payload hash、Tree identity 映射、
-写入计数和首次发布时间；回执与全部 Tree 子记录同事务提交。
-_Avoid_: 调用方提交 Tree ID、原地覆盖、每棵 Tree 单独回执
-
-**Reason Tree 节点（Reason Tree Node）**:
-Tree 的有序分析对象快照。`position` 从 1 连续排列并且是唯一路径顺序；一个节点在
-Tree 内唯一。`analyst_snapshot` Node 使用 Tree-local `node_key + display_name`，不要求正式
-Entity、ChainNode 或 membership。首节点全部 `incoming_*` 为空；后续节点必须保存传导机制，
-允许标题和成立条件为空。
-_Avoid_: 持久化结果节点标记、首节点伪造入边、从 Tree 回写正式图谱
-
-**Variable Signal 展示快照（Variable Signal Display Snapshot）**:
-每个 Tree 节点拥有 1..5 个按 `display_order` 排列的不可变显示快照，恰好一个
-`primary`。`analyst_snapshot` Signal 使用 Node-local `signal_key` 和必填 `display_summary`，变量名与
-方向可空，不提交或依赖正式 Variable/Signal/Lineage ID。读取时只返回发布时显示快照，
-不用当前正式事实动态重写文案。
-_Avoid_: 从显示文本反推正式事实、Inference 伪造 Signal ID、要求 V3 Signal 绑定本体
+**Report Read Projection**:
+Data 按 `published_at DESC, id ASC` 稳定列出全部 Report，并按 Report-local layer、chain 和
+Evidence scope 返回固定投影。Evidence 投影可级联 `report_evidence_links → evidences →
+raw_evidences`，项目顺序严格使用 Report 发布的 `display_order`，每项只返回发布时间、摘要和有序关键词；
+其它投影只读取 Report 自有 snapshot，
+不关联 Event、IndustryChain、ChainNode、Company 或其它领域。
+_Avoid_: Data 决定“今日报告”、动态重算报告、按 Evidence 时间重排发布顺序、跨领域拼装、Evidence ID 产品展示
 
 **Object Schema**:
 Data Service 工程 `doctype/` 中每个 Object Type 独立维护的 OpenSPG Schema Mark
@@ -628,42 +567,8 @@ node/edge budget；Data 只校验引用和预算，并从 PostgreSQL 返回稳�
 Industry Chain Graph Edge，全局 EntityRelation 仍完全由显式 Relation filter 控制。
 第一版不分页；预算超限整次返回结构化 `429`，不静默截断。Data Adapter 固定从
 PostgreSQL 正式事实构造结果，不切换为 Data-owned Neo4j 投影。
-_Avoid_: Data 自动选择 seed/主产业链/最佳路径、Theme readiness 或投资方向判断、
+_Avoid_: Data 自动选择 seed/主产业链/最佳路径、Report 排名或投资方向判断、
 Codex 直连 PostgreSQL/Neo4j、把页级引用闭包当完整研究图谱、未声明的部分子图
-
-**Reason Tree Event 关联（Reason Tree Event Association）**:
-Tree 从父 Theme Event 集合选择正式 Event，并保存角色与稳定展示顺序；不复制 Event
-正文或证据摘要。Theme Event 与 Tree Event 都只接受
-`confirmed + verified` 的正式 Event 事实。`analyst_snapshot` 每棵 Tree 至少关联一个正式
-Event，Evidence IDs 可选并仅在提供时
-校验归属。V3 Theme Event 是无展示顺序的唯一集合，caller 顺序不构成发布门禁，canonical
-hash 按 `event_id` 规范化；Tree Event 仍使用显式 `display_order`。仅在 Theme Event 集合中
-出现不能替代 Tree 自身的来源关联。
-_Avoid_: Tree 扩展父 Theme Event 边界、遗漏所用事实的来源 Event、要求特定角色组合、
-复制 Event 文本
-
-**Reason Tree 读取边界（Reason Tree Read Boundary）**:
-列表使用 `GET /api/data/v1/research/themes/{theme_id}/reasoning-trees`，详情使用
-`GET /api/data/v1/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}`。
-Theme 缺失、无 Tree 回执、Tree 缺失分别返回稳定 `404`；回执存在但投影无法完整
-重建返回 `500 RESEARCH_REASONING_TREE_INVARIANT_VIOLATION`。读取按服务端顺序返回
-Theme Impact identity；消费者通过 aggregate-local `node_key` 相交判断节点是否为
-Theme Impact。
-_Avoid_: `anchor_id`、独立 Anchor API、`is_theme_impact`、BFF 扇出查询
-
-**Theme 与 Tree 摘要（Theme and Tree Summaries）**:
-Theme 与 Tree 都可保存 `transmission_summary` 和检查点信息，但作用域不同：
-Theme 概括整体投资结论，可综合多棵 Tree；Tree 只解释一条 Industry Chain 路径。
-Data 原样承接分析师内容，不复制、拼接或执行研究质量校验。
-
-**推理树合同验证（Reasoning Tree Contract Verification）**:
-Data OpenAPI、稳定 wire DTO、错误码和 Data contract test 拥有 provider 合同；消费者使用
-自己的 typed Adapter、OpenAPI drift test 和必要 HTTP smoke 验证消费。应用内 mock 只属于
-该应用，不是 Data 合同或生产数据来源；真实 Theme/Tree 只能经发布 API 入库。
-
-**传导阶段（Transmission Stage）**:
-Research Theme 的分析阶段，仅允许 `identification`、`validation`、`diffusion`
-和 `dampening`。它与可空 `conclusion_status` 是不同维度，Data 不根据其他字段推断。
 
 ## Source Ownership
 

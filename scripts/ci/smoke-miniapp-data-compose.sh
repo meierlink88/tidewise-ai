@@ -13,6 +13,8 @@ export DATA_SERVICE_PORT="${TIDEWISE_SMOKE_DATA_PORT:-19011}"
 export MINIAPP_SERVICE_PORT="${TIDEWISE_SMOKE_MINIAPP_PORT:-19012}"
 export DATA_SERVICE_IMAGE="tidewise-data:ci"
 export MINIAPP_SERVICE_IMAGE="tidewise-miniapp:ci"
+export DATA_SERVICE_CONTAINER_NAME="${project_name}-data"
+export MINIAPP_SERVICE_CONTAINER_NAME="${project_name}-miniapp"
 export TIDEWISW_DB_PASSWORD="tidewise-compose-smoke-password"
 export TIDEWISE_DB_HOST="$postgres_fixture"
 export DATA_SERVICE_TOKEN="compose-smoke-data-service-token"
@@ -59,9 +61,81 @@ fi
 "${compose[@]}" up -d --wait --no-build --no-deps data
 "${compose[@]}" up -d --wait --no-build --no-deps miniapp
 
-curl --fail --silent --show-error \
-  "http://127.0.0.1:${MINIAPP_SERVICE_PORT}/api/miniapp/v1/research/themes" \
-  >/dev/null
+data_api="http://127.0.0.1:${DATA_SERVICE_PORT}/api/data/v1"
+miniapp_api="http://127.0.0.1:${MINIAPP_SERVICE_PORT}/api/miniapp/v1"
+auth_header="Authorization: Bearer ${DATA_SERVICE_TOKEN}"
+
+echo "Publishing smoke Raw Evidence fixture"
+if ! raw_response="$(
+  jq --arg publication_key "report-smoke-${run_suffix}" '
+    .raw_evidence.publication_key = $publication_key
+  ' "$repo_root/data-service/backend/api/data/v1/evidence/testdata/raw-evidence-publication.json" | \
+    curl --fail-with-body --silent --show-error \
+      -H "$auth_header" -H 'Content-Type: application/json' \
+      --data-binary @- "$data_api/raw-evidence-publications"
+)"; then
+  echo "Raw Evidence fixture publication failed" >&2
+  printf '%s\n' "$raw_response" >&2
+  exit 1
+fi
+raw_evidence_id="$(jq -er '.result.id' <<<"$raw_response")"
+
+echo "Publishing smoke Atomic Evidence fixture"
+evidence_response="$(
+  jq --arg raw_evidence_id "$raw_evidence_id" '.raw_evidence_id = $raw_evidence_id' \
+    "$repo_root/data-service/backend/api/data/v1/evidence/testdata/evidence-publication.json" | \
+    curl --fail-with-body --silent --show-error \
+      -H "$auth_header" -H 'Content-Type: application/json' \
+      --data-binary @- "$data_api/evidence-publications"
+)"
+evidence_one="$(jq -er '.result.items | map(select(.input_index == 0)) | .[0].id' <<<"$evidence_response")"
+evidence_two="$(jq -er '.result.items | map(select(.input_index == 1)) | .[0].id' <<<"$evidence_response")"
+
+echo "Publishing smoke Report fixture"
+report_response="$(
+  jq --arg evidence_one "$evidence_one" --arg evidence_two "$evidence_two" \
+    --arg source_report_id "report-smoke-${run_suffix}" '
+      .source_report_id = $source_report_id
+      | walk(
+          if type == "object" and has("evidence_id") then
+            .evidence_id = (
+              if .evidence_id == "EVD11111111-1111-4111-8111-111111111111"
+              then $evidence_one else $evidence_two end
+            )
+          else . end
+        )
+    ' "$repo_root/data-service/backend/api/data/v1/report/testdata/report-publication.v1.json" | \
+    curl --fail-with-body --silent --show-error \
+      -H "$auth_header" -H 'Content-Type: application/json' \
+      --data-binary @- "$data_api/report-publications"
+)"
+report_id="$(jq -er '.result.report_id' <<<"$report_response")"
+
+echo "Reading smoke Miniapp Report homepage"
+home_response="$(curl --fail --silent --show-error "$miniapp_api/reports/home")"
+jq -e --arg report_id "$report_id" '
+  .result.selection.timezone == "Asia/Shanghai"
+  and (.result.reports | length == 1)
+  and .result.reports[0].report.id == $report_id
+  and (.result.reports[0].cards | length == 3)
+' <<<"$home_response" >/dev/null
+
+layer_response="$(curl --fail --silent --show-error "$miniapp_api/reports/$report_id/layers/geopolitics")"
+jq -e --arg report_id "$report_id" '
+  .result.report.id == $report_id
+  and .result.layer.key == "geopolitics"
+  and (.result.related_industry_chains | length == 1)
+' <<<"$layer_response" >/dev/null
+
+evidence_list_response="$(curl --fail --silent --show-error \
+  "$miniapp_api/reports/$report_id/evidences?scope_type=report_card&scope_key=geo-card")"
+jq -e '
+  .result.scope == {type: "report_card", key: "geo-card"}
+  and (.result.items | length == 1)
+  and (.result.items[0].summary | length > 0)
+  and (.result.items[0] | has("evidence_id") | not)
+' <<<"$evidence_list_response" >/dev/null
+
 curl --fail --silent --show-error \
   "http://127.0.0.1:${MINIAPP_SERVICE_PORT}/docs/" \
   >/dev/null
@@ -71,14 +145,14 @@ failure_status="$(
   curl --silent --show-error \
     --output "$failure_body" \
     --write-out "%{http_code}" \
-    "http://127.0.0.1:${MINIAPP_SERVICE_PORT}/api/miniapp/v1/research/themes/11111111-1111-4111-8111-111111111111/reasoning-trees"
+    "http://127.0.0.1:${MINIAPP_SERVICE_PORT}/api/miniapp/v1/reports/home"
 )"
-if [[ "$failure_status" != "502" ]]; then
-  echo "Miniapp returned ${failure_status}, want 502 while Data Service is unavailable" >&2
+if [[ "$failure_status" != "503" ]]; then
+  echo "Miniapp returned ${failure_status}, want 503 while Data Service is unavailable" >&2
   sed -n '1,20p' "$failure_body" >&2
   exit 1
 fi
-if ! grep -Fq '"code":"RESEARCH_DATA_UNAVAILABLE"' "$failure_body"; then
+if ! grep -Fq '"code":"REPORT_SERVICE_UNAVAILABLE"' "$failure_body"; then
   echo "Miniapp did not return the stable Data-unavailable error code" >&2
   sed -n '1,20p' "$failure_body" >&2
   exit 1

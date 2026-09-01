@@ -1,32 +1,21 @@
 import Taro from '@tarojs/taro';
 import { Button, Image, Input, View } from '@tarojs/components';
 import type { HomeChromeMetrics } from '../../../platform/system-ui';
-import type { ResearchThemePeriod } from '../../../features/research-themes/contract';
 import avatarImage from '../../../assets/nav-avatar.png';
-import themeHistoryIcon from '../../../assets/icons/theme-history.svg';
-import todayThemeIcon from '../../../assets/icons/today-theme.svg';
 import searchIcon from '../../../assets/icons/search.svg';
 import sendIcon from '../../../assets/icons/send.svg';
 
 interface HomeHeaderProps {
   chrome: HomeChromeMetrics;
   query: string;
-  period: ResearchThemePeriod;
   onQueryChange: (query: string) => void;
-  onPeriodAction: () => void;
 }
 
 function showUnavailable(title: string) {
   void Taro.showToast({ title, icon: 'none', duration: 1600 });
 }
 
-export function HomeHeader({
-  chrome,
-  query,
-  period,
-  onQueryChange,
-  onPeriodAction
-}: HomeHeaderProps) {
+export function HomeHeader({ chrome, query, onQueryChange }: HomeHeaderProps) {
   return (
     <View className='home-hero'>
       <View style={{ height: `${chrome.statusBarHeight}px` }} />
@@ -67,18 +56,6 @@ export function HomeHeader({
             <Image className='home-search__send-icon' src={sendIcon} mode='scaleToFill' />
           </Button>
         </View>
-        <Button
-          className='tidewise-button home-history-button'
-          hoverClass='none'
-          ariaLabel={period === 'today' ? '查看历史主题' : '返回今日主题'}
-          onClick={onPeriodAction}
-        >
-          <Image
-            className='home-history-button__icon'
-            src={period === 'today' ? themeHistoryIcon : todayThemeIcon}
-            mode='scaleToFill'
-          />
-        </Button>
       </View>
     </View>
   );
