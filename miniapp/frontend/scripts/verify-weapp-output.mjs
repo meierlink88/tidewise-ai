@@ -12,13 +12,9 @@ const appConfig = JSON.parse(await readFile(resolve(outputRoot, 'app.json'), 'ut
 const stylesheet = resolve(outputRoot, platform === 'weapp' ? 'app.wxss' : 'app.ttss');
 const avatar = resolve(outputRoot, 'assets/nav-avatar.png');
 
-const expectedPages = [
-  'pages/index/index',
-  'pages/report/detail/index',
-  'pages/report/evidences/index'
-];
+const expectedPages = ['pages/index/index', 'pages/report/detail/index'];
 if (JSON.stringify(appConfig.pages) !== JSON.stringify(expectedPages)) {
-  throw new Error(`${platform} 构建必须只注册首页、推理详情和相关证据页`);
+  throw new Error(`${platform} 构建必须只注册首页和推理详情页`);
 }
 if (appConfig.pages.some((page) => page.includes('research-theme'))) {
   throw new Error(`${platform} 构建不得包含已退役页面`);
@@ -55,10 +51,7 @@ if (avatarSize >= 128 * 1024) {
 
 await assertMissing(resolve(outputRoot, 'pages/research-theme'), `${platform} 旧页面目录`);
 await assertPresent(resolve(outputRoot, 'pages/report/detail/index.js'), `${platform} 推理详情页`);
-await assertPresent(
-  resolve(outputRoot, 'pages/report/evidences/index.js'),
-  `${platform} 相关证据页`
-);
+await assertMissing(resolve(outputRoot, 'pages/report/evidences'), `${platform} 旧证据路由目录`);
 await assertMissing(resolve(outputRoot, 'assets/home-header-sea.jpg'), '旧首页海面图片');
 await assertMissing(resolve(outputRoot, 'assets/icons/theme-history.svg'), '旧历史入口图标');
 await assertMissing(resolve(outputRoot, 'assets/icons/today-theme.svg'), '旧今日入口图标');

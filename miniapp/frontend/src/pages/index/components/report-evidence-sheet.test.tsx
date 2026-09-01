@@ -119,7 +119,7 @@ describe('HomeReportEvidenceSheet', () => {
     expect(html).toContain('09-01 12:00');
     expect(html).toContain('时间待确认');
     expect(html).toContain('运输');
-    expect(html).toContain('home-report-evidence-sheet__clock');
+    expect(html).toContain('report-evidence-sheet__clock');
     expect(html).toMatch(/report-clock[^"']*\.svg/);
     expect(html).not.toContain(reportId);
     expect(html).not.toContain('Evidence ID');
@@ -146,8 +146,8 @@ describe('HomeReportEvidenceSheet', () => {
       onRetry: vi.fn(),
       onClose
     });
-    const overlay = elementByClass(view, 'home-report-evidence-sheet__overlay');
-    const panel = elementByClass(view, 'home-report-evidence-sheet__panel');
+    const overlay = elementByClass(view, 'report-evidence-sheet__overlay');
+    const panel = elementByClass(view, 'report-evidence-sheet__panel');
     const stopPropagation = vi.fn();
 
     expect(panel.props.catchMove).toBe(true);

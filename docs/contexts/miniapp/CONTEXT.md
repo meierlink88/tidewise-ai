@@ -110,11 +110,11 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
 - 推理详情注册为 `pages/report/detail/index`，query 为
   `reportId + targetType=layer|industry_chain + targetKey`；`layer` 的 `targetKey` 只允许
   `geopolitics | macroeconomics`。
-- Evidence 列表注册为 `pages/report/evidences/index`，query 为
-  `reportId + scopeType + scopeKey + title`。
-- 两页都是非 Tab 页面，使用官方 `Taro.navigateTo`/`navigateBack`，不引入自定义 Router；
+- 详情页是非 Tab 页面，使用官方 `Taro.navigateTo`/`navigateBack`，不引入自定义 Router；
   query 输入不可信，缺失、重复或非法参数必须在请求前进入明确参数错误状态。
-- 首页、详情和 Evidence 页面分别拥有 `loading | ready | empty/not-found | error` 状态与重试；
+- 首页与详情页的 Evidence 入口打开当前页面管理的底部抽屉，不切换路由；抽屉使用
+  `ReportPort.getEvidences` 按当前 scope 延迟加载。
+- 首页、详情和 Evidence 抽屉分别拥有 `loading | ready | empty/not-found | error` 状态与重试；
   route 参数变化或重新进入时，较早请求不得覆盖新状态。
 - 已成功读取的不可变详情可以在当前页面会话内按 Report/scope 缓存；重新进入页面重新读取。
 
@@ -134,8 +134,8 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
 
 ## Report Detail Presentation
 
-- 地缘政治和宏观详情从各自结论与锚点开始，展示报告拥有的为什么、向下传导、不确定性、
-  Evidence Gap、检查点和反转/停止条件；不引入报告之外的研究判断。
+- 地缘政治和宏观详情从各自一句话结论、影响锚点与“为什么”开始，再展示独立反转条件和
+  向下传导；不展示已废弃的“推理步骤”或合并式“不确定性与反转条件”区块，不引入报告之外的研究判断。
 - 传导目标保留层、锚点、产业链和链节点四种结构化引用；只有层与产业链目标可进入
   v1 独立详情页，锚点与链节点目标仅展示，不生成无法加载的跳转。
 - 上层详情末尾列出该层在同一 Report 中显式关联的产业链名称与结果；上层页不嵌入
@@ -150,7 +150,7 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
 
 ## Evidence Presentation
 
-- Evidence 页面直接从 Report Evidence Reference 的显式顺序列表开始，不显示内部 scope
+- Evidence 底部抽屉直接从 Report Evidence Reference 的显式顺序列表开始，不显示内部 scope
   标题、来源类型、关系立场、Evidence ID 或技术边界说明。
 - 每项只展示 `published_at`、`summary` 和有序 `keywords`；空发布时间显示明确的时间待确认。
 - Keywords 使用有边框的蓝色轻量 chip；发布时间与摘要优先级更高。

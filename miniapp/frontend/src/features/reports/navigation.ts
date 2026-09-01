@@ -3,19 +3,8 @@ import type { ReportDetailTargetType, ReportEvidenceScopeType, ReportLayerKey } 
 const reportIDPattern =
   /^RPT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const localKeyPattern = /^[a-z0-9][a-z0-9._-]{0,127}$/;
-const evidenceRouteTitleMaxCodePoints = 80;
 const layerKeys = ['geopolitics', 'macroeconomics'] as const;
 const targetTypes = ['layer', 'industry_chain'] as const;
-const scopeTypes = [
-  'report_card',
-  'layer',
-  'anchor',
-  'reasoning_step',
-  'transmission_path',
-  'candidate_mechanism',
-  'industry_chain',
-  'industry_chain_node'
-] as const;
 
 export interface ReportDetailRoute {
   reportId: string;
@@ -50,32 +39,6 @@ function readReportDetailRoute(value: unknown, normalizeInboundValues: boolean):
   return { reportId, targetType, targetKey };
 }
 
-export function parseReportEvidenceRoute(
-  value: unknown,
-  decodeInboundValues = true
-): ReportEvidenceRoute {
-  return readReportEvidenceRoute(value, decodeInboundValues);
-}
-
-function readReportEvidenceRoute(
-  value: unknown,
-  normalizeInboundValues: boolean
-): ReportEvidenceRoute {
-  const params = routeRecord(value, ['reportId', 'scopeType', 'scopeKey', 'title']);
-  return {
-    reportId: reportID(routeParam(params.reportId, normalizeInboundValues)),
-    scopeType: enumParam<ReportEvidenceScopeType>(
-      routeParam(params.scopeType, normalizeInboundValues),
-      scopeTypes
-    ),
-    scopeKey: localKey(routeParam(params.scopeKey, normalizeInboundValues)),
-    title: textParam(
-      routeParam(params.title, normalizeInboundValues),
-      evidenceRouteTitleMaxCodePoints
-    )
-  };
-}
-
 export function buildReportDetailURL(route: ReportDetailRoute): string {
   const parsed = readReportDetailRoute(route, false);
   return `/pages/report/detail/index?${query({
@@ -85,46 +48,8 @@ export function buildReportDetailURL(route: ReportDetailRoute): string {
   })}`;
 }
 
-export function buildReportEvidenceURL(route: ReportEvidenceRoute): string {
-  const parsed = readReportEvidenceRoute(
-    {
-      ...route,
-      title: evidenceRouteTitle(route.title)
-    },
-    false
-  );
-  return `/pages/report/evidences/index?${query({
-    reportId: parsed.reportId,
-    scopeType: parsed.scopeType,
-    scopeKey: parsed.scopeKey,
-    title: parsed.title
-  })}`;
-}
-
-function evidenceRouteTitle(value: unknown): string {
-  if (
-    typeof value !== 'string' ||
-    value.trim() !== value ||
-    value.length === 0 ||
-    /[\u0000-\u001f\u007f]/.test(value)
-  ) {
-    invalidRoute();
-  }
-  const title = value;
-  const codePoints = Array.from(title);
-  if (codePoints.length <= evidenceRouteTitleMaxCodePoints) return title;
-  return `${codePoints.slice(0, evidenceRouteTitleMaxCodePoints - 1).join('')}…`;
-}
-
 export function navigateToReportDetail(navigator: ReportNavigator, route: ReportDetailRoute): void {
   void navigator.navigateTo({ url: buildReportDetailURL(route) });
-}
-
-export function navigateToReportEvidences(
-  navigator: ReportNavigator,
-  route: ReportEvidenceRoute
-): void {
-  void navigator.navigateTo({ url: buildReportEvidenceURL(route) });
 }
 
 function routeRecord(value: unknown, keys: readonly string[]): Record<string, unknown> {

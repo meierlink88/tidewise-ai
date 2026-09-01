@@ -23,6 +23,12 @@
   white-space: nowrap;
 }
 
+.report-result-chip__icon {
+  width: 23rpx;
+  height: 23rpx;
+  margin-right: 6rpx;
+}
+
 .report-result-chip--warming {
   border-color: rgba(220, 38, 38, 0.2);
   background: #fef2f2;
@@ -55,10 +61,18 @@
 }
 
 .report-signal-meta {
+  display: inline-flex;
+  align-items: center;
   color: #718096;
   font-size: 20rpx;
   line-height: 1.5;
   white-space: nowrap;
+}
+
+.report-signal-meta__icon {
+  width: 21rpx;
+  height: 21rpx;
+  margin-right: 5rpx;
 }
 
 .report-evidence-button {

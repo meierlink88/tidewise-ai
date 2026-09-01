@@ -463,7 +463,7 @@ const layerDetails: Record<'geopolitics' | 'macroeconomics', ReportLayerDetail> 
             key: 'geo-x-macro-01',
             displayOrder: 1,
             scope: { type: 'transmission_path', key: 'geo-x-macro-01' },
-            sourceConclusion: '海湾冲突与霍尔木兹通道压力上升',
+            sourceConclusion: '增长预期修正（真实 MacroEconomic）',
             targetRefs: [
               {
                 ref: { type: 'layer', key: 'macroeconomics' },
@@ -482,7 +482,7 @@ const layerDetails: Record<'geopolitics' | 'macroeconomics', ReportLayerDetail> 
             key: 'geo-x-chn-21',
             displayOrder: 2,
             scope: { type: 'transmission_path', key: 'geo-x-chn-21' },
-            sourceConclusion: '霍尔木兹通行能力下降',
+            sourceConclusion: '油品石化贸易服务产业链',
             targetRefs: [
               {
                 ref: { type: 'industry_chain', key: 'chn-21' },
@@ -510,7 +510,7 @@ const layerDetails: Record<'geopolitics' | 'macroeconomics', ReportLayerDetail> 
       },
       hasEvidence: true
     },
-    relatedIndustryChains: relatedIndustryChains.filter((item) => item.key === 'chn-21')
+    relatedIndustryChains
   },
   macroeconomics: {
     report,
@@ -556,8 +556,19 @@ const layerDetails: Record<'geopolitics' | 'macroeconomics', ReportLayerDetail> 
             key: 'macro-candidate-01',
             displayOrder: 1,
             scope: { type: 'candidate_mechanism', key: 'macro-candidate-01' },
-            mechanism: '增长预期下降可能压低外需与周期品需求。',
-            evidenceGap: '缺中国外需、工业需求和具体产业节点结果。',
+            mechanism: '增长预期修正 DOWN → 产业需求',
+            evidenceGap:
+              '全球增长预期下修通常会压低外需和周期品需求，再影响相应产业节点的订单、价格或产能利用率。',
+            confidence: low,
+            hasEvidence: false
+          },
+          {
+            key: 'macro-candidate-02',
+            displayOrder: 2,
+            scope: { type: 'candidate_mechanism', key: 'macro-candidate-02' },
+            mechanism: '加息 UP → 融资与资本开支',
+            evidenceGap:
+              '政策利率上行通常会提高融资成本和折现率，进而压制资本密集型产业的扩产与投资。',
             confidence: low,
             hasEvidence: false
           }
@@ -573,7 +584,7 @@ const layerDetails: Record<'geopolitics' | 'macroeconomics', ReportLayerDetail> 
       },
       hasEvidence: true
     },
-    relatedIndustryChains: []
+    relatedIndustryChains
   }
 };
 

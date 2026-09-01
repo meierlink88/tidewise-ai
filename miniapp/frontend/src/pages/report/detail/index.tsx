@@ -1,7 +1,11 @@
 import Taro, { usePullDownRefresh } from '@tarojs/taro';
 import { Button, Image, ScrollView, Text, View } from '@tarojs/components';
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import fileTextIcon from '../../../assets/icons/file-text.svg';
+import reportBarChartIcon from '../../../assets/icons/report-bar-chart.svg';
 import reportArrowRightIcon from '../../../assets/icons/report-arrow-right.svg';
+import reportGlobeIcon from '../../../assets/icons/report-globe.svg';
+import reportLayersIcon from '../../../assets/icons/report-layers.svg';
 import type {
   ReportEvidenceScope,
   ReportIndustryChainDetail,
@@ -9,19 +13,18 @@ import type {
   ReportLayerDetail,
   ReportLayerKey,
   ReportPort,
-  ReportTransmissionPath,
-  ReportTransmissionTarget
+  ReportTransmissionPath
 } from '../../../features/reports/contract';
 import { ReportError } from '../../../features/reports/contract';
 import {
   navigateToReportDetail,
-  navigateToReportEvidences,
   parseReportDetailRoute,
   type ReportDetailRoute,
   type ReportEvidenceRoute
 } from '../../../features/reports/navigation';
 import { getReportPort } from '../../../features/reports/port';
-import { formatShanghaiTimestamp, reportErrorCopy } from '../../../features/reports/presentation';
+import { reportErrorCopy } from '../../../features/reports/presentation';
+import { ReportEvidenceSheet } from '../../../features/reports/report-evidence-sheet';
 import {
   ReportEvidenceButton,
   ReportImpactSignals,
@@ -32,13 +35,14 @@ import { useReportResource } from '../../../features/reports/use-report-resource
 import './index.scss';
 
 export type LoadedReportDetail =
-  | { targetType: 'layer'; detail: ReportLayerDetail }
+  | { targetType: 'layer'; detail: ReportLayerDetail; continuationDetail?: ReportLayerDetail }
   | { targetType: 'industry_chain'; detail: ReportIndustryChainDetail };
 
 export default function ReportDetailPage() {
   const instance = useMemo(() => Taro.getCurrentInstance(), []);
   const route = useMemo(() => safeDetailRoute(instance.router?.params), [instance]);
   const port = useMemo(() => getReportPort(), []);
+  const [evidenceRoute, setEvidenceRoute] = useState<ReportEvidenceRoute | null>(null);
   const resource = useReportResource(
     `report-detail:${route?.reportId ?? 'invalid'}:${route?.targetType ?? 'invalid'}:${route?.targetKey ?? 'invalid'}`,
     () => loadReportDetail(port, route)
@@ -62,12 +66,21 @@ export default function ReportDetailPage() {
   });
 
   return (
-    <ReportDetailView
-      state={resource.state}
-      onRetry={() => void resource.retry()}
-      onOpenDetail={(targetRoute) => navigateToReportDetail(Taro, targetRoute)}
-      onOpenEvidence={(evidenceRoute) => navigateToReportEvidences(Taro, evidenceRoute)}
-    />
+    <>
+      <ReportDetailView
+        state={resource.state}
+        onRetry={() => void resource.retry()}
+        onOpenDetail={(targetRoute) => navigateToReportDetail(Taro, targetRoute)}
+        onOpenEvidence={setEvidenceRoute}
+      />
+      {evidenceRoute ? (
+        <ReportEvidenceSheet
+          route={evidenceRoute}
+          port={port}
+          onClose={() => setEvidenceRoute(null)}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -77,6 +90,13 @@ export async function loadReportDetail(
 ): Promise<LoadedReportDetail> {
   if (!route) throw new ReportError('invalidRequest');
   if (route.targetType === 'layer') {
+    if (route.targetKey === 'geopolitics') {
+      const [detail, continuationDetail] = await Promise.all([
+        port.getLayer(route.reportId, 'geopolitics'),
+        port.getLayer(route.reportId, 'macroeconomics')
+      ]);
+      return { targetType: 'layer', detail, continuationDetail };
+    }
     const detail = await port.getLayer(route.reportId, route.targetKey as ReportLayerKey);
     return { targetType: 'layer', detail };
   }
@@ -123,19 +143,15 @@ export function ReportDetailView({
     );
   }
 
-  const report = state.data.detail.report;
   return (
     <View className='report-detail-page'>
       {state.refreshFailed ? (
         <View className='report-detail-refresh-warning'>刷新失败，当前展示上次成功读取的内容</View>
       ) : null}
-      <View className='report-detail-report-meta'>
-        <Text>{report.title}</Text>
-        <Text>发布于 {formatShanghaiTimestamp(report.publishedAt)}</Text>
-      </View>
       {state.data.targetType === 'layer' ? (
         <LayerDetailView
           detail={state.data.detail}
+          continuationDetail={state.data.continuationDetail}
           onOpenDetail={onOpenDetail}
           onOpenEvidence={onOpenEvidence}
         />
@@ -148,21 +164,29 @@ export function ReportDetailView({
 
 function LayerDetailView({
   detail,
+  continuationDetail,
   onOpenDetail,
   onOpenEvidence
 }: {
   detail: ReportLayerDetail;
+  continuationDetail?: ReportLayerDetail;
   onOpenDetail: (route: ReportDetailRoute) => void;
   onOpenEvidence: (route: ReportEvidenceRoute) => void;
 }) {
   const { layer, report } = detail;
+  const layerIcon = layer.key === 'geopolitics' ? reportGlobeIcon : reportBarChartIcon;
   return (
     <View className='report-detail-flow'>
-      <View className='report-detail-hero'>
-        <View className='report-detail-hero__heading'>
-          <View>
-            <Text className='report-detail-eyebrow'>{layer.title}</Text>
-            <Text className='report-detail-hero__title'>一句话结论</Text>
+      <View className='report-layer-panel'>
+        <View className='report-layer-heading'>
+          <View className='report-layer-heading__identity'>
+            <View className='report-layer-heading__icon-box'>
+              <Image className='report-layer-heading__icon' src={layerIcon} mode='aspectFit' />
+            </View>
+            <View>
+              <Text className='report-detail-eyebrow'>{layer.title}</Text>
+              <Text className='report-layer-heading__title'>{layer.title}层推导</Text>
+            </View>
           </View>
           {layer.hasEvidence ? (
             <ScopeEvidenceButton
@@ -173,25 +197,25 @@ function LayerDetailView({
             />
           ) : null}
         </View>
-        <Text className='report-detail-hero__conclusion'>{layer.conclusion}</Text>
-        <ReportImpactSignals
-          result={layer.result}
-          confidence={layer.confidence}
-          timeWindow={layer.timeWindow}
-        />
-      </View>
 
-      <DetailSection title='影响锚点'>
+        <View className='report-conclusion-band'>
+          <Text className='report-conclusion-band__label'>一句话结论</Text>
+          <Text className='report-conclusion-band__copy'>{layer.conclusion}</Text>
+        </View>
+
+        <SectionHeading title='影响锚点' />
         <View className='report-anchor-list'>
           {layer.anchors.map((anchor) => (
             <View className='report-anchor-card' key={anchor.key}>
               <View className='report-anchor-card__top'>
                 <Text className='report-anchor-card__name'>{anchor.name}</Text>
                 {anchor.hasEvidence ? (
-                  <ScopeEvidenceButton
+                  <ScopeEvidenceTextButton
                     reportId={report.id}
                     scope={anchor.scope}
                     title={`${anchor.name}证据`}
+                    label='直接证据'
+                    variant='outline'
                     onOpen={onOpenEvidence}
                   />
                 ) : null}
@@ -200,65 +224,45 @@ function LayerDetailView({
                 result={anchor.result}
                 confidence={anchor.confidence}
                 timeWindow={anchor.timeWindow}
-                nature={anchor.nature}
               />
-              <View className='report-detail-fact'>
-                <Text>当前</Text>
-                <Text>{anchor.currentState}</Text>
-              </View>
-              <View className='report-detail-fact'>
-                <Text>推理</Text>
+              <Text className='report-anchor-card__state'>{anchor.currentState}</Text>
+              <View className='report-anchor-card__reason'>
+                <Text>为什么</Text>
                 <Text>{anchor.reasoning}</Text>
               </View>
+              {anchor.hasEvidence ? (
+                <ScopeEvidenceTextButton
+                  reportId={report.id}
+                  scope={anchor.scope}
+                  title={`${anchor.name}证据`}
+                  label='依据'
+                  variant='plain'
+                  onOpen={onOpenEvidence}
+                />
+              ) : null}
             </View>
           ))}
         </View>
-      </DetailSection>
 
-      {layer.reasoningSteps.length ? (
-        <DetailSection title='推理步骤'>
-          <View className='report-step-list'>
-            {layer.reasoningSteps.map((step) => (
-              <View className='report-step-card' key={step.key}>
-                <View className='report-step-card__heading'>
-                  <Text>STEP {String(step.displayOrder).padStart(2, '0')}</Text>
-                  <Text>{step.type}</Text>
-                  {step.hasEvidence ? (
-                    <ScopeEvidenceButton
-                      reportId={report.id}
-                      scope={step.scope}
-                      title={`推理步骤 ${step.displayOrder} 证据`}
-                      onOpen={onOpenEvidence}
-                    />
-                  ) : null}
-                </View>
-                <View className='report-step-card__path'>
-                  <View>
-                    <Text>输入</Text>
-                    <Text>{step.input}</Text>
-                  </View>
-                  <Image
-                    className='report-step-card__arrow'
-                    src={reportArrowRightIcon}
-                    mode='aspectFit'
-                  />
-                  <View>
-                    <Text>输出</Text>
-                    <Text>{step.output}</Text>
-                  </View>
-                </View>
-                <View className='report-step-card__mechanism'>
-                  <Text>传导机制</Text>
-                  <Text>{step.mechanism}</Text>
-                </View>
-              </View>
-            ))}
+        {layer.uncertainty.reversalCondition ? (
+          <View className='report-reversal-card'>
+            <View className='report-reversal-card__icon-box'>
+              <Image
+                className='report-reversal-card__icon'
+                src={reportLayersIcon}
+                mode='aspectFit'
+              />
+            </View>
+            <View>
+              <Text className='report-reversal-card__title'>反转条件</Text>
+              <Text className='report-reversal-card__copy'>
+                {layer.uncertainty.reversalCondition}
+              </Text>
+            </View>
           </View>
-        </DetailSection>
-      ) : null}
+        ) : null}
 
-      <DetailSection title='向下传导'>
-        <Text className='report-detail-section-summary'>{layer.downwardTransmission.summary}</Text>
+        <SectionHeading title='向下传导' />
         <View className='report-transmission-list'>
           {layer.downwardTransmission.publishedPaths.map((path) => (
             <TransmissionPathView
@@ -266,72 +270,84 @@ function LayerDetailView({
               reportId={report.id}
               path={path}
               onOpenDetail={onOpenDetail}
-              onOpenEvidence={onOpenEvidence}
             />
           ))}
-        </View>
-        {layer.downwardTransmission.candidateMechanisms.map((candidate) => (
-          <View className='report-candidate-card' key={candidate.key}>
-            <View className='report-candidate-card__heading'>
-              <Text>待验证机制</Text>
-              {candidate.hasEvidence ? (
-                <ScopeEvidenceButton
-                  reportId={report.id}
-                  scope={candidate.scope}
-                  title='待验证机制证据'
-                  onOpen={onOpenEvidence}
-                />
+          {layer.downwardTransmission.candidateMechanisms.map((candidate) => (
+            <View className='report-transmission-card' key={candidate.key}>
+              <View className='report-transmission-card__heading'>
+                <Text>传到产业链</Text>
+                <Text className='report-result-chip report-result-chip--pending'>待验证</Text>
+              </View>
+              <Text className='report-transmission-card__source'>{candidate.mechanism}</Text>
+              <Text className='report-transmission-card__nature'>待补证</Text>
+              {candidate.evidenceGap ? (
+                <Text className='report-transmission-card__logic'>{candidate.evidenceGap}</Text>
               ) : null}
-            </View>
-            <Text className='report-candidate-card__mechanism'>{candidate.mechanism}</Text>
-            {candidate.evidenceGap ? (
-              <Text className='report-candidate-card__gap'>{candidate.evidenceGap}</Text>
-            ) : null}
-            <Text className='report-candidate-card__confidence'>
-              置信 {candidate.confidence.label}
-            </Text>
-          </View>
-        ))}
-        {layer.downwardTransmission.boundaryNotes.length ? (
-          <View className='report-transmission-boundaries'>
-            {layer.downwardTransmission.boundaryNotes.map((note) => (
-              <Text key={note}>{note}</Text>
-            ))}
-          </View>
-        ) : null}
-      </DetailSection>
-
-      <LayerUncertaintyView uncertainty={layer.uncertainty} />
-
-      <DetailSection title='产业链'>
-        <View className='report-related-chain-list'>
-          {detail.relatedIndustryChains.map((chainItem) => (
-            <View
-              className='report-related-chain-item'
-              key={chainItem.key}
-              role='button'
-              ariaLabel={`查看${chainItem.name}推理详情`}
-              onClick={() =>
-                onOpenDetail({
-                  reportId: report.id,
-                  targetType: chainItem.detailRef.type,
-                  targetKey: chainItem.detailRef.key
-                })
-              }
-            >
-              <Text>{chainItem.name}</Text>
-              <Text className={`report-result-chip report-result-chip--${chainItem.result.code}`}>
-                {chainItem.result.label}
-              </Text>
-              <Image
-                className='report-related-chain-item__arrow'
-                src={reportArrowRightIcon}
-                mode='aspectFit'
-              />
+              <View className='report-transmission-card__status'>
+                <Text>边界</Text>
+                <Text>{layer.downwardTransmission.boundaryNotes.join('；')}</Text>
+              </View>
             </View>
           ))}
         </View>
-      </DetailSection>
+      </View>
+
+      {continuationDetail ? (
+        <>
+          <View className='report-detail-continuation' ariaLabel='继续看宏观经济'>
+            <Image
+              className='report-detail-continuation__arrow'
+              src={reportArrowRightIcon}
+              mode='aspectFit'
+            />
+            <Text>继续看宏观经济</Text>
+          </View>
+          <LayerDetailView
+            detail={continuationDetail}
+            onOpenDetail={onOpenDetail}
+            onOpenEvidence={onOpenEvidence}
+          />
+        </>
+      ) : (
+        <View className='report-related-chain-panel'>
+          <View className='report-related-chain-panel__heading'>
+            <View>
+              <Text className='report-related-chain-panel__eyebrow'>INDUSTRY CHAINS</Text>
+              <Text className='report-related-chain-panel__title'>产业链</Text>
+            </View>
+            <Text className='report-related-chain-panel__count'>
+              {detail.relatedIndustryChains.length} 条
+            </Text>
+          </View>
+          <View className='report-related-chain-list'>
+            {detail.relatedIndustryChains.map((chainItem) => (
+              <View
+                className='report-related-chain-item'
+                key={chainItem.key}
+                role='button'
+                ariaLabel={`查看${chainItem.name}推理详情`}
+                onClick={() =>
+                  onOpenDetail({
+                    reportId: report.id,
+                    targetType: chainItem.detailRef.type,
+                    targetKey: chainItem.detailRef.key
+                  })
+                }
+              >
+                <Text>{chainItem.name}</Text>
+                <Text className={`report-result-chip report-result-chip--${chainItem.result.code}`}>
+                  {chainItem.result.label}
+                </Text>
+                <Image
+                  className='report-related-chain-item__arrow'
+                  src={reportArrowRightIcon}
+                  mode='aspectFit'
+                />
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -339,127 +355,53 @@ function LayerDetailView({
 function TransmissionPathView({
   reportId,
   path,
-  onOpenDetail,
-  onOpenEvidence
+  onOpenDetail
 }: {
   reportId: string;
   path: ReportTransmissionPath;
   onOpenDetail: (route: ReportDetailRoute) => void;
-  onOpenEvidence: (route: ReportEvidenceRoute) => void;
 }) {
+  const target = path.targetRefs[0];
+  const isDetailTarget = target?.ref.type === 'layer' || target?.ref.type === 'industry_chain';
   return (
     <View className='report-transmission-card'>
-      <View className='report-transmission-card__heading'>
-        <Text>{path.relationNature}</Text>
-        {path.hasEvidence ? (
-          <ScopeEvidenceButton
-            reportId={reportId}
-            scope={path.scope}
-            title='向下传导证据'
-            onOpen={onOpenEvidence}
+      <View
+        className={`report-transmission-card__heading ${isDetailTarget ? 'is-clickable' : ''}`}
+        role={isDetailTarget ? 'button' : undefined}
+        ariaLabel={isDetailTarget ? `查看${target.label}推理详情` : undefined}
+        onClick={
+          isDetailTarget
+            ? () =>
+                onOpenDetail({
+                  reportId,
+                  targetType: target.ref.type as 'layer' | 'industry_chain',
+                  targetKey: target.ref.key
+                })
+            : undefined
+        }
+      >
+        <Text>传到{target?.label ?? '下游对象'}</Text>
+        {isDetailTarget ? (
+          <Image
+            className='report-transmission-card__arrow'
+            src={reportArrowRightIcon}
+            mode='aspectFit'
           />
+        ) : null}
+        {target ? (
+          <Text className={`report-result-chip report-result-chip--${target.result.code}`}>
+            {target.result.label}
+          </Text>
         ) : null}
       </View>
       <Text className='report-transmission-card__source'>{path.sourceConclusion}</Text>
+      <Text className='report-transmission-card__nature'>{path.relationNature}</Text>
       <Text className='report-transmission-card__logic'>{path.logic}</Text>
-      <View className='report-transmission-targets'>
-        {path.targetRefs.map((target) => (
-          <TransmissionTargetView
-            key={`${target.ref.type}:${target.ref.key}`}
-            reportId={reportId}
-            target={target}
-            confidence={path.confidence}
-            onOpenDetail={onOpenDetail}
-          />
-        ))}
-      </View>
       <View className='report-transmission-card__status'>
         <Text>边界</Text>
         <Text>{path.status}</Text>
       </View>
     </View>
-  );
-}
-
-function TransmissionTargetView({
-  reportId,
-  target,
-  confidence,
-  onOpenDetail
-}: {
-  reportId: string;
-  target: ReportTransmissionTarget;
-  confidence: ReportTransmissionPath['confidence'];
-  onOpenDetail: (route: ReportDetailRoute) => void;
-}) {
-  const isDetailTarget = target.ref.type === 'layer' || target.ref.type === 'industry_chain';
-  const content = (
-    <>
-      <Text>{target.label}</Text>
-      <ReportImpactSignals
-        result={target.result}
-        confidence={confidence}
-        timeWindow={isDetailTarget ? '查看详情' : '报告对象'}
-      />
-      {isDetailTarget ? (
-        <Image
-          className='report-transmission-target__arrow'
-          src={reportArrowRightIcon}
-          mode='aspectFit'
-        />
-      ) : null}
-    </>
-  );
-  if (!isDetailTarget) {
-    return <View className='report-transmission-target'>{content}</View>;
-  }
-  return (
-    <View
-      className='report-transmission-target'
-      role='button'
-      ariaLabel={`查看${target.label}推理详情`}
-      onClick={() =>
-        onOpenDetail({
-          reportId,
-          targetType: target.ref.type as 'layer' | 'industry_chain',
-          targetKey: target.ref.key
-        })
-      }
-    >
-      {content}
-    </View>
-  );
-}
-
-function LayerUncertaintyView({
-  uncertainty
-}: {
-  uncertainty: ReportLayerDetail['layer']['uncertainty'];
-}) {
-  const items = [
-    ['反证', uncertainty.counterevidence],
-    ['证据缺口', uncertainty.evidenceGap],
-    ['分析边界', uncertainty.boundary],
-    ['反转条件', uncertainty.reversalCondition]
-  ].filter((item): item is [string, string] => Boolean(item[1]));
-  if (!items.length && !uncertainty.checkpoints.length) return null;
-  return (
-    <DetailSection title='不确定性与反转条件'>
-      <View className='report-uncertainty-list'>
-        {items.map(([label, value]) => (
-          <View className='report-uncertainty-item' key={label}>
-            <Text>{label}</Text>
-            <Text>{value}</Text>
-          </View>
-        ))}
-        {uncertainty.checkpoints.map((checkpoint) => (
-          <View className='report-uncertainty-item' key={checkpoint.key}>
-            <Text>观察点 {checkpoint.displayOrder}</Text>
-            <Text>{checkpoint.summary}</Text>
-          </View>
-        ))}
-      </View>
-    </DetailSection>
   );
 }
 
@@ -481,9 +423,21 @@ function IndustryChainDetailView({
 
   return (
     <View className='report-detail-flow'>
-      <View className='report-chain-hero'>
-        <View className='report-chain-hero__heading'>
-          <Text>{industryChain.name}</Text>
+      <View className='report-chain-panel'>
+        <View className='report-layer-heading'>
+          <View className='report-layer-heading__identity'>
+            <View className='report-layer-heading__icon-box'>
+              <Image
+                className='report-layer-heading__icon'
+                src={reportLayersIcon}
+                mode='aspectFit'
+              />
+            </View>
+            <View>
+              <Text className='report-detail-eyebrow'>产业链</Text>
+              <Text className='report-layer-heading__title'>{industryChain.name}</Text>
+            </View>
+          </View>
           {industryChain.hasEvidence ? (
             <ScopeEvidenceButton
               reportId={report.id}
@@ -493,56 +447,48 @@ function IndustryChainDetailView({
             />
           ) : null}
         </View>
-        <Text className='report-chain-hero__conclusion'>{industryChain.conclusion}</Text>
-        <ReportImpactSignals
-          result={industryChain.result}
-          confidence={industryChain.confidence}
-          timeWindow={industryChain.timeWindow}
-        />
-        <View className='report-chain-status'>
-          <Text>链状态</Text>
-          <Text>{industryChain.status}</Text>
+
+        <View className='report-conclusion-band report-conclusion-band--chain'>
+          <Text className='report-conclusion-band__label'>一句话结论</Text>
+          <Text className='report-conclusion-band__copy'>{industryChain.conclusion}</Text>
         </View>
-      </View>
 
-      {industryChain.pathSummary || industryChain.acceptedHypothesisSummary ? (
-        <DetailSection title='链路判断'>
-          <View className='report-chain-summary-list'>
-            {industryChain.pathSummary ? (
-              <View className='report-detail-fact'>
-                <Text>链路摘要</Text>
-                <Text>{industryChain.pathSummary}</Text>
-              </View>
-            ) : null}
-            {industryChain.acceptedHypothesisSummary ? (
-              <View className='report-detail-fact'>
-                <Text>已采纳假设</Text>
-                <Text>{industryChain.acceptedHypothesisSummary}</Text>
-              </View>
-            ) : null}
+        <View className='report-chain-metrics'>
+          <View>
+            <Text>链结果</Text>
+            <Text className={`report-result-chip report-result-chip--${industryChain.result.code}`}>
+              {industryChain.result.label}
+            </Text>
           </View>
-        </DetailSection>
-      ) : null}
+          <View>
+            <Text>时间窗口</Text>
+            <Text>{industryChain.timeWindow}</Text>
+          </View>
+          <View>
+            <Text>置信度</Text>
+            <Text>{industryChain.confidence.label}</Text>
+          </View>
+        </View>
 
-      <DetailSection title='产业链图' aside='横向滑动 · 点击节点'>
+        <SectionHeading title='产业链图' aside='横向滑动 · 点击节点查看详情' />
         <ChainGraph
           nodes={industryChain.nodes}
           edges={industryChain.edges}
           selectedNodeKey={selectedNodeKey}
           onSelect={setSelectedNodeKey}
         />
-      </DetailSection>
 
-      {selectedNode ? (
-        <DetailSection title='节点详情'>
+        {selectedNode ? (
           <View className='report-node-detail'>
             <View className='report-node-detail__heading'>
               <Text>{selectedNode.name}</Text>
               {selectedNode.hasEvidence ? (
-                <ScopeEvidenceButton
+                <ScopeEvidenceTextButton
                   reportId={report.id}
                   scope={selectedNode.scope}
                   title={`${selectedNode.name}证据`}
+                  label='直接证据'
+                  variant='outline'
                   onOpen={onOpenEvidence}
                 />
               ) : null}
@@ -561,34 +507,34 @@ function IndustryChainDetailView({
               <Text>传导逻辑</Text>
               <Text>{selectedNode.reasoning}</Text>
             </View>
+            {selectedNode.hasEvidence ? (
+              <ScopeEvidenceTextButton
+                reportId={report.id}
+                scope={selectedNode.scope}
+                title={`${selectedNode.name}证据`}
+                label='依据'
+                variant='plain'
+                onOpen={onOpenEvidence}
+              />
+            ) : (
+              <Text className='report-node-detail__evidence-note'>暂无直接证据，待后续验证</Text>
+            )}
           </View>
-        </DetailSection>
-      ) : null}
+        ) : null}
 
-      {industryChain.uncertainty.counterevidenceAndGap ? (
-        <View className='report-chain-boundary report-chain-boundary--gap'>
-          <Text>反证与缺口</Text>
-          <Text>{industryChain.uncertainty.counterevidenceAndGap}</Text>
-        </View>
-      ) : null}
-      {industryChain.uncertainty.stopCondition ? (
-        <View className='report-chain-boundary report-chain-boundary--stop'>
-          <Text>停止条件</Text>
-          <Text>{industryChain.uncertainty.stopCondition}</Text>
-        </View>
-      ) : null}
-      {industryChain.uncertainty.checkpoints.length ? (
-        <DetailSection title='后续观察点'>
-          <View className='report-uncertainty-list'>
-            {industryChain.uncertainty.checkpoints.map((checkpoint) => (
-              <View className='report-uncertainty-item' key={checkpoint.key}>
-                <Text>{checkpoint.displayOrder}</Text>
-                <Text>{checkpoint.summary}</Text>
-              </View>
-            ))}
+        {industryChain.uncertainty.counterevidenceAndGap ? (
+          <View className='report-chain-boundary report-chain-boundary--gap'>
+            <Text>反证与缺口</Text>
+            <Text>{industryChain.uncertainty.counterevidenceAndGap}</Text>
           </View>
-        </DetailSection>
-      ) : null}
+        ) : null}
+        {industryChain.uncertainty.stopCondition ? (
+          <View className='report-chain-boundary report-chain-boundary--stop'>
+            <Text>停止条件</Text>
+            <Text>{industryChain.uncertainty.stopCondition}</Text>
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -765,22 +711,49 @@ function ScopeEvidenceButton({
   );
 }
 
-function DetailSection({
+function ScopeEvidenceTextButton({
+  reportId,
+  scope,
   title,
-  aside,
-  children
+  label,
+  variant,
+  onOpen
 }: {
+  reportId: string;
+  scope: ReportEvidenceScope;
   title: string;
-  aside?: string;
-  children: ReactNode;
+  label: string;
+  variant: 'outline' | 'plain';
+  onOpen: (route: ReportEvidenceRoute) => void;
 }) {
   return (
-    <View className='report-detail-section'>
-      <View className='report-detail-section__heading'>
-        <Text>{title}</Text>
-        {aside ? <Text>{aside}</Text> : null}
-      </View>
-      {children}
+    <Button
+      className={`tidewise-button report-evidence-text-button report-evidence-text-button--${variant}`}
+      hoverClass='report-evidence-text-button--pressed'
+      ariaLabel={`查看${title}：${label}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen({
+          reportId,
+          scopeType: scope.type,
+          scopeKey: scope.key,
+          title
+        });
+      }}
+    >
+      {variant === 'plain' ? (
+        <Image className='report-evidence-text-button__icon' src={fileTextIcon} mode='aspectFit' />
+      ) : null}
+      <Text>{label}</Text>
+    </Button>
+  );
+}
+
+function SectionHeading({ title, aside }: { title: string; aside?: string }) {
+  return (
+    <View className='report-detail-section__heading'>
+      <Text>{title}</Text>
+      {aside ? <Text>{aside}</Text> : null}
     </View>
   );
 }

@@ -65,7 +65,20 @@ describe('Report detail page', () => {
     expect(port.getIndustryChain).not.toHaveBeenCalled();
   });
 
-  it('renders layer reasoning and wires every published Evidence scope', async () => {
+  it('loads macroeconomics as the in-page continuation of geopolitics', async () => {
+    const loaded = await loadReportDetail(mockReportPort, {
+      reportId,
+      targetType: 'layer',
+      targetKey: 'geopolitics'
+    });
+
+    expect(loaded.targetType).toBe('layer');
+    if (loaded.targetType !== 'layer') throw new Error('expected layer detail');
+    expect(loaded.detail.layer.key).toBe('geopolitics');
+    expect(loaded.continuationDetail?.layer.key).toBe('macroeconomics');
+  });
+
+  it('renders the approved layer hierarchy without deprecated reasoning sections', async () => {
     const detail = await mockReportPort.getLayer(reportId, 'geopolitics');
     const onOpenEvidence = vi.fn();
     const onOpenDetail = vi.fn();
@@ -86,28 +99,26 @@ describe('Report detail page', () => {
     expect(copy).toContain('一句话结论');
     expect(copy).toContain('影响锚点');
     expect(copy).toContain('向下传导');
+    expect(copy).toContain('反转条件');
     expect(copy).toContain('油品石化贸易服务产业链');
-    for (const className of [
-      'report-step-card__arrow',
-      'report-transmission-target__arrow',
-      'report-related-chain-item__arrow'
-    ]) {
+    expect(copy).not.toContain('推理步骤');
+    expect(copy).not.toContain('不确定性与反转条件');
+    expect(copy).not.toContain('当前事件如何从地缘政治与宏观经济传导至产业链（动态传导）');
+    for (const className of ['report-layer-heading__icon', 'report-related-chain-item__arrow']) {
       const icon = captured.images.find((props) => props.className === className);
       expect(icon?.src).toEqual(expect.stringMatching(/\.svg$/));
     }
     for (const label of [
       '查看地缘政治证据',
-      '查看伊朗—美以及海湾安全对抗证据',
-      '查看推理步骤 1 证据',
-      '查看向下传导证据'
+      '查看伊朗—美以及海湾安全对抗证据：直接证据',
+      '查看伊朗—美以及海湾安全对抗证据：依据'
     ]) {
       clickCapturedButton(label);
     }
     expect(onOpenEvidence.mock.calls.map(([route]) => route.scopeType)).toEqual([
       'layer',
       'anchor',
-      'reasoning_step',
-      'transmission_path'
+      'anchor'
     ]);
 
     const chainEntry = captured.views.find(
@@ -122,7 +133,7 @@ describe('Report detail page', () => {
     });
   });
 
-  it('keeps anchor/node transmission targets static while layer/chain targets remain clickable', async () => {
+  it('keeps one explicit layer or chain continuation per transmission card', async () => {
     const original = await mockReportPort.getLayer(reportId, 'geopolitics');
     const firstPath = original.layer.downwardTransmission.publishedPaths[0];
     const detail = {
@@ -162,11 +173,11 @@ describe('Report detail page', () => {
       })
     );
 
-    const targets = captured.views.filter(
-      (props) => props.className === 'report-transmission-target'
+    const targets = captured.views.filter((props) =>
+      String(props.className).includes('report-transmission-card__heading')
     );
     expect(targets.filter((props) => props.role === 'button')).toHaveLength(2);
-    expect(targets.filter((props) => props.onClick === undefined)).toHaveLength(1);
+    expect(targets.some((props) => props.ariaLabel === '查看增长预期锚点推理详情')).toBe(false);
   });
 
   it('renders explicit chain edges and wires chain/node Evidence routes', async () => {
@@ -209,7 +220,7 @@ describe('Report detail page', () => {
     expect(arrow?.style).toContain('top:');
     expect(arrow?.style).toContain('left:');
     clickCapturedButton('查看油品石化贸易服务产业链证据');
-    clickCapturedButton('查看油品运输服务证据');
+    clickCapturedButton('查看油品运输服务证据：直接证据');
     expect(onOpenEvidence).toHaveBeenNthCalledWith(1, {
       reportId,
       scopeType: 'industry_chain',
@@ -224,7 +235,7 @@ describe('Report detail page', () => {
     });
   });
 
-  it('exposes candidate-mechanism Evidence only when that scope is published', async () => {
+  it('keeps candidate mechanisms as non-evidence transmission hypotheses', async () => {
     const original = await mockReportPort.getLayer(reportId, 'macroeconomics');
     const candidate = original.layer.downwardTransmission.candidateMechanisms[0];
     const detail = {
@@ -252,13 +263,8 @@ describe('Report detail page', () => {
       })
     );
 
-    clickCapturedButton('查看待验证机制证据');
-    expect(onOpenEvidence).toHaveBeenCalledWith({
-      reportId,
-      scopeType: 'candidate_mechanism',
-      scopeKey: 'macro-candidate-01',
-      title: '待验证机制证据'
-    });
+    expect(captured.buttons.some((props) => props.ariaLabel === '查看待验证机制证据')).toBe(false);
+    expect(onOpenEvidence).not.toHaveBeenCalled();
   });
 });
 

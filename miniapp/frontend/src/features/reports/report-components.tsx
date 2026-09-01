@@ -1,5 +1,11 @@
 import { Button, Image, Text, View } from '@tarojs/components';
 import fileTextIcon from '../../assets/icons/file-text.svg';
+import reportActivityCoolingIcon from '../../assets/icons/report-activity-cooling.svg';
+import reportActivityDivergingIcon from '../../assets/icons/report-activity-diverging.svg';
+import reportActivityPendingIcon from '../../assets/icons/report-activity-pending.svg';
+import reportActivityWarmingIcon from '../../assets/icons/report-activity-warming.svg';
+import reportConfidenceIcon from '../../assets/icons/report-confidence.svg';
+import reportWindowClockIcon from '../../assets/icons/report-window-clock.svg';
 import type { ReportConfidence, ReportNature, ReportResult } from './contract';
 
 export function ReportImpactSignals({
@@ -13,14 +19,27 @@ export function ReportImpactSignals({
   timeWindow: string;
   nature?: ReportNature;
 }) {
+  const resultIcon = {
+    warming: reportActivityWarmingIcon,
+    cooling: reportActivityCoolingIcon,
+    diverging: reportActivityDivergingIcon,
+    pending: reportActivityPendingIcon
+  }[result.code];
   return (
     <View className='report-impact-signals'>
-      <Text className={`report-result-chip report-result-chip--${result.code}`}>
-        {result.label}
-      </Text>
+      <View className={`report-result-chip report-result-chip--${result.code}`}>
+        <Image className='report-result-chip__icon' src={resultIcon} mode='aspectFit' />
+        <Text>{result.label}</Text>
+      </View>
       {nature ? <Text className='report-nature-chip'>{nature.label}</Text> : null}
-      <Text className='report-signal-meta'>置信 {confidence.label}</Text>
-      <Text className='report-signal-meta'>{timeWindow}</Text>
+      <View className='report-signal-meta'>
+        <Image className='report-signal-meta__icon' src={reportConfidenceIcon} mode='aspectFit' />
+        <Text>置信 {confidence.label}</Text>
+      </View>
+      <View className='report-signal-meta'>
+        <Image className='report-signal-meta__icon' src={reportWindowClockIcon} mode='aspectFit' />
+        <Text>{timeWindow}</Text>
+      </View>
     </View>
   );
 }
