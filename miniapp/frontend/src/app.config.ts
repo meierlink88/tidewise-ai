@@ -3,7 +3,7 @@ export default defineAppConfig({
   window: {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#071735',
-    navigationBarTitleText: '观潮',
+    navigationBarTitleText: '观潮家',
     navigationBarTextStyle: 'white',
     navigationStyle: 'custom',
     backgroundColor: '#f8fafc'

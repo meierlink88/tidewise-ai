@@ -104,7 +104,7 @@ export function IndexView({
 
       <View className='home-content'>
         <View className='home-section-heading'>
-          <Text className='home-section-heading__title'>今日推理</Text>
+          <Text className='home-section-heading__title'>今日观潮</Text>
         </View>
         <HomeReportState
           state={state}

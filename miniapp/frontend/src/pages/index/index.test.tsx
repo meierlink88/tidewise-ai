@@ -37,8 +37,9 @@ describe('Report homepage', () => {
     });
     const copy = textContent(page);
 
-    expect(copy).toContain('观潮');
-    expect(copy).toContain('今日推理');
+    expect(copy).toContain('观潮家');
+    expect(copy).toContain('今日观潮');
+    expect(copy).not.toContain('今日推理');
     expect(copy).not.toContain('当前事件如何从地缘政治与宏观经济传导至产业链（动态传导）');
     expect(copy).toContain('发布时间');
     expect(copy).toContain('2026.09.01 12:45');

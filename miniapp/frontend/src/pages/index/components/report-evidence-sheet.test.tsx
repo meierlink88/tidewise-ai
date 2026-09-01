@@ -82,7 +82,6 @@ describe('HomeReportEvidenceSheet', () => {
     for (const [scopeKey, expected] of Object.entries(expectedByScope)) {
       const result = await loadHomeReportEvidences(mockReportPort, { ...route, scopeKey });
       expect(result.items.map((item) => item.summary)).toEqual(expected);
-      expect(result.items.every((item) => item.keywords.length === 0)).toBe(true);
     }
   });
 

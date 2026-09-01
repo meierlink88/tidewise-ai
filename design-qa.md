@@ -2,8 +2,8 @@
 
 ## QA scope
 
-- Scope is limited to the existing Miniapp homepage shell and the Report content below `今日推理`.
-- The existing avatar, `观潮` title, search field, and send action are retained; their Taro component and style implementation was not replaced by prototype code.
+- Scope is limited to the existing Miniapp homepage shell and the Report content below `今日观潮`.
+- The existing avatar, `观潮家` title, search field, and send action are retained; their Taro component and style implementation was not replaced by prototype code.
 - Detail pages are outside this acceptance pass. The homepage `看传导` action is checked only as a navigation boundary.
 
 ## QA setup
@@ -13,6 +13,15 @@
 - Viewport: 393 x 852 CSS pixels; implementation DPR 2.
 - State: the Report mock port contains the exact homepage projection of `investment-reasoning-report-2026-09-01-transmission-hypotheses.md` for visual QA.
 - Data boundary: this is not a production data-chain acceptance. Migration `000079_add_report_publications.sql` exists in source, but the runtime PostgreSQL database has not yet been migrated and populated with this report.
+
+### 2026-09-02 fixed-header spacing regression pass
+
+- Source visual truth: `/Users/meierlink/.codex/visualizations/2026/09/01/01a05c0f-87f2-7a23-abb0-f508ae72afee/tidewise-report-homepage-rework/prototype-home-final-reference.png`.
+- User-reported before state: `/Users/meierlink/.codex/visualizations/2026/09/02/report-home-spacing/before-home-spacing.png`.
+- Revised implementation: `/Users/meierlink/.codex/visualizations/2026/09/02/report-home-spacing/after-home-spacing.png`.
+- Implementation screenshot: 515 x 853 pixels, 515 x 853 CSS viewport, DPR 2; the browser capture is CSS-pixel normalized.
+- State: homepage at the top, fixed application header visible, Report mock ready.
+- Focused comparison: the title/header boundary was reviewed together with the archived reference and the revised implementation. No additional focused region was required because this pass changes only that boundary.
 
 ## Same-input visual comparisons
 
@@ -33,6 +42,7 @@ The reference and implementation were captured in the same in-app Browser sessio
 - The industry section shows `54 条真实产业链 · 首页展示 4 条`, a green chain accent, the chain identity row, and four chain cards.
 - The card footer contains one `依据` action and one `看传导` action at card level. No Evidence control appears inside an anchor or node row.
 - Local SVG assets are rendered through Taro `Image`; no prototype HTML, inline SVG, CSS drawing, emoji, or text-symbol icon was copied into the Miniapp.
+- The fixed header ends before the `今日观潮` content block. The content keeps the prototype's `34rpx` top inset, equal to 17 CSS pixels at the 375px design width, instead of retaining the obsolete `-40rpx` overlap.
 
 ## Content and interaction review
 
@@ -49,15 +59,23 @@ The reference and implementation were captured in the same in-app Browser sessio
 - Page and sheet UI use `@tarojs/components` (`View`, `Text`, `Image`, `Button`, and `ScrollView`) and Taro navigation/platform APIs.
 - The implementation remains in the existing page/component/module structure; the standalone React/Vite prototype implementation was not copied.
 - New report colors and shadows are declared in `src/styles/tokens.scss`; page styles consume those tokens instead of scattering a second palette.
+- The fixed-header spacer keeps its static `rpx` height in the page stylesheet and applies the status/navigation-bar height as a separate platform-pixel padding. This avoids an invalid runtime `px + rpx` expression and keeps the static geometry in one named style value.
 - H5, WeChat Mini Program, and Douyin Mini Program builds complete. WeChat and Douyin output verification scripts pass.
 - Frontend tests, TypeScript type checking, and ESLint pass.
+- Runtime layout and console checks in this pass cover H5. WeChat and Douyin runtime spacing remain target-platform acceptance items; their successful builds are not treated as visual proof.
+
+## Spacing comparison history
+
+- Earlier P2: `margin-top: -40rpx` cancelled the heading's `34rpx` top padding after the header became fixed, leaving the title visually attached to the header. The H5 runtime also discarded the mixed-unit dynamic spacer, which could place content underneath the fixed header.
+- Fix: removed the obsolete negative content margin and separated the spacer's stylesheet `rpx` height from its platform-pixel safe-area padding.
+- Post-fix evidence: the current H5 viewport reports `position: fixed`, `margin-top: 0`, a valid spacer height, and no console warning/error. The revised screenshot restores a clear title boundary without changing typography, colors, assets, copy, cards, or interactions.
 
 ## Intentional source-of-truth differences
 
-- The product heading remains `今日推理`, as required by the current Miniapp context, while the standalone reference prototype displays `今日观潮`.
+- The product heading is `今日观潮`, following the user's latest explicit product copy decision.
 - The implementation displays Data Service `published_at` (`2026.09.01 12:45`) as the publication fact. It does not substitute the report-generation time (`12:39`).
 - The original Miniapp shell is retained exactly as requested instead of adopting the standalone prototype's simulated device shell.
 
-No actionable homepage P0, P1, or P2 visual or interaction issue remains in this mock-data acceptance pass.
+No actionable homepage P0, P1, or P2 issue remains in the H5 mock-data acceptance pass. WeChat and Douyin runtime visual acceptance remain pending.
 
-final result: passed
+final result: H5 passed; WeChat/Douyin runtime visual acceptance pending

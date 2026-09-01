@@ -48,10 +48,10 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 不得跨报告合并卡片、锚点、产业链或 Evidence。
 _Avoid_: 今日 Theme、只取当日最后一份、前端自行选择、跨 Report 聚合
 
-**今日推理**:
+**今日观潮**:
 首页 Report 集合的产品入口标题。它不承诺 Report 一定在当日生成；发生历史回退时继续展示
 该份 Report 的实际发布时间。
-_Avoid_: 今日主题、今日观潮、隐藏回退来源
+_Avoid_: 今日主题、今日推理、隐藏回退来源
 
 **Report 层投影**:
 每份 Report 持久化的地缘政治、宏观经济与产业链卡片，以及明确未发布的公司层边界。页面可按
@@ -120,7 +120,7 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
 
 ## Homepage Presentation
 
-- 首页标题固定为 `今日推理`，当日多份 Report 按 `published_at DESC, id ASC` 分组展示；每组
+- 首页标题固定为 `今日观潮`，当日多份 Report 按 `published_at DESC, id ASC` 分组展示；每组
   明确保留 Report 身份与实际发布时间。
 - 每份 Report 的地缘政治和宏观经济各展示且只展示一张持久化卡片，顺序为层结论、锚点、下游结论/锚点或
   相关产业链；不同 Report 的卡片不得合并。

@@ -1,5 +1,7 @@
 @use '../../styles/tokens' as *;
 
+$home-hero-static-height: 168rpx;
+
 .home-page {
   min-height: 100vh;
   overflow-x: hidden;
@@ -7,13 +9,23 @@
 }
 
 .home-hero {
-  position: relative;
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: $layer-home-header;
   padding-bottom: 72rpx;
   overflow: hidden;
   background:
     radial-gradient(circle at 20% -30%, rgba(76, 120, 210, 0.48), transparent 58%),
     linear-gradient(180deg, $color-navy-950 0%, $color-navy-900 64%, #18376b 100%);
   color: #fff;
+}
+
+.home-hero-spacer {
+  box-sizing: content-box;
+  width: 100%;
+  height: $home-hero-static-height;
 }
 
 .home-hero::after {
@@ -131,7 +143,7 @@
   position: relative;
   z-index: 2;
   min-height: 70vh;
-  margin-top: -40rpx;
+  margin-top: 0;
   padding: 34rpx $spacing-page calc(56rpx + env(safe-area-inset-bottom));
   border-radius: 44rpx 44rpx 0 0;
   background: $color-report-canvas;
