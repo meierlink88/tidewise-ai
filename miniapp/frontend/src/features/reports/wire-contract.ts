@@ -42,11 +42,7 @@ const resultLabels: Record<ReportResultCode, ReportResult['label']> = {
   diverging: '分化',
   pending: '待验证'
 };
-const natureCodes = [
-  'direct_evidence',
-  'reasoning_hypothesis',
-  'pending_validation'
-] as const;
+const natureCodes = ['direct_evidence', 'reasoning_hypothesis', 'pending_validation'] as const;
 const natureLabels: Record<ReportNatureCode, ReportNature['label']> = {
   direct_evidence: '直接证据',
   reasoning_hypothesis: '推理假设',
@@ -54,12 +50,7 @@ const natureLabels: Record<ReportNatureCode, ReportNature['label']> = {
 };
 const layerKeys = ['geopolitics', 'macroeconomics'] as const;
 const cardKinds = ['geopolitics', 'macroeconomics', 'industry_chain'] as const;
-const referenceTypes = [
-  'layer',
-  'anchor',
-  'industry_chain',
-  'industry_chain_node'
-] as const;
+const referenceTypes = ['layer', 'anchor', 'industry_chain', 'industry_chain_node'] as const;
 const evidenceScopeTypes = [
   'report_card',
   'layer',
@@ -74,8 +65,7 @@ const selectionModes = ['today', 'latest_fallback'] as const;
 const reportIDPattern =
   /^RPT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const localKeyPattern = /^[a-z0-9][a-z0-9._-]{0,127}$/;
-const utcTimestampPattern =
-  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/;
+const utcTimestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const displayTextMaxCodePoints = 10_000;
 
@@ -215,8 +205,7 @@ function parseCard(value: unknown): ReportCard {
   const kind = enumValue(card.kind, cardKinds);
   const detailRef = parseReference(card.detail_ref);
   if (
-    (kind === 'geopolitics' &&
-      (detailRef.type !== 'layer' || detailRef.key !== 'geopolitics')) ||
+    (kind === 'geopolitics' && (detailRef.type !== 'layer' || detailRef.key !== 'geopolitics')) ||
     (kind === 'macroeconomics' &&
       (detailRef.type !== 'layer' || detailRef.key !== 'macroeconomics')) ||
     (kind === 'industry_chain' && detailRef.type !== 'industry_chain')
@@ -265,12 +254,7 @@ function parseImpactItem(value: unknown, kind: ReportCard['kind']) {
 }
 
 function parseReportSummary(value: unknown): ReportSummary {
-  const summary = exactRecord(value, [
-    'id',
-    'title',
-    'generated_at',
-    'published_at'
-  ]);
+  const summary = exactRecord(value, ['id', 'title', 'generated_at', 'published_at']);
   return {
     id: reportID(summary.id),
     title: displayText(summary.title),
@@ -392,10 +376,7 @@ function parseDownwardTransmission(value: unknown): ReportDownwardTransmission {
   ]);
   return {
     summary: displayText(transmission.summary),
-    publishedPaths: parseOrderedArray(
-      transmission.published_paths,
-      parseTransmissionPath
-    ),
+    publishedPaths: parseOrderedArray(transmission.published_paths, parseTransmissionPath),
     candidateMechanisms: parseOrderedArray(
       transmission.candidate_mechanisms,
       parseCandidateMechanism
@@ -698,8 +679,7 @@ function parseConfidence(value: unknown): ReportConfidence {
 function parseEvidence(value: unknown): ReportEvidence {
   const evidence = exactRecord(value, ['published_at', 'summary', 'keywords']);
   return {
-    publishedAt:
-      evidence.published_at === null ? null : utcTimestamp(evidence.published_at),
+    publishedAt: evidence.published_at === null ? null : utcTimestamp(evidence.published_at),
     summary: displayText(evidence.summary),
     keywords: displayTextArray(evidence.keywords, 50)
   };
@@ -747,9 +727,7 @@ function validateSummaryOrder(summaries: ReportSummary[]): void {
 }
 
 function shanghaiDate(timestamp: string): string {
-  return new Date(Date.parse(timestamp) + 8 * 60 * 60 * 1_000)
-    .toISOString()
-    .slice(0, 10);
+  return new Date(Date.parse(timestamp) + 8 * 60 * 60 * 1_000).toISOString().slice(0, 10);
 }
 
 function exactRecord(value: unknown, keys: readonly string[]): RecordValue {

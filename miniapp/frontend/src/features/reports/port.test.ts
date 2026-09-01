@@ -13,15 +13,11 @@ describe('Report port selection', () => {
     expect(createReportPort('api', 'https://miniapp.example.com/', 'weapp')).toBeInstanceOf(
       APIReportPort
     );
-    expect(() => createReportPort('api', '', 'weapp')).toThrow(
-      'TARO_APP_MINIAPP_API_BASE_URL'
-    );
+    expect(() => createReportPort('api', '', 'weapp')).toThrow('TARO_APP_MINIAPP_API_BASE_URL');
     expect(createReportPort('api', '', 'h5')).toBeInstanceOf(APIReportPort);
   });
 
   it('fails closed when the source was not selected', () => {
-    expect(() => createReportPort(undefined, undefined, 'h5')).toThrow(
-      'TARO_APP_REPORT_SOURCE'
-    );
+    expect(() => createReportPort(undefined, undefined, 'h5')).toThrow('TARO_APP_REPORT_SOURCE');
   });
 });

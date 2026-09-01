@@ -166,9 +166,39 @@ const chainDetails: ReportIndustryChainDetailContent[] = [
     medium,
     '中期–长期',
     [
-      node('chn-02-n01', 1, 'AI芯片', '商业化与技术成熟度上升', warming, direct, medium, '中期–长期', '定制芯片合作与自研加速器测试推进。'),
-      node('chn-02-n02', 2, '液冷服务器', '商业化进度上升', warming, direct, medium, '长期', '国家级液冷标准建立统一技术基准。'),
-      node('chn-02-n03', 3, '服务器冷板', '市场需求存在上升假设', warming, inferred, low, '长期（传导滞后）', '液冷服务器交付增加可能带动核心冷板配套。')
+      node(
+        'chn-02-n01',
+        1,
+        'AI芯片',
+        '商业化与技术成熟度上升',
+        warming,
+        direct,
+        medium,
+        '中期–长期',
+        '定制芯片合作与自研加速器测试推进。'
+      ),
+      node(
+        'chn-02-n02',
+        2,
+        '液冷服务器',
+        '商业化进度上升',
+        warming,
+        direct,
+        medium,
+        '长期',
+        '国家级液冷标准建立统一技术基准。'
+      ),
+      node(
+        'chn-02-n03',
+        3,
+        '服务器冷板',
+        '市场需求存在上升假设',
+        warming,
+        inferred,
+        low,
+        '长期（传导滞后）',
+        '液冷服务器交付增加可能带动核心冷板配套。'
+      )
     ],
     [
       edge('chn-02-edge-01', 1, 'chn-02-n01', 'chn-02-n02', '组成'),
@@ -186,9 +216,39 @@ const chainDetails: ReportIndustryChainDetailContent[] = [
     medium,
     '中期–长期',
     [
-      node('chn-03-n01', 1, 'AI芯片', '商业化与技术成熟度上升', warming, direct, medium, '中期–长期', '定制芯片合作与加速器测试推进。'),
-      node('chn-03-n02', 2, '算力供给', '有效产能与市场供给上升', warming, direct, medium, '中期', '全国智算规模与调度能力继续扩张。'),
-      node('chn-03-n03', 3, 'AI服务器', '同链相邻，方向待确认', pending, validation, low, '后续周期', '缺少订单、价格、产能或经营数据。')
+      node(
+        'chn-03-n01',
+        1,
+        'AI芯片',
+        '商业化与技术成熟度上升',
+        warming,
+        direct,
+        medium,
+        '中期–长期',
+        '定制芯片合作与加速器测试推进。'
+      ),
+      node(
+        'chn-03-n02',
+        2,
+        '算力供给',
+        '有效产能与市场供给上升',
+        warming,
+        direct,
+        medium,
+        '中期',
+        '全国智算规模与调度能力继续扩张。'
+      ),
+      node(
+        'chn-03-n03',
+        3,
+        'AI服务器',
+        '同链相邻，方向待确认',
+        pending,
+        validation,
+        low,
+        '后续周期',
+        '缺少订单、价格、产能或经营数据。'
+      )
     ],
     [edge('chn-03-edge-01', 1, 'chn-03-n01', 'chn-03-n03', '组成')],
     '同链相邻节点缺少直接观测与经营数据。',
@@ -233,8 +293,34 @@ const chainDetails: ReportIndustryChainDetailContent[] = [
 ];
 
 const cards: ReportCard[] = [
-  card('card-geopolitics', 'geopolitics', 1, '地缘政治', '安全对抗与通道可用性', '伊朗—美以及海湾安全对抗持续升温，霍尔木兹航运安全与贸易通道可用性下降；南海商业航运安全暂时稳定。', diverging, high, '即时–中期', 'layer', 'geopolitics', geoAnchors),
-  card('card-macroeconomics', 'macroeconomics', 2, '宏观经济', '增长预期与政策利率', '全球增长预期受到能源中断情景压制，同时加息预期升温，构成偏紧的宏观组合。', diverging, medium, '中期', 'layer', 'macroeconomics', macroAnchors),
+  card(
+    'card-geopolitics',
+    'geopolitics',
+    1,
+    '地缘政治',
+    '安全对抗与通道可用性',
+    '伊朗—美以及海湾安全对抗持续升温，霍尔木兹航运安全与贸易通道可用性下降；南海商业航运安全暂时稳定。',
+    diverging,
+    high,
+    '即时–中期',
+    'layer',
+    'geopolitics',
+    geoAnchors
+  ),
+  card(
+    'card-macroeconomics',
+    'macroeconomics',
+    2,
+    '宏观经济',
+    '增长预期与政策利率',
+    '全球增长预期受到能源中断情景压制，同时加息预期升温，构成偏紧的宏观组合。',
+    diverging,
+    medium,
+    '中期',
+    'layer',
+    'macroeconomics',
+    macroAnchors
+  ),
   ...chainDetails.map((item, index) =>
     card(
       `card-${item.key}`,
@@ -437,24 +523,137 @@ const layerDetails: Record<'geopolitics' | 'macroeconomics', ReportLayerDetail> 
 };
 
 const evidenceByScope = new Map<string, ReportEvidence[]>([
-  ['report_card:card-geopolitics', [evidence('2026-08-31T07:25:00+08:00', '霍尔木兹海峡商业油轮通行显著下降，油轮遇袭风险上升。', ['霍尔木兹', '油轮通行', '航运安全']), evidence('2026-08-31T07:20:00+08:00', '海湾油运保险与运输定价继续上行。', ['海湾油运', '保险定价'])]],
-  ['report_card:card-macroeconomics', [evidence('2026-08-31T08:10:00+08:00', '能源持续中断情景下，全球增长预测被下调。', ['能源供应', '增长预期']), evidence('2026-08-31T08:00:00+08:00', '政策沟通抬高未来加息路径预期。', ['政策利率', '加息预期'])]],
-  ['report_card:card-chn-01', [evidence('2026-08-31T09:20:00+08:00', '人形机器人比赛展示技术进步与应用进展。', ['人形机器人', '技术进步'])]],
-  ['report_card:card-chn-02', [evidence('2026-08-29T18:00:00+08:00', '首个国家级液冷标准发布，为高功率AI机架建立统一技术基准。', ['液冷标准', 'AI机架'])]],
-  ['report_card:card-chn-03', [evidence('2026-08-31T09:40:00+08:00', '全国智算规模与国家级监测调度能力继续扩张。', ['智算规模', '算力调度'])]],
-  ['report_card:card-chn-21', [evidence('2026-08-31T07:25:00+08:00', '霍尔木兹通行扰动延长油品运输周期并推高油运景气。', ['油品运输', '霍尔木兹'])]],
-  ['layer:geopolitics', [evidence('2026-08-31T07:25:00+08:00', '霍尔木兹海峡商业油轮通行显著下降，油轮遇袭风险上升。', ['霍尔木兹', '航运安全'])]],
-  ['layer:macroeconomics', [evidence('2026-08-31T08:10:00+08:00', '能源持续中断情景下，全球增长预测被下调。', ['增长预测', '能源供应'])]],
-  ['anchor:geo-a01', [evidence('2026-08-31T07:25:00+08:00', '霍尔木兹通行量下降并出现袭击警告。', ['霍尔木兹', '袭击警告'])]],
-  ['anchor:geo-a02', [evidence('2026-08-31T06:50:00+08:00', '黄岩岛周边执法巡查继续加强。', ['黄岩岛', '执法巡查'])]],
-  ['anchor:macro-a01', [evidence('2026-08-31T08:00:00+08:00', '政策沟通抬高未来加息路径预期。', ['政策利率', '加息预期'])]],
-  ['anchor:macro-a02', [evidence('2026-08-31T08:10:00+08:00', '能源中断情景下全球增长预测下调。', ['增长预测', '能源供应'])]],
-  ['transmission_path:geo-x-chn-21', [evidence('2026-08-31T07:25:00+08:00', '霍尔木兹通行扰动进入油品运输周期与价格。', ['霍尔木兹', '油品运输'])]],
+  [
+    'report_card:card-geopolitics',
+    [
+      evidence(
+        '2026-08-31T07:25:00+08:00',
+        '霍尔木兹海峡商业油轮通行显著下降，油轮遇袭风险上升。',
+        ['霍尔木兹', '油轮通行', '航运安全']
+      ),
+      evidence('2026-08-31T07:20:00+08:00', '海湾油运保险与运输定价继续上行。', [
+        '海湾油运',
+        '保险定价'
+      ])
+    ]
+  ],
+  [
+    'report_card:card-macroeconomics',
+    [
+      evidence('2026-08-31T08:10:00+08:00', '能源持续中断情景下，全球增长预测被下调。', [
+        '能源供应',
+        '增长预期'
+      ]),
+      evidence('2026-08-31T08:00:00+08:00', '政策沟通抬高未来加息路径预期。', [
+        '政策利率',
+        '加息预期'
+      ])
+    ]
+  ],
+  [
+    'report_card:card-chn-01',
+    [
+      evidence('2026-08-31T09:20:00+08:00', '人形机器人比赛展示技术进步与应用进展。', [
+        '人形机器人',
+        '技术进步'
+      ])
+    ]
+  ],
+  [
+    'report_card:card-chn-02',
+    [
+      evidence(
+        '2026-08-29T18:00:00+08:00',
+        '首个国家级液冷标准发布，为高功率AI机架建立统一技术基准。',
+        ['液冷标准', 'AI机架']
+      )
+    ]
+  ],
+  [
+    'report_card:card-chn-03',
+    [
+      evidence('2026-08-31T09:40:00+08:00', '全国智算规模与国家级监测调度能力继续扩张。', [
+        '智算规模',
+        '算力调度'
+      ])
+    ]
+  ],
+  [
+    'report_card:card-chn-21',
+    [
+      evidence('2026-08-31T07:25:00+08:00', '霍尔木兹通行扰动延长油品运输周期并推高油运景气。', [
+        '油品运输',
+        '霍尔木兹'
+      ])
+    ]
+  ],
+  [
+    'layer:geopolitics',
+    [
+      evidence(
+        '2026-08-31T07:25:00+08:00',
+        '霍尔木兹海峡商业油轮通行显著下降，油轮遇袭风险上升。',
+        ['霍尔木兹', '航运安全']
+      )
+    ]
+  ],
+  [
+    'layer:macroeconomics',
+    [
+      evidence('2026-08-31T08:10:00+08:00', '能源持续中断情景下，全球增长预测被下调。', [
+        '增长预测',
+        '能源供应'
+      ])
+    ]
+  ],
+  [
+    'anchor:geo-a01',
+    [
+      evidence('2026-08-31T07:25:00+08:00', '霍尔木兹通行量下降并出现袭击警告。', [
+        '霍尔木兹',
+        '袭击警告'
+      ])
+    ]
+  ],
+  [
+    'anchor:geo-a02',
+    [evidence('2026-08-31T06:50:00+08:00', '黄岩岛周边执法巡查继续加强。', ['黄岩岛', '执法巡查'])]
+  ],
+  [
+    'anchor:macro-a01',
+    [
+      evidence('2026-08-31T08:00:00+08:00', '政策沟通抬高未来加息路径预期。', [
+        '政策利率',
+        '加息预期'
+      ])
+    ]
+  ],
+  [
+    'anchor:macro-a02',
+    [
+      evidence('2026-08-31T08:10:00+08:00', '能源中断情景下全球增长预测下调。', [
+        '增长预测',
+        '能源供应'
+      ])
+    ]
+  ],
+  [
+    'transmission_path:geo-x-chn-21',
+    [
+      evidence('2026-08-31T07:25:00+08:00', '霍尔木兹通行扰动进入油品运输周期与价格。', [
+        '霍尔木兹',
+        '油品运输'
+      ])
+    ]
+  ],
   ...chainDetails.flatMap((item) => [
     [`industry_chain:${item.key}`, evidenceForChain(item)] as [string, ReportEvidence[]],
     ...item.nodes.map(
       (itemNode) =>
-        [`industry_chain_node:${itemNode.key}`, evidenceForNode(itemNode)] as [string, ReportEvidence[]]
+        [`industry_chain_node:${itemNode.key}`, evidenceForNode(itemNode)] as [
+          string,
+          ReportEvidence[]
+        ]
     )
   ])
 ]);
@@ -464,7 +663,10 @@ export class MockReportPort implements ReportPort {
     return home;
   }
 
-  async getLayer(reportId: string, layerKey: 'geopolitics' | 'macroeconomics'): Promise<ReportLayerDetail> {
+  async getLayer(
+    reportId: string,
+    layerKey: 'geopolitics' | 'macroeconomics'
+  ): Promise<ReportLayerDetail> {
     assertReport(reportId);
     const detail = layerDetails[layerKey];
     if (!detail) throw new ReportError('layerUnavailable');
@@ -613,10 +815,7 @@ function card(
     timeWindow,
     impactItems: items.map((item) => ({
       ref: {
-        type:
-          kind === 'industry_chain'
-            ? ('industry_chain_node' as const)
-            : ('anchor' as const),
+        type: kind === 'industry_chain' ? ('industry_chain_node' as const) : ('anchor' as const),
         key: item.key
       },
       name: item.name,
@@ -635,11 +834,10 @@ function evidence(publishedAt: string | null, summary: string, keywords: string[
 
 function evidenceForChain(item: ReportIndustryChainDetailContent): ReportEvidence[] {
   return [
-    evidence(
-      '2026-08-31T09:20:00+08:00',
-      item.conclusion,
-      [item.name.replace('产业链', ''), item.result.label]
-    )
+    evidence('2026-08-31T09:20:00+08:00', item.conclusion, [
+      item.name.replace('产业链', ''),
+      item.result.label
+    ])
   ];
 }
 

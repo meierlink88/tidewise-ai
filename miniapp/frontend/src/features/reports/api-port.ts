@@ -1,11 +1,6 @@
 import Taro from '@tarojs/taro';
 import { unwrapMiniappAPIEnvelope } from '../../platform/miniapp-api';
-import type {
-  ReportErrorKind,
-  ReportEvidenceScope,
-  ReportLayerKey,
-  ReportPort
-} from './contract';
+import type { ReportErrorKind, ReportEvidenceScope, ReportLayerKey, ReportPort } from './contract';
 import { ReportError } from './contract';
 import {
   parseReportEvidenceListWire,
@@ -29,9 +24,7 @@ export class APIReportPort implements ReportPort {
       `/api/miniapp/v1/reports/${encodeURIComponent(reportId)}/layers/${encodeURIComponent(layerKey)}`,
       'layerUnavailable'
     );
-    return parseResponse(result, (value) =>
-      parseReportLayerDetailWire(value, reportId, layerKey)
-    );
+    return parseResponse(result, (value) => parseReportLayerDetailWire(value, reportId, layerKey));
   }
 
   async getIndustryChain(reportId: string, chainKey: string) {
@@ -50,9 +43,7 @@ export class APIReportPort implements ReportPort {
       `/api/miniapp/v1/reports/${encodeURIComponent(reportId)}/evidences?${query}`,
       'evidenceScopeUnavailable'
     );
-    return parseResponse(result, (value) =>
-      parseReportEvidenceListWire(value, reportId, scope)
-    );
+    return parseResponse(result, (value) => parseReportEvidenceListWire(value, reportId, scope));
   }
 
   private async get(path: string, missingKind: ReportErrorKind): Promise<unknown> {

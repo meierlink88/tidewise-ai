@@ -49,21 +49,13 @@ export default function ReportEvidencesPage() {
   usePullDownRefresh(async () => {
     await resource.refresh();
     const latest = resource.snapshot();
-    if (
-      (latest.status === 'ready' || latest.status === 'empty') &&
-      latest.refreshFailed
-    ) {
+    if ((latest.status === 'ready' || latest.status === 'empty') && latest.refreshFailed) {
       void Taro.showToast({ title: '刷新失败，已保留当前内容', icon: 'none', duration: 1800 });
     }
     void Taro.stopPullDownRefresh();
   });
 
-  return (
-    <ReportEvidencesView
-      state={resource.state}
-      onRetry={() => void resource.retry()}
-    />
-  );
+  return <ReportEvidencesView state={resource.state} onRetry={() => void resource.retry()} />;
 }
 
 export async function loadReportEvidences(
@@ -119,10 +111,7 @@ export function ReportEvidencesView({
       ) : null}
       <View className='report-evidence-list'>
         {state.data.items.map((item, index) => (
-          <View
-            className='report-evidence-item'
-            key={`${evidenceStableKey(item)}-${index}`}
-          >
+          <View className='report-evidence-item' key={`${evidenceStableKey(item)}-${index}`}>
             <View className='report-evidence-item__time-row'>
               <Image
                 className='report-evidence-item__clock'
@@ -130,9 +119,7 @@ export function ReportEvidencesView({
                 mode='aspectFit'
               />
               <Text className='report-evidence-item__time'>
-                {item.publishedAt
-                  ? formatShanghaiTimestamp(item.publishedAt)
-                  : '时间待确认'}
+                {item.publishedAt ? formatShanghaiTimestamp(item.publishedAt) : '时间待确认'}
               </Text>
             </View>
             <Text className='report-evidence-item__summary'>{item.summary}</Text>

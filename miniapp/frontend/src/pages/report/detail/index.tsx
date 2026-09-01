@@ -55,10 +55,7 @@ export default function ReportDetailPage() {
   usePullDownRefresh(async () => {
     await resource.refresh();
     const latest = resource.snapshot();
-    if (
-      (latest.status === 'ready' || latest.status === 'empty') &&
-      latest.refreshFailed
-    ) {
+    if ((latest.status === 'ready' || latest.status === 'empty') && latest.refreshFailed) {
       void Taro.showToast({ title: '刷新失败，已保留当前内容', icon: 'none', duration: 1800 });
     }
     void Taro.stopPullDownRefresh();
@@ -143,10 +140,7 @@ export function ReportDetailView({
           onOpenEvidence={onOpenEvidence}
         />
       ) : (
-        <IndustryChainDetailView
-          detail={state.data.detail}
-          onOpenEvidence={onOpenEvidence}
-        />
+        <IndustryChainDetailView detail={state.data.detail} onOpenEvidence={onOpenEvidence} />
       )}
     </View>
   );
@@ -264,9 +258,7 @@ function LayerDetailView({
       ) : null}
 
       <DetailSection title='向下传导'>
-        <Text className='report-detail-section-summary'>
-          {layer.downwardTransmission.summary}
-        </Text>
+        <Text className='report-detail-section-summary'>{layer.downwardTransmission.summary}</Text>
         <View className='report-transmission-list'>
           {layer.downwardTransmission.publishedPaths.map((path) => (
             <TransmissionPathView
@@ -295,7 +287,9 @@ function LayerDetailView({
             {candidate.evidenceGap ? (
               <Text className='report-candidate-card__gap'>{candidate.evidenceGap}</Text>
             ) : null}
-            <Text className='report-candidate-card__confidence'>置信 {candidate.confidence.label}</Text>
+            <Text className='report-candidate-card__confidence'>
+              置信 {candidate.confidence.label}
+            </Text>
           </View>
         ))}
         {layer.downwardTransmission.boundaryNotes.length ? (
@@ -326,9 +320,7 @@ function LayerDetailView({
               }
             >
               <Text>{chainItem.name}</Text>
-              <Text
-                className={`report-result-chip report-result-chip--${chainItem.result.code}`}
-              >
+              <Text className={`report-result-chip report-result-chip--${chainItem.result.code}`}>
                 {chainItem.result.label}
               </Text>
               <Image
@@ -400,8 +392,7 @@ function TransmissionTargetView({
   confidence: ReportTransmissionPath['confidence'];
   onOpenDetail: (route: ReportDetailRoute) => void;
 }) {
-  const isDetailTarget =
-    target.ref.type === 'layer' || target.ref.type === 'industry_chain';
+  const isDetailTarget = target.ref.type === 'layer' || target.ref.type === 'industry_chain';
   const content = (
     <>
       <Text>{target.label}</Text>
@@ -644,8 +635,7 @@ function ChainGraph({
           const movesRight = fromIndex < toIndex;
           const nodeTop = laneHeight;
           if (adjacent) {
-            const sourceX =
-              canvasPadding + fromIndex * step + (movesRight ? nodeWidth : 0);
+            const sourceX = canvasPadding + fromIndex * step + (movesRight ? nodeWidth : 0);
             const targetX = canvasPadding + toIndex * step + (movesRight ? 0 : nodeWidth);
             return (
               <View key={edgeItem.key}>

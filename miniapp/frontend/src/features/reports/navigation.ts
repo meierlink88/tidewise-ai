@@ -1,8 +1,4 @@
-import type {
-  ReportDetailTargetType,
-  ReportEvidenceScopeType,
-  ReportLayerKey
-} from './contract';
+import type { ReportDetailTargetType, ReportEvidenceScopeType, ReportLayerKey } from './contract';
 
 const reportIDPattern =
   /^RPT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -42,10 +38,7 @@ export function parseReportDetailRoute(value: unknown): ReportDetailRoute {
   return readReportDetailRoute(value, true);
 }
 
-function readReportDetailRoute(
-  value: unknown,
-  normalizeInboundValues: boolean
-): ReportDetailRoute {
+function readReportDetailRoute(value: unknown, normalizeInboundValues: boolean): ReportDetailRoute {
   const params = routeRecord(value, ['reportId', 'targetType', 'targetKey']);
   const reportId = reportID(routeParam(params.reportId, normalizeInboundValues));
   const targetType = enumParam<ReportDetailTargetType>(
@@ -93,10 +86,13 @@ export function buildReportDetailURL(route: ReportDetailRoute): string {
 }
 
 export function buildReportEvidenceURL(route: ReportEvidenceRoute): string {
-  const parsed = readReportEvidenceRoute({
-    ...route,
-    title: evidenceRouteTitle(route.title)
-  }, false);
+  const parsed = readReportEvidenceRoute(
+    {
+      ...route,
+      title: evidenceRouteTitle(route.title)
+    },
+    false
+  );
   return `/pages/report/evidences/index?${query({
     reportId: parsed.reportId,
     scopeType: parsed.scopeType,
@@ -120,10 +116,7 @@ function evidenceRouteTitle(value: unknown): string {
   return `${codePoints.slice(0, evidenceRouteTitleMaxCodePoints - 1).join('')}…`;
 }
 
-export function navigateToReportDetail(
-  navigator: ReportNavigator,
-  route: ReportDetailRoute
-): void {
+export function navigateToReportDetail(navigator: ReportNavigator, route: ReportDetailRoute): void {
   void navigator.navigateTo({ url: buildReportDetailURL(route) });
 }
 
@@ -142,11 +135,7 @@ function routeRecord(value: unknown, keys: readonly string[]): Record<string, un
   if (keys.some((key) => !Object.prototype.hasOwnProperty.call(result, key))) {
     invalidRoute();
   }
-  if (
-    actualKeys.some(
-      (key) => !expected.has(key) && key !== 'stamp' && key !== '$taroTimestamp'
-    )
-  ) {
+  if (actualKeys.some((key) => !expected.has(key) && key !== 'stamp' && key !== '$taroTimestamp')) {
     invalidRoute();
   }
   validateTaroRouteInternals(result);

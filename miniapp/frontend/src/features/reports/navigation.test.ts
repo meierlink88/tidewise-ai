@@ -74,20 +74,26 @@ describe('Report navigation', () => {
 
   it('preserves an already-decoded Weapp or TT title with a literal percent sign', () => {
     expect(
-      parseReportEvidenceRoute({
-        reportId,
-        scopeType: 'anchor',
-        scopeKey: 'macro-a01',
-        title: '增长50%证据'
-      }, false).title
+      parseReportEvidenceRoute(
+        {
+          reportId,
+          scopeType: 'anchor',
+          scopeKey: 'macro-a01',
+          title: '增长50%证据'
+        },
+        false
+      ).title
     ).toBe('增长50%证据');
     expect(
-      parseReportEvidenceRoute({
-        reportId,
-        scopeType: 'anchor',
-        scopeKey: 'macro-a01',
-        title: '增长%20证据'
-      }, false).title
+      parseReportEvidenceRoute(
+        {
+          reportId,
+          scopeType: 'anchor',
+          scopeKey: 'macro-a01',
+          title: '增长%20证据'
+        },
+        false
+      ).title
     ).toBe('增长%20证据');
   });
 
@@ -109,9 +115,9 @@ describe('Report navigation', () => {
       scopeKey: 'chn-21-n01'
     } as const;
 
-    expect(() =>
-      parseReportEvidenceRoute({ ...route, title: '%E6%B2%ZZ' })
-    ).toThrow('invalid Report route');
+    expect(() => parseReportEvidenceRoute({ ...route, title: '%E6%B2%ZZ' })).toThrow(
+      'invalid Report route'
+    );
     expect(() =>
       parseReportEvidenceRoute({
         ...route,

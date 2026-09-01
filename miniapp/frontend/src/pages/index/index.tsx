@@ -6,11 +6,7 @@ import reportBarChartIcon from '../../assets/icons/report-bar-chart.svg';
 import reportCubeIcon from '../../assets/icons/report-cube.svg';
 import reportGlobeIcon from '../../assets/icons/report-globe.svg';
 import reportLayersIcon from '../../assets/icons/report-layers.svg';
-import type {
-  ReportCard,
-  ReportHome,
-  ReportHomeGroup
-} from '../../features/reports/contract';
+import type { ReportCard, ReportHome, ReportHomeGroup } from '../../features/reports/contract';
 import {
   navigateToReportDetail,
   navigateToReportEvidences,
@@ -46,10 +42,7 @@ export default function IndexPage() {
   usePullDownRefresh(async () => {
     await resource.refresh();
     const latest = resource.snapshot();
-    if (
-      (latest.status === 'ready' || latest.status === 'empty') &&
-      latest.refreshFailed
-    ) {
+    if ((latest.status === 'ready' || latest.status === 'empty') && latest.refreshFailed) {
       void Taro.showToast({ title: '刷新失败，已保留当前内容', icon: 'none', duration: 1800 });
     }
     void Taro.stopPullDownRefresh();
@@ -187,11 +180,7 @@ function HomeReportGroupView({
 
       <View className='home-company-boundary'>
         <View className='home-company-boundary__mark' ariaLabel='企业层'>
-          <Image
-            className='home-company-boundary__icon'
-            src={reportCubeIcon}
-            mode='aspectFit'
-          />
+          <Image className='home-company-boundary__icon' src={reportCubeIcon} mode='aspectFit' />
         </View>
         <View className='home-company-boundary__copy'>
           <Text>{group.company.title}层未发布</Text>
@@ -227,10 +216,7 @@ function HomeReportCard({
     >
       <View className='home-report-card__heading'>
         <View className='home-report-card__identity'>
-          <View
-            className='home-report-card__kind'
-            ariaLabel={`${cardKindLabel(card.kind)}卡片`}
-          >
+          <View className='home-report-card__kind' ariaLabel={`${cardKindLabel(card.kind)}卡片`}>
             <Image
               className='home-report-card__kind-icon'
               src={cardKindIcon(card.kind)}
@@ -294,11 +280,7 @@ function HomeReportCard({
       </View>
       <View className='home-report-card__footer'>
         <Text>推理详情</Text>
-        <Image
-          className='home-report-card__arrow'
-          src={reportArrowRightIcon}
-          mode='aspectFit'
-        />
+        <Image className='home-report-card__arrow' src={reportArrowRightIcon} mode='aspectFit' />
       </View>
     </View>
   );

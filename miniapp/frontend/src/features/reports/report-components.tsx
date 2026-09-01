@@ -1,10 +1,6 @@
 import { Button, Image, Text, View } from '@tarojs/components';
 import fileTextIcon from '../../assets/icons/file-text.svg';
-import type {
-  ReportConfidence,
-  ReportNature,
-  ReportResult
-} from './contract';
+import type { ReportConfidence, ReportNature, ReportResult } from './contract';
 
 export function ReportImpactSignals({
   result,
@@ -19,7 +15,9 @@ export function ReportImpactSignals({
 }) {
   return (
     <View className='report-impact-signals'>
-      <Text className={`report-result-chip report-result-chip--${result.code}`}>{result.label}</Text>
+      <Text className={`report-result-chip report-result-chip--${result.code}`}>
+        {result.label}
+      </Text>
       {nature ? <Text className='report-nature-chip'>{nature.label}</Text> : null}
       <Text className='report-signal-meta'>置信 {confidence.label}</Text>
       <Text className='report-signal-meta'>{timeWindow}</Text>
@@ -27,13 +25,7 @@ export function ReportImpactSignals({
   );
 }
 
-export function ReportEvidenceButton({
-  label,
-  onClick
-}: {
-  label: string;
-  onClick: () => void;
-}) {
+export function ReportEvidenceButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <Button
       className='tidewise-button report-evidence-button'

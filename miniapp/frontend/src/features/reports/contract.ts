@@ -1,10 +1,7 @@
 export type ReportLayerKey = 'geopolitics' | 'macroeconomics';
 export type ReportDetailTargetType = 'layer' | 'industry_chain';
 export type ReportResultCode = 'warming' | 'cooling' | 'diverging' | 'pending';
-export type ReportNatureCode =
-  | 'direct_evidence'
-  | 'reasoning_hypothesis'
-  | 'pending_validation';
+export type ReportNatureCode = 'direct_evidence' | 'reasoning_hypothesis' | 'pending_validation';
 
 export type ReportEvidenceScopeType =
   | 'report_card'
@@ -16,11 +13,7 @@ export type ReportEvidenceScopeType =
   | 'industry_chain'
   | 'industry_chain_node';
 
-export type ReportReferenceType =
-  | 'layer'
-  | 'anchor'
-  | 'industry_chain'
-  | 'industry_chain_node';
+export type ReportReferenceType = 'layer' | 'anchor' | 'industry_chain' | 'industry_chain_node';
 
 export interface ReportReference<T extends string = ReportReferenceType> {
   type: T;

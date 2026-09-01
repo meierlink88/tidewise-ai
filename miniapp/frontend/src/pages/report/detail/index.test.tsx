@@ -189,16 +189,13 @@ describe('Report detail page', () => {
     expect(copy).toContain('产业链图');
     expect(copy).toContain('依赖');
     expect(copy).toContain('交付周期与销售价格上升');
-    const canvas = captured.views.find(
-      (props) => props.className === 'report-chain-canvas'
-    );
+    const canvas = captured.views.find((props) => props.className === 'report-chain-canvas');
     const edge = captured.views.find(
       (props) => props.className === 'report-chain-edge report-chain-edge--adjacent'
     );
     const arrow = captured.views.find(
       (props) =>
-        typeof props.className === 'string' &&
-        props.className.includes('report-chain-edge-arrow')
+        typeof props.className === 'string' && props.className.includes('report-chain-edge-arrow')
     );
     expect(canvas?.style).toEqual(expect.any(String));
     expect(canvas?.style).toContain('width:');
@@ -268,7 +265,7 @@ function clickCapturedButton(label: string): void {
   const button = captured.buttons.find((props) => props.ariaLabel === label);
   if (!button) throw new Error(`missing button: ${label}`);
   const stopPropagation = vi.fn();
-  (button.onClick as ((event: { stopPropagation: () => void }) => void))({
+  (button.onClick as (event: { stopPropagation: () => void }) => void)({
     stopPropagation
   });
   expect(stopPropagation).toHaveBeenCalledOnce();

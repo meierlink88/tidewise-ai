@@ -347,9 +347,7 @@ describe('Report BFF wire contract', () => {
     );
 
     expect(detail.layer.downwardTransmission.publishedPaths[0].targetRefs).toHaveLength(4);
-    expect(detail.layer.downwardTransmission.boundaryNotes).toEqual(
-      providerValidBoundaryNotes
-    );
+    expect(detail.layer.downwardTransmission.boundaryNotes).toEqual(providerValidBoundaryNotes);
     expect(detail.relatedIndustryChains[0]).toMatchObject({
       key: 'chn-21',
       displayOrder: 21,
