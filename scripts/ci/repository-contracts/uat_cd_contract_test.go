@@ -76,6 +76,7 @@ func TestUATRuntimeAuditIsMainOnlyReadOnlyAndSecretSafe(t *testing.T) {
 		"actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
 		"Build read-only RDS audit command on hosted runner",
 		"sha256sum --check uat-retired-runtime-db-audit.sha256",
+		"audit_status=\"${PIPESTATUS[0]}\"",
 		"audit-retired-runtime.sh",
 	} {
 		if !strings.Contains(workflow, required) {

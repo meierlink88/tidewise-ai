@@ -158,8 +158,8 @@ for path in \
   /opt/tidewise/neo4j-uat \
   /opt/tidewise/reason-uat; do
   if [ -e "$path" ]; then
-    size_bytes="$(du -sb -- "$path" | awk '{print $1}')"
-    echo "PRESENT path ${path} bytes=${size_bytes}"
+    size_bytes="$(du -sb -- "$path" 2>/dev/null | awk '{print $1}' || true)"
+    echo "PRESENT path ${path} bytes=${size_bytes:-unreadable}"
   else
     echo "ABSENT path ${path}"
   fi

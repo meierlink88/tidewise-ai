@@ -130,9 +130,12 @@ jobs:
           TIDEWISW_DB_PASSWORD: ${{ secrets.TIDEWISW_DB_PASSWORD }}
         shell: bash
         run: |
+          set +e
           set -o pipefail
           report="${RUNNER_TEMP}/uat-runtime-audit-${GITHUB_RUN_ID}.txt"
           bash infra/uat/audit-retired-runtime.sh | tee "$report"
+          audit_status="${PIPESTATUS[0]}"
+          set -e
           {
             echo '## UAT runtime audit'
             echo
@@ -140,6 +143,7 @@ jobs:
             sed -n '1,500p' "$report"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          exit "$audit_status"
 
       - name: Remove temporary audit files
         if: always()
