@@ -31,7 +31,11 @@ export function ReportImpactSignals({
         <Image className='report-result-chip__icon' src={resultIcon} mode='aspectFit' />
         <Text>{result.label}</Text>
       </View>
-      {nature ? <Text className='report-nature-chip'>{nature.label}</Text> : null}
+      {nature ? (
+        <Text className={`report-nature-chip report-nature-chip--${nature.code}`}>
+          {nature.label}
+        </Text>
+      ) : null}
       <View className='report-signal-meta'>
         <Image className='report-signal-meta__icon' src={reportConfidenceIcon} mode='aspectFit' />
         <Text>置信 {confidence.label}</Text>

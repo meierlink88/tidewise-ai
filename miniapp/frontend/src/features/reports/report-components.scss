@@ -54,10 +54,25 @@
 }
 
 .report-nature-chip {
+  font-weight: 600;
+}
+
+.report-nature-chip--direct_evidence {
   border-color: #dbeafe;
   background: #eff6ff;
   color: #1d4ed8;
-  font-weight: 600;
+}
+
+.report-nature-chip--reasoning_hypothesis {
+  border-color: #fde7c2;
+  background: #fff8e8;
+  color: #a2520a;
+}
+
+.report-nature-chip--pending_validation {
+  border-color: #dce3ed;
+  background: #f5f7fa;
+  color: #718096;
 }
 
 .report-signal-meta {

@@ -8,6 +8,7 @@ import { loadReportDetail, ReportDetailView } from './index';
 const captured = vi.hoisted(() => ({
   buttons: [] as Array<Record<string, unknown>>,
   images: [] as Array<Record<string, unknown>>,
+  texts: [] as Array<Record<string, unknown>>,
   views: [] as Array<Record<string, unknown>>
 }));
 
@@ -34,7 +35,10 @@ vi.mock('@tarojs/components', () => ({
     return null;
   },
   ScrollView: (props: Record<string, unknown>) => props.children ?? null,
-  Text: (props: Record<string, unknown>) => props.children ?? null,
+  Text: (props: Record<string, unknown>) => {
+    captured.texts.push(props);
+    return props.children ?? null;
+  },
   View: (props: Record<string, unknown>) => {
     captured.views.push(props);
     return props.children ?? null;
@@ -47,6 +51,7 @@ describe('Report detail page', () => {
   beforeEach(() => {
     captured.buttons.length = 0;
     captured.images.length = 0;
+    captured.texts.length = 0;
     captured.views.length = 0;
   });
 
@@ -246,6 +251,58 @@ describe('Report detail page', () => {
       scopeKey: 'chn-21-n01',
       title: '油品运输服务证据'
     });
+  });
+
+  it('renders chain summary pills and semantic node nature labels', async () => {
+    const detail = await mockReportPort.getIndustryChain(reportId, 'chn-01');
+    renderToStaticMarkup(
+      createElement(ReportDetailView, {
+        state: {
+          status: 'ready',
+          data: { targetType: 'industry_chain', detail },
+          refreshing: false,
+          refreshFailed: false
+        },
+        onRetry: vi.fn(),
+        onOpenDetail: vi.fn(),
+        onOpenEvidence: vi.fn()
+      })
+    );
+
+    for (const className of [
+      'report-chain-metric report-chain-metric--result',
+      'report-chain-metric report-chain-metric--window',
+      'report-chain-metric report-chain-metric--confidence'
+    ]) {
+      expect(captured.views.some((props) => String(props.className).startsWith(className))).toBe(
+        true
+      );
+    }
+    for (const className of [
+      'report-chain-metric__icon report-chain-metric__icon--result',
+      'report-chain-metric__icon',
+      'report-chain-metric__icon'
+    ]) {
+      const matchingIcons = captured.images.filter((props) => props.className === className);
+      expect(matchingIcons.length).toBeGreaterThan(0);
+      expect(matchingIcons[0]?.src).toEqual(expect.stringMatching(/\.svg$/));
+    }
+    expect(
+      captured.texts.some(
+        (props) =>
+          props.children === '直接证据' &&
+          props.className ===
+            'report-nature-chip report-nature-chip--direct_evidence report-chain-node__nature'
+      )
+    ).toBe(true);
+    expect(
+      captured.texts.some(
+        (props) =>
+          props.children === '推理假设' &&
+          props.className ===
+            'report-nature-chip report-nature-chip--reasoning_hypothesis report-chain-node__nature'
+      )
+    ).toBe(true);
   });
 
   it('loads every published industry-chain detail exposed by the layer list', async () => {

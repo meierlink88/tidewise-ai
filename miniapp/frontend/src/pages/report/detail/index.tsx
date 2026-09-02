@@ -2,13 +2,19 @@ import Taro, { usePullDownRefresh } from '@tarojs/taro';
 import { Button, Image, ScrollView, Text, View } from '@tarojs/components';
 import { useEffect, useMemo, useState } from 'react';
 import fileTextIcon from '../../../assets/icons/file-text.svg';
+import reportActivityCoolingIcon from '../../../assets/icons/report-activity-cooling.svg';
+import reportActivityDivergingIcon from '../../../assets/icons/report-activity-diverging.svg';
+import reportActivityPendingIcon from '../../../assets/icons/report-activity-pending.svg';
+import reportActivityWarmingIcon from '../../../assets/icons/report-activity-warming.svg';
 import reportBarChartIcon from '../../../assets/icons/report-bar-chart.svg';
 import reportArrowRightIcon from '../../../assets/icons/report-arrow-right.svg';
+import reportConfidenceIcon from '../../../assets/icons/report-confidence.svg';
 import reportGlobeIcon from '../../../assets/icons/report-globe.svg';
 import reportInfoIcon from '../../../assets/icons/report-info.svg';
 import reportLayersIcon from '../../../assets/icons/report-layers.svg';
 import reportLinkIcon from '../../../assets/icons/report-link.svg';
 import reportWarningIcon from '../../../assets/icons/report-warning.svg';
+import reportWindowClockIcon from '../../../assets/icons/report-window-clock.svg';
 import type {
   ReportEvidenceScope,
   ReportIndustryChainDetail,
@@ -426,6 +432,12 @@ function IndustryChainDetailView({
   const selectedNode =
     industryChain.nodes.find((nodeItem) => nodeItem.key === selectedNodeKey) ??
     industryChain.nodes[0];
+  const chainResultIcon = {
+    warming: reportActivityWarmingIcon,
+    cooling: reportActivityCoolingIcon,
+    diverging: reportActivityDivergingIcon,
+    pending: reportActivityPendingIcon
+  }[industryChain.result.code];
 
   return (
     <View className='report-detail-flow'>
@@ -460,19 +472,40 @@ function IndustryChainDetailView({
         </View>
 
         <View className='report-chain-metrics'>
-          <View>
-            <Text>链结果</Text>
-            <Text className={`report-result-chip report-result-chip--${industryChain.result.code}`}>
-              {industryChain.result.label}
-            </Text>
+          <View
+            className={`report-chain-metric report-chain-metric--result report-chain-metric--${industryChain.result.code}`}
+          >
+            <Image
+              className='report-chain-metric__icon report-chain-metric__icon--result'
+              src={chainResultIcon}
+              mode='aspectFit'
+            />
+            <View className='report-chain-metric__copy'>
+              <Text className='report-chain-metric__label'>链结果</Text>
+              <Text className='report-chain-metric__value'>{industryChain.result.label}</Text>
+            </View>
           </View>
-          <View>
-            <Text>时间窗口</Text>
-            <Text>{industryChain.timeWindow}</Text>
+          <View className='report-chain-metric report-chain-metric--window'>
+            <Image
+              className='report-chain-metric__icon'
+              src={reportWindowClockIcon}
+              mode='aspectFit'
+            />
+            <View className='report-chain-metric__copy'>
+              <Text className='report-chain-metric__label'>时间窗口</Text>
+              <Text className='report-chain-metric__value'>{industryChain.timeWindow}</Text>
+            </View>
           </View>
-          <View>
-            <Text>置信度</Text>
-            <Text>{industryChain.confidence.label}</Text>
+          <View className='report-chain-metric report-chain-metric--confidence'>
+            <Image
+              className='report-chain-metric__icon'
+              src={reportConfidenceIcon}
+              mode='aspectFit'
+            />
+            <View className='report-chain-metric__copy'>
+              <Text className='report-chain-metric__label'>置信度</Text>
+              <Text className='report-chain-metric__value'>{industryChain.confidence.label}</Text>
+            </View>
           </View>
         </View>
 
@@ -570,7 +603,7 @@ function ChainGraph({
   selectedNodeKey: string;
   onSelect: (key: string) => void;
 }) {
-  const nodeWidth = 248;
+  const nodeWidth = 276;
   const nodeGap = 56;
   const canvasPadding = 28;
   const step = nodeWidth + nodeGap;
@@ -682,8 +715,12 @@ function ChainGraph({
                 result={nodeItem.result}
                 confidence={nodeItem.confidence}
                 timeWindow={nodeItem.timeWindow}
-                nature={nodeItem.nature}
               />
+              <Text
+                className={`report-nature-chip report-nature-chip--${nodeItem.nature.code} report-chain-node__nature`}
+              >
+                {nodeItem.nature.label}
+              </Text>
             </Button>
           ))}
         </View>

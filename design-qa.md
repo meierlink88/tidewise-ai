@@ -114,3 +114,35 @@ final result: H5 passed; WeChat/Douyin runtime visual acceptance pending
 ## Final result
 
 Passed for the four requested discrepancies: heading alignment, transmission link icons, full 54-chain list/detail loading, and chain boundary icons.
+
+---
+
+# Industry-chain detail metric and node QA
+
+## Visual truth
+
+- Summary metrics: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-ccad2f2b-d0fb-4317-a618-8e28b1f6c9f0.png`
+- Direct-evidence nodes: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-fc92f3af-d453-4163-8f26-d9feb8d8244c.png`
+- Direct/hypothesis comparison: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-e3bc1727-b20a-4ed0-842e-e35bd8bd0c48.png`
+
+## Implementation state
+
+- Preview: `http://127.0.0.1:4175/?qa=chain-node-style-before#/pages/report/detail/index?reportId=RPT11111111-1111-4111-8111-111111111111&targetType=industry_chain&targetKey=chn-01`
+- Browser: Codex in-app browser
+- Viewport: 724 x 1100 CSS px
+- Data source: approved Report mock snapshot
+
+## Combined comparisons
+
+- Summary and metric pills: `/Users/meierlink/.codex/visualizations/2026/09/02/report-chain-detail-qa/compare-summary.png`
+- Direct-evidence node cards: `/Users/meierlink/.codex/visualizations/2026/09/02/report-chain-detail-qa/compare-direct-node.png`
+- Reasoning-hypothesis node card: `/Users/meierlink/.codex/visualizations/2026/09/02/report-chain-detail-qa/compare-hypothesis-node.png`
+
+## Findings and iterations
+
+1. The chain result, time window, and confidence were presented as a segmented grid. They now render as three independent compact pill cards with their existing semantic icons and values.
+2. Node result, confidence, and time remain grouped as factual signals while the nature label has a dedicated bottom-centered position.
+3. `direct_evidence` uses a blue nature chip, `reasoning_hypothesis` uses an amber nature chip, and `pending_validation` retains a neutral treatment. The visible text remains present, so the distinction does not depend on color alone.
+4. Node width and minimum height were increased to prevent long names and delayed-window copy from crowding the centered nature label.
+
+final result: passed

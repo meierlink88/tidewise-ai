@@ -406,38 +406,100 @@
 }
 
 .report-chain-metrics {
-  display: grid;
+  display: flex;
+  align-items: stretch;
   margin-top: 22rpx;
-  overflow: hidden;
-  border: 1rpx solid #dce6f2;
-  border-radius: 14rpx;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10rpx;
+  flex-wrap: wrap;
 }
 
-.report-chain-metrics > view {
-  display: flex;
+.report-chain-metric {
+  display: grid;
   min-width: 0;
   align-items: center;
-  justify-content: center;
-  padding: 15rpx 8rpx;
-  gap: 7rpx;
-  flex-direction: column;
+  padding: 8rpx 14rpx;
+  border: 1rpx solid #dce6f2;
+  border-radius: 999rpx;
+  background: #fff;
+  column-gap: 9rpx;
+  grid-template-columns: 28rpx minmax(0, auto);
 }
 
-.report-chain-metrics > view + view {
-  border-left: 1rpx solid #dce6f2;
+.report-chain-metric--result {
+  min-width: 110rpx;
 }
 
-.report-chain-metrics > view > text:first-child {
+.report-chain-metric--window {
+  min-width: 152rpx;
+}
+
+.report-chain-metric--confidence {
+  min-width: 116rpx;
+}
+
+.report-chain-metric--warming {
+  border-color: #fecdd3;
+  background: #fff7f8;
+}
+
+.report-chain-metric--cooling {
+  border-color: #bbf7d0;
+  background: #f4fcf7;
+}
+
+.report-chain-metric--diverging {
+  border-color: #fed7aa;
+  background: #fffbeb;
+}
+
+.report-chain-metric--pending {
+  border-color: #dce3ed;
+  background: #f7f9fc;
+}
+
+.report-chain-metric__icon {
+  width: 28rpx;
+  height: 28rpx;
+}
+
+.report-chain-metric__copy {
+  min-width: 0;
+}
+
+.report-chain-metric__label,
+.report-chain-metric__value {
+  display: block;
+}
+
+.report-chain-metric__label {
   color: #8492a8;
   font-size: 18rpx;
+  line-height: 1.15;
 }
 
-.report-chain-metrics > view > text:last-child {
+.report-chain-metric__value {
+  margin-top: 2rpx;
   color: #17345f;
   font-size: 20rpx;
   font-weight: 700;
-  text-align: center;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.report-chain-metric--warming .report-chain-metric__value {
+  color: #c52d3a;
+}
+
+.report-chain-metric--cooling .report-chain-metric__value {
+  color: #15803d;
+}
+
+.report-chain-metric--diverging .report-chain-metric__value {
+  color: #b45309;
+}
+
+.report-chain-metric--pending .report-chain-metric__value {
+  color: #64748b;
 }
 
 .report-chain-scroll {
@@ -463,9 +525,9 @@
 
 .report-chain-node {
   display: flex;
-  width: 248rpx;
-  min-height: 172rpx;
-  flex: 0 0 248rpx;
+  width: 276rpx;
+  min-height: 210rpx;
+  flex: 0 0 276rpx;
   align-items: flex-start;
   justify-content: space-between;
   padding: 18rpx;
@@ -496,11 +558,17 @@
 
 .report-chain-node .report-impact-signals {
   justify-content: flex-start;
-  margin-top: 14rpx;
+  margin-top: auto;
+  padding-top: 14rpx;
 }
 
 .report-chain-node .report-signal-meta {
   font-size: 18rpx;
+}
+
+.report-chain-node__nature {
+  align-self: center;
+  margin-top: 10rpx;
 }
 
 .report-chain-edge,
