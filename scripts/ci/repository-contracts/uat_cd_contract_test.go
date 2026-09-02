@@ -72,6 +72,10 @@ func TestUATRuntimeAuditIsMainOnlyReadOnlyAndSecretSafe(t *testing.T) {
 		"environment: uat",
 		"TIDEWISW_DB_PASSWORD: ${{ secrets.TIDEWISW_DB_PASSWORD }}",
 		"./data-service/backend/cmd/uat-retired-runtime-audit",
+		"actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+		"actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+		"Build read-only RDS audit command on hosted runner",
+		"sha256sum --check uat-retired-runtime-db-audit.sha256",
 		"audit-retired-runtime.sh",
 	} {
 		if !strings.Contains(workflow, required) {

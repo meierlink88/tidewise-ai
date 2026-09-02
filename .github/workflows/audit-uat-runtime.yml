@@ -62,6 +62,34 @@ jobs:
               core.setFailed(`No successful CI run exists for ${process.env.TARGET_SHA}`);
             }
 
+      - name: Set up Go on hosted runner
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build read-only RDS audit command on hosted runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_dir="${RUNNER_TEMP}/uat-retired-runtime-db-audit"
+          mkdir -p "$artifact_dir"
+          binary="${artifact_dir}/uat-retired-runtime-db-audit"
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o "$binary" \
+            ./data-service/backend/cmd/uat-retired-runtime-audit
+          (
+            cd "$artifact_dir"
+            sha256sum uat-retired-runtime-db-audit > uat-retired-runtime-db-audit.sha256
+          )
+
+      - name: Upload read-only RDS audit command
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: uat-retired-runtime-db-audit-${{ steps.release.outputs.commit_sha }}
+          path: ${{ runner.temp }}/uat-retired-runtime-db-audit
+          if-no-files-found: error
+          retention-days: 1
+
   audit:
     name: Inspect UAT ECS runtime
     runs-on: [self-hosted, linux, x64, tidewise-uat-ecs]
@@ -76,19 +104,23 @@ jobs:
         with:
           ref: ${{ needs.resolve-release.outputs.commit_sha }}
 
-      - name: Set up Go for read-only RDS audit
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - name: Download read-only RDS audit command
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          go-version-file: go.mod
-          cache: true
+          name: uat-retired-runtime-db-audit-${{ needs.resolve-release.outputs.commit_sha }}
+          path: ${{ runner.temp }}/uat-retired-runtime-db-audit-${{ github.run_id }}
 
-      - name: Build read-only RDS audit command
+      - name: Verify read-only RDS audit command
         shell: bash
         run: |
           set -euo pipefail
-          binary="${RUNNER_TEMP}/uat-retired-runtime-db-audit-${GITHUB_RUN_ID}"
-          CGO_ENABLED=0 go build -trimpath -o "$binary" \
-            ./data-service/backend/cmd/uat-retired-runtime-audit
+          artifact_dir="${RUNNER_TEMP}/uat-retired-runtime-db-audit-${GITHUB_RUN_ID}"
+          (
+            cd "$artifact_dir"
+            sha256sum --check uat-retired-runtime-db-audit.sha256
+          )
+          binary="${artifact_dir}/uat-retired-runtime-db-audit"
+          chmod 0700 "$binary"
           echo "RDS_AUDIT_BINARY=$binary" >> "$GITHUB_ENV"
 
       - name: Audit retired and retained runtime
@@ -114,4 +146,4 @@ jobs:
         shell: bash
         run: |
           rm -f -- "${RUNNER_TEMP}/uat-runtime-audit-${GITHUB_RUN_ID}.txt"
-          rm -f -- "${RUNNER_TEMP}/uat-retired-runtime-db-audit-${GITHUB_RUN_ID}"
+          rm -rf -- "${RUNNER_TEMP}/uat-retired-runtime-db-audit-${GITHUB_RUN_ID}"
