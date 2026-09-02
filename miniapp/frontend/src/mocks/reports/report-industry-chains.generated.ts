@@ -156,7 +156,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.60）',
           score: 0.6
         },
-        hasEvidence: true
+        hasEvidence: false
       }
     ],
     edges: [
@@ -350,7 +350,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.60）',
           score: 0.6
         },
-        hasEvidence: true
+        hasEvidence: false
       }
     ],
     edges: [
@@ -836,7 +836,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.54）',
           score: 0.54
         },
-        hasEvidence: true
+        hasEvidence: false
       }
     ],
     edges: [
@@ -973,7 +973,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.60）',
           score: 0.6
         },
-        hasEvidence: true
+        hasEvidence: false
       },
       {
         key: 'chn-06-n04',
@@ -999,7 +999,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.48）',
           score: 0.48
         },
-        hasEvidence: true
+        hasEvidence: false
       }
     ],
     edges: [
@@ -1262,7 +1262,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.42）',
           score: 0.42
         },
-        hasEvidence: true
+        hasEvidence: false
       },
       {
         key: 'chn-08-n04',
@@ -1288,7 +1288,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.45）',
           score: 0.45
         },
-        hasEvidence: true
+        hasEvidence: false
       }
     ],
     edges: [
@@ -1424,7 +1424,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.48）',
           score: 0.48
         },
-        hasEvidence: true
+        hasEvidence: false
       },
       {
         key: 'chn-09-n04',
@@ -1450,7 +1450,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.57）',
           score: 0.57
         },
-        hasEvidence: true
+        hasEvidence: false
       }
     ],
     edges: [
@@ -1947,7 +1947,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.45）',
           score: 0.45
         },
-        hasEvidence: true
+        hasEvidence: false
       }
     ],
     edges: [
@@ -2076,7 +2076,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.44）',
           score: 0.44
         },
-        hasEvidence: true
+        hasEvidence: false
       },
       {
         key: 'chn-13-n04',
@@ -2102,7 +2102,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.44）',
           score: 0.44
         },
-        hasEvidence: true
+        hasEvidence: false
       },
       {
         key: 'chn-13-n05',
@@ -2128,7 +2128,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.44）',
           score: 0.44
         },
-        hasEvidence: true
+        hasEvidence: false
       }
     ],
     edges: [
@@ -2271,7 +2271,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '中（0.69）',
           score: 0.69
         },
-        hasEvidence: true
+        hasEvidence: false
       },
       {
         key: 'chn-14-n04',
@@ -2297,7 +2297,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '中（0.69）',
           score: 0.69
         },
-        hasEvidence: true
+        hasEvidence: false
       }
     ],
     edges: [
@@ -2599,7 +2599,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.48）',
           score: 0.48
         },
-        hasEvidence: true
+        hasEvidence: false
       },
       {
         key: 'chn-17-n03',
@@ -2625,7 +2625,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '中（0.69）',
           score: 0.69
         },
-        hasEvidence: true
+        hasEvidence: false
       },
       {
         key: 'chn-17-n04',
@@ -2651,7 +2651,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '中（0.69）',
           score: 0.69
         },
-        hasEvidence: true
+        hasEvidence: false
       },
       {
         key: 'chn-17-n05',
@@ -2677,7 +2677,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '中（0.69）',
           score: 0.69
         },
-        hasEvidence: true
+        hasEvidence: false
       },
       {
         key: 'chn-17-n06',
@@ -2703,7 +2703,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '中（0.69）',
           score: 0.69
         },
-        hasEvidence: true
+        hasEvidence: false
       }
     ],
     edges: [
@@ -2827,7 +2827,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.48）',
           score: 0.48
         },
-        hasEvidence: true
+        hasEvidence: false
       }
     ],
     edges: [
@@ -3112,7 +3112,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.62）',
           score: 0.62
         },
-        hasEvidence: true
+        hasEvidence: false
       }
     ],
     edges: [
@@ -3208,7 +3208,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.48）',
           score: 0.48
         },
-        hasEvidence: true
+        hasEvidence: false
       }
     ],
     edges: [
@@ -4670,7 +4670,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.62）',
           score: 0.62
         },
-        hasEvidence: true
+        hasEvidence: false
       },
       {
         key: 'chn-36-n03',
@@ -5428,7 +5428,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.48）',
           score: 0.48
         },
-        hasEvidence: true
+        hasEvidence: false
       }
     ],
     edges: [
@@ -5523,7 +5523,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.54）',
           score: 0.54
         },
-        hasEvidence: true
+        hasEvidence: false
       },
       {
         key: 'chn-44-n03',
@@ -6322,7 +6322,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.42）',
           score: 0.42
         },
-        hasEvidence: true
+        hasEvidence: false
       }
     ],
     edges: [
@@ -6418,7 +6418,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.45）',
           score: 0.45
         },
-        hasEvidence: true
+        hasEvidence: false
       },
       {
         key: 'chn-51-n03',
@@ -6444,7 +6444,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
           label: '低（0.42）',
           score: 0.42
         },
-        hasEvidence: true
+        hasEvidence: false
       }
     ],
     edges: [

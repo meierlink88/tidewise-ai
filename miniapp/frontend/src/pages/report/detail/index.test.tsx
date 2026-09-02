@@ -119,16 +119,16 @@ describe('Report detail page', () => {
       const icon = captured.images.find((props) => props.className === className);
       expect(icon?.src).toEqual(expect.stringMatching(/\.svg$/));
     }
-    for (const label of [
-      '查看地缘政治证据',
-      '查看伊朗—美以及海湾安全对抗证据：直接证据',
-      '查看伊朗—美以及海湾安全对抗证据：依据'
-    ]) {
+    expect(
+      captured.buttons.some(
+        (props) => props.ariaLabel === '查看伊朗—美以及海湾安全对抗证据：直接证据'
+      )
+    ).toBe(false);
+    for (const label of ['查看地缘政治证据', '查看伊朗—美以及海湾安全对抗证据：依据']) {
       clickCapturedButton(label);
     }
     expect(onOpenEvidence.mock.calls.map(([route]) => route.scopeType)).toEqual([
       'layer',
-      'anchor',
       'anchor'
     ]);
 
@@ -238,7 +238,10 @@ describe('Report detail page', () => {
     expect(arrow?.style).toContain('top:');
     expect(arrow?.style).toContain('left:');
     clickCapturedButton('查看油品石化贸易服务产业链证据');
-    clickCapturedButton('查看油品运输服务证据：直接证据');
+    expect(
+      captured.buttons.some((props) => props.ariaLabel === '查看油品运输服务证据：直接证据')
+    ).toBe(false);
+    clickCapturedButton('查看油品运输服务证据：依据');
     expect(onOpenEvidence).toHaveBeenNthCalledWith(1, {
       reportId,
       scopeType: 'industry_chain',
@@ -251,6 +254,46 @@ describe('Report detail page', () => {
       scopeKey: 'chn-21-n01',
       title: '油品运输服务证据'
     });
+  });
+
+  it('does not expose Evidence actions for a reasoning-hypothesis node', async () => {
+    const detail = await mockReportPort.getIndustryChain(reportId, 'chn-01');
+    const hypothesisNode = detail.industryChain.nodes.find(
+      (nodeItem) => nodeItem.nature.code === 'reasoning_hypothesis'
+    );
+    if (!hypothesisNode) throw new Error('expected a reasoning-hypothesis node');
+    const hypothesisWithSupportingEvidence = { ...hypothesisNode, hasEvidence: true };
+    const hypothesisFirstDetail = {
+      ...detail,
+      industryChain: {
+        ...detail.industryChain,
+        nodes: [
+          hypothesisWithSupportingEvidence,
+          ...detail.industryChain.nodes.filter((nodeItem) => nodeItem.key !== hypothesisNode.key)
+        ]
+      }
+    };
+
+    const copy = renderToStaticMarkup(
+      createElement(ReportDetailView, {
+        state: {
+          status: 'ready',
+          data: { targetType: 'industry_chain', detail: hypothesisFirstDetail },
+          refreshing: false,
+          refreshFailed: false
+        },
+        onRetry: vi.fn(),
+        onOpenDetail: vi.fn(),
+        onOpenEvidence: vi.fn()
+      })
+    );
+
+    expect(copy).toContain('暂无直接证据，待后续验证');
+    expect(
+      captured.buttons.some((props) =>
+        String(props.ariaLabel).startsWith(`查看${hypothesisNode.name}证据：`)
+      )
+    ).toBe(false);
   });
 
   it('renders chain summary pills and semantic node nature labels', async () => {

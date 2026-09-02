@@ -866,7 +866,7 @@ function node(
     reasoning,
     timeWindow,
     confidence,
-    hasEvidence: nature.code !== 'pending_validation'
+    hasEvidence: nature.code === 'direct_evidence'
   };
 }
 

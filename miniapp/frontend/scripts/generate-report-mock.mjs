@@ -63,7 +63,7 @@ const chains = source.industryChains.map((chain, chainIndex) => {
         reasoning: node.why,
         timeWindow: node.lag,
         confidence: confidence(node.confidence),
-        hasEvidence: node.evidence.length > 0
+        hasEvidence: node.status === '直接证据' && node.evidence.length > 0
       };
     }),
     edges: chain.graphEdges.map((edge, edgeIndex) => ({

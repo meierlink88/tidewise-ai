@@ -146,3 +146,44 @@ Passed for the four requested discrepancies: heading alignment, transmission lin
 4. Node width and minimum height were increased to prevent long names and delayed-window copy from crowding the centered nature label.
 
 final result: passed
+
+---
+
+# Detail Evidence-entry deduplication QA
+
+## Visual truth and acceptance rule
+
+- Layer-card problem capture: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-29b8e51c-00ce-4c70-9494-208188645459.png` (758 x 426 px).
+- Industry hypothesis problem capture: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-8da972d7-cf53-4c3f-ac5d-a3040c234e16.png` (790 x 534 px).
+- The captures document the rejected duplicated state. The user's explicit acceptance rule is the source of truth: one top-right `依据` action replaces `直接证据`; the bottom-left duplicate is removed; inference and pending-validation nodes expose no Evidence action.
+
+## Implementation evidence
+
+- Preview: `http://127.0.0.1:4175/?qa=evidence-entry-final#/pages/report/detail/index?reportId=RPT11111111-1111-4111-8111-111111111111&targetType=layer&targetKey=macroeconomics`
+- Browser: Codex in-app browser; 679 x 863 CSS px, DPR 2. Browser screenshots are CSS-pixel normalized to 679 x 863 px.
+- State: approved Report mock snapshot; direct Evidence layer anchors, a direct Evidence chain node, and a reasoning-hypothesis chain node were each checked.
+- Full-view screenshots: `after-geopolitics.png`, `after-macroeconomics.png`, `after-direct-node.png`, `after-hypothesis-card.png`, and `after-evidence-sheet.png` in `/Users/meierlink/.codex/visualizations/2026/09/02/report-detail-evidence-entry-qa/`.
+- Focused same-input comparisons:
+  - `/Users/meierlink/.codex/visualizations/2026/09/02/report-detail-evidence-entry-qa/compare-layer-evidence-entry.png`
+  - `/Users/meierlink/.codex/visualizations/2026/09/02/report-detail-evidence-entry-qa/compare-hypothesis-evidence-entry.png`
+- Primary interaction: the single macro-anchor `依据` action opens the existing Evidence bottom sheet with summary and keywords; closing it restores the detail card.
+- Console warnings/errors: none in the final browser state.
+
+## Findings and iteration history
+
+1. P1: direct-evidence layer anchors and chain nodes rendered two actions for one Evidence sheet. The top-right label was `直接证据` while the bottom-left label was `依据`. The bottom action was removed and the remaining top-right action was renamed `依据`.
+2. P1: chain nodes were gated only by `hasEvidence`. A reasoning hypothesis that cited upstream Evidence therefore incorrectly exposed an Evidence action. Rendering now requires both `hasEvidence` and `nature.code === 'direct_evidence'`; the hypothesis state instead shows `暂无直接证据，待后续验证`.
+3. P2: the generated mock projected any non-empty Evidence reference list as direct Evidence availability. The generator and mock port now project `hasEvidence` only for `direct_evidence` nodes. The UI retains the nature gate so a real API response cannot reintroduce the same semantic error.
+4. Post-fix DOM checks: geopolitics and macroeconomics direct anchors each expose exactly one `依据` action and no legacy `直接证据` action; a direct industry node exposes one `依据`; a reasoning-hypothesis node exposes zero Evidence actions.
+
+## Required fidelity surfaces
+
+- Typography: existing card hierarchy, weight, line height, wrapping, and copy styling are unchanged except for the required action label and no-direct-evidence note.
+- Spacing/layout: moving to one top-right action removes the duplicate lower affordance without creating an empty footer row; card padding and dividers remain aligned.
+- Colors/tokens: the existing blue outline Evidence action and neutral no-direct-evidence copy reuse project tokens; no new palette was introduced.
+- Image/icon quality: the redundant document icon disappeared with the lower duplicate action. Existing project icon assets remain unchanged; no custom replacement asset was introduced.
+- Copy/content: direct nodes say `依据`; hypotheses do not claim direct Evidence and clearly state that later validation is required.
+
+No actionable P0, P1, or P2 difference remains for the requested Evidence-entry behavior and visible states.
+
+final result: passed

@@ -1,7 +1,6 @@
 import Taro, { usePullDownRefresh } from '@tarojs/taro';
 import { Button, Image, ScrollView, Text, View } from '@tarojs/components';
 import { useEffect, useMemo, useState } from 'react';
-import fileTextIcon from '../../../assets/icons/file-text.svg';
 import reportActivityCoolingIcon from '../../../assets/icons/report-activity-cooling.svg';
 import reportActivityDivergingIcon from '../../../assets/icons/report-activity-diverging.svg';
 import reportActivityPendingIcon from '../../../assets/icons/report-activity-pending.svg';
@@ -21,6 +20,7 @@ import type {
   ReportIndustryChainNode,
   ReportLayerDetail,
   ReportLayerKey,
+  ReportNatureCode,
   ReportPort,
   ReportTransmissionPath
 } from '../../../features/reports/contract';
@@ -218,13 +218,12 @@ function LayerDetailView({
             <View className='report-anchor-card' key={anchor.key}>
               <View className='report-anchor-card__top'>
                 <Text className='report-anchor-card__name'>{anchor.name}</Text>
-                {anchor.hasEvidence ? (
+                {hasDirectEvidence(anchor.hasEvidence, anchor.nature.code) ? (
                   <ScopeEvidenceTextButton
                     reportId={report.id}
                     scope={anchor.scope}
                     title={`${anchor.name}证据`}
-                    label='直接证据'
-                    variant='outline'
+                    label='依据'
                     onOpen={onOpenEvidence}
                   />
                 ) : null}
@@ -239,16 +238,6 @@ function LayerDetailView({
                 <Text>为什么</Text>
                 <Text>{anchor.reasoning}</Text>
               </View>
-              {anchor.hasEvidence ? (
-                <ScopeEvidenceTextButton
-                  reportId={report.id}
-                  scope={anchor.scope}
-                  title={`${anchor.name}证据`}
-                  label='依据'
-                  variant='plain'
-                  onOpen={onOpenEvidence}
-                />
-              ) : null}
             </View>
           ))}
         </View>
@@ -521,13 +510,12 @@ function IndustryChainDetailView({
           <View className='report-node-detail'>
             <View className='report-node-detail__heading'>
               <Text>{selectedNode.name}</Text>
-              {selectedNode.hasEvidence ? (
+              {hasDirectEvidence(selectedNode.hasEvidence, selectedNode.nature.code) ? (
                 <ScopeEvidenceTextButton
                   reportId={report.id}
                   scope={selectedNode.scope}
                   title={`${selectedNode.name}证据`}
-                  label='直接证据'
-                  variant='outline'
+                  label='依据'
                   onOpen={onOpenEvidence}
                 />
               ) : null}
@@ -546,18 +534,9 @@ function IndustryChainDetailView({
               <Text>传导逻辑</Text>
               <Text>{selectedNode.reasoning}</Text>
             </View>
-            {selectedNode.hasEvidence ? (
-              <ScopeEvidenceTextButton
-                reportId={report.id}
-                scope={selectedNode.scope}
-                title={`${selectedNode.name}证据`}
-                label='依据'
-                variant='plain'
-                onOpen={onOpenEvidence}
-              />
-            ) : (
+            {!hasDirectEvidence(selectedNode.hasEvidence, selectedNode.nature.code) ? (
               <Text className='report-node-detail__evidence-note'>暂无直接证据，待后续验证</Text>
-            )}
+            ) : null}
           </View>
         ) : null}
 
@@ -773,19 +752,17 @@ function ScopeEvidenceTextButton({
   scope,
   title,
   label,
-  variant,
   onOpen
 }: {
   reportId: string;
   scope: ReportEvidenceScope;
   title: string;
   label: string;
-  variant: 'outline' | 'plain';
   onOpen: (route: ReportEvidenceRoute) => void;
 }) {
   return (
     <Button
-      className={`tidewise-button report-evidence-text-button report-evidence-text-button--${variant}`}
+      className='tidewise-button report-evidence-text-button report-evidence-text-button--outline'
       hoverClass='report-evidence-text-button--pressed'
       ariaLabel={`查看${title}：${label}`}
       onClick={(event) => {
@@ -798,12 +775,13 @@ function ScopeEvidenceTextButton({
         });
       }}
     >
-      {variant === 'plain' ? (
-        <Image className='report-evidence-text-button__icon' src={fileTextIcon} mode='aspectFit' />
-      ) : null}
       <Text>{label}</Text>
     </Button>
   );
+}
+
+function hasDirectEvidence(hasEvidence: boolean, natureCode: ReportNatureCode): boolean {
+  return hasEvidence && natureCode === 'direct_evidence';
 }
 
 function SectionHeading({ title, aside }: { title: string; aside?: string }) {
