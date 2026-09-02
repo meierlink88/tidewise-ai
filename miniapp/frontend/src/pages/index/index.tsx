@@ -290,7 +290,6 @@ function HomeReportGroupView({
             </View>
           </View>
         ) : null}
-
       </View>
     </View>
   );

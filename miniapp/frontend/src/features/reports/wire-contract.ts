@@ -153,8 +153,10 @@ function parseHomeGroup(value: unknown): ReportHomeGroup {
   const industryChainCount = nonNegativeInteger(group.industry_chain_count);
   const cards = parseOrderedArray(group.cards, parseCard);
   unique(cards.map((card) => referenceIdentity(card.detailRef)));
-  if (cards.filter((card) => card.kind === 'geopolitics').length > 1 ||
-    cards.filter((card) => card.kind === 'macroeconomics').length > 1) {
+  if (
+    cards.filter((card) => card.kind === 'geopolitics').length > 1 ||
+    cards.filter((card) => card.kind === 'macroeconomics').length > 1
+  ) {
     invalid();
   }
 
@@ -380,7 +382,11 @@ function parseTransmissionPath(value: unknown): ReportTransmissionPath {
   const key = localKey(path.key);
   const targetRefs = array(path.target_refs).map(parseTransmissionTarget);
   if (targetRefs.length === 0) invalid();
-  unique(targetRefs.filter((target) => target.ref !== null).map((target) => referenceIdentity(target.ref!)));
+  unique(
+    targetRefs
+      .filter((target) => target.ref !== null)
+      .map((target) => referenceIdentity(target.ref!))
+  );
   return {
     key,
     displayOrder: positiveInteger(path.display_order),
@@ -609,7 +615,8 @@ function parseScope(
     type: enumValue<ReportEvidenceScopeType>(scope.type, evidenceScopeTypes),
     key: localKey(scope.key)
   };
-  if (result.type === 'section_summary' && !layerKeys.includes(result.key as ReportLayerKey)) invalid();
+  if (result.type === 'section_summary' && !layerKeys.includes(result.key as ReportLayerKey))
+    invalid();
   if (
     (expectedType !== undefined && result.type !== expectedType) ||
     (expectedKey !== undefined && result.key !== expectedKey)
