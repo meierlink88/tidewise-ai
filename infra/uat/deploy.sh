@@ -45,10 +45,18 @@ pre_data60_runtime="${deployment_root}/pre-data60.runtime.env"
 pre_data60_images="${state_dir}/pre-data60.images.env"
 pre_data60_compose="${state_dir}/pre-data60.compose.yaml"
 pre_data60_sha="${state_dir}/pre-data60.sha"
+pre_data63_runtime="${deployment_root}/pre-data63.runtime.env"
+pre_data63_images="${state_dir}/pre-data63.images.env"
+pre_data63_compose="${state_dir}/pre-data63.compose.yaml"
+pre_data63_sha="${state_dir}/pre-data63.sha"
 pre_data78_runtime="${deployment_root}/pre-data78.runtime.env"
 pre_data78_images="${state_dir}/pre-data78.images.env"
 pre_data78_compose="${state_dir}/pre-data78.compose.yaml"
 pre_data78_sha="${state_dir}/pre-data78.sha"
+pre_data78_80_runtime="${deployment_root}/pre-data78-80.runtime.env"
+pre_data78_80_images="${state_dir}/pre-data78-80.images.env"
+pre_data78_80_compose="${state_dir}/pre-data78-80.compose.yaml"
+pre_data78_80_sha="${state_dir}/pre-data78-80.sha"
 pre_data80_runtime="${deployment_root}/pre-data80.runtime.env"
 pre_data80_images="${state_dir}/pre-data80.images.env"
 pre_data80_compose="${state_dir}/pre-data80.compose.yaml"
@@ -123,6 +131,20 @@ case "$deployment_mode" in
     cutover_checkpoint_compose="$pre_data60_compose"
     cutover_checkpoint_sha="$pre_data60_sha"
     ;;
+  data_63_77_cutover)
+    bounded_data_cutover=true
+    cutover_target_version=77
+    cutover_target_version_padded=000077
+    cutover_initial_current_version=000062
+    cutover_initial_pending_versions=000063,000064,000065,000066,000067,000068,000069,000070,000071,000072,000073,000074,000075,000076,000077
+    cutover_recovery_minimum_version=62
+    cutover_gate_name=data63-77
+    cutover_release_state_mode=pre-data63
+    cutover_checkpoint_runtime="$pre_data63_runtime"
+    cutover_checkpoint_images="$pre_data63_images"
+    cutover_checkpoint_compose="$pre_data63_compose"
+    cutover_checkpoint_sha="$pre_data63_sha"
+    ;;
   data_78_79_cutover)
     bounded_data_cutover=true
     cutover_target_version=79
@@ -136,6 +158,20 @@ case "$deployment_mode" in
     cutover_checkpoint_images="$pre_data78_images"
     cutover_checkpoint_compose="$pre_data78_compose"
     cutover_checkpoint_sha="$pre_data78_sha"
+    ;;
+  data_78_80_cutover)
+    bounded_data_cutover=true
+    cutover_target_version=80
+    cutover_target_version_padded=000080
+    cutover_initial_current_version=000077
+    cutover_initial_pending_versions=000078,000079,000080
+    cutover_recovery_minimum_version=77
+    cutover_gate_name=data78-80
+    cutover_release_state_mode=pre-data78-80
+    cutover_checkpoint_runtime="$pre_data78_80_runtime"
+    cutover_checkpoint_images="$pre_data78_80_images"
+    cutover_checkpoint_compose="$pre_data78_80_compose"
+    cutover_checkpoint_sha="$pre_data78_80_sha"
     ;;
   data_80_cutover)
     bounded_data_cutover=true
@@ -152,7 +188,7 @@ case "$deployment_mode" in
     cutover_checkpoint_sha="$pre_data80_sha"
     ;;
   *)
-    echo "FAIL deployment-mode-gate: DEPLOYMENT_MODE must be normal, tidewise_2_cutover, data_59_cutover, data_60_cutover, data_78_79_cutover, or data_80_cutover" >&2
+    echo "FAIL deployment-mode-gate: DEPLOYMENT_MODE must be normal, tidewise_2_cutover, data_59_cutover, data_60_cutover, data_63_77_cutover, data_78_79_cutover, data_78_80_cutover, or data_80_cutover" >&2
     exit 1
     ;;
 esac
@@ -261,6 +297,16 @@ restore_interrupted_release_state() {
       install -m 0640 "$pre_data60_compose" "$current_compose"
       install -m 0640 "$pre_data60_sha" "$current_sha"
       ;;
+    pre-data63)
+      if [ ! -s "$pre_data63_runtime" ] || [ ! -s "$pre_data63_images" ] || [ ! -s "$pre_data63_compose" ] || [ ! -s "$pre_data63_sha" ]; then
+        echo "FAIL release-state-recovery: pre-Data-63 snapshot is incomplete" >&2
+        return 1
+      fi
+      install -m 0600 "$pre_data63_runtime" "$current_runtime"
+      install -m 0640 "$pre_data63_images" "$current_images"
+      install -m 0640 "$pre_data63_compose" "$current_compose"
+      install -m 0640 "$pre_data63_sha" "$current_sha"
+      ;;
     pre-data78)
       if [ ! -s "$pre_data78_runtime" ] || [ ! -s "$pre_data78_images" ] || [ ! -s "$pre_data78_compose" ] || [ ! -s "$pre_data78_sha" ]; then
         echo "FAIL release-state-recovery: pre-Data-78 snapshot is incomplete" >&2
@@ -270,6 +316,16 @@ restore_interrupted_release_state() {
       install -m 0640 "$pre_data78_images" "$current_images"
       install -m 0640 "$pre_data78_compose" "$current_compose"
       install -m 0640 "$pre_data78_sha" "$current_sha"
+      ;;
+    pre-data78-80)
+      if [ ! -s "$pre_data78_80_runtime" ] || [ ! -s "$pre_data78_80_images" ] || [ ! -s "$pre_data78_80_compose" ] || [ ! -s "$pre_data78_80_sha" ]; then
+        echo "FAIL release-state-recovery: pre-Data-78-to-80 snapshot is incomplete" >&2
+        return 1
+      fi
+      install -m 0600 "$pre_data78_80_runtime" "$current_runtime"
+      install -m 0640 "$pre_data78_80_images" "$current_images"
+      install -m 0640 "$pre_data78_80_compose" "$current_compose"
+      install -m 0640 "$pre_data78_80_sha" "$current_sha"
       ;;
     pre-data80)
       if [ ! -s "$pre_data80_runtime" ] || [ ! -s "$pre_data80_images" ] || [ ! -s "$pre_data80_compose" ] || [ ! -s "$pre_data80_sha" ]; then
@@ -314,7 +370,7 @@ current_release_state_fingerprint() {
 
 verify_planned_release_state() {
   local recovered_cutover_state=false
-  if [ "$bounded_data_cutover" = true ] && [[ "$interrupted_state_recovery_mode" =~ ^(pre-data2|pre-data59|pre-data60|pre-data78|pre-data80|committed)$ ]]; then
+  if [ "$bounded_data_cutover" = true ] && [[ "$interrupted_state_recovery_mode" =~ ^(pre-data2|pre-data59|pre-data60|pre-data63|pre-data78|pre-data78-80|pre-data80|committed)$ ]]; then
     recovered_cutover_state=true
   fi
   if [ "$recovered_cutover_state" != true ] && [ "$(current_release_state_fingerprint)" != "$expected_current_state_fingerprint" ]; then
@@ -814,7 +870,9 @@ else
     "$pre_data2_runtime" "$pre_data2_images" "$pre_data2_compose" "$pre_data2_sha" \
     "$pre_data59_runtime" "$pre_data59_images" "$pre_data59_compose" "$pre_data59_sha" \
     "$pre_data60_runtime" "$pre_data60_images" "$pre_data60_compose" "$pre_data60_sha" \
+    "$pre_data63_runtime" "$pre_data63_images" "$pre_data63_compose" "$pre_data63_sha" \
     "$pre_data78_runtime" "$pre_data78_images" "$pre_data78_compose" "$pre_data78_sha" \
+    "$pre_data78_80_runtime" "$pre_data78_80_images" "$pre_data78_80_compose" "$pre_data78_80_sha" \
     "$pre_data80_runtime" "$pre_data80_images" "$pre_data80_compose" "$pre_data80_sha" \
     "$agentrun_rollback_marker" "$agentrun_version_publication"
 fi
