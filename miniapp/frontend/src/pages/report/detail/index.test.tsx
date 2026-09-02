@@ -101,10 +101,16 @@ describe('Report detail page', () => {
     expect(copy).toContain('向下传导');
     expect(copy).toContain('反转条件');
     expect(copy).toContain('油品石化贸易服务产业链');
+    expect(copy).toContain('风力发电产业链');
+    expect(detail.relatedIndustryChains).toHaveLength(54);
     expect(copy).not.toContain('推理步骤');
     expect(copy).not.toContain('不确定性与反转条件');
     expect(copy).not.toContain('当前事件如何从地缘政治与宏观经济传导至产业链（动态传导）');
-    for (const className of ['report-layer-heading__icon', 'report-related-chain-item__arrow']) {
+    for (const className of [
+      'report-layer-heading__icon',
+      'report-transmission-card__link-icon',
+      'report-related-chain-item__arrow'
+    ]) {
       const icon = captured.images.find((props) => props.className === className);
       expect(icon?.src).toEqual(expect.stringMatching(/\.svg$/));
     }
@@ -201,6 +207,13 @@ describe('Report detail page', () => {
     expect(copy).toContain('依赖');
     expect(copy).toContain('交付周期 UP/HIGH');
     expect(copy).toContain('销售价格 UP/HIGH');
+    for (const className of [
+      'report-chain-boundary__icon report-chain-boundary__icon--gap',
+      'report-chain-boundary__icon report-chain-boundary__icon--stop'
+    ]) {
+      const icon = captured.images.find((props) => props.className === className);
+      expect(icon?.src).toEqual(expect.stringMatching(/\.svg$/));
+    }
     const canvas = captured.views.find((props) => props.className === 'report-chain-canvas');
     const edge = captured.views.find(
       (props) => props.className === 'report-chain-edge report-chain-edge--adjacent'
@@ -232,6 +245,16 @@ describe('Report detail page', () => {
       scopeType: 'industry_chain_node',
       scopeKey: 'chn-21-n01',
       title: '油品运输服务证据'
+    });
+  });
+
+  it('loads every published industry-chain detail exposed by the layer list', async () => {
+    const layer = await mockReportPort.getLayer(reportId, 'geopolitics');
+    const finalChain = layer.relatedIndustryChains.at(-1);
+
+    expect(finalChain).toMatchObject({ key: 'chn-54', name: '风力发电产业链' });
+    await expect(mockReportPort.getIndustryChain(reportId, 'chn-54')).resolves.toMatchObject({
+      industryChain: { key: 'chn-54', name: '风力发电产业链' }
     });
   });
 

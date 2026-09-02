@@ -15,6 +15,7 @@ import type {
   ReportSummary
 } from '../../features/reports/contract';
 import { ReportError } from '../../features/reports/contract';
+import { generatedIndustryChainDetails } from './report-industry-chains.generated';
 
 const REPORT_ID = 'RPT11111111-1111-4111-8111-111111111111';
 
@@ -86,7 +87,7 @@ const macroAnchors: ReportAnchor[] = [
   )
 ];
 
-const chainDetails: ReportIndustryChainDetailContent[] = [
+const showcaseChainDetails: ReportIndustryChainDetailContent[] = [
   chain(
     'chn-01',
     1,
@@ -346,6 +347,8 @@ const chainDetails: ReportIndustryChainDetailContent[] = [
   )
 ];
 
+const chainDetails = generatedIndustryChainDetails;
+
 const cards: ReportCard[] = [
   card(
     'card-geopolitics',
@@ -375,7 +378,7 @@ const cards: ReportCard[] = [
     'macroeconomics',
     macroAnchors
   ),
-  ...chainDetails.map((item, index) =>
+  ...showcaseChainDetails.map((item, index) =>
     card(
       `card-${item.key}`,
       'industry_chain',

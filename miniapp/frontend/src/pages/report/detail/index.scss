@@ -43,6 +43,7 @@
   min-width: 0;
   flex: 1;
   align-items: center;
+  justify-content: flex-start;
 }
 
 .report-layer-heading__icon-box,
@@ -280,15 +281,16 @@
   justify-content: flex-start;
 }
 
-.report-transmission-card__heading > text:first-child {
+.report-transmission-card__heading > text:first-of-type {
   color: #2563eb;
   font-size: 21rpx;
   font-weight: 750;
 }
 
-.report-transmission-card__arrow {
-  width: 20rpx;
-  height: 20rpx;
+.report-transmission-card__link-icon {
+  width: 22rpx;
+  height: 22rpx;
+  flex: 0 0 22rpx;
 }
 
 .report-transmission-card__source,
@@ -567,20 +569,29 @@
 }
 
 .report-chain-boundary {
+  display: grid;
+  grid-template-columns: 30rpx minmax(0, 1fr);
+  gap: 14rpx;
   margin-top: 20rpx;
   padding: 20rpx 22rpx;
   border: 1rpx solid #dfe4ee;
   border-radius: 16rpx;
 }
 
-.report-chain-boundary > text {
+.report-chain-boundary__icon {
+  width: 28rpx;
+  height: 28rpx;
+  margin-top: 2rpx;
+}
+
+.report-chain-boundary__copy > text {
   display: block;
   color: #566780;
   font-size: 22rpx;
   line-height: 1.62;
 }
 
-.report-chain-boundary > text:first-child {
+.report-chain-boundary__copy > text:first-child {
   margin-bottom: 7rpx;
   color: #17345f;
   font-size: 23rpx;
@@ -588,13 +599,17 @@
 }
 
 .report-chain-boundary--gap {
+  border-color: #d8e2f0;
+  background: #f7f9fc;
+}
+
+.report-chain-boundary--stop {
   border-color: #efd28f;
   background: #fff9eb;
 }
 
-.report-chain-boundary--stop {
-  border-color: #f3c1c1;
-  background: #fff5f5;
+.report-chain-boundary--stop .report-chain-boundary__copy > text:first-child {
+  color: #a2520a;
 }
 
 .report-detail-refresh-warning {

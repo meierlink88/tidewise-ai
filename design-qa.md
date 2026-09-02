@@ -79,3 +79,38 @@ The reference and implementation were captured in the same in-app Browser sessio
 No actionable homepage P0, P1, or P2 issue remains in the H5 mock-data acceptance pass. WeChat and Douyin runtime visual acceptance remain pending.
 
 final result: H5 passed; WeChat/Douyin runtime visual acceptance pending
+
+---
+
+# Report detail visual QA
+
+## Visual truth
+
+- Layer heading: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-5bdd0116-3309-4a50-bc6e-d431c155b7a7.png`
+- Downward transmission: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-5d7c78e7-d844-4293-b71a-f680e9182e4b.png`
+- Chain boundaries: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-8b56a932-b0b1-42ad-9ffd-1aaf4b6326b9.png`
+
+## Implementation state
+
+- Preview: `http://127.0.0.1:4175/?qa=detail-54#/pages/report/detail/index?reportId=RPT11111111-1111-4111-8111-111111111111&targetType=layer&targetKey=geopolitics`
+- Browser: Codex in-app browser
+- Viewport: 758 x 1100 CSS px
+- Data source: approved report prototype snapshot, 54 industry chains
+- Detail navigation check: the final row `chn-54` opens the wind-power chain detail.
+
+## Combined comparisons
+
+- Header: `/Users/meierlink/.codex/visualizations/2026/09/02/report-detail-qa/compare-header.png`
+- Transmission cards: `/Users/meierlink/.codex/visualizations/2026/09/02/report-detail-qa/compare-transmission.png`
+- Chain boundaries: `/Users/meierlink/.codex/visualizations/2026/09/02/report-detail-qa/compare-boundaries.png`
+
+## Findings and iterations
+
+1. The identity row inherited `space-between`, pushing the layer title toward the evidence button. The identity row now explicitly uses `justify-content: flex-start`.
+2. Published transmission paths and candidate mechanisms lacked the leading link asset. Both headings now render the same Radix `Link2Icon` asset.
+3. The mock port exposed only four manually authored chain details. A generated typed fixture now exposes all 54 report chains to the related-chain list and detail route, while the home showcase remains limited to the approved four cards.
+4. The chain gap and stop-condition blocks lacked semantic assets and used mismatched colors. They now use Radix info/warning assets with the neutral and amber prototype treatments.
+
+## Final result
+
+Passed for the four requested discrepancies: heading alignment, transmission link icons, full 54-chain list/detail loading, and chain boundary icons.

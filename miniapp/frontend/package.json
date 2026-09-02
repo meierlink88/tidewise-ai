@@ -9,6 +9,7 @@
     "build:h5": "taro build --type h5 --no-check",
     "build:weapp": "taro build --type weapp --no-check",
     "build:tt": "taro build --type tt --no-check",
+    "generate:report-mock": "node scripts/generate-report-mock.mjs",
     "verify:weapp-output": "node scripts/verify-weapp-output.mjs weapp",
     "verify:tt-output": "node scripts/verify-weapp-output.mjs tt",
     "preview:weapp": "npm run build:weapp && npm run verify:weapp-output",

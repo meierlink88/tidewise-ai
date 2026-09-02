@@ -5,7 +5,10 @@ import fileTextIcon from '../../../assets/icons/file-text.svg';
 import reportBarChartIcon from '../../../assets/icons/report-bar-chart.svg';
 import reportArrowRightIcon from '../../../assets/icons/report-arrow-right.svg';
 import reportGlobeIcon from '../../../assets/icons/report-globe.svg';
+import reportInfoIcon from '../../../assets/icons/report-info.svg';
 import reportLayersIcon from '../../../assets/icons/report-layers.svg';
+import reportLinkIcon from '../../../assets/icons/report-link.svg';
+import reportWarningIcon from '../../../assets/icons/report-warning.svg';
 import type {
   ReportEvidenceScope,
   ReportIndustryChainDetail,
@@ -275,6 +278,11 @@ function LayerDetailView({
           {layer.downwardTransmission.candidateMechanisms.map((candidate) => (
             <View className='report-transmission-card' key={candidate.key}>
               <View className='report-transmission-card__heading'>
+                <Image
+                  className='report-transmission-card__link-icon'
+                  src={reportLinkIcon}
+                  mode='aspectFit'
+                />
                 <Text>传到产业链</Text>
                 <Text className='report-result-chip report-result-chip--pending'>待验证</Text>
               </View>
@@ -380,14 +388,12 @@ function TransmissionPathView({
             : undefined
         }
       >
+        <Image
+          className='report-transmission-card__link-icon'
+          src={reportLinkIcon}
+          mode='aspectFit'
+        />
         <Text>传到{target?.label ?? '下游对象'}</Text>
-        {isDetailTarget ? (
-          <Image
-            className='report-transmission-card__arrow'
-            src={reportArrowRightIcon}
-            mode='aspectFit'
-          />
-        ) : null}
         {target ? (
           <Text className={`report-result-chip report-result-chip--${target.result.code}`}>
             {target.result.label}
@@ -524,14 +530,28 @@ function IndustryChainDetailView({
 
         {industryChain.uncertainty.counterevidenceAndGap ? (
           <View className='report-chain-boundary report-chain-boundary--gap'>
-            <Text>反证与缺口</Text>
-            <Text>{industryChain.uncertainty.counterevidenceAndGap}</Text>
+            <Image
+              className='report-chain-boundary__icon report-chain-boundary__icon--gap'
+              src={reportInfoIcon}
+              mode='aspectFit'
+            />
+            <View className='report-chain-boundary__copy'>
+              <Text>反证与缺口</Text>
+              <Text>{industryChain.uncertainty.counterevidenceAndGap}</Text>
+            </View>
           </View>
         ) : null}
         {industryChain.uncertainty.stopCondition ? (
           <View className='report-chain-boundary report-chain-boundary--stop'>
-            <Text>停止条件</Text>
-            <Text>{industryChain.uncertainty.stopCondition}</Text>
+            <Image
+              className='report-chain-boundary__icon report-chain-boundary__icon--stop'
+              src={reportWarningIcon}
+              mode='aspectFit'
+            />
+            <View className='report-chain-boundary__copy'>
+              <Text>停止条件</Text>
+              <Text>{industryChain.uncertainty.stopCondition}</Text>
+            </View>
           </View>
         ) : null}
       </View>
