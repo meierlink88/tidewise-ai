@@ -3,12 +3,28 @@ package report
 import (
 	"encoding/json"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	reportfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/report"
 )
+
+func TestPublicationV2SmokeFixtureMatchesStrictContract(t *testing.T) {
+	payload, err := os.ReadFile("testdata/report-publication.v2.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var request PublicationRequest
+	if err := v1.DecodeStrictJSON(payload, publicationV2Shape(), &request); err != nil {
+		t.Fatalf("smoke fixture error=%v path=%s", err, v1.StrictJSONErrorPath(err))
+	}
+	if request.ContractVersion != ContractVersion || request.PublisherReportID == "" ||
+		request.Content.Geopolitics == nil || request.Content.Macroeconomics == nil || len(request.Content.IndustryChains) != 1 {
+		t.Fatalf("smoke fixture=%#v", request)
+	}
+}
 
 func TestPublicationV2ShapeAcceptsOptionalUpperSectionsAndRejectsPageFields(t *testing.T) {
 	for _, content := range []any{reportfixture.IndustryOnlyContent(), reportfixture.ContentWithManyChains(54)} {

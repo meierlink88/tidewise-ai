@@ -94,8 +94,8 @@ evidence_two="$(jq -er '.result.items | map(select(.input_index == 1)) | .[0].id
 echo "Publishing smoke Report fixture"
 report_response="$(
   jq --arg evidence_one "$evidence_one" --arg evidence_two "$evidence_two" \
-    --arg source_report_id "report-smoke-${run_suffix}" '
-      .source_report_id = $source_report_id
+    --arg publisher_report_id "report-smoke-${run_suffix}" '
+      .publisher_report_id = $publisher_report_id
       | walk(
           if type == "object" and has("evidence_id") then
             .evidence_id = (
@@ -104,7 +104,7 @@ report_response="$(
             )
           else . end
         )
-    ' "$repo_root/data-service/backend/api/data/v1/report/testdata/report-publication.v1.json" | \
+    ' "$repo_root/data-service/backend/api/data/v1/report/testdata/report-publication.v2.json" | \
     curl --fail-with-body --silent --show-error \
       -H "$auth_header" -H 'Content-Type: application/json' \
       --data-binary @- "$data_api/report-publications"
@@ -128,9 +128,9 @@ jq -e --arg report_id "$report_id" '
 ' <<<"$layer_response" >/dev/null
 
 evidence_list_response="$(curl --fail --silent --show-error \
-  "$miniapp_api/reports/$report_id/evidences?scope_type=report_card&scope_key=geo-card")"
+  "$miniapp_api/reports/$report_id/evidences?scope_type=section_summary&scope_key=geopolitics")"
 jq -e '
-  .result.scope == {type: "report_card", key: "geo-card"}
+  .result.scope == {type: "section_summary", key: "geopolitics"}
   and (.result.items | length == 1)
   and (.result.items[0].summary | length > 0)
   and (.result.items[0] | has("evidence_id") | not)
