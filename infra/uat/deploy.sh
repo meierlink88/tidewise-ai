@@ -82,6 +82,7 @@ cutover_checkpoint_sha=""
 interrupted_state_recovery_mode=""
 committed_cutover_recovery=false
 host_base_url="${UAT_HOST_BASE_URL:-http://127.0.0.1}"
+miniapp_read_path="/api/miniapp/v1/reports/home"
 application_services=(data miniapp adminportal admin)
 
 test -d "$state_dir"
@@ -133,6 +134,7 @@ case "$deployment_mode" in
     ;;
   data_63_77_cutover)
     bounded_data_cutover=true
+    miniapp_read_path="/api/miniapp/v1/research/themes"
     cutover_target_version=77
     cutover_target_version_padded=000077
     cutover_initial_current_version=000062
@@ -497,7 +499,7 @@ verify_services() {
   curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${host_base_url}:9014/healthz" >/dev/null || return 1
   echo "PASS host-entry-health"
 
-  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${host_base_url}:9012/api/miniapp/v1/reports/home" >/dev/null || return 1
+  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${host_base_url}:9012${miniapp_read_path}" >/dev/null || return 1
   curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 --header "Authorization: Bearer ${verification_admin_token}" "${host_base_url}:9014/api/admin/v1/events?page=1&page_size=1" >/dev/null || return 1
   echo "PASS bff-to-service-read-paths"
 }

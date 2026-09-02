@@ -613,6 +613,16 @@ func TestUATDeployExecutorRunsBoundedData63To77CatchUpWithRecoveryCheckpoint(t *
 	if stop < 0 || apply < 0 || start < 0 || stop > apply || apply > start {
 		t.Fatalf("Data 63-77 catch-up must stop writers before migration and start candidates afterward: %s", logText)
 	}
+	curlLog, err := os.ReadFile(result.curlLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(curlLog), "http://127.0.0.1:9012/api/miniapp/v1/research/themes") {
+		t.Fatalf("Data 63-77 catch-up did not verify its historical Miniapp read contract: %s", curlLog)
+	}
+	if strings.Contains(string(curlLog), "http://127.0.0.1:9012/api/miniapp/v1/reports/home") {
+		t.Fatalf("Data 63-77 catch-up attempted the unavailable Report v2 read contract: %s", curlLog)
+	}
 	if _, err := os.Stat(filepath.Join(result.root, "state", "tidewise-2-cutover-in-progress")); !os.IsNotExist(err) {
 		t.Fatalf("successful Data 63-77 catch-up retained recovery marker: %v", err)
 	}
