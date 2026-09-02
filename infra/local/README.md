@@ -129,12 +129,12 @@ Install the repository lockfile with Node 22, then run the repository-pinned Tar
 They write to `miniapp/frontend/dist/<platform>`:
 
 ```bash
-TARO_APP_RESEARCH_SOURCE=mock npm run dev:weapp
-TARO_APP_RESEARCH_SOURCE=mock npm run dev:tt
-TARO_APP_RESEARCH_SOURCE=mock npm run dev:h5
+TARO_APP_REPORT_SOURCE=mock npm run dev:weapp
+TARO_APP_REPORT_SOURCE=mock npm run dev:tt
+TARO_APP_REPORT_SOURCE=mock npm run dev:h5
 ```
 
-`TARO_APP_RESEARCH_SOURCE` selects `api` or `mock` for each command. WeChat and Douyin developer
+`TARO_APP_REPORT_SOURCE` selects `api` or `mock` for each command. WeChat and Douyin developer
 tools open `miniapp/frontend/dist/weapp` or `dist/tt`. Mock mode needs no Backend, secrets,
 PostgreSQL, Neo4j or Qdrant. In API mode, start the Miniapp Backend separately with
 `npm run backend:dev:miniapp` and provide the approved Miniapp Backend URL.

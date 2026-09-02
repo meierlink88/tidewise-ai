@@ -29,25 +29,22 @@ func (e *HTTPError) Message() string {
 
 var (
 	ErrInvalidRequest = &HTTPError{
-		status: http.StatusBadRequest, code: "INVALID_REQUEST", message: "invalid research request",
+		status: http.StatusBadRequest, code: "INVALID_REQUEST", message: "invalid request",
 	}
-	ErrResearchResultNotFound = &HTTPError{
-		status: http.StatusNotFound, code: "RESEARCH_RESULT_NOT_FOUND", message: "research result not found",
+	ErrReportNotFound = &HTTPError{
+		status: http.StatusNotFound, code: "REPORT_NOT_FOUND", message: "report not found",
 	}
-	ErrResearchThemeNotFound = &HTTPError{
-		status: http.StatusNotFound, code: "RESEARCH_THEME_NOT_FOUND", message: "research Theme was not found",
+	ErrReportLayerNotFound = &HTTPError{
+		status: http.StatusNotFound, code: "REPORT_LAYER_NOT_FOUND", message: "report layer not found",
 	}
-	ErrResearchReasoningTreesNotFound = &HTTPError{
-		status: http.StatusNotFound, code: "RESEARCH_REASONING_TREES_NOT_FOUND", message: "research Theme has no published reasoning trees",
+	ErrReportIndustryChainNotFound = &HTTPError{
+		status: http.StatusNotFound, code: "REPORT_INDUSTRY_CHAIN_NOT_FOUND", message: "report industry chain not found",
 	}
-	ErrResearchReasoningTreeNotFound = &HTTPError{
-		status: http.StatusNotFound, code: "RESEARCH_REASONING_TREE_NOT_FOUND", message: "research reasoning tree was not found for the Theme",
+	ErrReportEvidenceScopeNotFound = &HTTPError{
+		status: http.StatusNotFound, code: "REPORT_EVIDENCE_SCOPE_NOT_FOUND", message: "report evidence scope not found",
 	}
-	ErrResearchDataFailure = &HTTPError{
-		status: http.StatusInternalServerError, code: "RESEARCH_DATA_UNAVAILABLE", message: "research data service failure",
-	}
-	ErrResearchDataUnavailable = &HTTPError{
-		status: http.StatusBadGateway, code: "RESEARCH_DATA_UNAVAILABLE", message: "research data is temporarily unavailable",
+	ErrReportServiceUnavailable = &HTTPError{
+		status: http.StatusServiceUnavailable, code: "REPORT_SERVICE_UNAVAILABLE", message: "report service unavailable",
 	}
 )
 

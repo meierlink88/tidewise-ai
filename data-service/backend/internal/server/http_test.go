@@ -63,7 +63,7 @@ func TestProductionServerSourceManagementAndSnapshotContract(t *testing.T) {
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{}, serverTestEvidenceService{},
 		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{},
-		serverTestIndustryChainService{}, serverTestOrganizationService{}, application, serverTestCompanyService{}, authenticator, nil,
+		serverTestIndustryChainService{}, serverTestOrganizationService{}, application, serverTestCompanyService{}, serverTestReportService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -157,7 +157,7 @@ func TestCompanyProjectionProviderFixtureMatchesRuntimeHTTPOutput(t *testing.T) 
 		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{}, serverTestEvidenceService{},
 		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{},
 		serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{},
-		fixtureCompanyService{page: fixture.Result}, authenticator, nil,
+		fixtureCompanyService{page: fixture.Result}, serverTestReportService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -233,7 +233,7 @@ func evidencePublicationContractServer(t *testing.T, application evidenceapi.Ser
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{}, application,
 		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{},
-		serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, serverTestCompanyService{}, authenticator, nil,
+		serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, serverTestCompanyService{}, serverTestReportService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -303,7 +303,7 @@ func sourceSnapshotContractServer(t *testing.T, application sourceapi.Service) h
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{}, serverTestEvidenceService{},
 		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{},
-		serverTestIndustryChainService{}, serverTestOrganizationService{}, application, serverTestCompanyService{}, authenticator, nil,
+		serverTestIndustryChainService{}, serverTestOrganizationService{}, application, serverTestCompanyService{}, serverTestReportService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -340,7 +340,7 @@ func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *te
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{},
 		application,
-		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, serverTestCompanyService{}, authenticator, nil,
+		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, serverTestCompanyService{}, serverTestReportService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)

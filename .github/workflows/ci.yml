@@ -174,7 +174,7 @@ jobs:
             ./data-service/backend/internal/data/entity/institution \
             ./data-service/backend/internal/data/event \
             ./data-service/backend/internal/data/evidence \
-            ./data-service/backend/internal/data/research \
+            ./data-service/backend/internal/data/report \
             -count=1
       - name: Test Data migration framework
         if: steps.risks.outputs.migration_framework == 'true'
@@ -206,7 +206,6 @@ jobs:
         run: >-
           go test
           ./data-service/backend/internal/conf
-          ./data-service/backend/cmd/research-theme-dev-reset
           -count=1
 
       - name: Build Data Service binary
@@ -353,16 +352,20 @@ jobs:
       - name: Build Miniapp Frontend for WeChat
         if: steps.risks.outputs.frontend == 'true'
         env:
-          TARO_APP_RESEARCH_SOURCE: api
+          TARO_APP_REPORT_SOURCE: api
           TARO_APP_MINIAPP_API_BASE_URL: https://miniapp.example.invalid
-        run: npm run build:weapp
+        run: |
+          npm run build:weapp
+          npm --workspace @tidewise/miniapp run verify:weapp-output
 
       - name: Build Miniapp Frontend for Douyin
         if: steps.risks.outputs.frontend == 'true'
         env:
-          TARO_APP_RESEARCH_SOURCE: api
+          TARO_APP_REPORT_SOURCE: api
           TARO_APP_MINIAPP_API_BASE_URL: https://miniapp.example.invalid
-        run: npm run build:tt
+        run: |
+          npm run build:tt
+          npm --workspace @tidewise/miniapp run verify:tt-output
 
       - name: Build Miniapp integration images
         if: >-

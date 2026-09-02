@@ -10,32 +10,38 @@ import (
 	kratos "github.com/go-kratos/kratos/v3"
 	"github.com/go-kratos/kratos/v3/transport"
 
-	"github.com/meierlink88/tidewise-ai/miniapp/backend/internal/biz"
+	reportbiz "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/biz/report"
 	"github.com/meierlink88/tidewise-ai/miniapp/backend/internal/conf"
 	"github.com/meierlink88/tidewise-ai/miniapp/backend/internal/data"
+	reportdata "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/data/report"
 	"github.com/meierlink88/tidewise-ai/miniapp/backend/internal/server"
-	"github.com/meierlink88/tidewise-ai/miniapp/backend/internal/service"
+	reportservice "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/service/report"
 )
 
 const applicationStopTimeout = 10 * time.Second
 const resourceCleanupTimeout = 5 * time.Second
 
 func buildApp(config conf.RuntimeConfig, logger *slog.Logger) (*kratos.App, func(context.Context) error, error) {
-	repository, err := data.NewHTTPClient(data.HTTPConfig{
-		BaseURL:      config.DataService.BaseURL,
-		ServiceToken: config.DataService.IdentityToken,
-		Timeout:      config.DataService.Timeout,
+	dataClient, err := data.NewHTTPClient(data.HTTPConfig{
+		BaseURL: config.DataService.BaseURL, ServiceToken: config.DataService.IdentityToken,
+		Timeout: config.DataService.Timeout, MaxReadAttempts: 2,
 	})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("create Data API client: %w", err)
 	}
-	useCase := biz.NewResearchServiceWithCursorKey(repository, config.DataService.IdentityToken)
-	applicationService := service.NewResearchService(useCase)
-	httpServer := server.NewHTTPServer(config, applicationService, logger)
-
-	return newApp(httpServer, logger), func(context.Context) error {
-		return repository.Close()
-	}, nil
+	repository, err := reportdata.NewRepository(dataClient)
+	if err != nil {
+		_ = dataClient.Close()
+		return nil, nil, fmt.Errorf("create Report repository: %w", err)
+	}
+	application, err := reportservice.NewService(reportbiz.NewUseCase(repository))
+	if err != nil {
+		_ = dataClient.Close()
+		return nil, nil, fmt.Errorf("create Report service: %w", err)
+	}
+	httpServer := server.NewHTTPServer(config, logger, application)
+	cleanup := func(context.Context) error { return dataClient.Close() }
+	return newApp(httpServer, logger), cleanup, nil
 }
 
 func newApp(server transport.Server, logger *slog.Logger) *kratos.App {

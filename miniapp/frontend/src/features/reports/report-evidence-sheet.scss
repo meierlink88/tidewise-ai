@@ -1,0 +1,131 @@
+@use '../../styles/tokens' as *;
+
+.report-evidence-sheet {
+  position: fixed;
+  z-index: $layer-overlay;
+  inset: 0;
+}
+
+.report-evidence-sheet__overlay {
+  position: absolute;
+  inset: 0;
+  background: $color-overlay-scrim;
+  animation: report-evidence-overlay-in 160ms ease-out;
+}
+
+.report-evidence-sheet__panel {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  min-height: 260rpx;
+  max-height: 76vh;
+  overflow: hidden;
+  border-radius: $radius-sheet $radius-sheet 0 0;
+  background: $color-card;
+  box-shadow: $shadow-sheet;
+  flex-direction: column;
+  animation: report-evidence-sheet-in 240ms cubic-bezier(0.2, 0.85, 0.3, 1);
+}
+
+.report-evidence-sheet__handle-zone {
+  display: flex;
+  height: 60rpx;
+  flex: 0 0 60rpx;
+  align-items: center;
+  justify-content: center;
+}
+
+.report-evidence-sheet__handle {
+  width: 84rpx;
+  height: 10rpx;
+  border-radius: $radius-handle;
+  background: $color-border;
+}
+
+.report-evidence-sheet__scroll {
+  min-height: 0;
+  max-height: calc(76vh - 60rpx);
+  flex: 1 1 auto;
+}
+
+.report-evidence-sheet__content {
+  padding: 4rpx 36rpx calc(20rpx + env(safe-area-inset-bottom));
+}
+
+.report-evidence-sheet__list {
+  display: flex;
+  gap: 18rpx;
+  flex-direction: column;
+}
+
+.report-evidence-sheet__item {
+  padding: 22rpx;
+  border: 1rpx solid $color-border;
+  border-radius: 16rpx;
+  background: $color-card;
+  box-shadow: $shadow-report-evidence-item;
+}
+
+.report-evidence-sheet__time-row {
+  display: flex;
+  align-items: center;
+  gap: 9rpx;
+}
+
+.report-evidence-sheet__clock {
+  width: 24rpx;
+  height: 24rpx;
+  flex: 0 0 24rpx;
+}
+
+.report-evidence-sheet__time {
+  color: $color-blue-700;
+  font-size: 21rpx;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.report-evidence-sheet__summary {
+  display: block;
+  margin-top: 14rpx;
+  color: $color-text-primary;
+  font-size: 24rpx;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.report-evidence-sheet__keywords {
+  display: flex;
+  gap: 10rpx;
+  margin-top: 18rpx;
+  flex-wrap: wrap;
+}
+
+.report-evidence-sheet__keyword {
+  display: inline-flex;
+  min-height: 38rpx;
+  align-items: center;
+  padding: 0 12rpx;
+  border: 1rpx solid $color-report-blue-border-subtle;
+  border-radius: $radius-pill;
+  background: $color-page-background;
+  color: $color-blue-700;
+  font-size: 20rpx;
+  font-weight: 700;
+  line-height: 36rpx;
+}
+
+@keyframes report-evidence-overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes report-evidence-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}

@@ -1,12 +1,8 @@
 package data
 
 import (
-	"errors"
-	"net/http"
 	"strconv"
 	"strings"
-
-	"github.com/meierlink88/tidewise-ai/miniapp/backend/internal/biz"
 )
 
 type ErrorKind string
@@ -47,40 +43,6 @@ func (e *Error) Error() string {
 		message += " request_id=" + requestID
 	}
 	return message
-}
-
-func mapThemeDataError(err error) error {
-	if err == nil {
-		return nil
-	}
-	var adapterErr *Error
-	if errors.As(err, &adapterErr) {
-		switch adapterErr.StatusCode {
-		case http.StatusBadRequest:
-			return biz.ErrInvalidResearchRequest
-		case http.StatusNotFound:
-			return biz.ErrResearchNotFound
-		}
-	}
-	return biz.ErrResearchDataService
-}
-
-func mapReasoningTreeDataError(err error) error {
-	if err == nil {
-		return nil
-	}
-	var adapterErr *Error
-	if errors.As(err, &adapterErr) && adapterErr.StatusCode == http.StatusNotFound {
-		switch adapterErr.Code {
-		case "RESEARCH_THEME_NOT_FOUND":
-			return biz.ErrResearchThemeNotFound
-		case "RESEARCH_REASONING_TREES_NOT_FOUND":
-			return biz.ErrResearchReasoningTreesNotFound
-		case "RESEARCH_REASONING_TREE_NOT_FOUND":
-			return biz.ErrResearchReasoningTreeNotFound
-		}
-	}
-	return biz.ErrResearchDataUnavailable
 }
 
 func safeMetadata(value string, maxLength int) string {

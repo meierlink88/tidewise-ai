@@ -2,7 +2,6 @@ package server
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -11,13 +10,11 @@ import (
 	"strings"
 	"testing"
 
-	usecase "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/biz"
 	"github.com/meierlink88/tidewise-ai/miniapp/backend/internal/conf"
-	appservice "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/service"
 )
 
 func TestHealthz(t *testing.T) {
-	router := NewHTTPServer(testRuntimeConfig(), nil, testLogger())
+	router := NewHTTPServer(testRuntimeConfig(), testLogger(), nil)
 
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
@@ -38,7 +35,7 @@ func TestHealthz(t *testing.T) {
 }
 
 func TestReadyz(t *testing.T) {
-	router := NewHTTPServer(testRuntimeConfig(), nil, testLogger())
+	router := NewHTTPServer(testRuntimeConfig(), testLogger(), nil)
 
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/readyz", nil)
@@ -60,9 +57,9 @@ func TestReadyz(t *testing.T) {
 
 func TestHealthRoutesRunKratosMiddlewareWithStableOperation(t *testing.T) {
 	var logs bytes.Buffer
-	router := NewHTTPServer(testRuntimeConfig(), nil, slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{
+	router := NewHTTPServer(testRuntimeConfig(), slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{
 		Level: slog.LevelDebug,
-	})))
+	})), nil)
 
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodGet, "/healthz", nil)
@@ -74,75 +71,6 @@ func TestHealthRoutesRunKratosMiddlewareWithStableOperation(t *testing.T) {
 	if !strings.Contains(logs.String(), `"msg":"business request completed"`) ||
 		!strings.Contains(logs.String(), `"operation":"miniapp.health"`) {
 		t.Fatalf("health middleware log is incomplete: %s", logs.String())
-	}
-}
-
-func TestPanicReturnsStructuredErrorWithRequestID(t *testing.T) {
-	var logs bytes.Buffer
-	logger := slog.New(slog.NewJSONHandler(&logs, nil))
-	client := &usecase.Fake{
-		ListResearchThemesFunc: func(context.Context, usecase.ResearchListQuery) (usecase.ResearchThemePage, error) {
-			panic("sensitive upstream failure")
-		},
-	}
-	router := NewHTTPServer(
-		testRuntimeConfig(),
-		appservice.NewResearchService(usecase.NewResearchService(client)),
-		logger,
-	)
-	request := httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/research/themes?cursor=sensitive-request-value", nil)
-	request.Header.Set(requestIDHeader, "miniapp-panic-request")
-	request.Header.Set("Authorization", "Bearer sensitive-token-value")
-	response := httptest.NewRecorder()
-
-	router.ServeHTTP(response, request)
-
-	if response.Code != http.StatusInternalServerError {
-		t.Fatalf("status = %d, want %d", response.Code, http.StatusInternalServerError)
-	}
-	var body errorEnvelope
-	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
-		t.Fatalf("decode error envelope: %v", err)
-	}
-	if body.RequestID != "miniapp-panic-request" || response.Header().Get(requestIDHeader) != body.RequestID {
-		t.Fatalf("request IDs = %q/%q", body.RequestID, response.Header().Get(requestIDHeader))
-	}
-	if body.Error.Code != "INTERNAL_ERROR" || body.Error.Message != "internal server error" || body.Error.Details == nil {
-		t.Fatalf("error = %#v", body.Error)
-	}
-	if strings.Contains(response.Body.String(), "sensitive upstream failure") {
-		t.Fatalf("panic detail leaked: %s", response.Body.String())
-	}
-	for _, secret := range []string{"sensitive upstream failure", "sensitive-request-value", "sensitive-token-value", "runtime/debug"} {
-		if strings.Contains(logs.String(), secret) {
-			t.Fatalf("recovery log leaked %q: %s", secret, logs.String())
-		}
-	}
-	if !strings.Contains(logs.String(), `"operation":"miniapp.research.listThemes"`) ||
-		!strings.Contains(logs.String(), `"status":500`) {
-		t.Fatalf("sanitized panic access log is incomplete: %s", logs.String())
-	}
-}
-
-func TestServerDoesNotImposeRequestContextDeadline(t *testing.T) {
-	var hasDeadline bool
-	client := &usecase.Fake{
-		ListResearchThemesFunc: func(ctx context.Context, _ usecase.ResearchListQuery) (usecase.ResearchThemePage, error) {
-			_, hasDeadline = ctx.Deadline()
-			return usecase.ResearchThemePage{}, nil
-		},
-	}
-	response := httptest.NewRecorder()
-	researchTestRouter(usecase.NewResearchService(client)).ServeHTTP(
-		response,
-		httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/research/themes", nil),
-	)
-
-	if response.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
-	}
-	if hasDeadline {
-		t.Fatal("Kratos server added a request context deadline; Biz/Data must own the request budget")
 	}
 }
 
@@ -199,7 +127,7 @@ func TestOpenAPIDocumentationVisibilityFollowsEnvironment(t *testing.T) {
 		config := testRuntimeConfig()
 		config.App.Env = test.environment
 		response := httptest.NewRecorder()
-		NewHTTPServer(config, nil, testLogger()).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/openapi.yaml", nil))
+		NewHTTPServer(config, testLogger(), nil).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/openapi.yaml", nil))
 		if response.Code != test.wantStatus {
 			t.Fatalf("%s OpenAPI status = %d, want %d", test.environment, response.Code, test.wantStatus)
 		}
@@ -216,7 +144,7 @@ func TestDocumentationRoutesUseObservabilityFilter(t *testing.T) {
 	request.Header.Set(requestIDHeader, "miniapp-docs-request")
 	response := httptest.NewRecorder()
 
-	NewHTTPServer(testRuntimeConfig(), nil, logger).ServeHTTP(response, request)
+	NewHTTPServer(testRuntimeConfig(), logger, nil).ServeHTTP(response, request)
 
 	if response.Code != http.StatusTemporaryRedirect || response.Header().Get(requestIDHeader) != "miniapp-docs-request" {
 		t.Fatalf("docs status/request ID = %d/%q", response.Code, response.Header().Get(requestIDHeader))
@@ -228,13 +156,17 @@ func TestDocumentationRoutesUseObservabilityFilter(t *testing.T) {
 	}
 }
 
-func TestLegacyMiniappRoutesRemainRemoved(t *testing.T) {
+func TestRetiredResearchRoutesReturnNotFound(t *testing.T) {
 	for _, path := range []string{
 		"/api/v1/miniapp/research/themes",
 		"/api/miniapp/v1/research/anchors",
+		"/api/miniapp/v1/research/themes",
+		"/api/miniapp/v1/research/themes/theme-id",
+		"/api/miniapp/v1/research/themes/theme-id/reasoning-trees",
+		"/api/miniapp/v1/research/themes/theme-id/reasoning-trees/tree-id",
 	} {
 		response := httptest.NewRecorder()
-		NewHTTPServer(testRuntimeConfig(), nil, testLogger()).ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
+		NewHTTPServer(testRuntimeConfig(), testLogger(), nil).ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
 		if response.Code != http.StatusNotFound {
 			t.Fatalf("GET %s status = %d, want %d", path, response.Code, http.StatusNotFound)
 		}

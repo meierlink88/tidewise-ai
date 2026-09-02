@@ -45,6 +45,14 @@ pre_data60_runtime="${deployment_root}/pre-data60.runtime.env"
 pre_data60_images="${state_dir}/pre-data60.images.env"
 pre_data60_compose="${state_dir}/pre-data60.compose.yaml"
 pre_data60_sha="${state_dir}/pre-data60.sha"
+pre_data78_runtime="${deployment_root}/pre-data78.runtime.env"
+pre_data78_images="${state_dir}/pre-data78.images.env"
+pre_data78_compose="${state_dir}/pre-data78.compose.yaml"
+pre_data78_sha="${state_dir}/pre-data78.sha"
+pre_data80_runtime="${deployment_root}/pre-data80.runtime.env"
+pre_data80_images="${state_dir}/pre-data80.images.env"
+pre_data80_compose="${state_dir}/pre-data80.compose.yaml"
+pre_data80_sha="${state_dir}/pre-data80.sha"
 agentrun_rollback_marker="${state_dir}/agentrun-010-rollback-required"
 agentrun_version_publication="${state_dir}/agentrun-agent-version-publication.json"
 candidate_services_started=false
@@ -115,8 +123,36 @@ case "$deployment_mode" in
     cutover_checkpoint_compose="$pre_data60_compose"
     cutover_checkpoint_sha="$pre_data60_sha"
     ;;
+  data_78_79_cutover)
+    bounded_data_cutover=true
+    cutover_target_version=79
+    cutover_target_version_padded=000079
+    cutover_initial_current_version=000077
+    cutover_initial_pending_versions=000078,000079
+    cutover_recovery_minimum_version=77
+    cutover_gate_name=data78-79
+    cutover_release_state_mode=pre-data78
+    cutover_checkpoint_runtime="$pre_data78_runtime"
+    cutover_checkpoint_images="$pre_data78_images"
+    cutover_checkpoint_compose="$pre_data78_compose"
+    cutover_checkpoint_sha="$pre_data78_sha"
+    ;;
+  data_80_cutover)
+    bounded_data_cutover=true
+    cutover_target_version=80
+    cutover_target_version_padded=000080
+    cutover_initial_current_version=000079
+    cutover_initial_pending_versions=000080
+    cutover_recovery_minimum_version=79
+    cutover_gate_name=data80
+    cutover_release_state_mode=pre-data80
+    cutover_checkpoint_runtime="$pre_data80_runtime"
+    cutover_checkpoint_images="$pre_data80_images"
+    cutover_checkpoint_compose="$pre_data80_compose"
+    cutover_checkpoint_sha="$pre_data80_sha"
+    ;;
   *)
-    echo "FAIL deployment-mode-gate: DEPLOYMENT_MODE must be normal, tidewise_2_cutover, data_59_cutover, or data_60_cutover" >&2
+    echo "FAIL deployment-mode-gate: DEPLOYMENT_MODE must be normal, tidewise_2_cutover, data_59_cutover, data_60_cutover, data_78_79_cutover, or data_80_cutover" >&2
     exit 1
     ;;
 esac
@@ -225,6 +261,26 @@ restore_interrupted_release_state() {
       install -m 0640 "$pre_data60_compose" "$current_compose"
       install -m 0640 "$pre_data60_sha" "$current_sha"
       ;;
+    pre-data78)
+      if [ ! -s "$pre_data78_runtime" ] || [ ! -s "$pre_data78_images" ] || [ ! -s "$pre_data78_compose" ] || [ ! -s "$pre_data78_sha" ]; then
+        echo "FAIL release-state-recovery: pre-Data-78 snapshot is incomplete" >&2
+        return 1
+      fi
+      install -m 0600 "$pre_data78_runtime" "$current_runtime"
+      install -m 0640 "$pre_data78_images" "$current_images"
+      install -m 0640 "$pre_data78_compose" "$current_compose"
+      install -m 0640 "$pre_data78_sha" "$current_sha"
+      ;;
+    pre-data80)
+      if [ ! -s "$pre_data80_runtime" ] || [ ! -s "$pre_data80_images" ] || [ ! -s "$pre_data80_compose" ] || [ ! -s "$pre_data80_sha" ]; then
+        echo "FAIL release-state-recovery: pre-Data-80 snapshot is incomplete" >&2
+        return 1
+      fi
+      install -m 0600 "$pre_data80_runtime" "$current_runtime"
+      install -m 0640 "$pre_data80_images" "$current_images"
+      install -m 0640 "$pre_data80_compose" "$current_compose"
+      install -m 0640 "$pre_data80_sha" "$current_sha"
+      ;;
     none)
       rm -f "$current_runtime" "$current_images" "$current_compose" "$current_sha"
       ;;
@@ -258,7 +314,7 @@ current_release_state_fingerprint() {
 
 verify_planned_release_state() {
   local recovered_cutover_state=false
-  if [ "$bounded_data_cutover" = true ] && [[ "$interrupted_state_recovery_mode" =~ ^(pre-data2|pre-data59|pre-data60|committed)$ ]]; then
+  if [ "$bounded_data_cutover" = true ] && [[ "$interrupted_state_recovery_mode" =~ ^(pre-data2|pre-data59|pre-data60|pre-data78|pre-data80|committed)$ ]]; then
     recovered_cutover_state=true
   fi
   if [ "$recovered_cutover_state" != true ] && [ "$(current_release_state_fingerprint)" != "$expected_current_state_fingerprint" ]; then
@@ -385,7 +441,7 @@ verify_services() {
   curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${host_base_url}:9014/healthz" >/dev/null || return 1
   echo "PASS host-entry-health"
 
-  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${host_base_url}:9012/api/miniapp/v1/research/themes?limit=1" >/dev/null || return 1
+  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${host_base_url}:9012/api/miniapp/v1/reports/home" >/dev/null || return 1
   curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 --header "Authorization: Bearer ${verification_admin_token}" "${host_base_url}:9014/api/admin/v1/events?page=1&page_size=1" >/dev/null || return 1
   echo "PASS bff-to-service-read-paths"
 }
@@ -758,6 +814,8 @@ else
     "$pre_data2_runtime" "$pre_data2_images" "$pre_data2_compose" "$pre_data2_sha" \
     "$pre_data59_runtime" "$pre_data59_images" "$pre_data59_compose" "$pre_data59_sha" \
     "$pre_data60_runtime" "$pre_data60_images" "$pre_data60_compose" "$pre_data60_sha" \
+    "$pre_data78_runtime" "$pre_data78_images" "$pre_data78_compose" "$pre_data78_sha" \
+    "$pre_data80_runtime" "$pre_data80_images" "$pre_data80_compose" "$pre_data80_sha" \
     "$agentrun_rollback_marker" "$agentrun_version_publication"
 fi
 if [ "$bounded_data_cutover" = true ]; then

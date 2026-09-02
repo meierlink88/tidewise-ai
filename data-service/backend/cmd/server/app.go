@@ -21,6 +21,7 @@ import (
 	organizationbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/organization"
 	eventbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/event"
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
+	reportbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/report"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/research"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/runtimehealth"
 	sourcebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/source"
@@ -37,7 +38,7 @@ import (
 	organizationdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/organization"
 	eventdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/event"
 	evidencedata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/evidence"
-	researchdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/research"
+	reportdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/report"
 	sourcedata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/source"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/server"
 	chainnodeservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/chainnode"
@@ -49,6 +50,7 @@ import (
 	organizationservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/organization"
 	eventservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/event"
 	evidenceservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/evidence"
+	reportservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/report"
 	researchservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/research"
 	runtimehealthservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/runtimehealth"
 	sourceservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/source"
@@ -170,18 +172,17 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Company projection use case: %w", err))
 	}
-	researchStore, err := researchdata.NewStore(db)
-	if err != nil {
-		return nil, nil, closeBuildResources(fmt.Errorf("configure Research store: %w", err))
-	}
-	researchUseCase, err := research.NewUseCase(
-		researchStore,
-		researchStore,
-		entityUseCase,
-		time.Now,
-	)
+	researchUseCase, err := research.NewUseCase(entityUseCase)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Research use case: %w", err))
+	}
+	reportStore, err := reportdata.NewStore(db)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Report store: %w", err))
+	}
+	reportUseCase, err := reportbiz.NewUseCase(reportStore, time.Now)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Report use case: %w", err))
 	}
 
 	runtimeHealthApplication, err := runtimehealthservice.NewService(runtimehealth.New(time.Now))
@@ -232,7 +233,11 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Company projection API service: %w", err))
 	}
-	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, evidenceApplication, countryApplication, industryApplication, conceptApplication, chainNodeApplication, industryChainApplication, organizationApplication, sourceApplication, companyApplication, authenticator, logger)
+	reportApplication, err := reportservice.NewService(reportUseCase)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Report API service: %w", err))
+	}
+	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, evidenceApplication, countryApplication, industryApplication, conceptApplication, chainNodeApplication, industryChainApplication, organizationApplication, sourceApplication, companyApplication, reportApplication, authenticator, logger)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure HTTP server: %w", err))
 	}
@@ -251,7 +256,6 @@ func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 				server.ScopeRawEvidenceRead,
 				server.ScopeEvidenceImport,
 				server.ScopeEvidenceCategoryRead,
-				server.ScopeResearchImport,
 				server.ScopeResearchRead,
 				server.ScopeAdminRead,
 				server.ScopeEventPublish,
@@ -270,6 +274,8 @@ func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 				server.ScopeSourceRead,
 				server.ScopeSourceWrite,
 				server.ScopeCompanyRead,
+				server.ScopeReportRead,
+				server.ScopeReportPublish,
 			}},
 		},
 	}

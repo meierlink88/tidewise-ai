@@ -1,0 +1,340 @@
+{
+  "contract_version": "report-publication.v2",
+  "publisher_report_id": "agentos-report-2026-09-02-smoke",
+  "content": {
+    "report_type": "investment_reasoning",
+    "title": "每日投资推理报告",
+    "generation_status": "completed",
+    "simulation": false,
+    "generated_at": "2026-09-02T08:30:00+08:00",
+    "analysis_window": {
+      "started_at": "2026-09-01T08:30:00+08:00",
+      "ended_at": "2026-09-02T08:30:00+08:00"
+    },
+    "timezone": "Asia/Shanghai",
+    "provenance": {
+      "derived_from_report_id": null,
+      "frozen_source_sha256": null,
+      "frozen_source_commit": null,
+      "template": {
+        "name": "investment-reasoning-report",
+        "version": "presentation-v2",
+        "role": "publication"
+      }
+    },
+    "statistics": {
+      "event_count": 2,
+      "ordinary_fact_count": 2,
+      "signal_fact_count": 2,
+      "transmission_hypothesis_count": 0,
+      "geopolitic_anchor_count": 1,
+      "macroeconomic_anchor_count": 1,
+      "signaled_chain_node_count": 1,
+      "industry_chain_count": 1
+    },
+    "geopolitics": {
+      "key": "geopolitics",
+      "title": "地缘政治",
+      "summary": {
+        "claim": {
+          "key": "C-GEO-SMOKE",
+          "text": "地缘风险升温。"
+        },
+        "transmissions": [
+          {
+            "key": "geo-transmission-smoke",
+            "display_order": 1,
+            "source_claim_key": "C-GEO-SMOKE",
+            "source_conclusion": "地缘风险升温。",
+            "targets": [
+              {
+                "ref": {
+                  "type": "industry_chain",
+                  "key": "chain-01"
+                },
+                "label": "产业链 01",
+                "results": [
+                  {
+                    "name": "供应压力",
+                    "result": {
+                      "code": "warming",
+                      "label": "升温"
+                    }
+                  }
+                ]
+              }
+            ],
+            "logic": "地缘风险通过供应约束向产业链传导。",
+            "relation_nature": "cross_layer_inference",
+            "confidence": {
+              "code": "high",
+              "label": "高",
+              "score": 0.88
+            },
+            "status": "published",
+            "evidence_refs": []
+          }
+        ],
+        "uncertainty": {
+          "counterevidence": "替代供应可能削弱该结论。",
+          "evidence_gap": null,
+          "boundary": "不扩展到没有直接 Signal 的目标。",
+          "reversal_condition": "若关键 Signal 失效，则下调结论。",
+          "checkpoints": []
+        },
+        "evidence_refs": [
+          {
+            "evidence_id": "EVD11111111-1111-4111-8111-111111111111",
+            "role": "supports_claim",
+            "display_order": 1
+          }
+        ]
+      },
+      "detail": {
+        "anchors": [
+          {
+            "key": "geo-anchor",
+            "display_order": 1,
+            "name": "地缘锚点",
+            "effects": [
+              {
+                "display_order": 1,
+                "dimension": "地缘风险",
+                "direction": "up",
+                "confidence": "high"
+              }
+            ],
+            "result": {
+              "code": "warming",
+              "label": "升温"
+            },
+            "nature": {
+              "code": "direct_evidence",
+              "label": "直接证据"
+            },
+            "reasoning": "公开事实直接支持地缘风险抬升。",
+            "time_window": {
+              "horizons": ["short"],
+              "lag": null,
+              "label": "短期"
+            },
+            "confidence": {
+              "code": "high",
+              "label": "高",
+              "score": 0.88
+            },
+            "source_ref": null,
+            "evidence_refs": [
+              {
+                "evidence_id": "EVD11111111-1111-4111-8111-111111111111",
+                "role": "direct_target",
+                "display_order": 1
+              }
+            ]
+          }
+        ],
+        "reasoning_steps": [],
+        "related_chain_keys": ["chain-01"]
+      }
+    },
+    "macroeconomics": {
+      "key": "macroeconomics",
+      "title": "宏观经济",
+      "summary": {
+        "claim": {
+          "key": "C-MACRO-SMOKE",
+          "text": "宏观路径分化。"
+        },
+        "transmissions": [
+          {
+            "key": "macro-transmission-smoke",
+            "display_order": 1,
+            "source_claim_key": "C-MACRO-SMOKE",
+            "source_conclusion": "宏观路径分化。",
+            "targets": [
+              {
+                "ref": {
+                  "type": "industry_chain",
+                  "key": "chain-01"
+                },
+                "label": "产业链 01",
+                "results": [
+                  {
+                    "name": "需求",
+                    "result": {
+                      "code": "diverging",
+                      "label": "分化"
+                    }
+                  }
+                ]
+              }
+            ],
+            "logic": "宏观条件通过需求变化向产业链传导。",
+            "relation_nature": "cross_layer_inference",
+            "confidence": {
+              "code": "medium",
+              "label": "中",
+              "score": 0.66
+            },
+            "status": "published",
+            "evidence_refs": []
+          }
+        ],
+        "uncertainty": {
+          "counterevidence": "政策对冲可能削弱该结论。",
+          "evidence_gap": null,
+          "boundary": "不扩展到没有宏观 Signal 的目标。",
+          "reversal_condition": "若政策路径反转，则修正结论。",
+          "checkpoints": []
+        },
+        "evidence_refs": [
+          {
+            "evidence_id": "EVD22222222-2222-4222-8222-222222222222",
+            "role": "supports_claim",
+            "display_order": 1
+          }
+        ]
+      },
+      "detail": {
+        "anchors": [
+          {
+            "key": "macro-anchor",
+            "display_order": 1,
+            "name": "宏观锚点",
+            "effects": [
+              {
+                "display_order": 1,
+                "dimension": "增长预期",
+                "direction": "down",
+                "confidence": "medium"
+              }
+            ],
+            "result": {
+              "code": "cooling",
+              "label": "降温"
+            },
+            "nature": {
+              "code": "direct_evidence",
+              "label": "直接证据"
+            },
+            "reasoning": "公开事实直接支持增长预期下修。",
+            "time_window": {
+              "horizons": ["medium"],
+              "lag": null,
+              "label": "中期"
+            },
+            "confidence": {
+              "code": "medium",
+              "label": "中",
+              "score": 0.66
+            },
+            "source_ref": null,
+            "evidence_refs": [
+              {
+                "evidence_id": "EVD22222222-2222-4222-8222-222222222222",
+                "role": "direct_target",
+                "display_order": 1
+              }
+            ]
+          }
+        ],
+        "reasoning_steps": [],
+        "related_chain_keys": ["chain-01"]
+      }
+    },
+    "industry_chains": [
+      {
+        "key": "chain-01",
+        "display_order": 1,
+        "name": "产业链 01",
+        "summary": {
+          "claim": {
+            "key": "C-CHAIN-SMOKE",
+            "text": "产业链供应压力升温。"
+          },
+          "status": "completed",
+          "result": {
+            "code": "warming",
+            "label": "升温"
+          },
+          "confidence": {
+            "code": "medium",
+            "label": "中",
+            "score": 0.72
+          },
+          "time_window": {
+            "horizons": ["medium", "long"],
+            "lag": null,
+            "label": "中期–长期"
+          },
+          "path": "上游输入→产业节点 01→下游产出",
+          "accepted_hypothesis_summary": null,
+          "graph": {
+            "nodes": [
+              {
+                "key": "topology-node-01",
+                "display_order": 1,
+                "name": "产业节点 01"
+              }
+            ],
+            "edges": []
+          },
+          "uncertainty": {
+            "counterevidence_and_gap": "仍需后续经营数据验证。",
+            "stop_condition": "若节点 Signal 失效或反转，则停止本链结论。"
+          },
+          "evidence_refs": [
+            {
+              "evidence_id": "EVD11111111-1111-4111-8111-111111111111",
+              "role": "supports_claim",
+              "display_order": 1
+            }
+          ]
+        },
+        "detail": {
+          "node_impacts": [
+            {
+              "key": "impact-01",
+              "display_order": 1,
+              "node_key": "topology-node-01",
+              "effects": [
+                {
+                  "display_order": 1,
+                  "dimension": "供应压力",
+                  "direction": "up",
+                  "confidence": "medium"
+                }
+              ],
+              "result": {
+                "code": "warming",
+                "label": "升温"
+              },
+              "nature": {
+                "code": "direct_evidence",
+                "label": "直接证据"
+              },
+              "reasoning": "公开事实直接支持该节点供应压力上升。",
+              "time_window": {
+                "horizons": ["medium", "long"],
+                "lag": null,
+                "label": "中期–长期"
+              },
+              "confidence": {
+                "code": "medium",
+                "label": "中",
+                "score": 0.72
+              },
+              "evidence_refs": [
+                {
+                  "evidence_id": "EVD22222222-2222-4222-8222-222222222222",
+                  "role": "direct_target",
+                  "display_order": 1
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
