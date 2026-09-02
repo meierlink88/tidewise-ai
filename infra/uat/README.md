@@ -21,7 +21,10 @@ UAT 由 GitHub Actions 手工发布到华为云 ECS，运行时数据库使用�
 - Workflow 默认使用 `normal` 模式。一次性的 `tidewise_2_cutover` 模式只用于把既有
   Data migration `44` 原子推进到 `58`，并强制构建和发布四个 Tidewise AI 服务；完成后
   `data_59_cutover` 以同一停写和恢复合同把 Data 从 `58` 推进到 `59`，
-  `data_60_cutover` 再以同等门禁重建 Event 领域。有界切换完成后，
+  `data_60_cutover` 再以同等门禁重建 Event 领域。若 UAT 仍停留在 `62`，
+  `data_63_77_cutover` 以一次性追赶模式推进到 `77`，之后可用
+  `data_78_80_cutover` 在尚无 Report 表的前提下一次推进到 v2；已在 `79` 的环境仍使用
+  `data_80_cutover`。有界切换完成后，
   后续迭代继续使用同一个 workflow 的默认 `normal` 模式。
 
 服务目录与部署映射固定为：
@@ -75,7 +78,8 @@ Workflow 在成功后持久保存：
 - `/opt/tidewise/uat/state/pre-data59.*` 与 `/opt/tidewise/uat/pre-data59.runtime.env`：
   migration 59 有界切换专用恢复检查点；它与 `pre-data2.*` 分离，不能覆盖 Tidewise AI 2.0
   切换前的历史审计快照。
-- `/opt/tidewise/uat/state/pre-data60.*`、`pre-data78.*`、`pre-data80.*` 及各自 runtime env：
+- `/opt/tidewise/uat/state/pre-data60.*`、`pre-data63.*`、`pre-data78.*`、`pre-data78-80.*`、
+  `pre-data80.*` 及各自 runtime env：
   后续有界 Data migration 的独立恢复检查点；不得在不同目标版本之间复用。
 - `/opt/tidewise/uat/previous.runtime.env`：上一成功版本回退所需的临时保留配置，权限 `0600`。
 
@@ -194,6 +198,39 @@ migration 59 开始后，失败恢复只允许相同目标 SHA 和目标版本 `
 容器不再运行。迁移开始后只允许同 SHA、目标版本 `60` 的 forward recovery，并使用
 独立 `pre-data60.*` 检查点。该边界实现 ADR 0028 的零 mixed-version 和快照回滚要求。
 
+### Data migrations 63-77 UAT 追赶切换
+
+`data_63_77_cutover` 是 UAT 从已验证 migration `62` 追赶当前领域合同的一次性有界入口。
+它只接受当前版本 `62` 且 pending 严格连续为 `63`–`77`；候选 release 必须停在 migration
+`77`，不能同时包含 Report migrations `78`–`80`。该模式要求完整的当前四服务 release、
+当前 RDS 恢复点和破坏性 Data 变更双重确认，并在执行
+`dbmigrate -apply -target-version 77` 前停止且证明全部应用 writer 已停止。
+
+迁移开始后只允许同 SHA、目标版本 `77` 的 forward recovery，并使用独立
+`pre-data63.*` 检查点。任一 SQL migration 的数据前置条件不成立时仍 fail closed，保留
+cutover marker 且不重启旧应用。成功后可以在 Report 表尚不存在时使用
+`data_78_80_cutover` 直接完成 v2；该模式不放宽普通部署，也不能用于其他起止版本。
+
+### Data migrations 78-79 Report 基础存储有界切换
+
+`data_78_79_cutover` 只接受 Data 当前 migration `77` 且 pending 严格为 `78`、`79`。
+候选 release 必须停在 migration `79`，不能同时包含 migration `80`。该模式要求当前 RDS
+恢复点和破坏性 Data 变更双重确认，强制四服务 release unit，并在
+`dbmigrate -apply -target-version 79` 前停止全部应用 writer。迁移启动后只允许同 SHA、
+目标版本 `79` 的 forward recovery，并使用独立 `pre-data78.*` 检查点。
+
+### Data migrations 78-80 空 Report 仓追赶切换
+
+`data_78_80_cutover` 只接受 Data 当前 migration `77` 且 pending 严格为 `78`、`79`、`80`。
+由于 migration `77` 时 Report 表尚不存在，该边界保证 migration `79` 创建的 v1 仓在同一
+迁移链中保持为空，从而满足 migration `80` 的 fail-closed 空仓前置条件。该模式只用于没有
+可发布 v1 release 的追赶环境，必须以当前 v2 四服务 release unit 执行，并要求当前 RDS
+恢复点与破坏性 Data 变更双重确认。
+
+Workflow 在 `dbmigrate -apply -target-version 80` 前停止全部应用 writer；迁移启动后只允许
+同 SHA、目标版本 `80` 的 forward recovery，使用独立 `pre-data78-80.*` 检查点。它不创建
+或发布任何 Report 行，也不能用于已存在 Report 表或当前版本不是 `77` 的环境。
+
 ### Data migration 80 Report publication v2 有界切换
 
 `data_80_cutover` 只接受 Data 当前 migration `79` 且唯一 pending migration 为 `80`。
@@ -206,7 +243,7 @@ migration 59 开始后，失败恢复只允许相同目标 SHA 和目标版本 `
 
 ### AgentRun 一次性退役清理
 
-只有 UAT Data ledger 已到当前目标（现为 `60`）、无 pending migration，且不存在 cutover/recovery
+只有 UAT Data ledger 已到当前目标、无 pending migration，且不存在 cutover/recovery
 marker 时才可开始。先停止并证明 AgentRun 及 one-shot 容器不再运行，再由 RDS
 管理员核对确切目标后删除 `tidewise_ai_server` database 和 AgentRun 专用 role；不得
 删除共享 RDS engine 或任何 Data database/role。随后删除
@@ -215,7 +252,7 @@ marker 时才可开始。先停止并证明 AgentRun 及 one-shot 容器不再�
 曾共用凭据，必须先在其独立项目中迁移或轮换。共享 Qdrant 及 collections 不删除。
 
 首个成功的四服务发布使用 `--remove-orphans` 清理旧容器，并在旧 release state
-不再符合四服务合同时清理 `previous.*`、`pre-data2.*`、`pre-data59.*` 与对应
+不再符合四服务合同时清理 `previous.*` 及所有 `pre-data*` 检查点与对应
 runtime env。该发布是新回滚基线；任何五服务快照都不是合法回滚目标。应在发布
 记录中保存 database、role、Artifact 和 secret 的精确目标与删除后缺席证据。
 
@@ -260,5 +297,8 @@ Miniapp 客户端地址和 Admin CORS 配置。发布完成后应从 ECS 外部�
    迭代保持默认 `normal`。若唯一 pending 是 migration `59`，按 ADR 0026 选择
    `data_59_cutover` 并勾选两个确认项。如普通 check-only 报告包含高风险 Schema migration，
    核验恢复点后重新勾选 `confirm_high_risk_backup` 执行。当唯一 pending 为 migration
-   `60` 时，按 ADR 0028 选择 `data_60_cutover` 并勾选两个确认项。
+   `60` 时，按 ADR 0028 选择 `data_60_cutover` 并勾选两个确认项。若已验证 UAT 当前为
+   `62`，先以不含 migration `78` 的历史 main release 选择 `data_63_77_cutover`；成功后以
+   当前 v2 release 选择 `data_78_80_cutover`。两个阶段均须分别勾选恢复点与破坏性变更确认。
+   只有已有可发布 v1 release 时才分开使用 `data_78_79_cutover` 与 `data_80_cutover`。
 7. 检查 Actions deployment plan、受影响业务镜像、完整四服务 release state、代表性 BFF→Data 读取以及 `state/current.sha`、`state/previous.sha`。

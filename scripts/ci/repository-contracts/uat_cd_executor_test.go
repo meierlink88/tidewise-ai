@@ -580,6 +580,90 @@ func TestUATDeployExecutorRequiresData60CutoverConfirmations(t *testing.T) {
 	}
 }
 
+func TestUATDeployExecutorRunsBoundedData63To77CatchUpWithRecoveryCheckpoint(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:       true,
+		deploymentMode:       "data_63_77_cutover",
+		destructiveConfirmed: true,
+		backupConfirmed:      true,
+		migrationReport:      `{"current_version":"62","pending":[{"Version":"63"},{"Version":"64"},{"Version":"65"},{"Version":"66"},{"Version":"67"},{"Version":"68"},{"Version":"69"},{"Version":"70"},{"Version":"71"},{"Version":"72"},{"Version":"73"},{"Version":"74"},{"Version":"75"},{"Version":"76"},{"Version":"77"}],"applied":[],"remaining":[]}`,
+		migrationApplyReport: `{"current_version":"77","pending":[],"applied":[],"remaining":[]}`,
+	})
+	if result.err != nil {
+		t.Fatalf("Data 63-77 catch-up fixture failed: %v\n%s", result.err, result.output)
+	}
+	for _, want := range []string{
+		"PASS data63-77-cutover-gate",
+		"PASS application-write-stop",
+		"PASS data63-77-target-version",
+		"PASS release-state-recorded",
+	} {
+		if !strings.Contains(result.output, want) {
+			t.Fatalf("Data 63-77 catch-up output missing %q: %s", want, result.output)
+		}
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logText := string(dockerLog)
+	stop := strings.Index(logText, " stop ")
+	apply := strings.Index(logText, "dbmigrate -apply -target-version 77")
+	start := strings.Index(logText, " up -d --remove-orphans --wait --wait-timeout 120")
+	if stop < 0 || apply < 0 || start < 0 || stop > apply || apply > start {
+		t.Fatalf("Data 63-77 catch-up must stop writers before migration and start candidates afterward: %s", logText)
+	}
+	if _, err := os.Stat(filepath.Join(result.root, "state", "tidewise-2-cutover-in-progress")); !os.IsNotExist(err) {
+		t.Fatalf("successful Data 63-77 catch-up retained recovery marker: %v", err)
+	}
+	assertFileContent(t, filepath.Join(result.root, "state", "pre-data63.sha"), previousFixtureSHA)
+}
+
+func TestUATDeployExecutorRequiresData63To77CatchUpConfirmations(t *testing.T) {
+	for _, test := range []struct {
+		name                   string
+		destructiveConfirmed   bool
+		backupConfirmed        bool
+		expectedFailureMessage string
+	}{
+		{name: "destructive change", backupConfirmed: true, expectedFailureMessage: "confirm_destructive_data_change=true is required"},
+		{name: "recovery point", destructiveConfirmed: true, expectedFailureMessage: "confirm_high_risk_backup=true is required"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result := runDeployFixture(t, deployFixtureOptions{
+				currentRelease:       true,
+				deploymentMode:       "data_63_77_cutover",
+				destructiveConfirmed: test.destructiveConfirmed,
+				backupConfirmed:      test.backupConfirmed,
+				migrationReport:      `{"current_version":"62","pending":[{"Version":"63"},{"Version":"64"},{"Version":"65"},{"Version":"66"},{"Version":"67"},{"Version":"68"},{"Version":"69"},{"Version":"70"},{"Version":"71"},{"Version":"72"},{"Version":"73"},{"Version":"74"},{"Version":"75"},{"Version":"76"},{"Version":"77"}],"applied":[],"remaining":[]}`,
+			})
+			if result.err == nil || !strings.Contains(result.output, test.expectedFailureMessage) {
+				t.Fatalf("missing Data 63-77 confirmation was not blocked: err=%v output=%s", result.err, result.output)
+			}
+		})
+	}
+}
+
+func TestUATDeployExecutorRejectsUnexpectedData63To77MigrationRangeBeforeStoppingServices(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:       true,
+		deploymentMode:       "data_63_77_cutover",
+		destructiveConfirmed: true,
+		backupConfirmed:      true,
+		migrationReport:      `{"current_version":"63","pending":[{"Version":"64"},{"Version":"65"},{"Version":"66"},{"Version":"67"},{"Version":"68"},{"Version":"69"},{"Version":"70"},{"Version":"71"},{"Version":"72"},{"Version":"73"},{"Version":"74"},{"Version":"75"},{"Version":"76"},{"Version":"77"}],"applied":[],"remaining":[]}`,
+	})
+	if result.err == nil || !strings.Contains(result.output, "FAIL data63-77-cutover-gate") {
+		t.Fatalf("unexpected Data 63-77 migration range was not blocked: err=%v output=%s", result.err, result.output)
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(dockerLog), " stop ") || strings.Contains(string(dockerLog), "dbmigrate -apply") {
+		t.Fatalf("invalid Data 63-77 cutover reached destructive work: %s", dockerLog)
+	}
+}
+
 func TestUATDeployExecutorRunsBoundedData78To79CutoverWithRecoveryCheckpoint(t *testing.T) {
 	result := runDeployFixture(t, deployFixtureOptions{
 		currentRelease:       true,
@@ -641,6 +725,87 @@ func TestUATDeployExecutorRequiresData78To79CutoverConfirmations(t *testing.T) {
 				t.Fatalf("missing Data 78 confirmation was not blocked: err=%v output=%s", result.err, result.output)
 			}
 		})
+	}
+}
+
+func TestUATDeployExecutorRunsBoundedData78To80EmptyReportCatchUp(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:       true,
+		deploymentMode:       "data_78_80_cutover",
+		destructiveConfirmed: true,
+		backupConfirmed:      true,
+		migrationReport:      `{"current_version":"77","pending":[{"Version":"78"},{"Version":"79"},{"Version":"80"}],"applied":[],"remaining":[]}`,
+		migrationApplyReport: `{"current_version":"80","pending":[],"applied":[],"remaining":[]}`,
+	})
+	if result.err != nil {
+		t.Fatalf("Data 78-80 catch-up fixture failed: %v\n%s", result.err, result.output)
+	}
+	for _, want := range []string{
+		"PASS data78-80-cutover-gate",
+		"PASS application-write-stop",
+		"PASS data78-80-target-version",
+		"PASS release-state-recorded",
+	} {
+		if !strings.Contains(result.output, want) {
+			t.Fatalf("Data 78-80 catch-up output missing %q: %s", want, result.output)
+		}
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logText := string(dockerLog)
+	stop := strings.Index(logText, " stop ")
+	apply := strings.Index(logText, "dbmigrate -apply -target-version 80")
+	start := strings.Index(logText, " up -d --remove-orphans --wait --wait-timeout 120")
+	if stop < 0 || apply < 0 || start < 0 || stop > apply || apply > start {
+		t.Fatalf("Data 78-80 catch-up must stop writers before migration and start candidates afterward: %s", logText)
+	}
+	assertFileContent(t, filepath.Join(result.root, "state", "pre-data78-80.sha"), previousFixtureSHA)
+}
+
+func TestUATDeployExecutorRequiresData78To80CatchUpConfirmations(t *testing.T) {
+	for _, test := range []struct {
+		name                   string
+		destructiveConfirmed   bool
+		backupConfirmed        bool
+		expectedFailureMessage string
+	}{
+		{name: "destructive change", backupConfirmed: true, expectedFailureMessage: "confirm_destructive_data_change=true is required"},
+		{name: "recovery point", destructiveConfirmed: true, expectedFailureMessage: "confirm_high_risk_backup=true is required"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			result := runDeployFixture(t, deployFixtureOptions{
+				currentRelease:       true,
+				deploymentMode:       "data_78_80_cutover",
+				destructiveConfirmed: test.destructiveConfirmed,
+				backupConfirmed:      test.backupConfirmed,
+				migrationReport:      `{"current_version":"77","pending":[{"Version":"78"},{"Version":"79"},{"Version":"80"}],"applied":[],"remaining":[]}`,
+			})
+			if result.err == nil || !strings.Contains(result.output, test.expectedFailureMessage) {
+				t.Fatalf("missing Data 78-80 confirmation was not blocked: err=%v output=%s", result.err, result.output)
+			}
+		})
+	}
+}
+
+func TestUATDeployExecutorRejectsUnexpectedData78To80MigrationRangeBeforeStoppingServices(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{
+		currentRelease:       true,
+		deploymentMode:       "data_78_80_cutover",
+		destructiveConfirmed: true,
+		backupConfirmed:      true,
+		migrationReport:      `{"current_version":"78","pending":[{"Version":"79"},{"Version":"80"}],"applied":[],"remaining":[]}`,
+	})
+	if result.err == nil || !strings.Contains(result.output, "FAIL data78-80-cutover-gate") {
+		t.Fatalf("unexpected Data 78-80 migration range was not blocked: err=%v output=%s", result.err, result.output)
+	}
+	dockerLog, err := os.ReadFile(result.dockerLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(dockerLog), " stop ") || strings.Contains(string(dockerLog), "dbmigrate -apply") {
+		t.Fatalf("invalid Data 78-80 cutover reached destructive work: %s", dockerLog)
 	}
 }
 
@@ -1322,7 +1487,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		migrationScope = "schema"
 	}
 	manifestRows := ""
-	for version := 1; version <= 79; version++ {
+	for version := 1; version <= 80; version++ {
 		risk := "normal"
 		scope := "schema"
 		reason := "fixture migration"
@@ -1364,6 +1529,11 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		}
 		if version == 79 {
 			reason = "fixture Report schema migration"
+		}
+		if version == 80 {
+			risk = "high"
+			scope = "mixed"
+			reason = "fixture Report v2 cutover migration"
 		}
 		manifestRows += fmt.Sprintf("%06d\t%s\t%s\t%s\n", version, risk, scope, reason)
 	}
@@ -1508,7 +1678,7 @@ case " $* " in
 	    if [ -n "$compose_file" ] && grep -q 'qdrant:' "$compose_file"; then echo qdrant; fi
 	    printf 'data\nminiapp\nadminportal\nadmin\n'
     ;;
-	  *" run "*" /usr/local/bin/dbmigrate -apply -target-version 58 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 59 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 60 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 79 "*)
+	  *" run "*" /usr/local/bin/dbmigrate -apply -target-version 58 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 59 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 60 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 77 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 79 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 80 "*)
 	    touch "$FAKE_CUTOVER_APPLIED"
 	    cat "$FAKE_MIGRATION_APPLY_REPORT"
 	    ;;
