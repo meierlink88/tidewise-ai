@@ -58,6 +58,58 @@ func TestUATWorkflowEnforcesValidatedFourImageRelease(t *testing.T) {
 	}
 }
 
+func TestUATRuntimeAuditIsMainOnlyReadOnlyAndSecretSafe(t *testing.T) {
+	root := repositoryRoot()
+	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "audit-uat-runtime.yml"))
+	audit := readContractFile(t, filepath.Join(root, "infra", "uat", "audit-retired-runtime.sh"))
+
+	for _, required := range []string{
+		"workflow_dispatch:",
+		"git merge-base --is-ancestor",
+		"workflow_id: 'ci.yml'",
+		"run.conclusion === 'success'",
+		"runs-on: [self-hosted, linux, x64, tidewise-uat-ecs]",
+		"environment: uat",
+		"TIDEWISW_DB_PASSWORD: ${{ secrets.TIDEWISW_DB_PASSWORD }}",
+		"./data-service/backend/cmd/uat-retired-runtime-audit",
+		"audit-retired-runtime.sh",
+	} {
+		if !strings.Contains(workflow, required) {
+			t.Fatalf("UAT runtime audit workflow missing %q", required)
+		}
+	}
+
+	for _, required := range []string{
+		"flock -n",
+		"tidewise-uat-data-1",
+		"tidewise-agentos-uat-agentos-1",
+		"tidewise-infra-uat-minio-1",
+		"reason-server-uat",
+		"tidewise-uat-qdrant",
+		"tidewise-infra-uat-mysql-1",
+		"tidewise-uat-openspg-neo4j",
+		"/usr/local/bin/dbmigrate",
+		"tidewise_ai_server",
+		"agentrun_uat",
+		"http://127.0.0.1:9081/health",
+		"http://127.0.0.1:9000/minio/health/live",
+		"PASS retained-runtime",
+	} {
+		if !strings.Contains(audit, required) {
+			t.Fatalf("UAT runtime audit script missing %q", required)
+		}
+	}
+
+	for _, forbidden := range []string{
+		"docker rm", "docker stop", "docker compose down", "docker volume rm",
+		"DROP DATABASE", "DROP ROLE", "systemctl disable", "systemctl stop",
+	} {
+		if strings.Contains(audit, forbidden) {
+			t.Fatalf("UAT runtime audit script contains mutating behavior %q", forbidden)
+		}
+	}
+}
+
 func TestUATWorkflowPlansSelectiveServicesFromRecordedReleaseState(t *testing.T) {
 	root := repositoryRoot()
 	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "deploy-uat.yml"))
