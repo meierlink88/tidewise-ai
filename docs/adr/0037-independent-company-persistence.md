@@ -2,7 +2,9 @@
 status: accepted
 date: 2026-08-20
 issue: 306
-amended_by: 0039-audited-company-country-inference.md
+amended_by:
+  - 0039-audited-company-country-inference.md
+  - 0050-expose-company-projection-snapshot.md
 amends: 0036-independent-storyline-persistence.md
 extends: 0019-database-independent-domain-object-identities.md, 0022-independent-industry-and-concept.md
 ---

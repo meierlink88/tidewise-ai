@@ -388,7 +388,20 @@ def verify_evidence(parser, schema_file):
     assert evidence.name_zh == "原子证据"
     assert not evidence.relations, "Evidence must not publish unresolved object relations"
 
-    semantic_properties = {"who", "what", "when", "where", "why", "how"}
+    semantic_properties = {
+        "keywords",
+        "actors",
+        "action",
+        "objects",
+        "stage",
+        "modality",
+        "time",
+        "jurisdictions",
+        "reason",
+        "method",
+        "metrics",
+        "attribution",
+    }
     expected_properties = {
         "rawEvidenceId",
         "isSplit",
@@ -396,7 +409,21 @@ def verify_evidence(parser, schema_file):
         *semantic_properties,
         "createdAt",
     }
-    required = {"rawEvidenceId", "isSplit", "summary", "what"}
+    required = {
+        "rawEvidenceId",
+        "isSplit",
+        "summary",
+        "keywords",
+        "actors",
+        "action",
+        "objects",
+        "stage",
+        "modality",
+        "time",
+        "jurisdictions",
+        "metrics",
+        "attribution",
+    }
     verify_text_property_contract("Evidence", evidence, expected_properties, required)
     assert constraint_values(evidence.properties["rawEvidenceId"])["REGULAR"] == (
         "^RAW[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-"
@@ -405,6 +432,21 @@ def verify_evidence(parser, schema_file):
     assert constraint_values(evidence.properties["isSplit"])["ENUM"] == [
         "TRUE",
         "FALSE",
+    ]
+    assert constraint_values(evidence.properties["stage"])["ENUM"] == [
+        "OCCURRED",
+        "ANNOUNCED",
+        "EFFECTIVE",
+        "IMPLEMENTED",
+        "UPDATED",
+        "SUSPENDED",
+        "TERMINATED",
+        "EXPECTED",
+    ]
+    assert constraint_values(evidence.properties["modality"])["ENUM"] == [
+        "FACT",
+        "PLAN",
+        "SPEC",
     ]
     verify_enum_meanings(
         schema_file,

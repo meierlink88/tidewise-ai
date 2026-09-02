@@ -1,0 +1,38 @@
+{
+  "request_id": "company-projection-fixture",
+  "result": {
+    "schema_version": "company-projection-snapshot.v1",
+    "snapshot_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "items": [
+      {
+        "id": "COM11111111-1111-4111-8111-111111111111",
+        "code": "TSM",
+        "name": "台积电",
+        "name_en": "Taiwan Semiconductor Manufacturing Company",
+        "legal_name": null,
+        "aliases": ["TSMC"],
+        "registration_country_id": "COU22222222-2222-4222-8222-222222222222",
+        "operating_area": null,
+        "headquarters_city": "新竹",
+        "founding_date": "1987-02-21",
+        "ipo_date": "1994-09-05",
+        "legal_form": null,
+        "ownership_type": "DISPERSED",
+        "strategic_positioning": null,
+        "description": null,
+        "status": "active",
+        "created_at": "2026-08-30T00:00:00Z",
+        "updated_at": "2026-08-30T00:00:00Z",
+        "industry_links": [
+          {
+            "id": "CIL44444444-4444-4444-8444-444444444444",
+            "company_id": "COM11111111-1111-4111-8111-111111111111",
+            "industry_id": "IND33333333-3333-4333-8333-333333333333",
+            "created_at": "2026-08-30T00:00:00Z"
+          }
+        ]
+      }
+    ],
+    "next_cursor": null
+  }
+}

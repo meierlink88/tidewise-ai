@@ -2,25 +2,39 @@
   "raw_evidence_id": "RAW15bec7e3-998c-5434-aa5d-29712c4c67cf",
   "evidences": [
     {
-      "summary": "Example Corp expands production",
+      "summary": "Example Corp announced production expansion and related operating metrics",
+      "keywords": ["扩产", "产能"],
       "semantic": {
-        "who": "Example Corp",
-        "what": "expanded production",
-        "when": "August 10, 2026",
-        "where": null,
-        "why": null,
-        "how": "by adding a new production line"
+        "actors": ["Example Corp"],
+        "action": "announced production expansion",
+        "objects": ["production capacity"],
+        "stage": "ANNOUNCED",
+        "modality": "FACT",
+        "time": {"raw": "August 10, 2026", "start_at": "2026-08-09T16:00:00Z", "end_at": "2026-08-10T15:59:59Z", "precision": "DAY"},
+        "jurisdictions": ["China"],
+        "reason": "to meet rising demand",
+        "method": "by adding a new production line",
+        "metrics": [
+          {"name": "capacity", "value": "100", "unit": "units", "change": "+20%", "period": "2026"}
+        ],
+        "attribution": {"reported_by": "Example Wire", "claimed_by": "Example Corp"}
       }
     },
     {
-      "summary": "Example Corp secures additional capacity",
+      "summary": "Example Corp expects demand growth in 2027",
+      "keywords": ["需求", "指引"],
       "semantic": {
-        "who": "Example Corp",
-        "what": "secured additional capacity",
-        "when": "August 10, 2026",
-        "where": null,
-        "why": "to meet rising demand",
-        "how": null
+        "actors": ["Example Corp"],
+        "action": "expects demand growth",
+        "objects": ["product demand"],
+        "stage": "EXPECTED",
+        "modality": "PLAN",
+        "time": {"raw": "2027", "start_at": "2026-12-31T16:00:00Z", "end_at": "2027-12-31T15:59:59Z", "precision": "YEAR"},
+        "jurisdictions": ["China"],
+        "reason": null,
+        "method": null,
+        "metrics": [],
+        "attribution": {"reported_by": "Example Wire", "claimed_by": "Example Corp"}
       }
     }
   ]

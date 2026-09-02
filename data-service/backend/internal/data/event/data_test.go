@@ -35,12 +35,11 @@ func TestPostgresEventAggregateCreateAndRead(t *testing.T) {
 	created, err := useCase.Create(context.Background(), eventbiz.CreateInput{
 		Title:   "Example Corp expands capacity",
 		Summary: "Example Corp will add a new production line.",
-		Semantic: eventbiz.Semantic{
-			Who: stringPointer("Example Corp"), What: stringPointer("adds a production line"),
-			When: stringPointer("2026-08-18"), Where: stringPointer("Shanghai"),
-			Why: stringPointer("meet demand"), How: stringPointer("capital investment"),
-		},
-		Modality: eventbiz.ModalityPlan, AnnouncedAt: &publishedAt,
+		Semantic: eventbiz.Semantic{Actors: []string{"Example Corp"}, Action: "adds a production line",
+			Objects: []string{"production line"}, Stage: eventbiz.EventStageAnnounced,
+			Modality: eventbiz.ModalityPlan, Jurisdictions: []string{"Shanghai"},
+			Time: eventbiz.EventTime{AnnouncedAt: &publishedAt, EffectiveAt: &publishedAt,
+				Precision: eventbiz.TimePrecisionDay}, Metrics: []eventbiz.Metric{}},
 		Evidence: []eventbiz.EvidenceLinkInput{{EvidenceID: evidenceID, ContributionWeight: 0.80}},
 		Actors: []eventbiz.ActorLinkInput{{
 			ActorID: "actor:example-corp", ActorType: eventbiz.ActorTypeCompany,
@@ -65,6 +64,87 @@ func TestPostgresEventAggregateCreateAndRead(t *testing.T) {
 	}
 }
 
+func TestPostgresEventPublicationCommitsAggregateAndReplaysWithoutWrites(t *testing.T) {
+	db := openEventTestDatabase(t)
+	evidenceID := publishAtomicEvidence(t, db, "event-publication-replay")
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useCase, err := eventbiz.NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := eventbiz.CreateInput{Title: "US expands HBM controls", Summary: "The US announced expanded controls.",
+		Semantic: eventbiz.Semantic{Actors: []string{"US government"}, Action: "expands export controls",
+			Objects: []string{"HBM"}, Stage: eventbiz.EventStageAnnounced, Jurisdictions: []string{"China"},
+			Modality: eventbiz.ModalityFact,
+			Time: eventbiz.EventTime{AnnouncedAt: timePointer(time.Date(2026, 8, 25, 0, 0, 0, 0, time.UTC)),
+				Precision: eventbiz.TimePrecisionDay}, Metrics: []eventbiz.Metric{
+				{Name: "restricted products", Value: stringPointer("12"), Unit: stringPointer("types")},
+				{Name: "export decline", Value: stringPointer("75"), Unit: stringPointer("%"), Period: stringPointer("2026")},
+			}},
+		Evidence: []eventbiz.EvidenceLinkInput{{EvidenceID: evidenceID, ContributionWeight: 1}}}
+	first, err := useCase.Publish(context.Background(), "reasoning-server", "submission-1", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := useCase.Publish(context.Background(), "reasoning-server", "submission-1", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Replayed || !second.Replayed || first.Event.ID != second.Event.ID {
+		t.Fatalf("results = %#v %#v", first, second)
+	}
+	var events, links, receipts int
+	for query, target := range map[string]*int{
+		`SELECT count(*) FROM events WHERE id = $1`:                           &events,
+		`SELECT count(*) FROM event_evidence_links WHERE event_id = $1`:       &links,
+		`SELECT count(*) FROM event_publication_receipts WHERE event_id = $1`: &receipts,
+	} {
+		if err := db.QueryRow(query, first.Event.ID).Scan(target); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if events != 1 || links != 1 || receipts != 1 {
+		t.Fatalf("counts = events %d, links %d, receipts %d", events, links, receipts)
+	}
+}
+
+func TestPostgresEventPublicationRejectsUnknownEvidenceAsReference(t *testing.T) {
+	db := openEventTestDatabase(t)
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useCase, err := eventbiz.NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := validCreateInput(
+		"Unknown Evidence Event",
+		"EVD11111111-1111-4111-8111-111111111111",
+	)
+
+	_, err = useCase.Publish(
+		context.Background(), "reasoning-server", "missing-evidence", input,
+	)
+	var reference *eventbiz.ReferenceError
+	if !errors.As(err, &reference) {
+		t.Fatalf("Publish() error = %T %v, want ReferenceError", err, err)
+	}
+	var eventCount, receiptCount int
+	if err := db.QueryRow(`SELECT count(*) FROM events`).Scan(&eventCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT count(*) FROM event_publication_receipts`).Scan(&receiptCount); err != nil {
+		t.Fatal(err)
+	}
+	if eventCount != 0 || receiptCount != 0 {
+		t.Fatalf("failed publication writes = Events %d, receipts %d", eventCount, receiptCount)
+	}
+}
+
 func TestPostgresEventCreateIsAtomicAndRequiresEvidence(t *testing.T) {
 	db := openEventTestDatabase(t)
 	store, err := NewStore(db)
@@ -76,8 +156,7 @@ func TestPostgresEventCreateIsAtomicAndRequiresEvidence(t *testing.T) {
 		t.Fatal(err)
 	}
 	_, err = useCase.Create(context.Background(), eventbiz.CreateInput{
-		Title: "Unknown evidence", Summary: "The transaction must roll back.", Semantic: eventbiz.Semantic{},
-		Modality: eventbiz.ModalityFact,
+		Title: "Unknown evidence", Summary: "The transaction must roll back.", Semantic: validEventSemantic(),
 		Evidence: []eventbiz.EvidenceLinkInput{{
 			EvidenceID: "EVD11111111-1111-4111-8111-111111111111", ContributionWeight: 0.5,
 		}},
@@ -93,7 +172,7 @@ func TestPostgresEventCreateIsAtomicAndRequiresEvidence(t *testing.T) {
     id,title,summary,semantic,modality,status
 ) VALUES (
     'EVT11111111-1111-4111-8111-111111111111','orphan','orphan summary',
-    '{"who":null,"what":null,"when":null,"where":null,"why":null,"how":null}',
+	'{"actors":[],"action":"","objects":[],"stage":"OCCURRED","jurisdictions":[],"effective_at":null,"time_precision":"DAY"}',
 	'FACT','ACTIVE'
 )`)
 
@@ -118,7 +197,7 @@ func TestPostgresEventCreateIsAtomicAndRequiresEvidence(t *testing.T) {
 	failedEELID := mustDomainID(t, coreid.EventEvidenceLink)
 	failedActorID := mustDomainID(t, coreid.EventActorLink)
 	err = store.CreateEvent(context.Background(), eventbiz.Aggregate{
-		Event:    eventbiz.Event{ID: failedEventID, Title: "Rollback Event", Summary: "Rollback summary", Semantic: eventbiz.Semantic{}, Modality: eventbiz.ModalityFact, Status: eventbiz.LifecycleStatusActive},
+		Event:    eventbiz.Event{ID: failedEventID, Title: "Rollback Event", Summary: "Rollback summary", Semantic: validEventSemantic(), Status: eventbiz.LifecycleStatusActive},
 		Evidence: []eventbiz.EvidenceLink{{ID: failedEELID, EventID: failedEventID, EvidenceID: firstEvidenceID, ContributionWeight: 1}},
 		Actors:   []eventbiz.ActorLink{{ID: failedActorID, EventID: failedEventID, ActorID: "actor:rollback", RelationType: eventbiz.ActorRelationMentions, Confidence: 1}},
 	})
@@ -158,12 +237,12 @@ ORDER BY ordinal_position`)
 	if !reflect.DeepEqual(columns, want) {
 		t.Fatalf("Event columns = %#v, want %#v", columns, want)
 	}
-	for _, table := range []string{"event_evidence_links", "event_actor_links", "event_asset_links"} {
+	for _, table := range []string{"event_evidence_links", "event_actor_links", "event_asset_links", "event_publication_receipts"} {
 		if !tableExists(t, db, table) {
 			t.Errorf("target table %q does not exist", table)
 		}
 	}
-	for _, table := range []string{"event_sources", "raw_documents", "event_tag_defs", "event_tag_maps", "event_publication_receipts", "event_entity_links"} {
+	for _, table := range []string{"event_sources", "raw_documents", "event_tag_defs", "event_tag_maps", "event_entity_links"} {
 		if tableExists(t, db, table) {
 			t.Errorf("retired table %q still exists", table)
 		}
@@ -181,17 +260,20 @@ SELECT $6,id,$7,1 FROM inserted_event`, eventID, title, semantic, modality, stat
 			mustDomainID(t, coreid.EventEvidenceLink), evidenceID)
 	}
 	assertRejectedEvent("bad semantic", mustDomainID(t, coreid.Event),
-		`{"who":null,"what":null,"when":null,"where":null,"why":null,"how":null,"extra":true}`,
+		`{"actors":["actor"],"action":"acts","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"occurred_at":"2026-08-25T00:00:00Z","announced_at":null,"effective_at":null,"precision":"DAY"},"jurisdictions":[],"reason":null,"method":null,"metrics":[],"extra":true}`,
 		"FACT", "ACTIVE")
 	for name, semantic := range map[string]string{
-		"missing":    `{"who":null,"what":null,"when":null,"where":null,"why":null}`,
-		"non-string": `{"who":1,"what":null,"when":null,"where":null,"why":null,"how":null}`,
+		"missing":               `{"actors":["actor"],"action":"acts","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"occurred_at":"2026-08-25T00:00:00Z","announced_at":null,"effective_at":null,"precision":"DAY"},"jurisdictions":[],"reason":null,"method":null}`,
+		"non-string":            `{"actors":[1],"action":"acts","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"occurred_at":"2026-08-25T00:00:00Z","announced_at":null,"effective_at":null,"precision":"DAY"},"jurisdictions":[],"reason":null,"method":null,"metrics":[]}`,
+		"no time":               `{"actors":["actor"],"action":"acts","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"occurred_at":null,"announced_at":null,"effective_at":null,"precision":"UNKNOWN"},"jurisdictions":[],"reason":null,"method":null,"metrics":[]}`,
+		"unknown fifth key":     `{"actors":["actor"],"action":"acts","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"occurred_at":"2026-08-25T00:00:00Z","announced_at":null,"effective_at":null,"source_time":null,"precision":"DAY"},"jurisdictions":[],"reason":null,"method":null,"metrics":[]}`,
+		"business and observed": `{"actors":["actor"],"action":"acts","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"occurred_at":"2026-08-25T00:00:00Z","announced_at":null,"effective_at":null,"observed_at":"2026-08-29T13:46:38Z","precision":"DAY"},"jurisdictions":[],"reason":null,"method":null,"metrics":[]}`,
 	} {
 		t.Run("semantic "+name, func(t *testing.T) {
 			assertRejectedEvent("bad semantic", mustDomainID(t, coreid.Event), semantic, "FACT", "ACTIVE")
 		})
 	}
-	validSemantic := `{"who":"","what":"","when":"","where":"","why":"","how":""}`
+	validSemantic := `{"actors":["actor"],"action":"acts","objects":["object"],"stage":"OCCURRED","modality":"FACT","time":{"occurred_at":"2026-08-25T00:00:00Z","announced_at":null,"effective_at":null,"precision":"DAY"},"jurisdictions":[],"reason":null,"method":null,"metrics":[]}`
 	for name, eventID := range map[string]string{
 		"wrong prefix":   "EVD11111111-1111-4111-8111-111111111111",
 		"uppercase UUID": "EVTAAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA",
@@ -237,19 +319,30 @@ SELECT $6,id,$7,1 FROM inserted_event`, eventID, title, semantic, modality, stat
 	}
 	created, err := useCase.Create(context.Background(), eventbiz.CreateInput{
 		Title: "Boundary Event", Summary: "Boundary summary",
-		Semantic: eventbiz.Semantic{Who: stringPointer(""), What: stringPointer(""), When: stringPointer(""), Where: stringPointer(""), Why: stringPointer(""), How: stringPointer("")},
-		Modality: eventbiz.ModalityFact, Status: eventbiz.LifecycleStatusActive,
+		Semantic: eventbiz.Semantic{Actors: []string{"Example Corp"}, Action: "acts", Objects: []string{"object"},
+			Stage: eventbiz.EventStageOccurred, Modality: eventbiz.ModalityFact, Jurisdictions: []string{},
+			Time: eventbiz.EventTime{OccurredAt: timePointer(time.Date(2026, 8, 25, 0, 0, 0, 0, time.UTC)),
+				Precision: eventbiz.TimePrecisionDay}, Metrics: []eventbiz.Metric{}},
+		Status:   eventbiz.LifecycleStatusActive,
 		Evidence: []eventbiz.EvidenceLinkInput{{EvidenceID: evidenceID, ContributionWeight: 0}}, Actors: actors, Assets: assets,
 	})
 	if err != nil || len(created.Actors) != 4 || len(created.Assets) != 6 {
 		t.Fatalf("accepted relationship boundaries = %#v, error = %v", created, err)
+	}
+	observedAt := time.Date(2026, 8, 29, 13, 46, 38, 0, time.UTC)
+	observedInput := validCreateInput("Observed Event", evidenceID)
+	observedInput.Semantic.Time = eventbiz.EventTime{ObservedAt: &observedAt, Precision: eventbiz.TimePrecisionInstant}
+	observed, err := useCase.Create(context.Background(), observedInput)
+	if err != nil || observed.Event.Semantic.Time.ObservedAt == nil ||
+		!observed.Event.Semantic.Time.ObservedAt.Equal(observedAt) {
+		t.Fatalf("accepted observed-only Event = %#v, error = %v", observed.Event.Semantic.Time, err)
 	}
 	for index, pair := range []struct {
 		modality eventbiz.Modality
 		status   eventbiz.LifecycleStatus
 	}{{eventbiz.ModalityPlan, eventbiz.LifecycleStatusDeprecated}, {eventbiz.ModalitySpec, eventbiz.LifecycleStatusArchived}} {
 		input := validCreateInput(fmt.Sprintf("Enum Event %d", index), evidenceID)
-		input.Modality, input.Status = pair.modality, pair.status
+		input.Semantic.Modality, input.Status = pair.modality, pair.status
 		if _, err := useCase.Create(context.Background(), input); err != nil {
 			t.Fatalf("accepted Event enum pair %#v: %v", pair, err)
 		}
@@ -316,9 +409,12 @@ func TestPostgresEventListUsesNewFiltersAndStableFields(t *testing.T) {
 		t.Fatal(err)
 	}
 	announced := time.Date(2026, 8, 18, 2, 0, 0, 0, time.UTC)
+	semantic := validEventSemantic()
+	semantic.Modality = eventbiz.ModalitySpec
+	semantic.Time.OccurredAt = nil
+	semantic.Time.AnnouncedAt = &announced
 	created, err := useCase.Create(context.Background(), eventbiz.CreateInput{
-		Title: "Filtered Event", Summary: "Filtered Event summary.", Semantic: eventbiz.Semantic{},
-		Modality: eventbiz.ModalitySpec, AnnouncedAt: &announced,
+		Title: "Filtered Event", Summary: "Filtered Event summary.", Semantic: semantic,
 		Evidence: []eventbiz.EvidenceLinkInput{{EvidenceID: evidenceID, ContributionWeight: 1}},
 	})
 	if err != nil {
@@ -352,14 +448,19 @@ func publishAtomicEvidence(t *testing.T, db *sql.DB, publicationKey string) stri
 		PublicationKey: publicationKey, SourceID: "SRC_event_aggregate", SourceName: "Example Wire",
 		SourceLevel: evidencebiz.SourceLevelWire, SourceURL: "https://example.test/event-aggregate", IsOriginal: true,
 		RawText: "Example Corp announced a new production line.", PublishedAt: &publishedAt,
-		CollectedAt: publishedAt.Add(5 * time.Minute), Keywords: []string{"production"},
+		CollectedAt: publishedAt.Add(5 * time.Minute),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	evidence, err := useCase.PublishEvidence(context.Background(), raw.ID, []evidencebiz.Evidence{{
-		Summary:  "Example Corp announced a new production line.",
-		Semantic: evidencebiz.Semantic{Who: stringPointer("Example Corp"), What: "announced a new production line"},
+		Summary: "Example Corp announced a new production line.", Keywords: []string{"新产线"},
+		Semantic: evidencebiz.Semantic{
+			Actors: []string{"Example Corp"}, Action: "announced a new production line", Objects: []string{"production line"},
+			Stage: evidencebiz.EvidenceStageAnnounced, Modality: evidencebiz.EvidenceModalityFact,
+			Time: evidencebiz.EvidenceTime{Precision: evidencebiz.EvidenceTimeUnknown}, Jurisdictions: []string{}, Metrics: []evidencebiz.EvidenceMetric{},
+			Attribution: &evidencebiz.EvidenceAttribution{},
+		},
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -399,8 +500,17 @@ func stringPointer(value string) *string { return &value }
 func timePointer(value time.Time) *time.Time { return &value }
 
 func validCreateInput(title, evidenceID string) eventbiz.CreateInput {
-	return eventbiz.CreateInput{Title: title, Summary: title + " summary", Semantic: eventbiz.Semantic{}, Modality: eventbiz.ModalityFact,
+	return eventbiz.CreateInput{Title: title, Summary: title + " summary", Semantic: validEventSemantic(),
 		Evidence: []eventbiz.EvidenceLinkInput{{EvidenceID: evidenceID, ContributionWeight: 1}}}
+}
+
+func validEventSemantic() eventbiz.Semantic {
+	return eventbiz.Semantic{
+		Actors: []string{"Example actor"}, Action: "acts", Objects: []string{"Example object"},
+		Stage: eventbiz.EventStageOccurred, Modality: eventbiz.ModalityFact, Jurisdictions: []string{},
+		Time: eventbiz.EventTime{OccurredAt: timePointer(time.Date(2026, 8, 25, 0, 0, 0, 123456789, time.UTC)),
+			Precision: eventbiz.TimePrecisionDay}, Metrics: []eventbiz.Metric{},
+	}
 }
 
 func mustDomainID(t *testing.T, kind coreid.Kind) string {

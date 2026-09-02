@@ -2,8 +2,7 @@ import type { EventItem } from '../../api/dataIngestion';
 import {
   DetailItem,
   DetailList,
-  DetailSection,
-  nullableDetailValue
+  DetailSection
 } from '../../components/admin/detail-description-list';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../../components/ui/sheet';
@@ -35,7 +34,7 @@ export function EventDetailSheet({
             </SheetTitle>
             <SheetDescription className='sr-only'>查看事件的完整业务信息</SheetDescription>
             <div className='mt-3 flex flex-wrap gap-2'>
-              <StatusBadge tone='running'>{event.modality}</StatusBadge>
+              <StatusBadge tone='running'>{event.semantic.modality}</StatusBadge>
               <StatusBadge
                 tone={
                   event.status === 'ACTIVE'
@@ -53,29 +52,45 @@ export function EventDetailSheet({
             <DetailSection title='基本信息'>
               <p className='rounded-md bg-muted px-4 py-3 text-sm leading-6'>{event.summary}</p>
               <DetailList>
-                <DetailItem label='模态'>{event.modality}</DetailItem>
+                <DetailItem label='模态'>{event.semantic.modality}</DetailItem>
                 <DetailItem label='状态'>{event.status}</DetailItem>
-                <DetailItem label='发生时间'>{formatNullableTime(event.occurred_at)}</DetailItem>
-                <DetailItem label='公布时间'>{formatNullableTime(event.announced_at)}</DetailItem>
+                <DetailItem label='发生时间'>
+                  {formatNullableTime(event.semantic.time.occurred_at)}
+                </DetailItem>
+                <DetailItem label='公布时间'>
+                  {formatNullableTime(event.semantic.time.announced_at)}
+                </DetailItem>
+                <DetailItem label='观察时间'>
+                  {formatNullableTime(event.semantic.time.observed_at)}
+                </DetailItem>
               </DetailList>
             </DetailSection>
             <DetailSection title='事件语义'>
               <DetailList>
-                <DetailItem label='Who · 谁'>{nullableDetailValue(event.semantic.who)}</DetailItem>
-                <DetailItem label='When · 何时'>
-                  {nullableDetailValue(event.semantic.when)}
+                <DetailItem label='Actors · 参与方'>
+                  {listDetailValue(event.semantic.actors)}
                 </DetailItem>
-                <DetailItem full label='What · 什么'>
-                  {nullableDetailValue(event.semantic.what)}
+                <DetailItem full label='Action · 动作'>
+                  {event.semantic.action}
                 </DetailItem>
-                <DetailItem label='Where · 何地'>
-                  {nullableDetailValue(event.semantic.where)}
+                <DetailItem full label='Objects · 对象'>
+                  {listDetailValue(event.semantic.objects)}
                 </DetailItem>
-                <DetailItem label='Why · 为何'>
-                  {nullableDetailValue(event.semantic.why)}
+                <DetailItem label='Stage · 阶段'>{event.semantic.stage}</DetailItem>
+                <DetailItem label='Jurisdictions · 辖区'>
+                  {listDetailValue(event.semantic.jurisdictions)}
                 </DetailItem>
-                <DetailItem full label='How · 如何'>
-                  {nullableDetailValue(event.semantic.how)}
+                <DetailItem label='Effective at · 生效时间'>
+                  {formatNullableTime(event.semantic.time.effective_at)}
+                </DetailItem>
+                <DetailItem label='Time precision · 时间精度'>
+                  {event.semantic.time.precision}
+                </DetailItem>
+                <DetailItem full label='Reason · 原因'>
+                  {event.semantic.reason ?? '—'}
+                </DetailItem>
+                <DetailItem full label='Method · 执行方式'>
+                  {event.semantic.method ?? '—'}
                 </DetailItem>
               </DetailList>
             </DetailSection>
@@ -88,4 +103,8 @@ export function EventDetailSheet({
 
 function formatNullableTime(value: string | null): string {
   return value ? formatDateTime(value) : '—';
+}
+
+function listDetailValue(values: string[]): string {
+  return values.length > 0 ? values.join('、') : '—';
 }

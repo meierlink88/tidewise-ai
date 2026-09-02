@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -23,7 +24,7 @@ func TestHTTPClientListsAdminDataWithIdentityRequestIDAndTypedQueries(t *testing
 		writer.Header().Set("Content-Type", "application/json")
 		switch request.URL.Path {
 		case eventsPath:
-			_, _ = writer.Write([]byte(`{"request_id":"data-req-2","result":{"items":[{"id":"EVT22222222-2222-5222-8222-222222222222","title":"event","summary":"summary","semantic":{"who":null,"what":"rate hold","when":null,"where":null,"why":null,"how":null},"modality":"FACT","occurred_at":"2026-07-17T01:02:03Z","announced_at":null,"status":"ACTIVE"}],"total":1,"page":1,"page_size":20}}`))
+			_, _ = writer.Write([]byte(`{"request_id":"data-req-2","result":{"items":[{"id":"EVT22222222-2222-5222-8222-222222222222","title":"event","summary":"summary","semantic":{"actors":["Federal Reserve"],"action":"holds target rate","objects":["federal funds rate"],"stage":"ANNOUNCED","modality":"FACT","time":{"occurred_at":null,"announced_at":null,"effective_at":null,"observed_at":"2026-07-17T01:02:03Z","precision":"INSTANT"},"jurisdictions":["United States"],"reason":null,"method":null,"metrics":[]},"status":"ACTIVE"}],"total":1,"page":1,"page_size":20}}`))
 		default:
 			writer.WriteHeader(http.StatusNotFound)
 		}
@@ -37,7 +38,16 @@ func TestHTTPClientListsAdminDataWithIdentityRequestIDAndTypedQueries(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(eventPage.Items) != 1 || eventPage.Items[0].Status != biz.EventLifecycleActive || eventPage.Items[0].Semantic.What == nil || *eventPage.Items[0].Semantic.What != "rate hold" {
+	if len(eventPage.Items) != 1 || eventPage.Items[0].Status != biz.EventLifecycleActive ||
+		!reflect.DeepEqual(eventPage.Items[0].Semantic.Actors, []string{"Federal Reserve"}) ||
+		eventPage.Items[0].Semantic.Action != "holds target rate" ||
+		!reflect.DeepEqual(eventPage.Items[0].Semantic.Objects, []string{"federal funds rate"}) ||
+		eventPage.Items[0].Semantic.Stage != biz.EventStageAnnounced ||
+		!reflect.DeepEqual(eventPage.Items[0].Semantic.Jurisdictions, []string{"United States"}) ||
+		eventPage.Items[0].Semantic.Modality != biz.EventModalityFact ||
+		eventPage.Items[0].Semantic.Time.OccurredAt != nil ||
+		eventPage.Items[0].Semantic.Time.ObservedAt == nil || !eventPage.Items[0].Semantic.Time.ObservedAt.Equal(time.Date(2026, 7, 17, 1, 2, 3, 0, time.UTC)) ||
+		eventPage.Items[0].Semantic.Time.EffectiveAt != nil || eventPage.Items[0].Semantic.Time.Precision != biz.EventTimePrecisionInstant {
 		t.Fatalf("events = %#v", eventPage)
 	}
 
@@ -58,7 +68,7 @@ func TestHTTPClientListsEvidenceCategoriesAndSourcesWithStrictProjection(t *test
 		writer.Header().Set("Content-Type", "application/json")
 		switch request.URL.Path {
 		case evidencesPath:
-			_, _ = writer.Write([]byte(`{"request_id":"data-evidence","result":{"items":[{"id":"EVD22222222-2222-5222-8222-222222222222","raw_evidence_id":"RAW22222222-2222-5222-8222-222222222222","title":"raw title","summary":"summary","semantic":{"who":"Official","what":"announced a policy","when":null,"where":"China","why":null,"how":null},"categories":[{"id":"EVC22222222-2222-5222-8222-222222222222","code":"EVENT_BRIEF","name":"Event brief","description":"description"}],"source_id":"SRC_example_00000000000000000000","source_name":"Official","source_level":"L1_OFFICIAL","source_url":"https://example.com/report","is_original":false,"quoted_source_name":"Agency filing","keywords":["policy","exports"],"is_split":true,"published_at":"2026-08-19T01:00:00Z","collected_at":"2026-08-19T02:00:00Z"}],"total":1,"page":1,"page_size":50}}`))
+			_, _ = writer.Write([]byte(`{"request_id":"data-evidence","result":{"items":[{"id":"EVD22222222-2222-5222-8222-222222222222","raw_evidence_id":"RAW22222222-2222-5222-8222-222222222222","title":"raw title","summary":"summary","semantic":{"actors":["Official"],"action":"announced","objects":["policy"],"stage":"ANNOUNCED","modality":"FACT","time":{"raw":"2026-08-19","start_at":"2026-08-18T16:00:00Z","end_at":"2026-08-19T15:59:59.999999Z","precision":"DAY"},"jurisdictions":["China"],"reason":null,"method":null,"metrics":[],"attribution":{"reported_by":null,"claimed_by":"Official"}},"categories":[{"id":"EVC22222222-2222-5222-8222-222222222222","code":"EVENT_BRIEF","name":"Event brief","description":"description"}],"source_id":"SRC_example_00000000000000000000","source_name":"Official","source_level":"L1_OFFICIAL","source_url":"https://example.com/report","is_original":false,"quoted_source_name":"Agency filing","keywords":["policy","export"],"is_split":true,"published_at":"2026-08-19T01:00:00Z","collected_at":"2026-08-19T02:00:00Z"}],"total":1,"page":1,"page_size":50}}`))
 		case evidenceCategoriesPath:
 			_, _ = writer.Write([]byte(`{"request_id":"data-category","result":{"categories":[{"id":"EVC22222222-2222-5222-8222-222222222222","code":"EVENT_BRIEF","name":"Event brief","description":"description"}]}}`))
 		case sourcesPath:
@@ -71,7 +81,7 @@ func TestHTTPClientListsEvidenceCategoriesAndSourcesWithStrictProjection(t *test
 	client := newTestClient(t, server.URL, server.Client(), "admin-service-token")
 	isSplit := true
 	page, err := client.ListEvidences(context.Background(), biz.EvidenceListQuery{Title: "raw", CategoryID: "EVC22222222-2222-5222-8222-222222222222", SourceID: "SRC_example_00000000000000000000", IsSplit: &isSplit, Page: 1, PageSize: 50})
-	if err != nil || len(page.Items) != 1 || len(page.Items[0].Categories) != 1 || page.Items[0].Semantic.What != "announced a policy" ||
+	if err != nil || len(page.Items) != 1 || len(page.Items[0].Categories) != 1 || page.Items[0].Semantic.Action != "announced" ||
 		page.Items[0].SourceID != "SRC_example_00000000000000000000" || page.Items[0].SourceURL != "https://example.com/report" || page.Items[0].IsOriginal || page.Items[0].QuotedSourceName == nil ||
 		*page.Items[0].QuotedSourceName != "Agency filing" || len(page.Items[0].Keywords) != 2 {
 		t.Fatalf("Evidence page/error = %#v/%v", page, err)
@@ -97,7 +107,7 @@ func TestHTTPClientGetsRawEvidenceDocumentWithStrictContract(t *testing.T) {
 		if request.URL.Path != rawEvidencesPath+"/"+id || request.Header.Get("Authorization") != "Bearer token" {
 			t.Fatalf("request = %s auth=%q", request.URL.Path, request.Header.Get("Authorization"))
 		}
-		_, _ = writer.Write([]byte(`{"request_id":"raw-document","result":{"raw_evidence":{"id":"RAW22222222-2222-5222-8222-222222222222","source_id":"SRC_example_00000000000000000000","source_name":"Official","source_level":"L1_OFFICIAL","source_url":"https://example.test/article","is_original":true,"quoted_source_id":null,"quoted_source_name":null,"title":"Title","raw_text":"/raw-evidence/documents/2026/08/17/11f0864fc4078b47a4cc758149a2b0b7923654d2c7c8a694ad5b2d5ced4fc998.md","published_at":null,"collected_at":"2026-08-19T02:00:00Z","keywords":[],"categories":[]}}}`))
+		_, _ = writer.Write([]byte(`{"request_id":"raw-document","result":{"raw_evidence":{"id":"RAW22222222-2222-5222-8222-222222222222","source_id":"SRC_example_00000000000000000000","source_name":"Official","source_level":"L1_OFFICIAL","source_url":"https://example.test/article","is_original":true,"quoted_source_id":null,"quoted_source_name":null,"title":"Title","raw_text":"/raw-evidence/documents/2026/08/17/11f0864fc4078b47a4cc758149a2b0b7923654d2c7c8a694ad5b2d5ced4fc998.md","published_at":null,"collected_at":"2026-08-19T02:00:00Z","categories":[]}}}`))
 	}))
 	defer server.Close()
 	client := newTestClient(t, server.URL, server.Client(), "token")
@@ -124,7 +134,7 @@ func TestHTTPClientMapsRawEvidenceNotFound(t *testing.T) {
 func TestHTTPClientRejectsInvalidRawEvidenceDocumentProjection(t *testing.T) {
 	t.Parallel()
 	const id = "RAW22222222-2222-5222-8222-222222222222"
-	const valid = `{"request_id":"raw-document","result":{"raw_evidence":{"id":"RAW22222222-2222-5222-8222-222222222222","source_id":"SRC_example_00000000000000000000","source_name":"Official","source_level":"L1_OFFICIAL","source_url":"https://example.test/article","is_original":true,"quoted_source_id":null,"quoted_source_name":null,"title":"Title","raw_text":"/raw-evidence/documents/2026/08/17/11f0864fc4078b47a4cc758149a2b0b7923654d2c7c8a694ad5b2d5ced4fc998.md","published_at":null,"collected_at":"2026-08-19T02:00:00Z","keywords":[],"categories":[]}}}`
+	const valid = `{"request_id":"raw-document","result":{"raw_evidence":{"id":"RAW22222222-2222-5222-8222-222222222222","source_id":"SRC_example_00000000000000000000","source_name":"Official","source_level":"L1_OFFICIAL","source_url":"https://example.test/article","is_original":true,"quoted_source_id":null,"quoted_source_name":null,"title":"Title","raw_text":"/raw-evidence/documents/2026/08/17/11f0864fc4078b47a4cc758149a2b0b7923654d2c7c8a694ad5b2d5ced4fc998.md","published_at":null,"collected_at":"2026-08-19T02:00:00Z","categories":[]}}}`
 	for _, test := range []struct {
 		name    string
 		payload string
@@ -242,15 +252,21 @@ func TestHTTPClientRejectsMalformedSuccessEnvelope(t *testing.T) {
 
 func TestHTTPClientRejectsEventContractDrift(t *testing.T) {
 	t.Parallel()
-	valid := `{"request_id":"data-req","result":{"items":[{"id":"EVT22222222-2222-5222-8222-222222222222","title":"event","summary":"summary","semantic":{"who":null,"what":"fact","when":null,"where":null,"why":null,"how":null},"modality":"FACT","occurred_at":null,"announced_at":null,"status":"ACTIVE"}],"total":1,"page":1,"page_size":50}}`
+	valid := `{"request_id":"data-req","result":{"items":[{"id":"EVT22222222-2222-5222-8222-222222222222","title":"event","summary":"summary","semantic":{"actors":["Federal Reserve"],"action":"holds target rate","objects":["federal funds rate"],"stage":"ANNOUNCED","modality":"FACT","time":{"occurred_at":null,"announced_at":"2026-07-17T01:02:03Z","effective_at":null,"precision":"DAY"},"jurisdictions":["United States"],"reason":null,"method":null,"metrics":[]},"status":"ACTIVE"}],"total":1,"page":1,"page_size":50}}`
+	semantic := `"semantic":{"actors":["Federal Reserve"],"action":"holds target rate","objects":["federal funds rate"],"stage":"ANNOUNCED","modality":"FACT","time":{"occurred_at":null,"announced_at":"2026-07-17T01:02:03Z","effective_at":null,"precision":"DAY"},"jurisdictions":["United States"],"reason":null,"method":null,"metrics":[]}`
 	for _, test := range []struct {
 		name    string
 		payload string
 	}{
-		{name: "missing semantic", payload: strings.Replace(valid, `,"semantic":{"who":null,"what":"fact","when":null,"where":null,"why":null,"how":null}`, "", 1)},
-		{name: "missing semantic key", payload: strings.Replace(valid, `,"how":null`, "", 1)},
-		{name: "extra semantic key", payload: strings.Replace(valid, `,"how":null`, `,"how":null,"extra":null`, 1)},
-		{name: "missing nullable time", payload: strings.Replace(valid, `,"occurred_at":null`, "", 1)},
+		{name: "missing semantic", payload: strings.Replace(valid, `,`+semantic, "", 1)},
+		{name: "missing semantic key", payload: strings.Replace(valid, `,"metrics":[]`, "", 1)},
+		{name: "extra semantic key", payload: strings.Replace(valid, `,"metrics":[]`, `,"metrics":[],"extra":null`, 1)},
+		{name: "legacy semantic keys", payload: strings.Replace(valid, semantic, `"semantic":{"who":null,"what":"fact","when":null,"where":null,"why":null,"how":null}`, 1)},
+		{name: "invalid semantic stage", payload: strings.Replace(valid, `"stage":"ANNOUNCED"`, `"stage":"INVALID"`, 1)},
+		{name: "non UTC semantic time", payload: strings.Replace(valid, `"effective_at":null`, `"effective_at":"2026-09-01T08:00:00+08:00"`, 1)},
+		{name: "missing nullable time", payload: strings.Replace(valid, `"occurred_at":null,`, "", 1)},
+		{name: "no business time anchor", payload: strings.Replace(valid, `"announced_at":"2026-07-17T01:02:03Z"`, `"announced_at":null`, 1)},
+		{name: "business and observed time together", payload: strings.Replace(valid, `"precision":"DAY"`, `"observed_at":"2026-07-17T02:02:03Z","precision":"DAY"`, 1)},
 		{name: "wrong ID", payload: strings.Replace(valid, "EVT22222222-2222-5222-8222-222222222222", "not-an-event", 1)},
 		{name: "blank title", payload: strings.Replace(valid, `"title":"event"`, `"title":" "`, 1)},
 		{name: "oversized page", payload: strings.Replace(valid, `"page_size":50`, `"page_size":101`, 1)},

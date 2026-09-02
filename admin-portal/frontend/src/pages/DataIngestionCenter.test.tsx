@@ -14,21 +14,50 @@ function renderCenter() {
   );
 }
 
+function evidenceSemantic(actor: string, action: string) {
+  return {
+    actors: [actor],
+    action,
+    objects: ['事项'],
+    stage: 'ANNOUNCED' as const,
+    modality: 'FACT' as const,
+    time: { raw: null, start_at: null, end_at: null, precision: 'UNKNOWN' as const },
+    jurisdictions: [],
+    reason: null,
+    method: null,
+    metrics: [],
+    attribution: { reported_by: null, claimed_by: actor }
+  };
+}
+
 describe('DataIngestionCenter', () => {
   afterEach(() => vi.restoreAllMocks());
 
   it('loads and renders the current Event contract', async () => {
-    const what = '维持利率不变';
     vi.spyOn(dataIngestionAPI, 'loadEvents').mockResolvedValue({
       items: [
         {
           id: 'EVT00000000-0000-5000-8000-000000000001',
           title: '全球市场事件',
           summary: '摘要',
-          semantic: { who: null, what, when: null, where: null, why: null, how: null },
-          modality: 'FACT',
-          occurred_at: '2026-07-09T08:00:00Z',
-          announced_at: null,
+          semantic: {
+            actors: ['Federal Reserve'],
+            action: 'holds target rate',
+            objects: ['federal funds rate'],
+            stage: 'ANNOUNCED',
+            modality: 'FACT',
+            time: {
+              occurred_at: '2026-07-09T08:00:00Z',
+              announced_at: null,
+              effective_at: null,
+              observed_at: null,
+              precision: 'DAY'
+            },
+            jurisdictions: ['United States'],
+            reason: null,
+            method: null,
+            metrics: []
+          },
           status: 'ACTIVE'
         }
       ],
@@ -103,16 +132,23 @@ describe('DataIngestionCenter', () => {
           title: '稀土出口管理新规',
           summary: '商务部公布新的出口许可安排。',
           semantic: {
-            who: '中华人民共和国商务部',
-            what: '调整稀土出口许可要求',
-            when: '2026-08-19',
-            where: '中国',
-            why: '加强战略性矿产出口管理',
-            how: '通过公告明确申报流程'
+            actors: ['中华人民共和国商务部'],
+            action: '调整出口许可要求',
+            objects: ['稀土'],
+            stage: 'ANNOUNCED',
+            modality: 'FACT',
+            time: {
+              occurred_at: '2026-08-19T01:30:00Z',
+              announced_at: null,
+              effective_at: '2026-09-01T00:00:00Z',
+              observed_at: null,
+              precision: 'DAY'
+            },
+            jurisdictions: ['中国'],
+            reason: null,
+            method: null,
+            metrics: []
           },
-          modality: 'FACT',
-          occurred_at: '2026-08-19T01:30:00Z',
-          announced_at: null,
           status: 'ACTIVE'
         }
       ],
@@ -129,8 +165,11 @@ describe('DataIngestionCenter', () => {
     const dialog = screen.getByRole('dialog', { name: '稀土出口管理新规' });
     expect(within(dialog).getByText('商务部公布新的出口许可安排。')).toBeInTheDocument();
     expect(within(dialog).getByText('中华人民共和国商务部')).toBeInTheDocument();
-    expect(within(dialog).getByText('调整稀土出口许可要求')).toBeInTheDocument();
-    expect(within(dialog).getByText('—')).toBeInTheDocument();
+    expect(within(dialog).getByText('调整出口许可要求')).toBeInTheDocument();
+    expect(within(dialog).getByText('稀土')).toBeInTheDocument();
+    expect(within(dialog).getByText('ANNOUNCED')).toBeInTheDocument();
+    expect(within(dialog).getByText('中国')).toBeInTheDocument();
+    expect(within(dialog).getByText('DAY')).toBeInTheDocument();
     expect(within(dialog).queryByText(/EVT00000000/)).not.toBeInTheDocument();
 
     await user.keyboard('{Escape}');
@@ -161,14 +200,7 @@ describe('DataIngestionCenter', () => {
           raw_evidence_id: 'RAW00000000-0000-5000-8000-000000000001',
           title: '原始标题',
           summary: '证据摘要',
-          semantic: {
-            who: '主体',
-            what: '发生事项',
-            when: null,
-            where: null,
-            why: null,
-            how: null
-          },
+          semantic: evidenceSemantic('主体', '发生事项'),
           categories: [
             {
               id: 'EVC00000000-0000-5000-8000-000000000001',
@@ -193,7 +225,7 @@ describe('DataIngestionCenter', () => {
           raw_evidence_id: 'RAW00000000-0000-5000-8000-000000000002',
           title: null,
           summary: '无标题证据',
-          semantic: { who: null, what: '另一事项', when: null, where: null, why: null, how: null },
+          semantic: evidenceSemantic('未知主体', '另一事项'),
           categories: [],
           source_id: 'SRC_example_00000000000000000000',
           source_name: '官方信源',
@@ -201,7 +233,7 @@ describe('DataIngestionCenter', () => {
           source_url: 'https://example.com/other',
           is_original: true,
           quoted_source_name: null,
-          keywords: [],
+          keywords: ['事项'],
           is_split: false,
           published_at: null,
           collected_at: '2026-08-19T03:00:00Z'
@@ -277,12 +309,16 @@ describe('DataIngestionCenter', () => {
           title: '转载材料标题',
           summary: '原子证据摘要',
           semantic: {
-            who: '赛意信息',
-            what: '合作项目有序推进',
-            when: '2026-08-17',
-            where: '中国',
-            why: '回应投资者关注',
-            how: '通过公开互动渠道披露'
+            ...evidenceSemantic('赛意信息', '合作项目有序推进'),
+            time: {
+              raw: '2026-08-17',
+              start_at: '2026-08-16T16:00:00Z',
+              end_at: '2026-08-17T15:59:59.999999Z',
+              precision: 'DAY' as const
+            },
+            jurisdictions: ['中国'],
+            reason: '回应投资者关注',
+            method: '通过公开互动渠道披露'
           },
           categories: [
             {
@@ -308,7 +344,7 @@ describe('DataIngestionCenter', () => {
           raw_evidence_id: 'RAW00000000-0000-5000-8000-000000000002',
           title: '原创材料标题',
           summary: '原创证据摘要',
-          semantic: { who: null, what: '发布公告', when: null, where: null, why: null, how: null },
+          semantic: evidenceSemantic('商务部', '发布公告'),
           categories: [],
           source_id: 'SRC_example_00000000000000000000',
           source_name: '商务部',
@@ -316,7 +352,7 @@ describe('DataIngestionCenter', () => {
           source_url: 'https://example.com/original-report',
           is_original: true,
           quoted_source_name: null,
-          keywords: [],
+          keywords: ['公告'],
           is_split: true,
           published_at: null,
           collected_at: '2026-08-19T01:00:00Z'

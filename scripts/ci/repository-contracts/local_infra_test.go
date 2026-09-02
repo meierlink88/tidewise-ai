@@ -53,8 +53,8 @@ func TestLocalDockerProjectsSeparateApplicationsAndInfrastructure(t *testing.T) 
 	}
 
 	for _, forbidden := range []string{
-		"\n  postgres:", "\n  neo4j:", "\n  qdrant:", "image: postgres:",
-		"image: neo4j:", "image: qdrant/", "tidewise_postgres_data", "tidewise_neo4j_data",
+		"\n  postgres:", "\n  mysql:", "\n  neo4j:", "\n  qdrant:", "image: postgres:",
+		"image: mysql:", "openspg-mysql", "image: neo4j:", "image: qdrant/", "tidewise_postgres_data", "tidewise_neo4j_data",
 		"tidewise_qdrant_data", "agentrun-db-init:", "agentrun", "AGENTRUN_", "9080",
 	} {
 		if strings.Contains(applicationText, forbidden) {
@@ -63,10 +63,10 @@ func TestLocalDockerProjectsSeparateApplicationsAndInfrastructure(t *testing.T) 
 	}
 
 	for _, want := range []string{
-		"name: tidewise-infra", "  postgres:", "  mysql:", "  minio:", "  qdrant:",
+		"name: tidewise-infra", "  postgres:", "  minio:",
 		"external: true",
-		"local_tidewise_postgres_data", "tidewise-reason_mysql-data",
-		"tidewise-reason_minio-data", "tidewise-qdrant-local-storage", "name: '${COMPOSE_NETWORK_NAME:-tidewise-local}'",
+		"local_tidewise_postgres_data", "tidewise-reason_minio-data",
+		"name: '${COMPOSE_NETWORK_NAME:-tidewise-local}'",
 	} {
 		if !strings.Contains(infrastructureText, want) {
 			t.Fatalf("infrastructure compose missing %q", want)
@@ -104,6 +104,37 @@ func TestLocalDockerProjectsSeparateApplicationsAndInfrastructure(t *testing.T) 
 	} {
 		if strings.Contains(applicationText, forbidden) || strings.Contains(infrastructureText, forbidden) || strings.Contains(readmeText, forbidden) {
 			t.Fatalf("local infra leaks forbidden secret pattern %q", forbidden)
+		}
+	}
+}
+
+func TestLocalInfrastructureRetiresUnusedMySQLAndQdrant(t *testing.T) {
+	root := repositoryRoot()
+	infrastructureCompose := mustReadText(t, filepath.Join(root, "infra", "local", "docker-compose.infra.yaml"))
+	files := []struct {
+		name     string
+		contents string
+	}{
+		{name: "Compose", contents: infrastructureCompose},
+		{name: "environment", contents: mustReadText(t, filepath.Join(root, "infra", "local", ".env.example"))},
+		{name: "volume bootstrap", contents: mustReadText(t, filepath.Join(root, "infra", "local", "ensure-volumes.sh"))},
+	}
+	for _, file := range files {
+		for _, retired := range []string{
+			"openspg-mysql", "tidewise-reason_mysql-data", "MYSQL_PORT", "OPENSPG_MYSQL_ROOT_PASSWORD",
+			"qdrant/qdrant", "tidewise-qdrant-local-storage", "QDRANT_HTTP_PORT", "QDRANT_GRPC_PORT",
+		} {
+			if strings.Contains(file.contents, retired) {
+				t.Errorf("local %s retains retired infrastructure value %q", file.name, retired)
+			}
+		}
+	}
+	for _, retiredComposeValue := range []string{
+		"\n  mysql:", "\n  qdrant:", "\n  mysql-data:", "\n  qdrant-data:",
+		"3306:3306", "6333:6333", "6334:6334",
+	} {
+		if strings.Contains(infrastructureCompose, retiredComposeValue) {
+			t.Errorf("local infrastructure Compose retains retired value %q", retiredComposeValue)
 		}
 	}
 }

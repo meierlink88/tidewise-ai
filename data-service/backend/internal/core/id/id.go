@@ -51,6 +51,7 @@ const (
 	EventActorLink               Kind = "EAC"
 	EventAssetLink               Kind = "EAS"
 	Event                        Kind = "EVT"
+	EventPublicationReceipt      Kind = "EPR"
 	IndustryChainGraphEdge       Kind = "IGE"
 	OrganizationMembership       Kind = "OMB"
 	Source                       Kind = "SRC"
@@ -160,7 +161,7 @@ func registered(kind Kind) bool {
 	case Entity, Industry, Concept, ChainNode, IndustryChain, EntityRelation, Country, Subdivision, Ministry, Institution, GeopoliticRivalry, MacroEconomic, StorylineDomain, StorylineDomainTactic, Storyline, StorylineEventLink, Company, CompanyIndustryLink, Region, Organization, OrganizationCategory, OrganizationFunction, OrganizationDomainTag,
 		OrganizationDomainTagLink, RawEvidence, Evidence, EvidenceCategory, RawEvidenceCategoryLink,
 		CountryRegionLink,
-		EventEvidenceLink, EventActorLink, EventAssetLink, Event,
+		EventEvidenceLink, EventActorLink, EventAssetLink, Event, EventPublicationReceipt,
 		IndustryChainGraphEdge, OrganizationMembership,
 		Source,
 		ResearchReasoningTreeReceipt, ResearchReasoningTreeNode, ResearchReasoningTree,

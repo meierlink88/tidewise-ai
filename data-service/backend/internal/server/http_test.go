@@ -16,6 +16,8 @@ import (
 	"time"
 
 	dataapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
+	companyapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/company"
+	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
 	sourceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/source"
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
 	sourcebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/source"
@@ -61,7 +63,7 @@ func TestProductionServerSourceManagementAndSnapshotContract(t *testing.T) {
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{}, serverTestEvidenceService{},
 		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{},
-		serverTestIndustryChainService{}, serverTestOrganizationService{}, application, authenticator, nil,
+		serverTestIndustryChainService{}, serverTestOrganizationService{}, application, serverTestCompanyService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -129,6 +131,116 @@ func TestSourceProviderFixtureMatchesRuntimeHTTPOutput(t *testing.T) {
 	}
 }
 
+func TestCompanyProjectionProviderFixtureMatchesRuntimeHTTPOutput(t *testing.T) {
+	payload, err := os.ReadFile(filepath.Join("..", "..", "api", "data", "v1", "entity", "company", "testdata", "company-projection-page.v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		RequestID string                           `json:"request_id"`
+		Result    companyapi.CompanyProjectionPage `json:"result"`
+	}
+	var expected map[string]any
+	if err := json.Unmarshal(payload, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(payload, &expected); err != nil {
+		t.Fatal(err)
+	}
+	authenticator, err := NewAuthenticator([]Credential{{
+		Secret: "company-read-token", Principal: dataapi.Principal{Identity: "agentos", Scopes: []string{ScopeCompanyRead}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := NewHTTPServer(
+		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{}, serverTestEvidenceService{},
+		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{},
+		serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{},
+		fixtureCompanyService{page: fixture.Result}, authenticator, nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	actual := productionContractRequest(t, server, http.MethodGet, dataapi.APIPrefix+"/entities/companies", "company-read-token", "", fixture.RequestID, http.StatusOK)
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("runtime Company projection differs from provider fixture:\nactual=%#v\nexpected=%#v", actual, expected)
+	}
+}
+
+type fixtureCompanyService struct {
+	serverTestCompanyService
+	page companyapi.CompanyProjectionPage
+}
+
+func (s fixtureCompanyService) List(context.Context, *companyapi.ListRequest) (*dataapi.Response[companyapi.CompanyProjectionPage], error) {
+	return &dataapi.Response[companyapi.CompanyProjectionPage]{Status: dataapi.StatusOK, Result: s.page}, nil
+}
+
+func TestEvidencePublicationProviderFixtureMatchesRuntimeHTTPOutput(t *testing.T) {
+	requestPayload, err := os.ReadFile(filepath.Join("..", "..", "api", "data", "v1", "evidence", "testdata", "evidence-publication.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	responsePayload, err := os.ReadFile(filepath.Join("..", "..", "api", "data", "v1", "evidence", "testdata", "evidence-publication-response.v1.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		RequestID string                                `json:"request_id"`
+		Result    evidenceapi.EvidencePublicationResult `json:"result"`
+	}
+	var expected map[string]any
+	if err := json.Unmarshal(responsePayload, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(responsePayload, &expected); err != nil {
+		t.Fatal(err)
+	}
+	application := &fixtureEvidencePublicationService{result: fixture.Result}
+	server := evidencePublicationContractServer(t, application)
+	actual := productionContractRequest(
+		t, server, http.MethodPost, dataapi.APIPrefix+"/evidence-publications", "evidence-write-token",
+		string(requestPayload), fixture.RequestID, http.StatusCreated,
+	)
+	if !reflect.DeepEqual(actual, expected) {
+		t.Fatalf("runtime Evidence Publication response differs from provider fixture:\nactual=%#v\nexpected=%#v", actual, expected)
+	}
+	if application.request == nil || len(application.request.Evidences) != 2 {
+		t.Fatalf("runtime request binding = %#v", application.request)
+	}
+}
+
+type fixtureEvidencePublicationService struct {
+	serverTestEvidenceService
+	request *evidenceapi.EvidencePublicationRequest
+	result  evidenceapi.EvidencePublicationResult
+}
+
+func (s *fixtureEvidencePublicationService) PublishEvidence(_ context.Context, request *evidenceapi.EvidencePublicationRequest) (*dataapi.Response[evidenceapi.EvidencePublicationResult], error) {
+	s.request = request
+	return &dataapi.Response[evidenceapi.EvidencePublicationResult]{Status: http.StatusCreated, Result: s.result}, nil
+}
+
+func evidencePublicationContractServer(t *testing.T, application evidenceapi.Service) http.Handler {
+	t.Helper()
+	authenticator, err := NewAuthenticator([]Credential{{
+		Secret: "evidence-write-token", Principal: dataapi.Principal{Identity: "agentos", Scopes: []string{ScopeEvidenceImport}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := NewHTTPServer(
+		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{}, application,
+		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{},
+		serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, serverTestCompanyService{}, authenticator, nil,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return server
+}
+
 func TestSourceSnapshotHTTPReturnsTwoHundredSourcesWithinEnvelopeAndTimeBudgets(t *testing.T) {
 	sources := make([]sourceapi.Source, 0, sourcebiz.MaxSources)
 	for index := 0; index < sourcebiz.MaxSources; index++ {
@@ -191,7 +303,7 @@ func sourceSnapshotContractServer(t *testing.T, application sourceapi.Service) h
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{}, serverTestEvidenceService{},
 		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{},
-		serverTestIndustryChainService{}, serverTestOrganizationService{}, application, authenticator, nil,
+		serverTestIndustryChainService{}, serverTestOrganizationService{}, application, serverTestCompanyService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -228,7 +340,7 @@ func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *te
 	server, err := NewHTTPServer(
 		testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{},
 		application,
-		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, authenticator, nil,
+		serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, serverTestCompanyService{}, authenticator, nil,
 	)
 	if err != nil {
 		t.Fatal(err)

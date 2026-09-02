@@ -53,12 +53,34 @@ type Evidence struct {
 	CollectedAt             time.Time
 }
 type EvidenceSemantic struct {
-	Who   *string
-	What  string
-	When  *string
-	Where *string
-	Why   *string
-	How   *string
+	Actors        []string
+	Action        string
+	Objects       []string
+	Stage         string
+	Modality      string
+	Time          EvidenceTime
+	Jurisdictions []string
+	Reason        *string
+	Method        *string
+	Metrics       []EvidenceMetric
+	Attribution   EvidenceAttribution
+}
+type EvidenceTime struct {
+	Raw       *string
+	StartAt   *time.Time
+	EndAt     *time.Time
+	Precision string
+}
+type EvidenceMetric struct {
+	Name   string
+	Value  *string
+	Unit   *string
+	Change *string
+	Period *string
+}
+type EvidenceAttribution struct {
+	ReportedBy *string
+	ClaimedBy  *string
 }
 type EvidenceCategory struct{ ID, Code, Name, Description string }
 
@@ -108,6 +130,31 @@ const (
 	EventLifecycleArchived   EventLifecycleStatus = "ARCHIVED"
 )
 
+type EventStage string
+
+const (
+	EventStageOccurred    EventStage = "OCCURRED"
+	EventStageAnnounced   EventStage = "ANNOUNCED"
+	EventStageEffective   EventStage = "EFFECTIVE"
+	EventStageImplemented EventStage = "IMPLEMENTED"
+	EventStageUpdated     EventStage = "UPDATED"
+	EventStageSuspended   EventStage = "SUSPENDED"
+	EventStageTerminated  EventStage = "TERMINATED"
+	EventStageExpected    EventStage = "EXPECTED"
+)
+
+type EventTimePrecision string
+
+const (
+	EventTimePrecisionInstant EventTimePrecision = "INSTANT"
+	EventTimePrecisionDay     EventTimePrecision = "DAY"
+	EventTimePrecisionRange   EventTimePrecision = "RANGE"
+	EventTimePrecisionMonth   EventTimePrecision = "MONTH"
+	EventTimePrecisionQuarter EventTimePrecision = "QUARTER"
+	EventTimePrecisionYear    EventTimePrecision = "YEAR"
+	EventTimePrecisionUnknown EventTimePrecision = "UNKNOWN"
+)
+
 type EventPage struct {
 	Items    []Event
 	Total    int
@@ -116,23 +163,40 @@ type EventPage struct {
 }
 
 type Event struct {
-	ID          string
-	Title       string
-	Summary     string
-	Semantic    EventSemantic
-	Modality    EventModality
-	OccurredAt  *time.Time
-	AnnouncedAt *time.Time
-	Status      EventLifecycleStatus
+	ID       string
+	Title    string
+	Summary  string
+	Semantic EventSemantic
+	Status   EventLifecycleStatus
 }
 
 type EventSemantic struct {
-	Who   *string
-	What  *string
-	When  *string
-	Where *string
-	Why   *string
-	How   *string
+	Actors        []string
+	Action        string
+	Objects       []string
+	Stage         EventStage
+	Modality      EventModality
+	Time          EventTime
+	Jurisdictions []string
+	Reason        *string
+	Method        *string
+	Metrics       []EventMetric
+}
+
+type EventTime struct {
+	OccurredAt  *time.Time
+	AnnouncedAt *time.Time
+	EffectiveAt *time.Time
+	ObservedAt  *time.Time
+	Precision   EventTimePrecision
+}
+
+type EventMetric struct {
+	Name   string
+	Value  *string
+	Unit   *string
+	Change *string
+	Period *string
 }
 
 var ErrFakeMethodNotConfigured = errors.New("data service fake method is not configured")

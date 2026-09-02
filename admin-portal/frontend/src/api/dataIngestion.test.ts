@@ -7,7 +7,113 @@ import {
   loadSources
 } from './dataIngestion';
 
+const evidenceSemantic = {
+  actors: ['商务部'],
+  action: '发布公告',
+  objects: ['公告'],
+  stage: 'ANNOUNCED',
+  modality: 'FACT',
+  time: { raw: null, start_at: null, end_at: null, precision: 'UNKNOWN' },
+  jurisdictions: ['中国'],
+  reason: null,
+  method: null,
+  metrics: [],
+  attribution: { reported_by: null, claimed_by: '商务部' }
+};
+
+const eventSemantic = {
+  actors: ['Federal Reserve'],
+  action: 'holds target rate',
+  objects: ['federal funds rate'],
+  stage: 'ANNOUNCED',
+  modality: 'FACT',
+  time: {
+    occurred_at: '2026-07-09T08:00:00Z',
+    announced_at: null,
+    effective_at: null,
+    observed_at: null,
+    precision: 'DAY'
+  },
+  jurisdictions: ['United States'],
+  reason: null,
+  method: null,
+  metrics: []
+};
+
 describe('data ingestion api client', () => {
+  it('validates the complete Event business proposition projection', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          request_id: 'admin-event-test',
+          result: {
+            items: [
+              {
+                id: 'EVT00000000-0000-5000-8000-000000000001',
+                title: '美联储维持利率不变',
+                summary: '美联储宣布维持联邦基金利率目标区间不变。',
+                semantic: eventSemantic,
+                status: 'ACTIVE'
+              }
+            ],
+            total: 1,
+            page: 1,
+            page_size: 50
+          }
+        })
+      })
+    );
+
+    const page = await loadEvents('secret-token', { page: 1, title: '' });
+
+    expect(page.items[0]?.semantic).toEqual(eventSemantic);
+  });
+
+  it.each([
+    ['missing field', { ...eventSemantic, metrics: undefined }],
+    ['extra field', { ...eventSemantic, who: null }],
+    ['invalid stage', { ...eventSemantic, stage: 'INVALID' }],
+    ['blank actor', { ...eventSemantic, actors: [' '] }],
+    ['blank action', { ...eventSemantic, action: ' ' }],
+    [
+      'business and observed time together',
+      {
+        ...eventSemantic,
+        time: { ...eventSemantic.time, observed_at: '2026-07-09T09:00:00Z' }
+      }
+    ]
+  ])('rejects Event semantic contract drift: %s', async (_name, semantic) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          request_id: 'admin-event-test',
+          result: {
+            items: [
+              {
+                id: 'EVT00000000-0000-5000-8000-000000000001',
+                title: 'Event',
+                summary: 'Summary',
+                semantic,
+                status: 'ACTIVE'
+              }
+            ],
+            total: 1,
+            page: 1,
+            page_size: 50
+          }
+        })
+      })
+    );
+
+    await expect(loadEvents('secret-token', { page: 1, title: '' })).rejects.toThrow(
+      'Admin API returned an invalid response'
+    );
+  });
+
   it('loads current events with the frozen filters', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
@@ -113,14 +219,7 @@ describe('data ingestion api client', () => {
                 raw_evidence_id: 'RAW00000000-0000-5000-8000-000000000001',
                 title: '材料标题',
                 summary: '原子证据摘要',
-                semantic: {
-                  who: '商务部',
-                  what: '发布公告',
-                  when: null,
-                  where: '中国',
-                  why: null,
-                  how: null
-                },
+                semantic: evidenceSemantic,
                 categories: [],
                 source_id: 'SRC_example_00000000000000000000',
                 source_name: '商务部',
@@ -128,7 +227,7 @@ describe('data ingestion api client', () => {
                 source_url: 'https://example.com/report',
                 is_original: true,
                 quoted_source_name: null,
-                keywords: [],
+                keywords: ['公告'],
                 is_split: false,
                 published_at: null,
                 collected_at: '2026-08-19T02:00:00Z'
@@ -144,12 +243,12 @@ describe('data ingestion api client', () => {
 
     const page = await loadEvidences('token', { page: 1 });
     expect(page.items[0]).toMatchObject({
-      semantic: { what: '发布公告' },
+      semantic: { action: '发布公告' },
       source_id: 'SRC_example_00000000000000000000',
       source_url: 'https://example.com/report',
       is_original: true,
       quoted_source_name: null,
-      keywords: []
+      keywords: ['公告']
     });
   });
 
@@ -167,14 +266,7 @@ describe('data ingestion api client', () => {
                 raw_evidence_id: 'RAW00000000-0000-5000-8000-000000000001',
                 title: null,
                 summary: '摘要',
-                semantic: {
-                  who: null,
-                  what: '事项',
-                  when: null,
-                  where: null,
-                  why: null,
-                  how: null
-                },
+                semantic: evidenceSemantic,
                 categories: [],
                 source_id: 'SRC_example_00000000000000000000',
                 source_name: '官方信源',
@@ -182,7 +274,7 @@ describe('data ingestion api client', () => {
                 source_url: 'https://example.com/report',
                 is_original: false,
                 quoted_source_name: null,
-                keywords: [],
+                keywords: ['公告'],
                 is_split: false,
                 published_at: null,
                 collected_at: '2026-08-19T02:00:00Z'

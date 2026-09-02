@@ -20,6 +20,9 @@ import (
 type SourceLevel string
 type IssueCode string
 type CategoryID string
+type EvidenceStage string
+type EvidenceModality string
+type EvidenceTimePrecision string
 
 const (
 	RawEvidenceIDPrefix = coreid.RawEvidence
@@ -46,6 +49,27 @@ const (
 	IssueCategoryNotFound    IssueCode = "EVIDENCE_CATEGORY_NOT_FOUND"
 	IssueEvidenceIDConflict  IssueCode = "EVIDENCE_ID_CONFLICT"
 	IssueEvidenceSetConflict IssueCode = "EVIDENCE_SET_CONFLICT"
+
+	EvidenceStageOccurred    EvidenceStage = "OCCURRED"
+	EvidenceStageAnnounced   EvidenceStage = "ANNOUNCED"
+	EvidenceStageEffective   EvidenceStage = "EFFECTIVE"
+	EvidenceStageImplemented EvidenceStage = "IMPLEMENTED"
+	EvidenceStageUpdated     EvidenceStage = "UPDATED"
+	EvidenceStageSuspended   EvidenceStage = "SUSPENDED"
+	EvidenceStageTerminated  EvidenceStage = "TERMINATED"
+	EvidenceStageExpected    EvidenceStage = "EXPECTED"
+
+	EvidenceModalityFact EvidenceModality = "FACT"
+	EvidenceModalityPlan EvidenceModality = "PLAN"
+	EvidenceModalitySpec EvidenceModality = "SPEC"
+
+	EvidenceTimeInstant EvidenceTimePrecision = "INSTANT"
+	EvidenceTimeDay     EvidenceTimePrecision = "DAY"
+	EvidenceTimeRange   EvidenceTimePrecision = "RANGE"
+	EvidenceTimeMonth   EvidenceTimePrecision = "MONTH"
+	EvidenceTimeQuarter EvidenceTimePrecision = "QUARTER"
+	EvidenceTimeYear    EvidenceTimePrecision = "YEAR"
+	EvidenceTimeUnknown EvidenceTimePrecision = "UNKNOWN"
 )
 
 type RawEvidence struct {
@@ -62,7 +86,6 @@ type RawEvidence struct {
 	RawText          string
 	PublishedAt      *time.Time
 	CollectedAt      time.Time
-	Keywords         []string
 	CategoryIDs      []CategoryID
 }
 
@@ -93,16 +116,42 @@ type Store interface {
 type Evidence struct {
 	ID       string
 	Summary  string
+	Keywords []string
 	Semantic Semantic
 }
 
 type Semantic struct {
-	Who   *string `json:"who"`
-	What  string  `json:"what"`
-	When  *string `json:"when"`
-	Where *string `json:"where"`
-	Why   *string `json:"why"`
-	How   *string `json:"how"`
+	Actors        []string             `json:"actors"`
+	Action        string               `json:"action"`
+	Objects       []string             `json:"objects"`
+	Stage         EvidenceStage        `json:"stage"`
+	Modality      EvidenceModality     `json:"modality"`
+	Time          EvidenceTime         `json:"time"`
+	Jurisdictions []string             `json:"jurisdictions"`
+	Reason        *string              `json:"reason"`
+	Method        *string              `json:"method"`
+	Metrics       []EvidenceMetric     `json:"metrics"`
+	Attribution   *EvidenceAttribution `json:"attribution"`
+}
+
+type EvidenceTime struct {
+	Raw       *string               `json:"raw"`
+	StartAt   *time.Time            `json:"start_at"`
+	EndAt     *time.Time            `json:"end_at"`
+	Precision EvidenceTimePrecision `json:"precision"`
+}
+
+type EvidenceMetric struct {
+	Name   string  `json:"name"`
+	Value  *string `json:"value"`
+	Unit   *string `json:"unit"`
+	Change *string `json:"change"`
+	Period *string `json:"period"`
+}
+
+type EvidenceAttribution struct {
+	ReportedBy *string `json:"reported_by"`
+	ClaimedBy  *string `json:"claimed_by"`
 }
 
 type StoredEvidence struct {
@@ -160,6 +209,12 @@ type RawEvidenceResult struct {
 type EvidenceResult struct {
 	RawEvidenceID string
 	IDs           []string
+	Items         []EvidenceResultItem
+}
+
+type EvidenceResultItem struct {
+	InputIndex int
+	ID         string
 }
 
 type RawEvidenceCategoryLink struct {
@@ -209,6 +264,21 @@ var allowedSourceLevels = map[SourceLevel]struct{}{
 	SourceLevelWire:     {},
 	SourceLevelMedia:    {},
 	SourceLevelSocial:   {},
+}
+
+var allowedEvidenceStages = map[EvidenceStage]struct{}{
+	EvidenceStageOccurred: {}, EvidenceStageAnnounced: {}, EvidenceStageEffective: {},
+	EvidenceStageImplemented: {}, EvidenceStageUpdated: {}, EvidenceStageSuspended: {},
+	EvidenceStageTerminated: {}, EvidenceStageExpected: {},
+}
+
+var allowedEvidenceModalities = map[EvidenceModality]struct{}{
+	EvidenceModalityFact: {}, EvidenceModalityPlan: {}, EvidenceModalitySpec: {},
+}
+
+var allowedEvidenceTimePrecisions = map[EvidenceTimePrecision]struct{}{
+	EvidenceTimeInstant: {}, EvidenceTimeDay: {}, EvidenceTimeRange: {}, EvidenceTimeMonth: {},
+	EvidenceTimeQuarter: {}, EvidenceTimeYear: {}, EvidenceTimeUnknown: {},
 }
 
 func (id CategoryID) IsValid() bool {
@@ -448,6 +518,10 @@ func (s *UseCase) PublishEvidence(ctx context.Context, rawEvidenceID string, inp
 	if err := validateEvidencePublication(rawEvidenceID, input); err != nil {
 		return EvidenceResult{}, err
 	}
+	items := make([]EvidenceResultItem, len(input))
+	for index, item := range input {
+		items[index] = EvidenceResultItem{InputIndex: index, ID: item.ID}
+	}
 
 	isSplit := len(input) > 1
 	records := make([]StoredEvidence, len(input))
@@ -508,7 +582,11 @@ func (s *UseCase) PublishEvidence(ctx context.Context, rawEvidenceID string, inp
 			}
 		}
 
-		result = EvidenceResult{RawEvidenceID: rawEvidenceID, IDs: append([]string(nil), ids...)}
+		result = EvidenceResult{
+			RawEvidenceID: rawEvidenceID,
+			IDs:           append([]string(nil), ids...),
+			Items:         append([]EvidenceResultItem(nil), items...),
+		}
 		return nil
 	})
 	if err != nil {
@@ -532,18 +610,113 @@ func validateEvidencePublication(rawEvidenceID string, input []Evidence) error {
 		}
 		seenIDs[item.ID] = struct{}{}
 		required(&issues, prefix+".summary", item.Summary, 200)
-		required(&issues, prefix+".semantic.what", item.Semantic.What, 0)
-		optional(&issues, prefix+".semantic.who", item.Semantic.Who, 0)
-		optional(&issues, prefix+".semantic.when", item.Semantic.When, 0)
-		optional(&issues, prefix+".semantic.where", item.Semantic.Where, 0)
-		optional(&issues, prefix+".semantic.why", item.Semantic.Why, 0)
-		optional(&issues, prefix+".semantic.how", item.Semantic.How, 0)
+		validateEvidenceKeywords(&issues, prefix+".keywords", item.Keywords)
+		validateSemantic(&issues, prefix+".semantic", item.Semantic)
 	}
 	if len(issues) == 0 {
 		return nil
 	}
 	sortIssues(issues)
 	return &ValidationError{Issues: issues}
+}
+
+func validateSemantic(issues *[]Issue, path string, semantic Semantic) {
+	validateUniqueRequiredStrings(issues, path+".actors", semantic.Actors, 1, 20, 100)
+	required(issues, path+".action", semantic.Action, 200)
+	validateUniqueRequiredStrings(issues, path+".objects", semantic.Objects, 1, 20, 200)
+	if _, ok := allowedEvidenceStages[semantic.Stage]; !ok {
+		*issues = append(*issues, Issue{Path: path + ".stage", Code: IssueInvalidEnum, Message: "stage is invalid"})
+	}
+	if _, ok := allowedEvidenceModalities[semantic.Modality]; !ok {
+		*issues = append(*issues, Issue{Path: path + ".modality", Code: IssueInvalidEnum, Message: "modality is invalid"})
+	}
+	validateEvidenceTime(issues, path+".time", semantic.Time)
+	validateUniqueRequiredStrings(issues, path+".jurisdictions", semantic.Jurisdictions, 0, 20, 100)
+	optional(issues, path+".reason", semantic.Reason, 500)
+	optional(issues, path+".method", semantic.Method, 500)
+	validateMetrics(issues, path+".metrics", semantic.Metrics)
+	if semantic.Attribution == nil {
+		*issues = append(*issues, Issue{Path: path + ".attribution", Code: IssueRequired, Message: "attribution is required"})
+	} else {
+		optional(issues, path+".attribution.reported_by", semantic.Attribution.ReportedBy, 100)
+		optional(issues, path+".attribution.claimed_by", semantic.Attribution.ClaimedBy, 100)
+	}
+}
+
+func validateEvidenceKeywords(issues *[]Issue, path string, keywords []string) {
+	if len(keywords) < 1 || len(keywords) > 5 {
+		*issues = append(*issues, Issue{Path: path, Code: IssueInvalidFormat, Message: "keywords must contain one to five values"})
+	}
+	seen := make(map[string]struct{}, len(keywords))
+	for index, keyword := range keywords {
+		itemPath := fmt.Sprintf("%s[%d]", path, index)
+		required(issues, itemPath, keyword, 6)
+		if _, duplicate := seen[keyword]; duplicate {
+			*issues = append(*issues, Issue{Path: itemPath, Code: IssueDuplicate, Message: "keyword must be unique within the Evidence"})
+		}
+		seen[keyword] = struct{}{}
+	}
+}
+
+func validateUniqueRequiredStrings(issues *[]Issue, path string, values []string, min, max, maxLength int) {
+	if values == nil {
+		*issues = append(*issues, Issue{Path: path, Code: IssueRequired, Message: "collection must not be null"})
+		return
+	}
+	if len(values) < min || len(values) > max {
+		*issues = append(*issues, Issue{Path: path, Code: IssueInvalidFormat, Message: fmt.Sprintf("must contain %d to %d values", min, max)})
+	}
+	seen := make(map[string]struct{}, len(values))
+	for index, value := range values {
+		itemPath := fmt.Sprintf("%s[%d]", path, index)
+		required(issues, itemPath, value, maxLength)
+		if _, duplicate := seen[value]; duplicate {
+			*issues = append(*issues, Issue{Path: itemPath, Code: IssueDuplicate, Message: "value must be unique within the collection"})
+		}
+		seen[value] = struct{}{}
+	}
+}
+
+func validateEvidenceTime(issues *[]Issue, path string, value EvidenceTime) {
+	optional(issues, path+".raw", value.Raw, 200)
+	if _, ok := allowedEvidenceTimePrecisions[value.Precision]; !ok {
+		*issues = append(*issues, Issue{Path: path + ".precision", Code: IssueInvalidEnum, Message: "precision is invalid"})
+	}
+	if (value.StartAt == nil) != (value.EndAt == nil) {
+		*issues = append(*issues, Issue{Path: path, Code: IssueInvalidTimestamp, Message: "start_at and end_at must both be present or both be null"})
+	}
+	if value.StartAt != nil && value.EndAt != nil {
+		if !isUTC(*value.StartAt) || !isUTC(*value.EndAt) || value.StartAt.After(*value.EndAt) {
+			*issues = append(*issues, Issue{Path: path, Code: IssueInvalidTimestamp, Message: "time bounds must be ordered UTC timestamps"})
+		}
+	}
+}
+
+func validateMetrics(issues *[]Issue, path string, metrics []EvidenceMetric) {
+	if metrics == nil {
+		*issues = append(*issues, Issue{Path: path, Code: IssueRequired, Message: "metrics must not be null"})
+		return
+	}
+	seen := make(map[string]struct{}, len(metrics))
+	for index, metric := range metrics {
+		prefix := fmt.Sprintf("%s[%d]", path, index)
+		required(issues, prefix+".name", metric.Name, 100)
+		optional(issues, prefix+".value", metric.Value, 100)
+		optional(issues, prefix+".unit", metric.Unit, 50)
+		optional(issues, prefix+".change", metric.Change, 100)
+		optional(issues, prefix+".period", metric.Period, 100)
+		if metric.Value == nil && metric.Change == nil {
+			*issues = append(*issues, Issue{Path: prefix, Code: IssueRequired, Message: "metric requires value or change"})
+		}
+		identity := strings.ToLower(strings.TrimSpace(metric.Name)) + "\x00"
+		if metric.Period != nil {
+			identity += strings.ToLower(strings.TrimSpace(*metric.Period))
+		}
+		if _, duplicate := seen[identity]; duplicate {
+			*issues = append(*issues, Issue{Path: prefix, Code: IssueDuplicate, Message: "metric name and period must be unique within the Evidence"})
+		}
+		seen[identity] = struct{}{}
+	}
 }
 
 func evidenceSetConflict() error {
@@ -659,7 +832,6 @@ func cloneRawEvidence(input RawEvidence) RawEvidence {
 		*input.PublishedAt = normalizePostgresTime(*input.PublishedAt)
 	}
 	input.CollectedAt = normalizePostgresTime(input.CollectedAt)
-	input.Keywords = append([]string(nil), input.Keywords...)
 	input.CategoryIDs = append([]CategoryID(nil), input.CategoryIDs...)
 	sort.Slice(input.CategoryIDs, func(i, j int) bool { return input.CategoryIDs[i] < input.CategoryIDs[j] })
 	return input
@@ -694,12 +866,45 @@ func missingCategoryIssue(requested []CategoryID, categories []Category) *Issue 
 }
 
 func cloneEvidence(input Evidence) Evidence {
-	input.Semantic.Who = cloneString(input.Semantic.Who)
-	input.Semantic.When = cloneString(input.Semantic.When)
-	input.Semantic.Where = cloneString(input.Semantic.Where)
-	input.Semantic.Why = cloneString(input.Semantic.Why)
-	input.Semantic.How = cloneString(input.Semantic.How)
+	input.Keywords = cloneSlice(input.Keywords)
+	input.Semantic.Actors = cloneSlice(input.Semantic.Actors)
+	input.Semantic.Objects = cloneSlice(input.Semantic.Objects)
+	input.Semantic.Jurisdictions = cloneSlice(input.Semantic.Jurisdictions)
+	input.Semantic.Reason = cloneString(input.Semantic.Reason)
+	input.Semantic.Method = cloneString(input.Semantic.Method)
+	input.Semantic.Time.Raw = cloneString(input.Semantic.Time.Raw)
+	input.Semantic.Time.StartAt = cloneTime(input.Semantic.Time.StartAt)
+	input.Semantic.Time.EndAt = cloneTime(input.Semantic.Time.EndAt)
+	if input.Semantic.Time.StartAt != nil {
+		*input.Semantic.Time.StartAt = normalizePostgresTime(*input.Semantic.Time.StartAt)
+	}
+	if input.Semantic.Time.EndAt != nil {
+		*input.Semantic.Time.EndAt = normalizePostgresTime(*input.Semantic.Time.EndAt)
+	}
+	input.Semantic.Metrics = cloneSlice(input.Semantic.Metrics)
+	for index := range input.Semantic.Metrics {
+		metric := &input.Semantic.Metrics[index]
+		metric.Value = cloneString(metric.Value)
+		metric.Unit = cloneString(metric.Unit)
+		metric.Change = cloneString(metric.Change)
+		metric.Period = cloneString(metric.Period)
+	}
+	if input.Semantic.Attribution != nil {
+		attribution := *input.Semantic.Attribution
+		attribution.ReportedBy = cloneString(attribution.ReportedBy)
+		attribution.ClaimedBy = cloneString(attribution.ClaimedBy)
+		input.Semantic.Attribution = &attribution
+	}
 	return input
+}
+
+func cloneSlice[T any](input []T) []T {
+	if input == nil {
+		return nil
+	}
+	result := make([]T, len(input))
+	copy(result, input)
+	return result
 }
 
 func normalizePostgresTime(value time.Time) time.Time {
@@ -730,7 +935,7 @@ func sameRawEvidence(left, right StoredRawEvidence) bool {
 		sameString(left.QuotedSourceName, right.QuotedSourceName) &&
 		sameString(left.Title, right.Title) && left.RawText == right.RawText &&
 		sameTime(left.PublishedAt, right.PublishedAt) && left.CollectedAt.Equal(right.CollectedAt) &&
-		left.ContentHash == right.ContentHash && equalStringSlice(left.Keywords, right.Keywords) &&
+		left.ContentHash == right.ContentHash &&
 		equalCategoryIDs(left.CategoryIDs, right.CategoryIDs)
 }
 
@@ -754,19 +959,21 @@ func sameEvidenceSet(left, right []StoredEvidence) bool {
 func sameEvidence(left, right StoredEvidence) bool {
 	return left.ID == right.ID && left.RawEvidenceID == right.RawEvidenceID &&
 		left.IsSplit == right.IsSplit && left.Summary == right.Summary &&
-		sameSemantic(left.Semantic, right.Semantic)
+		equalStringSlice(left.Keywords, right.Keywords) && sameSemantic(left.Semantic, right.Semantic)
 }
 
 func sameSemantic(left, right Semantic) bool {
-	return sameString(left.Who, right.Who) && left.What == right.What && sameString(left.When, right.When) &&
-		sameString(left.Where, right.Where) && sameString(left.Why, right.Why) && sameString(left.How, right.How)
+	leftJSON, leftErr := json.Marshal(left)
+	rightJSON, rightErr := json.Marshal(right)
+	return leftErr == nil && rightErr == nil && string(leftJSON) == string(rightJSON)
 }
 
 func evidenceIdentitySeed(input Evidence) (string, error) {
 	value, err := json.Marshal(struct {
 		Summary  string   `json:"summary"`
+		Keywords []string `json:"keywords"`
 		Semantic Semantic `json:"semantic"`
-	}{Summary: input.Summary, Semantic: input.Semantic})
+	}{Summary: input.Summary, Keywords: input.Keywords, Semantic: input.Semantic})
 	if err != nil {
 		return "", err
 	}

@@ -104,7 +104,6 @@ type RawEvidence struct {
 	RawText          string     `json:"raw_text"`
 	PublishedAt      *time.Time `json:"published_at"`
 	CollectedAt      time.Time  `json:"collected_at"`
-	Keywords         []string   `json:"keywords"`
 	CategoryIDs      []string   `json:"category_ids,omitempty"`
 }
 
@@ -136,7 +135,6 @@ type RawEvidenceRead struct {
 	RawText          string             `json:"raw_text"`
 	PublishedAt      *time.Time         `json:"published_at"`
 	CollectedAt      time.Time          `json:"collected_at"`
-	Keywords         []string           `json:"keywords"`
 	Categories       []EvidenceCategory `json:"categories"`
 }
 
@@ -151,16 +149,42 @@ type EvidencePublicationRequest struct {
 
 type AtomicEvidence struct {
 	Summary  string           `json:"summary"`
+	Keywords []string         `json:"keywords"`
 	Semantic EvidenceSemantic `json:"semantic"`
 }
 
 type EvidenceSemantic struct {
-	Who   *string `json:"who"`
-	What  string  `json:"what"`
-	When  *string `json:"when"`
-	Where *string `json:"where"`
-	Why   *string `json:"why"`
-	How   *string `json:"how"`
+	Actors        []string             `json:"actors"`
+	Action        string               `json:"action"`
+	Objects       []string             `json:"objects"`
+	Stage         string               `json:"stage"`
+	Modality      string               `json:"modality"`
+	Time          EvidenceTime         `json:"time"`
+	Jurisdictions []string             `json:"jurisdictions"`
+	Reason        *string              `json:"reason"`
+	Method        *string              `json:"method"`
+	Metrics       []EvidenceMetric     `json:"metrics"`
+	Attribution   *EvidenceAttribution `json:"attribution"`
+}
+
+type EvidenceTime struct {
+	Raw       *string    `json:"raw"`
+	StartAt   *time.Time `json:"start_at"`
+	EndAt     *time.Time `json:"end_at"`
+	Precision string     `json:"precision"`
+}
+
+type EvidenceMetric struct {
+	Name   string  `json:"name"`
+	Value  *string `json:"value"`
+	Unit   *string `json:"unit"`
+	Change *string `json:"change"`
+	Period *string `json:"period"`
+}
+
+type EvidenceAttribution struct {
+	ReportedBy *string `json:"reported_by"`
+	ClaimedBy  *string `json:"claimed_by"`
 }
 
 type RawEvidencePublicationResult struct {
@@ -168,6 +192,12 @@ type RawEvidencePublicationResult struct {
 }
 
 type EvidencePublicationResult struct {
-	RawEvidenceID string   `json:"raw_evidence_id"`
-	IDs           []string `json:"ids"`
+	RawEvidenceID string                          `json:"raw_evidence_id"`
+	IDs           []string                        `json:"ids"`
+	Items         []EvidencePublicationResultItem `json:"items"`
+}
+
+type EvidencePublicationResultItem struct {
+	InputIndex int    `json:"input_index"`
+	ID         string `json:"id"`
 }

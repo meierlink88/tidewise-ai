@@ -90,6 +90,15 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000071_retire_entity_identifiers_and_redirects.sql`：删除无当前应用 owner 的通用 Entity
   External Identifier 与 Entity Redirect 表，移除 Redirect 专属函数，并重建剩余 Data Object
   引用保护函数以继续覆盖 Entity Relations 和 typed IndustryChain Links。
+- `000074_rebuild_atomic_evidence_business_semantics.sql`：零兼容把 Atomic Evidence 重建为最小完整
+  业务命题，将 Keywords 从 Raw Evidence 移至 Evidence，并以主体、动作、对象、阶段、情态、时间、
+  辖区、原因、执行方式、指标和归因组成当前语义合同。
+- `000075_rebuild_event_business_semantics.sql`：零兼容把 Event 升级为事件级完整业务命题，情态与
+  occurrence/announcement/effectiveness 时间归入 `semantic`，增加原因、执行方式和指标，并移除
+  Event wire 顶层的重复 modality 与时间字段。
+- `000076_relax_event_metric_storage_constraint.sql`：修复 `000075` 对所有非空 Event metrics 的
+  错误拒绝；数据库保留 Event 核心语义和指标数组/对象外形，具体指标属性由 typed HTTP 与 Biz
+  边界校验。
 
 `000047` 对“目录数据独立发布”规则采用限域例外：Data Evidence 是 owner，且这 11 个固定
 分类是本次 Raw Evidence API 与外键同时生效所必需的合同数据，因此随 additive schema
@@ -197,6 +206,10 @@ web search，并用正式 token 读取完整管理集合与 active snapshot。�
 回滚 Data 应用时保留表与已导入数据，不运行 down；外部消费方切换后的回滚必须停止
 新 workflow/管理写入并按 ADR-0031 恢复切换前 AgentOS 快照，不使用部分快照或反向同步。
 
+已完成 Source 所有权切换的环境可显式运行 `source-research-rss-initialize`，以 Git 审查过的
+目录补齐全球投研 RSS Source。该命令只插入缺失的 dynamic/rss/generic_rss Source，重复执行
+保留既有运营配置；同 code 存在但协议身份不兼容时原子失败。它不属于 migration 或普通 Deploy。
+
 `000062` 是 Issue #293 的 additive、forward-only Subdivision persistence 基础。操作员使用
 候选 Data 镜像执行 check-only，确认它是唯一 pending migration 后 apply，并验证 ledger 为
 `62`、空表字段/组合唯一/FK/enum/时间默认值满足合同。旧应用不消费新增结构，可以与已应用
@@ -294,3 +307,39 @@ ADR-0046 定义的保留列、行数与端点不变、replacement indexes 存在
 该迁移删除旧 review/lifecycle/provenance/evidence/explanation 值，Data Research Graph 合同同时
 切换至 V2，禁止新旧 Data/Miniapp binary mixed traffic。完整回滚必须同时恢复 migration 72 前
 快照和上一版应用，不运行 down migration。
+
+`000073` 是 Issue #339 的高风险 Event 合同切换。操作员必须停止 Data、
+Reasoning 及所有 Event 直接写入者，取得 PostgreSQL 恢复点，并确认 `events`、
+`event_evidence_links`、`event_actor_links` 与 `event_asset_links` 均为空。该迁移会
+fail closed 拒绝任何历史 Event，因为旧 5W1H JSON 不能无损推导出新的事件身份语义。
+用候选镜像确认它是唯一 pending migration 后才可 apply；执行后确认 ledger 为
+`73`、`event_publication_receipts` 约束完整，并使用新 Data/Reasoning binary 发布一条
+Event 验证原子 Event + Evidence Link + Receipt。新旧 binary 不得 mixed traffic。完整
+回滚必须恢复 migration 73 前恢复点并同时回退 Data/Reasoning，不运行 down migration。
+
+`000074` 是 Issue #351 的高风险 Atomic Evidence 合同切换。操作员必须停止 Data、AgentOS
+及所有 Evidence/Event 写入者，取得 PostgreSQL 恢复点，并确认 Raw Evidence、Atomic Evidence、
+Event 及其 Evidence/Actor/Asset Link 与 Publication Receipt 均为空。迁移会 fail closed 拒绝任何
+历史链路，因为旧 5W1H 无法无损转换为最小完整业务命题；不得在 migration 内静默删除历史事实。
+确认它是唯一 pending migration 后才可 apply。执行后确认 ledger 为 `74`、Raw Evidence 不再拥有
+`keywords`、Atomic Evidence 拥有 `keywords` 和新 `semantic` 约束，再用匹配的新 Data/AgentOS
+发布一个含多指标业务命题的 Evidence。新旧 binary 不得 mixed traffic；完整回滚必须恢复 migration
+74 前恢复点并同时回退 Data/AgentOS，不运行 down migration。
+
+`000075` 是 Issue #359 的高风险 Event 合同切换。操作员必须停止 Data、Admin、AgentOS 及所有
+Event 写入者，取得 PostgreSQL 恢复点，并确认 Event、Event Evidence/Actor/Asset Link 与 Event
+Publication Receipt 均为空。迁移会 fail closed 拒绝旧七键 Event semantic，不在 migration 中
+猜测或清理历史事实。确认它是唯一 pending migration 后才可 apply；执行后确认 ledger 为 `75`、
+Event semantic 十键和嵌套时间约束生效，再按 Data provider → Admin consumer → AgentOS producer 的
+顺序发布匹配二进制。新旧 binary 不得 mixed traffic；完整回滚必须恢复 migration 75 前恢复点并
+同时回退三个应用，不运行 down migration。
+
+`000076` 是 Issue #361 的向后兼容约束修复。它不转换或删除 Event，只重建
+`chk_events_semantic`，删除重复且错误的深层 metric 属性检查，同时保留 Event 核心语义、时间投影和
+metrics 数组/对象外形。迁移前后 Data API 与 Biz 合同不变，旧版与新版 Data binary 均可写入；正常
+Schema migration 路径即可执行，回滚使用恢复点或后续 forward repair，不恢复 `000075` 的错误约束。
+
+`000077` 是 Issue #363 的向前兼容 Event 时间扩展。它不转换或删除历史 Event，只允许
+`semantic.time.observed_at` 作为第四类时间锚点；既有四键业务时间 JSON 继续合法，observed-only Event
+使用五键 JSON。先发布兼容的 Admin/Data binary，再启用 AgentOS observed-only 写入。回滚优先回退
+AgentOS 写入，再回退应用；Schema 保持兼容或通过后续 forward repair，不运行 down migration。

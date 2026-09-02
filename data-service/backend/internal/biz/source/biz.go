@@ -23,6 +23,7 @@ const (
 	MaxSources              = 200
 	MaxSnapshotEnvelopeSize = 500_000
 	MaxConfigBytes          = 4_096
+	defaultSourceMaxResults = 5
 )
 
 type OwnershipType string
@@ -141,7 +142,48 @@ func CurrentFixedManifest(options FixedManifestOptions) []Source {
 			Code: item.code, Name: item.name, OwnershipType: OwnershipFixed,
 			ChannelType: item.channel, AdapterKey: item.adapter, Enabled: item.enabled,
 			Endpoint: endpoint, AppKey: appKey, Config: json.RawMessage(`{}`), Priority: 1,
-			TimeoutSeconds: 30, MaxResults: 10, DefaultSourceLevel: item.level,
+			TimeoutSeconds: 30, MaxResults: defaultSourceMaxResults, DefaultSourceLevel: item.level,
+		})
+	}
+	return result
+}
+
+// CurrentResearchRSSManifest returns the code-reviewed global investment-research RSS catalog.
+// The catalog is publication input, not database migration data.
+func CurrentResearchRSSManifest() []Source {
+	type definition struct {
+		code, name, endpoint string
+		level                SourceLevel
+	}
+	definitions := []definition{
+		{"federal_reserve", "Federal Reserve", "https://www.federalreserve.gov/feeds/press_all.xml", SourceLevelOfficial},
+		{"sec_press_releases", "SEC Press Releases", "https://www.sec.gov/news/pressreleases.rss", SourceLevelOfficial},
+		{"financial_times", "Financial Times", "https://www.ft.com/rss/home", SourceLevelMedia},
+		{"cnbc", "CNBC", "https://www.cnbc.com/id/100003114/device/rss/rss.html", SourceLevelMedia},
+		{"openai_news", "OpenAI", "https://openai.com/news/rss.xml", SourceLevelOfficial},
+		{"deepmind_blog", "DeepMind", "https://deepmind.google/blog/rss.xml", SourceLevelOfficial},
+		{"digitimes", "DIGITIMES", "https://www.digitimes.com/rss/daily.xml", SourceLevelMedia},
+		{"semianalysis", "SemiAnalysis", "https://semianalysis.substack.com/feed", SourceLevelMedia},
+		{"ee_times", "EE Times", "https://www.eetimes.com/feed/", SourceLevelMedia},
+		{"ieee_spectrum_semiconductors", "IEEE Spectrum Semiconductor", "https://spectrum.ieee.org/feeds/topic/semiconductors.rss", SourceLevelMedia},
+		{"cnevpost", "CnEVPost", "https://cnevpost.com/feed/", SourceLevelMedia},
+		{"oilprice", "OilPrice", "https://oilprice.com/rss/main", SourceLevelMedia},
+		{"energy_storage_news", "Energy Storage News", "https://www.energy-storage.news/feed/", SourceLevelMedia},
+		{"pv_tech", "PV Tech", "https://www.pv-tech.org/feed/", SourceLevelMedia},
+		{"in_en_energy", "国际能源网", "https://www.in-en.com/feed/rss.php?mid=21", SourceLevelMedia},
+		{"endpoints_news", "Endpoints News", "https://endpts.com/feed/", SourceLevelMedia},
+		{"biopharma_dive", "BioPharma Dive", "https://www.biopharmadive.com/feeds/news/", SourceLevelMedia},
+		{"spacenews", "SpaceNews", "https://spacenews.com/feed/", SourceLevelMedia},
+		{"bleepingcomputer", "BleepingComputer", "https://www.bleepingcomputer.com/feed/", SourceLevelMedia},
+		{"the_hacker_news", "The Hacker News", "https://feeds.feedburner.com/TheHackersNews", SourceLevelMedia},
+	}
+	result := make([]Source, 0, len(definitions))
+	for _, item := range definitions {
+		result = append(result, Source{
+			Code: item.code, Name: item.name, OwnershipType: OwnershipDynamic,
+			ChannelType: ChannelRSS, AdapterKey: AdapterGenericRSS, Enabled: true,
+			Endpoint: item.endpoint, Config: json.RawMessage(`{"max_bytes":5000000}`), Priority: 2,
+			TimeoutSeconds: 30, MaxResults: defaultSourceMaxResults, DefaultSourceLevel: item.level,
 		})
 	}
 	return result
@@ -237,6 +279,77 @@ func (s *UseCase) PublishFixed(ctx context.Context, manifest []Source) ([]Source
 			result = append(result, cloneSource(created))
 		}
 		return validateProjectedSet(projected)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return cloneSources(result), nil
+}
+
+// PublishDynamicCatalog inserts missing reviewed RSS Sources while preserving existing operations.
+func (s *UseCase) PublishDynamicCatalog(ctx context.Context, manifest []Source) ([]Source, error) {
+	prepared := make([]Source, len(manifest))
+	seen := make(map[string]struct{}, len(manifest))
+	for index, item := range manifest {
+		if item.OwnershipType != OwnershipDynamic || item.ChannelType != ChannelRSS || item.AdapterKey != AdapterGenericRSS {
+			return nil, ErrConflict
+		}
+		item, err := prepareSource(item, index, seen, false)
+		if err != nil {
+			return nil, err
+		}
+		prepared[index] = item
+	}
+
+	var result []Source
+	err := s.store.InTransaction(ctx, func(tx Transaction) error {
+		if err := tx.Lock(ctx); err != nil {
+			return err
+		}
+		existing, err := tx.List(ctx)
+		if err != nil {
+			return err
+		}
+		byCode := make(map[string]Source, len(existing))
+		for _, item := range existing {
+			byCode[item.Code] = item
+		}
+
+		projected := cloneSources(existing)
+		toInsert := make([]Source, 0, len(prepared))
+		for _, item := range prepared {
+			current, ok := byCode[item.Code]
+			if !ok {
+				projected = append(projected, item)
+				toInsert = append(toInsert, item)
+				continue
+			}
+			if current.ID != item.ID || current.OwnershipType != OwnershipDynamic ||
+				current.ChannelType != ChannelRSS || current.AdapterKey != AdapterGenericRSS {
+				return ErrConflict
+			}
+		}
+		if err := validateProjectedSet(projected); err != nil {
+			return err
+		}
+
+		createdByCode := make(map[string]Source, len(toInsert))
+		for _, item := range toInsert {
+			created, err := tx.Insert(ctx, item)
+			if err != nil {
+				return err
+			}
+			createdByCode[item.Code] = created
+		}
+		result = make([]Source, 0, len(prepared))
+		for _, item := range prepared {
+			if current, ok := byCode[item.Code]; ok {
+				result = append(result, cloneSource(current))
+			} else {
+				result = append(result, cloneSource(createdByCode[item.Code]))
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err

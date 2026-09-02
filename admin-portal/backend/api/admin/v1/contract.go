@@ -83,23 +83,40 @@ type EventListResponse struct {
 }
 
 type Event struct {
-	ID          string        `json:"id"`
-	Title       string        `json:"title"`
-	Summary     string        `json:"summary"`
-	Semantic    EventSemantic `json:"semantic"`
-	Modality    string        `json:"modality"`
-	OccurredAt  *string       `json:"occurred_at"`
-	AnnouncedAt *string       `json:"announced_at"`
-	Status      string        `json:"status"`
+	ID       string        `json:"id"`
+	Title    string        `json:"title"`
+	Summary  string        `json:"summary"`
+	Semantic EventSemantic `json:"semantic"`
+	Status   string        `json:"status"`
 }
 
 type EventSemantic struct {
-	Who   *string `json:"who"`
-	What  *string `json:"what"`
-	When  *string `json:"when"`
-	Where *string `json:"where"`
-	Why   *string `json:"why"`
-	How   *string `json:"how"`
+	Actors        []string      `json:"actors"`
+	Action        string        `json:"action"`
+	Objects       []string      `json:"objects"`
+	Stage         string        `json:"stage"`
+	Modality      string        `json:"modality"`
+	Time          EventTime     `json:"time"`
+	Jurisdictions []string      `json:"jurisdictions"`
+	Reason        *string       `json:"reason"`
+	Method        *string       `json:"method"`
+	Metrics       []EventMetric `json:"metrics"`
+}
+
+type EventTime struct {
+	OccurredAt  *string `json:"occurred_at"`
+	AnnouncedAt *string `json:"announced_at"`
+	EffectiveAt *string `json:"effective_at"`
+	ObservedAt  *string `json:"observed_at"`
+	Precision   string  `json:"precision"`
+}
+
+type EventMetric struct {
+	Name   string  `json:"name"`
+	Value  *string `json:"value"`
+	Unit   *string `json:"unit"`
+	Change *string `json:"change"`
+	Period *string `json:"period"`
 }
 
 type EvidenceListResponse struct {
@@ -129,12 +146,37 @@ type Evidence struct {
 }
 
 type EvidenceSemantic struct {
-	Who   *string `json:"who"`
-	What  string  `json:"what"`
-	When  *string `json:"when"`
-	Where *string `json:"where"`
-	Why   *string `json:"why"`
-	How   *string `json:"how"`
+	Actors        []string            `json:"actors"`
+	Action        string              `json:"action"`
+	Objects       []string            `json:"objects"`
+	Stage         string              `json:"stage"`
+	Modality      string              `json:"modality"`
+	Time          EvidenceTime        `json:"time"`
+	Jurisdictions []string            `json:"jurisdictions"`
+	Reason        *string             `json:"reason"`
+	Method        *string             `json:"method"`
+	Metrics       []EvidenceMetric    `json:"metrics"`
+	Attribution   EvidenceAttribution `json:"attribution"`
+}
+
+type EvidenceTime struct {
+	Raw       *string `json:"raw"`
+	StartAt   *string `json:"start_at"`
+	EndAt     *string `json:"end_at"`
+	Precision string  `json:"precision"`
+}
+
+type EvidenceMetric struct {
+	Name   string  `json:"name"`
+	Value  *string `json:"value"`
+	Unit   *string `json:"unit"`
+	Change *string `json:"change"`
+	Period *string `json:"period"`
+}
+
+type EvidenceAttribution struct {
+	ReportedBy *string `json:"reported_by"`
+	ClaimedBy  *string `json:"claimed_by"`
 }
 
 type EvidenceCategory struct {

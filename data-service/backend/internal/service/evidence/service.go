@@ -64,8 +64,24 @@ func (s *Service) ListEvidence(ctx context.Context, request *evidenceapi.ListReq
 }
 
 func evidenceSemanticDTO(value evidencebiz.Semantic) evidenceapi.EvidenceSemantic {
+	metrics := make([]evidenceapi.EvidenceMetric, len(value.Metrics))
+	for index, metric := range value.Metrics {
+		metrics[index] = evidenceapi.EvidenceMetric{
+			Name: metric.Name, Value: metric.Value, Unit: metric.Unit, Change: metric.Change, Period: metric.Period,
+		}
+	}
+	var attribution *evidenceapi.EvidenceAttribution
+	if value.Attribution != nil {
+		attribution = &evidenceapi.EvidenceAttribution{
+			ReportedBy: value.Attribution.ReportedBy, ClaimedBy: value.Attribution.ClaimedBy,
+		}
+	}
 	return evidenceapi.EvidenceSemantic{
-		Who: value.Who, What: value.What, When: value.When, Where: value.Where, Why: value.Why, How: value.How,
+		Actors: append([]string(nil), value.Actors...), Action: value.Action,
+		Objects: append([]string(nil), value.Objects...), Stage: string(value.Stage), Modality: string(value.Modality),
+		Time:          evidenceapi.EvidenceTime{Raw: value.Time.Raw, StartAt: value.Time.StartAt, EndAt: value.Time.EndAt, Precision: string(value.Time.Precision)},
+		Jurisdictions: append([]string(nil), value.Jurisdictions...), Reason: value.Reason, Method: value.Method,
+		Metrics: metrics, Attribution: attribution,
 	}
 }
 
@@ -283,8 +299,7 @@ func rawEvidenceInput(input evidenceapi.RawEvidence) evidencebiz.RawEvidence {
 		SourceLevel: evidencebiz.SourceLevel(input.SourceLevel), SourceURL: input.SourceURL, IsOriginal: input.IsOriginal,
 		QuotedSourceID: input.QuotedSourceID, QuotedSourceName: input.QuotedSourceName,
 		Title: input.Title, RawText: input.RawText, PublishedAt: input.PublishedAt,
-		CollectedAt: input.CollectedAt, Keywords: append([]string(nil), input.Keywords...),
-		CategoryIDs: categoryIDsInput(input.CategoryIDs),
+		CollectedAt: input.CollectedAt, CategoryIDs: categoryIDsInput(input.CategoryIDs),
 	}
 }
 
@@ -308,16 +323,32 @@ func rawEvidenceReadDTO(input evidencebiz.StoredRawEvidence) evidenceapi.RawEvid
 		SourceLevel: string(input.SourceLevel), SourceURL: input.SourceURL, IsOriginal: input.IsOriginal,
 		QuotedSourceID: input.QuotedSourceID, QuotedSourceName: input.QuotedSourceName,
 		Title: input.Title, RawText: input.RawText, PublishedAt: input.PublishedAt,
-		CollectedAt: input.CollectedAt, Keywords: append([]string(nil), input.Keywords...), Categories: categories,
+		CollectedAt: input.CollectedAt, Categories: categories,
 	}
 }
 
 func evidenceInput(input evidenceapi.AtomicEvidence) evidencebiz.Evidence {
+	metrics := make([]evidencebiz.EvidenceMetric, len(input.Semantic.Metrics))
+	for index, metric := range input.Semantic.Metrics {
+		metrics[index] = evidencebiz.EvidenceMetric{
+			Name: metric.Name, Value: metric.Value, Unit: metric.Unit, Change: metric.Change, Period: metric.Period,
+		}
+	}
+	var attribution *evidencebiz.EvidenceAttribution
+	if input.Semantic.Attribution != nil {
+		attribution = &evidencebiz.EvidenceAttribution{
+			ReportedBy: input.Semantic.Attribution.ReportedBy, ClaimedBy: input.Semantic.Attribution.ClaimedBy,
+		}
+	}
 	return evidencebiz.Evidence{
-		Summary: input.Summary,
+		Summary: input.Summary, Keywords: append([]string(nil), input.Keywords...),
 		Semantic: evidencebiz.Semantic{
-			Who: input.Semantic.Who, What: input.Semantic.What, When: input.Semantic.When,
-			Where: input.Semantic.Where, Why: input.Semantic.Why, How: input.Semantic.How,
+			Actors: append([]string(nil), input.Semantic.Actors...), Action: input.Semantic.Action,
+			Objects: append([]string(nil), input.Semantic.Objects...), Stage: evidencebiz.EvidenceStage(input.Semantic.Stage),
+			Modality:      evidencebiz.EvidenceModality(input.Semantic.Modality),
+			Time:          evidencebiz.EvidenceTime{Raw: input.Semantic.Time.Raw, StartAt: input.Semantic.Time.StartAt, EndAt: input.Semantic.Time.EndAt, Precision: evidencebiz.EvidenceTimePrecision(input.Semantic.Time.Precision)},
+			Jurisdictions: append([]string{}, input.Semantic.Jurisdictions...), Reason: input.Semantic.Reason, Method: input.Semantic.Method,
+			Metrics: metrics, Attribution: attribution,
 		},
 	}
 }
@@ -327,9 +358,14 @@ func rawEvidenceResultDTO(result evidencebiz.RawEvidenceResult) evidenceapi.RawE
 }
 
 func evidenceResultDTO(result evidencebiz.EvidenceResult) evidenceapi.EvidencePublicationResult {
+	items := make([]evidenceapi.EvidencePublicationResultItem, len(result.Items))
+	for index, item := range result.Items {
+		items[index] = evidenceapi.EvidencePublicationResultItem{InputIndex: item.InputIndex, ID: item.ID}
+	}
 	return evidenceapi.EvidencePublicationResult{
 		RawEvidenceID: result.RawEvidenceID,
 		IDs:           append([]string(nil), result.IDs...),
+		Items:         items,
 	}
 }
 

@@ -147,7 +147,7 @@ func assertConcurrentEvidenceConvergenceAndConflict(t *testing.T, publication *e
 		left := []evidencebiz.Evidence{postgresEvidence(0)}
 		right := []evidencebiz.Evidence{postgresEvidence(0)}
 		if test.drift {
-			right[0].Semantic.What = "Concurrent semantic drift."
+			right[0].Semantic.Action = "Concurrent semantic drift."
 		}
 		start := make(chan struct{})
 		type outcome struct {

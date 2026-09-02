@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tidewise Prototype Visual QA</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; padding: 28px; background: #e9eef6; color: #13294e; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; }
+      h1 { margin: 0 0 8px; font-size: 24px; }
+      .note { margin: 0 0 24px; color: #62718a; font-size: 14px; }
+      .comparison { display: grid; grid-template-columns: minmax(0, 1.8fr) 393px; gap: 22px; margin-bottom: 28px; padding: 20px; border-radius: 16px; background: #fff; box-shadow: 0 10px 30px rgba(7, 20, 47, .08); }
+      .panel { min-width: 0; }
+      .panel h2 { margin: 0 0 12px; font-size: 15px; }
+      .panel img { display: block; width: 100%; border: 1px solid #dce4ef; border-radius: 12px; background: #f4f7fb; }
+      .prototype img { width: 393px; }
+      .checks { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+      .checks span { padding: 6px 9px; border-radius: 999px; background: #eefaf3; color: #137a4a; font-size: 12px; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <h1>Tidewise 投研报告原型 · 同屏视觉 QA</h1>
+    <p class="note">左侧为当前 Mini App 参考页，右侧为 393×852 原型实装截图。</p>
+    <section class="comparison">
+      <div class="panel"><h2>当前首页 Theme 卡片</h2><img src="./references/current-home-theme-card-mobile.jpg" alt="当前首页 Theme 卡片参考" /></div>
+      <div class="panel prototype"><h2>新报告首页 · 方案 A</h2><img src="./screenshots/feed-variant-a.jpg" alt="新报告首页方案 A" /></div>
+      <div class="checks"><span>深蓝主色</span><span>白卡 + 细描边</span><span>结论优先</span><span>胶囊标签</span></div>
+    </section>
+    <section class="comparison">
+      <div class="panel"><h2>当前 Reason Tree</h2><img src="./references/current-reason-tree-mobile.jpg" alt="当前 Reason Tree 参考" /></div>
+      <div class="panel prototype"><h2>新推理详情</h2><img src="./screenshots/detail-top.jpg" alt="新推理详情" /></div>
+      <div class="checks"><span>深蓝结论头</span><span>横向节点链</span><span>选中节点详情</span><span>证据边界</span></div>
+    </section>
+  </body>
+</html>

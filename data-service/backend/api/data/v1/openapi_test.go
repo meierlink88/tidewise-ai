@@ -42,6 +42,7 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/entities/countries/{country_id}":                              {method: "get", operationID: "getCountry", driftAnchor: "data.v1.getCountry", scope: "data.countries.read"},
 		namespace + "/entities/countries/{country_id}/regions":                      {method: "put", operationID: "replaceCountryRegions", driftAnchor: "data.v1.replaceCountryRegions", scope: "data.countries.write"},
 		namespace + "/entities/industries":                                          {method: "get", operationID: "listIndustries", driftAnchor: "data.v1.listIndustries", scope: "data.industries.read"},
+		namespace + "/entities/companies":                                           {method: "get", operationID: "listCompanies", driftAnchor: "data.v1.listCompanies", scope: "data.companies.read"},
 		namespace + "/entities/industries/{industry_id}":                            {method: "get", operationID: "getIndustry", driftAnchor: "data.v1.getIndustry", scope: "data.industries.read"},
 		namespace + "/entities/concepts":                                            {method: "get", operationID: "listConcepts", driftAnchor: "data.v1.listConcepts", scope: "data.concepts.read"},
 		namespace + "/entities/concepts/{concept_id}":                               {method: "get", operationID: "getConcept", driftAnchor: "data.v1.getConcept", scope: "data.concepts.read"},
@@ -60,6 +61,7 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/source-snapshot":                                              {method: "get", operationID: "getSourceSnapshot", driftAnchor: "data.v1.getSourceSnapshot", scope: "data.sources.read"},
 	}
 	additionalMethods := map[string]map[string]struct{}{
+		namespace + "/events":                                                       {"post": {}},
 		namespace + "/entities/countries":                                           {"post": {}},
 		namespace + "/entities/countries/{country_id}":                              {"put": {}},
 		namespace + "/entities/industries":                                          {"post": {}},
@@ -104,6 +106,40 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestOpenAPIContractFreezesCompanyProjectionSnapshot(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	operation := object(t, object(t, paths[namespace+"/entities/companies"], "Company projection path")["get"], "Company projection operation")
+	assertString(t, operation, "x-retry-policy", "safe-get-restart-from-first-page-on-snapshot-change")
+	assertInt(t, operation, "x-timeout-budget-ms", 5000)
+	assertStringSet(t, operation["x-error-codes"],
+		"INVALID_REQUEST", "COMPANY_PROJECTION_SNAPSHOT_CHANGED", "COMPANY_PROJECTION_TIMEOUT",
+		"COMPANY_PROJECTION_PERSISTENCE_FAILED", "COMPANY_PROJECTION_FAILED",
+	)
+	parameters := array(t, operation["parameters"], "Company projection parameters")
+	if len(parameters) != 3 || stringValue(t, object(t, parameters[2], "Company cursor parameter")["$ref"], "Company cursor ref") != "#/components/parameters/CompanyProjectionCursor" {
+		t.Fatalf("Company projection cursor parameter = %#v", parameters)
+	}
+	responses := object(t, operation["responses"], "Company projection responses")
+	for _, status := range []string{"200", "400", "401", "403", "409", "500", "503"} {
+		if _, exists := responses[status]; !exists {
+			t.Errorf("Company projection response %s is missing", status)
+		}
+	}
+	page := schema(t, document, "CompanyProjectionPage")
+	assertRequired(t, page, "schema_version", "snapshot_id", "items", "next_cursor")
+	properties := object(t, page["properties"], "CompanyProjectionPage properties")
+	assertStringSet(t, object(t, properties["schema_version"], "schema_version")["enum"], "company-projection-snapshot.v1")
+	assertString(t, object(t, properties["snapshot_id"], "snapshot_id"), "$ref", "#/components/schemas/PayloadHash")
+	company := schema(t, document, "CompanyProjectionItem")
+	assertRequired(t, company,
+		"id", "code", "name", "name_en", "legal_name", "aliases", "registration_country_id",
+		"operating_area", "headquarters_city", "founding_date", "ipo_date", "legal_form", "ownership_type",
+		"strategic_positioning", "description", "status", "created_at", "updated_at", "industry_links",
+	)
+	assertRequired(t, schema(t, document, "CompanyIndustryLink"), "id", "company_id", "industry_id", "created_at")
 }
 
 func TestOpenAPIContractFreezesSourceManagementAndSnapshot(t *testing.T) {
@@ -361,12 +397,25 @@ func TestOpenAPIContractFreezesCurrentEventReadContract(t *testing.T) {
 	}
 
 	event := schema(t, document, "AdminEvent")
-	assertRequired(t, event, "id", "title", "summary", "semantic", "modality", "occurred_at", "announced_at", "status")
+	assertRequired(t, event, "id", "title", "summary", "semantic", "status")
 	semantic := schema(t, document, "EventSemantic")
-	assertRequired(t, semantic, "who", "what", "when", "where", "why", "how")
+	assertRequired(t, semantic, "actors", "action", "objects", "stage", "modality", "time", "jurisdictions", "reason", "method", "metrics")
 	if semantic["additionalProperties"] != false {
 		t.Fatal("EventSemantic must reject additional properties")
 	}
+	eventTimeVariants := array(t, schema(t, document, "EventTime")["oneOf"], "EventTime oneOf")
+	if len(eventTimeVariants) != 2 {
+		t.Fatalf("EventTime oneOf = %d, want business and observed-only time", len(eventTimeVariants))
+	}
+	assertRequired(t, schema(t, document, "EventBusinessTime"), "occurred_at", "announced_at", "effective_at", "observed_at", "precision")
+	assertRequired(t, schema(t, document, "EventObservedTime"), "occurred_at", "announced_at", "effective_at", "observed_at", "precision")
+	assertRequired(t, schema(t, document, "EventLegacyTime"), "occurred_at", "announced_at", "effective_at", "precision")
+	publicationTime := schema(t, document, "EventPublicationTime")
+	publicationTimeVariants := array(t, publicationTime["oneOf"], "EventPublicationTime oneOf")
+	if len(publicationTimeVariants) != 2 {
+		t.Fatalf("EventPublicationTime oneOf = %d, want canonical and legacy time", len(publicationTimeVariants))
+	}
+	assertRequired(t, schema(t, document, "EventMetric"), "name", "value", "unit", "change", "period")
 	assertStringSet(t, schema(t, document, "EventModality")["enum"], "FACT", "PLAN", "SPEC")
 	assertStringSet(t, schema(t, document, "EventLifecycleStatus")["enum"], "ACTIVE", "DEPRECATED", "ARCHIVED")
 

@@ -6,12 +6,36 @@ export interface PagedResponse<T> {
 }
 
 export interface EventSemantic {
-  who: string | null;
-  what: string | null;
-  when: string | null;
-  where: string | null;
-  why: string | null;
-  how: string | null;
+  actors: string[];
+  action: string;
+  objects: string[];
+  stage:
+    | 'OCCURRED'
+    | 'ANNOUNCED'
+    | 'EFFECTIVE'
+    | 'IMPLEMENTED'
+    | 'UPDATED'
+    | 'SUSPENDED'
+    | 'TERMINATED'
+    | 'EXPECTED';
+  modality: 'FACT' | 'PLAN' | 'SPEC';
+  time: {
+    occurred_at: string | null;
+    announced_at: string | null;
+    effective_at: string | null;
+    observed_at: string | null;
+    precision: 'INSTANT' | 'DAY' | 'RANGE' | 'MONTH' | 'QUARTER' | 'YEAR' | 'UNKNOWN';
+  };
+  jurisdictions: string[];
+  reason: string | null;
+  method: string | null;
+  metrics: Array<{
+    name: string;
+    value: string | null;
+    unit: string | null;
+    change: string | null;
+    period: string | null;
+  }>;
 }
 
 export interface EventItem {
@@ -19,9 +43,6 @@ export interface EventItem {
   title: string;
   summary: string;
   semantic: EventSemantic;
-  modality: 'FACT' | 'PLAN' | 'SPEC';
-  occurred_at: string | null;
-  announced_at: string | null;
   status: 'ACTIVE' | 'DEPRECATED' | 'ARCHIVED';
 }
 
@@ -65,12 +86,39 @@ export interface EvidenceItem {
 }
 
 export interface EvidenceSemantic {
-  who: string | null;
-  what: string;
-  when: string | null;
-  where: string | null;
-  why: string | null;
-  how: string | null;
+  actors: string[];
+  action: string;
+  objects: string[];
+  stage:
+    | 'OCCURRED'
+    | 'ANNOUNCED'
+    | 'EFFECTIVE'
+    | 'IMPLEMENTED'
+    | 'UPDATED'
+    | 'SUSPENDED'
+    | 'TERMINATED'
+    | 'EXPECTED';
+  modality: 'FACT' | 'PLAN' | 'SPEC';
+  time: {
+    raw: string | null;
+    start_at: string | null;
+    end_at: string | null;
+    precision: 'INSTANT' | 'DAY' | 'RANGE' | 'MONTH' | 'QUARTER' | 'YEAR' | 'UNKNOWN';
+  };
+  jurisdictions: string[];
+  reason: string | null;
+  method: string | null;
+  metrics: Array<{
+    name: string;
+    value: string | null;
+    unit: string | null;
+    change: string | null;
+    period: string | null;
+  }>;
+  attribution: {
+    reported_by: string | null;
+    claimed_by: string | null;
+  };
 }
 
 export interface EvidenceQuery {
@@ -122,6 +170,13 @@ const utcTimestamp = z
   .refine((value) => value.endsWith('Z') && !Number.isNaN(Date.parse(value)));
 const domainUUID = '[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
 const sourceLevelSchema = z.enum(['L1_OFFICIAL', 'L2_WIRE', 'L3_MEDIA', 'L4_SOCIAL']);
+const nonBlankString = z
+  .string()
+  .min(1)
+  .refine((value) => value.trim().length > 0);
+const uniqueNonEmptyStrings = z
+  .array(nonBlankString)
+  .refine((values) => new Set(values).size === values.length);
 const evidenceCategorySchema: z.ZodType<EvidenceCategory> = z
   .object({
     id: z.string().regex(new RegExp(`^EVC${domainUUID}$`)),
@@ -137,17 +192,56 @@ const eventItemSchema: z.ZodType<EventItem> = z
     summary: z.string().min(1),
     semantic: z
       .object({
-        who: z.string().nullable(),
-        what: z.string().nullable(),
-        when: z.string().nullable(),
-        where: z.string().nullable(),
-        why: z.string().nullable(),
-        how: z.string().nullable()
+        actors: uniqueNonEmptyStrings.min(1),
+        action: nonBlankString,
+        objects: uniqueNonEmptyStrings.min(1),
+        stage: z.enum([
+          'OCCURRED',
+          'ANNOUNCED',
+          'EFFECTIVE',
+          'IMPLEMENTED',
+          'UPDATED',
+          'SUSPENDED',
+          'TERMINATED',
+          'EXPECTED'
+        ]),
+        modality: z.enum(['FACT', 'PLAN', 'SPEC']),
+        time: z
+          .object({
+            occurred_at: utcTimestamp.nullable(),
+            announced_at: utcTimestamp.nullable(),
+            effective_at: utcTimestamp.nullable(),
+            observed_at: utcTimestamp.nullable(),
+            precision: z.enum(['INSTANT', 'DAY', 'RANGE', 'MONTH', 'QUARTER', 'YEAR', 'UNKNOWN'])
+          })
+          .strict()
+          .refine((value) => {
+            const hasBusinessTime =
+              value.occurred_at !== null ||
+              value.announced_at !== null ||
+              value.effective_at !== null;
+            return hasBusinessTime !== (value.observed_at !== null);
+          }, 'Event requires either business time or observed time, but not both'),
+        jurisdictions: uniqueNonEmptyStrings,
+        reason: z.string().nullable(),
+        method: z.string().nullable(),
+        metrics: z.array(
+          z
+            .object({
+              name: nonBlankString,
+              value: z.string().nullable(),
+              unit: z.string().nullable(),
+              change: z.string().nullable(),
+              period: z.string().nullable()
+            })
+            .strict()
+            .refine(
+              (value) => value.value !== null || value.change !== null,
+              'Event metric requires value or change'
+            )
+        )
       })
       .strict(),
-    modality: z.enum(['FACT', 'PLAN', 'SPEC']),
-    occurred_at: utcTimestamp.nullable(),
-    announced_at: utcTimestamp.nullable(),
     status: z.enum(['ACTIVE', 'DEPRECATED', 'ARCHIVED'])
   })
   .strict();
@@ -159,12 +253,49 @@ const evidenceItemSchema: z.ZodType<EvidenceItem> = z
     summary: z.string().min(1),
     semantic: z
       .object({
-        who: z.string().min(1).nullable(),
-        what: z.string().min(1),
-        when: z.string().min(1).nullable(),
-        where: z.string().min(1).nullable(),
-        why: z.string().min(1).nullable(),
-        how: z.string().min(1).nullable()
+        actors: uniqueNonEmptyStrings.min(1).max(20),
+        action: z.string().min(1).max(200),
+        objects: uniqueNonEmptyStrings.min(1).max(20),
+        stage: z.enum([
+          'OCCURRED',
+          'ANNOUNCED',
+          'EFFECTIVE',
+          'IMPLEMENTED',
+          'UPDATED',
+          'SUSPENDED',
+          'TERMINATED',
+          'EXPECTED'
+        ]),
+        modality: z.enum(['FACT', 'PLAN', 'SPEC']),
+        time: z
+          .object({
+            raw: z.string().min(1).max(200).nullable(),
+            start_at: utcTimestamp.nullable(),
+            end_at: utcTimestamp.nullable(),
+            precision: z.enum(['INSTANT', 'DAY', 'RANGE', 'MONTH', 'QUARTER', 'YEAR', 'UNKNOWN'])
+          })
+          .strict(),
+        jurisdictions: uniqueNonEmptyStrings.max(20),
+        reason: z.string().min(1).max(500).nullable(),
+        method: z.string().min(1).max(500).nullable(),
+        metrics: z.array(
+          z
+            .object({
+              name: z.string().min(1).max(100),
+              value: z.string().min(1).max(100).nullable(),
+              unit: z.string().min(1).max(50).nullable(),
+              change: z.string().min(1).max(100).nullable(),
+              period: z.string().min(1).max(100).nullable()
+            })
+            .strict()
+            .refine((metric) => metric.value !== null || metric.change !== null)
+        ),
+        attribution: z
+          .object({
+            reported_by: z.string().min(1).max(100).nullable(),
+            claimed_by: z.string().min(1).max(100).nullable()
+          })
+          .strict()
       })
       .strict(),
     categories: z.array(evidenceCategorySchema),
@@ -177,7 +308,7 @@ const evidenceItemSchema: z.ZodType<EvidenceItem> = z
       .refine((value) => /^https?:\/\//.test(value)),
     is_original: z.boolean(),
     quoted_source_name: z.string().min(1).nullable(),
-    keywords: z.array(z.string()),
+    keywords: z.array(z.string().min(1).max(6)).min(1).max(5),
     is_split: z.boolean(),
     published_at: utcTimestamp.nullable(),
     collected_at: utcTimestamp

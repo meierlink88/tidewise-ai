@@ -62,26 +62,21 @@ func (t *transaction) LockIdentities(ctx context.Context, identities []string) e
 
 func (t *transaction) RawEvidence(ctx context.Context, id string) (*evidencebiz.StoredRawEvidence, error) {
 	var record evidencebiz.StoredRawEvidence
-	var keywordsJSON []byte
 	err := t.tx.QueryRowContext(ctx, `
 SELECT id, source_id, source_name, source_level, source_url, is_original,
        quoted_source_id, quoted_source_name, title, raw_text, published_at, collected_at,
-       content_hash, array_to_json(keywords)
+       content_hash
 FROM raw_evidences
 WHERE id = $1`, id).Scan(
 		&record.ID, &record.SourceID, &record.SourceName, &record.SourceLevel,
 		&record.SourceURL, &record.IsOriginal, &record.QuotedSourceID, &record.QuotedSourceName,
-		&record.Title, &record.RawText, &record.PublishedAt, &record.CollectedAt,
-		&record.ContentHash, &keywordsJSON,
+		&record.Title, &record.RawText, &record.PublishedAt, &record.CollectedAt, &record.ContentHash,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("read Raw Evidence: %w", err)
-	}
-	if err := json.Unmarshal(keywordsJSON, &record.Keywords); err != nil {
-		return nil, fmt.Errorf("decode Raw Evidence keywords: %w", err)
 	}
 	if err := validateStoredRawEvidenceBase(&record, id); err != nil {
 		return nil, fmt.Errorf("read Raw Evidence invariant: %w", err)
@@ -144,11 +139,11 @@ func (t *transaction) InsertRawEvidence(ctx context.Context, record evidencebiz.
 	_, err := t.tx.ExecContext(ctx, `
 INSERT INTO raw_evidences (
     id, source_id, source_name, source_level, source_url, is_original,
-    quoted_source_id, quoted_source_name, title, raw_text, published_at, collected_at, keywords
-) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+    quoted_source_id, quoted_source_name, title, raw_text, published_at, collected_at
+) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
 		record.ID, record.SourceID, record.SourceName, record.SourceLevel,
 		record.SourceURL, record.IsOriginal, record.QuotedSourceID, record.QuotedSourceName,
-		record.Title, record.RawText, record.PublishedAt, record.CollectedAt, record.Keywords,
+		record.Title, record.RawText, record.PublishedAt, record.CollectedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("insert Raw Evidence: %w", err)
@@ -217,7 +212,7 @@ func (t *transaction) EvidencesByIDs(ctx context.Context, ids []string) ([]evide
 }
 
 const evidenceSelect = `
-SELECT id, raw_evidence_id, is_split, summary, semantic
+SELECT id, raw_evidence_id, is_split, summary, array_to_json(keywords), semantic
 FROM evidences`
 
 type evidenceRows interface {
@@ -231,13 +226,17 @@ func scanEvidences(rows evidenceRows) ([]evidencebiz.StoredEvidence, error) {
 	for rows.Next() {
 		var record evidencebiz.StoredEvidence
 		var semanticJSON []byte
+		var keywordsJSON []byte
 		if err := rows.Scan(
-			&record.ID, &record.RawEvidenceID, &record.IsSplit, &record.Summary, &semanticJSON,
+			&record.ID, &record.RawEvidenceID, &record.IsSplit, &record.Summary, &keywordsJSON, &semanticJSON,
 		); err != nil {
 			return nil, fmt.Errorf("scan Evidence: %w", err)
 		}
 		if err := decodeStoredSemantic(semanticJSON, &record.Semantic); err != nil {
 			return nil, fmt.Errorf("decode Evidence semantic: %w", err)
+		}
+		if err := json.Unmarshal(keywordsJSON, &record.Keywords); err != nil || record.Keywords == nil {
+			return nil, errors.New("decode Evidence keywords: value is not an array")
 		}
 		if err := validateStoredEvidence(&record); err != nil {
 			return nil, fmt.Errorf("read Evidence row invariant: %w", err)
@@ -257,9 +256,9 @@ func (t *transaction) InsertEvidence(ctx context.Context, record evidencebiz.Sto
 	}
 	_, err = t.tx.ExecContext(ctx, `
 INSERT INTO evidences (
-    id, raw_evidence_id, is_split, summary, semantic
-) VALUES ($1,$2,$3,$4,$5)`,
-		record.ID, record.RawEvidenceID, record.IsSplit, record.Summary, semanticJSON,
+    id, raw_evidence_id, is_split, summary, keywords, semantic
+) VALUES ($1,$2,$3,$4,$5,$6)`,
+		record.ID, record.RawEvidenceID, record.IsSplit, record.Summary, record.Keywords, semanticJSON,
 	)
 	if err != nil {
 		return fmt.Errorf("insert Evidence: %w", err)
@@ -272,9 +271,9 @@ func decodeStoredSemantic(value []byte, target *evidencebiz.Semantic) error {
 	if err := json.Unmarshal(value, &fields); err != nil {
 		return err
 	}
-	required := [...]string{"who", "what", "when", "where", "why", "how"}
+	required := [...]string{"actors", "action", "objects", "stage", "modality", "time", "jurisdictions", "reason", "method", "metrics", "attribution"}
 	if len(fields) != len(required) {
-		return errors.New("semantic must contain exactly the six 5W1H fields")
+		return errors.New("semantic must contain exactly the business proposition fields")
 	}
 	for _, field := range required {
 		if _, ok := fields[field]; !ok {

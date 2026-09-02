@@ -13,6 +13,7 @@ import (
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	entitybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity"
 	chainnodebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/chainnode"
+	companybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/company"
 	conceptbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/concept"
 	countrybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/country"
 	industrybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/industry"
@@ -28,6 +29,7 @@ import (
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/dbmigration"
 	entitydata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity"
 	chainnodedata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/chainnode"
+	companydata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/company"
 	conceptdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/concept"
 	countrydata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/country"
 	industrydata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/industry"
@@ -39,6 +41,7 @@ import (
 	sourcedata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/source"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/server"
 	chainnodeservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/chainnode"
+	companyservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/company"
 	conceptservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/concept"
 	countryservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/country"
 	industryservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/industry"
@@ -159,6 +162,14 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Source use case: %w", err))
 	}
+	companyStore, err := companydata.NewStore(db)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Company store: %w", err))
+	}
+	companyUseCase, err := companybiz.NewProjectionUseCase(companyStore)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Company projection use case: %w", err))
+	}
 	researchStore, err := researchdata.NewStore(db)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Research store: %w", err))
@@ -217,7 +228,11 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Source API service: %w", err))
 	}
-	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, evidenceApplication, countryApplication, industryApplication, conceptApplication, chainNodeApplication, industryChainApplication, organizationApplication, sourceApplication, authenticator, logger)
+	companyApplication, err := companyservice.NewService(companyUseCase)
+	if err != nil {
+		return nil, nil, closeBuildResources(fmt.Errorf("configure Company projection API service: %w", err))
+	}
+	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, evidenceApplication, countryApplication, industryApplication, conceptApplication, chainNodeApplication, industryChainApplication, organizationApplication, sourceApplication, companyApplication, authenticator, logger)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure HTTP server: %w", err))
 	}
@@ -239,6 +254,7 @@ func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 				server.ScopeResearchImport,
 				server.ScopeResearchRead,
 				server.ScopeAdminRead,
+				server.ScopeEventPublish,
 				server.ScopeCountryRead,
 				server.ScopeCountryWrite,
 				server.ScopeIndustryRead,
@@ -253,6 +269,7 @@ func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 				server.ScopeOrganizationWrite,
 				server.ScopeSourceRead,
 				server.ScopeSourceWrite,
+				server.ScopeCompanyRead,
 			}},
 		},
 	}

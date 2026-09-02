@@ -258,8 +258,24 @@ func evidence(value biz.Evidence) v1.Evidence {
 	for _, category := range value.Categories {
 		categories = append(categories, evidenceCategory(category))
 	}
+	metrics := make([]v1.EvidenceMetric, 0, len(value.Semantic.Metrics))
+	for _, metric := range value.Semantic.Metrics {
+		metrics = append(metrics, v1.EvidenceMetric{Name: metric.Name, Value: metric.Value, Unit: metric.Unit, Change: metric.Change, Period: metric.Period})
+	}
+	semanticTime := v1.EvidenceTime{Raw: value.Semantic.Time.Raw, Precision: value.Semantic.Time.Precision}
+	if value.Semantic.Time.StartAt != nil {
+		formatted := value.Semantic.Time.StartAt.UTC().Format(time.RFC3339Nano)
+		semanticTime.StartAt = &formatted
+	}
+	if value.Semantic.Time.EndAt != nil {
+		formatted := value.Semantic.Time.EndAt.UTC().Format(time.RFC3339Nano)
+		semanticTime.EndAt = &formatted
+	}
 	response := v1.Evidence{ID: value.ID, RawEvidenceID: value.RawEvidenceID, Title: value.Title, Summary: value.Summary,
-		Semantic:   v1.EvidenceSemantic{Who: value.Semantic.Who, What: value.Semantic.What, When: value.Semantic.When, Where: value.Semantic.Where, Why: value.Semantic.Why, How: value.Semantic.How},
+		Semantic: v1.EvidenceSemantic{Actors: append([]string{}, value.Semantic.Actors...), Action: value.Semantic.Action,
+			Objects: append([]string{}, value.Semantic.Objects...), Stage: value.Semantic.Stage, Modality: value.Semantic.Modality,
+			Time: semanticTime, Jurisdictions: append([]string{}, value.Semantic.Jurisdictions...), Reason: value.Semantic.Reason,
+			Method: value.Semantic.Method, Metrics: metrics, Attribution: v1.EvidenceAttribution{ReportedBy: value.Semantic.Attribution.ReportedBy, ClaimedBy: value.Semantic.Attribution.ClaimedBy}},
 		Categories: categories, SourceID: value.SourceID, SourceName: value.SourceName, SourceLevel: value.SourceLevel, SourceURL: value.SourceURL,
 		IsOriginal: value.IsOriginal, QuotedSourceName: value.QuotedSourceName, Keywords: append([]string{}, value.Keywords...), IsSplit: value.IsSplit,
 		CollectedAt: value.CollectedAt.UTC().Format(time.RFC3339Nano)}
@@ -327,21 +343,38 @@ func invalidRequest(message string) error {
 }
 
 func event(value biz.Event) v1.Event {
+	metrics := make([]v1.EventMetric, len(value.Semantic.Metrics))
+	for index, metric := range value.Semantic.Metrics {
+		metrics[index] = v1.EventMetric{Name: metric.Name, Value: metric.Value, Unit: metric.Unit,
+			Change: metric.Change, Period: metric.Period}
+	}
 	response := v1.Event{
 		ID: value.ID, Title: value.Title, Summary: value.Summary,
 		Semantic: v1.EventSemantic{
-			Who: value.Semantic.Who, What: value.Semantic.What, When: value.Semantic.When,
-			Where: value.Semantic.Where, Why: value.Semantic.Why, How: value.Semantic.How,
+			Actors: append([]string{}, value.Semantic.Actors...), Action: value.Semantic.Action,
+			Objects: append([]string{}, value.Semantic.Objects...), Stage: string(value.Semantic.Stage),
+			Modality:      string(value.Semantic.Modality),
+			Time:          v1.EventTime{Precision: string(value.Semantic.Time.Precision)},
+			Jurisdictions: append([]string{}, value.Semantic.Jurisdictions...), Reason: value.Semantic.Reason,
+			Method: value.Semantic.Method, Metrics: metrics,
 		},
-		Modality: string(value.Modality), Status: string(value.Status),
+		Status: string(value.Status),
 	}
-	if value.OccurredAt != nil {
-		formatted := value.OccurredAt.Format(time.RFC3339)
-		response.OccurredAt = &formatted
+	if value.Semantic.Time.EffectiveAt != nil {
+		formatted := value.Semantic.Time.EffectiveAt.Format(time.RFC3339)
+		response.Semantic.Time.EffectiveAt = &formatted
 	}
-	if value.AnnouncedAt != nil {
-		formatted := value.AnnouncedAt.Format(time.RFC3339)
-		response.AnnouncedAt = &formatted
+	if value.Semantic.Time.OccurredAt != nil {
+		formatted := value.Semantic.Time.OccurredAt.Format(time.RFC3339)
+		response.Semantic.Time.OccurredAt = &formatted
+	}
+	if value.Semantic.Time.AnnouncedAt != nil {
+		formatted := value.Semantic.Time.AnnouncedAt.Format(time.RFC3339)
+		response.Semantic.Time.AnnouncedAt = &formatted
+	}
+	if value.Semantic.Time.ObservedAt != nil {
+		formatted := value.Semantic.Time.ObservedAt.Format(time.RFC3339)
+		response.Semantic.Time.ObservedAt = &formatted
 	}
 	return response
 }

@@ -115,13 +115,18 @@ func TestPostgresSnapshotPublicationWorksOnCurrentSchema(t *testing.T) {
 		PublicationKey: "research-snapshot-ledger", SourceID: "SRC_research_snapshot", SourceName: "Research Source",
 		SourceLevel: evidencebiz.SourceLevelOfficial, SourceURL: "https://example.test/research", IsOriginal: true,
 		RawText: "Research snapshot source.", PublishedAt: &publishedAt, CollectedAt: publishedAt.Add(time.Minute),
-		Keywords: []string{"research"},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	evidence, err := evidenceUseCase.PublishEvidence(ctx, raw.ID, []evidencebiz.Evidence{{
-		Summary: "Research snapshot evidence.", Semantic: evidencebiz.Semantic{What: "supports a Research snapshot"},
+		Summary: "Research snapshot evidence.", Keywords: []string{"研究快照"},
+		Semantic: evidencebiz.Semantic{
+			Actors: []string{"Research Source"}, Action: "supports", Objects: []string{"Research snapshot"},
+			Stage: evidencebiz.EvidenceStageOccurred, Modality: evidencebiz.EvidenceModalityFact,
+			Time: evidencebiz.EvidenceTime{Precision: evidencebiz.EvidenceTimeUnknown}, Jurisdictions: []string{}, Metrics: []evidencebiz.EvidenceMetric{},
+			Attribution: &evidencebiz.EvidenceAttribution{},
+		},
 	}})
 	if err != nil {
 		t.Fatal(err)
@@ -135,8 +140,17 @@ func TestPostgresSnapshotPublicationWorksOnCurrentSchema(t *testing.T) {
 		t.Fatal(err)
 	}
 	event, err := eventUseCase.Create(ctx, eventbiz.CreateInput{
-		Title: "Snapshot Event", Summary: "Snapshot Event summary.", Semantic: eventbiz.Semantic{},
-		Modality: eventbiz.ModalityFact,
+		Title: "Snapshot Event", Summary: "Snapshot Event summary.",
+		Semantic: eventbiz.Semantic{
+			Actors:        []string{"Research actor"},
+			Action:        "publishes",
+			Objects:       []string{"Research snapshot"},
+			Stage:         eventbiz.EventStageOccurred,
+			Modality:      eventbiz.ModalityFact,
+			Time:          eventbiz.EventTime{OccurredAt: &publishedAt, Precision: eventbiz.TimePrecisionDay},
+			Jurisdictions: []string{},
+			Metrics:       []eventbiz.Metric{},
+		},
 		Evidence: []eventbiz.EvidenceLinkInput{{EvidenceID: evidence.IDs[0], ContributionWeight: 1}},
 	})
 	if err != nil {

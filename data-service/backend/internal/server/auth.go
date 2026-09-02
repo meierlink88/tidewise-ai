@@ -12,6 +12,7 @@ import (
 
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	chainnodeapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/chainnode"
+	companyapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/company"
 	conceptapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/concept"
 	countryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/country"
 	industryapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/industry"
@@ -28,6 +29,7 @@ const (
 	ScopeResearchRead         = "data.research.read"
 	ScopeResearchImport       = "data.research.import"
 	ScopeAdminRead            = "data.admin.read"
+	ScopeEventPublish         = "data.events.publish"
 	ScopeRawEvidenceImport    = "data.raw-evidences.import"
 	ScopeRawEvidenceRead      = "data.raw-evidences.read"
 	ScopeEvidenceImport       = "data.evidences.import"
@@ -46,6 +48,7 @@ const (
 	ScopeOrganizationWrite    = "data.organizations.write"
 	ScopeSourceRead           = "data.sources.read"
 	ScopeSourceWrite          = "data.sources.write"
+	ScopeCompanyRead          = "data.companies.read"
 	operationHealth           = "data.health"
 	operationReady            = "data.ready"
 )
@@ -134,6 +137,8 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeEvidenceCategoryRead, true
 	case researchapi.OperationPublishResearchTheme:
 		return ScopeResearchImport, true
+	case eventapi.OperationPublishEvent:
+		return ScopeEventPublish, true
 	case researchapi.OperationListResearchThemes, researchapi.OperationGetResearchTheme,
 		researchapi.OperationListResearchThemeReasoningTrees, researchapi.OperationGetResearchThemeReasoningTree,
 		researchapi.OperationSearchResearchGraph:
@@ -169,6 +174,8 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeSourceRead, true
 	case sourceapi.OperationCreate, sourceapi.OperationUpdate, sourceapi.OperationDelete:
 		return ScopeSourceWrite, true
+	case companyapi.OperationList:
+		return ScopeCompanyRead, true
 	default:
 		return "", false
 	}

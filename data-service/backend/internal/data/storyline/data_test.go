@@ -474,22 +474,34 @@ func createStorylineTestEvent(
 		PublicationKey: "storyline-" + key, SourceID: "SRC_storyline_test", SourceName: "Storyline Test",
 		SourceLevel: evidencebiz.SourceLevelWire, SourceURL: "https://example.test/storyline/" + key,
 		IsOriginal: true, RawText: "Storyline event " + key, PublishedAt: &publishedAt,
-		CollectedAt: publishedAt.Add(time.Minute), Keywords: []string{"storyline"},
+		CollectedAt: publishedAt.Add(time.Minute),
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	evidence, err := evidenceUseCase.PublishEvidence(context.Background(), raw.ID, []evidencebiz.Evidence{{
-		Summary:  "Storyline event " + key,
-		Semantic: evidencebiz.Semantic{Who: stringPointer("测试主体"), What: "发生测试事件"},
+		Summary: "Storyline event " + key, Keywords: []string{"测试事件"},
+		Semantic: evidencebiz.Semantic{
+			Actors: []string{"测试主体"}, Action: "发生", Objects: []string{"测试事件"},
+			Stage: evidencebiz.EvidenceStageOccurred, Modality: evidencebiz.EvidenceModalityFact,
+			Time: evidencebiz.EvidenceTime{Precision: evidencebiz.EvidenceTimeUnknown}, Jurisdictions: []string{}, Metrics: []evidencebiz.EvidenceMetric{},
+		},
 	}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	created, err := useCase.Create(context.Background(), eventbiz.CreateInput{
 		Title: "Storyline event " + key, Summary: "Storyline event summary " + key,
-		Semantic: eventbiz.Semantic{}, Modality: eventbiz.ModalityFact,
-		OccurredAt: occurredAt, AnnouncedAt: announcedAt,
+		Semantic: eventbiz.Semantic{
+			Actors:        []string{"测试主体"},
+			Action:        "发生",
+			Objects:       []string{"测试事件"},
+			Stage:         eventbiz.EventStageOccurred,
+			Modality:      eventbiz.ModalityFact,
+			Time:          eventbiz.EventTime{OccurredAt: occurredAt, AnnouncedAt: announcedAt, Precision: eventbiz.TimePrecisionDay},
+			Jurisdictions: []string{},
+			Metrics:       []eventbiz.Metric{},
+		},
 		Evidence: []eventbiz.EvidenceLinkInput{{EvidenceID: evidence.IDs[0], ContributionWeight: 1}},
 	})
 	if err != nil {

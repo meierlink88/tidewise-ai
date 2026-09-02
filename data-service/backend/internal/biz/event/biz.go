@@ -2,6 +2,9 @@ package event
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -13,6 +16,7 @@ import (
 )
 
 type Store interface {
+	PublicationStore
 	CreateEvent(context.Context, Aggregate) error
 	EventByID(context.Context, string) (Aggregate, error)
 	ListEvents(context.Context, EventListFilter) (EventStorePage, error)
@@ -43,24 +47,67 @@ const (
 	LifecycleStatusArchived   LifecycleStatus = "ARCHIVED"
 )
 
+type EventStage string
+
+const (
+	EventStageOccurred    EventStage = "OCCURRED"
+	EventStageAnnounced   EventStage = "ANNOUNCED"
+	EventStageEffective   EventStage = "EFFECTIVE"
+	EventStageImplemented EventStage = "IMPLEMENTED"
+	EventStageUpdated     EventStage = "UPDATED"
+	EventStageSuspended   EventStage = "SUSPENDED"
+	EventStageTerminated  EventStage = "TERMINATED"
+	EventStageExpected    EventStage = "EXPECTED"
+)
+
+type TimePrecision string
+
+const (
+	TimePrecisionInstant TimePrecision = "INSTANT"
+	TimePrecisionDay     TimePrecision = "DAY"
+	TimePrecisionRange   TimePrecision = "RANGE"
+	TimePrecisionMonth   TimePrecision = "MONTH"
+	TimePrecisionQuarter TimePrecision = "QUARTER"
+	TimePrecisionYear    TimePrecision = "YEAR"
+	TimePrecisionUnknown TimePrecision = "UNKNOWN"
+)
+
+// Semantic is the canonical business proposition for one real-world Event.
 type Semantic struct {
-	Who   *string `json:"who"`
-	What  *string `json:"what"`
-	When  *string `json:"when"`
-	Where *string `json:"where"`
-	Why   *string `json:"why"`
-	How   *string `json:"how"`
+	Actors        []string   `json:"actors"`
+	Action        string     `json:"action"`
+	Objects       []string   `json:"objects"`
+	Stage         EventStage `json:"stage"`
+	Modality      Modality   `json:"modality"`
+	Time          EventTime  `json:"time"`
+	Jurisdictions []string   `json:"jurisdictions"`
+	Reason        *string    `json:"reason"`
+	Method        *string    `json:"method"`
+	Metrics       []Metric   `json:"metrics"`
+}
+
+type EventTime struct {
+	OccurredAt  *time.Time    `json:"occurred_at"`
+	AnnouncedAt *time.Time    `json:"announced_at"`
+	EffectiveAt *time.Time    `json:"effective_at"`
+	ObservedAt  *time.Time    `json:"observed_at,omitempty"`
+	Precision   TimePrecision `json:"precision"`
+}
+
+type Metric struct {
+	Name   string  `json:"name"`
+	Value  *string `json:"value"`
+	Unit   *string `json:"unit"`
+	Change *string `json:"change"`
+	Period *string `json:"period"`
 }
 
 type Event struct {
-	ID          string
-	Title       string
-	Summary     string
-	Semantic    Semantic
-	Modality    Modality
-	OccurredAt  *time.Time
-	AnnouncedAt *time.Time
-	Status      LifecycleStatus
+	ID       string
+	Title    string
+	Summary  string
+	Semantic Semantic
+	Status   LifecycleStatus
 }
 
 type EvidenceLink struct {
@@ -160,16 +207,115 @@ type AssetLinkInput struct {
 }
 
 type CreateInput struct {
-	Title       string
-	Summary     string
-	Semantic    Semantic
-	Modality    Modality
-	OccurredAt  *time.Time
-	AnnouncedAt *time.Time
-	Status      LifecycleStatus
-	Evidence    []EvidenceLinkInput
-	Actors      []ActorLinkInput
-	Assets      []AssetLinkInput
+	Title    string
+	Summary  string
+	Semantic Semantic
+	Status   LifecycleStatus
+	Evidence []EvidenceLinkInput
+	Actors   []ActorLinkInput
+	Assets   []AssetLinkInput
+}
+
+type PublicationReceipt struct {
+	ID, PublisherSubject, PublicationKey, PayloadHash, EventID string
+	PublishedAt                                                time.Time
+}
+
+type PublicationResult struct {
+	Event       Event
+	Evidence    []EvidenceLink
+	ReceiptID   string
+	PayloadHash string
+	Replayed    bool
+}
+
+var ErrPublicationPayloadConflict = errors.New("Event publication key conflicts with another payload")
+
+// Publish atomically persists an Event and its initial Evidence links. Replays
+// return the original Event and never create another Event or Evidence link.
+func (s *UseCase) Publish(ctx context.Context, publisher, publicationKey string, input CreateInput) (PublicationResult, error) {
+	if s == nil || s.store == nil {
+		return PublicationResult{}, errors.New("Event store is required")
+	}
+	publisher, publicationKey = strings.TrimSpace(publisher), strings.TrimSpace(publicationKey)
+	if publisher == "" || utf8.RuneCountInString(publisher) > 200 {
+		return PublicationResult{}, invalidEvent("publisher subject must contain 1..200 characters")
+	}
+	if publicationKey == "" || utf8.RuneCountInString(publicationKey) > 200 {
+		return PublicationResult{}, invalidEvent("publication key must contain 1..200 characters")
+	}
+	if input.Status == "" {
+		input.Status = LifecycleStatusActive
+	}
+	if err := validateCreateInput(input); err != nil {
+		return PublicationResult{}, err
+	}
+	aggregate, err := buildAggregate(input)
+	if err != nil {
+		return PublicationResult{}, err
+	}
+	hashPayload := struct {
+		Input CreateInput `json:"event"`
+	}{Input: input}
+	encoded, err := json.Marshal(hashPayload)
+	if err != nil {
+		return PublicationResult{}, fmt.Errorf("encode Event publication hash input: %w", err)
+	}
+	digest := sha256.Sum256(encoded)
+	payloadHash := hex.EncodeToString(digest[:])
+	receiptID, err := coreid.New(coreid.EventPublicationReceipt)
+	if err != nil {
+		return PublicationResult{}, fmt.Errorf("generate Event publication receipt ID: %w", err)
+	}
+	receipt := PublicationReceipt{ID: receiptID, PublisherSubject: publisher, PublicationKey: publicationKey,
+		PayloadHash: payloadHash, EventID: aggregate.Event.ID, PublishedAt: time.Now().UTC().Truncate(time.Microsecond)}
+	stored := receipt
+	replayed := false
+	err = s.store.InEventPublicationTransaction(ctx, func(tx PublicationTransaction) error {
+		if err := tx.Lock(ctx, publisher+":"+publicationKey); err != nil {
+			return err
+		}
+		existing, err := tx.Receipt(ctx, publisher, publicationKey)
+		if err != nil {
+			return err
+		}
+		if existing != nil {
+			if existing.PayloadHash != payloadHash {
+				return ErrPublicationPayloadConflict
+			}
+			stored, replayed = *existing, true
+			return nil
+		}
+		evidenceIDs := make([]string, len(aggregate.Evidence))
+		for index, link := range aggregate.Evidence {
+			evidenceIDs[index] = link.EvidenceID
+		}
+		existingEvidenceIDs, err := tx.ExistingEvidenceIDs(ctx, evidenceIDs)
+		if err != nil {
+			return err
+		}
+		if len(existingEvidenceIDs) != len(evidenceIDs) {
+			return &ReferenceError{
+				Field:   "evidence_ids",
+				Message: "contains an Evidence identity that is not published",
+			}
+		}
+		if err := tx.InsertAggregate(ctx, aggregate); err != nil {
+			return err
+		}
+		return tx.InsertReceipt(ctx, receipt)
+	})
+	if err != nil {
+		return PublicationResult{}, err
+	}
+	if replayed {
+		aggregate, err = s.store.EventByID(ctx, stored.EventID)
+		if err != nil {
+			return PublicationResult{}, fmt.Errorf("read replayed Event: %w", err)
+		}
+	}
+	return PublicationResult{Event: aggregate.Event, Evidence: aggregate.Evidence, ReceiptID: stored.ID,
+		PayloadHash: stored.PayloadHash, Replayed: replayed}, nil
 }
 
 var ErrEventNotFound = errors.New("Event was not found")
@@ -184,54 +330,54 @@ func (s *UseCase) Create(ctx context.Context, input CreateInput) (Aggregate, err
 	if err := validateCreateInput(input); err != nil {
 		return Aggregate{}, err
 	}
-	eventID, err := coreid.New(coreid.Event)
+	aggregate, err := buildAggregate(input)
 	if err != nil {
-		return Aggregate{}, fmt.Errorf("generate Event ID: %w", err)
+		return Aggregate{}, err
 	}
-	aggregate := Aggregate{Event: Event{
-		ID: eventID, Title: input.Title, Summary: input.Summary, Semantic: input.Semantic,
-		Modality: input.Modality, OccurredAt: cloneTime(input.OccurredAt),
-		AnnouncedAt: cloneTime(input.AnnouncedAt), Status: input.Status,
-	}}
-	for _, item := range input.Evidence {
-		id, idErr := coreid.New(coreid.EventEvidenceLink)
-		if idErr != nil {
-			return Aggregate{}, fmt.Errorf("generate Event Evidence Link ID: %w", idErr)
-		}
-		aggregate.Evidence = append(aggregate.Evidence, EvidenceLink{
-			ID: id, EventID: eventID, EvidenceID: item.EvidenceID, ContributionWeight: item.ContributionWeight,
-		})
-	}
-	for _, item := range input.Actors {
-		id, idErr := coreid.New(coreid.EventActorLink)
-		if idErr != nil {
-			return Aggregate{}, fmt.Errorf("generate Event Actor Link ID: %w", idErr)
-		}
-		confidence := 0.70
-		if item.Confidence != nil {
-			confidence = *item.Confidence
-		}
-		aggregate.Actors = append(aggregate.Actors, ActorLink{
-			ID: id, EventID: eventID, ActorID: item.ActorID, ActorType: item.ActorType,
-			ActorName: cloneString(item.ActorName), RelationType: item.RelationType,
-			RelationStrength: cloneFloat(item.RelationStrength), Confidence: confidence,
-		})
-	}
-	for _, item := range input.Assets {
-		id, idErr := coreid.New(coreid.EventAssetLink)
-		if idErr != nil {
-			return Aggregate{}, fmt.Errorf("generate Event Asset Link ID: %w", idErr)
-		}
-		aggregate.Assets = append(aggregate.Assets, AssetLink{
-			ID: id, EventID: eventID, AssetID: item.AssetID, AssetType: item.AssetType,
-			AssetName: cloneString(item.AssetName), ImpactDirection: item.ImpactDirection,
-			ImpactMagnitude: cloneFloat(item.ImpactMagnitude),
-		})
-	}
+	eventID := aggregate.Event.ID
 	if err := s.store.CreateEvent(ctx, aggregate); err != nil {
 		return Aggregate{}, fmt.Errorf("create Event: %w", err)
 	}
 	return s.Get(ctx, eventID)
+}
+
+func buildAggregate(input CreateInput) (Aggregate, error) {
+	eventID, err := coreid.New(coreid.Event)
+	if err != nil {
+		return Aggregate{}, fmt.Errorf("generate Event ID: %w", err)
+	}
+	aggregate := Aggregate{Event: Event{ID: eventID, Title: input.Title, Summary: input.Summary,
+		Semantic: cloneSemantic(input.Semantic), Status: input.Status}}
+	for _, item := range input.Evidence {
+		linkID, idErr := coreid.New(coreid.EventEvidenceLink)
+		if idErr != nil {
+			return Aggregate{}, idErr
+		}
+		aggregate.Evidence = append(aggregate.Evidence, EvidenceLink{ID: linkID, EventID: eventID, EvidenceID: item.EvidenceID, ContributionWeight: item.ContributionWeight})
+	}
+	for _, item := range input.Actors {
+		linkID, idErr := coreid.New(coreid.EventActorLink)
+		if idErr != nil {
+			return Aggregate{}, idErr
+		}
+		confidence := .70
+		if item.Confidence != nil {
+			confidence = *item.Confidence
+		}
+		aggregate.Actors = append(aggregate.Actors, ActorLink{ID: linkID, EventID: eventID, ActorID: item.ActorID,
+			ActorType: item.ActorType, ActorName: cloneString(item.ActorName), RelationType: item.RelationType,
+			RelationStrength: cloneFloat(item.RelationStrength), Confidence: confidence})
+	}
+	for _, item := range input.Assets {
+		linkID, idErr := coreid.New(coreid.EventAssetLink)
+		if idErr != nil {
+			return Aggregate{}, idErr
+		}
+		aggregate.Assets = append(aggregate.Assets, AssetLink{ID: linkID, EventID: eventID, AssetID: item.AssetID,
+			AssetType: item.AssetType, AssetName: cloneString(item.AssetName), ImpactDirection: item.ImpactDirection,
+			ImpactMagnitude: cloneFloat(item.ImpactMagnitude)})
+	}
+	return aggregate, nil
 }
 
 func (s *UseCase) Get(ctx context.Context, eventID string) (Aggregate, error) {
@@ -279,27 +425,55 @@ func (s *UseCase) ListEvents(ctx context.Context, request EventListRequest) (Eve
 
 func validateCreateInput(input CreateInput) error {
 	if strings.TrimSpace(input.Title) == "" || utf8.RuneCountInString(input.Title) > 200 {
-		return errors.New("Event title is required and must contain at most 200 characters")
+		return invalidEvent("Event title is required and must contain at most 200 characters")
 	}
 	if strings.TrimSpace(input.Summary) == "" {
-		return errors.New("Event summary is required")
+		return invalidEvent("Event summary is required")
 	}
-	if !validStatus(input.Modality, ModalityFact, ModalityPlan, ModalitySpec) {
-		return errors.New("Event modality is invalid")
+	if len(input.Semantic.Actors) == 0 || len(input.Semantic.Objects) == 0 || strings.TrimSpace(input.Semantic.Action) == "" ||
+		input.Semantic.Jurisdictions == nil || input.Semantic.Metrics == nil ||
+		!validStatus(input.Semantic.Stage, EventStageOccurred, EventStageAnnounced, EventStageEffective, EventStageImplemented,
+			EventStageUpdated, EventStageSuspended, EventStageTerminated, EventStageExpected) ||
+		!validStatus(input.Semantic.Modality, ModalityFact, ModalityPlan, ModalitySpec) ||
+		!validStatus(input.Semantic.Time.Precision, TimePrecisionInstant, TimePrecisionDay, TimePrecisionRange,
+			TimePrecisionMonth, TimePrecisionQuarter, TimePrecisionYear, TimePrecisionUnknown) {
+		return invalidEvent("Event semantic identity is invalid")
+	}
+	for _, values := range [][]string{input.Semantic.Actors, input.Semantic.Objects, input.Semantic.Jurisdictions} {
+		seen := make(map[string]struct{}, len(values))
+		for _, value := range values {
+			if strings.TrimSpace(value) == "" {
+				return invalidEvent("Event semantic identity is invalid")
+			}
+			if _, duplicate := seen[value]; duplicate {
+				return invalidEvent("Event semantic identity is duplicated")
+			}
+			seen[value] = struct{}{}
+		}
+	}
+	businessTimePresent := input.Semantic.Time.OccurredAt != nil || input.Semantic.Time.AnnouncedAt != nil ||
+		input.Semantic.Time.EffectiveAt != nil
+	if businessTimePresent == (input.Semantic.Time.ObservedAt != nil) {
+		return invalidEvent("Event semantic requires either business time or observed time, but not both")
+	}
+	for _, metric := range input.Semantic.Metrics {
+		if strings.TrimSpace(metric.Name) == "" || metric.Value == nil && metric.Change == nil {
+			return invalidEvent("Event semantic metric is invalid")
+		}
 	}
 	if !validStatus(input.Status, LifecycleStatusActive, LifecycleStatusDeprecated, LifecycleStatusArchived) {
-		return errors.New("Event status is invalid")
+		return invalidEvent("Event status is invalid")
 	}
 	if len(input.Evidence) == 0 {
-		return errors.New("Event requires at least one Evidence Link")
+		return invalidEvent("Event requires at least one Evidence Link")
 	}
 	seenEvidence := make(map[string]struct{}, len(input.Evidence))
 	for _, link := range input.Evidence {
 		if !coreid.Is(link.EvidenceID, coreid.Evidence) || !validUnitInterval(link.ContributionWeight) {
-			return errors.New("Event Evidence Link is invalid")
+			return invalidEvent("Event Evidence Link is invalid")
 		}
 		if _, duplicate := seenEvidence[link.EvidenceID]; duplicate {
-			return errors.New("Event Evidence Link is duplicated")
+			return invalidEvent("Event Evidence Link is duplicated")
 		}
 		seenEvidence[link.EvidenceID] = struct{}{}
 	}
@@ -311,11 +485,11 @@ func validateCreateInput(input CreateInput) error {
 			(link.RelationStrength != nil && !validUnitInterval(*link.RelationStrength)) ||
 			(link.Confidence != nil && (!validUnitInterval(*link.Confidence) || *link.Confidence > 0.99)) ||
 			(link.ActorName != nil && utf8.RuneCountInString(*link.ActorName) > 200) {
-			return errors.New("Event Actor Link is invalid")
+			return invalidEvent("Event Actor Link is invalid")
 		}
 		key := link.ActorID + "\x00" + string(link.RelationType)
 		if _, duplicate := seenActors[key]; duplicate {
-			return errors.New("Event Actor Link is duplicated")
+			return invalidEvent("Event Actor Link is duplicated")
 		}
 		seenActors[key] = struct{}{}
 	}
@@ -326,10 +500,10 @@ func validateCreateInput(input CreateInput) error {
 			!validStatus(link.ImpactDirection, ImpactDirectionPositive, ImpactDirectionNegative, ImpactDirectionNeutral) ||
 			(link.ImpactMagnitude != nil && !validUnitInterval(*link.ImpactMagnitude)) ||
 			(link.AssetName != nil && utf8.RuneCountInString(*link.AssetName) > 200) {
-			return errors.New("Event Asset Link is invalid")
+			return invalidEvent("Event Asset Link is invalid")
 		}
 		if _, duplicate := seenAssets[link.AssetID]; duplicate {
-			return errors.New("Event Asset Link is duplicated")
+			return invalidEvent("Event Asset Link is duplicated")
 		}
 		seenAssets[link.AssetID] = struct{}{}
 	}
@@ -355,6 +529,35 @@ func cloneTime(value *time.Time) *time.Time {
 	}
 	copy := value.UTC()
 	return &copy
+}
+
+func cloneSemantic(value Semantic) Semantic {
+	return Semantic{Actors: cloneStrings(value.Actors), Action: value.Action,
+		Objects: cloneStrings(value.Objects), Stage: value.Stage, Modality: value.Modality,
+		Time: EventTime{OccurredAt: cloneTime(value.Time.OccurredAt), AnnouncedAt: cloneTime(value.Time.AnnouncedAt),
+			EffectiveAt: cloneTime(value.Time.EffectiveAt), ObservedAt: cloneTime(value.Time.ObservedAt),
+			Precision: value.Time.Precision},
+		Jurisdictions: cloneStrings(value.Jurisdictions), Reason: cloneString(value.Reason),
+		Method: cloneString(value.Method), Metrics: cloneMetrics(value.Metrics)}
+}
+
+func cloneMetrics(values []Metric) []Metric {
+	if values == nil {
+		return nil
+	}
+	result := make([]Metric, len(values))
+	for index, value := range values {
+		result[index] = Metric{Name: value.Name, Value: cloneString(value.Value), Unit: cloneString(value.Unit),
+			Change: cloneString(value.Change), Period: cloneString(value.Period)}
+	}
+	return result
+}
+
+func cloneStrings(values []string) []string {
+	if values == nil {
+		return nil
+	}
+	return append([]string{}, values...)
 }
 
 func cloneString(value *string) *string {

@@ -55,7 +55,7 @@ export default function EventTab({ token }: { token: string }) {
         headerClassName: 'w-[12%]',
         key: 'modality',
         header: '模态',
-        render: (item) => item.modality
+        render: (item) => item.semantic.modality
       },
       {
         headerClassName: 'w-[14%]',
@@ -79,13 +79,15 @@ export default function EventTab({ token }: { token: string }) {
         headerClassName: 'w-[20%]',
         key: 'occurred_at',
         header: '发生时间',
-        render: (item) => (item.occurred_at ? formatDateTime(item.occurred_at) : '-')
+        render: (item) =>
+          item.semantic.time.occurred_at ? formatDateTime(item.semantic.time.occurred_at) : '-'
       },
       {
         headerClassName: 'w-[20%]',
         key: 'announced_at',
         header: '公布时间',
-        render: (item) => (item.announced_at ? formatDateTime(item.announced_at) : '-')
+        render: (item) =>
+          item.semantic.time.announced_at ? formatDateTime(item.semantic.time.announced_at) : '-'
       }
     ],
     []

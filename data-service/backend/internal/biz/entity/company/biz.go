@@ -2,8 +2,12 @@ package company
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -12,10 +16,15 @@ import (
 )
 
 var (
-	ErrNotFound    = errors.New("Company not found")
-	ErrConflict    = errors.New("Company conflict")
-	ErrPersistence = errors.New("Company persistence failed")
+	ErrNotFound                  = errors.New("Company not found")
+	ErrConflict                  = errors.New("Company conflict")
+	ErrPersistence               = errors.New("Company persistence failed")
+	ErrProjectionSnapshotChanged = errors.New("Company projection snapshot changed")
 )
+
+const ProjectionSchemaVersion = "company-projection-snapshot.v1"
+
+var projectionSnapshotIDPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 type ValidationError struct {
 	Field   string
@@ -81,6 +90,112 @@ type Company struct {
 	CreatedAt             time.Time
 	UpdatedAt             time.Time
 	Industries            []Industry
+	IndustryLinks         []IndustryLink
+}
+
+type ProjectionListRequest struct {
+	PageSize int
+	Cursor   string
+}
+
+type ProjectionListKey struct {
+	Code string
+	ID   ID
+}
+
+type ProjectionListQuery struct {
+	PageSize   int
+	SnapshotID string
+	After      *ProjectionListKey
+}
+
+type ProjectionListResult struct {
+	SnapshotID string
+	Items      []Company
+	HasMore    bool
+}
+
+type ProjectionPage struct {
+	SnapshotID string
+	Items      []Company
+	NextCursor *string
+}
+
+type ProjectionRepository interface {
+	ListProjection(context.Context, ProjectionListQuery) (ProjectionListResult, error)
+}
+
+type ProjectionUseCase struct{ repository ProjectionRepository }
+
+func NewProjectionUseCase(repository ProjectionRepository) (*ProjectionUseCase, error) {
+	if repository == nil {
+		return nil, errors.New("Company projection repository is required")
+	}
+	return &ProjectionUseCase{repository: repository}, nil
+}
+
+func (s *ProjectionUseCase) ListProjection(ctx context.Context, request ProjectionListRequest) (ProjectionPage, error) {
+	if request.PageSize < 1 || request.PageSize > 100 {
+		return ProjectionPage{}, &ValidationError{Field: "page_size", Message: "must be between 1 and 100"}
+	}
+	cursor, err := decodeProjectionCursor(request.Cursor)
+	if err != nil {
+		return ProjectionPage{}, err
+	}
+	query := ProjectionListQuery{PageSize: request.PageSize}
+	if cursor != nil {
+		query.SnapshotID = cursor.SnapshotID
+		query.After = &ProjectionListKey{Code: cursor.Code, ID: cursor.ID}
+	}
+	result, err := s.repository.ListProjection(ctx, query)
+	if err != nil {
+		return ProjectionPage{}, err
+	}
+	if !projectionSnapshotIDPattern.MatchString(result.SnapshotID) {
+		return ProjectionPage{}, ErrPersistence
+	}
+	if cursor != nil && result.SnapshotID != cursor.SnapshotID {
+		return ProjectionPage{}, ErrProjectionSnapshotChanged
+	}
+	if len(result.Items) > request.PageSize || (result.HasMore && len(result.Items) != request.PageSize) {
+		return ProjectionPage{}, ErrPersistence
+	}
+	seenIDs := make(map[ID]struct{}, len(result.Items))
+	seenCodes := make(map[string]struct{}, len(result.Items))
+	for _, item := range result.Items {
+		if err := ValidateProjectionCompany(item); err != nil {
+			return ProjectionPage{}, ErrPersistence
+		}
+		if _, duplicate := seenIDs[item.ID]; duplicate {
+			return ProjectionPage{}, ErrPersistence
+		}
+		if _, duplicate := seenCodes[item.Code]; duplicate {
+			return ProjectionPage{}, ErrPersistence
+		}
+		seenIDs[item.ID] = struct{}{}
+		seenCodes[item.Code] = struct{}{}
+	}
+	if cursor != nil && len(result.Items) > 0 {
+		first := result.Items[0]
+		if first.Code == cursor.Code && first.ID == cursor.ID {
+			return ProjectionPage{}, ErrPersistence
+		}
+	}
+	page := ProjectionPage{SnapshotID: result.SnapshotID, Items: result.Items}
+	if result.HasMore {
+		if len(result.Items) == 0 {
+			return ProjectionPage{}, ErrPersistence
+		}
+		last := result.Items[len(result.Items)-1]
+		next, err := encodeProjectionCursor(projectionCursor{
+			Version: 1, SnapshotID: result.SnapshotID, Code: last.Code, ID: last.ID,
+		})
+		if err != nil {
+			return ProjectionPage{}, fmt.Errorf("encode Company projection cursor: %w", err)
+		}
+		page.NextCursor = &next
+	}
+	return page, nil
 }
 
 // CreateInput contains only caller-owned Company facts. Identity, timestamps,
@@ -210,6 +325,71 @@ func (s *UseCase) ReplaceIndustries(ctx context.Context, id ID, industryIDs []In
 }
 
 func IsID(value string) bool { return coreid.Is(value, coreid.Company) }
+
+func ValidateProjectionCompany(input Company) error {
+	if err := ValidatePersisted(input); err != nil {
+		return err
+	}
+	if _, offset := input.CreatedAt.Zone(); offset != 0 {
+		return &ValidationError{Field: "created_at", Message: "must be UTC"}
+	}
+	if _, offset := input.UpdatedAt.Zone(); offset != 0 {
+		return &ValidationError{Field: "updated_at", Message: "must be UTC"}
+	}
+	if input.IndustryLinks == nil {
+		return &ValidationError{Field: "industry_links", Message: "must be provided as an array"}
+	}
+	seenIDs := make(map[string]struct{}, len(input.IndustryLinks))
+	seenEndpoints := make(map[IndustryID]struct{}, len(input.IndustryLinks))
+	availableIndustries := make(map[IndustryID]struct{}, len(input.Industries))
+	for _, industry := range input.Industries {
+		availableIndustries[industry.ID] = struct{}{}
+	}
+	if len(input.IndustryLinks) != len(input.Industries) {
+		return &ValidationError{Field: "industry_links", Message: "must match resolved Industry summaries"}
+	}
+	for index, link := range input.IndustryLinks {
+		if !coreid.Is(link.ID, coreid.CompanyIndustryLink) {
+			return &ValidationError{Field: fmt.Sprintf("industry_links[%d].id", index), Message: "must be a stable Company Industry Link ID"}
+		}
+		if link.CompanyID != input.ID {
+			return &ValidationError{Field: fmt.Sprintf("industry_links[%d].company_id", index), Message: "must identify the containing Company"}
+		}
+		if !coreid.Is(string(link.IndustryID), coreid.Industry) {
+			return &ValidationError{Field: fmt.Sprintf("industry_links[%d].industry_id", index), Message: "must be a stable Industry ID"}
+		}
+		expectedLinkID, err := coreid.Derive(
+			coreid.CompanyIndustryLink,
+			"company-industry-link",
+			string(input.ID),
+			string(link.IndustryID),
+		)
+		if err != nil || link.ID != expectedLinkID {
+			return &ValidationError{
+				Field:   fmt.Sprintf("industry_links[%d].id", index),
+				Message: "must be derived from the Company and Industry endpoints",
+			}
+		}
+		if link.CreatedAt.IsZero() {
+			return &ValidationError{Field: fmt.Sprintf("industry_links[%d].created_at", index), Message: "must be present"}
+		}
+		if _, offset := link.CreatedAt.Zone(); offset != 0 {
+			return &ValidationError{Field: fmt.Sprintf("industry_links[%d].created_at", index), Message: "must be UTC"}
+		}
+		if _, exists := availableIndustries[link.IndustryID]; !exists {
+			return &ValidationError{Field: fmt.Sprintf("industry_links[%d].industry_id", index), Message: "must resolve to an Industry summary"}
+		}
+		if _, duplicate := seenIDs[link.ID]; duplicate {
+			return &ValidationError{Field: fmt.Sprintf("industry_links[%d].id", index), Message: "must be unique"}
+		}
+		if _, duplicate := seenEndpoints[link.IndustryID]; duplicate {
+			return &ValidationError{Field: fmt.Sprintf("industry_links[%d].industry_id", index), Message: "must be unique per Company"}
+		}
+		seenIDs[link.ID] = struct{}{}
+		seenEndpoints[link.IndustryID] = struct{}{}
+	}
+	return nil
+}
 
 func ValidatePersisted(input Company) error {
 	if err := validateID(input.ID); err != nil {
@@ -394,4 +574,50 @@ func cloneTime(value *time.Time) *time.Time {
 	}
 	copy := *value
 	return &copy
+}
+
+type projectionCursor struct {
+	Version    int    `json:"v"`
+	SnapshotID string `json:"snapshot_id"`
+	Code       string `json:"after_code"`
+	ID         ID     `json:"after_id"`
+}
+
+func encodeProjectionCursor(cursor projectionCursor) (string, error) {
+	payload, err := json.Marshal(cursor)
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(payload), nil
+}
+
+func decodeProjectionCursor(value string) (*projectionCursor, error) {
+	invalid := func() (*projectionCursor, error) {
+		return nil, &ValidationError{Field: "cursor", Message: "must be an opaque Company projection cursor"}
+	}
+	if value == "" {
+		return nil, nil
+	}
+	if len(value) > 512 {
+		return invalid()
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(value)
+	if err != nil {
+		return invalid()
+	}
+	decoder := json.NewDecoder(strings.NewReader(string(payload)))
+	decoder.DisallowUnknownFields()
+	var cursor projectionCursor
+	if err := decoder.Decode(&cursor); err != nil {
+		return invalid()
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		return invalid()
+	}
+	if cursor.Version != 1 || !projectionSnapshotIDPattern.MatchString(cursor.SnapshotID) ||
+		strings.TrimSpace(cursor.Code) == "" || utf8.RuneCountInString(cursor.Code) > 30 || !IsID(string(cursor.ID)) {
+		return invalid()
+	}
+	return &cursor, nil
 }

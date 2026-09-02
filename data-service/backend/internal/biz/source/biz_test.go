@@ -46,7 +46,7 @@ func TestCreateDynamicSourceAppearsInTheCompleteActiveSnapshot(t *testing.T) {
 	}
 }
 
-func TestCurrentFixedManifestPreservesAgentOSDefaults(t *testing.T) {
+func TestCurrentFixedManifestUsesDataOwnedDefaults(t *testing.T) {
 	manifest := CurrentFixedManifest(FixedManifestOptions{
 		Endpoints: map[string]string{"bocha": "https://override.example/search"},
 		AppKeys:   map[string]string{"bocha": "plain-key"},
@@ -59,6 +59,9 @@ func TestCurrentFixedManifestPreservesAgentOSDefaults(t *testing.T) {
 		if item.OwnershipType != OwnershipFixed {
 			t.Errorf("%s ownership = %q, want fixed", item.Code, item.OwnershipType)
 		}
+		if item.MaxResults != 5 {
+			t.Errorf("%s max_results = %d, want 5", item.Code, item.MaxResults)
+		}
 		if item.Enabled && item.ChannelType == ChannelWebSearch {
 			activeWeb++
 		}
@@ -68,6 +71,113 @@ func TestCurrentFixedManifestPreservesAgentOSDefaults(t *testing.T) {
 	}
 	if manifest[0].Endpoint != "https://override.example/search" || manifest[0].AppKey == nil || *manifest[0].AppKey != "plain-key" {
 		t.Fatalf("bocha deployment override not applied: %+v", manifest[0])
+	}
+}
+
+func TestCurrentResearchRSSManifestIsAValidTwentySourceCatalog(t *testing.T) {
+	manifest := CurrentResearchRSSManifest()
+	if len(manifest) != 20 {
+		t.Fatalf("manifest length = %d, want 20", len(manifest))
+	}
+	seenCodes := make(map[string]struct{}, len(manifest))
+	seenEndpoints := make(map[string]struct{}, len(manifest))
+	official := 0
+	for index, item := range manifest {
+		if _, duplicate := seenCodes[item.Code]; duplicate {
+			t.Fatalf("duplicate code %q", item.Code)
+		}
+		seenCodes[item.Code] = struct{}{}
+		if _, duplicate := seenEndpoints[item.Endpoint]; duplicate {
+			t.Fatalf("duplicate endpoint %q", item.Endpoint)
+		}
+		seenEndpoints[item.Endpoint] = struct{}{}
+		if item.OwnershipType != OwnershipDynamic || item.ChannelType != ChannelRSS || item.AdapterKey != AdapterGenericRSS {
+			t.Fatalf("manifest[%d] has invalid protocol identity: %#v", index, item)
+		}
+		if !item.Enabled || item.MaxResults != 5 || item.TimeoutSeconds != 30 || item.Priority != 2 {
+			t.Fatalf("manifest[%d] has invalid runtime limits: %#v", index, item)
+		}
+		if item.DefaultSourceLevel == SourceLevelOfficial {
+			official++
+		}
+	}
+	if official != 4 {
+		t.Fatalf("official Source count = %d, want 4", official)
+	}
+}
+
+func TestPublishDynamicCatalogAppearsCompletelyInActiveSnapshot(t *testing.T) {
+	store := newMemoryStore()
+	useCase, err := NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := CurrentResearchRSSManifest()
+	if _, err := useCase.PublishDynamicCatalog(context.Background(), manifest); err != nil {
+		t.Fatal(err)
+	}
+	snapshot, err := useCase.ActiveSnapshot(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snapshot) != len(manifest) {
+		t.Fatalf("snapshot length = %d, want %d", len(snapshot), len(manifest))
+	}
+	wantCodes := make(map[string]struct{}, len(manifest))
+	for _, item := range manifest {
+		wantCodes[item.Code] = struct{}{}
+	}
+	for _, item := range snapshot {
+		if _, ok := wantCodes[item.Code]; !ok {
+			t.Fatalf("snapshot contains unknown Source %q", item.Code)
+		}
+		delete(wantCodes, item.Code)
+	}
+	if len(wantCodes) != 0 {
+		t.Fatalf("snapshot omitted Sources: %#v", wantCodes)
+	}
+}
+
+func TestPublishDynamicCatalogIsIdempotentAndPreservesMutableOperations(t *testing.T) {
+	store := newMemoryStore()
+	useCase, err := NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := CurrentResearchRSSManifest()[:2]
+
+	first, err := useCase.PublishDynamicCatalog(context.Background(), manifest)
+	if err != nil || len(first) != 2 || len(store.rows) != 2 {
+		t.Fatalf("PublishDynamicCatalog() = %#v, %v; rows=%d", first, err, len(store.rows))
+	}
+	store.rows[0].Enabled = false
+	store.rows[0].MaxResults = 1
+	second, err := useCase.PublishDynamicCatalog(context.Background(), manifest)
+	if err != nil || len(second) != 2 || len(store.rows) != 2 {
+		t.Fatalf("PublishDynamicCatalog(replay) = %#v, %v; rows=%d", second, err, len(store.rows))
+	}
+	if second[0].Enabled || second[0].MaxResults != 1 {
+		t.Fatalf("replay overwrote mutable operations: %#v", second[0])
+	}
+}
+
+func TestPublishDynamicCatalogFailsAtomicallyOnIncompatibleExistingCode(t *testing.T) {
+	store := newMemoryStore()
+	useCase, err := NewUseCase(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := CurrentResearchRSSManifest()[:2]
+	conflict := manifest[1]
+	conflict.OwnershipType = OwnershipFixed
+	store.rows = []Source{conflict}
+
+	_, err = useCase.PublishDynamicCatalog(context.Background(), manifest)
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("PublishDynamicCatalog(conflict) error = %v, want conflict", err)
+	}
+	if len(store.rows) != 1 {
+		t.Fatalf("atomic failure inserted rows: %#v", store.rows)
 	}
 }
 

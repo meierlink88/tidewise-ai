@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/go-kratos/kratos/v3/middleware"
@@ -80,9 +81,74 @@ func TestHTTPRejectsRetiredOrUnknownEventFilters(t *testing.T) {
 	}
 }
 
-type capturingService struct{ request *eventapi.ListRequest }
+func TestHTTPAcceptsStrictEventPublicationContract(t *testing.T) {
+	service := new(capturingService)
+	server := kratoshttp.NewServer()
+	eventapi.RegisterHTTPServer(server, service)
+	body := `{"publication_key":"submission-1","event":{"title":"US expands HBM controls","summary":"The US announced expanded controls.","semantic":{"actors":["US government"],"action":"expands export controls","objects":["HBM"],"stage":"ANNOUNCED","modality":"FACT","time":{"occurred_at":null,"announced_at":"2026-08-25T00:00:00Z","effective_at":null,"precision":"DAY"},"jurisdictions":["China"],"reason":null,"method":"rule update","metrics":[]}},"evidence_ids":["EVD11111111-1111-4111-8111-111111111111"]}`
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/events", strings.NewReader(body)))
+	if response.Code != http.StatusCreated || service.publication == nil || service.publication.PublicationKey != "submission-1" {
+		t.Fatalf("status = %d, request = %#v, body = %s", response.Code, service.publication, response.Body.String())
+	}
+}
+
+func TestHTTPAcceptsObservedOnlyEventPublication(t *testing.T) {
+	service := new(capturingService)
+	server := kratoshttp.NewServer()
+	eventapi.RegisterHTTPServer(server, service)
+	body := `{"publication_key":"submission-observed","event":{"title":"World Bank warns about growth","summary":"The World Bank warned about 2026 growth.","semantic":{"actors":["World Bank"],"action":"warns","objects":["2026 global growth"],"stage":"EXPECTED","modality":"SPEC","time":{"occurred_at":null,"announced_at":null,"effective_at":null,"observed_at":"2026-08-29T13:46:38Z","precision":"INSTANT"},"jurisdictions":[],"reason":null,"method":null,"metrics":[]}},"evidence_ids":["EVD11111111-1111-4111-8111-111111111111"]}`
+	response := httptest.NewRecorder()
+	server.ServeHTTP(response, httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/events", strings.NewReader(body)))
+	if response.Code != http.StatusCreated || service.publication == nil ||
+		service.publication.Event.Semantic.Time.ObservedAt == nil {
+		t.Fatalf("status = %d, request = %#v, body = %s", response.Code, service.publication, response.Body.String())
+	}
+}
+
+func TestHTTPRejectsIncompleteOrExpandedEventSemantic(t *testing.T) {
+	const valid = `{"publication_key":"submission-1","event":{"title":"US expands HBM controls","summary":"The US announced expanded controls.","semantic":{"actors":["US government"],"action":"expands export controls","objects":["HBM"],"stage":"ANNOUNCED","modality":"FACT","time":{"occurred_at":null,"announced_at":"2026-08-25T00:00:00Z","effective_at":null,"precision":"DAY"},"jurisdictions":["China"],"reason":null,"method":"rule update","metrics":[]}},"evidence_ids":["EVD11111111-1111-4111-8111-111111111111"]}`
+	for _, test := range []struct {
+		name string
+		body string
+	}{
+		{name: "missing semantic field", body: strings.Replace(valid, `,"metrics":[]`, "", 1)},
+		{name: "extra semantic field", body: strings.Replace(valid, `,"metrics":[]`, `,"metrics":[],"attribution":null`, 1)},
+		{name: "missing legacy time field", body: strings.Replace(valid, `"occurred_at":null,`, "", 1)},
+		{name: "extra time field", body: strings.Replace(valid, `,"precision":"DAY"`, `,"source_time":null,"precision":"DAY"`, 1)},
+		{name: "extra metric field", body: strings.Replace(valid, `"metrics":[]`, `"metrics":[{"name":"capacity","value":"10","unit":"units","change":null,"period":null,"extra":null}]`, 1)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			service := new(capturingService)
+			server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(func(writer http.ResponseWriter, _ *http.Request, err error) {
+				var public *v1.PublicError
+				if errors.As(err, &public) {
+					writer.WriteHeader(public.Status)
+					return
+				}
+				writer.WriteHeader(http.StatusInternalServerError)
+			}))
+			eventapi.RegisterHTTPServer(server, service)
+			response := httptest.NewRecorder()
+			server.ServeHTTP(response, httptest.NewRequest(http.MethodPost, v1.APIPrefix+"/events", strings.NewReader(test.body)))
+			if response.Code != http.StatusBadRequest || service.publication != nil {
+				t.Fatalf("status = %d, request = %#v, body = %s", response.Code, service.publication, response.Body.String())
+			}
+		})
+	}
+}
+
+type capturingService struct {
+	request     *eventapi.ListRequest
+	publication *eventapi.PublicationRequest
+}
 
 func (s *capturingService) ListEvents(_ context.Context, request *eventapi.ListRequest) (*v1.Response[eventapi.Page], error) {
 	s.request = request
 	return &v1.Response[eventapi.Page]{Status: v1.StatusOK, Result: eventapi.Page{Items: []eventapi.Item{}}}, nil
+}
+
+func (s *capturingService) PublishEvent(_ context.Context, request *eventapi.PublicationRequest) (*v1.Response[eventapi.PublicationResult], error) {
+	s.publication = request
+	return &v1.Response[eventapi.PublicationResult]{Status: v1.StatusCreated}, nil
 }

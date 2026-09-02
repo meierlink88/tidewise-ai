@@ -47,45 +47,41 @@ func (w eventPageWire) toBiz() (biz.EventPage, error) {
 }
 
 type eventSemanticWire struct {
-	Who   *string `json:"who"`
-	What  *string `json:"what"`
-	When  *string `json:"when"`
-	Where *string `json:"where"`
-	Why   *string `json:"why"`
-	How   *string `json:"how"`
+	Actors        []string          `json:"actors"`
+	Action        string            `json:"action"`
+	Objects       []string          `json:"objects"`
+	Stage         biz.EventStage    `json:"stage"`
+	Modality      biz.EventModality `json:"modality"`
+	Time          *eventTimeWire    `json:"time"`
+	Jurisdictions []string          `json:"jurisdictions"`
+	Reason        *string           `json:"reason"`
+	Method        *string           `json:"method"`
+	Metrics       []eventMetricWire `json:"metrics"`
 }
 
 func (w *eventSemanticWire) UnmarshalJSON(payload []byte) error {
-	var object map[string]json.RawMessage
-	if err := json.Unmarshal(payload, &object); err != nil || !hasExactJSONFields(payload, "who", "what", "when", "where", "why", "how") {
+	if !hasExactJSONFields(payload, "actors", "action", "objects", "stage", "modality", "time", "jurisdictions", "reason", "method", "metrics") {
 		return &Error{Kind: ErrorKindDecode}
 	}
-	values := map[string]**string{
-		"who": &w.Who, "what": &w.What, "when": &w.When,
-		"where": &w.Where, "why": &w.Why, "how": &w.How,
+	type alias eventSemanticWire
+	var decoded alias
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		return &Error{Kind: ErrorKindDecode}
 	}
-	for name, target := range values {
-		raw, present := object[name]
-		if !present || json.Unmarshal(raw, target) != nil {
-			return &Error{Kind: ErrorKindDecode}
-		}
-	}
+	*w = eventSemanticWire(decoded)
 	return nil
 }
 
 type eventWire struct {
-	ID          string                   `json:"id"`
-	Title       string                   `json:"title"`
-	Summary     string                   `json:"summary"`
-	Semantic    *eventSemanticWire       `json:"semantic"`
-	Modality    biz.EventModality        `json:"modality"`
-	OccurredAt  *time.Time               `json:"occurred_at"`
-	AnnouncedAt *time.Time               `json:"announced_at"`
-	Status      biz.EventLifecycleStatus `json:"status"`
+	ID       string                   `json:"id"`
+	Title    string                   `json:"title"`
+	Summary  string                   `json:"summary"`
+	Semantic *eventSemanticWire       `json:"semantic"`
+	Status   biz.EventLifecycleStatus `json:"status"`
 }
 
 func (w *eventWire) UnmarshalJSON(payload []byte) error {
-	if !hasExactJSONFields(payload, "id", "title", "summary", "semantic", "modality", "occurred_at", "announced_at", "status") {
+	if !hasExactJSONFields(payload, "id", "title", "summary", "semantic", "status") {
 		return &Error{Kind: ErrorKindDecode}
 	}
 	type alias eventWire
@@ -99,17 +95,113 @@ func (w *eventWire) UnmarshalJSON(payload []byte) error {
 
 func (w eventWire) toBiz() (biz.Event, error) {
 	if !eventIDPattern.MatchString(w.ID) || strings.TrimSpace(w.Title) == "" || utf8.RuneCountInString(w.Title) > 200 ||
-		strings.TrimSpace(w.Summary) == "" || w.Semantic == nil || !validEventModality(w.Modality) || !validEventStatus(w.Status) {
+		strings.TrimSpace(w.Summary) == "" || w.Semantic == nil || !validEventStatus(w.Status) {
 		return biz.Event{}, &Error{Kind: ErrorKindDecode}
+	}
+	semantic, err := w.Semantic.toBiz()
+	if err != nil {
+		return biz.Event{}, err
 	}
 	return biz.Event{
 		ID: w.ID, Title: w.Title, Summary: w.Summary,
-		Semantic: biz.EventSemantic{
-			Who: w.Semantic.Who, What: w.Semantic.What, When: w.Semantic.When,
-			Where: w.Semantic.Where, Why: w.Semantic.Why, How: w.Semantic.How,
-		},
-		Modality: w.Modality, OccurredAt: w.OccurredAt, AnnouncedAt: w.AnnouncedAt, Status: w.Status,
+		Semantic: semantic, Status: w.Status,
 	}, nil
+}
+
+func (w eventSemanticWire) toBiz() (biz.EventSemantic, error) {
+	if !validEventSemanticStringArray(w.Actors, 1) || strings.TrimSpace(w.Action) == "" ||
+		!validEventSemanticStringArray(w.Objects, 1) || !validEventStage(w.Stage) || !validEventModality(w.Modality) ||
+		w.Time == nil || !w.Time.valid() || !validEventSemanticStringArray(w.Jurisdictions, 0) || w.Metrics == nil {
+		return biz.EventSemantic{}, &Error{Kind: ErrorKindDecode}
+	}
+	metrics := make([]biz.EventMetric, len(w.Metrics))
+	for index, metric := range w.Metrics {
+		if !metric.valid() {
+			return biz.EventSemantic{}, &Error{Kind: ErrorKindDecode}
+		}
+		metrics[index] = biz.EventMetric{Name: metric.Name, Value: metric.Value, Unit: metric.Unit,
+			Change: metric.Change, Period: metric.Period}
+	}
+	return biz.EventSemantic{
+		Actors: append([]string{}, w.Actors...), Action: w.Action, Objects: append([]string{}, w.Objects...),
+		Stage: w.Stage, Modality: w.Modality,
+		Time: biz.EventTime{OccurredAt: w.Time.OccurredAt, AnnouncedAt: w.Time.AnnouncedAt,
+			EffectiveAt: w.Time.EffectiveAt, ObservedAt: w.Time.ObservedAt, Precision: w.Time.Precision},
+		Jurisdictions: append([]string{}, w.Jurisdictions...), Reason: w.Reason, Method: w.Method, Metrics: metrics,
+	}, nil
+}
+
+type eventTimeWire struct {
+	OccurredAt  *time.Time             `json:"occurred_at"`
+	AnnouncedAt *time.Time             `json:"announced_at"`
+	EffectiveAt *time.Time             `json:"effective_at"`
+	ObservedAt  *time.Time             `json:"observed_at"`
+	Precision   biz.EventTimePrecision `json:"precision"`
+}
+
+func (w *eventTimeWire) UnmarshalJSON(payload []byte) error {
+	if !hasExactJSONFields(payload, "occurred_at", "announced_at", "effective_at", "precision") &&
+		!hasExactJSONFields(payload, "occurred_at", "announced_at", "effective_at", "observed_at", "precision") {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	type alias eventTimeWire
+	var decoded alias
+	if json.Unmarshal(payload, &decoded) != nil {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	*w = eventTimeWire(decoded)
+	return nil
+}
+
+func (w eventTimeWire) valid() bool {
+	businessTimePresent := w.OccurredAt != nil || w.AnnouncedAt != nil || w.EffectiveAt != nil
+	return businessTimePresent != (w.ObservedAt != nil) &&
+		(w.OccurredAt == nil || w.OccurredAt.Location() == time.UTC) &&
+		(w.AnnouncedAt == nil || w.AnnouncedAt.Location() == time.UTC) &&
+		(w.EffectiveAt == nil || w.EffectiveAt.Location() == time.UTC) &&
+		(w.ObservedAt == nil || w.ObservedAt.Location() == time.UTC) && validEventTimePrecision(w.Precision)
+}
+
+type eventMetricWire struct {
+	Name   string  `json:"name"`
+	Value  *string `json:"value"`
+	Unit   *string `json:"unit"`
+	Change *string `json:"change"`
+	Period *string `json:"period"`
+}
+
+func (w *eventMetricWire) UnmarshalJSON(payload []byte) error {
+	if !hasExactJSONFields(payload, "name", "value", "unit", "change", "period") {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	type alias eventMetricWire
+	var decoded alias
+	if json.Unmarshal(payload, &decoded) != nil {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	*w = eventMetricWire(decoded)
+	return nil
+}
+
+func (w eventMetricWire) valid() bool {
+	return strings.TrimSpace(w.Name) != "" && (w.Value != nil || w.Change != nil)
+}
+
+func validEventSemanticStringArray(values []string, minimumItems int) bool {
+	if values == nil || len(values) < minimumItems {
+		return false
+	}
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if strings.TrimSpace(value) == "" {
+			return false
+		}
+		if _, exists := seen[value]; exists {
+			return false
+		}
+		seen[value] = struct{}{}
+	}
+	return true
 }
 
 var eventIDPattern = regexp.MustCompile(`^EVT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
@@ -133,6 +225,18 @@ func validEventModality(modality biz.EventModality) bool {
 
 func validEventStatus(status biz.EventLifecycleStatus) bool {
 	return status == biz.EventLifecycleActive || status == biz.EventLifecycleDeprecated || status == biz.EventLifecycleArchived
+}
+
+func validEventStage(stage biz.EventStage) bool {
+	return stage == biz.EventStageOccurred || stage == biz.EventStageAnnounced || stage == biz.EventStageEffective ||
+		stage == biz.EventStageImplemented || stage == biz.EventStageUpdated || stage == biz.EventStageSuspended ||
+		stage == biz.EventStageTerminated || stage == biz.EventStageExpected
+}
+
+func validEventTimePrecision(precision biz.EventTimePrecision) bool {
+	return precision == biz.EventTimePrecisionInstant || precision == biz.EventTimePrecisionDay ||
+		precision == biz.EventTimePrecisionRange || precision == biz.EventTimePrecisionMonth || precision == biz.EventTimePrecisionQuarter ||
+		precision == biz.EventTimePrecisionYear || precision == biz.EventTimePrecisionUnknown
 }
 
 type evidencePageWire struct {
@@ -165,7 +269,7 @@ func (w rawEvidenceResultWire) toBiz(expectedID string) (biz.RawEvidenceDocument
 		strings.TrimSpace(raw.SourceID) == "" || utf8.RuneCountInString(raw.SourceID) > 32 ||
 		strings.TrimSpace(raw.SourceName) == "" || utf8.RuneCountInString(raw.SourceName) > 100 ||
 		!validSourceLevel(raw.SourceLevel) || strings.TrimSpace(raw.SourceURL) == "" || utf8.RuneCountInString(raw.SourceURL) > 2048 ||
-		strings.TrimSpace(raw.RawText) == "" || raw.Keywords == nil || raw.Categories == nil ||
+		strings.TrimSpace(raw.RawText) == "" || raw.Categories == nil ||
 		raw.CollectedAt.IsZero() || raw.CollectedAt.Location() != time.UTC ||
 		raw.Title != nil && (strings.TrimSpace(*raw.Title) == "" || utf8.RuneCountInString(*raw.Title) > 500) ||
 		raw.QuotedSourceID != nil && (strings.TrimSpace(*raw.QuotedSourceID) == "" || utf8.RuneCountInString(*raw.QuotedSourceID) > 32) ||
@@ -206,12 +310,11 @@ type rawEvidenceWire struct {
 	RawText          string                 `json:"raw_text"`
 	PublishedAt      *time.Time             `json:"published_at"`
 	CollectedAt      time.Time              `json:"collected_at"`
-	Keywords         []string               `json:"keywords"`
 	Categories       []evidenceCategoryWire `json:"categories"`
 }
 
 func (w *rawEvidenceWire) UnmarshalJSON(payload []byte) error {
-	if !hasExactJSONFields(payload, "id", "source_id", "source_name", "source_level", "source_url", "is_original", "quoted_source_id", "quoted_source_name", "title", "raw_text", "published_at", "collected_at", "keywords", "categories") {
+	if !hasExactJSONFields(payload, "id", "source_id", "source_name", "source_level", "source_url", "is_original", "quoted_source_id", "quoted_source_name", "title", "raw_text", "published_at", "collected_at", "categories") {
 		return &Error{Kind: ErrorKindDecode}
 	}
 	type alias rawEvidenceWire
@@ -289,7 +392,7 @@ func (w *evidenceWire) UnmarshalJSON(payload []byte) error {
 func (w evidenceWire) toBiz() (biz.Evidence, error) {
 	if !evidenceIDPattern.MatchString(w.ID) || !rawEvidenceIDPattern.MatchString(w.RawEvidenceID) || strings.TrimSpace(w.Summary) == "" || utf8.RuneCountInString(w.Summary) > 200 ||
 		strings.TrimSpace(w.SourceID) == "" || utf8.RuneCountInString(w.SourceID) > 32 || strings.TrimSpace(w.SourceName) == "" || utf8.RuneCountInString(w.SourceName) > 100 || !validSourceLevel(w.SourceLevel) || w.CollectedAt.IsZero() || w.CollectedAt.Location() != time.UTC ||
-		w.Semantic == nil || strings.TrimSpace(w.Semantic.What) == "" || w.Keywords == nil || utf8.RuneCountInString(w.SourceURL) > 2048 ||
+		w.Semantic == nil || !validEvidenceSemantic(*w.Semantic) || !validEvidenceKeywords(w.Keywords) || utf8.RuneCountInString(w.SourceURL) > 2048 ||
 		(w.Title != nil && (strings.TrimSpace(*w.Title) == "" || utf8.RuneCountInString(*w.Title) > 500)) || (w.PublishedAt != nil && w.PublishedAt.Location() != time.UTC) {
 		return biz.Evidence{}, &Error{Kind: ErrorKindDecode}
 	}
@@ -298,11 +401,6 @@ func (w evidenceWire) toBiz() (biz.Evidence, error) {
 		w.IsOriginal && w.QuotedSourceName != nil || !w.IsOriginal && (w.QuotedSourceName == nil || strings.TrimSpace(*w.QuotedSourceName) == "") ||
 		w.QuotedSourceName != nil && utf8.RuneCountInString(*w.QuotedSourceName) > 100 {
 		return biz.Evidence{}, &Error{Kind: ErrorKindDecode}
-	}
-	for _, value := range []*string{w.Semantic.Who, w.Semantic.When, w.Semantic.Where, w.Semantic.Why, w.Semantic.How} {
-		if value != nil && strings.TrimSpace(*value) == "" {
-			return biz.Evidence{}, &Error{Kind: ErrorKindDecode}
-		}
 	}
 	categories := make([]biz.EvidenceCategory, 0, len(w.Categories))
 	seen := make(map[string]struct{}, len(w.Categories))
@@ -317,24 +415,37 @@ func (w evidenceWire) toBiz() (biz.Evidence, error) {
 		seen[category.ID] = struct{}{}
 		categories = append(categories, category)
 	}
+	metrics := make([]biz.EvidenceMetric, 0, len(w.Semantic.Metrics))
+	for _, metric := range w.Semantic.Metrics {
+		metrics = append(metrics, biz.EvidenceMetric{Name: metric.Name, Value: metric.Value, Unit: metric.Unit, Change: metric.Change, Period: metric.Period})
+	}
 	return biz.Evidence{ID: w.ID, RawEvidenceID: w.RawEvidenceID, Title: w.Title, Summary: w.Summary,
-		Semantic:   biz.EvidenceSemantic{Who: w.Semantic.Who, What: w.Semantic.What, When: w.Semantic.When, Where: w.Semantic.Where, Why: w.Semantic.Why, How: w.Semantic.How},
+		Semantic: biz.EvidenceSemantic{Actors: append([]string{}, w.Semantic.Actors...), Action: w.Semantic.Action,
+			Objects: append([]string{}, w.Semantic.Objects...), Stage: w.Semantic.Stage, Modality: w.Semantic.Modality,
+			Time:          biz.EvidenceTime{Raw: w.Semantic.Time.Raw, StartAt: w.Semantic.Time.StartAt, EndAt: w.Semantic.Time.EndAt, Precision: w.Semantic.Time.Precision},
+			Jurisdictions: append([]string{}, w.Semantic.Jurisdictions...), Reason: w.Semantic.Reason, Method: w.Semantic.Method,
+			Metrics: metrics, Attribution: biz.EvidenceAttribution{ReportedBy: w.Semantic.Attribution.ReportedBy, ClaimedBy: w.Semantic.Attribution.ClaimedBy}},
 		Categories: categories, SourceID: w.SourceID, SourceName: w.SourceName, SourceLevel: w.SourceLevel, SourceURL: w.SourceURL,
 		IsOriginal: w.IsOriginal, QuotedSourceName: w.QuotedSourceName, Keywords: append([]string{}, w.Keywords...),
 		IsSplit: w.IsSplit, PublishedAt: w.PublishedAt, CollectedAt: w.CollectedAt}, nil
 }
 
 type evidenceSemanticWire struct {
-	Who   *string `json:"who"`
-	What  string  `json:"what"`
-	When  *string `json:"when"`
-	Where *string `json:"where"`
-	Why   *string `json:"why"`
-	How   *string `json:"how"`
+	Actors        []string                `json:"actors"`
+	Action        string                  `json:"action"`
+	Objects       []string                `json:"objects"`
+	Stage         string                  `json:"stage"`
+	Modality      string                  `json:"modality"`
+	Time          evidenceTimeWire        `json:"time"`
+	Jurisdictions []string                `json:"jurisdictions"`
+	Reason        *string                 `json:"reason"`
+	Method        *string                 `json:"method"`
+	Metrics       []evidenceMetricWire    `json:"metrics"`
+	Attribution   evidenceAttributionWire `json:"attribution"`
 }
 
 func (w *evidenceSemanticWire) UnmarshalJSON(payload []byte) error {
-	if !hasExactJSONFields(payload, "who", "what", "when", "where", "why", "how") {
+	if !hasExactJSONFields(payload, "actors", "action", "objects", "stage", "modality", "time", "jurisdictions", "reason", "method", "metrics", "attribution") {
 		return &Error{Kind: ErrorKindDecode}
 	}
 	type alias evidenceSemanticWire
@@ -344,6 +455,128 @@ func (w *evidenceSemanticWire) UnmarshalJSON(payload []byte) error {
 	}
 	*w = evidenceSemanticWire(decoded)
 	return nil
+}
+
+type evidenceTimeWire struct {
+	Raw       *string    `json:"raw"`
+	StartAt   *time.Time `json:"start_at"`
+	EndAt     *time.Time `json:"end_at"`
+	Precision string     `json:"precision"`
+}
+
+func (w *evidenceTimeWire) UnmarshalJSON(payload []byte) error {
+	if !hasExactJSONFields(payload, "raw", "start_at", "end_at", "precision") {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	type alias evidenceTimeWire
+	var decoded alias
+	if json.Unmarshal(payload, &decoded) != nil {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	*w = evidenceTimeWire(decoded)
+	return nil
+}
+
+type evidenceMetricWire struct {
+	Name   string  `json:"name"`
+	Value  *string `json:"value"`
+	Unit   *string `json:"unit"`
+	Change *string `json:"change"`
+	Period *string `json:"period"`
+}
+
+func (w *evidenceMetricWire) UnmarshalJSON(payload []byte) error {
+	if !hasExactJSONFields(payload, "name", "value", "unit", "change", "period") {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	type alias evidenceMetricWire
+	var decoded alias
+	if json.Unmarshal(payload, &decoded) != nil {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	*w = evidenceMetricWire(decoded)
+	return nil
+}
+
+type evidenceAttributionWire struct {
+	ReportedBy *string `json:"reported_by"`
+	ClaimedBy  *string `json:"claimed_by"`
+}
+
+func (w *evidenceAttributionWire) UnmarshalJSON(payload []byte) error {
+	if !hasExactJSONFields(payload, "reported_by", "claimed_by") {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	type alias evidenceAttributionWire
+	var decoded alias
+	if json.Unmarshal(payload, &decoded) != nil {
+		return &Error{Kind: ErrorKindDecode}
+	}
+	*w = evidenceAttributionWire(decoded)
+	return nil
+}
+
+func validEvidenceSemantic(value evidenceSemanticWire) bool {
+	if !validUniqueStrings(value.Actors, 1, 20, 100) || strings.TrimSpace(value.Action) == "" || utf8.RuneCountInString(value.Action) > 200 ||
+		!validUniqueStrings(value.Objects, 1, 20, 200) || !validEvidenceStage(value.Stage) || !validEvidenceModality(value.Modality) ||
+		!validUniqueStrings(value.Jurisdictions, 0, 20, 100) || !validOptionalString(value.Reason, 500) || !validOptionalString(value.Method, 500) ||
+		!validOptionalString(value.Attribution.ReportedBy, 100) || !validOptionalString(value.Attribution.ClaimedBy, 100) || !validEvidenceTime(value.Time) {
+		return false
+	}
+	for _, metric := range value.Metrics {
+		if strings.TrimSpace(metric.Name) == "" || utf8.RuneCountInString(metric.Name) > 100 ||
+			!validOptionalString(metric.Value, 100) || !validOptionalString(metric.Unit, 50) || !validOptionalString(metric.Change, 100) || !validOptionalString(metric.Period, 100) ||
+			metric.Value == nil && metric.Change == nil {
+			return false
+		}
+	}
+	return true
+}
+
+func validEvidenceTime(value evidenceTimeWire) bool {
+	if !validOptionalString(value.Raw, 200) || !validEvidenceTimePrecision(value.Precision) ||
+		value.StartAt != nil && value.StartAt.Location() != time.UTC || value.EndAt != nil && value.EndAt.Location() != time.UTC ||
+		(value.StartAt == nil) != (value.EndAt == nil) || value.StartAt != nil && value.EndAt != nil && value.StartAt.After(*value.EndAt) {
+		return false
+	}
+	return true
+}
+
+func validEvidenceKeywords(values []string) bool { return validUniqueStrings(values, 1, 5, 6) }
+
+func validUniqueStrings(values []string, minimum, maximum, maxRunes int) bool {
+	if len(values) < minimum || len(values) > maximum {
+		return false
+	}
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" || utf8.RuneCountInString(trimmed) > maxRunes {
+			return false
+		}
+		key := trimmed
+		if _, exists := seen[key]; exists {
+			return false
+		}
+		seen[key] = struct{}{}
+	}
+	return true
+}
+
+func validOptionalString(value *string, maxRunes int) bool {
+	return value == nil || strings.TrimSpace(*value) != "" && utf8.RuneCountInString(*value) <= maxRunes
+}
+
+func validEvidenceStage(value string) bool {
+	return value == "OCCURRED" || value == "ANNOUNCED" || value == "EFFECTIVE" || value == "IMPLEMENTED" || value == "UPDATED" || value == "SUSPENDED" || value == "TERMINATED" || value == "EXPECTED"
+}
+
+func validEvidenceModality(value string) bool {
+	return value == "FACT" || value == "PLAN" || value == "SPEC"
+}
+
+func validEvidenceTimePrecision(value string) bool {
+	return value == "INSTANT" || value == "DAY" || value == "RANGE" || value == "MONTH" || value == "QUARTER" || value == "YEAR" || value == "UNKNOWN"
 }
 
 type evidenceCategoryWire struct {
