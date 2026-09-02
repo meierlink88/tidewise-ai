@@ -1,0 +1,5724 @@
+{
+  "id": "R-0901-GRAPH-ADAPTIVE-TRANSMISSION",
+  "title": "当前事件如何从地缘政治与宏观经济传导至产业链（动态传导）",
+  "publishedAt": "2026-09-01 12:39",
+  "generatedAt": "2026-09-01T12:39:03+08:00",
+  "eventCount": 113,
+  "chainCount": 54,
+  "hypothesisCount": 29,
+  "geo": {
+    "key": "geo",
+    "label": "地缘政治",
+    "shortLabel": "政治",
+    "eyebrow": "安全对抗与通道可用性",
+    "conclusion": "伊朗—美以及海湾安全对抗持续升温，霍尔木兹航运安全与贸易通道可用性下降；南海海洋权益与安全争端风险小幅升温，但商业航运安全暂时稳定。",
+    "state": "分化",
+    "horizon": "即时–中期",
+    "confidence": "中–高",
+    "evidenceIds": [
+      "EVT717de80b",
+      "EVT3cf927a6",
+      "EVTec2c2162",
+      "EVTa8b7eff4",
+      "EVTb4fafc60"
+    ],
+    "anchors": [
+      {
+        "id": "GEO-A01",
+        "label": "伊朗—美以及海湾安全对抗",
+        "state": "升温",
+        "resultLabel": "升温",
+        "current": "地缘政治风险 UP；航运安全 DOWN；贸易通道可用性 DOWN",
+        "why": "美伊军事冲突、船只扣押、霍尔木兹袭击与通行量骤降直接推高海湾对抗风险，并压低航运安全与贸易通道可用性。",
+        "nature": "直接证据",
+        "window": "即时–中期",
+        "confidence": "高",
+        "evidenceIds": [
+          "EVT717de80b",
+          "EVT3cf927a6",
+          "EVTec2c2162",
+          "EVTa8b7eff4"
+        ]
+      },
+      {
+        "id": "GEO-A02",
+        "label": "南海海洋权益与安全争端",
+        "state": "分化",
+        "resultLabel": "升温 / 局部稳定",
+        "current": "地缘政治风险 UP；航运安全 STABLE",
+        "why": "黄岩岛执法巡查强化了主权对抗，直接抬升争端风险；Event 未显示主要商业航线受阻，因此航运安全保持稳定。",
+        "nature": "直接证据",
+        "window": "短期–中期",
+        "confidence": "中",
+        "evidenceIds": [
+          "EVTb4fafc60"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "id": "GEO-S01",
+        "input": "美国政府计划使用捕获法处置扣押的伊朗石油和船只",
+        "mechanism": "该Event是美伊对抗的升级，加剧了整个地缘政治竞争格局中的风险。",
+        "output": "伊朗—美以及海湾安全对抗：地缘政治风险 UP/MEDIUM",
+        "type": "Event → Signal",
+        "confidence": "中",
+        "evidenceIds": [
+          "EVT717de80b"
+        ]
+      },
+      {
+        "id": "GEO-S02",
+        "input": "霍尔木兹海峡商业油轮交通降至每天约5艘，且一艘油轮遭不明弹射物袭击，英国海事贸易运营办公室发出警告。",
+        "mechanism": "事件直接反映霍尔木兹海峡的安全威胁上升，袭击警告和交通量骤降表明该区域航运面临的实际风险增加。地缘政治风险变量定义为国家间冲突对经济活动和资产价值的不确定性，袭击事件和警告直接提升该不确定性。",
+        "output": "伊朗—美以及海湾安全对抗：地缘政治风险 UP/HIGH",
+        "type": "Event → Signal",
+        "confidence": "中–高",
+        "evidenceIds": [
+          "EVT3cf927a6"
+        ]
+      },
+      {
+        "id": "GEO-S03",
+        "input": "美国对伊朗Larak岛实施打击，伊朗报复袭击约旦美军基地，美伊地缘对抗急剧升级。",
+        "mechanism": "该事件是美伊长期对抗的直接军事升级，显著加剧了美伊冲突蓝图的紧张程度，地缘政治风险上升。",
+        "output": "伊朗—美以及海湾安全对抗：地缘政治风险 UP/HIGH",
+        "type": "Event → Signal",
+        "confidence": "中–高",
+        "evidenceIds": [
+          "EVTec2c2162"
+        ]
+      },
+      {
+        "id": "GEO-S04",
+        "input": "美伊冲突爆发并严重扰乱霍尔木兹海峡通行。",
+        "mechanism": "美伊冲突直接升级了伊朗与美国及其海湾盟友之间的安全对抗，导致霍尔木兹海峡通行严重受阻。这种对关键航运要道的直接军事扰动显著抬高了该地缘政治对抗框架下的冲突风险与不确定性。",
+        "output": "伊朗—美以及海湾安全对抗：地缘政治风险 UP/HIGH",
+        "type": "Event → Signal",
+        "confidence": "中–高",
+        "evidenceIds": [
+          "EVTa8b7eff4"
+        ]
+      },
+      {
+        "id": "GEO-S05",
+        "input": "霍尔木兹海峡附近美伊军事冲突引发对航运安全的担忧，伊朗曾被指准备布雷。",
+        "mechanism": "冲突可能威胁霍尔木兹海峡航行安全，增加航运风险，导致航运安全水平下降。",
+        "output": "伊朗—美以及海湾安全对抗：航运安全 DOWN/HIGH",
+        "type": "Event → Signal",
+        "confidence": "中",
+        "evidenceIds": [
+          "EVTec2c2162"
+        ]
+      },
+      {
+        "id": "GEO-S06",
+        "input": "美伊冲突严重扰乱霍尔木兹海峡的油运通行。",
+        "mechanism": "冲突直接威胁霍尔木兹海峡的商业航运安全，导致船舶面临军事打击、袭击和保险中断风险，从而降低该关键航道的安全通行程度。",
+        "output": "伊朗—美以及海湾安全对抗：航运安全 DOWN/HIGH",
+        "type": "Event → Signal",
+        "confidence": "中–高",
+        "evidenceIds": [
+          "EVTa8b7eff4"
+        ]
+      },
+      {
+        "id": "GEO-S07",
+        "input": "霍尔木兹海峡商业油轮交通降至每天约5艘，且一艘油轮遭不明弹射物袭击，英国海事贸易运营办公室发出警告。",
+        "mechanism": "事件直接指向霍尔木兹海峡这一关键航运通道的油轮通行，交通量下降和袭击威胁直接降低该贸易通道的可用性。航运安全威胁导致船东和租家减少通过该海峡的运输，贸易通道可用性下降。",
+        "output": "伊朗—美以及海湾安全对抗：贸易通道可用性 DOWN/MEDIUM",
+        "type": "Event → Signal",
+        "confidence": "中–高",
+        "evidenceIds": [
+          "EVT3cf927a6"
+        ]
+      },
+      {
+        "id": "GEO-S08",
+        "input": "美伊冲突严重扰乱霍尔木兹海峡通行，导致油运贸易通道受阻。",
+        "mechanism": "霍尔木兹海峡是全球最重要的石油运输通道，冲突导致的通行受阻直接降低了该通道用于贸易的可用性，影响石油及油品运输。",
+        "output": "伊朗—美以及海湾安全对抗：贸易通道可用性 DOWN/HIGH",
+        "type": "Event → Signal",
+        "confidence": "中–高",
+        "evidenceIds": [
+          "EVTa8b7eff4"
+        ]
+      },
+      {
+        "id": "GEO-S09",
+        "input": "中国海警在黄岩岛开展执法巡查，自8月以来持续加强巡查，处置非法侵权船只。",
+        "mechanism": "中国海警在黄岩岛执法巡查是国家主权主张的直接行动表现，加剧了南海海洋权益争端中的对抗态势，从而增加了南海地区的地缘政治不确定性。",
+        "output": "南海海洋权益与安全争端：地缘政治风险 UP/MEDIUM",
+        "type": "Event → Signal",
+        "confidence": "中",
+        "evidenceIds": [
+          "EVTb4fafc60"
+        ]
+      },
+      {
+        "id": "GEO-S10",
+        "input": "中国海警在黄岩岛周边区域开展执法巡查，处置非法侵权船只。",
+        "mechanism": "执法巡查主要针对非法侵权船只，旨在维护海域管控，但黄岩岛不在主要国际航运通道上，对整体商业航运安全影响有限，预计航运安全保持稳定。",
+        "output": "南海海洋权益与安全争端：航运安全 STABLE/LOW",
+        "type": "Event → Signal",
+        "confidence": "中",
+        "evidenceIds": [
+          "EVTb4fafc60"
+        ]
+      }
+    ],
+    "counterevidence": "南海锚点的航运安全为 STABLE/LOW，不能把执法巡查直接扩展为主要国际航线受阻。",
+    "evidenceGap": "缺霍尔木兹连续过峡船舶量、港口装卸量、海湾出口量和冲突降级信号。",
+    "boundary": "Country Signal 是事件影响的地理背景，不作为本节锚点。",
+    "reversal": "若霍尔木兹通行恢复、袭击风险下降且冲突降级，则下调海湾对抗结论。",
+    "downstreamSummary": "本节回答“地缘政治结论如何参与下层分析”。只有目标为真实图谱锚点且传导机制能够闭合时，才形成跨层推理；同一 Event 在两层分别产生直接 Signal 时，只标记为同源信号。",
+    "downstreamChainIds": [
+      "CHN-21"
+    ],
+    "transmissionPaths": [
+      {
+        "id": "GEO-X-MAC-01",
+        "targetLayer": "macro",
+        "targetLabel": "增长预期修正（真实 MacroEconomic）",
+        "logic": "海湾冲突使霍尔木兹油运中断风险上升，增强了“能源供应持续中断”这一全球增长下行情景成立的可能性，因此对增长预期下修形成跨层解释。该宏观锚点本身另有世界银行 Event 形成的直接 Signal，地缘结论只增强其解释，不替代直接证据。",
+        "result": "降温",
+        "nature": "推理假设（目标另有直接证据）",
+        "confidence": "中",
+        "status": "已形成解释闭环；仍需连续油运、能源价格和增长预测验证"
+      },
+      {
+        "id": "GEO-X-CHN-01",
+        "targetLayer": "industry",
+        "targetLabel": "CHN-21 油品石化贸易服务产业链：油品运输服务、成品油批发交付服务",
+        "logic": "海湾冲突压低霍尔木兹通行能力，直接延长油品运输周期并抬高运价；批发交付依赖运输服务，因此更高物流成本和更长到货时间可能继续传至批发交付环节。",
+        "result": "油品运输服务分化；成品油批发交付服务降温",
+        "nature": "同源直接 Signal + 节点传导假设",
+        "confidence": "中",
+        "status": "运输节点为同源直接证据；批发交付节点为待验证的传导假设"
+      }
+    ]
+  },
+  "macro": {
+    "key": "macro",
+    "label": "宏观经济",
+    "shortLabel": "经济",
+    "eyebrow": "增长预期与政策利率",
+    "conclusion": "全球增长预期受到能源中断情景压制，同时美联储加息预期升温；增长降温与利率上行构成偏紧的宏观组合，但当前仅有两个真实 MacroEconomic 锚点，向中国价格、汇率和需求端的传导仍待补证。",
+    "state": "分化",
+    "horizon": "中期",
+    "confidence": "中",
+    "evidenceIds": [
+      "EVTc91221e7",
+      "EVTcaf3f60b"
+    ],
+    "anchors": [
+      {
+        "id": "MACRO-A01",
+        "label": "加息",
+        "state": "升温",
+        "resultLabel": "升温",
+        "current": "政策利率 UP/MEDIUM",
+        "why": "美联储主席的加息表态直接抬高未来政策利率路径预期，使“加息”宏观锚点升温。",
+        "nature": "直接证据",
+        "window": "中期",
+        "confidence": "中",
+        "evidenceIds": [
+          "EVTc91221e7"
+        ]
+      },
+      {
+        "id": "MACRO-A02",
+        "label": "增长预期修正",
+        "state": "降温",
+        "resultLabel": "降温",
+        "current": "经济增长预期 DOWN/MEDIUM",
+        "why": "世界银行在能源供应持续中断情景下下调全球增长预测，直接压低经济增长预期。",
+        "nature": "直接证据",
+        "window": "中期",
+        "confidence": "中",
+        "evidenceIds": [
+          "EVTcaf3f60b"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "id": "MAC-S01",
+        "input": "美联储主席Warsh暗示可能加息",
+        "mechanism": "美联储主席暗示加息，显著提升市场对政策利率上调的预期，在杰克逊霍尔会议这一重要政策沟通场合，将直接推高未来政策利率的预期路径，从而作用于政策利率变量。",
+        "output": "加息：政策利率 UP/MEDIUM",
+        "type": "Event → Signal",
+        "confidence": "中",
+        "evidenceIds": [
+          "EVTc91221e7"
+        ]
+      },
+      {
+        "id": "MAC-S02",
+        "input": "世界银行警告，若能源供应持续中断，2026年全球经济增长可能仅为1.3%",
+        "mechanism": "权威机构下调全球经济增长预测至1.3%，将直接压低市场对全球经济增长的预期，因为该预测是增长预期的重要参考锚点。",
+        "output": "增长预期修正：经济增长预期 DOWN/MEDIUM",
+        "type": "Event → Signal",
+        "confidence": "中",
+        "evidenceIds": [
+          "EVTcaf3f60b"
+        ]
+      }
+    ],
+    "counterevidence": "能源替代来源、政策对冲和实际通胀回落可能削弱增长下修与利率上行的共同冲击。",
+    "evidenceGap": "缺中国进口成本、PPI、人民币汇率、工业增加值和风险偏好观测。",
+    "boundary": "没有 MacroEconomic Signal 的事件不被写成宏观锚点结论。",
+    "reversal": "若能源运输恢复、增长预测回升或加息预期撤回，宏观偏紧结论下调。",
+    "downstreamSummary": "本次两个宏观锚点均有直接 Signal，但尚未形成“宏观锚点 → 真实 IndustryChain / ChainNode”的完整证据闭环，因此本节不新增产业链方向结论。",
+    "downstreamChainIds": [],
+    "transmissionPaths": [
+      {
+        "id": "MAC-X-CANDIDATE-01",
+        "targetLayer": "industry",
+        "targetLabel": "增长预期修正 DOWN → 产业需求",
+        "logic": "全球增长预期下修通常会压低外需和周期品需求，再影响相应产业节点的订单、价格或产能利用率。",
+        "result": "待补证，不进入产业链结论",
+        "nature": "待补证",
+        "confidence": "",
+        "status": "当前报告缺少中国外需、工业需求和具体真实 ChainNode 的对应 Signal，无法确定影响落在哪条链、哪个节点。"
+      },
+      {
+        "id": "MAC-X-CANDIDATE-02",
+        "targetLayer": "industry",
+        "targetLabel": "加息 UP → 融资与资本开支",
+        "logic": "政策利率上行通常会提高融资成本和折现率，进而压制资本密集型产业的扩产与投资。",
+        "result": "待补证，不进入产业链结论",
+        "nature": "待补证",
+        "confidence": "",
+        "status": "当前报告缺少融资成本、资本开支和真实 ChainNode 之间的图谱桥接与节点 Signal，不能指定受影响产业链。"
+      }
+    ]
+  },
+  "industryChains": [
+    {
+      "id": "CHN-01",
+      "title": "人形机器人产业链",
+      "kind": "产业链",
+      "conclusion": "人形机器人、人形机器人传感器、人形机器人减速器、人形机器人电机出现直接 Signal，当前链级聚合结果为升温，已形成可解释的动态传导假设，其余相邻节点仍待验证；本链新增 1 条动态传导假设。",
+      "state": "升温",
+      "status": "直接节点 Signal 明确；新增 1 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "中期–长期",
+      "confidence": "中",
+      "path": "人形机器人、人形机器人传感器、人形机器人减速器、人形机器人电机（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "人形机器人 → 机器人控制计算平台",
+      "evidenceIds": [
+        "EVT245a1a74",
+        "EVT685aba49"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-01-N01",
+          "CHN-01-N02",
+          "CHN-01-N03",
+          "CHN-01-N04"
+        ],
+        [
+          "CHN-01-N05"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-01-N04",
+          "to": "CHN-01-N01",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-01-N03",
+          "to": "CHN-01-N01",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-01-N05",
+          "to": "CHN-01-N01",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-01-N02",
+          "to": "CHN-01-N01",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-01-N01",
+          "title": "人形机器人",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期–长期",
+          "confidence": "中",
+          "impact": "商业化进度 UP/MEDIUM；渗透率 UP/MEDIUM",
+          "why": "中国2026年8月在北京举办第二届人形机器人比赛，展示技术进步并引发应用讨论；DIGITIMES评论指出人形机器人行业扩产，具身智能正实体化，AI扩展下人类智能与机器活动界限模糊，反映具身智能技术正从验证进入规模应用。对“人形机器人”环节而言，这意味着商业化进度上升、渗透率上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT245a1a74",
+            "EVT685aba49"
+          ]
+        },
+        {
+          "id": "CHN-01-N02",
+          "title": "人形机器人传感器",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "中",
+          "impact": "商业化进度 UP/LOW",
+          "why": "中国2026年8月在北京举办第二届人形机器人比赛，展示技术进步并引发应用讨论。对“人形机器人传感器”环节而言，这意味着商业化进度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT245a1a74"
+          ]
+        },
+        {
+          "id": "CHN-01-N03",
+          "title": "人形机器人减速器",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "中",
+          "impact": "商业化进度 UP/LOW",
+          "why": "中国2026年8月在北京举办第二届人形机器人比赛，展示技术进步并引发应用讨论。对“人形机器人减速器”环节而言，这意味着商业化进度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT245a1a74"
+          ]
+        },
+        {
+          "id": "CHN-01-N04",
+          "title": "人形机器人电机",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "中",
+          "impact": "商业化进度 UP/LOW",
+          "why": "中国2026年8月在北京举办第二届人形机器人比赛，展示技术进步并引发应用讨论。对“人形机器人电机”环节而言，这意味着商业化进度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT245a1a74"
+          ]
+        },
+        {
+          "id": "CHN-01-N05",
+          "title": "机器人控制计算平台",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期–长期（传导滞后）",
+          "confidence": "低（0.60）",
+          "impact": "市场需求 UP/LOW",
+          "why": "人形机器人的商业化和渗透率上升，会增加整机对运动控制、感知融合和实时决策计算的需求。控制计算平台是整机的明确组成环节，因此推测其市场需求将随整机放量而上升。",
+          "evidence": [
+            "EVT245a1a74",
+            "EVT685aba49"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHN-02",
+      "title": "AI数据中心液冷服务器产业链",
+      "kind": "产业链",
+      "conclusion": "AI芯片、液冷服务器、液冷系统出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证；本链新增 1 条动态传导假设。",
+      "state": "升温",
+      "status": "直接节点 Signal 明确；新增 1 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "长期–中期",
+      "confidence": "低–中",
+      "path": "AI芯片、液冷服务器、液冷系统（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "液冷服务器 → 服务器冷板",
+      "evidenceIds": [
+        "EVT40bb2d15",
+        "EVT3387e8c0",
+        "EVT4f8f284c"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的本链语境仍待解析；上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-02-N01",
+          "CHN-02-N02",
+          "CHN-02-N03"
+        ],
+        [
+          "CHN-02-N05"
+        ],
+        [
+          "CHN-02-N04"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导",
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-02-N05",
+          "to": "CHN-02-N02",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-02-N01",
+          "to": "CHN-02-N02",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-02-N02",
+          "to": "CHN-02-N04",
+          "relation": "投入"
+        },
+        {
+          "from": "CHN-02-N02",
+          "to": "CHN-02-N03",
+          "relation": "依赖"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-02-N01",
+          "title": "AI芯片",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期–中期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；技术成熟度 UP/MEDIUM",
+          "why": "Google与Marvell扩大定制芯片合作，涉及TPU等AI芯片领域；OpenAI在Hot Chips 2026披露自研AI加速器ASIC Jalapeño的基准测试结果，该芯片为通用AI负载从零设计，非GPU改造；该节点归属 7 条链，本链语境未确定。对“AI芯片”环节而言，这意味着商业化进度上升、技术成熟度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT40bb2d15",
+            "EVT3387e8c0"
+          ]
+        },
+        {
+          "id": "CHN-02-N02",
+          "title": "液冷服务器",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "中",
+          "impact": "商业化进度 UP/MEDIUM",
+          "why": "中国于2026年8月29日发布首个国家级液冷标准，以应对AI机架功耗逼近1MW的散热挑战，该标准为液冷服务器确立了统一的规范性技术基准。对“液冷服务器”环节而言，这意味着商业化进度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT4f8f284c"
+          ]
+        },
+        {
+          "id": "CHN-02-N03",
+          "title": "液冷系统",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "中",
+          "impact": "商业化进度 UP/MEDIUM",
+          "why": "中国于2026年8月29日发布首个国家级液冷标准，以应对AI机架功耗逼近1MW的散热挑战，该标准为液冷系统确立了统一的规范性技术基准。对“液冷系统”环节而言，这意味着商业化进度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT4f8f284c"
+          ]
+        },
+        {
+          "id": "CHN-02-N04",
+          "title": "数据中心",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“数据中心”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-02-N05",
+          "title": "服务器冷板",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期（传导滞后）",
+          "confidence": "低（0.60）",
+          "impact": "市场需求 UP/LOW",
+          "why": "液冷服务器商业化进度上升，意味着冷板等核心散热部件的配套量会随整机交付增加。服务器冷板是液冷服务器的真实组成环节，因此推测其市场需求上升。",
+          "evidence": [
+            "EVT4f8f284c"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHN-03",
+      "title": "AI算力基础设施服务产业链",
+      "kind": "产业链",
+      "conclusion": "AI芯片、算力供给出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期–中期",
+      "confidence": "低–中",
+      "path": "AI芯片、算力供给（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT40bb2d15",
+        "EVT3387e8c0",
+        "EVTe565f6f7",
+        "EVT2c59c6d9"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-03-N01",
+          "CHN-03-N02"
+        ],
+        [
+          "CHN-03-N03",
+          "CHN-03-N04",
+          "CHN-03-N05"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-03-N01",
+          "to": "CHN-03-N03",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-03-N02",
+          "to": "CHN-03-N04",
+          "relation": "依赖"
+        },
+        {
+          "from": "CHN-03-N02",
+          "to": "CHN-03-N05",
+          "relation": "依赖"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-03-N01",
+          "title": "AI芯片",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期–中期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；技术成熟度 UP/MEDIUM",
+          "why": "Google与Marvell扩大定制芯片合作，涉及TPU等AI芯片领域；OpenAI在Hot Chips 2026披露自研AI加速器ASIC Jalapeño的基准测试结果，该芯片为通用AI负载从零设计，非GPU改造；该节点归属 7 条链，本链语境未确定。对“AI芯片”环节而言，这意味着商业化进度上升、技术成熟度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT40bb2d15",
+            "EVT3387e8c0"
+          ]
+        },
+        {
+          "id": "CHN-03-N02",
+          "title": "算力供给",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "低–中",
+          "impact": "产能利用率 UP/MEDIUM；商业化进度 UP/LOW；市场供给 UP/MEDIUM；性价比 UP/MEDIUM；有效产能 UP/HIGH",
+          "why": "InferenceXv3在推理过程中实现95%以上KVCache命中率；截至2026年7月底，全国智算总规模达245万PFLOPS(FP16)，其中145万PFLOPS纳入国家级监测调度平台；该节点归属 5 条链，本链语境未确定。对“算力供给”环节而言，这意味着产能利用率上升、商业化进度上升、市场供给上升、性价比上升、有效产能上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTe565f6f7",
+            "EVT2c59c6d9"
+          ]
+        },
+        {
+          "id": "CHN-03-N03",
+          "title": "AI服务器",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“AI服务器”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-03-N04",
+          "title": "数据中心",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“数据中心”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-03-N05",
+          "title": "算力调度平台",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“算力调度平台”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-04",
+      "title": "AI视频生成服务产业链",
+      "kind": "产业链",
+      "conclusion": "AI语料、算力供给出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "中期",
+      "confidence": "低–中",
+      "path": "AI语料、算力供给（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT34119384",
+        "EVTe565f6f7",
+        "EVT2c59c6d9"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-04-N01",
+          "CHN-04-N02"
+        ],
+        [
+          "CHN-04-N03"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-04-N03",
+          "to": "CHN-04-N02",
+          "relation": "依赖"
+        },
+        {
+          "from": "CHN-04-N01",
+          "to": "CHN-04-N03",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-04-N01",
+          "title": "AI语料",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM",
+          "why": "AgentX于2026年8月24日发布开源数据集，价值300万美元，支持长上下文、多轮和子代理特性；该节点归属 2 条链，本链语境未确定。对“AI语料”环节而言，这意味着商业化进度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT34119384"
+          ]
+        },
+        {
+          "id": "CHN-04-N02",
+          "title": "算力供给",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "低–中",
+          "impact": "产能利用率 UP/MEDIUM；商业化进度 UP/LOW；市场供给 UP/MEDIUM；性价比 UP/MEDIUM；有效产能 UP/HIGH",
+          "why": "InferenceXv3在推理过程中实现95%以上KVCache命中率；截至2026年7月底，全国智算总规模达245万PFLOPS(FP16)，其中145万PFLOPS纳入国家级监测调度平台；该节点归属 5 条链，本链语境未确定。对“算力供给”环节而言，这意味着产能利用率上升、商业化进度上升、市场供给上升、性价比上升、有效产能上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTe565f6f7",
+            "EVT2c59c6d9"
+          ]
+        },
+        {
+          "id": "CHN-04-N03",
+          "title": "视频生成基础模型",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“视频生成基础模型”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-05",
+      "title": "油气勘探开发产业链",
+      "kind": "产业链",
+      "conclusion": "商品原油、油气开采出现直接 Signal，当前链级聚合结果为分化，已形成可解释的动态传导假设，其余相邻节点仍待验证；本链新增 1 条动态传导假设。",
+      "state": "分化",
+      "status": "直接节点 Signal 明确；新增 1 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "中期–短期",
+      "confidence": "中",
+      "path": "商品原油、油气开采（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "油气开采 → 油气集输与初步处理服务",
+      "evidenceIds": [
+        "EVTa7af475c",
+        "EVTe8d46974",
+        "EVT7ebaa074",
+        "EVT657ec86c"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-05-N01",
+          "CHN-05-N02"
+        ],
+        [
+          "CHN-05-N04"
+        ],
+        [
+          "CHN-05-N03"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导",
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-05-N04",
+          "to": "CHN-05-N01",
+          "relation": "投入"
+        },
+        {
+          "from": "CHN-05-N02",
+          "to": "CHN-05-N03",
+          "relation": "依赖"
+        },
+        {
+          "from": "CHN-05-N02",
+          "to": "CHN-05-N04",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-05-N01",
+          "title": "商品原油",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "分化",
+          "resultLabel": "分化",
+          "lag": "中期–短期",
+          "confidence": "中",
+          "impact": "市场供给 STABLE/LOW；市场供给 DOWN/LOW；市场供给 UP/MEDIUM；库存水平 DOWN/MEDIUM；投入成本 UP/MEDIUM",
+          "why": "亚洲炼油商转向南美生产商可能导致供应来源增加，但商品原油的市场供给整体未变；委内瑞拉2026年7月原油出口总量环比下降至116万桶/日，对美出口升至高位。对“商品原油”环节而言，这意味着市场供给保持稳定、市场供给下降、市场供给上升、库存水平下降、投入成本上升，因此本期判断为分化。",
+          "evidence": [
+            "EVTa7af475c",
+            "EVTe8d46974",
+            "EVT7ebaa074",
+            "EVT657ec86c"
+          ]
+        },
+        {
+          "id": "CHN-05-N02",
+          "title": "油气开采",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "降温",
+          "resultLabel": "降温",
+          "lag": "短期",
+          "confidence": "中",
+          "impact": "市场供给 DOWN/LOW",
+          "why": "委内瑞拉2026年7月原油出口总量环比下降至116万桶/日。对“油气开采”环节而言，这意味着市场供给下降，因此本期判断为降温。",
+          "evidence": [
+            "EVTe8d46974"
+          ]
+        },
+        {
+          "id": "CHN-05-N03",
+          "title": "具备产能的油气生产井",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“具备产能的油气生产井”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-05-N04",
+          "title": "油气集输与初步处理服务",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "降温",
+          "resultLabel": "降温",
+          "lag": "短期–中期（传导滞后）",
+          "confidence": "低（0.54）",
+          "impact": "产能利用率 DOWN/LOW",
+          "why": "油气开采供给下降会减少进入集输和初处理环节的原料量。该服务是开采产出后的明确下游环节，因此推测其产能利用率可能下降。",
+          "evidence": [
+            "EVTe8d46974"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHN-06",
+      "title": "生成式人工智能模型及应用服务产业链",
+      "kind": "产业链",
+      "conclusion": "生成式AI基础模型、算力供给出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证；本链新增 2 条动态传导假设。",
+      "state": "升温",
+      "status": "直接节点 Signal 明确；新增 2 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "中期",
+      "confidence": "低–中",
+      "path": "生成式AI基础模型、算力供给（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "生成式AI基础模型 → 模型训练服务；生成式AI基础模型 → 生成式AI应用服务",
+      "evidenceIds": [
+        "EVTea2f0e49",
+        "EVTe565f6f7",
+        "EVT2c59c6d9"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的本链语境仍待解析；上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-06-N01",
+          "CHN-06-N02"
+        ],
+        [
+          "CHN-06-N03",
+          "CHN-06-N04"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-06-N03",
+          "to": "CHN-06-N02",
+          "relation": "依赖"
+        },
+        {
+          "from": "CHN-06-N03",
+          "to": "CHN-06-N01",
+          "relation": "投入"
+        },
+        {
+          "from": "CHN-06-N01",
+          "to": "CHN-06-N04",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-06-N01",
+          "title": "生成式AI基础模型",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "中",
+          "impact": "商业化进度 UP/MEDIUM",
+          "why": "DeepMind发布Gemini Omni 1.1 Flash，宣称让开发者构建时拥有更多控制力。对“生成式AI基础模型”环节而言，这意味着商业化进度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTea2f0e49"
+          ]
+        },
+        {
+          "id": "CHN-06-N02",
+          "title": "算力供给",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "低–中",
+          "impact": "产能利用率 UP/MEDIUM；商业化进度 UP/LOW；市场供给 UP/MEDIUM；性价比 UP/MEDIUM；有效产能 UP/HIGH",
+          "why": "InferenceXv3在推理过程中实现95%以上KVCache命中率；截至2026年7月底，全国智算总规模达245万PFLOPS(FP16)，其中145万PFLOPS纳入国家级监测调度平台；该节点归属 5 条链，本链语境未确定。对“算力供给”环节而言，这意味着产能利用率上升、商业化进度上升、市场供给上升、性价比上升、有效产能上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTe565f6f7",
+            "EVT2c59c6d9"
+          ]
+        },
+        {
+          "id": "CHN-06-N03",
+          "title": "模型训练服务",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期（传导滞后）",
+          "confidence": "低（0.60）",
+          "impact": "市场需求 UP/LOW",
+          "why": "生成式AI基础模型商业化加快，会带来持续训练、微调和迭代需求。模型训练服务是基础模型的明确投入环节，因此推测其市场需求上升。",
+          "evidence": [
+            "EVTea2f0e49"
+          ]
+        },
+        {
+          "id": "CHN-06-N04",
+          "title": "生成式AI应用服务",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期（传导滞后）",
+          "confidence": "低（0.48）",
+          "impact": "商业化进度 UP/LOW",
+          "why": "基础模型商业化加快会提高可用模型供给，并降低下游应用的开发与部署门槛。基础模型是生成式AI应用服务的明确投入，因此推测应用服务的商业化进度上升。",
+          "evidence": [
+            "EVTea2f0e49"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHN-07",
+      "title": "汽车线控制动执行器产业链",
+      "kind": "产业链",
+      "conclusion": "传感器、新能源车整车出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "中期–长期",
+      "confidence": "低–中",
+      "path": "传感器、新能源车整车（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT2377d12d",
+        "EVT9c85c6ff",
+        "EVTab835f8e",
+        "EVTa4d92743"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-07-N01",
+          "CHN-07-N02"
+        ],
+        [
+          "CHN-07-N03"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-07-N01",
+          "to": "CHN-07-N03",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-07-N03",
+          "to": "CHN-07-N02",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-07-N01",
+          "title": "传感器",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "低–中",
+          "impact": "政策支持力度 UP/LOW",
+          "why": "2026年8月29日，北京怀柔发布2026年第一批采购机遇清单，采购额约4亿元，包含超过10项采购机遇，针对高端科学仪器与传感器产业；该节点归属 7 条链，本链语境未确定。对“传感器”环节而言，这意味着政策支持力度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT2377d12d"
+          ]
+        },
+        {
+          "id": "CHN-07-N02",
+          "title": "新能源车整车",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期–中期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；市场需求 UP/MEDIUM；性价比 UP/MEDIUM；技术成熟度 UP/MEDIUM",
+          "why": "中国国家市场监管总局宣布分阶段实施GB1589-2026标准，新车型需于2027年7月1日起符合，现有车型需于2028年1月1日起符合，并给予车企技术升级和过渡时间；吉利汽车发布混动SUV车型Monjaro EM-i，开启首款混动D级SUV全球推广，直接增加新能源车（混动SUV）的供给与可得性；该节点归属 5 条链，本链语境未确定。对“新能源车整车”环节而言，这意味着商业化进度上升、市场需求上升、性价比上升、技术成熟度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT9c85c6ff",
+            "EVTab835f8e",
+            "EVTa4d92743"
+          ]
+        },
+        {
+          "id": "CHN-07-N03",
+          "title": "线控制动执行器",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“线控制动执行器”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-08",
+      "title": "企业AI智能体产业链",
+      "kind": "产业链",
+      "conclusion": "AI智能体、基础模型API服务出现直接 Signal，当前链级聚合结果为升温，已形成可解释的动态传导假设，其余相邻节点仍待验证；本链新增 2 条动态传导假设。",
+      "state": "升温",
+      "status": "直接节点 Signal 明确；新增 2 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "中期",
+      "confidence": "中",
+      "path": "AI智能体、基础模型API服务（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "AI智能体 → 企业应用软件；AI智能体 → 企业知识库",
+      "evidenceIds": [
+        "EVT34119384",
+        "EVTb59f55c3",
+        "EVTea2f0e49"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-08-N01",
+          "CHN-08-N02"
+        ],
+        [
+          "CHN-08-N03",
+          "CHN-08-N04"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-08-N03",
+          "to": "CHN-08-N01",
+          "relation": "依赖"
+        },
+        {
+          "from": "CHN-08-N01",
+          "to": "CHN-08-N02",
+          "relation": "依赖"
+        },
+        {
+          "from": "CHN-08-N01",
+          "to": "CHN-08-N04",
+          "relation": "依赖"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-08-N01",
+          "title": "AI智能体",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM",
+          "why": "AgentX于2026年8月24日发布开源数据集，价值300万美元，支持长上下文、多轮和子代理特性。对“AI智能体”环节而言，这意味着商业化进度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT34119384"
+          ]
+        },
+        {
+          "id": "CHN-08-N02",
+          "title": "基础模型API服务",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "中",
+          "impact": "性价比 UP/HIGH；渗透率 UP/MEDIUM；渗透率 UP/HIGH",
+          "why": "开源模型竞争力增强，Fireworks每日处理超40万亿token，是OpenAI API在3月底交易量的2倍；DeepMind发布Gemini Omni 1.1 Flash，宣称让开发者构建时拥有更多控制力。对“基础模型API服务”环节而言，这意味着性价比上升、渗透率上升、渗透率上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTb59f55c3",
+            "EVTea2f0e49"
+          ]
+        },
+        {
+          "id": "CHN-08-N03",
+          "title": "企业应用软件",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期（传导滞后）",
+          "confidence": "低（0.42）",
+          "impact": "商业化进度 UP/LOW",
+          "why": "AI智能体商业化进度上升，会使企业应用软件更快集成自动执行、知识检索和流程协同能力。企业应用软件明确依赖AI智能体，因此推测其商业化进度上升。",
+          "evidence": [
+            "EVT34119384"
+          ]
+        },
+        {
+          "id": "CHN-08-N04",
+          "title": "企业知识库",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期（传导滞后）",
+          "confidence": "低（0.45）",
+          "impact": "市场需求 UP/LOW",
+          "why": "AI智能体进入商业应用后，需要可检索、可更新且权限可控的企业知识。AI智能体明确依赖企业知识库，因此推测企业知识库的市场需求上升。",
+          "evidence": [
+            "EVT34119384"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHN-09",
+      "title": "智能语音技术服务产业链",
+      "kind": "产业链",
+      "conclusion": "智能语音基础模型、智能语音算法SDK与云API出现直接 Signal，当前链级聚合结果为升温，已形成可解释的动态传导假设，其余相邻节点仍待验证；本链新增 2 条动态传导假设。",
+      "state": "升温",
+      "status": "直接节点 Signal 明确；新增 2 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "中期",
+      "confidence": "中",
+      "path": "智能语音基础模型、智能语音算法SDK与云API（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "智能语音算法SDK与云API → 智能终端语音交互应用；智能语音基础模型 → 智能语音基础模型训练服务",
+      "evidenceIds": [
+        "EVTcff99921"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-09-N01",
+          "CHN-09-N02"
+        ],
+        [
+          "CHN-09-N03",
+          "CHN-09-N04"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-09-N02",
+          "to": "CHN-09-N03",
+          "relation": "投入"
+        },
+        {
+          "from": "CHN-09-N01",
+          "to": "CHN-09-N02",
+          "relation": "投入"
+        },
+        {
+          "from": "CHN-09-N04",
+          "to": "CHN-09-N01",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-09-N01",
+          "title": "智能语音基础模型",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "中",
+          "impact": "商业化进度 UP/MEDIUM；技术成熟度 UP/MEDIUM；渗透率 UP/LOW",
+          "why": "DeepMind于2026年8月26日发布Gemini 3.5 Transcribe，一款提供更智能语音转文字转录功能的产品，标志公司语音转录技术进入商业化发布阶段；DeepMind于2026年8月26日发布Gemini 3.5 Transcribe，其更智能的语音转文字功能有望提升语音转录产品的技术性能和体验。对“智能语音基础模型”环节而言，这意味着商业化进度上升、技术成熟度上升、渗透率上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTcff99921"
+          ]
+        },
+        {
+          "id": "CHN-09-N02",
+          "title": "智能语音算法SDK与云API",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "中",
+          "impact": "商业化进度 UP/MEDIUM",
+          "why": "DeepMind于2026年8月26日发布Gemini 3.5 Transcribe，提供更智能的语音转文字转录功能，直接提升了DeepMind在语音转录应用中的产品供给。对“智能语音算法SDK与云API”环节而言，这意味着商业化进度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTcff99921"
+          ]
+        },
+        {
+          "id": "CHN-09-N03",
+          "title": "智能终端语音交互应用",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期（传导滞后）",
+          "confidence": "低（0.48）",
+          "impact": "商业化进度 UP/LOW",
+          "why": "智能语音SDK与云API商业化加快，会降低终端应用集成语音能力的成本和时间。该能力是智能终端语音交互应用的明确投入，因此推测应用端商业化进度上升。",
+          "evidence": [
+            "EVTcff99921"
+          ]
+        },
+        {
+          "id": "CHN-09-N04",
+          "title": "智能语音基础模型训练服务",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期（传导滞后）",
+          "confidence": "低（0.57）",
+          "impact": "市场需求 UP/LOW",
+          "why": "智能语音基础模型的技术成熟度和商业化进度上升，通常需要持续训练、评测和场景微调。训练服务是基础模型的明确投入环节，因此推测其市场需求上升。",
+          "evidence": [
+            "EVTcff99921"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHN-10",
+      "title": "AI智能手机产业链",
+      "kind": "产业链",
+      "conclusion": "AI芯片、传感器出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期–中期",
+      "confidence": "低–中",
+      "path": "AI芯片、传感器（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT40bb2d15",
+        "EVT3387e8c0",
+        "EVT2377d12d"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-10-N01",
+          "CHN-10-N02"
+        ],
+        [
+          "CHN-10-N03"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-10-N01",
+          "to": "CHN-10-N03",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-10-N02",
+          "to": "CHN-10-N03",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-10-N01",
+          "title": "AI芯片",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期–中期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；技术成熟度 UP/MEDIUM",
+          "why": "Google与Marvell扩大定制芯片合作，涉及TPU等AI芯片领域；OpenAI在Hot Chips 2026披露自研AI加速器ASIC Jalapeño的基准测试结果，该芯片为通用AI负载从零设计，非GPU改造；该节点归属 7 条链，本链语境未确定。对“AI芯片”环节而言，这意味着商业化进度上升、技术成熟度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT40bb2d15",
+            "EVT3387e8c0"
+          ]
+        },
+        {
+          "id": "CHN-10-N02",
+          "title": "传感器",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "低–中",
+          "impact": "政策支持力度 UP/LOW",
+          "why": "2026年8月29日，北京怀柔发布2026年第一批采购机遇清单，采购额约4亿元，包含超过10项采购机遇，针对高端科学仪器与传感器产业；该节点归属 7 条链，本链语境未确定。对“传感器”环节而言，这意味着政策支持力度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT2377d12d"
+          ]
+        },
+        {
+          "id": "CHN-10-N03",
+          "title": "AI手机",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“AI手机”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-11",
+      "title": "AI计算芯片产业链",
+      "kind": "产业链",
+      "conclusion": "AI芯片、集成电路制造出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期–中期",
+      "confidence": "低–中",
+      "path": "AI芯片、集成电路制造（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT40bb2d15",
+        "EVT3387e8c0",
+        "EVT29d33f9d"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-11-N01",
+          "CHN-11-N02"
+        ],
+        [
+          "CHN-11-N03",
+          "CHN-11-N04",
+          "CHN-11-N05",
+          "CHN-11-N06"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-11-N02",
+          "to": "CHN-11-N06",
+          "relation": "投入"
+        },
+        {
+          "from": "CHN-11-N01",
+          "to": "CHN-11-N04",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-11-N01",
+          "to": "CHN-11-N06",
+          "relation": "依赖"
+        },
+        {
+          "from": "CHN-11-N01",
+          "to": "CHN-11-N05",
+          "relation": "依赖"
+        },
+        {
+          "from": "CHN-11-N01",
+          "to": "CHN-11-N03",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-11-N01",
+          "to": "CHN-11-N02",
+          "relation": "依赖"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-11-N01",
+          "title": "AI芯片",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期–中期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；技术成熟度 UP/MEDIUM",
+          "why": "Google与Marvell扩大定制芯片合作，涉及TPU等AI芯片领域；OpenAI在Hot Chips 2026披露自研AI加速器ASIC Jalapeño的基准测试结果，该芯片为通用AI负载从零设计，非GPU改造；该节点归属 7 条链，本链语境未确定。对“AI芯片”环节而言，这意味着商业化进度上升、技术成熟度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT40bb2d15",
+            "EVT3387e8c0"
+          ]
+        },
+        {
+          "id": "CHN-11-N02",
+          "title": "集成电路制造",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "低–中",
+          "impact": "产能利用率 UP/MEDIUM",
+          "why": "美国商务部推进CHIPS法案制造业激励项目，多数项目计划2028年前完成；该节点归属 4 条链，本链语境未确定。对“集成电路制造”环节而言，这意味着产能利用率上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT29d33f9d"
+          ]
+        },
+        {
+          "id": "CHN-11-N03",
+          "title": "AI加速卡",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“AI加速卡”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-11-N04",
+          "title": "AI服务器",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“AI服务器”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-11-N05",
+          "title": "EDA",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“EDA”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-11-N06",
+          "title": "先进封装",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“先进封装”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-12",
+      "title": "电动汽车换电服务产业链",
+      "kind": "产业链",
+      "conclusion": "换电运营调度平台、标准化换电电池包资产出现直接 Signal，当前链级聚合结果为升温，已形成可解释的动态传导假设，其余相邻节点仍待验证；本链新增 1 条动态传导假设。",
+      "state": "升温",
+      "status": "直接节点 Signal 明确；新增 1 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "中期",
+      "confidence": "中",
+      "path": "换电运营调度平台、标准化换电电池包资产（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "标准化换电电池包资产 + 换电运营调度平台 → 换电服务",
+      "evidenceIds": [
+        "EVT00eaab71"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-12-N01",
+          "CHN-12-N02"
+        ],
+        [
+          "CHN-12-N03"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-12-N03",
+          "to": "CHN-12-N02",
+          "relation": "依赖"
+        },
+        {
+          "from": "CHN-12-N03",
+          "to": "CHN-12-N01",
+          "relation": "依赖"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-12-N01",
+          "title": "换电运营调度平台",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "中",
+          "impact": "商业化进度 UP/LOW",
+          "why": "Epicland考虑采用换电模式，意味着对换电运营调度平台的需求可能提升，从而推动其商业化进度。对“换电运营调度平台”环节而言，这意味着商业化进度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT00eaab71"
+          ]
+        },
+        {
+          "id": "CHN-12-N02",
+          "title": "标准化换电电池包资产",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "中",
+          "impact": "市场需求 UP/LOW",
+          "why": "Epicland考虑采用换电模式，将增加对标准化换电电池包资产的市场需求。对“标准化换电电池包资产”环节而言，这意味着市场需求上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT00eaab71"
+          ]
+        },
+        {
+          "id": "CHN-12-N03",
+          "title": "换电服务",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期（传导滞后）",
+          "confidence": "低（0.45）",
+          "impact": "商业化进度 UP/LOW",
+          "why": "标准化换电电池包需求上升，同时换电运营调度平台商业化提速，表明资产与运营系统都在准备扩张。换电服务同时依赖这两个环节，因此推测其商业化进度上升。",
+          "evidence": [
+            "EVT00eaab71"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHN-13",
+      "title": "量子信息技术系统产业链",
+      "kind": "产业链",
+      "conclusion": "超导量子计算机、量子计算控制软件出现直接 Signal，当前链级聚合结果为升温，已形成可解释的动态传导假设，其余相邻节点仍待验证；本链新增 3 条动态传导假设。",
+      "state": "升温",
+      "status": "直接节点 Signal 明确；新增 3 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "长期",
+      "confidence": "中",
+      "path": "超导量子计算机、量子计算控制软件（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "超导量子计算机 → 超导量子芯片；超导量子计算机 → 稀释制冷机；超导量子计算机 → 量子测控电子系统",
+      "evidenceIds": [
+        "EVT6ee33536"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-13-N01",
+          "CHN-13-N02"
+        ],
+        [
+          "CHN-13-N03",
+          "CHN-13-N04",
+          "CHN-13-N05"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-13-N04",
+          "to": "CHN-13-N01",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-13-N03",
+          "to": "CHN-13-N01",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-13-N05",
+          "to": "CHN-13-N01",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-13-N02",
+          "to": "CHN-13-N01",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-13-N01",
+          "title": "超导量子计算机",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "中",
+          "impact": "政策支持力度 UP/HIGH",
+          "why": "美国商务部取消CHIPS法案下78亿美元研发拨款，并转向量子计算投资，向xLight等公司授予9亿美元、承诺20亿美元量子计算初步拨款，要求以股权换取资金。对“超导量子计算机”环节而言，这意味着政策支持力度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT6ee33536"
+          ]
+        },
+        {
+          "id": "CHN-13-N02",
+          "title": "量子计算控制软件",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "低–中",
+          "impact": "技术路线竞争 UP/MEDIUM",
+          "why": "美国商务部取消CHIPS法案研发资金并转向量子计算投资，涉及NSTC框架调整。对“量子计算控制软件”环节而言，这意味着技术路线竞争上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT6ee33536"
+          ]
+        },
+        {
+          "id": "CHN-13-N03",
+          "title": "稀释制冷机",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期（传导滞后）",
+          "confidence": "低（0.44）",
+          "impact": "市场需求 UP/LOW",
+          "why": "超导量子计算机获得更强政策支持后，整机项目投入可能带动关键配套设备。稀释制冷机是超导量子计算机的明确组成环节，因此推测其采购需求上升。",
+          "evidence": [
+            "EVT6ee33536"
+          ]
+        },
+        {
+          "id": "CHN-13-N04",
+          "title": "超导量子芯片",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期（传导滞后）",
+          "confidence": "低（0.44）",
+          "impact": "市场需求 UP/LOW",
+          "why": "超导量子计算机获得更强政策支持后，研发和项目投入通常会向核心部件传导。超导量子芯片是整机的明确组成环节，因此推测其研发与采购需求上升。",
+          "evidence": [
+            "EVT6ee33536"
+          ]
+        },
+        {
+          "id": "CHN-13-N05",
+          "title": "量子测控电子系统",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期（传导滞后）",
+          "confidence": "低（0.44）",
+          "impact": "市场需求 UP/LOW",
+          "why": "超导量子计算机获得更强政策支持后，整机研发和部署将增加对测控环节的需求。量子测控电子系统是整机的明确组成环节，因此推测其市场需求上升。",
+          "evidence": [
+            "EVT6ee33536"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHN-14",
+      "title": "自动驾驶系统产业链",
+      "kind": "产业链",
+      "conclusion": "自动驾驶系统出现直接 Signal，当前链级聚合结果为升温，已形成可解释的动态传导假设，其余相邻节点仍待验证；本链新增 2 条动态传导假设。",
+      "state": "升温",
+      "status": "直接节点 Signal 明确；新增 2 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "长期–中期",
+      "confidence": "中–高",
+      "path": "自动驾驶系统（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "自动驾驶系统 → 激光雷达；自动驾驶系统 → 车载摄像头模组",
+      "evidenceIds": [
+        "EVT39d201dc",
+        "EVT8e5d52ba",
+        "EVTba2fe6be"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-14-N01"
+        ],
+        [
+          "CHN-14-N03",
+          "CHN-14-N04"
+        ],
+        [
+          "CHN-14-N02"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导",
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-14-N03",
+          "to": "CHN-14-N01",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-14-N04",
+          "to": "CHN-14-N01",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-14-N01",
+          "to": "CHN-14-N02",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-14-N01",
+          "title": "自动驾驶系统",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期–中期",
+          "confidence": "中–高",
+          "impact": "商业化进度 UP/MEDIUM；市场份额 UP/MEDIUM；技术成熟度 UP/MEDIUM；订单可见度 UP/MEDIUM",
+          "why": "Momenta披露2026年上半年研发支出11.6亿元，同比增长18.6%，占营收72.6%，研发员工1102名占员工总数79.1%；Momenta在2026年上半年新增安装量产方案约32.1万套，同比增长83.7%，累计安装超100万套；交付37个量产车型，累计105个。对“自动驾驶系统”环节而言，这意味着商业化进度上升、市场份额上升、技术成熟度上升、订单可见度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT39d201dc",
+            "EVT8e5d52ba",
+            "EVTba2fe6be"
+          ]
+        },
+        {
+          "id": "CHN-14-N02",
+          "title": "乘用车整车",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“乘用车整车”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-14-N03",
+          "title": "激光雷达",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期–长期（传导滞后）",
+          "confidence": "中（0.69）",
+          "impact": "市场需求 UP/LOW",
+          "why": "自动驾驶系统的商业化、订单可见度和技术成熟度同时上升，会增加对环境感知部件的配套需求。激光雷达是系统的真实组成环节，因此推测其市场需求上升。",
+          "evidence": [
+            "EVT39d201dc",
+            "EVT8e5d52ba",
+            "EVTba2fe6be"
+          ]
+        },
+        {
+          "id": "CHN-14-N04",
+          "title": "车载摄像头模组",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期–长期（传导滞后）",
+          "confidence": "中（0.69）",
+          "impact": "市场需求 UP/LOW",
+          "why": "自动驾驶系统的商业化、订单可见度和技术成熟度同时上升，会增加多视角环境感知需求。车载摄像头模组是系统的真实组成环节，因此推测其市场需求上升。",
+          "evidence": [
+            "EVT39d201dc",
+            "EVT8e5d52ba",
+            "EVTba2fe6be"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHN-15",
+      "title": "AI药物发现服务产业链",
+      "kind": "产业链",
+      "conclusion": "算力供给出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "中期",
+      "confidence": "低–中",
+      "path": "算力供给（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVTe565f6f7",
+        "EVT2c59c6d9"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-15-N01"
+        ],
+        [
+          "CHN-15-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-15-N02",
+          "to": "CHN-15-N01",
+          "relation": "依赖"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-15-N01",
+          "title": "算力供给",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "低–中",
+          "impact": "产能利用率 UP/MEDIUM；商业化进度 UP/LOW；市场供给 UP/MEDIUM；性价比 UP/MEDIUM；有效产能 UP/HIGH",
+          "why": "InferenceXv3在推理过程中实现95%以上KVCache命中率；截至2026年7月底，全国智算总规模达245万PFLOPS(FP16)，其中145万PFLOPS纳入国家级监测调度平台；该节点归属 5 条链，本链语境未确定。对“算力供给”环节而言，这意味着产能利用率上升、商业化进度上升、市场供给上升、性价比上升、有效产能上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTe565f6f7",
+            "EVT2c59c6d9"
+          ]
+        },
+        {
+          "id": "CHN-15-N02",
+          "title": "AI药物发现模型平台",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“AI药物发现模型平台”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-16",
+      "title": "MLOps平台与服务产业链",
+      "kind": "产业链",
+      "conclusion": "算力供给出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "中期",
+      "confidence": "低–中",
+      "path": "算力供给（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVTe565f6f7",
+        "EVT2c59c6d9"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-16-N01"
+        ],
+        [
+          "CHN-16-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-16-N02",
+          "to": "CHN-16-N01",
+          "relation": "依赖"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-16-N01",
+          "title": "算力供给",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "低–中",
+          "impact": "产能利用率 UP/MEDIUM；商业化进度 UP/LOW；市场供给 UP/MEDIUM；性价比 UP/MEDIUM；有效产能 UP/HIGH",
+          "why": "InferenceXv3在推理过程中实现95%以上KVCache命中率；截至2026年7月底，全国智算总规模达245万PFLOPS(FP16)，其中145万PFLOPS纳入国家级监测调度平台；该节点归属 5 条链，本链语境未确定。对“算力供给”环节而言，这意味着产能利用率上升、商业化进度上升、市场供给上升、性价比上升、有效产能上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTe565f6f7",
+            "EVT2c59c6d9"
+          ]
+        },
+        {
+          "id": "CHN-16-N02",
+          "title": "MLOps平台与服务",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“MLOps平台与服务”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-17",
+      "title": "新能源汽车产业链",
+      "kind": "产业链",
+      "conclusion": "纯电动汽车整车出现直接 Signal，当前链级聚合结果为升温，已形成可解释的动态传导假设，其余相邻节点仍待验证；本链新增 5 条动态传导假设。",
+      "state": "升温",
+      "status": "直接节点 Signal 明确；新增 5 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "中期–短期",
+      "confidence": "中–高",
+      "path": "纯电动汽车整车（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "纯电动汽车整车 → 纯电动汽车动力电池包；纯电动汽车整车 → 纯电动汽车底盘车身系统；纯电动汽车整车 → 纯电动汽车热管理系统；纯电动汽车整车 → 新能源汽车公告认证服务；纯电动汽车整车 → 纯电动汽车电驱总成",
+      "evidenceIds": [
+        "EVT2b8388a3",
+        "EVT8e5d52ba"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-17-N01"
+        ],
+        [
+          "CHN-17-N02",
+          "CHN-17-N03",
+          "CHN-17-N04",
+          "CHN-17-N05",
+          "CHN-17-N06"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-17-N03",
+          "to": "CHN-17-N01",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-17-N04",
+          "to": "CHN-17-N01",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-17-N05",
+          "to": "CHN-17-N01",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-17-N01",
+          "to": "CHN-17-N02",
+          "relation": "依赖"
+        },
+        {
+          "from": "CHN-17-N06",
+          "to": "CHN-17-N01",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-17-N01",
+          "title": "纯电动汽车整车",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期–短期",
+          "confidence": "中–高",
+          "impact": "交付周期 UP/HIGH；扩产强度 UP/HIGH；渗透率 UP/MEDIUM；订单可见度 UP/HIGH",
+          "why": "小鹏GX上市12小时内获24863份订单，Ultra版交付等待时间达35周，小鹏因此增加模具和产线；小鹏为应对GX订单激增，增加关键零部件模具和产线。对“纯电动汽车整车”环节而言，这意味着交付周期上升、扩产强度上升、渗透率上升、订单可见度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT2b8388a3",
+            "EVT8e5d52ba"
+          ]
+        },
+        {
+          "id": "CHN-17-N02",
+          "title": "新能源汽车公告认证服务",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期（传导假设）",
+          "confidence": "低（0.48）",
+          "impact": "市场需求 UP/LOW",
+          "why": "纯电动汽车整车的订单和扩产走强，通常伴随新车型、配置和生产变更的准入需求。整车明确依赖公告认证服务，因此推测该服务需求上升，但需后续车型申报数验证。",
+          "evidence": [
+            "EVT2b8388a3",
+            "EVT8e5d52ba"
+          ]
+        },
+        {
+          "id": "CHN-17-N03",
+          "title": "纯电动汽车动力电池包",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期（传导滞后）",
+          "confidence": "中（0.69）",
+          "impact": "市场需求 UP/LOW",
+          "why": "纯电动汽车整车的订单可见度、扩产强度和渗透率上升，会按整车产量拉动动力电池包配套。动力电池包是整车的明确组成环节，因此推测其市场需求上升。",
+          "evidence": [
+            "EVT2b8388a3",
+            "EVT8e5d52ba"
+          ]
+        },
+        {
+          "id": "CHN-17-N04",
+          "title": "纯电动汽车底盘车身系统",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期（传导滞后）",
+          "confidence": "中（0.69）",
+          "impact": "市场需求 UP/LOW",
+          "why": "纯电动汽车整车的订单可见度和扩产强度上升，会按整车产量增加底盘车身系统的配套量。该系统是整车的明确组成环节，因此推测其市场需求上升。",
+          "evidence": [
+            "EVT2b8388a3",
+            "EVT8e5d52ba"
+          ]
+        },
+        {
+          "id": "CHN-17-N05",
+          "title": "纯电动汽车热管理系统",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期（传导滞后）",
+          "confidence": "中（0.69）",
+          "impact": "市场需求 UP/LOW",
+          "why": "纯电动汽车整车订单和扩产走强，会增加电池、电驱和座舱热管理的配套量。热管理系统是整车的明确组成环节，因此推测其市场需求上升。",
+          "evidence": [
+            "EVT2b8388a3",
+            "EVT8e5d52ba"
+          ]
+        },
+        {
+          "id": "CHN-17-N06",
+          "title": "纯电动汽车电驱总成",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期（传导滞后）",
+          "confidence": "中（0.69）",
+          "impact": "市场需求 UP/LOW",
+          "why": "纯电动汽车整车订单和扩产走强，会按整车产量增加电驱总成的配套量。电驱总成是整车的明确组成环节，因此推测其市场需求上升。",
+          "evidence": [
+            "EVT2b8388a3",
+            "EVT8e5d52ba"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHN-18",
+      "title": "普通钢材产业链",
+      "kind": "产业链",
+      "conclusion": "钢铁长材出现直接 Signal，当前链级聚合结果为升温，已形成可解释的动态传导假设，其余相邻节点仍待验证；本链新增 1 条动态传导假设。",
+      "state": "升温",
+      "status": "直接节点 Signal 明确；新增 1 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "短期–长期",
+      "confidence": "中–高",
+      "path": "钢铁长材（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "钢铁长材 → 普钢长材轧制工序",
+      "evidenceIds": [
+        "EVTd6821525",
+        "EVTd2af646a"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-18-N01"
+        ],
+        [
+          "CHN-18-N02"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-18-N02",
+          "to": "CHN-18-N01",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-18-N01",
+          "title": "钢铁长材",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "短期–长期",
+          "confidence": "中–高",
+          "impact": "定价权 UP/MEDIUM；成本传导能力 UP/MEDIUM；进口依赖度 UP/MEDIUM；销售价格 UP/MEDIUM",
+          "why": "中国钢坯出口商将钢坯出口报价上调至465-470美元/吨FOB；欧盟调整钢铁配额及CBAM政策，增加钢铁出口至欧盟的成本，影响相关钢铁产业链节点的进口依赖度和供应格局。对“钢铁长材”环节而言，这意味着定价权上升、成本传导能力上升、进口依赖度上升、销售价格上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTd6821525",
+            "EVTd2af646a"
+          ]
+        },
+        {
+          "id": "CHN-18-N02",
+          "title": "普钢长材轧制工序",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "短期–中期（传导假设）",
+          "confidence": "低（0.48）",
+          "impact": "产能利用率 UP/LOW",
+          "why": "钢铁长材的销售价格、定价权和成本传导能力上升，可能支撑国内长材生产和轧制活动。长材轧制工序是钢铁长材的明确投入环节，因此推测其产能利用率上升。",
+          "evidence": [
+            "EVTd6821525",
+            "EVTd2af646a"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHN-19",
+      "title": "汽车一体化压铸产业链",
+      "kind": "产业链",
+      "conclusion": "新能源车整车出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期–中期",
+      "confidence": "低–中",
+      "path": "新能源车整车（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT9c85c6ff",
+        "EVTab835f8e",
+        "EVTa4d92743"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-19-N01"
+        ],
+        [
+          "CHN-19-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-19-N02",
+          "to": "CHN-19-N01",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-19-N01",
+          "title": "新能源车整车",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期–中期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；市场需求 UP/MEDIUM；性价比 UP/MEDIUM；技术成熟度 UP/MEDIUM",
+          "why": "中国国家市场监管总局宣布分阶段实施GB1589-2026标准，新车型需于2027年7月1日起符合，现有车型需于2028年1月1日起符合，并给予车企技术升级和过渡时间；吉利汽车发布混动SUV车型Monjaro EM-i，开启首款混动D级SUV全球推广，直接增加新能源车（混动SUV）的供给与可得性；该节点归属 5 条链，本链语境未确定。对“新能源车整车”环节而言，这意味着商业化进度上升、市场需求上升、性价比上升、技术成熟度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT9c85c6ff",
+            "EVTab835f8e",
+            "EVTa4d92743"
+          ]
+        },
+        {
+          "id": "CHN-19-N02",
+          "title": "一体化压铸车身结构件",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“一体化压铸车身结构件”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-20",
+      "title": "汽车热管理系统产业链",
+      "kind": "产业链",
+      "conclusion": "新能源车整车出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期–中期",
+      "confidence": "低–中",
+      "path": "新能源车整车（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT9c85c6ff",
+        "EVTab835f8e",
+        "EVTa4d92743"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-20-N01"
+        ],
+        [
+          "CHN-20-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-20-N02",
+          "to": "CHN-20-N01",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-20-N01",
+          "title": "新能源车整车",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期–中期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；市场需求 UP/MEDIUM；性价比 UP/MEDIUM；技术成熟度 UP/MEDIUM",
+          "why": "中国国家市场监管总局宣布分阶段实施GB1589-2026标准，新车型需于2027年7月1日起符合，现有车型需于2028年1月1日起符合，并给予车企技术升级和过渡时间；吉利汽车发布混动SUV车型Monjaro EM-i，开启首款混动D级SUV全球推广，直接增加新能源车（混动SUV）的供给与可得性；该节点归属 5 条链，本链语境未确定。对“新能源车整车”环节而言，这意味着商业化进度上升、市场需求上升、性价比上升、技术成熟度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT9c85c6ff",
+            "EVTab835f8e",
+            "EVTa4d92743"
+          ]
+        },
+        {
+          "id": "CHN-20-N02",
+          "title": "汽车热管理系统",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“汽车热管理系统”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-21",
+      "title": "油品石化贸易服务产业链",
+      "kind": "产业链",
+      "conclusion": "油品运输服务出现直接 Signal，当前链级聚合结果为分化，已形成可解释的动态传导假设，其余相邻节点仍待验证；本链新增 1 条动态传导假设。",
+      "state": "分化",
+      "status": "直接节点 Signal 明确；新增 1 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "中期",
+      "confidence": "中–高",
+      "path": "油品运输服务（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "油品运输服务 → 成品油批发交付服务",
+      "evidenceIds": [
+        "EVTa8b7eff4",
+        "EVT3cf927a6"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-21-N01"
+        ],
+        [
+          "CHN-21-N02"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-21-N02",
+          "to": "CHN-21-N01",
+          "relation": "依赖"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-21-N01",
+          "title": "油品运输服务",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "分化",
+          "resultLabel": "分化",
+          "lag": "中期",
+          "confidence": "中–高",
+          "impact": "交付周期 UP/HIGH；利润率 UP/HIGH；战略资源安全 DOWN/MEDIUM；销售价格 UP/HIGH",
+          "why": "美伊冲突扰乱霍尔木兹海峡，导致油品运输服务的交付周期延长；美伊冲突扰乱霍尔木兹海峡，油运高景气延续，TD3C-TCE超60万美元/天。对“油品运输服务”环节而言，这意味着交付周期上升、利润率上升、战略资源安全下降、销售价格上升，因此本期判断为分化。",
+          "evidence": [
+            "EVTa8b7eff4",
+            "EVT3cf927a6"
+          ]
+        },
+        {
+          "id": "CHN-21-N02",
+          "title": "成品油批发交付服务",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "降温",
+          "resultLabel": "降温",
+          "lag": "短期–中期（传导滞后）",
+          "confidence": "低（0.62）",
+          "impact": "投入成本 UP/LOW；交付周期 UP/LOW",
+          "why": "油品运输的交付周期和销售价格上升，会把更高的物流成本和更长的到货时间传导给批发交付环节。成品油批发服务明确依赖运输服务，因此推测其投入成本和交付周期上升，经营景气受压。",
+          "evidence": [
+            "EVTa8b7eff4",
+            "EVT3cf927a6"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHN-22",
+      "title": "火力发电设备产业链",
+      "kind": "产业链",
+      "conclusion": "汽轮机出现直接 Signal，当前链级聚合结果为分化，已形成可解释的动态传导假设，其余相邻节点仍待验证；本链新增 1 条动态传导假设。",
+      "state": "分化",
+      "status": "直接节点 Signal 明确；新增 1 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "长期–中期",
+      "confidence": "中–高",
+      "path": "汽轮机（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "汽轮机 → 火电设备",
+      "evidenceIds": [
+        "EVT7cfe2fe7"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-22-N01"
+        ],
+        [
+          "CHN-22-N02"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-22-N01",
+          "to": "CHN-22-N02",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-22-N01",
+          "title": "汽轮机",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "分化",
+          "resultLabel": "分化",
+          "lag": "长期–中期",
+          "confidence": "中–高",
+          "impact": "产能释放周期 UP/MEDIUM；市场需求 UP/HIGH；库存水平 DOWN/MEDIUM；扩产强度 UP/MEDIUM",
+          "why": "美国燃气轮机需求创新高，促使制造商扩大产能；美国对燃气轮机的需求创历史新高，主要由数据中心电力需求驱动。对“汽轮机”环节而言，这意味着产能释放周期上升、市场需求上升、库存水平下降、扩产强度上升，因此本期判断为分化。",
+          "evidence": [
+            "EVT7cfe2fe7"
+          ]
+        },
+        {
+          "id": "CHN-22-N02",
+          "title": "火电设备",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期–长期（传导假设）",
+          "confidence": "低（0.48）",
+          "impact": "市场需求 UP/LOW；扩产强度 UP/LOW",
+          "why": "汽轮机的市场需求和扩产强度上升，表明火电和燃机设备的核心动力环节正在扩张。汽轮机是火电设备的明确组成环节，因此推测整体设备需求和扩产强度上升。",
+          "evidence": [
+            "EVT7cfe2fe7"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHN-23",
+      "title": "磷酸铁锂刀片电池产业链",
+      "kind": "产业链",
+      "conclusion": "新能源车整车出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期–中期",
+      "confidence": "低–中",
+      "path": "新能源车整车（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT9c85c6ff",
+        "EVTab835f8e",
+        "EVTa4d92743"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-23-N01"
+        ],
+        [
+          "CHN-23-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-23-N02",
+          "to": "CHN-23-N01",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-23-N01",
+          "title": "新能源车整车",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期–中期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；市场需求 UP/MEDIUM；性价比 UP/MEDIUM；技术成熟度 UP/MEDIUM",
+          "why": "中国国家市场监管总局宣布分阶段实施GB1589-2026标准，新车型需于2027年7月1日起符合，现有车型需于2028年1月1日起符合，并给予车企技术升级和过渡时间；吉利汽车发布混动SUV车型Monjaro EM-i，开启首款混动D级SUV全球推广，直接增加新能源车（混动SUV）的供给与可得性；该节点归属 5 条链，本链语境未确定。对“新能源车整车”环节而言，这意味着商业化进度上升、市场需求上升、性价比上升、技术成熟度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT9c85c6ff",
+            "EVTab835f8e",
+            "EVTa4d92743"
+          ]
+        },
+        {
+          "id": "CHN-23-N02",
+          "title": "刀片电池",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“刀片电池”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-24",
+      "title": "车规级功率模块产业链",
+      "kind": "产业链",
+      "conclusion": "新能源车整车出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期–中期",
+      "confidence": "低–中",
+      "path": "新能源车整车（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT9c85c6ff",
+        "EVTab835f8e",
+        "EVTa4d92743"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-24-N01"
+        ],
+        [
+          "CHN-24-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-24-N02",
+          "to": "CHN-24-N01",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-24-N01",
+          "title": "新能源车整车",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期–中期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；市场需求 UP/MEDIUM；性价比 UP/MEDIUM；技术成熟度 UP/MEDIUM",
+          "why": "中国国家市场监管总局宣布分阶段实施GB1589-2026标准，新车型需于2027年7月1日起符合，现有车型需于2028年1月1日起符合，并给予车企技术升级和过渡时间；吉利汽车发布混动SUV车型Monjaro EM-i，开启首款混动D级SUV全球推广，直接增加新能源车（混动SUV）的供给与可得性；该节点归属 5 条链，本链语境未确定。对“新能源车整车”环节而言，这意味着商业化进度上升、市场需求上升、性价比上升、技术成熟度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT9c85c6ff",
+            "EVTab835f8e",
+            "EVTa4d92743"
+          ]
+        },
+        {
+          "id": "CHN-24-N02",
+          "title": "新能源汽车主驱逆变器",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“新能源汽车主驱逆变器”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-25",
+      "title": "AI个人电脑产业链",
+      "kind": "产业链",
+      "conclusion": "AI芯片出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期–中期",
+      "confidence": "低–中",
+      "path": "AI芯片（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT40bb2d15",
+        "EVT3387e8c0"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-25-N01"
+        ],
+        [
+          "CHN-25-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-25-N01",
+          "to": "CHN-25-N02",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-25-N01",
+          "title": "AI芯片",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期–中期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；技术成熟度 UP/MEDIUM",
+          "why": "Google与Marvell扩大定制芯片合作，涉及TPU等AI芯片领域；OpenAI在Hot Chips 2026披露自研AI加速器ASIC Jalapeño的基准测试结果，该芯片为通用AI负载从零设计，非GPU改造；该节点归属 7 条链，本链语境未确定。对“AI芯片”环节而言，这意味着商业化进度上升、技术成熟度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT40bb2d15",
+            "EVT3387e8c0"
+          ]
+        },
+        {
+          "id": "CHN-25-N02",
+          "title": "AI PC",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“AI PC”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-26",
+      "title": "AI智能眼镜产业链",
+      "kind": "产业链",
+      "conclusion": "AI芯片出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期–中期",
+      "confidence": "低–中",
+      "path": "AI芯片（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT40bb2d15",
+        "EVT3387e8c0"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-26-N01"
+        ],
+        [
+          "CHN-26-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-26-N01",
+          "to": "CHN-26-N02",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-26-N01",
+          "title": "AI芯片",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期–中期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；技术成熟度 UP/MEDIUM",
+          "why": "Google与Marvell扩大定制芯片合作，涉及TPU等AI芯片领域；OpenAI在Hot Chips 2026披露自研AI加速器ASIC Jalapeño的基准测试结果，该芯片为通用AI负载从零设计，非GPU改造；该节点归属 7 条链，本链语境未确定。对“AI芯片”环节而言，这意味着商业化进度上升、技术成熟度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT40bb2d15",
+            "EVT3387e8c0"
+          ]
+        },
+        {
+          "id": "CHN-26-N02",
+          "title": "AI眼镜",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“AI眼镜”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-27",
+      "title": "AI算力租赁服务产业链",
+      "kind": "产业链",
+      "conclusion": "AI芯片出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期–中期",
+      "confidence": "低–中",
+      "path": "AI芯片（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT40bb2d15",
+        "EVT3387e8c0"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-27-N01"
+        ],
+        [
+          "CHN-27-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-27-N01",
+          "to": "CHN-27-N02",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-27-N01",
+          "title": "AI芯片",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期–中期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；技术成熟度 UP/MEDIUM",
+          "why": "Google与Marvell扩大定制芯片合作，涉及TPU等AI芯片领域；OpenAI在Hot Chips 2026披露自研AI加速器ASIC Jalapeño的基准测试结果，该芯片为通用AI负载从零设计，非GPU改造；该节点归属 7 条链，本链语境未确定。对“AI芯片”环节而言，这意味着商业化进度上升、技术成熟度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT40bb2d15",
+            "EVT3387e8c0"
+          ]
+        },
+        {
+          "id": "CHN-27-N02",
+          "title": "AI服务器",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“AI服务器”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-28",
+      "title": "CAR-T细胞治疗产业链",
+      "kind": "产业链",
+      "conclusion": "医院医疗服务出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期",
+      "confidence": "低–中",
+      "path": "医院医疗服务（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVTff5eaf10"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-28-N01"
+        ],
+        [
+          "CHN-28-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-28-N02",
+          "to": "CHN-28-N01",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-28-N01",
+          "title": "医院医疗服务",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；市场需求 UP/MEDIUM",
+          "why": "华为与瑞金医院发布瑞智病理大模型RuiPath 2.0并落地90+医院；该节点归属 6 条链，本链语境未确定。对“医院医疗服务”环节而言，这意味着商业化进度上升、市场需求上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTff5eaf10"
+          ]
+        },
+        {
+          "id": "CHN-28-N02",
+          "title": "CAR-T细胞疗法",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“CAR-T细胞疗法”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-29",
+      "title": "化学药制剂产业链",
+      "kind": "产业链",
+      "conclusion": "医院医疗服务出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期",
+      "confidence": "低–中",
+      "path": "医院医疗服务（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVTff5eaf10"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-29-N01"
+        ],
+        [
+          "CHN-29-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-29-N02",
+          "to": "CHN-29-N01",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-29-N01",
+          "title": "医院医疗服务",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；市场需求 UP/MEDIUM",
+          "why": "华为与瑞金医院发布瑞智病理大模型RuiPath 2.0并落地90+医院；该节点归属 6 条链，本链语境未确定。对“医院医疗服务”环节而言，这意味着商业化进度上升、市场需求上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTff5eaf10"
+          ]
+        },
+        {
+          "id": "CHN-29-N02",
+          "title": "医药流通服务",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“医药流通服务”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-30",
+      "title": "医用芬太尼药品产业链",
+      "kind": "产业链",
+      "conclusion": "医院医疗服务出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期",
+      "confidence": "低–中",
+      "path": "医院医疗服务（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVTff5eaf10"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-30-N01"
+        ],
+        [
+          "CHN-30-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-30-N02",
+          "to": "CHN-30-N01",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-30-N01",
+          "title": "医院医疗服务",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；市场需求 UP/MEDIUM",
+          "why": "华为与瑞金医院发布瑞智病理大模型RuiPath 2.0并落地90+医院；该节点归属 6 条链，本链语境未确定。对“医院医疗服务”环节而言，这意味着商业化进度上升、市场需求上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTff5eaf10"
+          ]
+        },
+        {
+          "id": "CHN-30-N02",
+          "title": "医药流通服务",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“医药流通服务”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-31",
+      "title": "医疗信息化系统产业链",
+      "kind": "产业链",
+      "conclusion": "医院医疗服务出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期",
+      "confidence": "低–中",
+      "path": "医院医疗服务（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVTff5eaf10"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-31-N01"
+        ],
+        [
+          "CHN-31-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-31-N01",
+          "to": "CHN-31-N02",
+          "relation": "依赖"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-31-N01",
+          "title": "医院医疗服务",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；市场需求 UP/MEDIUM",
+          "why": "华为与瑞金医院发布瑞智病理大模型RuiPath 2.0并落地90+医院；该节点归属 6 条链，本链语境未确定。对“医院医疗服务”环节而言，这意味着商业化进度上升、市场需求上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTff5eaf10"
+          ]
+        },
+        {
+          "id": "CHN-31-N02",
+          "title": "医院信息系统",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“医院信息系统”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-32",
+      "title": "医疗设备产业链",
+      "kind": "产业链",
+      "conclusion": "医院医疗服务出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期",
+      "confidence": "低–中",
+      "path": "医院医疗服务（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVTff5eaf10"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-32-N01"
+        ],
+        [
+          "CHN-32-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-32-N02",
+          "to": "CHN-32-N01",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-32-N01",
+          "title": "医院医疗服务",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；市场需求 UP/MEDIUM",
+          "why": "华为与瑞金医院发布瑞智病理大模型RuiPath 2.0并落地90+医院；该节点归属 6 条链，本链语境未确定。对“医院医疗服务”环节而言，这意味着商业化进度上升、市场需求上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTff5eaf10"
+          ]
+        },
+        {
+          "id": "CHN-32-N02",
+          "title": "多参数患者监护仪",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“多参数患者监护仪”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-33",
+      "title": "医院医疗服务产业链",
+      "kind": "产业链",
+      "conclusion": "医院医疗服务出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期",
+      "confidence": "低–中",
+      "path": "医院医疗服务（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVTff5eaf10"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-33-N01"
+        ],
+        [
+          "CHN-33-N02",
+          "CHN-33-N03",
+          "CHN-33-N04"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-33-N02",
+          "to": "CHN-33-N01",
+          "relation": "投入"
+        },
+        {
+          "from": "CHN-33-N01",
+          "to": "CHN-33-N04",
+          "relation": "依赖"
+        },
+        {
+          "from": "CHN-33-N03",
+          "to": "CHN-33-N01",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-33-N01",
+          "title": "医院医疗服务",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM；市场需求 UP/MEDIUM",
+          "why": "华为与瑞金医院发布瑞智病理大模型RuiPath 2.0并落地90+医院；该节点归属 6 条链，本链语境未确定。对“医院医疗服务”环节而言，这意味着商业化进度上升、市场需求上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTff5eaf10"
+          ]
+        },
+        {
+          "id": "CHN-33-N02",
+          "title": "医护专业服务",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“医护专业服务”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-33-N03",
+          "title": "医院药械供应服务",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“医院药械供应服务”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-33-N04",
+          "title": "医院诊疗设施",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“医院诊疗设施”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-34",
+      "title": "跨境支付服务产业链",
+      "kind": "产业链",
+      "conclusion": "跨境支付服务出现直接 Signal，节点方向为分化；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "分化",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "中期–长期",
+      "confidence": "低–中",
+      "path": "跨境支付服务（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT11a64547"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-34-N01"
+        ],
+        [
+          "CHN-34-N02",
+          "CHN-34-N03",
+          "CHN-34-N04"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-34-N01",
+          "to": "CHN-34-N02",
+          "relation": "依赖"
+        },
+        {
+          "from": "CHN-34-N04",
+          "to": "CHN-34-N01",
+          "relation": "投入"
+        },
+        {
+          "from": "CHN-34-N03",
+          "to": "CHN-34-N01",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-34-N01",
+          "title": "跨境支付服务",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "分化",
+          "resultLabel": "分化",
+          "lag": "中期–长期",
+          "confidence": "低–中",
+          "impact": "渗透率 UP/LOW；进口依赖度 DOWN/LOW",
+          "why": "中东客户主动询问用人民币结算以节省换汇手续费并改善账期，反映跨境支付服务采用人民币结算的意愿增强；中东客户对人民币结算的兴趣可能推动跨境支付服务减少对美元等外币的依赖，从而降低进口依赖度；该节点归属 2 条链，本链语境未确定。对“跨境支付服务”环节而言，这意味着渗透率上升、进口依赖度下降，因此本期判断为分化。",
+          "evidence": [
+            "EVT11a64547"
+          ]
+        },
+        {
+          "id": "CHN-34-N02",
+          "title": "反洗钱与制裁筛查系统",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“反洗钱与制裁筛查系统”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-34-N03",
+          "title": "外汇兑换服务",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“外汇兑换服务”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-34-N04",
+          "title": "支付网关服务",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“支付网关服务”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-35",
+      "title": "跨境电商服务产业链",
+      "kind": "产业链",
+      "conclusion": "跨境支付服务出现直接 Signal，节点方向为分化；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "分化",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "中期–长期",
+      "confidence": "低–中",
+      "path": "跨境支付服务（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT11a64547"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-35-N01"
+        ],
+        [
+          "CHN-35-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-35-N01",
+          "to": "CHN-35-N02",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-35-N01",
+          "title": "跨境支付服务",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "分化",
+          "resultLabel": "分化",
+          "lag": "中期–长期",
+          "confidence": "低–中",
+          "impact": "渗透率 UP/LOW；进口依赖度 DOWN/LOW",
+          "why": "中东客户主动询问用人民币结算以节省换汇手续费并改善账期，反映跨境支付服务采用人民币结算的意愿增强；中东客户对人民币结算的兴趣可能推动跨境支付服务减少对美元等外币的依赖，从而降低进口依赖度；该节点归属 2 条链，本链语境未确定。对“跨境支付服务”环节而言，这意味着渗透率上升、进口依赖度下降，因此本期判断为分化。",
+          "evidence": [
+            "EVT11a64547"
+          ]
+        },
+        {
+          "id": "CHN-35-N02",
+          "title": "跨境电商服务",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“跨境电商服务”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-36",
+      "title": "钢铁长材产业链",
+      "kind": "产业链",
+      "conclusion": "热轧带肋钢筋出现直接 Signal，当前链级聚合结果为升温，已形成可解释的动态传导假设，其余相邻节点仍待验证；本链新增 1 条动态传导假设。",
+      "state": "升温",
+      "status": "直接节点 Signal 明确；新增 1 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "短期",
+      "confidence": "中–高",
+      "path": "热轧带肋钢筋（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "热轧带肋钢筋 → 建筑钢筋精整加工服务",
+      "evidenceIds": [
+        "EVTca5d1d59"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-36-N01"
+        ],
+        [
+          "CHN-36-N02"
+        ],
+        [
+          "CHN-36-N03"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导",
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-36-N01",
+          "to": "CHN-36-N02",
+          "relation": "投入"
+        },
+        {
+          "from": "CHN-36-N03",
+          "to": "CHN-36-N01",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-36-N01",
+          "title": "热轧带肋钢筋",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "短期",
+          "confidence": "中–高",
+          "impact": "成本传导能力 UP/HIGH；销售价格 UP/MEDIUM",
+          "why": "土耳其螺纹钢出口报价升至588美元/吨FOB，原因为成本上涨及人民币偏强；土耳其螺纹钢出口报价本周升至588美元/吨FOB。对“热轧带肋钢筋”环节而言，这意味着成本传导能力上升、销售价格上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTca5d1d59"
+          ]
+        },
+        {
+          "id": "CHN-36-N02",
+          "title": "建筑钢筋精整加工服务",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "降温",
+          "resultLabel": "降温",
+          "lag": "短期（传导滞后）",
+          "confidence": "低（0.62）",
+          "impact": "投入成本 UP/LOW",
+          "why": "热轧带肋钢筋的销售价格和成本传导能力上升，会提高精整加工环节的原料成本。热轧带肋钢筋是建筑钢筋精整加工的明确投入，因此推测该服务的投入成本上升，利润空间可能受压。",
+          "evidence": [
+            "EVTca5d1d59"
+          ]
+        },
+        {
+          "id": "CHN-36-N03",
+          "title": "钢筋轧制服务",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“钢筋轧制服务”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-37",
+      "title": "锂电储能系统产业链",
+      "kind": "产业链",
+      "conclusion": "储能锂离子电芯出现直接 Signal，当前链级聚合结果为升温，向相邻节点的传播尚待验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链内传播待验证",
+      "horizon": "短期",
+      "confidence": "低–中",
+      "path": "储能锂离子电芯（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVTc6db33ba"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-37-N01"
+        ],
+        [
+          "CHN-37-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-37-N01",
+          "to": "CHN-37-N02",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-37-N01",
+          "title": "储能锂离子电芯",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "短期",
+          "confidence": "低–中",
+          "impact": "产业利润池 UP/UNKNOWN；利润率 UP/UNKNOWN",
+          "why": "2026年上半年，中国上市电池储能公司进入中期报告季峰值，报告显示最广泛的利润复苏。对“储能锂离子电芯”环节而言，这意味着产业利润池上升、利润率上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTc6db33ba"
+          ]
+        },
+        {
+          "id": "CHN-37-N02",
+          "title": "锂电储能系统",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“锂电储能系统”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-38",
+      "title": "集成电路晶圆制造产业链",
+      "kind": "产业链",
+      "conclusion": "半导体设备出现直接 Signal，当前链级聚合结果为分化，向相邻节点的传播尚待验证。",
+      "state": "分化",
+      "status": "节点 Signal 明确，链内传播待验证",
+      "horizon": "长期–中期",
+      "confidence": "中",
+      "path": "半导体设备（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT29d33f9d",
+        "EVT6ee33536"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-38-N01"
+        ],
+        [
+          "CHN-38-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-38-N02",
+          "to": "CHN-38-N01",
+          "relation": "依赖"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-38-N01",
+          "title": "半导体设备",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "分化",
+          "resultLabel": "分化",
+          "lag": "长期–中期",
+          "confidence": "中",
+          "impact": "扩产强度 UP/MEDIUM；政策支持力度 DOWN/HIGH",
+          "why": "美国商务部推进CHIPS法案制造业激励项目，49个项目中24个项目完成关键里程碑，多数项目2028年前完成；美国商务部取消CHIPS法案下78亿美元研发拨款，其中大部分原计划给Natcast运营的NSTC，转向量子计算投资。对“半导体设备”环节而言，这意味着扩产强度上升、政策支持力度下降，因此本期判断为分化。",
+          "evidence": [
+            "EVT29d33f9d",
+            "EVT6ee33536"
+          ]
+        },
+        {
+          "id": "CHN-38-N02",
+          "title": "集成电路晶圆制造服务",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“集成电路晶圆制造服务”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-39",
+      "title": "AI训练语料与数据服务产业链",
+      "kind": "产业链",
+      "conclusion": "AI语料出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "中期",
+      "confidence": "低–中",
+      "path": "AI语料（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT34119384"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-39-N01"
+        ],
+        [
+          "CHN-39-N02",
+          "CHN-39-N03"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-39-N02",
+          "to": "CHN-39-N01",
+          "relation": "投入"
+        },
+        {
+          "from": "CHN-39-N01",
+          "to": "CHN-39-N03",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-39-N01",
+          "title": "AI语料",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/MEDIUM",
+          "why": "AgentX于2026年8月24日发布开源数据集，价值300万美元，支持长上下文、多轮和子代理特性；该节点归属 2 条链，本链语境未确定。对“AI语料”环节而言，这意味着商业化进度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT34119384"
+          ]
+        },
+        {
+          "id": "CHN-39-N02",
+          "title": "数据清洗标注服务",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“数据清洗标注服务”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-39-N03",
+          "title": "模型训练服务",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“模型训练服务”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-40",
+      "title": "健身器材产业链",
+      "kind": "产业链",
+      "conclusion": "传感器出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "中期",
+      "confidence": "低–中",
+      "path": "传感器（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT2377d12d"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-40-N01"
+        ],
+        [
+          "CHN-40-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-40-N01",
+          "to": "CHN-40-N02",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-40-N01",
+          "title": "传感器",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "低–中",
+          "impact": "政策支持力度 UP/LOW",
+          "why": "2026年8月29日，北京怀柔发布2026年第一批采购机遇清单，采购额约4亿元，包含超过10项采购机遇，针对高端科学仪器与传感器产业；该节点归属 7 条链，本链语境未确定。对“传感器”环节而言，这意味着政策支持力度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT2377d12d"
+          ]
+        },
+        {
+          "id": "CHN-40-N02",
+          "title": "健身器材",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“健身器材”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-41",
+      "title": "创新药产业链",
+      "kind": "产业链",
+      "conclusion": "创新小分子药出现直接 Signal，当前链级聚合结果为升温，向相邻节点的传播尚待验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链内传播待验证",
+      "horizon": "长期",
+      "confidence": "中",
+      "path": "创新小分子药（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVTdd9ddcf5"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-41-N01"
+        ],
+        [
+          "CHN-41-N02",
+          "CHN-41-N03"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-41-N01",
+          "to": "CHN-41-N02",
+          "relation": "依赖"
+        },
+        {
+          "from": "CHN-41-N03",
+          "to": "CHN-41-N01",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-41-N01",
+          "title": "创新小分子药",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "中",
+          "impact": "渗透率 UP/MEDIUM",
+          "why": "FDA批准Revolution Medicines的胰腺癌治疗药物Rasonque，该药在临床试验中使患者生存期几乎翻倍。对“创新小分子药”环节而言，这意味着渗透率上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTdd9ddcf5"
+          ]
+        },
+        {
+          "id": "CHN-41-N02",
+          "title": "药品上市许可",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“药品上市许可”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-41-N03",
+          "title": "药物临床试验服务",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“药物临床试验服务”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-42",
+      "title": "半导体先进封装产业链",
+      "kind": "产业链",
+      "conclusion": "集成电路制造出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期",
+      "confidence": "低–中",
+      "path": "集成电路制造（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT29d33f9d"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-42-N01"
+        ],
+        [
+          "CHN-42-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-42-N01",
+          "to": "CHN-42-N02",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-42-N01",
+          "title": "集成电路制造",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "低–中",
+          "impact": "产能利用率 UP/MEDIUM",
+          "why": "美国商务部推进CHIPS法案制造业激励项目，多数项目计划2028年前完成；该节点归属 4 条链，本链语境未确定。对“集成电路制造”环节而言，这意味着产能利用率上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT29d33f9d"
+          ]
+        },
+        {
+          "id": "CHN-42-N02",
+          "title": "先进封装",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“先进封装”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-43",
+      "title": "基础设施云服务产业链",
+      "kind": "产业链",
+      "conclusion": "数据中心网络设备出现直接 Signal，当前链级聚合结果为升温，已形成可解释的动态传导假设，其余相邻节点仍待验证；本链新增 1 条动态传导假设。",
+      "state": "升温",
+      "status": "直接节点 Signal 明确；新增 1 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "长期",
+      "confidence": "中",
+      "path": "数据中心网络设备（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "数据中心网络设备 → 云计算基础设施",
+      "evidenceIds": [
+        "EVT40bb2d15"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-43-N01"
+        ],
+        [
+          "CHN-43-N02"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-43-N01",
+          "to": "CHN-43-N02",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-43-N01",
+          "title": "数据中心网络设备",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "中",
+          "impact": "市场需求 UP/MEDIUM",
+          "why": "Google与Marvell扩大定制芯片合作，范围扩展至网络领域。对“数据中心网络设备”环节而言，这意味着市场需求上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT40bb2d15"
+          ]
+        },
+        {
+          "id": "CHN-43-N02",
+          "title": "云计算基础设施",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期（传导假设）",
+          "confidence": "低（0.48）",
+          "impact": "资本开支 UP/LOW；扩产强度 UP/LOW",
+          "why": "数据中心网络设备需求上升，通常对应云基础设施的新建、扩容或升级投入。网络设备是云计算基础设施的真实组成环节，因此推测云基础设施的资本开支和扩产强度上升。",
+          "evidence": [
+            "EVT40bb2d15"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHN-44",
+      "title": "存储芯片产业链",
+      "kind": "产业链",
+      "conclusion": "NAND Flash存储芯片出现直接 Signal，当前链级聚合结果为升温，已形成可解释的动态传导假设，其余相邻节点仍待验证；本链新增 1 条动态传导假设。",
+      "state": "升温",
+      "status": "直接节点 Signal 明确；新增 1 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "长期",
+      "confidence": "中",
+      "path": "NAND Flash存储芯片（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "NAND Flash存储芯片 → NAND Flash封装测试服务",
+      "evidenceIds": [
+        "EVT40bb2d15"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-44-N01"
+        ],
+        [
+          "CHN-44-N02"
+        ],
+        [
+          "CHN-44-N03"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导",
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-44-N02",
+          "to": "CHN-44-N01",
+          "relation": "投入"
+        },
+        {
+          "from": "CHN-44-N01",
+          "to": "CHN-44-N03",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-44-N01",
+          "title": "NAND Flash存储芯片",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "中",
+          "impact": "市场需求 UP/MEDIUM",
+          "why": "Google与Marvell扩大定制芯片合作，范围扩展至存储、网络等数据搬移领域。对“NAND Flash存储芯片”环节而言，这意味着市场需求上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT40bb2d15"
+          ]
+        },
+        {
+          "id": "CHN-44-N02",
+          "title": "NAND Flash封装测试服务",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期（传导滞后）",
+          "confidence": "低（0.54）",
+          "impact": "市场需求 UP/LOW",
+          "why": "NAND Flash存储芯片需求上升，会增加芯片出货前的封装与测试工作量。封装测试服务是NAND Flash芯片的明确投入环节，因此推测其市场需求上升。",
+          "evidence": [
+            "EVT40bb2d15"
+          ]
+        },
+        {
+          "id": "CHN-44-N03",
+          "title": "固态硬盘（SSD）",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“固态硬盘（SSD）”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-45",
+      "title": "家用清洁电器产业链",
+      "kind": "产业链",
+      "conclusion": "传感器出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "中期",
+      "confidence": "低–中",
+      "path": "传感器（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT2377d12d"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-45-N01"
+        ],
+        [
+          "CHN-45-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-45-N01",
+          "to": "CHN-45-N02",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-45-N01",
+          "title": "传感器",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "低–中",
+          "impact": "政策支持力度 UP/LOW",
+          "why": "2026年8月29日，北京怀柔发布2026年第一批采购机遇清单，采购额约4亿元，包含超过10项采购机遇，针对高端科学仪器与传感器产业；该节点归属 7 条链，本链语境未确定。对“传感器”环节而言，这意味着政策支持力度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT2377d12d"
+          ]
+        },
+        {
+          "id": "CHN-45-N02",
+          "title": "扫地机器人",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“扫地机器人”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-46",
+      "title": "扩展现实设备及服务产业链",
+      "kind": "产业链",
+      "conclusion": "传感器出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "中期",
+      "confidence": "低–中",
+      "path": "传感器（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT2377d12d"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-46-N01"
+        ],
+        [
+          "CHN-46-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-46-N01",
+          "to": "CHN-46-N02",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-46-N01",
+          "title": "传感器",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "低–中",
+          "impact": "政策支持力度 UP/LOW",
+          "why": "2026年8月29日，北京怀柔发布2026年第一批采购机遇清单，采购额约4亿元，包含超过10项采购机遇，针对高端科学仪器与传感器产业；该节点归属 7 条链，本链语境未确定。对“传感器”环节而言，这意味着政策支持力度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT2377d12d"
+          ]
+        },
+        {
+          "id": "CHN-46-N02",
+          "title": "XR头显整机",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“XR头显整机”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-47",
+      "title": "数字集成电路设计产业链",
+      "kind": "产业链",
+      "conclusion": "集成电路制造出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期",
+      "confidence": "低–中",
+      "path": "集成电路制造（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT29d33f9d"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-47-N01"
+        ],
+        [
+          "CHN-47-N02",
+          "CHN-47-N03"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-47-N01",
+          "to": "CHN-47-N03",
+          "relation": "投入"
+        },
+        {
+          "from": "CHN-47-N02",
+          "to": "CHN-47-N01",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-47-N01",
+          "title": "集成电路制造",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "低–中",
+          "impact": "产能利用率 UP/MEDIUM",
+          "why": "美国商务部推进CHIPS法案制造业激励项目，多数项目计划2028年前完成；该节点归属 4 条链，本链语境未确定。对“集成电路制造”环节而言，这意味着产能利用率上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT29d33f9d"
+          ]
+        },
+        {
+          "id": "CHN-47-N02",
+          "title": "数字芯片设计",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“数字芯片设计”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-47-N03",
+          "title": "集成电路封测",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“集成电路封测”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-48",
+      "title": "模拟集成电路设计产业链",
+      "kind": "产业链",
+      "conclusion": "集成电路制造出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "长期",
+      "confidence": "低–中",
+      "path": "集成电路制造（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT29d33f9d"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-48-N01"
+        ],
+        [
+          "CHN-48-N02",
+          "CHN-48-N03"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-48-N01",
+          "to": "CHN-48-N03",
+          "relation": "投入"
+        },
+        {
+          "from": "CHN-48-N02",
+          "to": "CHN-48-N01",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-48-N01",
+          "title": "集成电路制造",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "低–中",
+          "impact": "产能利用率 UP/MEDIUM",
+          "why": "美国商务部推进CHIPS法案制造业激励项目，多数项目计划2028年前完成；该节点归属 4 条链，本链语境未确定。对“集成电路制造”环节而言，这意味着产能利用率上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT29d33f9d"
+          ]
+        },
+        {
+          "id": "CHN-48-N02",
+          "title": "模拟芯片设计",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“模拟芯片设计”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-48-N03",
+          "title": "集成电路封测",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“集成电路封测”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-49",
+      "title": "汽车整车产业链",
+      "kind": "产业链",
+      "conclusion": "汽车整车出现直接 Signal，当前链级聚合结果为升温，向相邻节点的传播尚待验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链内传播待验证",
+      "horizon": "长期",
+      "confidence": "中",
+      "path": "汽车整车（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT9c85c6ff"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-49-N01"
+        ],
+        [
+          "CHN-49-N02",
+          "CHN-49-N03",
+          "CHN-49-N04",
+          "CHN-49-N05",
+          "CHN-49-N06"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-49-N03",
+          "to": "CHN-49-N01",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-49-N04",
+          "to": "CHN-49-N01",
+          "relation": "投入"
+        },
+        {
+          "from": "CHN-49-N02",
+          "to": "CHN-49-N01",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-49-N06",
+          "to": "CHN-49-N01",
+          "relation": "组成"
+        },
+        {
+          "from": "CHN-49-N05",
+          "to": "CHN-49-N01",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-49-N01",
+          "title": "汽车整车",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "中",
+          "impact": "技术成熟度 UP/MEDIUM",
+          "why": "中国国家市场监管总局宣布分阶段实施GB1589-2026标准，新车型需于2027年7月1日起符合，现有车型需于2028年1月1日起符合，并给予车企技术升级和过渡时间。对“汽车整车”环节而言，这意味着技术成熟度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT9c85c6ff"
+          ]
+        },
+        {
+          "id": "CHN-49-N02",
+          "title": "汽车动力总成",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“汽车动力总成”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-49-N03",
+          "title": "汽车底盘总成",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“汽车底盘总成”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-49-N04",
+          "title": "汽车整车制造服务",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“汽车整车制造服务”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-49-N05",
+          "title": "汽车电子电气系统",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“汽车电子电气系统”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        },
+        {
+          "id": "CHN-49-N06",
+          "title": "汽车车身与车架总成",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“汽车车身与车架总成”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-50",
+      "title": "电动垂直起降飞行器产业链",
+      "kind": "产业链",
+      "conclusion": "eVTOL推进电池系统出现直接 Signal，当前链级聚合结果为升温，已形成可解释的动态传导假设，其余相邻节点仍待验证；本链新增 1 条动态传导假设。",
+      "state": "升温",
+      "status": "直接节点 Signal 明确；新增 1 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "中期",
+      "confidence": "低–中",
+      "path": "eVTOL推进电池系统（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "eVTOL推进电池系统 → eVTOL飞行器",
+      "evidenceIds": [
+        "EVTc7d71a07"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-50-N01"
+        ],
+        [
+          "CHN-50-N02"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-50-N01",
+          "to": "CHN-50-N02",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-50-N01",
+          "title": "eVTOL推进电池系统",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "低–中",
+          "impact": "性价比 UP/MEDIUM",
+          "why": "美国能源部授权Nomad Power Solutions在佛蒙特州推进移动电池储能示范项目，公司在新所有权下开始运营。对“eVTOL推进电池系统”环节而言，这意味着性价比上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTc7d71a07"
+          ]
+        },
+        {
+          "id": "CHN-50-N02",
+          "title": "eVTOL飞行器",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期–长期（传导假设）",
+          "confidence": "低（0.42）",
+          "impact": "技术成熟度 UP/LOW；商业化进度 UP/LOW",
+          "why": "eVTOL推进电池系统的性价比上升，有助于缓解飞行器在重量、续航和整机成本上的约束。推进电池是飞行器的明确组成环节，因此推测整机技术成熟度和商业化进度上升。",
+          "evidence": [
+            "EVTc7d71a07"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHN-51",
+      "title": "精准医疗服务产业链",
+      "kind": "产业链",
+      "conclusion": "分子伴随诊断服务出现直接 Signal，当前链级聚合结果为升温，已形成可解释的动态传导假设，其余相邻节点仍待验证；本链新增 2 条动态传导假设。",
+      "state": "升温",
+      "status": "直接节点 Signal 明确；新增 2 条动态传导假设，其余相邻节点继续待验证",
+      "horizon": "长期",
+      "confidence": "低–中",
+      "path": "分子伴随诊断服务（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "分子伴随诊断服务 → 精准用药决策服务；分子伴随诊断服务 → 基因数据分析服务",
+      "evidenceIds": [
+        "EVTff5eaf10"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "上述传导为经路径评分筛选的推理假设，仍需目标节点的订单、价格、产能或经营数据验证；未被推导的相邻节点继续作为 Evidence Gap。",
+      "graphGroups": [
+        [
+          "CHN-51-N01"
+        ],
+        [
+          "CHN-51-N02",
+          "CHN-51-N03"
+        ]
+      ],
+      "graphLinks": [
+        "动态传导"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-51-N01",
+          "to": "CHN-51-N03",
+          "relation": "投入"
+        },
+        {
+          "from": "CHN-51-N02",
+          "to": "CHN-51-N01",
+          "relation": "投入"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-51-N01",
+          "title": "分子伴随诊断服务",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "低–中",
+          "impact": "商业化进度 UP/LOW",
+          "why": "华为与瑞金医院发布瑞智病理大模型RuiPath 2.0并落地90+医院。对“分子伴随诊断服务”环节而言，这意味着商业化进度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVTff5eaf10"
+          ]
+        },
+        {
+          "id": "CHN-51-N02",
+          "title": "基因数据分析服务",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期（传导滞后）",
+          "confidence": "低（0.45）",
+          "impact": "市场需求 UP/LOW",
+          "why": "分子伴随诊断服务商业化加快，会增加对基因数据处理、变异解读和报告生成的需求。基因数据分析是伴随诊断的明确投入环节，因此推测其市场需求上升。",
+          "evidence": [
+            "EVTff5eaf10"
+          ]
+        },
+        {
+          "id": "CHN-51-N03",
+          "title": "精准用药决策服务",
+          "status": "推理假设",
+          "tone": "inferred",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期（传导滞后）",
+          "confidence": "低（0.42）",
+          "impact": "商业化进度 UP/LOW",
+          "why": "分子伴随诊断服务商业化加快，会提高可用的患者分层和用药匹配信息供给。伴随诊断是精准用药决策的明确投入，因此推测决策服务的商业化进度上升。",
+          "evidence": [
+            "EVTff5eaf10"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "CHN-52",
+      "title": "航空机电系统产业链",
+      "kind": "产业链",
+      "conclusion": "传感器出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "中期",
+      "confidence": "低–中",
+      "path": "传感器（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT2377d12d"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-52-N01"
+        ],
+        [
+          "CHN-52-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-52-N01",
+          "to": "CHN-52-N02",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-52-N01",
+          "title": "传感器",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "低–中",
+          "impact": "政策支持力度 UP/LOW",
+          "why": "2026年8月29日，北京怀柔发布2026年第一批采购机遇清单，采购额约4亿元，包含超过10项采购机遇，针对高端科学仪器与传感器产业；该节点归属 7 条链，本链语境未确定。对“传感器”环节而言，这意味着政策支持力度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT2377d12d"
+          ]
+        },
+        {
+          "id": "CHN-52-N02",
+          "title": "航空机电系统",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“航空机电系统”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-53",
+      "title": "航空电子系统产业链",
+      "kind": "产业链",
+      "conclusion": "传感器出现直接 Signal，节点方向为升温；但至少一个节点同时归属多条产业链，本链是否承接全部影响仍需链语境验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链语境待解析",
+      "horizon": "中期",
+      "confidence": "低–中",
+      "path": "传感器（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT2377d12d"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "共享节点的具体链语境尚未解析；同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-53-N01"
+        ],
+        [
+          "CHN-53-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-53-N01",
+          "to": "CHN-53-N02",
+          "relation": "组成"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-53-N01",
+          "title": "传感器",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "中期",
+          "confidence": "低–中",
+          "impact": "政策支持力度 UP/LOW",
+          "why": "2026年8月29日，北京怀柔发布2026年第一批采购机遇清单，采购额约4亿元，包含超过10项采购机遇，针对高端科学仪器与传感器产业；该节点归属 7 条链，本链语境未确定。对“传感器”环节而言，这意味着政策支持力度上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT2377d12d"
+          ]
+        },
+        {
+          "id": "CHN-53-N02",
+          "title": "航空电子系统",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“航空电子系统”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    },
+    {
+      "id": "CHN-54",
+      "title": "风力发电产业链",
+      "kind": "产业链",
+      "conclusion": "风力发电出现直接 Signal，当前链级聚合结果为升温，向相邻节点的传播尚待验证。",
+      "state": "升温",
+      "status": "节点 Signal 明确，链内传播待验证",
+      "horizon": "长期",
+      "confidence": "中",
+      "path": "风力发电（直接 Signal 节点）→ 真实同链拓扑节点",
+      "hypotheses": "",
+      "evidenceIds": [
+        "EVT9b66a256"
+      ],
+      "stopRule": "若后续 Event 使节点 Signal 失效、方向反转，或链语境确认不属于本链，则关闭或修正本链结论。",
+      "gap": "同链相邻节点缺少直接 Variable Signal 与经营观测。",
+      "graphGroups": [
+        [
+          "CHN-54-N01"
+        ],
+        [
+          "CHN-54-N02"
+        ]
+      ],
+      "graphLinks": [
+        "同链待验证"
+      ],
+      "graphEdges": [
+        {
+          "from": "CHN-54-N01",
+          "to": "CHN-54-N02",
+          "relation": "依赖"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "CHN-54-N01",
+          "title": "风力发电",
+          "status": "直接证据",
+          "tone": "observed",
+          "result": "升温",
+          "resultLabel": "升温",
+          "lag": "长期",
+          "confidence": "中",
+          "impact": "市场供给 UP/MEDIUM",
+          "why": "墨西哥政府启动能源改革，开放能源领域吸引私人投资，重点扩张可再生能源部门。对“风力发电”环节而言，这意味着市场供给上升，因此本期判断为升温。",
+          "evidence": [
+            "EVT9b66a256"
+          ]
+        },
+        {
+          "id": "CHN-54-N02",
+          "title": "陆上风电场基础设施",
+          "status": "待验证",
+          "tone": "gap",
+          "result": "待验证",
+          "resultLabel": "待验证",
+          "lag": "后续周期",
+          "confidence": "低",
+          "impact": "真实同链拓扑相邻，尚无直接 Signal",
+          "why": "“陆上风电场基础设施”与本链中的直接受影响节点存在真实产业链关系，但在本次证据范围内，没有订单、价格、产能、技术进展或经营数据直接指向该环节，也没有足够依据确认影响已经传导至此，因此暂不判断升降方向。",
+          "evidence": []
+        }
+      ]
+    }
+  ],
+  "evidenceItems": [
+    {
+      "id": "EVT7cfe2fe7",
+      "publishedAt": "01-01 00:00",
+      "publishedAtRaw": "2025-12-31T16:00:00.000000000+00:00",
+      "summary": "美国对燃气轮机需求创历史新高",
+      "keywords": []
+    },
+    {
+      "id": "EVT82b8e9af",
+      "publishedAt": "02-01 00:00",
+      "publishedAtRaw": "2026-01-31T16:00:00.000000000+00:00",
+      "summary": "特朗普政府宣布Project Vault稀土储备计划",
+      "keywords": []
+    },
+    {
+      "id": "EVT9b66a256",
+      "publishedAt": "02-01 00:00",
+      "publishedAtRaw": "2026-01-31T16:00:00.000000000+00:00",
+      "summary": "墨西哥启动能源改革",
+      "keywords": []
+    },
+    {
+      "id": "EVT18706e30",
+      "publishedAt": "04-01 00:00",
+      "publishedAtRaw": "2026-03-31T16:00:00.000000000+00:00",
+      "summary": "Canadian Solar 2026年Q2光伏组件出货量3.1GW，同比下降60%",
+      "keywords": []
+    },
+    {
+      "id": "EVTd6438cd5",
+      "publishedAt": "07-01 00:00",
+      "publishedAtRaw": "2026-06-30T16:00:00.000000000+00:00",
+      "summary": "国家外汇局公布2026年7月国际收支货物和服务贸易数据",
+      "keywords": []
+    },
+    {
+      "id": "EVTf655a5f5",
+      "publishedAt": "07-01 00:00",
+      "publishedAtRaw": "2026-06-30T16:00:00.000000000+00:00",
+      "summary": "美元全球支付份额升至50.99%，人民币份额约3.1%",
+      "keywords": []
+    },
+    {
+      "id": "EVT77122570",
+      "publishedAt": "08-01 00:00",
+      "publishedAtRaw": "2026-07-31T16:00:00.000000000+00:00",
+      "summary": "高通押注开源AI软件以打破英伟达市场锁定",
+      "keywords": []
+    },
+    {
+      "id": "EVT78ad8548",
+      "publishedAt": "08-01 00:00",
+      "publishedAtRaw": "2026-07-31T16:00:00.000000000+00:00",
+      "summary": "诺华宣布将启动抗IL-6抗体III期心血管试验",
+      "keywords": []
+    },
+    {
+      "id": "EVTa7af475c",
+      "publishedAt": "08-01 00:00",
+      "publishedAtRaw": "2026-07-31T16:00:00.000000000+00:00",
+      "summary": "亚洲炼油商转向巴西和委内瑞拉等南美生产商",
+      "keywords": []
+    },
+    {
+      "id": "EVT73d56fdb",
+      "publishedAt": "08-14 01:04",
+      "publishedAtRaw": "2026-08-13T17:04:18.000000000+00:00",
+      "summary": "DeepMind发布Gemini 3.7 Flash模型",
+      "keywords": []
+    },
+    {
+      "id": "EVTac78ed62",
+      "publishedAt": "08-17 00:00",
+      "publishedAtRaw": "2026-08-16T16:00:00.000000000+00:00",
+      "summary": "吉利汽车上调全年出口目标至92万辆",
+      "keywords": []
+    },
+    {
+      "id": "EVT6674d278",
+      "publishedAt": "08-19 00:00",
+      "publishedAtRaw": "2026-08-18T16:00:00.000000000+00:00",
+      "summary": "Cerebras发布CS-4芯片",
+      "keywords": []
+    },
+    {
+      "id": "EVTb2a38156",
+      "publishedAt": "08-19 01:15",
+      "publishedAtRaw": "2026-08-18T17:15:48.000000000+00:00",
+      "summary": "美国证券交易委员会提议加密资产新规",
+      "keywords": []
+    },
+    {
+      "id": "EVT9723e67a",
+      "publishedAt": "08-20 00:00",
+      "publishedAtRaw": "2026-08-19T16:00:00.000000000+00:00",
+      "summary": "美联储对银行前员工发布执法行动",
+      "keywords": []
+    },
+    {
+      "id": "EVTcba73f04",
+      "publishedAt": "08-20 00:00",
+      "publishedAtRaw": "2026-08-19T16:00:00.000000000+00:00",
+      "summary": "美联储宣布终止对德意志银行的执法行动",
+      "keywords": []
+    },
+    {
+      "id": "EVTd2a020c0",
+      "publishedAt": "08-20 00:00",
+      "publishedAtRaw": "2026-08-19T16:00:00.000000000+00:00",
+      "summary": "美联储对SouthPoint Bancshares发布执法行动",
+      "keywords": []
+    },
+    {
+      "id": "EVT1020503c",
+      "publishedAt": "08-21 00:00",
+      "publishedAtRaw": "2026-08-20T16:00:00.000000000+00:00",
+      "summary": "美国战略石油储备库存降至近44年最低",
+      "keywords": []
+    },
+    {
+      "id": "EVT2bdf78ce",
+      "publishedAt": "08-21 00:00",
+      "publishedAtRaw": "2026-08-20T16:00:00.000000000+00:00",
+      "summary": "SemiAnalysis分析开源模型对模型层商品化的影响",
+      "keywords": []
+    },
+    {
+      "id": "EVTb59f55c3",
+      "publishedAt": "08-21 00:00",
+      "publishedAtRaw": "2026-08-20T16:00:00.000000000+00:00",
+      "summary": "SemiAnalysis指出开源模型竞争力增强，Fireworks每日处理超40万亿token",
+      "keywords": []
+    },
+    {
+      "id": "EVTf53f83e6",
+      "publishedAt": "08-21 00:00",
+      "publishedAtRaw": "2026-08-20T16:00:00.000000000+00:00",
+      "summary": "OpenAI和Anthropic加快模型发布频率",
+      "keywords": []
+    },
+    {
+      "id": "EVT293c3834",
+      "publishedAt": "08-22 00:40",
+      "publishedAtRaw": "2026-08-21T16:40:02.000000000+00:00",
+      "summary": "Anthropic增加650亿美元ARR",
+      "keywords": []
+    },
+    {
+      "id": "EVTebad4e46",
+      "publishedAt": "08-22 00:40",
+      "publishedAtRaw": "2026-08-21T16:40:02.000000000+00:00",
+      "summary": "SemiAnalysis预测开源与闭源模型能力差距周期性收窄",
+      "keywords": []
+    },
+    {
+      "id": "EVT34119384",
+      "publishedAt": "08-24 00:00",
+      "publishedAtRaw": "2026-08-23T16:00:00.000000000+00:00",
+      "summary": "AgentX发布开源数据集，支持多轮子代理特性",
+      "keywords": []
+    },
+    {
+      "id": "EVTe565f6f7",
+      "publishedAt": "08-24 00:00",
+      "publishedAtRaw": "2026-08-23T16:00:00.000000000+00:00",
+      "summary": "InferenceXv3实现95%以上KVCache命中率",
+      "keywords": []
+    },
+    {
+      "id": "EVT1edf7e3f",
+      "publishedAt": "08-25 00:00",
+      "publishedAtRaw": "2026-08-24T16:00:00.000000000+00:00",
+      "summary": "美联储公布2026年7月贴现率会议纪要",
+      "keywords": []
+    },
+    {
+      "id": "EVTcff99921",
+      "publishedAt": "08-26 00:00",
+      "publishedAtRaw": "2026-08-25T16:00:00.000000000+00:00",
+      "summary": "DeepMind发布Gemini 3.5 Transcribe",
+      "keywords": []
+    },
+    {
+      "id": "EVTcc5bc482",
+      "publishedAt": "08-26 21:00",
+      "publishedAtRaw": "2026-08-26T13:00:01.000000000+00:00",
+      "summary": "Oerlikon Metco报告钇供应冲击",
+      "keywords": []
+    },
+    {
+      "id": "EVTf0779cd3",
+      "publishedAt": "08-26 21:00",
+      "publishedAtRaw": "2026-08-26T13:00:01.000000000+00:00",
+      "summary": "中国对铒和钇等稀土实施出口管制",
+      "keywords": []
+    },
+    {
+      "id": "EVT70d1ccf6",
+      "publishedAt": "08-27 00:00",
+      "publishedAtRaw": "2026-08-26T16:00:00.000000000+00:00",
+      "summary": "NewPower Worldwide宣布扩大信贷额度至7.5亿美元",
+      "keywords": []
+    },
+    {
+      "id": "EVTea2f0e49",
+      "publishedAt": "08-27 00:00",
+      "publishedAtRaw": "2026-08-26T16:00:00.000000000+00:00",
+      "summary": "DeepMind发布Gemini Omni 1.1 Flash",
+      "keywords": []
+    },
+    {
+      "id": "EVTec4ee3b8",
+      "publishedAt": "08-27 00:00",
+      "publishedAtRaw": "2026-08-26T16:00:00.000000000+00:00",
+      "summary": "OpenAI宣布扩大在巴西的业务布局",
+      "keywords": []
+    },
+    {
+      "id": "EVT191088f7",
+      "publishedAt": "08-27 00:12",
+      "publishedAtRaw": "2026-08-26T16:12:57.000000000+00:00",
+      "summary": "Blue Canyon Technologies发布新型航天器子系统",
+      "keywords": []
+    },
+    {
+      "id": "EVT29d33f9d",
+      "publishedAt": "08-27 23:00",
+      "publishedAtRaw": "2026-08-27T15:00:03.000000000+00:00",
+      "summary": "美国商务部推进CHIPS法案制造业激励项目",
+      "keywords": []
+    },
+    {
+      "id": "EVT6ee33536",
+      "publishedAt": "08-27 23:00",
+      "publishedAtRaw": "2026-08-27T15:00:03.000000000+00:00",
+      "summary": "美国商务部调整CHIPS法案研发资金并转向量子计算投资",
+      "keywords": []
+    },
+    {
+      "id": "EVT0da3035f",
+      "publishedAt": "08-28 00:00",
+      "publishedAtRaw": "2026-08-27T16:00:00.000000000+00:00",
+      "summary": "OpenAI宣布终止向Cursor提供模型合同",
+      "keywords": []
+    },
+    {
+      "id": "EVT3ae7dbe2",
+      "publishedAt": "08-28 00:00",
+      "publishedAtRaw": "2026-08-27T16:00:00.000000000+00:00",
+      "summary": "美国与委内瑞拉达成石油储量控制协议",
+      "keywords": []
+    },
+    {
+      "id": "EVT40bb2d15",
+      "publishedAt": "08-28 00:00",
+      "publishedAtRaw": "2026-08-27T16:00:00.000000000+00:00",
+      "summary": "Google与Marvell扩大定制芯片合作",
+      "keywords": []
+    },
+    {
+      "id": "EVT6aacf8d8",
+      "publishedAt": "08-28 00:00",
+      "publishedAtRaw": "2026-08-27T16:00:00.000000000+00:00",
+      "summary": "BioNTech与Genentech终止个性化mRNA癌症疫苗II期临床试验",
+      "keywords": []
+    },
+    {
+      "id": "EVT8dd0c109",
+      "publishedAt": "08-28 00:00",
+      "publishedAtRaw": "2026-08-27T16:00:00.000000000+00:00",
+      "summary": "Moderna通过增发票据融资26亿美元支持癌症研发",
+      "keywords": []
+    },
+    {
+      "id": "EVTa91877fc",
+      "publishedAt": "08-28 00:00",
+      "publishedAtRaw": "2026-08-27T16:00:00.000000000+00:00",
+      "summary": "FDA批准更新版新冠疫苗",
+      "keywords": []
+    },
+    {
+      "id": "EVTd3f7cc73",
+      "publishedAt": "08-28 00:00",
+      "publishedAtRaw": "2026-08-27T16:00:00.000000000+00:00",
+      "summary": "加拿大休伦县拒绝Bedrock Energy压缩空气储能项目",
+      "keywords": []
+    },
+    {
+      "id": "EVTdbddc8b1",
+      "publishedAt": "08-28 00:00",
+      "publishedAtRaw": "2026-08-27T16:00:00.000000000+00:00",
+      "summary": "FDA批准武田与Protagonist合作的rusfertide上市",
+      "keywords": []
+    },
+    {
+      "id": "EVT3387e8c0",
+      "publishedAt": "08-28 06:14",
+      "publishedAtRaw": "2026-08-27T22:14:16.000000000+00:00",
+      "summary": "OpenAI在Hot Chips 2026披露自研AI加速器Jalapeño基准测试结果",
+      "keywords": []
+    },
+    {
+      "id": "EVTc6db33ba",
+      "publishedAt": "08-28 13:34",
+      "publishedAtRaw": "2026-08-28T05:34:25.000000000+00:00",
+      "summary": "中国上市电池储能公司进入2026年中期报告季峰值",
+      "keywords": []
+    },
+    {
+      "id": "EVT5da1ac47",
+      "publishedAt": "08-28 20:22",
+      "publishedAtRaw": "2026-08-28T12:22:27.000000000+00:00",
+      "summary": "吉利和比亚迪因生产一致性问题被中国质量检查通报",
+      "keywords": []
+    },
+    {
+      "id": "EVTc7d71a07",
+      "publishedAt": "08-28 21:08",
+      "publishedAtRaw": "2026-08-28T13:08:33.000000000+00:00",
+      "summary": "美国能源部授权推进Nomad Power移动电池储能示范项目",
+      "keywords": []
+    },
+    {
+      "id": "EVTedbbab1a",
+      "publishedAt": "08-28 21:12",
+      "publishedAtRaw": "2026-08-28T13:12:00.000000000+00:00",
+      "summary": "FDA批准Priovant的Lisraya治疗罕见皮肤病",
+      "keywords": []
+    },
+    {
+      "id": "EVTd9a3a289",
+      "publishedAt": "08-28 21:35",
+      "publishedAtRaw": "2026-08-28T13:35:54.000000000+00:00",
+      "summary": "奇瑞与捷豹路虎合资的Freelander 8将于9月3日上市",
+      "keywords": []
+    },
+    {
+      "id": "EVT00eaab71",
+      "publishedAt": "08-28 22:17",
+      "publishedAtRaw": "2026-08-28T14:17:56.000000000+00:00",
+      "summary": "Epicland考虑采用换电模式",
+      "keywords": []
+    },
+    {
+      "id": "EVTf325abcc",
+      "publishedAt": "08-28 22:30",
+      "publishedAtRaw": "2026-08-28T14:30:00.000000000+00:00",
+      "summary": "生物科技行业呈现反弹态势",
+      "keywords": []
+    },
+    {
+      "id": "EVTfadcbbb6",
+      "publishedAt": "08-28 22:58",
+      "publishedAtRaw": "2026-08-28T14:58:50.000000000+00:00",
+      "summary": "礼来Mounjaro获FDA批准用于降低心血管风险",
+      "keywords": []
+    },
+    {
+      "id": "EVT2377d12d",
+      "publishedAt": "08-29 00:00",
+      "publishedAtRaw": "2026-08-28T16:00:00.000000000+00:00",
+      "summary": "北京怀柔发布高端科学仪器与传感器采购机遇清单",
+      "keywords": []
+    },
+    {
+      "id": "EVT4f8f284c",
+      "publishedAt": "08-29 00:00",
+      "publishedAtRaw": "2026-08-28T16:00:00.000000000+00:00",
+      "summary": "中国发布首个国家级液冷标准",
+      "keywords": []
+    },
+    {
+      "id": "EVT685aba49",
+      "publishedAt": "08-29 00:00",
+      "publishedAtRaw": "2026-08-28T16:00:00.000000000+00:00",
+      "summary": "DIGITIMES发表关于具身智能实体化的评论",
+      "keywords": []
+    },
+    {
+      "id": "EVTab835f8e",
+      "publishedAt": "08-29 00:00",
+      "publishedAtRaw": "2026-08-28T16:00:00.000000000+00:00",
+      "summary": "吉利汽车发布Monjaro EM-i混动SUV",
+      "keywords": []
+    },
+    {
+      "id": "EVTc91221e7",
+      "publishedAt": "08-29 00:00",
+      "publishedAtRaw": "2026-08-28T16:00:00.000000000+00:00",
+      "summary": "美联储主席Warsh在杰克逊霍尔会议上暗示可能加息",
+      "keywords": []
+    },
+    {
+      "id": "EVTefe295b4",
+      "publishedAt": "08-29 00:00",
+      "publishedAtRaw": "2026-08-28T16:00:00.000000000+00:00",
+      "summary": "Meta在社交媒体案件中达成里程碑式和解",
+      "keywords": []
+    },
+    {
+      "id": "EVTf966bbd7",
+      "publishedAt": "08-29 05:30",
+      "publishedAtRaw": "2026-08-28T21:30:52.000000000+00:00",
+      "summary": "柏林州政府确认网络攻击并拒绝支付赎金",
+      "keywords": []
+    },
+    {
+      "id": "EVT245a1a74",
+      "publishedAt": "08-29 06:40",
+      "publishedAtRaw": "2026-08-28T22:40:51.000000000+00:00",
+      "summary": "中国举办第二届人形机器人比赛",
+      "keywords": []
+    },
+    {
+      "id": "EVT11a64547",
+      "publishedAt": "08-29 15:05",
+      "publishedAtRaw": "2026-08-29T07:05:00.000000000+00:00",
+      "summary": "广东灯具外贸商收到中东客户人民币结算询问",
+      "keywords": []
+    },
+    {
+      "id": "EVT12e6a558",
+      "publishedAt": "08-29 16:11",
+      "publishedAtRaw": "2026-08-29T08:11:41.000000000+00:00",
+      "summary": "报告预测油运Q4超级旺季并给出投资建议",
+      "keywords": []
+    },
+    {
+      "id": "EVTa8b7eff4",
+      "publishedAt": "08-29 16:11",
+      "publishedAtRaw": "2026-08-29T08:11:41.000000000+00:00",
+      "summary": "美伊冲突扰乱霍尔木兹海峡油运",
+      "keywords": []
+    },
+    {
+      "id": "EVTdd9ddcf5",
+      "publishedAt": "08-29 18:00",
+      "publishedAtRaw": "2026-08-29T10:00:51.000000000+00:00",
+      "summary": "FDA批准Revolution Medicines的胰腺癌治疗药物Rasonque",
+      "keywords": []
+    },
+    {
+      "id": "EVTafff5302",
+      "publishedAt": "08-29 20:08",
+      "publishedAtRaw": "2026-08-29T12:08:08.000000000+00:00",
+      "summary": "伊朗总统表示制裁影响进出口并敦促减少对美元依赖",
+      "keywords": []
+    },
+    {
+      "id": "EVTcaf3f60b",
+      "publishedAt": "08-29 21:46",
+      "publishedAtRaw": "2026-08-29T13:46:38.000000000+00:00",
+      "summary": "世界银行警告全球经济增长可能放缓至1.3%",
+      "keywords": []
+    },
+    {
+      "id": "EVT717de80b",
+      "publishedAt": "08-30 00:00",
+      "publishedAtRaw": "2026-08-29T16:00:00.000000000+00:00",
+      "summary": "美国政府准备使用捕获法处置扣押的伊朗石油和船只",
+      "keywords": []
+    },
+    {
+      "id": "EVT9dc07eb9",
+      "publishedAt": "08-30 00:00",
+      "publishedAtRaw": "2026-08-29T16:00:00.000000000+00:00",
+      "summary": "中国驻尼泊尔使馆协调搜救转运中方人员94人",
+      "keywords": []
+    },
+    {
+      "id": "EVTec2c2162",
+      "publishedAt": "08-30 00:00",
+      "publishedAtRaw": "2026-08-29T16:00:00.000000000+00:00",
+      "summary": "美伊在霍尔木兹海峡附近发生军事冲突",
+      "keywords": []
+    },
+    {
+      "id": "EVTff5eaf10",
+      "publishedAt": "08-30 00:00",
+      "publishedAtRaw": "2026-08-29T16:00:00.000000000+00:00",
+      "summary": "华为联合瑞金医院发布瑞智病理大模型RuiPath 2.0并落地90+医院",
+      "keywords": []
+    },
+    {
+      "id": "EVT657ec86c",
+      "publishedAt": "08-30 07:00",
+      "publishedAtRaw": "2026-08-29T23:00:00.000000000+00:00",
+      "summary": "全球石油和天然气进口账单膨胀3300亿美元",
+      "keywords": []
+    },
+    {
+      "id": "EVTa36a9be2",
+      "publishedAt": "08-30 07:40",
+      "publishedAtRaw": "2026-08-29T23:40:17.000000000+00:00",
+      "summary": "新光合成纤维预计2026年下半年经营谨慎乐观",
+      "keywords": []
+    },
+    {
+      "id": "EVT2a962d89",
+      "publishedAt": "08-30 10:41",
+      "publishedAtRaw": "2026-08-30T02:41:35.000000000+00:00",
+      "summary": "武契奇出席机器人工厂投产仪式并表态",
+      "keywords": []
+    },
+    {
+      "id": "EVT87d435b9",
+      "publishedAt": "08-30 11:11",
+      "publishedAtRaw": "2026-08-30T03:11:39.000000000+00:00",
+      "summary": "摩根士丹利分析港股三季度反弹逻辑",
+      "keywords": []
+    },
+    {
+      "id": "EVT2f83fcaa",
+      "publishedAt": "08-30 11:12",
+      "publishedAtRaw": "2026-08-30T03:12:43.000000000+00:00",
+      "summary": "第一财经预计美国经济谨慎态势在2026年剩余时间延续",
+      "keywords": []
+    },
+    {
+      "id": "EVT870aa7d8",
+      "publishedAt": "08-30 11:12",
+      "publishedAtRaw": "2026-08-30T03:12:43.000000000+00:00",
+      "summary": "美国计划在非农数据公布前发布多项劳动力市场前瞻指标",
+      "keywords": []
+    },
+    {
+      "id": "EVT0b3e54f6",
+      "publishedAt": "08-30 11:15",
+      "publishedAtRaw": "2026-08-30T03:15:14.000000000+00:00",
+      "summary": "习近平出席上海合作组织峰会并对吉尔吉斯斯坦、埃及进行国事访问",
+      "keywords": []
+    },
+    {
+      "id": "EVT5bc71a2e",
+      "publishedAt": "08-30 11:22",
+      "publishedAtRaw": "2026-08-30T03:22:57.000000000+00:00",
+      "summary": "有研硅披露参股公司经营风险",
+      "keywords": []
+    },
+    {
+      "id": "EVTb4fafc60",
+      "publishedAt": "08-30 11:26",
+      "publishedAtRaw": "2026-08-30T03:26:27.000000000+00:00",
+      "summary": "中国海警在黄岩岛开展执法巡查",
+      "keywords": []
+    },
+    {
+      "id": "EVT491f8107",
+      "publishedAt": "08-30 23:46",
+      "publishedAtRaw": "2026-08-30T15:46:22.000000000+00:00",
+      "summary": "SemiAnalysis报告发现云监控数据泄露",
+      "keywords": []
+    },
+    {
+      "id": "EVTb5ed96c6",
+      "publishedAt": "08-30 23:46",
+      "publishedAtRaw": "2026-08-30T15:46:22.000000000+00:00",
+      "summary": "某neocloud提供商暴露RShim接口存在安全风险",
+      "keywords": []
+    },
+    {
+      "id": "EVT0bcde754",
+      "publishedAt": "08-31 00:00",
+      "publishedAtRaw": "2026-08-30T16:00:00.000000000+00:00",
+      "summary": "中国首次实现地月双向高速激光通信",
+      "keywords": []
+    },
+    {
+      "id": "EVT3981b0e0",
+      "publishedAt": "08-31 00:00",
+      "publishedAtRaw": "2026-08-30T16:00:00.000000000+00:00",
+      "summary": "中国发布强制性国家标准GB 1589-2026",
+      "keywords": []
+    },
+    {
+      "id": "EVT560b26c5",
+      "publishedAt": "08-31 00:00",
+      "publishedAtRaw": "2026-08-30T16:00:00.000000000+00:00",
+      "summary": "国家数据局表示词元市场需求爆发式增长",
+      "keywords": []
+    },
+    {
+      "id": "EVT8f5b54d2",
+      "publishedAt": "08-31 00:00",
+      "publishedAtRaw": "2026-08-30T16:00:00.000000000+00:00",
+      "summary": "东吴证券上半年净利润24.2亿元，同比增长25.32%",
+      "keywords": []
+    },
+    {
+      "id": "EVTa4d92743",
+      "publishedAt": "08-31 00:00",
+      "publishedAtRaw": "2026-08-30T16:00:00.000000000+00:00",
+      "summary": "中国发布GB 1589-2026提高商用车最大轴荷限制",
+      "keywords": []
+    },
+    {
+      "id": "EVTe3ca72f3",
+      "publishedAt": "08-31 00:00",
+      "publishedAtRaw": "2026-08-30T16:00:00.000000000+00:00",
+      "summary": "高盛上调柴油利润预期逾一倍",
+      "keywords": []
+    },
+    {
+      "id": "EVT2c59c6d9",
+      "publishedAt": "08-31 10:11",
+      "publishedAtRaw": "2026-08-31T02:11:00.000000000+00:00",
+      "summary": "国家数据局披露全国智算总规模数据",
+      "keywords": []
+    },
+    {
+      "id": "EVTfe998eef",
+      "publishedAt": "08-31 10:11",
+      "publishedAtRaw": "2026-08-31T02:11:00.000000000+00:00",
+      "summary": "上交所与中证指数公司宣布调整科创50等指数样本",
+      "keywords": []
+    },
+    {
+      "id": "EVT3cf927a6",
+      "publishedAt": "08-31 10:30",
+      "publishedAtRaw": "2026-08-31T02:30:06.000000000+00:00",
+      "summary": "霍尔木兹海峡油轮交通量下降并遭袭击警告",
+      "keywords": []
+    },
+    {
+      "id": "EVT88b9eb24",
+      "publishedAt": "08-31 11:18",
+      "publishedAtRaw": "2026-08-31T03:18:00.000000000+00:00",
+      "summary": "国际钢市价格走势分化",
+      "keywords": []
+    },
+    {
+      "id": "EVTca5d1d59",
+      "publishedAt": "08-31 11:18",
+      "publishedAtRaw": "2026-08-31T03:18:00.000000000+00:00",
+      "summary": "土耳其螺纹钢出口报价升至588美元/吨",
+      "keywords": []
+    },
+    {
+      "id": "EVTd2af646a",
+      "publishedAt": "08-31 11:18",
+      "publishedAtRaw": "2026-08-31T03:18:00.000000000+00:00",
+      "summary": "欧盟调整钢铁配额及CBAM政策",
+      "keywords": []
+    },
+    {
+      "id": "EVTd6821525",
+      "publishedAt": "08-31 11:18",
+      "publishedAtRaw": "2026-08-31T03:18:00.000000000+00:00",
+      "summary": "中国钢坯出口报价上调",
+      "keywords": []
+    },
+    {
+      "id": "EVT9c85c6ff",
+      "publishedAt": "08-31 12:14",
+      "publishedAtRaw": "2026-08-31T04:14:58.000000000+00:00",
+      "summary": "国家市场监管总局宣布分阶段实施GB1589-2026标准",
+      "keywords": []
+    },
+    {
+      "id": "EVTe8d46974",
+      "publishedAt": "08-31 13:35",
+      "publishedAtRaw": "2026-08-31T05:35:00.000000000+00:00",
+      "summary": "委内瑞拉7月原油出口量环比下降",
+      "keywords": []
+    },
+    {
+      "id": "EVT6a7f7d15",
+      "publishedAt": "08-31 13:59",
+      "publishedAtRaw": "2026-08-31T05:59:10.000000000+00:00",
+      "summary": "部分中国媒体预计Aistaland GX7顶配版售价约35万元",
+      "keywords": []
+    },
+    {
+      "id": "EVT9765bd00",
+      "publishedAt": "08-31 14:45",
+      "publishedAtRaw": "2026-08-31T06:45:00.000000000+00:00",
+      "summary": "高盛上调2027年柴油炼油利润率预测",
+      "keywords": []
+    },
+    {
+      "id": "EVT09998142",
+      "publishedAt": "08-31 14:50",
+      "publishedAtRaw": "2026-08-31T06:50:06.000000000+00:00",
+      "summary": "小鹏GX累计交付突破2万辆",
+      "keywords": []
+    },
+    {
+      "id": "EVT2b8388a3",
+      "publishedAt": "08-31 14:50",
+      "publishedAtRaw": "2026-08-31T06:50:06.000000000+00:00",
+      "summary": "小鹏GX上市12小时获24863份订单，Ultra版占比超80%",
+      "keywords": []
+    },
+    {
+      "id": "EVT58c907d8",
+      "publishedAt": "08-31 14:50",
+      "publishedAtRaw": "2026-08-31T06:50:06.000000000+00:00",
+      "summary": "小鹏汽车发布GX车型配置和价格",
+      "keywords": []
+    },
+    {
+      "id": "EVT970d4817",
+      "publishedAt": "08-31 15:28",
+      "publishedAtRaw": "2026-08-31T07:28:01.000000000+00:00",
+      "summary": "中日英持有美国国债规模数据",
+      "keywords": []
+    },
+    {
+      "id": "EVTb08506ba",
+      "publishedAt": "08-31 15:28",
+      "publishedAtRaw": "2026-08-31T07:28:01.000000000+00:00",
+      "summary": "美国7月干预支持日元升值",
+      "keywords": []
+    },
+    {
+      "id": "EVT7ebaa074",
+      "publishedAt": "08-31 16:35",
+      "publishedAtRaw": "2026-08-31T08:35:35.000000000+00:00",
+      "summary": "阿根廷对亚洲石油出口大幅增长",
+      "keywords": []
+    },
+    {
+      "id": "EVT27e48b48",
+      "publishedAt": "08-31 17:44",
+      "publishedAtRaw": "2026-08-31T09:44:52.000000000+00:00",
+      "summary": "Momenta披露累计超130亿公里真实驾驶数据及1亿条金数据",
+      "keywords": []
+    },
+    {
+      "id": "EVT2a5d9981",
+      "publishedAt": "08-31 17:44",
+      "publishedAtRaw": "2026-08-31T09:44:52.000000000+00:00",
+      "summary": "Momenta计划2026年第三季度开始部署R7世界模型于量产车",
+      "keywords": []
+    },
+    {
+      "id": "EVT39d201dc",
+      "publishedAt": "08-31 17:44",
+      "publishedAtRaw": "2026-08-31T09:44:52.000000000+00:00",
+      "summary": "Momenta披露上半年研发投入",
+      "keywords": []
+    },
+    {
+      "id": "EVT5cb18282",
+      "publishedAt": "08-31 17:44",
+      "publishedAtRaw": "2026-08-31T09:44:52.000000000+00:00",
+      "summary": "Momenta宣称在Urban NOA解决方案市场排名第一",
+      "keywords": []
+    },
+    {
+      "id": "EVT85e63516",
+      "publishedAt": "08-31 17:44",
+      "publishedAtRaw": "2026-08-31T09:44:52.000000000+00:00",
+      "summary": "Momenta计划自2027年起在量产车型上安装L3功能",
+      "keywords": []
+    },
+    {
+      "id": "EVT8e5d52ba",
+      "publishedAt": "08-31 17:44",
+      "publishedAtRaw": "2026-08-31T09:44:52.000000000+00:00",
+      "summary": "Momenta披露2026年上半年量产业务进展",
+      "keywords": []
+    },
+    {
+      "id": "EVTba2fe6be",
+      "publishedAt": "08-31 17:44",
+      "publishedAtRaw": "2026-08-31T09:44:52.000000000+00:00",
+      "summary": "Momenta披露截至2026年6月30日累计获得219个车型定点",
+      "keywords": []
+    },
+    {
+      "id": "EVTbd7f27e3",
+      "publishedAt": "08-31 17:44",
+      "publishedAtRaw": "2026-08-31T09:44:52.000000000+00:00",
+      "summary": "Momenta报告2026年上半年IFRS净亏损扩大至165.4亿元",
+      "keywords": []
+    },
+    {
+      "id": "EVT00b925d9",
+      "publishedAt": "08-31 17:47",
+      "publishedAtRaw": "2026-08-31T09:47:17.000000000+00:00",
+      "summary": "工信部批准大模型平台系列行业标准",
+      "keywords": []
+    },
+    {
+      "id": "EVTfa3ff625",
+      "publishedAt": "11-01 00:00",
+      "publishedAtRaw": "2026-10-31T16:00:00.000000000+00:00",
+      "summary": "中国预计11月决定延长或解除稀土出口限制",
+      "keywords": []
+    }
+  ]
+}
