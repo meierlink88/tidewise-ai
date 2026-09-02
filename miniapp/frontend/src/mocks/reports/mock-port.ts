@@ -402,14 +402,7 @@ const home: ReportHome = {
     {
       report,
       industryChainCount: 54,
-      cards,
-      company: {
-        key: 'company',
-        displayOrder: 4,
-        title: '企业',
-        published: false,
-        boundary: '本次推理尚未进入企业层，不生成企业影响结论。'
-      }
+      cards
     }
   ]
 };
@@ -428,7 +421,7 @@ const layerDetails: Record<'geopolitics' | 'macroeconomics', ReportLayerDetail> 
     layer: {
       key: 'geopolitics',
       displayOrder: 1,
-      scope: { type: 'layer', key: 'geopolitics' },
+      scope: { type: 'section_summary', key: 'geopolitics' },
       title: '地缘政治',
       conclusion: cards[0].conclusion,
       result: diverging,
@@ -465,7 +458,7 @@ const layerDetails: Record<'geopolitics' | 'macroeconomics', ReportLayerDetail> 
           {
             key: 'geo-x-macro-01',
             displayOrder: 1,
-            scope: { type: 'transmission_path', key: 'geo-x-macro-01' },
+            scope: { type: 'transmission', key: 'geo-x-macro-01' },
             sourceConclusion: '增长预期修正（真实 MacroEconomic）',
             targetRefs: [
               {
@@ -484,7 +477,7 @@ const layerDetails: Record<'geopolitics' | 'macroeconomics', ReportLayerDetail> 
           {
             key: 'geo-x-chn-21',
             displayOrder: 2,
-            scope: { type: 'transmission_path', key: 'geo-x-chn-21' },
+            scope: { type: 'transmission', key: 'geo-x-chn-21' },
             sourceConclusion: '油品石化贸易服务产业链',
             targetRefs: [
               {
@@ -520,7 +513,7 @@ const layerDetails: Record<'geopolitics' | 'macroeconomics', ReportLayerDetail> 
     layer: {
       key: 'macroeconomics',
       displayOrder: 2,
-      scope: { type: 'layer', key: 'macroeconomics' },
+      scope: { type: 'section_summary', key: 'macroeconomics' },
       title: '宏观经济',
       conclusion: cards[1].conclusion,
       result: diverging,
@@ -558,7 +551,7 @@ const layerDetails: Record<'geopolitics' | 'macroeconomics', ReportLayerDetail> 
           {
             key: 'macro-candidate-01',
             displayOrder: 1,
-            scope: { type: 'candidate_mechanism', key: 'macro-candidate-01' },
+            scope: { type: 'transmission', key: 'macro-candidate-01' },
             mechanism: '增长预期修正 DOWN → 产业需求',
             evidenceGap:
               '全球增长预期下修通常会压低外需和周期品需求，再影响相应产业节点的订单、价格或产能利用率。',
@@ -568,7 +561,7 @@ const layerDetails: Record<'geopolitics' | 'macroeconomics', ReportLayerDetail> 
           {
             key: 'macro-candidate-02',
             displayOrder: 2,
-            scope: { type: 'candidate_mechanism', key: 'macro-candidate-02' },
+            scope: { type: 'transmission', key: 'macro-candidate-02' },
             mechanism: '加息 UP → 融资与资本开支',
             evidenceGap:
               '政策利率上行通常会提高融资成本和折现率，进而压制资本密集型产业的扩产与投资。',
@@ -593,7 +586,7 @@ const layerDetails: Record<'geopolitics' | 'macroeconomics', ReportLayerDetail> 
 
 const evidenceByScope = new Map<string, ReportEvidence[]>([
   [
-    'report_card:card-geopolitics',
+    'section_summary:geopolitics',
     [
       evidence('2026-08-31T02:30:06+00:00', '霍尔木兹海峡油轮交通量下降并遭袭击警告', [
         '霍尔木兹海峡',
@@ -623,7 +616,7 @@ const evidenceByScope = new Map<string, ReportEvidence[]>([
     ]
   ],
   [
-    'report_card:card-macroeconomics',
+    'section_summary:macroeconomics',
     [
       evidence('2026-08-29T13:46:38+00:00', '世界银行警告全球经济增长可能放缓至1.3%', [
         '世界银行',
@@ -638,7 +631,7 @@ const evidenceByScope = new Map<string, ReportEvidence[]>([
     ]
   ],
   [
-    'report_card:card-chn-01',
+    'industry_chain_summary:chn-01',
     [
       evidence('2026-08-28T22:40:51+00:00', '中国举办第二届人形机器人比赛', [
         '人形机器人',
@@ -653,7 +646,7 @@ const evidenceByScope = new Map<string, ReportEvidence[]>([
     ]
   ],
   [
-    'report_card:card-chn-02',
+    'industry_chain_summary:chn-02',
     [
       evidence('2026-08-28T16:00:00+00:00', '中国发布首个国家级液冷标准', [
         '液冷标准',
@@ -673,7 +666,7 @@ const evidenceByScope = new Map<string, ReportEvidence[]>([
     ]
   ],
   [
-    'report_card:card-chn-03',
+    'industry_chain_summary:chn-03',
     [
       evidence('2026-08-31T02:11:00+00:00', '国家数据局披露全国智算总规模数据', [
         '智算规模',
@@ -698,7 +691,7 @@ const evidenceByScope = new Map<string, ReportEvidence[]>([
     ]
   ],
   [
-    'report_card:card-chn-21',
+    'industry_chain_summary:chn-21',
     [
       evidence('2026-08-31T02:30:06+00:00', '霍尔木兹海峡油轮交通量下降并遭袭击警告', [
         '霍尔木兹海峡',
@@ -887,7 +880,7 @@ function chain(
     key,
     claimKey: `${key}-claim`,
     displayOrder,
-    scope: { type: 'industry_chain', key },
+    scope: { type: 'industry_chain_summary', key },
     name,
     conclusion,
     status: '已发布',

@@ -24,7 +24,7 @@ const reportsPath = dataapi.DataAPIPrefix + "/reports"
 var (
 	reportIDPattern   = regexp.MustCompile(`^RPT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 	evidenceIDPattern = regexp.MustCompile(`^EVD[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
-	localKeyPattern   = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,127}$`)
+	localKeyPattern   = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 	metadataPattern   = regexp.MustCompile(`^[A-Za-z0-9_.:-]+$`)
 )
 
@@ -57,11 +57,11 @@ func (r *Repository) ListReports(ctx context.Context, query biz.ListQuery) (biz.
 	if encoded := values.Encode(); encoded != "" {
 		path += "?" + encoded
 	}
-	var wire wirePage
+	var wire wireV2Page
 	if err := r.get(ctx, path, &wire); err != nil {
 		return biz.Page{}, mapReadError(err, readList)
 	}
-	page, err := mapPage(wire)
+	page, err := mapV2Page(wire)
 	if err != nil {
 		return biz.Page{}, err
 	}
@@ -80,29 +80,29 @@ func (r *Repository) ListReports(ctx context.Context, query biz.ListQuery) (biz.
 }
 
 func (r *Repository) GetHome(ctx context.Context, reportID string) (biz.Home, error) {
-	var wire wireHome
+	var wire wireV2Home
 	if err := r.get(ctx, reportsPath+"/"+url.PathEscape(reportID)+"/home", &wire); err != nil {
 		return biz.Home{}, mapReadError(err, readHome)
 	}
-	return mapHome(wire, reportID)
+	return r.mapV2Home(ctx, wire, reportID)
 }
 
 func (r *Repository) GetLayer(ctx context.Context, reportID, layerKey string) (biz.LayerDetail, error) {
 	path := reportsPath + "/" + url.PathEscape(reportID) + "/layers/" + url.PathEscape(layerKey)
-	var wire wireLayerDetail
+	var wire wireV2LayerDetail
 	if err := r.get(ctx, path, &wire); err != nil {
 		return biz.LayerDetail{}, mapReadError(err, readLayer)
 	}
-	return mapLayerDetail(wire, reportID, layerKey)
+	return mapV2LayerDetail(wire, reportID, layerKey)
 }
 
 func (r *Repository) GetIndustryChain(ctx context.Context, reportID, chainKey string) (biz.IndustryChainDetail, error) {
 	path := reportsPath + "/" + url.PathEscape(reportID) + "/industry-chains/" + url.PathEscape(chainKey)
-	var wire wireIndustryChainDetail
+	var wire wireV2IndustryChainDetail
 	if err := r.get(ctx, path, &wire); err != nil {
 		return biz.IndustryChainDetail{}, mapReadError(err, readChain)
 	}
-	return mapIndustryChainDetail(wire, reportID, chainKey)
+	return mapV2IndustryChainDetail(wire, reportID, chainKey)
 }
 
 func (r *Repository) ListEvidences(ctx context.Context, reportID string, scope biz.EvidenceScope) (biz.EvidenceCollection, error) {
@@ -189,7 +189,8 @@ func validateRequiredJSON(payload json.RawMessage, targetType reflect.Type) erro
 			if !field.IsExported() {
 				continue
 			}
-			name := strings.Split(field.Tag.Get("json"), ",")[0]
+			jsonTag := strings.Split(field.Tag.Get("json"), ",")
+			name := jsonTag[0]
 			if name == "-" {
 				continue
 			}
@@ -198,6 +199,9 @@ func validateRequiredJSON(payload json.RawMessage, targetType reflect.Type) erro
 			}
 			fieldPayload, exists := object[name]
 			if !exists {
+				if len(jsonTag) > 1 && jsonTag[1] == "omitempty" {
+					continue
+				}
 				return errors.New("required Data field is missing")
 			}
 			if err := validateRequiredJSON(fieldPayload, field.Type); err != nil {
@@ -251,45 +255,6 @@ func mapReadError(err error, operation readOperation) error {
 	return biz.ErrDataUnavailable
 }
 
-type wireStatistics struct {
-	EventCount                           int     `json:"event_count"`
-	OrdinaryFactCount                    int     `json:"ordinary_fact_count"`
-	SignalFactCount                      int     `json:"signal_fact_count"`
-	TransmissionHypothesisCount          int     `json:"transmission_hypothesis_count"`
-	RemainingTopologyPendingCount        int     `json:"remaining_topology_pending_count"`
-	AdaptiveInclusionThreshold           float64 `json:"adaptive_inclusion_threshold"`
-	AdaptiveContinuationThreshold        float64 `json:"adaptive_continuation_threshold"`
-	AdaptiveHardMaxHops                  int     `json:"adaptive_hard_max_hops"`
-	AdaptiveObservedMaxHops              int     `json:"adaptive_observed_max_hops"`
-	AdaptiveStoppedByConfidence          int     `json:"adaptive_stopped_by_confidence"`
-	AdaptiveStoppedByNoUnvisitedNeighbor int     `json:"adaptive_stopped_by_no_unvisited_neighbor"`
-	AdaptiveRejectedBelowInclusion       int     `json:"adaptive_rejected_below_inclusion"`
-	GeopoliticAnchorCount                int     `json:"geopolitic_anchor_count"`
-	MacroeconomicAnchorCount             int     `json:"macroeconomic_anchor_count"`
-	SignaledChainNodeCount               int     `json:"signaled_chain_node_count"`
-	IndustryChainCount                   int     `json:"industry_chain_count"`
-	UnmappedChainNodeCount               int     `json:"unmapped_chain_node_count"`
-}
-
-type wireSummary struct {
-	ID              string         `json:"id"`
-	SourceReportID  string         `json:"source_report_id"`
-	ReportType      string         `json:"report_type"`
-	Title           string         `json:"title"`
-	Status          string         `json:"status"`
-	Simulation      bool           `json:"simulation"`
-	GeneratedAt     string         `json:"generated_at"`
-	Timezone        string         `json:"timezone"`
-	PublishedLayers []string       `json:"published_layers"`
-	Statistics      wireStatistics `json:"statistics"`
-	PublishedAt     string         `json:"published_at"`
-}
-
-type wirePage struct {
-	Items      []wireSummary `json:"items"`
-	NextCursor *string       `json:"next_cursor"`
-}
-
 type wireResult struct {
 	Code  string `json:"code"`
 	Label string `json:"label"`
@@ -310,201 +275,10 @@ type wireReference struct {
 	Key  string `json:"key"`
 }
 
-type wireCardImpactItem struct {
-	Ref           wireReference  `json:"ref"`
-	Name          string         `json:"name"`
-	Result        wireResult     `json:"result"`
-	Confidence    wireConfidence `json:"confidence"`
-	TimeWindow    string         `json:"time_window"`
-	EvidenceCount int            `json:"evidence_count"`
-}
-
-type wireCard struct {
-	Key           string               `json:"key"`
-	Kind          string               `json:"kind"`
-	DisplayOrder  int                  `json:"display_order"`
-	DetailRef     wireReference        `json:"detail_ref"`
-	Title         string               `json:"title"`
-	Subtitle      string               `json:"subtitle"`
-	Conclusion    string               `json:"conclusion"`
-	Result        wireResult           `json:"result"`
-	Confidence    wireConfidence       `json:"confidence"`
-	TimeWindow    string               `json:"time_window"`
-	ImpactItems   []wireCardImpactItem `json:"impact_items"`
-	EvidenceCount int                  `json:"evidence_count"`
-}
-
-type wireCompanyBoundary struct {
-	Key          string `json:"key"`
-	DisplayOrder int    `json:"display_order"`
-	Title        string `json:"title"`
-	Published    bool   `json:"published"`
-	Boundary     string `json:"boundary"`
-}
-
-type wireHome struct {
-	Report             wireSummary         `json:"report"`
-	IndustryChainCount *int                `json:"industry_chain_count"`
-	ReportCards        []wireCard          `json:"report_cards"`
-	Company            wireCompanyBoundary `json:"company"`
-}
-
-type wireAnchor struct {
-	Key           string         `json:"key"`
-	DisplayOrder  int            `json:"display_order"`
-	Name          string         `json:"name"`
-	CurrentState  string         `json:"current_state"`
-	Result        wireResult     `json:"result"`
-	Nature        wireNature     `json:"nature"`
-	Reasoning     string         `json:"reasoning"`
-	TimeWindow    string         `json:"time_window"`
-	Confidence    wireConfidence `json:"confidence"`
-	EvidenceCount int            `json:"evidence_count"`
-}
-
-type wireReasoningStep struct {
-	Key           string         `json:"key"`
-	DisplayOrder  int            `json:"display_order"`
-	Input         string         `json:"input"`
-	Mechanism     string         `json:"mechanism"`
-	Output        string         `json:"output"`
-	Type          string         `json:"type"`
-	Confidence    wireConfidence `json:"confidence"`
-	EvidenceCount int            `json:"evidence_count"`
-}
-
-type wireTransmissionTarget struct {
-	Ref    wireReference `json:"ref"`
-	Label  string        `json:"label"`
-	Result wireResult    `json:"result"`
-}
-
-type wireTransmissionPath struct {
-	Key              string                   `json:"key"`
-	DisplayOrder     int                      `json:"display_order"`
-	SourceConclusion string                   `json:"source_conclusion"`
-	TargetRefs       []wireTransmissionTarget `json:"target_refs"`
-	Logic            string                   `json:"logic"`
-	RelationNature   string                   `json:"relation_nature"`
-	EvidenceRole     string                   `json:"evidence_role"`
-	Confidence       wireConfidence           `json:"confidence"`
-	Status           string                   `json:"status"`
-	EvidenceCount    int                      `json:"evidence_count"`
-}
-
-type wireCandidateMechanism struct {
-	Key           string         `json:"key"`
-	DisplayOrder  int            `json:"display_order"`
-	Mechanism     string         `json:"mechanism"`
-	EvidenceGap   *string        `json:"evidence_gap"`
-	Confidence    wireConfidence `json:"confidence"`
-	EvidenceCount int            `json:"evidence_count"`
-}
-
 type wireCheckpoint struct {
 	Key          string `json:"key"`
 	DisplayOrder int    `json:"display_order"`
 	Summary      string `json:"summary"`
-}
-
-type wireDownwardTransmission struct {
-	Summary             string                   `json:"summary"`
-	PublishedPaths      []wireTransmissionPath   `json:"published_paths"`
-	CandidateMechanisms []wireCandidateMechanism `json:"candidate_mechanisms"`
-	BoundaryNotes       []string                 `json:"boundary_notes"`
-}
-
-type wireLayerUncertainty struct {
-	Counterevidence   *string          `json:"counterevidence"`
-	EvidenceGap       *string          `json:"evidence_gap"`
-	Boundary          *string          `json:"boundary"`
-	ReversalCondition *string          `json:"reversal_condition"`
-	Checkpoints       []wireCheckpoint `json:"checkpoints"`
-}
-
-type wireLayer struct {
-	Key                  string                   `json:"key"`
-	DisplayOrder         int                      `json:"display_order"`
-	Title                string                   `json:"title"`
-	Conclusion           string                   `json:"conclusion"`
-	Result               wireResult               `json:"result"`
-	Confidence           wireConfidence           `json:"confidence"`
-	TimeWindow           string                   `json:"time_window"`
-	Anchors              []wireAnchor             `json:"anchors"`
-	ReasoningSteps       []wireReasoningStep      `json:"reasoning_steps"`
-	RelatedAnchorKeys    []string                 `json:"related_anchor_keys"`
-	RelatedChainKeys     []string                 `json:"related_chain_keys"`
-	DownwardTransmission wireDownwardTransmission `json:"downward_transmission"`
-	Uncertainty          wireLayerUncertainty     `json:"uncertainty"`
-	EvidenceCount        int                      `json:"evidence_count"`
-}
-
-type wireIndustryChainSummary struct {
-	Key           string         `json:"key"`
-	DisplayOrder  int            `json:"display_order"`
-	Name          string         `json:"name"`
-	Conclusion    string         `json:"conclusion"`
-	Status        string         `json:"status"`
-	Result        wireResult     `json:"result"`
-	Confidence    wireConfidence `json:"confidence"`
-	TimeWindow    string         `json:"time_window"`
-	EvidenceCount int            `json:"evidence_count"`
-}
-
-type wireLayerDetail struct {
-	Report                wireSummary                `json:"report"`
-	Layer                 wireLayer                  `json:"layer"`
-	RelatedIndustryChains []wireIndustryChainSummary `json:"related_industry_chains"`
-}
-
-type wireIndustryChainNode struct {
-	Key           string         `json:"key"`
-	DisplayOrder  int            `json:"display_order"`
-	Name          string         `json:"name"`
-	Impact        string         `json:"impact"`
-	Result        wireResult     `json:"result"`
-	Nature        wireNature     `json:"nature"`
-	Reasoning     string         `json:"reasoning"`
-	TimeWindow    string         `json:"time_window"`
-	Confidence    wireConfidence `json:"confidence"`
-	EvidenceCount int            `json:"evidence_count"`
-}
-
-type wireIndustryChainEdge struct {
-	Key           string `json:"key"`
-	DisplayOrder  int    `json:"display_order"`
-	FromNodeKey   string `json:"from_node_key"`
-	ToNodeKey     string `json:"to_node_key"`
-	RelationLabel string `json:"relation_label"`
-}
-
-type wireChainUncertainty struct {
-	CounterevidenceAndGap *string          `json:"counterevidence_and_gap"`
-	StopCondition         *string          `json:"stop_condition"`
-	Checkpoints           []wireCheckpoint `json:"checkpoints"`
-}
-
-type wireIndustryChain struct {
-	Key                       string                  `json:"key"`
-	ClaimKey                  string                  `json:"claim_key"`
-	DisplayOrder              int                     `json:"display_order"`
-	Name                      string                  `json:"name"`
-	Conclusion                string                  `json:"conclusion"`
-	Status                    string                  `json:"status"`
-	Result                    wireResult              `json:"result"`
-	Confidence                wireConfidence          `json:"confidence"`
-	TimeWindow                string                  `json:"time_window"`
-	PathSummary               *string                 `json:"path_summary"`
-	AcceptedHypothesisSummary *string                 `json:"accepted_hypothesis_summary"`
-	Nodes                     []wireIndustryChainNode `json:"nodes"`
-	Edges                     []wireIndustryChainEdge `json:"edges"`
-	Uncertainty               wireChainUncertainty    `json:"uncertainty"`
-	EvidenceCount             int                     `json:"evidence_count"`
-}
-
-type wireIndustryChainDetail struct {
-	Report        wireSummary       `json:"report"`
-	IndustryChain wireIndustryChain `json:"industry_chain"`
 }
 
 type wireEvidenceItem struct {
@@ -523,13 +297,281 @@ type wireEvidenceCollection struct {
 	Items     []wireEvidenceItem `json:"items"`
 }
 
-func mapPage(wire wirePage) (biz.Page, error) {
+type wireV2Statistics struct {
+	EventCount                  int `json:"event_count"`
+	OrdinaryFactCount           int `json:"ordinary_fact_count"`
+	SignalFactCount             int `json:"signal_fact_count"`
+	TransmissionHypothesisCount int `json:"transmission_hypothesis_count"`
+	GeopoliticAnchorCount       int `json:"geopolitic_anchor_count"`
+	MacroeconomicAnchorCount    int `json:"macroeconomic_anchor_count"`
+	SignaledChainNodeCount      int `json:"signaled_chain_node_count"`
+	IndustryChainCount          int `json:"industry_chain_count"`
+}
+
+type wireV2Summary struct {
+	ID                string           `json:"id"`
+	PublisherReportID string           `json:"publisher_report_id"`
+	ReportType        string           `json:"report_type"`
+	Title             string           `json:"title"`
+	GenerationStatus  string           `json:"generation_status"`
+	Simulation        bool             `json:"simulation"`
+	GeneratedAt       string           `json:"generated_at"`
+	Timezone          string           `json:"timezone"`
+	HasGeopolitics    bool             `json:"has_geopolitics"`
+	HasMacroeconomics bool             `json:"has_macroeconomics"`
+	Statistics        wireV2Statistics `json:"statistics"`
+	PublishedAt       string           `json:"published_at"`
+}
+
+type wireV2Page struct {
+	Items      []wireV2Summary `json:"items"`
+	NextCursor *string         `json:"next_cursor"`
+}
+
+type wireV2Result struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+}
+
+type wireV2Nature struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+}
+
+type wireV2Confidence struct {
+	Code  string   `json:"code"`
+	Label string   `json:"label"`
+	Score *float64 `json:"score"`
+}
+
+type wireV2TimeWindow struct {
+	Horizons []string `json:"horizons"`
+	Lag      *string  `json:"lag"`
+	Label    string   `json:"label"`
+}
+
+type wireV2Effect struct {
+	DisplayOrder int    `json:"display_order"`
+	Dimension    string `json:"dimension"`
+	Direction    string `json:"direction"`
+	Confidence   string `json:"confidence"`
+}
+
+type wireV2EvidenceReference struct {
+	EvidenceID   string `json:"evidence_id"`
+	Role         string `json:"role"`
+	DisplayOrder int    `json:"display_order"`
+}
+
+type wireV2Reference struct {
+	Type string `json:"type"`
+	Key  string `json:"key"`
+}
+
+type wireV2Claim struct {
+	Key  string `json:"key"`
+	Text string `json:"text"`
+}
+
+type wireV2Anchor struct {
+	Key          string                    `json:"key"`
+	DisplayOrder int                       `json:"display_order"`
+	Name         string                    `json:"name"`
+	Effects      []wireV2Effect            `json:"effects"`
+	Result       wireV2Result              `json:"result"`
+	Nature       wireV2Nature              `json:"nature"`
+	Reasoning    string                    `json:"reasoning"`
+	TimeWindow   wireV2TimeWindow          `json:"time_window"`
+	Confidence   wireV2Confidence          `json:"confidence"`
+	SourceRef    *string                   `json:"source_ref"`
+	EvidenceRefs []wireV2EvidenceReference `json:"evidence_refs"`
+}
+
+type wireV2ReasoningStep struct {
+	Key          string                    `json:"key"`
+	DisplayOrder int                       `json:"display_order"`
+	Input        string                    `json:"input"`
+	Mechanism    string                    `json:"mechanism"`
+	Output       string                    `json:"output"`
+	Type         string                    `json:"type"`
+	Confidence   wireV2Confidence          `json:"confidence"`
+	EvidenceRefs []wireV2EvidenceReference `json:"evidence_refs"`
+}
+
+type wireV2NamedResult struct {
+	Name   string       `json:"name"`
+	Result wireV2Result `json:"result"`
+}
+
+type wireV2TransmissionTarget struct {
+	Ref     *wireV2Reference    `json:"ref,omitempty"`
+	Label   string              `json:"label"`
+	Results []wireV2NamedResult `json:"results"`
+}
+
+type wireV2Transmission struct {
+	Key              string                     `json:"key"`
+	DisplayOrder     int                        `json:"display_order"`
+	SourceClaimKey   string                     `json:"source_claim_key"`
+	SourceConclusion string                     `json:"source_conclusion"`
+	Targets          []wireV2TransmissionTarget `json:"targets"`
+	Logic            string                     `json:"logic"`
+	RelationNature   string                     `json:"relation_nature"`
+	Confidence       wireV2Confidence           `json:"confidence"`
+	Status           string                     `json:"status"`
+	EvidenceRefs     []wireV2EvidenceReference  `json:"evidence_refs"`
+}
+
+type wireV2LayerUncertainty struct {
+	Counterevidence   *string          `json:"counterevidence"`
+	EvidenceGap       *string          `json:"evidence_gap"`
+	Boundary          *string          `json:"boundary"`
+	ReversalCondition *string          `json:"reversal_condition"`
+	Checkpoints       []wireCheckpoint `json:"checkpoints"`
+}
+
+type wireV2LayerSummary struct {
+	Claim         wireV2Claim               `json:"claim"`
+	Transmissions []wireV2Transmission      `json:"transmissions"`
+	Uncertainty   wireV2LayerUncertainty    `json:"uncertainty"`
+	EvidenceRefs  []wireV2EvidenceReference `json:"evidence_refs"`
+}
+
+type wireV2LayerAnalysis struct {
+	Anchors          []wireV2Anchor        `json:"anchors"`
+	ReasoningSteps   []wireV2ReasoningStep `json:"reasoning_steps"`
+	RelatedChainKeys []string              `json:"related_chain_keys"`
+}
+
+type wireV2Layer struct {
+	Key     string              `json:"key"`
+	Title   string              `json:"title"`
+	Summary wireV2LayerSummary  `json:"summary"`
+	Detail  wireV2LayerAnalysis `json:"detail"`
+}
+
+type wireV2LayerSnapshot struct {
+	Key     string             `json:"key"`
+	Title   string             `json:"title"`
+	Summary wireV2LayerSummary `json:"summary"`
+}
+
+type wireV2Home struct {
+	Report         wireV2Summary        `json:"report"`
+	Geopolitics    *wireV2LayerSnapshot `json:"geopolitics"`
+	Macroeconomics *wireV2LayerSnapshot `json:"macroeconomics"`
+}
+
+type wireV2ChainImpactSummary struct {
+	Key           string           `json:"key"`
+	DisplayOrder  int              `json:"display_order"`
+	NodeKey       string           `json:"node_key"`
+	Name          string           `json:"name"`
+	Result        wireV2Result     `json:"result"`
+	Nature        wireV2Nature     `json:"nature"`
+	Confidence    wireV2Confidence `json:"confidence"`
+	TimeWindow    wireV2TimeWindow `json:"time_window"`
+	EvidenceCount int              `json:"evidence_count"`
+}
+
+type wireV2ChainSummary struct {
+	Key           string                     `json:"key"`
+	DisplayOrder  int                        `json:"display_order"`
+	Name          string                     `json:"name"`
+	Claim         wireV2Claim                `json:"claim"`
+	Status        string                     `json:"status"`
+	Result        wireV2Result               `json:"result"`
+	Confidence    wireV2Confidence           `json:"confidence"`
+	TimeWindow    wireV2TimeWindow           `json:"time_window"`
+	ImpactItems   []wireV2ChainImpactSummary `json:"impact_items"`
+	EvidenceCount int                        `json:"evidence_count"`
+}
+
+type wireV2ChainPage struct {
+	Items      []wireV2ChainSummary `json:"items"`
+	NextCursor *string              `json:"next_cursor"`
+}
+
+type wireV2LayerDetail struct {
+	Report                wireV2Summary        `json:"report"`
+	Layer                 wireV2Layer          `json:"layer"`
+	RelatedIndustryChains []wireV2ChainSummary `json:"related_industry_chains"`
+}
+
+type wireV2TopologyNode struct {
+	Key          string `json:"key"`
+	DisplayOrder int    `json:"display_order"`
+	Name         string `json:"name"`
+}
+
+type wireV2IndustryChainEdge struct {
+	Key           string `json:"key"`
+	DisplayOrder  int    `json:"display_order"`
+	FromNodeKey   string `json:"from_node_key"`
+	ToNodeKey     string `json:"to_node_key"`
+	RelationLabel string `json:"relation_label"`
+}
+
+type wireV2ChainNode struct {
+	Key          string                    `json:"key"`
+	DisplayOrder int                       `json:"display_order"`
+	NodeKey      string                    `json:"node_key"`
+	Effects      []wireV2Effect            `json:"effects"`
+	Result       wireV2Result              `json:"result"`
+	Nature       wireV2Nature              `json:"nature"`
+	Reasoning    string                    `json:"reasoning"`
+	TimeWindow   wireV2TimeWindow          `json:"time_window"`
+	Confidence   wireV2Confidence          `json:"confidence"`
+	EvidenceRefs []wireV2EvidenceReference `json:"evidence_refs"`
+}
+
+type wireV2ChainSummaryDetail struct {
+	Claim                     wireV2Claim               `json:"claim"`
+	Status                    string                    `json:"status"`
+	Result                    wireV2Result              `json:"result"`
+	Confidence                wireV2Confidence          `json:"confidence"`
+	TimeWindow                wireV2TimeWindow          `json:"time_window"`
+	Path                      string                    `json:"path"`
+	AcceptedHypothesisSummary *string                   `json:"accepted_hypothesis_summary"`
+	Graph                     wireV2IndustryChainGraph  `json:"graph"`
+	Uncertainty               wireV2ChainUncertainty    `json:"uncertainty"`
+	EvidenceRefs              []wireV2EvidenceReference `json:"evidence_refs"`
+}
+
+type wireV2ChainUncertainty struct {
+	CounterevidenceAndGap string `json:"counterevidence_and_gap"`
+	StopCondition         string `json:"stop_condition"`
+}
+
+type wireV2IndustryChainGraph struct {
+	Nodes []wireV2TopologyNode      `json:"nodes"`
+	Edges []wireV2IndustryChainEdge `json:"edges"`
+}
+
+type wireV2ChainAnalysis struct {
+	NodeImpacts []wireV2ChainNode `json:"node_impacts"`
+}
+
+type wireV2IndustryChain struct {
+	Key          string                   `json:"key"`
+	DisplayOrder int                      `json:"display_order"`
+	Name         string                   `json:"name"`
+	Summary      wireV2ChainSummaryDetail `json:"summary"`
+	Detail       wireV2ChainAnalysis      `json:"detail"`
+}
+
+type wireV2IndustryChainDetail struct {
+	Report        wireV2Summary       `json:"report"`
+	IndustryChain wireV2IndustryChain `json:"industry_chain"`
+}
+
+func mapV2Page(wire wireV2Page) (biz.Page, error) {
 	if wire.Items == nil {
 		return biz.Page{}, biz.ErrDataUnavailable
 	}
 	items := make([]biz.Summary, len(wire.Items))
 	for index, item := range wire.Items {
-		mapped, err := mapSummary(item)
+		mapped, err := mapV2Summary(item)
 		if err != nil {
 			return biz.Page{}, err
 		}
@@ -541,7 +583,7 @@ func mapPage(wire wirePage) (biz.Page, error) {
 	return biz.Page{Items: items, NextCursor: wire.NextCursor}, nil
 }
 
-func mapSummary(wire wireSummary) (biz.Summary, error) {
+func mapV2Summary(wire wireV2Summary) (biz.Summary, error) {
 	generatedAt, err := parseTimestamp(wire.GeneratedAt)
 	if err != nil {
 		return biz.Summary{}, biz.ErrDataUnavailable
@@ -550,445 +592,553 @@ func mapSummary(wire wireSummary) (biz.Summary, error) {
 	if err != nil {
 		return biz.Summary{}, biz.ErrDataUnavailable
 	}
-	if !reportIDPattern.MatchString(wire.ID) || !validText(wire.SourceReportID, 200) ||
-		!validText(wire.ReportType, 100) || !validText(wire.Title, 500) || !validText(wire.Status, 100) ||
-		!validText(wire.Timezone, 100) || !validPublishedLayers(wire.PublishedLayers) ||
-		!validStatistics(wire.Statistics) {
+	counts := []int{wire.Statistics.EventCount, wire.Statistics.OrdinaryFactCount,
+		wire.Statistics.SignalFactCount, wire.Statistics.TransmissionHypothesisCount,
+		wire.Statistics.GeopoliticAnchorCount, wire.Statistics.MacroeconomicAnchorCount,
+		wire.Statistics.SignaledChainNodeCount, wire.Statistics.IndustryChainCount}
+	for _, count := range counts {
+		if count < 0 {
+			return biz.Summary{}, biz.ErrDataUnavailable
+		}
+	}
+	if wire.Statistics.IndustryChainCount < 1 || !reportIDPattern.MatchString(wire.ID) || !validText(wire.PublisherReportID, 200) ||
+		!validText(wire.ReportType, 100) || !validText(wire.Title, 500) ||
+		!validText(wire.GenerationStatus, 100) || !validText(wire.Timezone, 100) {
 		return biz.Summary{}, biz.ErrDataUnavailable
 	}
-	return biz.Summary{ID: wire.ID, SourceReportID: wire.SourceReportID, Title: wire.Title,
+	return biz.Summary{ID: wire.ID, PublisherReportID: wire.PublisherReportID, Title: wire.Title,
 		GeneratedAt: generatedAt, PublishedAt: publishedAt}, nil
 }
 
-func mapHome(wire wireHome, expectedReportID string) (biz.Home, error) {
-	summary, err := mapSummary(wire.Report)
-	if err != nil || summary.ID != expectedReportID || wire.IndustryChainCount == nil ||
-		*wire.IndustryChainCount < 0 || *wire.IndustryChainCount != wire.Report.Statistics.IndustryChainCount ||
-		wire.ReportCards == nil || len(wire.ReportCards) == 0 {
+func (r *Repository) mapV2Home(ctx context.Context, wire wireV2Home, expectedReportID string) (biz.Home, error) {
+	summary, err := mapV2Summary(wire.Report)
+	if err != nil || summary.ID != expectedReportID || wire.Report.HasGeopolitics != (wire.Geopolitics != nil) ||
+		wire.Report.HasMacroeconomics != (wire.Macroeconomics != nil) {
 		return biz.Home{}, biz.ErrDataUnavailable
 	}
-	cards := make([]biz.Card, len(wire.ReportCards))
-	seenKeys := make(map[string]struct{}, len(cards))
-	seenDetails := make(map[string]struct{}, len(cards))
-	layerCardCounts := map[string]int{
-		biz.LayerGeopolitics:    0,
-		biz.LayerMacroeconomics: 0,
+	cards := make([]biz.Card, 0, wire.Report.Statistics.IndustryChainCount+2)
+	for _, snapshot := range []*wireV2LayerSnapshot{wire.Geopolitics, wire.Macroeconomics} {
+		if snapshot == nil {
+			continue
+		}
+		detail, readErr := r.GetLayer(ctx, expectedReportID, snapshot.Key)
+		if readErr != nil || detail.Layer.Title != snapshot.Title || detail.Layer.Conclusion != snapshot.Summary.Claim.Text {
+			return biz.Home{}, biz.ErrDataUnavailable
+		}
+		cards = append(cards, cardFromV2Layer(detail.Layer, len(cards)+1))
 	}
-	for index, card := range wire.ReportCards {
-		mapped, mapErr := mapCard(card)
-		if mapErr != nil || card.DisplayOrder != index+1 {
-			return biz.Home{}, biz.ErrDataUnavailable
-		}
-		if _, duplicate := seenKeys[mapped.Key]; duplicate {
-			return biz.Home{}, biz.ErrDataUnavailable
-		}
-		seenKeys[mapped.Key] = struct{}{}
-		detailIdentity := mapped.DetailRef.Type + ":" + mapped.DetailRef.Key
-		if _, duplicate := seenDetails[detailIdentity]; duplicate {
-			return biz.Home{}, biz.ErrDataUnavailable
-		}
-		seenDetails[detailIdentity] = struct{}{}
-		if mapped.Kind == biz.LayerGeopolitics || mapped.Kind == biz.LayerMacroeconomics {
-			layerCardCounts[mapped.Kind]++
-		}
-		cards[index] = mapped
-	}
-	if layerCardCounts[biz.LayerGeopolitics] != 1 || layerCardCounts[biz.LayerMacroeconomics] != 1 {
+	chains, err := r.listAllV2ChainSummaries(ctx, expectedReportID)
+	if err != nil || len(chains) != wire.Report.Statistics.IndustryChainCount {
 		return biz.Home{}, biz.ErrDataUnavailable
 	}
-	company := wire.Company
-	if company.Key != "company" || company.DisplayOrder != 4 || company.Published ||
-		!validText(company.Title, 500) || !validText(company.Boundary, 10_000) {
-		return biz.Home{}, biz.ErrDataUnavailable
+	for _, chain := range chains {
+		cards = append(cards, cardFromV2ChainSummary(chain, len(cards)+1))
 	}
-	return biz.Home{Report: summary, IndustryChainCount: *wire.IndustryChainCount, Cards: cards, Company: biz.CompanyBoundary{
-		Key: company.Key, DisplayOrder: company.DisplayOrder, Title: company.Title,
-		Published: company.Published, Boundary: company.Boundary,
-	}}, nil
+	return biz.Home{Report: summary, IndustryChainCount: len(chains), Cards: cards}, nil
 }
 
-func mapCard(wire wireCard) (biz.Card, error) {
-	if !validLocalKey(wire.Key) || wire.DisplayOrder < 1 || wire.EvidenceCount < 0 ||
-		wire.ImpactItems == nil || len(wire.ImpactItems) == 0 ||
-		!validText(wire.Title, 10_000) || !validText(wire.Subtitle, 10_000) || !validText(wire.Conclusion, 10_000) ||
-		!validText(wire.TimeWindow, 10_000) || !validCardKind(wire.Kind) {
-		return biz.Card{}, biz.ErrDataUnavailable
+func (r *Repository) listAllV2ChainSummaries(ctx context.Context, reportID string) ([]wireV2ChainSummary, error) {
+	items := make([]wireV2ChainSummary, 0)
+	cursor := ""
+	seenCursors := map[string]struct{}{}
+	seenKeys := map[string]struct{}{}
+	for pageIndex := 0; pageIndex < 100; pageIndex++ {
+		values := url.Values{"limit": []string{"100"}}
+		if cursor != "" {
+			values.Set("cursor", cursor)
+		}
+		var page wireV2ChainPage
+		if err := r.get(ctx, reportsPath+"/"+url.PathEscape(reportID)+"/industry-chains?"+values.Encode(), &page); err != nil {
+			return nil, mapReadError(err, readChain)
+		}
+		if page.Items == nil {
+			return nil, biz.ErrDataUnavailable
+		}
+		for _, item := range page.Items {
+			if err := validateV2ChainSummary(item); err != nil {
+				return nil, err
+			}
+			if item.DisplayOrder != len(items)+1 {
+				return nil, biz.ErrDataUnavailable
+			}
+			if _, duplicate := seenKeys[item.Key]; duplicate {
+				return nil, biz.ErrDataUnavailable
+			}
+			seenKeys[item.Key] = struct{}{}
+			items = append(items, item)
+		}
+		if page.NextCursor == nil {
+			return items, nil
+		}
+		next := strings.TrimSpace(*page.NextCursor)
+		if next == "" || len(page.Items) == 0 || len(next) > 2048 {
+			return nil, biz.ErrDataUnavailable
+		}
+		if _, duplicate := seenCursors[next]; duplicate {
+			return nil, biz.ErrDataUnavailable
+		}
+		seenCursors[next] = struct{}{}
+		cursor = next
 	}
-	detailRef, err := mapReference(wire.DetailRef)
-	if err != nil || (detailRef.Type != biz.ScopeLayer && detailRef.Type != biz.ScopeIndustryChain) ||
-		(wire.Kind == biz.LayerGeopolitics && detailRef != (biz.Reference{Type: biz.ScopeLayer, Key: biz.LayerGeopolitics})) ||
-		(wire.Kind == biz.LayerMacroeconomics && detailRef != (biz.Reference{Type: biz.ScopeLayer, Key: biz.LayerMacroeconomics})) ||
-		(wire.Kind == biz.ScopeIndustryChain && detailRef.Type != biz.ScopeIndustryChain) {
-		return biz.Card{}, biz.ErrDataUnavailable
+	return nil, biz.ErrDataUnavailable
+}
+
+func validateV2ChainSummary(wire wireV2ChainSummary) error {
+	if !validLocalKey(wire.Key) || wire.DisplayOrder < 1 || !validText(wire.Name, 500) ||
+		!validLocalKey(wire.Claim.Key) || !validText(wire.Claim.Text, 10_000) ||
+		!validText(wire.Status, 10_000) || wire.ImpactItems == nil || len(wire.ImpactItems) == 0 || wire.EvidenceCount < 0 {
+		return biz.ErrDataUnavailable
 	}
-	result, err := mapResult(wire.Result)
-	if err != nil {
-		return biz.Card{}, err
+	if _, err := mapV2Result(wire.Result); err != nil {
+		return err
 	}
-	confidence, err := mapConfidence(wire.Confidence)
-	if err != nil {
-		return biz.Card{}, err
+	if _, err := mapV2Confidence(wire.Confidence); err != nil {
+		return err
 	}
-	impacts := make([]biz.CardImpactItem, len(wire.ImpactItems))
-	seenRefs := make(map[string]struct{}, len(impacts))
+	if !validV2TimeWindow(wire.TimeWindow) {
+		return biz.ErrDataUnavailable
+	}
 	for index, impact := range wire.ImpactItems {
-		ref, refErr := mapReference(impact.Ref)
-		validImpactType := (wire.Kind == biz.ScopeIndustryChain && ref.Type == biz.ScopeIndustryChainNode) ||
-			(wire.Kind != biz.ScopeIndustryChain && ref.Type == biz.ScopeAnchor)
-		if refErr != nil || !validImpactType ||
-			!validText(impact.Name, 10_000) || !validText(impact.TimeWindow, 10_000) || impact.EvidenceCount < 0 {
-			return biz.Card{}, biz.ErrDataUnavailable
+		if impact.DisplayOrder != index+1 || !validLocalKey(impact.Key) || !validLocalKey(impact.NodeKey) ||
+			!validText(impact.Name, 500) || impact.EvidenceCount < 0 || !validV2TimeWindow(impact.TimeWindow) {
+			return biz.ErrDataUnavailable
 		}
-		identity := ref.Type + ":" + ref.Key
-		if _, duplicate := seenRefs[identity]; duplicate {
-			return biz.Card{}, biz.ErrDataUnavailable
+		nature, err := mapV2Nature(impact.Nature)
+		if err != nil || (nature.Code == "direct_evidence") != (impact.EvidenceCount > 0) {
+			return biz.ErrDataUnavailable
 		}
-		seenRefs[identity] = struct{}{}
-		impactResult, resultErr := mapResult(impact.Result)
-		if resultErr != nil {
-			return biz.Card{}, resultErr
+		if _, err := mapV2Result(impact.Result); err != nil {
+			return err
 		}
-		impactConfidence, confidenceErr := mapConfidence(impact.Confidence)
-		if confidenceErr != nil {
-			return biz.Card{}, confidenceErr
+		if _, err := mapV2Confidence(impact.Confidence); err != nil {
+			return err
 		}
-		impacts[index] = biz.CardImpactItem{Ref: ref, Name: impact.Name, Result: impactResult,
-			Confidence: impactConfidence, TimeWindow: impact.TimeWindow, HasEvidence: impact.EvidenceCount > 0}
 	}
-	return biz.Card{Key: wire.Key, Kind: wire.Kind, Order: wire.DisplayOrder, DetailRef: detailRef,
-		Title: wire.Title, Subtitle: wire.Subtitle, Conclusion: wire.Conclusion, Result: result,
-		Confidence: confidence, TimeWindow: wire.TimeWindow, ImpactItems: impacts,
-		HasEvidence: wire.EvidenceCount > 0}, nil
+	return nil
 }
 
-func mapLayerDetail(wire wireLayerDetail, expectedReportID, expectedLayerKey string) (biz.LayerDetail, error) {
-	summary, err := mapSummary(wire.Report)
-	if err != nil || summary.ID != expectedReportID || wire.Layer.Key != expectedLayerKey {
+func cardFromV2Layer(layer biz.Layer, displayOrder int) biz.Card {
+	impacts := make([]biz.CardImpactItem, len(layer.Anchors))
+	for index, anchor := range layer.Anchors {
+		impacts[index] = biz.CardImpactItem{Ref: biz.Reference{Type: biz.ScopeAnchor, Key: anchor.Key},
+			Name: anchor.Name, Result: anchor.Result, Confidence: anchor.Confidence,
+			TimeWindow: anchor.TimeWindow, HasEvidence: anchor.HasEvidence}
+	}
+	subtitle := "增长预期与政策利率"
+	if layer.Key == biz.LayerGeopolitics {
+		subtitle = "安全对抗与通道可用性"
+	}
+	return biz.Card{Key: layer.Key, Kind: layer.Key, Order: displayOrder,
+		DetailRef: biz.Reference{Type: biz.ScopeLayer, Key: layer.Key}, Title: layer.Title,
+		Subtitle: subtitle, Conclusion: layer.Conclusion, Result: layer.Result,
+		Confidence: layer.Confidence, TimeWindow: layer.TimeWindow, ImpactItems: impacts,
+		HasEvidence: layer.HasEvidence}
+}
+
+func cardFromV2ChainSummary(wire wireV2ChainSummary, displayOrder int) biz.Card {
+	result, _ := mapV2Result(wire.Result)
+	confidence, _ := mapV2Confidence(wire.Confidence)
+	impacts := make([]biz.CardImpactItem, len(wire.ImpactItems))
+	for index, impact := range wire.ImpactItems {
+		impactResult, _ := mapV2Result(impact.Result)
+		impactConfidence, _ := mapV2Confidence(impact.Confidence)
+		impacts[index] = biz.CardImpactItem{Ref: biz.Reference{Type: biz.ScopeIndustryChainNode, Key: impact.Key},
+			Name: impact.Name, Result: impactResult, Confidence: impactConfidence,
+			TimeWindow: impact.TimeWindow.Label, HasEvidence: impact.EvidenceCount > 0}
+	}
+	return biz.Card{Key: wire.Key, Kind: biz.ScopeIndustryChain, Order: displayOrder,
+		DetailRef: biz.Reference{Type: biz.ScopeIndustryChain, Key: wire.Key}, Title: wire.Name,
+		Subtitle: "产业链", Conclusion: wire.Claim.Text, Result: result, Confidence: confidence,
+		TimeWindow: wire.TimeWindow.Label, ImpactItems: impacts, HasEvidence: wire.EvidenceCount > 0}
+}
+
+func mapV2LayerDetail(wire wireV2LayerDetail, expectedReportID, expectedLayerKey string) (biz.LayerDetail, error) {
+	summary, err := mapV2Summary(wire.Report)
+	if err != nil || summary.ID != expectedReportID || wire.Layer.Key != expectedLayerKey || wire.RelatedIndustryChains == nil {
 		return biz.LayerDetail{}, biz.ErrDataUnavailable
 	}
-	layer, err := mapLayer(wire.Layer)
+	layer, err := mapV2Layer(wire.Layer)
 	if err != nil {
 		return biz.LayerDetail{}, err
 	}
-	if wire.RelatedIndustryChains == nil {
+	if len(wire.RelatedIndustryChains) != len(wire.Layer.Detail.RelatedChainKeys) {
 		return biz.LayerDetail{}, biz.ErrDataUnavailable
 	}
 	chains := make([]biz.IndustryChainSummary, len(wire.RelatedIndustryChains))
-	chainKeys := make(map[string]struct{}, len(chains))
-	for index, chain := range wire.RelatedIndustryChains {
-		mapped, mapErr := mapChainSummary(chain)
-		if mapErr != nil {
+	for index, item := range wire.RelatedIndustryChains {
+		if err := validateV2ChainSummary(item); err != nil || item.Key != wire.Layer.Detail.RelatedChainKeys[index] {
 			return biz.LayerDetail{}, biz.ErrDataUnavailable
 		}
-		if _, duplicate := chainKeys[mapped.Key]; duplicate {
-			return biz.LayerDetail{}, biz.ErrDataUnavailable
-		}
-		chainKeys[mapped.Key] = struct{}{}
-		chains[index] = mapped
-	}
-	if len(layer.RelatedChainKeys) != len(chains) {
-		return biz.LayerDetail{}, biz.ErrDataUnavailable
-	}
-	for index, key := range layer.RelatedChainKeys {
-		if _, exists := chainKeys[key]; !exists || chains[index].Key != key {
-			return biz.LayerDetail{}, biz.ErrDataUnavailable
-		}
+		result, _ := mapV2Result(item.Result)
+		confidence, _ := mapV2Confidence(item.Confidence)
+		chains[index] = biz.IndustryChainSummary{Key: item.Key, DisplayOrder: item.DisplayOrder,
+			Name: item.Name, Conclusion: item.Claim.Text, Status: item.Status, Result: result,
+			Confidence: confidence, TimeWindow: item.TimeWindow.Label,
+			Scope: biz.EvidenceScope{Type: biz.ScopeIndustryChainSummary, Key: item.Key}, HasEvidence: item.EvidenceCount > 0}
 	}
 	return biz.LayerDetail{Report: summary, Layer: layer, RelatedIndustryChains: chains}, nil
 }
 
-func mapLayer(wire wireLayer) (biz.Layer, error) {
-	if !validLayer(wire.Key) || wire.DisplayOrder < 1 || !validText(wire.Title, 10_000) ||
-		!validText(wire.Conclusion, 10_000) || !validText(wire.TimeWindow, 10_000) || wire.EvidenceCount < 0 ||
-		wire.Anchors == nil || wire.ReasoningSteps == nil || wire.RelatedAnchorKeys == nil ||
-		wire.RelatedChainKeys == nil || wire.DownwardTransmission.PublishedPaths == nil ||
-		wire.DownwardTransmission.CandidateMechanisms == nil || wire.DownwardTransmission.BoundaryNotes == nil ||
-		wire.Uncertainty.Checkpoints == nil {
+func mapV2Layer(wire wireV2Layer) (biz.Layer, error) {
+	if !validLayer(wire.Key) || !validText(wire.Title, 500) || !validLocalKey(wire.Summary.Claim.Key) ||
+		!validText(wire.Summary.Claim.Text, 10_000) || wire.Summary.Transmissions == nil ||
+		wire.Summary.EvidenceRefs == nil || wire.Detail.Anchors == nil || wire.Detail.ReasoningSteps == nil ||
+		wire.Detail.RelatedChainKeys == nil || wire.Summary.Uncertainty.Checkpoints == nil ||
+		len(wire.Summary.Transmissions) == 0 || len(wire.Detail.Anchors) == 0 ||
+		!validV2EvidenceRefs(wire.Summary.EvidenceRefs, "supports_claim") ||
+		wire.Summary.Uncertainty.Counterevidence == nil || !validText(*wire.Summary.Uncertainty.Counterevidence, 10_000) ||
+		wire.Summary.Uncertainty.Boundary == nil || !validText(*wire.Summary.Uncertainty.Boundary, 10_000) ||
+		wire.Summary.Uncertainty.ReversalCondition == nil || !validText(*wire.Summary.Uncertainty.ReversalCondition, 10_000) ||
+		!validNullableText(wire.Summary.Uncertainty.EvidenceGap, 10_000) {
 		return biz.Layer{}, biz.ErrDataUnavailable
 	}
-	result, err := mapResult(wire.Result)
-	if err != nil {
-		return biz.Layer{}, err
-	}
-	confidence, err := mapConfidence(wire.Confidence)
-	if err != nil {
-		return biz.Layer{}, err
-	}
-	anchors := make([]biz.Anchor, len(wire.Anchors))
-	anchorKeys := make(map[string]struct{}, len(anchors))
-	for index, item := range wire.Anchors {
-		if item.DisplayOrder != index+1 || !validLocalKey(item.Key) || !validText(item.Name, 10_000) ||
-			!validText(item.CurrentState, 10_000) || !validText(item.Reasoning, 10_000) ||
-			!validText(item.TimeWindow, 10_000) || item.EvidenceCount < 0 {
+	anchors := make([]biz.Anchor, len(wire.Detail.Anchors))
+	for index, item := range wire.Detail.Anchors {
+		if item.DisplayOrder != index+1 || !validLocalKey(item.Key) || !validText(item.Name, 500) ||
+			!validText(item.Reasoning, 10_000) || !validV2Effects(item.Effects) ||
+			!validV2TimeWindow(item.TimeWindow) {
 			return biz.Layer{}, biz.ErrDataUnavailable
 		}
-		if _, duplicate := anchorKeys[item.Key]; duplicate {
+		result, err := mapV2Result(item.Result)
+		if err != nil {
+			return biz.Layer{}, err
+		}
+		nature, err := mapV2Nature(item.Nature)
+		if err != nil || !validV2EvidenceRefs(item.EvidenceRefs, "direct_target") ||
+			(nature.Code == "direct_evidence") != (len(item.EvidenceRefs) > 0) {
 			return biz.Layer{}, biz.ErrDataUnavailable
 		}
-		anchorKeys[item.Key] = struct{}{}
-		itemResult, resultErr := mapResult(item.Result)
-		itemNature, natureErr := mapNature(item.Nature)
-		itemConfidence, confidenceErr := mapConfidence(item.Confidence)
-		if resultErr != nil || natureErr != nil || confidenceErr != nil {
-			return biz.Layer{}, biz.ErrDataUnavailable
+		confidence, err := mapV2Confidence(item.Confidence)
+		if err != nil {
+			return biz.Layer{}, err
 		}
 		anchors[index] = biz.Anchor{Key: item.Key, DisplayOrder: item.DisplayOrder, Name: item.Name,
-			CurrentState: item.CurrentState, Result: itemResult, Nature: itemNature, Reasoning: item.Reasoning,
-			TimeWindow: item.TimeWindow, Confidence: itemConfidence,
-			Scope:       biz.EvidenceScope{Type: biz.ScopeAnchor, Key: item.Key},
-			HasEvidence: item.EvidenceCount > 0}
+			CurrentState: effectsText(item.Effects), Result: result, Nature: nature, Reasoning: item.Reasoning,
+			TimeWindow: item.TimeWindow.Label, Confidence: confidence,
+			Scope: biz.EvidenceScope{Type: biz.ScopeAnchor, Key: item.Key}, HasEvidence: len(item.EvidenceRefs) > 0}
 	}
-	steps, err := mapReasoningSteps(wire.Key, wire.ReasoningSteps)
-	if err != nil {
-		return biz.Layer{}, err
-	}
-	paths, err := mapTransmissionPaths(wire.Key, wire.DownwardTransmission.PublishedPaths)
-	if err != nil {
-		return biz.Layer{}, err
-	}
-	candidates, err := mapCandidateMechanisms(wire.Key, wire.DownwardTransmission.CandidateMechanisms)
-	if err != nil {
-		return biz.Layer{}, err
-	}
-	checkpoints, err := mapCheckpoints(wire.Uncertainty.Checkpoints)
-	if err != nil {
-		return biz.Layer{}, err
-	}
-	if !validText(wire.DownwardTransmission.Summary, 10_000) ||
-		!validStringArray(wire.DownwardTransmission.BoundaryNotes, 0, 10_000) ||
-		!validNullableText(wire.Uncertainty.Counterevidence, 10_000) ||
-		!validNullableText(wire.Uncertainty.EvidenceGap, 10_000) ||
-		!validNullableText(wire.Uncertainty.Boundary, 10_000) ||
-		!validNullableText(wire.Uncertainty.ReversalCondition, 10_000) ||
-		!validLocalKeyArray(wire.RelatedAnchorKeys) || !validLocalKeyArray(wire.RelatedChainKeys) {
-		return biz.Layer{}, biz.ErrDataUnavailable
-	}
-	return biz.Layer{Key: wire.Key, DisplayOrder: wire.DisplayOrder, Title: wire.Title,
-		Conclusion: wire.Conclusion, Result: result, Confidence: confidence, TimeWindow: wire.TimeWindow,
-		Anchors: anchors, ReasoningSteps: steps, RelatedAnchorKeys: wire.RelatedAnchorKeys,
-		RelatedChainKeys: wire.RelatedChainKeys, DownwardTransmission: biz.DownwardTransmission{
-			Summary: wire.DownwardTransmission.Summary, PublishedPaths: paths,
-			CandidateMechanisms: candidates, BoundaryNotes: wire.DownwardTransmission.BoundaryNotes,
-		}, Uncertainty: biz.LayerUncertainty{Counterevidence: wire.Uncertainty.Counterevidence,
-			EvidenceGap: wire.Uncertainty.EvidenceGap, Boundary: wire.Uncertainty.Boundary,
-			ReversalCondition: wire.Uncertainty.ReversalCondition, Checkpoints: checkpoints},
-		Scope: biz.EvidenceScope{Type: biz.ScopeLayer, Key: wire.Key}, HasEvidence: wire.EvidenceCount > 0}, nil
-}
-
-func mapReasoningSteps(layerKey string, wire []wireReasoningStep) ([]biz.ReasoningStep, error) {
-	items := make([]biz.ReasoningStep, len(wire))
-	seen := make(map[string]struct{}, len(wire))
-	for index, item := range wire {
-		if item.DisplayOrder != index+1 || !validLocalKey(item.Key) || !validText(item.Input, 10_000) ||
-			!validText(item.Mechanism, 10_000) || !validText(item.Output, 10_000) || !validText(item.Type, 10_000) || item.EvidenceCount < 0 {
-			return nil, biz.ErrDataUnavailable
+	steps := make([]biz.ReasoningStep, len(wire.Detail.ReasoningSteps))
+	for index, item := range wire.Detail.ReasoningSteps {
+		confidence, err := mapV2Confidence(item.Confidence)
+		if err != nil || item.DisplayOrder != index+1 || !validLocalKey(item.Key) ||
+			!validText(item.Input, 10_000) || !validText(item.Mechanism, 10_000) ||
+			!validText(item.Output, 10_000) || !validText(item.Type, 10_000) ||
+			!validV2EvidenceRefs(item.EvidenceRefs, "supports_reasoning") {
+			return biz.Layer{}, biz.ErrDataUnavailable
 		}
-		if _, duplicate := seen[item.Key]; duplicate {
-			return nil, biz.ErrDataUnavailable
-		}
-		seen[item.Key] = struct{}{}
-		confidence, err := mapConfidence(item.Confidence)
-		if err != nil {
-			return nil, err
-		}
-		items[index] = biz.ReasoningStep{Key: item.Key, DisplayOrder: item.DisplayOrder, Input: item.Input,
+		steps[index] = biz.ReasoningStep{Key: item.Key, DisplayOrder: item.DisplayOrder, Input: item.Input,
 			Mechanism: item.Mechanism, Output: item.Output, Type: item.Type, Confidence: confidence,
-			Scope:       biz.EvidenceScope{Type: biz.ScopeReasoningStep, Key: item.Key},
-			HasEvidence: item.EvidenceCount > 0}
+			Scope: biz.EvidenceScope{Type: biz.ScopeReasoningStep, Key: item.Key}, HasEvidence: len(item.EvidenceRefs) > 0}
 	}
-	return items, nil
-}
-
-func mapTransmissionPaths(layerKey string, wire []wireTransmissionPath) ([]biz.TransmissionPath, error) {
-	items := make([]biz.TransmissionPath, len(wire))
-	seen := make(map[string]struct{}, len(wire))
-	for index, item := range wire {
-		if item.DisplayOrder != index+1 || !validLocalKey(item.Key) || !validText(item.SourceConclusion, 10_000) ||
-			!validText(item.Logic, 10_000) || !validText(item.RelationNature, 10_000) ||
-			!validText(item.EvidenceRole, 10_000) || !validText(item.Status, 10_000) ||
-			item.EvidenceCount < 0 || item.TargetRefs == nil || len(item.TargetRefs) == 0 {
-			return nil, biz.ErrDataUnavailable
+	paths := make([]biz.TransmissionPath, len(wire.Summary.Transmissions))
+	for index, item := range wire.Summary.Transmissions {
+		confidence, err := mapV2Confidence(item.Confidence)
+		if err != nil || item.DisplayOrder != index+1 || !validLocalKey(item.Key) || item.Targets == nil || len(item.Targets) == 0 ||
+			!validText(item.SourceConclusion, 10_000) || !validText(item.Logic, 10_000) ||
+			!validText(item.RelationNature, 10_000) || !validText(item.Status, 10_000) ||
+			!validV2EvidenceRefs(item.EvidenceRefs, "supports_transmission") {
+			return biz.Layer{}, biz.ErrDataUnavailable
 		}
-		if _, duplicate := seen[item.Key]; duplicate {
-			return nil, biz.ErrDataUnavailable
-		}
-		seen[item.Key] = struct{}{}
-		targets := make([]biz.TransmissionTarget, len(item.TargetRefs))
-		seenTargets := make(map[string]struct{}, len(targets))
-		for targetIndex, target := range item.TargetRefs {
-			ref, err := mapReference(target.Ref)
-			if err != nil || !validText(target.Label, 500) {
-				return nil, biz.ErrDataUnavailable
+		targets := make([]biz.TransmissionTarget, 0)
+		for _, target := range item.Targets {
+			if !validText(target.Label, 500) || target.Results == nil || len(target.Results) == 0 {
+				return biz.Layer{}, biz.ErrDataUnavailable
 			}
-			identity := ref.Type + ":" + ref.Key
-			if _, duplicate := seenTargets[identity]; duplicate {
-				return nil, biz.ErrDataUnavailable
+			for _, named := range target.Results {
+				if !validText(named.Name, 500) {
+					return biz.Layer{}, biz.ErrDataUnavailable
+				}
+				result, resultErr := mapV2Result(named.Result)
+				if resultErr != nil {
+					return biz.Layer{}, resultErr
+				}
+				label := target.Label
+				if len(target.Results) > 1 {
+					label += " · " + named.Name
+				}
+				var ref *biz.Reference
+				if target.Ref != nil {
+					mapped, refErr := mapV2Reference(*target.Ref)
+					if refErr != nil {
+						return biz.Layer{}, refErr
+					}
+					ref = &mapped
+				}
+				targets = append(targets, biz.TransmissionTarget{Ref: ref, Label: label, Result: result})
 			}
-			seenTargets[identity] = struct{}{}
-			result, resultErr := mapResult(target.Result)
-			if resultErr != nil {
-				return nil, resultErr
-			}
-			targets[targetIndex] = biz.TransmissionTarget{Ref: ref, Label: target.Label, Result: result}
 		}
-		confidence, err := mapConfidence(item.Confidence)
-		if err != nil {
-			return nil, err
-		}
-		items[index] = biz.TransmissionPath{Key: item.Key, DisplayOrder: item.DisplayOrder,
+		paths[index] = biz.TransmissionPath{Key: item.Key, DisplayOrder: item.DisplayOrder,
 			SourceConclusion: item.SourceConclusion, TargetRefs: targets, Logic: item.Logic,
-			RelationNature: item.RelationNature, EvidenceRole: item.EvidenceRole, Confidence: confidence,
-			Status: item.Status, Scope: biz.EvidenceScope{Type: biz.ScopeTransmissionPath, Key: item.Key},
-			HasEvidence: item.EvidenceCount > 0}
+			RelationNature: item.RelationNature, EvidenceRole: "supports_transmission", Confidence: confidence,
+			Status: item.Status, Scope: biz.EvidenceScope{Type: biz.ScopeTransmission, Key: item.Key}, HasEvidence: len(item.EvidenceRefs) > 0}
 	}
-	return items, nil
+	result := aggregateV2AnchorResult(anchors)
+	confidence := aggregateV2LayerConfidence(anchors)
+	timeWindow := aggregateV2TimeWindow(anchors)
+	return biz.Layer{Key: wire.Key, DisplayOrder: layerDisplayOrder(wire.Key), Title: wire.Title,
+		Conclusion: wire.Summary.Claim.Text, Result: result, Confidence: confidence, TimeWindow: timeWindow,
+		Anchors: anchors, ReasoningSteps: steps, RelatedAnchorKeys: anchorKeys(anchors),
+		RelatedChainKeys: wire.Detail.RelatedChainKeys,
+		DownwardTransmission: biz.DownwardTransmission{Summary: wire.Summary.Claim.Text,
+			PublishedPaths: paths, CandidateMechanisms: []biz.CandidateMechanism{}, BoundaryNotes: []string{}},
+		Uncertainty: biz.LayerUncertainty{Counterevidence: wire.Summary.Uncertainty.Counterevidence,
+			EvidenceGap: wire.Summary.Uncertainty.EvidenceGap, Boundary: wire.Summary.Uncertainty.Boundary,
+			ReversalCondition: wire.Summary.Uncertainty.ReversalCondition,
+			Checkpoints:       mapV2Checkpoints(wire.Summary.Uncertainty.Checkpoints)},
+		Scope: biz.EvidenceScope{Type: biz.ScopeSectionSummary, Key: wire.Key}, HasEvidence: len(wire.Summary.EvidenceRefs) > 0}, nil
 }
 
-func mapCandidateMechanisms(layerKey string, wire []wireCandidateMechanism) ([]biz.CandidateMechanism, error) {
-	items := make([]biz.CandidateMechanism, len(wire))
-	seen := make(map[string]struct{}, len(wire))
-	for index, item := range wire {
-		if item.DisplayOrder != index+1 || !validLocalKey(item.Key) || !validText(item.Mechanism, 10_000) ||
-			!validNullableText(item.EvidenceGap, 10_000) || item.EvidenceCount < 0 {
-			return nil, biz.ErrDataUnavailable
-		}
-		if _, duplicate := seen[item.Key]; duplicate {
-			return nil, biz.ErrDataUnavailable
-		}
-		seen[item.Key] = struct{}{}
-		confidence, err := mapConfidence(item.Confidence)
-		if err != nil {
-			return nil, err
-		}
-		items[index] = biz.CandidateMechanism{Key: item.Key, DisplayOrder: item.DisplayOrder,
-			Mechanism: item.Mechanism, EvidenceGap: item.EvidenceGap, Confidence: confidence,
-			Scope:       biz.EvidenceScope{Type: biz.ScopeCandidateMechanism, Key: item.Key},
-			HasEvidence: item.EvidenceCount > 0}
-	}
-	return items, nil
-}
-
-func mapChainSummary(wire wireIndustryChainSummary) (biz.IndustryChainSummary, error) {
-	if !validLocalKey(wire.Key) || wire.DisplayOrder < 1 || !validText(wire.Name, 10_000) ||
-		!validText(wire.Conclusion, 10_000) || !validText(wire.Status, 10_000) ||
-		!validText(wire.TimeWindow, 10_000) || wire.EvidenceCount < 0 {
-		return biz.IndustryChainSummary{}, biz.ErrDataUnavailable
-	}
-	result, err := mapResult(wire.Result)
-	if err != nil {
-		return biz.IndustryChainSummary{}, err
-	}
-	confidence, err := mapConfidence(wire.Confidence)
-	if err != nil {
-		return biz.IndustryChainSummary{}, err
-	}
-	return biz.IndustryChainSummary{Key: wire.Key, DisplayOrder: wire.DisplayOrder, Name: wire.Name,
-		Conclusion: wire.Conclusion, Status: wire.Status, Result: result, Confidence: confidence,
-		TimeWindow: wire.TimeWindow, Scope: biz.EvidenceScope{Type: biz.ScopeIndustryChain, Key: wire.Key},
-		HasEvidence: wire.EvidenceCount > 0}, nil
-}
-
-func mapIndustryChainDetail(wire wireIndustryChainDetail, expectedReportID, expectedChainKey string) (biz.IndustryChainDetail, error) {
-	summary, err := mapSummary(wire.Report)
+func mapV2IndustryChainDetail(wire wireV2IndustryChainDetail, expectedReportID, expectedChainKey string) (biz.IndustryChainDetail, error) {
+	summary, err := mapV2Summary(wire.Report)
 	if err != nil || summary.ID != expectedReportID || wire.IndustryChain.Key != expectedChainKey {
 		return biz.IndustryChainDetail{}, biz.ErrDataUnavailable
 	}
-	chain, err := mapIndustryChain(wire.IndustryChain)
+	chain, err := mapV2IndustryChain(wire.IndustryChain)
 	if err != nil {
 		return biz.IndustryChainDetail{}, err
 	}
 	return biz.IndustryChainDetail{Report: summary, IndustryChain: chain}, nil
 }
 
-func mapIndustryChain(wire wireIndustryChain) (biz.IndustryChain, error) {
-	if !validLocalKey(wire.Key) || !validLocalKey(wire.ClaimKey) || wire.DisplayOrder < 1 ||
-		!validText(wire.Name, 10_000) || !validText(wire.Conclusion, 10_000) || !validText(wire.Status, 10_000) ||
-		!validText(wire.TimeWindow, 10_000) || !validNullableText(wire.PathSummary, 10_000) ||
-		!validNullableText(wire.AcceptedHypothesisSummary, 10_000) || wire.EvidenceCount < 0 ||
-		wire.Nodes == nil || wire.Edges == nil || wire.Uncertainty.Checkpoints == nil ||
-		!validNullableText(wire.Uncertainty.CounterevidenceAndGap, 10_000) ||
-		!validNullableText(wire.Uncertainty.StopCondition, 10_000) {
+func mapV2IndustryChain(wire wireV2IndustryChain) (biz.IndustryChain, error) {
+	if !validLocalKey(wire.Key) || wire.DisplayOrder < 1 || !validText(wire.Name, 500) ||
+		!validLocalKey(wire.Summary.Claim.Key) || !validText(wire.Summary.Claim.Text, 10_000) ||
+		!validText(wire.Summary.Status, 10_000) || !validText(wire.Summary.Path, 10_000) ||
+		!validNullableText(wire.Summary.AcceptedHypothesisSummary, 10_000) ||
+		!validText(wire.Summary.Uncertainty.CounterevidenceAndGap, 10_000) ||
+		!validText(wire.Summary.Uncertainty.StopCondition, 10_000) ||
+		!validV2EvidenceRefs(wire.Summary.EvidenceRefs, "supports_claim") ||
+		wire.Summary.Graph.Nodes == nil || len(wire.Summary.Graph.Nodes) == 0 || wire.Summary.Graph.Edges == nil ||
+		wire.Detail.NodeImpacts == nil || len(wire.Detail.NodeImpacts) == 0 {
 		return biz.IndustryChain{}, biz.ErrDataUnavailable
 	}
-	result, err := mapResult(wire.Result)
+	result, err := mapV2Result(wire.Summary.Result)
 	if err != nil {
 		return biz.IndustryChain{}, err
 	}
-	confidence, err := mapConfidence(wire.Confidence)
-	if err != nil {
-		return biz.IndustryChain{}, err
+	confidence, err := mapV2Confidence(wire.Summary.Confidence)
+	if err != nil || !validV2TimeWindow(wire.Summary.TimeWindow) {
+		return biz.IndustryChain{}, biz.ErrDataUnavailable
 	}
-	nodes := make([]biz.IndustryChainNode, len(wire.Nodes))
-	nodeKeys := make(map[string]struct{}, len(nodes))
-	for index, item := range wire.Nodes {
-		if item.DisplayOrder != index+1 || !validLocalKey(item.Key) || !validText(item.Name, 10_000) ||
-			!validText(item.Impact, 10_000) || !validText(item.Reasoning, 10_000) ||
-			!validText(item.TimeWindow, 10_000) || item.EvidenceCount < 0 {
+	names := make(map[string]string, len(wire.Summary.Graph.Nodes))
+	for index, node := range wire.Summary.Graph.Nodes {
+		if node.DisplayOrder != index+1 || !validLocalKey(node.Key) || !validText(node.Name, 500) {
 			return biz.IndustryChain{}, biz.ErrDataUnavailable
 		}
-		if _, duplicate := nodeKeys[item.Key]; duplicate {
+		if _, duplicate := names[node.Key]; duplicate {
 			return biz.IndustryChain{}, biz.ErrDataUnavailable
 		}
-		nodeKeys[item.Key] = struct{}{}
-		itemResult, resultErr := mapResult(item.Result)
-		itemNature, natureErr := mapNature(item.Nature)
-		itemConfidence, confidenceErr := mapConfidence(item.Confidence)
-		if resultErr != nil || natureErr != nil || confidenceErr != nil {
-			return biz.IndustryChain{}, biz.ErrDataUnavailable
-		}
-		nodes[index] = biz.IndustryChainNode{Key: item.Key, DisplayOrder: item.DisplayOrder,
-			Name: item.Name, Impact: item.Impact, Result: itemResult, Nature: itemNature,
-			Reasoning: item.Reasoning, TimeWindow: item.TimeWindow, Confidence: itemConfidence,
-			Scope:       biz.EvidenceScope{Type: biz.ScopeIndustryChainNode, Key: item.Key},
-			HasEvidence: item.EvidenceCount > 0}
+		names[node.Key] = node.Name
 	}
-	edges := make([]biz.IndustryChainEdge, len(wire.Edges))
-	edgeKeys := make(map[string]struct{}, len(edges))
-	for index, item := range wire.Edges {
-		if item.DisplayOrder != index+1 || !validLocalKey(item.Key) || !validLocalKey(item.FromNodeKey) ||
-			!validLocalKey(item.ToNodeKey) || item.FromNodeKey == item.ToNodeKey || !validText(item.RelationLabel, 500) {
+	nodes := make([]biz.IndustryChainNode, len(wire.Detail.NodeImpacts))
+	impactNodeKeys := make(map[string]struct{}, len(nodes))
+	impactKeys := make(map[string]struct{}, len(nodes))
+	for index, item := range wire.Detail.NodeImpacts {
+		name, ok := names[item.NodeKey]
+		if !ok || item.DisplayOrder != index+1 || !validLocalKey(item.Key) || !validText(item.Reasoning, 10_000) ||
+			!validV2Effects(item.Effects) || !validV2TimeWindow(item.TimeWindow) {
 			return biz.IndustryChain{}, biz.ErrDataUnavailable
 		}
-		if _, fromExists := nodeKeys[item.FromNodeKey]; !fromExists {
+		if _, duplicate := impactKeys[item.Key]; duplicate {
 			return biz.IndustryChain{}, biz.ErrDataUnavailable
 		}
-		if _, toExists := nodeKeys[item.ToNodeKey]; !toExists {
+		if _, duplicate := impactNodeKeys[item.NodeKey]; duplicate {
+			return biz.IndustryChain{}, biz.ErrDataUnavailable
+		}
+		itemResult, resultErr := mapV2Result(item.Result)
+		itemNature, natureErr := mapV2Nature(item.Nature)
+		itemConfidence, confidenceErr := mapV2Confidence(item.Confidence)
+		if resultErr != nil || natureErr != nil || confidenceErr != nil || !validV2EvidenceRefs(item.EvidenceRefs, "direct_target") ||
+			(itemNature.Code == "direct_evidence") != (len(item.EvidenceRefs) > 0) {
+			return biz.IndustryChain{}, biz.ErrDataUnavailable
+		}
+		impactKeys[item.Key] = struct{}{}
+		impactNodeKeys[item.NodeKey] = struct{}{}
+		nodes[index] = biz.IndustryChainNode{Key: item.Key, DisplayOrder: item.DisplayOrder, Name: name,
+			Impact: effectsText(item.Effects), Result: itemResult, Nature: itemNature, Reasoning: item.Reasoning,
+			TimeWindow: item.TimeWindow.Label, Confidence: itemConfidence,
+			Scope: biz.EvidenceScope{Type: biz.ScopeIndustryChainNode, Key: item.Key}, HasEvidence: len(item.EvidenceRefs) > 0}
+	}
+	edges := make([]biz.IndustryChainEdge, 0, len(wire.Summary.Graph.Edges))
+	edgeKeys := make(map[string]struct{}, len(wire.Summary.Graph.Edges))
+	for index, item := range wire.Summary.Graph.Edges {
+		_, fromExists := names[item.FromNodeKey]
+		_, toExists := names[item.ToNodeKey]
+		if item.DisplayOrder != index+1 || !validLocalKey(item.Key) || !validText(item.RelationLabel, 500) ||
+			!fromExists || !toExists || item.FromNodeKey == item.ToNodeKey {
 			return biz.IndustryChain{}, biz.ErrDataUnavailable
 		}
 		if _, duplicate := edgeKeys[item.Key]; duplicate {
 			return biz.IndustryChain{}, biz.ErrDataUnavailable
 		}
 		edgeKeys[item.Key] = struct{}{}
-		edges[index] = biz.IndustryChainEdge{Key: item.Key, DisplayOrder: item.DisplayOrder,
-			FromNodeKey: item.FromNodeKey, ToNodeKey: item.ToNodeKey, RelationLabel: item.RelationLabel}
+		if _, ok := impactNodeKeys[item.FromNodeKey]; !ok {
+			continue
+		}
+		if _, ok := impactNodeKeys[item.ToNodeKey]; !ok {
+			continue
+		}
+		edges = append(edges, biz.IndustryChainEdge{Key: item.Key, DisplayOrder: len(edges) + 1,
+			FromNodeKey: impactKeyForNode(wire.Detail.NodeImpacts, item.FromNodeKey),
+			ToNodeKey:   impactKeyForNode(wire.Detail.NodeImpacts, item.ToNodeKey), RelationLabel: item.RelationLabel})
 	}
-	checkpoints, err := mapCheckpoints(wire.Uncertainty.Checkpoints)
-	if err != nil {
-		return biz.IndustryChain{}, err
-	}
-	return biz.IndustryChain{Key: wire.Key, ClaimKey: wire.ClaimKey, DisplayOrder: wire.DisplayOrder,
-		Name: wire.Name, Conclusion: wire.Conclusion, Status: wire.Status, Result: result,
-		Confidence: confidence, TimeWindow: wire.TimeWindow, PathSummary: wire.PathSummary,
-		AcceptedHypothesisSummary: wire.AcceptedHypothesisSummary, Nodes: nodes, Edges: edges,
-		Uncertainty: biz.ChainUncertainty{CounterevidenceAndGap: wire.Uncertainty.CounterevidenceAndGap,
-			StopCondition: wire.Uncertainty.StopCondition, Checkpoints: checkpoints},
-		Scope: biz.EvidenceScope{Type: biz.ScopeIndustryChain, Key: wire.Key}, HasEvidence: wire.EvidenceCount > 0}, nil
+	path := wire.Summary.Path
+	counterevidence := wire.Summary.Uncertainty.CounterevidenceAndGap
+	stopCondition := wire.Summary.Uncertainty.StopCondition
+	return biz.IndustryChain{Key: wire.Key, ClaimKey: wire.Summary.Claim.Key, DisplayOrder: wire.DisplayOrder,
+		Name: wire.Name, Conclusion: wire.Summary.Claim.Text, Status: wire.Summary.Status, Result: result,
+		Confidence: confidence, TimeWindow: wire.Summary.TimeWindow.Label, PathSummary: &path,
+		AcceptedHypothesisSummary: wire.Summary.AcceptedHypothesisSummary, Nodes: nodes, Edges: edges,
+		Uncertainty: biz.ChainUncertainty{CounterevidenceAndGap: &counterevidence,
+			StopCondition: &stopCondition, Checkpoints: []biz.Checkpoint{}},
+		Scope: biz.EvidenceScope{Type: biz.ScopeIndustryChainSummary, Key: wire.Key}, HasEvidence: len(wire.Summary.EvidenceRefs) > 0}, nil
 }
 
-func mapCheckpoints(wire []wireCheckpoint) ([]biz.Checkpoint, error) {
-	items := make([]biz.Checkpoint, len(wire))
-	seen := make(map[string]struct{}, len(wire))
-	for index, item := range wire {
-		if item.DisplayOrder != index+1 || !validLocalKey(item.Key) || !validText(item.Summary, 10_000) {
-			return nil, biz.ErrDataUnavailable
-		}
-		if _, duplicate := seen[item.Key]; duplicate {
-			return nil, biz.ErrDataUnavailable
-		}
-		seen[item.Key] = struct{}{}
-		items[index] = biz.Checkpoint{Key: item.Key, DisplayOrder: item.DisplayOrder, Summary: item.Summary}
+func mapV2Result(wire wireV2Result) (biz.Result, error) {
+	return mapResult(wireResult{Code: wire.Code, Label: wire.Label})
+}
+
+func mapV2Nature(wire wireV2Nature) (biz.Nature, error) {
+	return mapNature(wireNature{Code: wire.Code, Label: wire.Label})
+}
+
+func mapV2Confidence(wire wireV2Confidence) (biz.Confidence, error) {
+	wantLabel := ""
+	switch wire.Code {
+	case "high":
+		wantLabel = "高"
+	case "medium_high":
+		wantLabel = "中–高"
+	case "medium":
+		wantLabel = "中"
+	case "low_medium":
+		wantLabel = "低–中"
+	case "low":
+		wantLabel = "低"
+	default:
+		return biz.Confidence{}, biz.ErrDataUnavailable
 	}
-	return items, nil
+	if wire.Label != wantLabel {
+		return biz.Confidence{}, biz.ErrDataUnavailable
+	}
+	return mapConfidence(wireConfidence{Label: wire.Label, Score: wire.Score})
+}
+
+func mapV2Reference(wire wireV2Reference) (biz.Reference, error) {
+	typeName := wire.Type
+	if typeName == "section" {
+		typeName = biz.ScopeLayer
+	}
+	return mapReference(wireReference{Type: typeName, Key: wire.Key})
+}
+
+func validV2EvidenceRefs(values []wireV2EvidenceReference, role string) bool {
+	if values == nil {
+		return false
+	}
+	seen := make(map[string]struct{}, len(values))
+	for index, value := range values {
+		if !evidenceIDPattern.MatchString(value.EvidenceID) || value.Role != role || value.DisplayOrder != index+1 {
+			return false
+		}
+		if _, duplicate := seen[value.EvidenceID]; duplicate {
+			return false
+		}
+		seen[value.EvidenceID] = struct{}{}
+	}
+	return true
+}
+
+func validV2Effects(values []wireV2Effect) bool {
+	if values == nil || len(values) == 0 {
+		return false
+	}
+	for index, value := range values {
+		if value.DisplayOrder != index+1 || !validText(value.Dimension, 500) ||
+			(value.Direction != "up" && value.Direction != "down" && value.Direction != "stable") ||
+			(value.Confidence != "high" && value.Confidence != "medium" && value.Confidence != "low" && value.Confidence != "unknown") {
+			return false
+		}
+	}
+	return true
+}
+
+func validV2TimeWindow(wire wireV2TimeWindow) bool {
+	if wire.Horizons == nil || len(wire.Horizons) == 0 || !validText(wire.Label, 500) || !validNullableText(wire.Lag, 500) {
+		return false
+	}
+	seen := map[string]struct{}{}
+	for _, value := range wire.Horizons {
+		if value != "immediate" && value != "short" && value != "medium" && value != "long" && value != "future" {
+			return false
+		}
+		if _, duplicate := seen[value]; duplicate {
+			return false
+		}
+		seen[value] = struct{}{}
+	}
+	return true
+}
+
+func effectsText(effects []wireV2Effect) string {
+	parts := make([]string, len(effects))
+	for index, effect := range effects {
+		parts[index] = effect.Dimension + " " + strings.ToUpper(effect.Direction) + "/" + strings.ToUpper(effect.Confidence)
+	}
+	return strings.Join(parts, "；")
+}
+
+func aggregateV2AnchorResult(anchors []biz.Anchor) biz.Result {
+	if len(anchors) == 0 {
+		return biz.Result{Code: "pending", Label: "待验证"}
+	}
+	first := anchors[0].Result
+	for _, anchor := range anchors[1:] {
+		if anchor.Result.Code != first.Code {
+			return biz.Result{Code: "diverging", Label: "分化"}
+		}
+	}
+	return first
+}
+
+func aggregateV2LayerConfidence(anchors []biz.Anchor) biz.Confidence {
+	return anchors[0].Confidence
+}
+
+func aggregateV2TimeWindow(anchors []biz.Anchor) string {
+	return anchors[0].TimeWindow
+}
+
+func layerDisplayOrder(key string) int {
+	if key == biz.LayerGeopolitics {
+		return 1
+	}
+	return 2
+}
+
+func anchorKeys(anchors []biz.Anchor) []string {
+	keys := make([]string, len(anchors))
+	for index, anchor := range anchors {
+		keys[index] = anchor.Key
+	}
+	return keys
+}
+
+func mapV2Checkpoints(values []wireCheckpoint) []biz.Checkpoint {
+	result := make([]biz.Checkpoint, len(values))
+	for index, value := range values {
+		result[index] = biz.Checkpoint{Key: value.Key, DisplayOrder: value.DisplayOrder, Summary: value.Summary}
+	}
+	return result
+}
+
+func impactKeyForNode(impacts []wireV2ChainNode, nodeKey string) string {
+	for _, impact := range impacts {
+		if impact.NodeKey == nodeKey {
+			return impact.Key
+		}
+	}
+	return ""
 }
 
 func mapEvidenceCollection(wire wireEvidenceCollection, expectedReportID string, expectedScope biz.EvidenceScope) (biz.EvidenceCollection, error) {
@@ -1037,6 +1187,13 @@ func mapResult(wire wireResult) (biz.Result, error) {
 		wantLabel = "降温"
 	case "diverging":
 		wantLabel = "分化"
+	case "stable":
+		wantLabel = "稳定"
+	case "mixed":
+		if !validText(wire.Label, 100) {
+			return biz.Result{}, biz.ErrDataUnavailable
+		}
+		return biz.Result{Code: wire.Code, Label: wire.Label}, nil
 	case "pending":
 		wantLabel = "待验证"
 	default:
@@ -1071,50 +1228,6 @@ func mapConfidence(wire wireConfidence) (biz.Confidence, error) {
 		return biz.Confidence{}, biz.ErrDataUnavailable
 	}
 	return biz.Confidence{Label: wire.Label, Score: wire.Score}, nil
-}
-
-func validStatistics(value wireStatistics) bool {
-	counts := []int{value.EventCount, value.OrdinaryFactCount, value.SignalFactCount,
-		value.TransmissionHypothesisCount, value.RemainingTopologyPendingCount, value.AdaptiveHardMaxHops,
-		value.AdaptiveObservedMaxHops, value.AdaptiveStoppedByConfidence,
-		value.AdaptiveStoppedByNoUnvisitedNeighbor, value.AdaptiveRejectedBelowInclusion,
-		value.GeopoliticAnchorCount, value.MacroeconomicAnchorCount, value.SignaledChainNodeCount,
-		value.IndustryChainCount, value.UnmappedChainNodeCount}
-	for _, count := range counts {
-		if count < 0 {
-			return false
-		}
-	}
-	for _, threshold := range []float64{value.AdaptiveInclusionThreshold, value.AdaptiveContinuationThreshold} {
-		if math.IsNaN(threshold) || math.IsInf(threshold, 0) || threshold < 0 || threshold > 1 {
-			return false
-		}
-	}
-	return true
-}
-
-func validCardKind(value string) bool {
-	return value == biz.LayerGeopolitics || value == biz.LayerMacroeconomics || value == biz.ScopeIndustryChain
-}
-
-func validPublishedLayers(values []string) bool {
-	if len(values) == 0 || len(values) > 4 {
-		return false
-	}
-	allowed := map[string]struct{}{
-		"geopolitics": {}, "macroeconomics": {}, "industry_chain": {}, "company": {},
-	}
-	seen := make(map[string]struct{}, len(values))
-	for _, value := range values {
-		if _, exists := allowed[value]; !exists {
-			return false
-		}
-		if _, duplicate := seen[value]; duplicate {
-			return false
-		}
-		seen[value] = struct{}{}
-	}
-	return true
 }
 
 func validLayer(value string) bool {

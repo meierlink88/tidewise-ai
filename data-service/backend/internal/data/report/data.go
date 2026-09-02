@@ -25,10 +25,10 @@ func NewStore(db *sql.DB) (Store, error) {
 	return Store{db: db}, nil
 }
 
-const summarySelect = `SELECT id, source_report_id,
-       content ->> 'report_type', content ->> 'title', content ->> 'status',
+const summarySelect = `SELECT id, publisher_report_id,
+       content ->> 'report_type', content ->> 'title', content ->> 'generation_status',
        (content ->> 'simulation')::boolean, content ->> 'generated_at', content ->> 'timezone',
-       content -> 'published_layers', content -> 'statistics', published_at
+       content ? 'geopolitics', content ? 'macroeconomics', content -> 'statistics', published_at
 FROM reports`
 
 func (s Store) ListReports(ctx context.Context, filter reportbiz.ListFilter) (reportbiz.StorePage, error) {
@@ -63,88 +63,91 @@ LIMIT $5`, nullableTime(filter.PublishedFrom), nullableTime(filter.PublishedTo),
 }
 
 func (s Store) GetReport(ctx context.Context, reportID string) (reportbiz.Record, error) {
-	return scanRecord(s.db.QueryRowContext(ctx, `SELECT id, source_report_id, contract_version,
+	return scanRecord(s.db.QueryRowContext(ctx, `SELECT id, publisher_report_id, contract_version,
        content_hash, content, published_at
 FROM reports WHERE id = $1`, reportID))
 }
 
 func (s Store) GetHome(ctx context.Context, reportID string) (reportbiz.Home, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT id, source_report_id,
-       content ->> 'report_type', content ->> 'title', content ->> 'status',
+	row := s.db.QueryRowContext(ctx, `SELECT id, publisher_report_id,
+	       content ->> 'report_type', content ->> 'title', content ->> 'generation_status',
        (content ->> 'simulation')::boolean, content ->> 'generated_at', content ->> 'timezone',
-       content -> 'published_layers', content -> 'statistics', published_at,
-       content -> 'report_cards', content -> 'company',
-       jsonb_build_object(
-           'anchor', COALESCE((
-               SELECT jsonb_object_agg(anchor ->> 'key', jsonb_array_length(anchor -> 'evidence_refs'))
-               FROM (
-                   SELECT jsonb_array_elements(content #> '{geopolitics,anchors}') AS anchor
-                   UNION ALL
-                   SELECT jsonb_array_elements(content #> '{macroeconomics,anchors}') AS anchor
-               ) AS anchors
-           ), '{}'::jsonb),
-           'industry_chain_node', COALESCE((
-               SELECT jsonb_object_agg(node ->> 'key', jsonb_array_length(node -> 'evidence_refs'))
-               FROM jsonb_array_elements(content -> 'industry_chains') AS chains(chain)
-               CROSS JOIN LATERAL jsonb_array_elements(chain -> 'nodes') AS nodes(node)
-           ), '{}'::jsonb)
-       )
+	       content ? 'geopolitics', content ? 'macroeconomics', content -> 'statistics', published_at,
+	       CASE WHEN content ? 'geopolitics' THEN jsonb_build_object(
+	           'key', content #> '{geopolitics,key}', 'title', content #> '{geopolitics,title}',
+	           'summary', content #> '{geopolitics,summary}') END,
+	       CASE WHEN content ? 'macroeconomics' THEN jsonb_build_object(
+	           'key', content #> '{macroeconomics,key}', 'title', content #> '{macroeconomics,title}',
+	           'summary', content #> '{macroeconomics,summary}') END
 FROM reports WHERE id = $1`, reportID)
 	var summary reportbiz.Summary
 	var generatedAt string
-	var layersJSON, statisticsJSON, cardsJSON, companyJSON, countsJSON []byte
-	if err := row.Scan(&summary.ID, &summary.SourceReportID, &summary.ReportType, &summary.Title,
-		&summary.Status, &summary.Simulation, &generatedAt, &summary.Timezone, &layersJSON,
-		&statisticsJSON, &summary.PublishedAt, &cardsJSON, &companyJSON, &countsJSON); err != nil {
+	var statisticsJSON, geopoliticsJSON, macroeconomicsJSON []byte
+	if err := row.Scan(&summary.ID, &summary.PublisherReportID, &summary.ReportType, &summary.Title,
+		&summary.GenerationStatus, &summary.Simulation, &generatedAt, &summary.Timezone,
+		&summary.HasGeopolitics, &summary.HasMacroeconomics, &statisticsJSON, &summary.PublishedAt,
+		&geopoliticsJSON, &macroeconomicsJSON); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return reportbiz.Home{}, reportbiz.ErrReportNotFound
 		}
 		return reportbiz.Home{}, fmt.Errorf("read Report home %q: %w", reportID, err)
 	}
-	if err := decodeSummaryFragments(&summary, generatedAt, layersJSON, statisticsJSON); err != nil {
+	if err := decodeSummaryFragments(&summary, generatedAt, statisticsJSON); err != nil {
 		return reportbiz.Home{}, fmt.Errorf("read Report home invariant: %w", err)
 	}
-	var cards []reportbiz.ReportCard
-	if err := decodeStoredJSON(cardsJSON, &cards); err != nil || cards == nil {
-		return reportbiz.Home{}, persistedInvariant("Report home", "report_cards", "value is not an exact array")
+	home := reportbiz.Home{Report: summary}
+	if summary.HasGeopolitics {
+		home.Geopolitics = &reportbiz.LayerSnapshot{}
+		if err := decodeStoredJSON(geopoliticsJSON, home.Geopolitics); err != nil {
+			return reportbiz.Home{}, persistedInvariant("Report home", "geopolitics", "value is not an exact summary")
+		}
 	}
-	var company reportbiz.CompanyBoundary
-	if err := decodeStoredJSON(companyJSON, &company); err != nil {
-		return reportbiz.Home{}, persistedInvariant("Report home", "company", "value is not an exact object")
+	if summary.HasMacroeconomics {
+		home.Macroeconomics = &reportbiz.LayerSnapshot{}
+		if err := decodeStoredJSON(macroeconomicsJSON, home.Macroeconomics); err != nil {
+			return reportbiz.Home{}, persistedInvariant("Report home", "macroeconomics", "value is not an exact summary")
+		}
 	}
-	var storedCounts map[string]map[string]int
-	if err := decodeStoredJSON(countsJSON, &storedCounts); err != nil || storedCounts == nil {
-		return reportbiz.Home{}, persistedInvariant("Report home", "evidence_counts", "value is not an exact object")
-	}
-	counts := make(map[reportbiz.TargetReference]int)
-	for key, count := range storedCounts["anchor"] {
-		counts[reportbiz.TargetReference{Type: reportbiz.TargetAnchor, Key: key}] = count
-	}
-	for key, count := range storedCounts["industry_chain_node"] {
-		counts[reportbiz.TargetReference{Type: reportbiz.TargetIndustryChainNode, Key: key}] = count
-	}
-	return reportbiz.Home{Report: summary, ReportCards: cards, Company: company, EvidenceCounts: counts}, nil
+	return home, nil
 }
 
 func (s Store) GetLayer(ctx context.Context, reportID, layerKey string) (reportbiz.Summary, reportbiz.Layer, []reportbiz.IndustryChainSummary, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT id, source_report_id,
-       content ->> 'report_type', content ->> 'title', content ->> 'status',
+	row := s.db.QueryRowContext(ctx, `SELECT id, publisher_report_id,
+	       content ->> 'report_type', content ->> 'title', content ->> 'generation_status',
        (content ->> 'simulation')::boolean, content ->> 'generated_at', content ->> 'timezone',
-       content -> 'published_layers', content -> 'statistics', published_at,
+	       content ? 'geopolitics', content ? 'macroeconomics', content -> 'statistics', published_at,
        content -> $2,
        COALESCE((
            SELECT jsonb_agg(jsonb_build_object(
                'key', chain -> 'key',
                'display_order', chain -> 'display_order',
                'name', chain -> 'name',
-               'conclusion', chain -> 'conclusion',
-               'status', chain -> 'status',
-               'result', chain -> 'result',
-               'confidence', chain -> 'confidence',
-               'time_window', chain -> 'time_window',
-               'evidence_count', jsonb_array_length(chain -> 'evidence_refs')
+	               'claim', chain #> '{summary,claim}',
+	               'status', chain #> '{summary,status}',
+	               'result', chain #> '{summary,result}',
+	               'confidence', chain #> '{summary,confidence}',
+	               'time_window', chain #> '{summary,time_window}',
+	               'impact_items', COALESCE((
+	                   SELECT jsonb_agg(jsonb_build_object(
+	                       'key', impact -> 'key',
+	                       'display_order', impact -> 'display_order',
+	                       'node_key', impact -> 'node_key',
+	                       'name', (
+	                           SELECT node -> 'name'
+	                           FROM jsonb_array_elements(chain #> '{summary,graph,nodes}') AS nodes(node)
+	                           WHERE node ->> 'key' = impact ->> 'node_key'
+	                       ),
+	                       'result', impact -> 'result',
+	                       'nature', impact -> 'nature',
+	                       'confidence', impact -> 'confidence',
+	                       'time_window', impact -> 'time_window',
+	                       'evidence_count', jsonb_array_length(impact -> 'evidence_refs')
+	                   ) ORDER BY (impact ->> 'display_order')::integer)
+	                   FROM jsonb_array_elements(chain #> '{detail,node_impacts}') AS impacts(impact)
+	               ), '[]'::jsonb),
+	               'evidence_count', jsonb_array_length(chain #> '{summary,evidence_refs}')
            ) ORDER BY related.ordinality)
-           FROM jsonb_array_elements_text((content -> $2) -> 'related_chain_keys') WITH ORDINALITY AS related(key, ordinality)
+	           FROM jsonb_array_elements_text(content #> ARRAY[$2, 'detail', 'related_chain_keys']) WITH ORDINALITY AS related(key, ordinality)
            JOIN LATERAL (
                SELECT candidate AS chain
                FROM jsonb_array_elements(content -> 'industry_chains') AS chains(candidate)
@@ -154,16 +157,20 @@ func (s Store) GetLayer(ctx context.Context, reportID, layerKey string) (reportb
 FROM reports WHERE id = $1`, reportID, layerKey)
 	var summary reportbiz.Summary
 	var generatedAt string
-	var layersJSON, statisticsJSON, layerJSON, relatedJSON []byte
-	if err := row.Scan(&summary.ID, &summary.SourceReportID, &summary.ReportType, &summary.Title,
-		&summary.Status, &summary.Simulation, &generatedAt, &summary.Timezone, &layersJSON,
-		&statisticsJSON, &summary.PublishedAt, &layerJSON, &relatedJSON); err != nil {
+	var statisticsJSON, layerJSON, relatedJSON []byte
+	if err := row.Scan(&summary.ID, &summary.PublisherReportID, &summary.ReportType, &summary.Title,
+		&summary.GenerationStatus, &summary.Simulation, &generatedAt, &summary.Timezone,
+		&summary.HasGeopolitics, &summary.HasMacroeconomics, &statisticsJSON,
+		&summary.PublishedAt, &layerJSON, &relatedJSON); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return reportbiz.Summary{}, reportbiz.Layer{}, nil, reportbiz.ErrReportNotFound
 		}
 		return reportbiz.Summary{}, reportbiz.Layer{}, nil, fmt.Errorf("read Report layer %q: %w", layerKey, err)
 	}
-	if err := decodeSummaryFragments(&summary, generatedAt, layersJSON, statisticsJSON); err != nil {
+	if len(layerJSON) == 0 {
+		return reportbiz.Summary{}, reportbiz.Layer{}, nil, reportbiz.ErrLayerNotFound
+	}
+	if err := decodeSummaryFragments(&summary, generatedAt, statisticsJSON); err != nil {
 		return reportbiz.Summary{}, reportbiz.Layer{}, nil, fmt.Errorf("read Report layer summary invariant: %w", err)
 	}
 	var layer reportbiz.Layer
@@ -177,13 +184,11 @@ FROM reports WHERE id = $1`, reportID, layerKey)
 	if err := decodeStoredJSON(relatedJSON, &related); err != nil || related == nil {
 		return reportbiz.Summary{}, reportbiz.Layer{}, nil, persistedInvariant("Report layer", "related_industry_chains", "value is not an exact array")
 	}
-	if len(related) != len(layer.RelatedChainKeys) {
+	if len(related) != len(layer.Detail.RelatedChainKeys) {
 		return reportbiz.Summary{}, reportbiz.Layer{}, nil, persistedInvariant("Report layer", "related_industry_chains", "does not close over related_chain_keys")
 	}
 	for index, item := range related {
-		if item.Key != layer.RelatedChainKeys[index] || item.DisplayOrder < 1 || item.EvidenceCount < 0 ||
-			strings.TrimSpace(item.Name) == "" || strings.TrimSpace(item.Conclusion) == "" || strings.TrimSpace(item.Status) == "" ||
-			strings.TrimSpace(item.TimeWindow) == "" {
+		if item.Key != layer.Detail.RelatedChainKeys[index] || reportbiz.ValidateIndustryChainSummaryProjection(item) != nil {
 			return reportbiz.Summary{}, reportbiz.Layer{}, nil, persistedInvariant("Report layer", "related_industry_chains", "contains an invalid summary")
 		}
 	}
@@ -191,19 +196,20 @@ FROM reports WHERE id = $1`, reportID, layerKey)
 }
 
 func (s Store) GetIndustryChain(ctx context.Context, reportID, chainKey string) (reportbiz.Summary, reportbiz.IndustryChain, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT id, source_report_id,
-       content ->> 'report_type', content ->> 'title', content ->> 'status',
+	row := s.db.QueryRowContext(ctx, `SELECT id, publisher_report_id,
+	       content ->> 'report_type', content ->> 'title', content ->> 'generation_status',
        (content ->> 'simulation')::boolean, content ->> 'generated_at', content ->> 'timezone',
-       content -> 'published_layers', content -> 'statistics', published_at,
+	       content ? 'geopolitics', content ? 'macroeconomics', content -> 'statistics', published_at,
        (SELECT candidate FROM jsonb_array_elements(content -> 'industry_chains') AS chains(candidate)
         WHERE candidate ->> 'key' = $2)
 FROM reports WHERE id = $1`, reportID, chainKey)
 	var summary reportbiz.Summary
 	var generatedAt string
-	var layersJSON, statisticsJSON, chainJSON []byte
-	if err := row.Scan(&summary.ID, &summary.SourceReportID, &summary.ReportType, &summary.Title,
-		&summary.Status, &summary.Simulation, &generatedAt, &summary.Timezone, &layersJSON,
-		&statisticsJSON, &summary.PublishedAt, &chainJSON); err != nil {
+	var statisticsJSON, chainJSON []byte
+	if err := row.Scan(&summary.ID, &summary.PublisherReportID, &summary.ReportType, &summary.Title,
+		&summary.GenerationStatus, &summary.Simulation, &generatedAt, &summary.Timezone,
+		&summary.HasGeopolitics, &summary.HasMacroeconomics, &statisticsJSON,
+		&summary.PublishedAt, &chainJSON); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return reportbiz.Summary{}, reportbiz.IndustryChain{}, reportbiz.ErrReportNotFound
 		}
@@ -212,7 +218,7 @@ FROM reports WHERE id = $1`, reportID, chainKey)
 	if len(chainJSON) == 0 {
 		return reportbiz.Summary{}, reportbiz.IndustryChain{}, reportbiz.ErrChainNotFound
 	}
-	if err := decodeSummaryFragments(&summary, generatedAt, layersJSON, statisticsJSON); err != nil {
+	if err := decodeSummaryFragments(&summary, generatedAt, statisticsJSON); err != nil {
 		return reportbiz.Summary{}, reportbiz.IndustryChain{}, fmt.Errorf("read Report industry chain summary invariant: %w", err)
 	}
 	var chain reportbiz.IndustryChain
@@ -225,37 +231,104 @@ FROM reports WHERE id = $1`, reportID, chainKey)
 	return summary, chain, nil
 }
 
+func (s Store) ListIndustryChains(ctx context.Context, filter reportbiz.IndustryChainListFilter) (reportbiz.IndustryChainStorePage, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT jsonb_build_object(
+    'key', chain -> 'key',
+    'display_order', chain -> 'display_order',
+    'name', chain -> 'name',
+    'claim', chain #> '{summary,claim}',
+    'status', chain #> '{summary,status}',
+    'result', chain #> '{summary,result}',
+    'confidence', chain #> '{summary,confidence}',
+    'time_window', chain #> '{summary,time_window}',
+    'impact_items', COALESCE((
+        SELECT jsonb_agg(jsonb_build_object(
+            'key', impact -> 'key',
+            'display_order', impact -> 'display_order',
+            'node_key', impact -> 'node_key',
+            'name', (
+                SELECT node -> 'name'
+                FROM jsonb_array_elements(chain #> '{summary,graph,nodes}') AS nodes(node)
+                WHERE node ->> 'key' = impact ->> 'node_key'
+            ),
+            'result', impact -> 'result',
+            'nature', impact -> 'nature',
+            'confidence', impact -> 'confidence',
+            'time_window', impact -> 'time_window',
+            'evidence_count', jsonb_array_length(impact -> 'evidence_refs')
+        ) ORDER BY (impact ->> 'display_order')::integer)
+        FROM jsonb_array_elements(chain #> '{detail,node_impacts}') AS impacts(impact)
+    ), '[]'::jsonb),
+    'evidence_count', jsonb_array_length(chain #> '{summary,evidence_refs}')
+)
+FROM reports AS report
+CROSS JOIN LATERAL jsonb_array_elements(report.content -> 'industry_chains') AS chains(chain)
+WHERE report.id = $1 AND (chain ->> 'display_order')::integer > $2
+ORDER BY (chain ->> 'display_order')::integer ASC
+LIMIT $3`, filter.ReportID, filter.AfterDisplayOrder, filter.Limit+1)
+	if err != nil {
+		return reportbiz.IndustryChainStorePage{}, fmt.Errorf("query Report industry-chain summaries: %w", err)
+	}
+	defer rows.Close()
+	items := make([]reportbiz.IndustryChainSummary, 0, filter.Limit+1)
+	for rows.Next() {
+		var payload []byte
+		if err := rows.Scan(&payload); err != nil {
+			return reportbiz.IndustryChainStorePage{}, fmt.Errorf("scan Report industry-chain summary: %w", err)
+		}
+		var item reportbiz.IndustryChainSummary
+		if err := decodeStoredJSON(payload, &item); err != nil {
+			return reportbiz.IndustryChainStorePage{}, persistedInvariant("Report industry-chain summary", "item", "value is not an exact object")
+		}
+		if err := reportbiz.ValidateIndustryChainSummaryProjection(item); err != nil {
+			return reportbiz.IndustryChainStorePage{}, fmt.Errorf("read Report industry-chain summary invariant: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return reportbiz.IndustryChainStorePage{}, fmt.Errorf("iterate Report industry-chain summaries: %w", err)
+	}
+	if len(items) == 0 {
+		var exists bool
+		if err := s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM reports WHERE id = $1)`, filter.ReportID).Scan(&exists); err != nil {
+			return reportbiz.IndustryChainStorePage{}, fmt.Errorf("check Report existence: %w", err)
+		}
+		if !exists {
+			return reportbiz.IndustryChainStorePage{}, reportbiz.ErrReportNotFound
+		}
+	}
+	page := reportbiz.IndustryChainStorePage{Items: items}
+	if len(page.Items) > filter.Limit {
+		page.HasMore = true
+		page.Items = page.Items[:filter.Limit]
+	}
+	return page, nil
+}
+
 func (s Store) ReportScopeExists(ctx context.Context, reportID string, scopeType reportbiz.ScopeType, scopeKey string) (bool, bool, error) {
 	var exists bool
 	err := s.db.QueryRowContext(ctx, `SELECT CASE $2
-    WHEN 'report_card' THEN EXISTS (
-        SELECT 1 FROM jsonb_array_elements(content -> 'report_cards') AS items(item) WHERE item ->> 'key' = $3)
-    WHEN 'layer' THEN $3 IN ('geopolitics', 'macroeconomics') AND content ? $3
-    WHEN 'anchor' THEN EXISTS (
-        SELECT 1 FROM (
-            SELECT jsonb_array_elements(content #> '{geopolitics,anchors}') AS item
-            UNION ALL SELECT jsonb_array_elements(content #> '{macroeconomics,anchors}') AS item
-        ) AS items WHERE item ->> 'key' = $3)
-    WHEN 'reasoning_step' THEN EXISTS (
-        SELECT 1 FROM (
-            SELECT jsonb_array_elements(content #> '{geopolitics,reasoning_steps}') AS item
-            UNION ALL SELECT jsonb_array_elements(content #> '{macroeconomics,reasoning_steps}') AS item
-        ) AS items WHERE item ->> 'key' = $3)
-    WHEN 'transmission_path' THEN EXISTS (
-        SELECT 1 FROM (
-            SELECT jsonb_array_elements(content #> '{geopolitics,downward_transmission,published_paths}') AS item
-            UNION ALL SELECT jsonb_array_elements(content #> '{macroeconomics,downward_transmission,published_paths}') AS item
-        ) AS items WHERE item ->> 'key' = $3)
-    WHEN 'candidate_mechanism' THEN EXISTS (
-        SELECT 1 FROM (
-            SELECT jsonb_array_elements(content #> '{geopolitics,downward_transmission,candidate_mechanisms}') AS item
-            UNION ALL SELECT jsonb_array_elements(content #> '{macroeconomics,downward_transmission,candidate_mechanisms}') AS item
-        ) AS items WHERE item ->> 'key' = $3)
-    WHEN 'industry_chain' THEN EXISTS (
-        SELECT 1 FROM jsonb_array_elements(content -> 'industry_chains') AS items(item) WHERE item ->> 'key' = $3)
-    WHEN 'industry_chain_node' THEN EXISTS (
-        SELECT 1 FROM jsonb_array_elements(content -> 'industry_chains') AS chains(chain)
-        CROSS JOIN LATERAL jsonb_array_elements(chain -> 'nodes') AS nodes(node) WHERE node ->> 'key' = $3)
+	WHEN 'section_summary' THEN $3 IN ('geopolitics', 'macroeconomics') AND content ? $3
+	WHEN 'anchor' THEN EXISTS (
+		SELECT 1 FROM (
+			SELECT jsonb_array_elements(COALESCE(content #> '{geopolitics,detail,anchors}', '[]'::jsonb)) AS item
+			UNION ALL SELECT jsonb_array_elements(COALESCE(content #> '{macroeconomics,detail,anchors}', '[]'::jsonb)) AS item
+		) AS items WHERE item ->> 'key' = $3)
+	WHEN 'reasoning_step' THEN EXISTS (
+		SELECT 1 FROM (
+			SELECT jsonb_array_elements(COALESCE(content #> '{geopolitics,detail,reasoning_steps}', '[]'::jsonb)) AS item
+			UNION ALL SELECT jsonb_array_elements(COALESCE(content #> '{macroeconomics,detail,reasoning_steps}', '[]'::jsonb)) AS item
+		) AS items WHERE item ->> 'key' = $3)
+	WHEN 'transmission' THEN EXISTS (
+		SELECT 1 FROM (
+			SELECT jsonb_array_elements(COALESCE(content #> '{geopolitics,summary,transmissions}', '[]'::jsonb)) AS item
+			UNION ALL SELECT jsonb_array_elements(COALESCE(content #> '{macroeconomics,summary,transmissions}', '[]'::jsonb)) AS item
+		) AS items WHERE item ->> 'key' = $3)
+	WHEN 'industry_chain_summary' THEN EXISTS (
+		SELECT 1 FROM jsonb_array_elements(content -> 'industry_chains') AS items(item) WHERE item ->> 'key' = $3)
+	WHEN 'industry_chain_node' THEN EXISTS (
+		SELECT 1 FROM jsonb_array_elements(content -> 'industry_chains') AS chains(chain)
+		CROSS JOIN LATERAL jsonb_array_elements(chain #> '{detail,node_impacts}') AS nodes(node) WHERE node ->> 'key' = $3)
     ELSE false END
 FROM reports WHERE id = $1`, reportID, scopeType, scopeKey).Scan(&exists)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -314,7 +387,7 @@ type scanner interface{ Scan(...any) error }
 func scanRecord(row scanner) (reportbiz.Record, error) {
 	var record reportbiz.Record
 	var contentJSON []byte
-	if err := row.Scan(&record.ID, &record.SourceReportID, &record.ContractVersion,
+	if err := row.Scan(&record.ID, &record.PublisherReportID, &record.ContractVersion,
 		&record.ContentHash, &contentJSON, &record.PublishedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return reportbiz.Record{}, reportbiz.ErrReportNotFound
@@ -322,7 +395,7 @@ func scanRecord(row scanner) (reportbiz.Record, error) {
 		return reportbiz.Record{}, fmt.Errorf("read Report: %w", err)
 	}
 	if err := decodeStoredJSON(contentJSON, &record.Content); err != nil {
-		return reportbiz.Record{}, persistedInvariant("Report", "content", "value is not an exact report-publication.v1 object")
+		return reportbiz.Record{}, persistedInvariant("Report", "content", "value is not an exact report-publication.v2 object")
 	}
 	if err := reportbiz.ValidateContent(record.Content); err != nil {
 		return reportbiz.Record{}, fmt.Errorf("read Report content invariant: %w", err)
@@ -331,8 +404,8 @@ func scanRecord(row scanner) (reportbiz.Record, error) {
 	if err != nil {
 		return reportbiz.Record{}, fmt.Errorf("recompute Report content hash: %w", err)
 	}
-	if !coreid.Is(record.ID, coreid.Report) || strings.TrimSpace(record.SourceReportID) == "" ||
-		record.SourceReportID != strings.TrimSpace(record.SourceReportID) ||
+	if !coreid.Is(record.ID, coreid.Report) || strings.TrimSpace(record.PublisherReportID) == "" ||
+		record.PublisherReportID != strings.TrimSpace(record.PublisherReportID) ||
 		record.ContractVersion != reportbiz.ContractVersion || !contentHashPattern.MatchString(record.ContentHash) ||
 		record.ContentHash != wantHash || record.PublishedAt.IsZero() {
 		return reportbiz.Record{}, persistedInvariant("Report", "row", "stored identity, hash, version or publication time is invalid")
@@ -344,35 +417,32 @@ func scanRecord(row scanner) (reportbiz.Record, error) {
 func scanSummary(row scanner) (reportbiz.Summary, error) {
 	var result reportbiz.Summary
 	var generatedAt string
-	var layersJSON, statisticsJSON []byte
-	if err := row.Scan(&result.ID, &result.SourceReportID, &result.ReportType, &result.Title,
-		&result.Status, &result.Simulation, &generatedAt, &result.Timezone,
-		&layersJSON, &statisticsJSON, &result.PublishedAt); err != nil {
+	var statisticsJSON []byte
+	if err := row.Scan(&result.ID, &result.PublisherReportID, &result.ReportType, &result.Title,
+		&result.GenerationStatus, &result.Simulation, &generatedAt, &result.Timezone,
+		&result.HasGeopolitics, &result.HasMacroeconomics, &statisticsJSON, &result.PublishedAt); err != nil {
 		return reportbiz.Summary{}, fmt.Errorf("scan Report summary: %w", err)
 	}
-	if err := decodeSummaryFragments(&result, generatedAt, layersJSON, statisticsJSON); err != nil {
+	if err := decodeSummaryFragments(&result, generatedAt, statisticsJSON); err != nil {
 		return reportbiz.Summary{}, err
 	}
 	return result, nil
 }
 
-func decodeSummaryFragments(result *reportbiz.Summary, generatedAt string, layersJSON, statisticsJSON []byte) error {
+func decodeSummaryFragments(result *reportbiz.Summary, generatedAt string, statisticsJSON []byte) error {
 	parsed, err := time.Parse(time.RFC3339Nano, generatedAt)
 	if err != nil || parsed.IsZero() {
 		return persistedInvariant("Report summary", "generated_at", "value is not RFC3339")
 	}
 	result.GeneratedAt = parsed
 	result.PublishedAt = result.PublishedAt.UTC()
-	if err := decodeStoredJSON(layersJSON, &result.PublishedLayers); err != nil || result.PublishedLayers == nil {
-		return persistedInvariant("Report summary", "published_layers", "value is not an exact array")
-	}
 	if err := decodeStoredJSON(statisticsJSON, &result.Statistics); err != nil {
 		return persistedInvariant("Report summary", "statistics", "value is not an exact object")
 	}
-	if !coreid.Is(result.ID, coreid.Report) || strings.TrimSpace(result.SourceReportID) == "" ||
-		result.SourceReportID != strings.TrimSpace(result.SourceReportID) ||
+	if !coreid.Is(result.ID, coreid.Report) || strings.TrimSpace(result.PublisherReportID) == "" ||
+		result.PublisherReportID != strings.TrimSpace(result.PublisherReportID) ||
 		strings.TrimSpace(result.ReportType) == "" || strings.TrimSpace(result.Title) == "" ||
-		strings.TrimSpace(result.Status) == "" || strings.TrimSpace(result.Timezone) == "" || result.PublishedAt.IsZero() {
+		strings.TrimSpace(result.GenerationStatus) == "" || strings.TrimSpace(result.Timezone) == "" || result.PublishedAt.IsZero() {
 		return persistedInvariant("Report summary", "row", "stored metadata is invalid")
 	}
 	return nil

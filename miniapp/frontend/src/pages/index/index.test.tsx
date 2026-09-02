@@ -59,9 +59,9 @@ describe('Report homepage', () => {
     expect(findAllByClass(page, 'home-section-heading__summary')).toHaveLength(0);
     expect(findAllByClass(page, 'home-card-evidence-action')).toHaveLength(6);
     expect(findAllByClass(page, 'home-card-detail-action')).toHaveLength(6);
-    expect(findAllByClass(page, 'home-report-section__kind-icon')).toHaveLength(4);
+    expect(findAllByClass(page, 'home-report-section__kind-icon')).toHaveLength(3);
     expect(findAllByClass(page, 'home-report-card__arrow')).toHaveLength(6);
-    expect(findAllByClass(page, 'home-company-boundary__icon')).toHaveLength(1);
+    expect(findAllByClass(page, 'home-company-boundary__icon')).toHaveLength(0);
     expect(findAllByClass(page, 'home-industry-identity')).toHaveLength(4);
     expect(findAllByClass(page, 'home-impact-item')).toHaveLength(21);
     expect(findAllByClass(page, 'home-impact-signal__result-icon')).toHaveLength(21);
@@ -109,8 +109,8 @@ describe('Report homepage', () => {
     expect(stopPropagation).toHaveBeenCalledOnce();
     expect(onOpenEvidence).toHaveBeenCalledWith({
       reportId: 'RPT11111111-1111-4111-8111-111111111111',
-      scopeType: 'report_card',
-      scopeKey: 'card-geopolitics',
+      scopeType: 'section_summary',
+      scopeKey: 'geopolitics',
       title: '地缘政治证据'
     });
     expect(onOpenDetail).not.toHaveBeenCalled();

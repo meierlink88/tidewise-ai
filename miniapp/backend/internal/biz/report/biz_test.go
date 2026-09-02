@@ -235,9 +235,9 @@ func TestUseCaseValidatesDirectReadsAndEvidenceScopes(t *testing.T) {
 		t.Fatalf("repository error = %v", err)
 	}
 	for _, scope := range []EvidenceScope{
-		{Type: ScopeReportCard, Key: "geo-card"},
-		{Type: ScopeLayer, Key: LayerGeopolitics},
+		{Type: ScopeSectionSummary, Key: LayerGeopolitics},
 		{Type: ScopeAnchor, Key: "anchor-1"},
+		{Type: ScopeIndustryChainSummary, Key: "chain-1"},
 		{Type: ScopeIndustryChainNode, Key: "node-1"},
 	} {
 		if !validEvidenceScope(scope) {
@@ -245,7 +245,7 @@ func TestUseCaseValidatesDirectReadsAndEvidenceScopes(t *testing.T) {
 		}
 	}
 	for _, scope := range []EvidenceScope{
-		{Type: ScopeReportCard, Key: "Geo-Card"},
+		{Type: ScopeSectionSummary, Key: "geo-card"},
 		{Type: ScopeAnchor, Key: "anchor/1"},
 		{Type: "event", Key: "event-1"},
 	} {
@@ -257,7 +257,7 @@ func TestUseCaseValidatesDirectReadsAndEvidenceScopes(t *testing.T) {
 
 func testSummary(id string, publishedAt time.Time) Summary {
 	return Summary{
-		ID: id, SourceReportID: "source-" + id[3:11], Title: "Report " + id[3:11],
+		ID: id, PublisherReportID: "publisher-" + id[3:11], Title: "Report " + id[3:11],
 		GeneratedAt: publishedAt.Add(-time.Minute).UTC(), PublishedAt: publishedAt.UTC(),
 	}
 }

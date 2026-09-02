@@ -47,7 +47,7 @@ func TestPostgresReportPublicationReplayReadsAndImmutableRelationships(t *testin
 		t.Fatalf("publication results first=%#v replay=%#v", first, replay)
 	}
 	var reports, links int
-	if err := db.QueryRow(`SELECT count(*) FROM reports WHERE source_report_id=$1`, "agentos-report-2026-09-01-a").Scan(&reports); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM reports WHERE publisher_report_id=$1`, "agentos-report-2026-09-01-a").Scan(&reports); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.QueryRow(`SELECT count(*) FROM report_evidence_links WHERE report_id=$1`, first.Record.ID).Scan(&links); err != nil {
@@ -69,7 +69,7 @@ func TestPostgresReportPublicationReplayReadsAndImmutableRelationships(t *testin
 	if !errors.As(err, &reference) {
 		t.Fatalf("missing Evidence error=%T %v", err, err)
 	}
-	if err := db.QueryRow(`SELECT count(*) FROM reports WHERE source_report_id=$1`, "agentos-report-missing-evidence").Scan(&reports); err != nil || reports != 0 {
+	if err := db.QueryRow(`SELECT count(*) FROM reports WHERE publisher_report_id=$1`, "agentos-report-missing-evidence").Scan(&reports); err != nil || reports != 0 {
 		t.Fatalf("failed publication retained Reports=%d error=%v", reports, err)
 	}
 
@@ -81,24 +81,28 @@ func TestPostgresReportPublicationReplayReadsAndImmutableRelationships(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(home.ReportCards) != 3 || home.EvidenceCounts[reportbiz.TargetReference{Type: reportbiz.TargetAnchor, Key: "geo-anchor"}] != 1 ||
-		home.EvidenceCounts[reportbiz.TargetReference{Type: reportbiz.TargetIndustryChainNode, Key: "node-01"}] != 2 {
+	if home.Geopolitics == nil || home.Geopolitics.Key != "geopolitics" || home.Macroeconomics == nil || home.Macroeconomics.Key != "macroeconomics" {
 		t.Fatalf("GetHome()=%#v", home)
 	}
 	_, layer, related, err := useCase.GetLayer(ctx, first.Record.ID, "geopolitics")
-	if err != nil || layer.Key != "geopolitics" || len(related) != 1 || related[0].Key != "chain-01" {
+	if err != nil || layer.Key != "geopolitics" || len(related) != 1 || related[0].Key != "chain-01" ||
+		len(related[0].ImpactItems) != 1 || related[0].ImpactItems[0].Name != "产业节点 01" {
 		t.Fatalf("GetLayer() layer=%#v related=%#v error=%v", layer, related, err)
 	}
 	_, chain, err := useCase.GetIndustryChain(ctx, first.Record.ID, "chain-01")
-	if err != nil || chain.Key != "chain-01" || len(chain.Nodes) != 1 {
+	if err != nil || chain.Key != "chain-01" || len(chain.Detail.NodeImpacts) != 1 {
 		t.Fatalf("GetIndustryChain() chain=%#v error=%v", chain, err)
 	}
-	evidence, err := useCase.ListEvidence(ctx, first.Record.ID, reportbiz.ScopeIndustryChainNode, "node-01")
+	chainPage, err := useCase.ListIndustryChains(ctx, reportbiz.IndustryChainListRequest{ReportID: first.Record.ID, Limit: 1})
+	if err != nil || len(chainPage.Items) != 1 || chainPage.Items[0].Claim.Key != "C-CHAIN-01" ||
+		len(chainPage.Items[0].ImpactItems) != 1 || chainPage.Items[0].ImpactItems[0].Name != "产业节点 01" || chainPage.NextCursor != nil {
+		t.Fatalf("ListIndustryChains()=%#v error=%v", chainPage, err)
+	}
+	evidence, err := useCase.ListEvidence(ctx, first.Record.ID, reportbiz.ScopeIndustryChainNode, "impact-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(evidence) != 2 || evidence[0].EvidenceID != evidenceIDs[0] || evidence[0].DisplayOrder != 1 ||
-		evidence[1].EvidenceID != evidenceIDs[1] || evidence[1].DisplayOrder != 2 ||
+	if len(evidence) != 1 || evidence[0].EvidenceID != evidenceIDs[1] || evidence[0].DisplayOrder != 1 ||
 		strings.TrimSpace(evidence[0].Summary) == "" || len(evidence[0].Keywords) != 1 ||
 		evidence[0].PublishedAt == nil || !evidence[0].PublishedAt.Equal(time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)) {
 		t.Fatalf("ListEvidence()=%#v", evidence)
@@ -161,26 +165,26 @@ func TestPostgresReportPublicationReplayReadsAndImmutableRelationships(t *testin
 	if createdCount != 1 {
 		t.Fatalf("concurrent Report first publications=%d want=1", createdCount)
 	}
-	if err := db.QueryRow(`SELECT count(*) FROM reports WHERE source_report_id=$1`, "agentos-report-2026-09-01-concurrent").Scan(&reports); err != nil || reports != 1 {
+	if err := db.QueryRow(`SELECT count(*) FROM reports WHERE publisher_report_id=$1`, "agentos-report-2026-09-01-concurrent").Scan(&reports); err != nil || reports != 1 {
 		t.Fatalf("concurrent Report persisted rows=%d error=%v", reports, err)
 	}
 
 	assertPostgresCode(t, db, "23503", `INSERT INTO report_evidence_links
         (id,report_id,evidence_id,scope_type,scope_key,role,display_order)
-		VALUES('RPE33333333-3333-4333-8333-333333333333',$1,'EVD33333333-3333-4333-8333-333333333333','layer','geopolitics','missing',2)`, first.Record.ID)
+		VALUES('RPE33333333-3333-4333-8333-333333333333',$1,'EVD33333333-3333-4333-8333-333333333333','section_summary','geopolitics','missing',2)`, first.Record.ID)
 	assertPostgresCode(t, db, "23505", `INSERT INTO report_evidence_links
 		(id,report_id,evidence_id,scope_type,scope_key,role,display_order)
 		SELECT 'RPE44444444-4444-4444-8444-444444444444',report_id,evidence_id,scope_type,scope_key,role,99
-		FROM report_evidence_links WHERE report_id=$1 AND scope_type='layer' AND scope_key='geopolitics'`, first.Record.ID)
+		FROM report_evidence_links WHERE report_id=$1 AND scope_type='section_summary' AND scope_key='geopolitics'`, first.Record.ID)
 	assertPostgresCode(t, db, "23505", `INSERT INTO report_evidence_links
 		(id,report_id,evidence_id,scope_type,scope_key,role,display_order)
-		VALUES('RPE55555555-5555-4555-8555-555555555555',$1,$2,'layer','geopolitics','alternate',1)`, first.Record.ID, evidenceIDs[0])
+		VALUES('RPE55555555-5555-4555-8555-555555555555',$1,$2,'section_summary','geopolitics','supports_claim',1)`, first.Record.ID, evidenceIDs[0])
 	assertPostgresCode(t, db, "23514", `INSERT INTO report_evidence_links
 		(id,report_id,evidence_id,scope_type,scope_key,role,display_order)
-		VALUES('RPE66666666-6666-4666-8666-666666666666',$1,$2,'layer','Bad/Key','invalid',3)`, first.Record.ID, evidenceIDs[0])
+		VALUES('RPE66666666-6666-4666-8666-666666666666',$1,$2,'section_summary','Bad/Key','invalid',3)`, first.Record.ID, evidenceIDs[0])
 	if _, err := db.Exec(`INSERT INTO report_evidence_links
 		(id,report_id,evidence_id,scope_type,scope_key,role,display_order)
-		VALUES('RPE77777777-7777-5777-8777-777777777777',$1,$2,'layer','v5-link','v5 identity',1)`, first.Record.ID, evidenceIDs[0]); err != nil {
+		VALUES('RPE77777777-7777-5777-8777-777777777777',$1,$2,'section_summary','v5-link','supports_claim',1)`, first.Record.ID, evidenceIDs[0]); err != nil {
 		t.Fatalf("canonical UUID v5 Report Evidence Link ID was rejected: %v", err)
 	}
 	assertPostgresCode(t, db, "23503", `DELETE FROM evidences WHERE id=$1`, evidenceIDs[0])
@@ -190,6 +194,53 @@ func TestPostgresReportPublicationReplayReadsAndImmutableRelationships(t *testin
 	assertPostgresCode(t, db, "55000", `UPDATE report_evidence_links SET role='changed' WHERE report_id=$1`, first.Record.ID)
 	assertPostgresCode(t, db, "55000", `DELETE FROM report_evidence_links WHERE report_id=$1`, first.Record.ID)
 	assertPostgresCode(t, db, "55000", `TRUNCATE report_evidence_links`)
+}
+
+func TestPostgresReportIndustryChainCursorPagesFiftyFourSummaries(t *testing.T) {
+	db := openReportTestDatabase(t, 0)
+	evidenceIDs := publishReportEvidence(t, db)
+	content := contentWithManyChainsAndEvidenceIDs(t, 54, evidenceIDs[0], evidenceIDs[1])
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useCase, err := reportbiz.NewUseCase(store, func() time.Time {
+		return time.Date(2026, 9, 2, 1, 2, 3, 0, time.UTC)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	published, err := useCase.Publish(context.Background(), reportbiz.ContractVersion, "agentos-report-54-chains", content)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := reportbiz.IndustryChainListRequest{ReportID: published.Record.ID, Limit: 20}
+	gotKeys := make([]string, 0, 54)
+	pageSizes := []int{}
+	for {
+		page, err := useCase.ListIndustryChains(context.Background(), request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		pageSizes = append(pageSizes, len(page.Items))
+		for _, item := range page.Items {
+			gotKeys = append(gotKeys, item.Key)
+			if len(item.ImpactItems) != 1 || item.ImpactItems[0].NodeKey == "" {
+				t.Fatalf("chain summary projection=%#v", item)
+			}
+		}
+		if page.NextCursor == nil {
+			break
+		}
+		request.Cursor = *page.NextCursor
+	}
+	if !reflect.DeepEqual(pageSizes, []int{20, 20, 14}) {
+		t.Fatalf("page sizes=%v want=[20 20 14]", pageSizes)
+	}
+	if len(gotKeys) != 54 || gotKeys[0] != "chain-01" || gotKeys[53] != "chain-54" {
+		t.Fatalf("paged keys count=%d first=%q last=%q", len(gotKeys), gotKeys[0], gotKeys[len(gotKeys)-1])
+	}
 }
 
 func TestMigration79CreatesOnlyReviewedReportTablesAndCanonicalIdentityConstraints(t *testing.T) {
@@ -287,6 +338,40 @@ func TestMigration79DownIsExplicitlyForwardOnly(t *testing.T) {
 	}
 }
 
+func TestMigration80CutsEmptyReportStoreOverToV2(t *testing.T) {
+	db := openReportTestDatabase(t, 79)
+	postgresfixture.ApplyMigration(t, db, reportMigrationDir(t), 80)
+	if got := tableColumns(t, db, "reports"); !reflect.DeepEqual(got, []string{"id", "publisher_report_id", "contract_version", "content_hash", "content", "published_at"}) {
+		t.Fatalf("reports columns=%#v", got)
+	}
+	assertPostgresCode(t, db, "23514", `INSERT INTO reports
+        (id,publisher_report_id,contract_version,content_hash,content,published_at)
+        VALUES('RPT55555555-5555-5555-8555-555555555555','publisher','report-publication.v1',repeat('a',64),'{}',now())`)
+}
+
+func TestMigration80RefusesLossyCutover(t *testing.T) {
+	db := openReportTestDatabase(t, 79)
+	if _, err := db.Exec(`INSERT INTO reports
+        (id,source_report_id,contract_version,content_hash,content,published_at)
+        VALUES('RPT55555555-5555-5555-8555-555555555555','publisher','report-publication.v1',repeat('a',64),'{}',now())`); err != nil {
+		t.Fatal(err)
+	}
+	assertPostgresCode(t, db, "55000", string(mustMigrationUp(t, filepath.Join(reportMigrationDir(t), "000080_upgrade_report_publication_v2.sql"))))
+}
+
+func mustMigrationUp(t *testing.T, path string) []byte {
+	t.Helper()
+	payload, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := strings.Split(string(payload), "-- +goose Down")
+	if len(parts) != 2 {
+		t.Fatal("migration has no Down marker")
+	}
+	return []byte(strings.TrimPrefix(parts[0], "-- +goose Up"))
+}
+
 func publishReportEvidence(t *testing.T, db *sql.DB) []string {
 	t.Helper()
 	store, err := evidencedata.NewStore(db)
@@ -329,8 +414,16 @@ func reportEvidence(summary, keyword, action string) evidencebiz.Evidence {
 }
 
 func contentWithEvidenceIDs(t *testing.T, first, second string) reportbiz.Content {
+	return replaceContentEvidenceIDs(t, reportfixture.Content(), first, second)
+}
+
+func contentWithManyChainsAndEvidenceIDs(t *testing.T, count int, first, second string) reportbiz.Content {
+	return replaceContentEvidenceIDs(t, reportfixture.ContentWithManyChains(count), first, second)
+}
+
+func replaceContentEvidenceIDs(t *testing.T, source reportbiz.Content, first, second string) reportbiz.Content {
 	t.Helper()
-	payload, err := json.Marshal(reportfixture.Content())
+	payload, err := json.Marshal(source)
 	if err != nil {
 		t.Fatal(err)
 	}

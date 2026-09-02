@@ -397,42 +397,45 @@ _Avoid_: 覆盖 Event 核心事实、删除旧证据、用新 Receipt 表示新 
 **Report**:
 外部 AgentOS 一次推理完成后发布的不可变、完整产品报告快照，以
 `RPT + canonical lowercase UUID` 为稳定身份。Data 保存全部成功发布的 Report，不更新、
-覆盖、删除或按标题合并。AgentOS 提供全局唯一、重试稳定的 `source_report_id`；同 ID 同
+覆盖、删除或按标题合并。AgentOS 提供全局唯一、重试稳定的 `publisher_report_id`；同 ID 同
 content hash 返回原 Report，同 ID 不同 hash 冲突，纠错必须使用新 ID 发布新 Report。
 _Avoid_: Research Theme、Reason Tree、长期主题身份、原地修订、只保存当前报告
 
 **Report Publication Package**:
-`report-publication.v1` 固定结构包，原子提交一份 Report 的元数据、地缘政治层、宏观经济层、
-产业链集合、公司层未发布边界，以及各层的结论、锚点、推导、反证、Gap、停止条件、节点和
-显式有向边。所有有序集合携带连续 `display_order`，所有引用都在包内闭合；Data 只验证
-结构和引用，不从自由文本推断状态、关系或研究结论。
+`report-publication.v2` 固定结构包，原子提交一份 Report 的元数据、来源血缘和至少一条产业链
+分析；地缘政治与宏观经济是相互独立的可选分析 Section，不以空对象补位。每个存在的 Section
+和每条产业链分析显式区分 summary 与 detail；产业链 detail 区分拓扑节点与本期节点影响。
+所有有序集合携带连续 `display_order`，所有引用都在包内闭合；Data 只验证结构和引用，不从
+自由文本推断状态、关系或研究结论。公司分析在拥有定稿发布基线前不属于 v2。
 _Avoid_: Markdown 上传、任意 JSON、按现有 Data 图谱补全报告、服务端报告转换器
 
-**Report Card**:
-AgentOS 在 Report 内显式发布的不可变首页值对象，保存卡片结论、影响项和详情目标；它与所引用
-层或产业链的展示快照一致，但不由 Data 或 Miniapp 读取时临时生成。两个固定上层各有一张卡片；
-产业链卡片是 AgentOS 从本 Report 全部产业链中显式选择的首页子集，不要求覆盖每条产业链。卡片 Evidence 是独立显式
-作用域，不继承层、锚点、产业链或节点 Evidence。
-_Avoid_: 查询时拼装卡片、要求每条产业链都上首页、硬编码首页产业链、跨 Report 卡片、子对象 Evidence 自动聚合
+**Report Analysis Section**:
+一份 Report 中实际存在的一类分析。当前 `industry_chain` 必须存在且至少包含一条产业链；
+`geopolitics` 与 `macroeconomics` 各自可缺失且互不要求。缺失表示本次报告没有该类结论，空对象
+不表示缺失。Section 的 summary 是对象级结论、传导与边界；上层 detail 是锚点和可空推导步骤；
+产业链 summary 还拥有链图与反证/缺口，detail 是本期节点影响。首页卡片是 Miniapp 只读投影，
+不是 Report 子对象。
+_Avoid_: 固定四层、空 Section 占位、持久化首页卡片、按页面组件命名领域事实
 
 **Report Target Reference**:
-Report 内从卡片、传导路径或影响项指向层、锚点、产业链或链节点的结构化引用，由 target type
+Report 内从传导路径或影响项指向 Section、锚点、产业链或链节点的结构化引用，由 target type
 与 Report-local Key 共同定位。一个传导路径可以拥有多个目标及各自结果；读取方不得从名称、
 结论文案或 `CHN-xx` 字符串中解析导航目标。Miniapp v1 只把层与产业链引用作为独立详情
 页路由；锚点与链节点引用仍是有效传导目标，但不伪造独立页面跳转。
 _Avoid_: 展示文案路由、单目标覆盖多目标结果、正式图谱对象引用
 
 **Report Result / Nature**:
-Report 显式发布的展示状态。Result 只允许 `warming | cooling | diverging | pending`，Nature
+Report 显式发布的分析状态。Result 只允许
+`warming | cooling | diverging | stable | mixed | pending`，Nature
 只允许 `direct_evidence | reasoning_hypothesis | pending_validation`；机器 code 与中文 label
 一起保存，Data 不从文案、颜色、置信度或 Evidence 是否存在推断。
 _Avoid_: Event 状态、Signal、仅颜色状态、自由文本枚举
 
 **Report-local Key**:
-持久化 Report Card、锚点、推导路径、产业链、节点和边在单个 Report 内使用的稳定键，只用于
+锚点、推导路径、产业链、节点影响和边在单个 Report 内使用的稳定键，只用于
 包内闭包、查询范围和展示定位，不证明同名 Data Object 存在，也不承担跨 Report 身份。同一
-Report、同一 scope type 下 key 唯一；key 使用 lowercase ASCII 字母、数字、点、下划线与连字符，
-结构化 `target_refs` 承担目标定位；只有存在 v1 详情页的层与产业链目标承担页面跳转，
+Report、同一 scope type 下 key 唯一；key 使用 ASCII 字母、数字、点、下划线与连字符，
+结构化 `target_refs` 承担目标定位；只有 Miniapp API 当前存在详情页的层与产业链目标承担页面跳转，
 不解析展示文案。
 _Avoid_: IndustryChain ID、ChainNode ID、Event ID、跨报告自动合并
 
@@ -440,24 +443,27 @@ _Avoid_: IndustryChain ID、ChainNode ID、Event ID、跨报告自动合并
 Report 对既有 Atomic Evidence 的直接、带作用域引用。每项只发布 canonical `EVD` ID、role
 和展示顺序；Data 以独立 `RPE` 关系保存并 restrictive 引用 `evidences.id`。它不经 Event 或
 Event Evidence Link，不复制 Evidence 内容，也不允许 `EVT` 或 `EEL` 身份。scope 支持
-`report_card`、层、锚点、推导步骤、传导路径、候选机制、产业链和链节点；JSON refs 与关系行
-逐项一致，不自动把子对象 Evidence 聚合到卡片、层或产业链。
+Section summary、锚点、推导步骤、传导路径、产业链 summary 和链节点影响；JSON refs 与关系行
+逐项一致，不自动把子对象 Evidence 聚合到父对象。直接证据目标必须有直接 EVD；推理假设和
+待验证目标不得用上游或机制材料伪装成直接 EVD。
 _Avoid_: Report Event、Evidence 正文副本、Event-to-Evidence 动态展开、跨域 Evidence 推断
 
 **Report Publication Replay**:
 Data 对 `contract_version + canonical content` 计算 lowercase SHA-256，并以唯一
-`source_report_id` 作为安全发布重试键。首次成功时 Report 与全部 Evidence 关系在同一事务提交，
+`publisher_report_id` 作为安全发布重试键。首次成功时 Report 与全部 Evidence 关系在同一事务提交，
 由 Data 统一产生 `published_at`；重放不刷新该时间。不创建 Receipt 表，认证主体只进入请求审计。
 _Avoid_: 独立 publication key、Receipt、请求 ID 作为幂等键、失败占位、调用方提交 Report ID
 
 **Report Read Projection**:
-Data 按 `published_at DESC, id ASC` 稳定列出全部 Report，并按 Report-local layer、chain 和
-Evidence scope 返回固定投影；首页投影同时直接返回发布时 `statistics.industry_chain_count`，
-作为报告内全部产业链总数，不从首页卡片数反推。Evidence 投影可级联 `report_evidence_links → evidences →
+Data 按 `published_at DESC, id ASC` 稳定列出全部 Report，并按 Report-local Section、chain 和
+Evidence scope 返回固定投影；产业链 summary 使用绑定 Report 与最后 `display_order` 的稳定 cursor
+分页，详情按 chain key 延迟读取。首页投影同时返回发布时 `statistics.industry_chain_count`，
+作为报告内全部产业链总数。Evidence 投影可级联 `report_evidence_links → evidences →
 raw_evidences`，项目顺序严格使用 Report 发布的 `display_order`，每项只返回发布时间、摘要和有序关键词；
 其它投影只读取 Report 自有 snapshot，
 不关联 Event、IndustryChain、ChainNode、Company 或其它领域。
-_Avoid_: Data 决定“今日报告”、动态重算报告、按 Evidence 时间重排发布顺序、跨领域拼装、Evidence ID 产品展示
+_Avoid_: Data 决定“今日报告”、把完整 Report 解码进内存后分页、动态重算报告、按 Evidence
+时间重排发布顺序、跨领域拼装、Evidence ID 产品展示
 
 **Object Schema**:
 Data Service 工程 `doctype/` 中每个 Object Type 独立维护的 OpenSPG Schema Mark

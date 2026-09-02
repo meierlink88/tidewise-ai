@@ -8,7 +8,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-01-claim',
     displayOrder: 1,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-01'
     },
     name: '人形机器人产业链',
@@ -203,7 +203,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-02-claim',
     displayOrder: 2,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-02'
     },
     name: 'AI数据中心液冷服务器产业链',
@@ -397,7 +397,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-03-claim',
     displayOrder: 3,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-03'
     },
     name: 'AI算力基础设施服务产业链',
@@ -585,7 +585,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-04-claim',
     displayOrder: 4,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-04'
     },
     name: 'AI视频生成服务产业链',
@@ -714,7 +714,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-05-claim',
     displayOrder: 5,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-05'
     },
     name: '油气勘探开发产业链',
@@ -876,7 +876,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-06-claim',
     displayOrder: 6,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-06'
     },
     name: '生成式人工智能模型及应用服务产业链',
@@ -1039,7 +1039,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-07-claim',
     displayOrder: 7,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-07'
     },
     name: '汽车线控制动执行器产业链',
@@ -1167,7 +1167,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-08-claim',
     displayOrder: 8,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-08'
     },
     name: '企业AI智能体产业链',
@@ -1328,7 +1328,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-09-claim',
     displayOrder: 9,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-09'
     },
     name: '智能语音技术服务产业链',
@@ -1490,7 +1490,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-10-claim',
     displayOrder: 10,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-10'
     },
     name: 'AI智能手机产业链',
@@ -1618,7 +1618,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-11-claim',
     displayOrder: 11,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-11'
     },
     name: 'AI计算芯片产业链',
@@ -1852,7 +1852,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-12-claim',
     displayOrder: 12,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-12'
     },
     name: '电动汽车换电服务产业链',
@@ -1980,7 +1980,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-13-claim',
     displayOrder: 13,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-13'
     },
     name: '量子信息技术系统产业链',
@@ -2175,7 +2175,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-14-claim',
     displayOrder: 14,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-14'
     },
     name: '自动驾驶系统产业链',
@@ -2337,7 +2337,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-15-claim',
     displayOrder: 15,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-15'
     },
     name: 'AI药物发现服务产业链',
@@ -2433,7 +2433,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-16-claim',
     displayOrder: 16,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-16'
     },
     name: 'MLOps平台与服务产业链',
@@ -2529,7 +2529,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-17-claim',
     displayOrder: 17,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-17'
     },
     name: '新能源汽车产业链',
@@ -2757,7 +2757,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-18-claim',
     displayOrder: 18,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-18'
     },
     name: '普通钢材产业链',
@@ -2853,7 +2853,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-19-claim',
     displayOrder: 19,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-19'
     },
     name: '汽车一体化压铸产业链',
@@ -2948,7 +2948,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-20-claim',
     displayOrder: 20,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-20'
     },
     name: '汽车热管理系统产业链',
@@ -3043,7 +3043,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-21-claim',
     displayOrder: 21,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-21'
     },
     name: '油品石化贸易服务产业链',
@@ -3138,7 +3138,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-22-claim',
     displayOrder: 22,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-22'
     },
     name: '火力发电设备产业链',
@@ -3234,7 +3234,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-23-claim',
     displayOrder: 23,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-23'
     },
     name: '磷酸铁锂刀片电池产业链',
@@ -3329,7 +3329,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-24-claim',
     displayOrder: 24,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-24'
     },
     name: '车规级功率模块产业链',
@@ -3424,7 +3424,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-25-claim',
     displayOrder: 25,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-25'
     },
     name: 'AI个人电脑产业链',
@@ -3519,7 +3519,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-26-claim',
     displayOrder: 26,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-26'
     },
     name: 'AI智能眼镜产业链',
@@ -3614,7 +3614,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-27-claim',
     displayOrder: 27,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-27'
     },
     name: 'AI算力租赁服务产业链',
@@ -3709,7 +3709,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-28-claim',
     displayOrder: 28,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-28'
     },
     name: 'CAR-T细胞治疗产业链',
@@ -3804,7 +3804,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-29-claim',
     displayOrder: 29,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-29'
     },
     name: '化学药制剂产业链',
@@ -3899,7 +3899,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-30-claim',
     displayOrder: 30,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-30'
     },
     name: '医用芬太尼药品产业链',
@@ -3994,7 +3994,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-31-claim',
     displayOrder: 31,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-31'
     },
     name: '医疗信息化系统产业链',
@@ -4089,7 +4089,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-32-claim',
     displayOrder: 32,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-32'
     },
     name: '医疗设备产业链',
@@ -4184,7 +4184,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-33-claim',
     displayOrder: 33,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-33'
     },
     name: '医院医疗服务产业链',
@@ -4345,7 +4345,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-34-claim',
     displayOrder: 34,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-34'
     },
     name: '跨境支付服务产业链',
@@ -4506,7 +4506,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-35-claim',
     displayOrder: 35,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-35'
     },
     name: '跨境电商服务产业链',
@@ -4601,7 +4601,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-36-claim',
     displayOrder: 36,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-36'
     },
     name: '钢铁长材产业链',
@@ -4729,7 +4729,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-37-claim',
     displayOrder: 37,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-37'
     },
     name: '锂电储能系统产业链',
@@ -4822,7 +4822,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-38-claim',
     displayOrder: 38,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-38'
     },
     name: '集成电路晶圆制造产业链',
@@ -4915,7 +4915,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-39-claim',
     displayOrder: 39,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-39'
     },
     name: 'AI训练语料与数据服务产业链',
@@ -5043,7 +5043,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-40-claim',
     displayOrder: 40,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-40'
     },
     name: '健身器材产业链',
@@ -5138,7 +5138,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-41-claim',
     displayOrder: 41,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-41'
     },
     name: '创新药产业链',
@@ -5264,7 +5264,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-42-claim',
     displayOrder: 42,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-42'
     },
     name: '半导体先进封装产业链',
@@ -5359,7 +5359,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-43-claim',
     displayOrder: 43,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-43'
     },
     name: '基础设施云服务产业链',
@@ -5454,7 +5454,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-44-claim',
     displayOrder: 44,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-44'
     },
     name: '存储芯片产业链',
@@ -5582,7 +5582,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-45-claim',
     displayOrder: 45,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-45'
     },
     name: '家用清洁电器产业链',
@@ -5677,7 +5677,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-46-claim',
     displayOrder: 46,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-46'
     },
     name: '扩展现实设备及服务产业链',
@@ -5772,7 +5772,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-47-claim',
     displayOrder: 47,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-47'
     },
     name: '数字集成电路设计产业链',
@@ -5900,7 +5900,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-48-claim',
     displayOrder: 48,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-48'
     },
     name: '模拟集成电路设计产业链',
@@ -6028,7 +6028,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-49-claim',
     displayOrder: 49,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-49'
     },
     name: '汽车整车产业链',
@@ -6253,7 +6253,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-50-claim',
     displayOrder: 50,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-50'
     },
     name: '电动垂直起降飞行器产业链',
@@ -6348,7 +6348,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-51-claim',
     displayOrder: 51,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-51'
     },
     name: '精准医疗服务产业链',
@@ -6477,7 +6477,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-52-claim',
     displayOrder: 52,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-52'
     },
     name: '航空机电系统产业链',
@@ -6572,7 +6572,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-53-claim',
     displayOrder: 53,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-53'
     },
     name: '航空电子系统产业链',
@@ -6667,7 +6667,7 @@ export const generatedIndustryChainDetails: ReportIndustryChainDetailContent[] =
     claimKey: 'chn-54-claim',
     displayOrder: 54,
     scope: {
-      type: 'industry_chain',
+      type: 'industry_chain_summary',
       key: 'chn-54'
     },
     name: '风力发电产业链',

@@ -128,7 +128,7 @@ describe('Report detail page', () => {
       clickCapturedButton(label);
     }
     expect(onOpenEvidence.mock.calls.map(([route]) => route.scopeType)).toEqual([
-      'layer',
+      'section_summary',
       'anchor'
     ]);
 
@@ -294,7 +294,7 @@ describe('Report detail page', () => {
     clickCapturedButton('查看油品运输服务证据：依据');
     expect(onOpenEvidence).toHaveBeenNthCalledWith(1, {
       reportId,
-      scopeType: 'industry_chain',
+      scopeType: 'industry_chain_summary',
       scopeKey: 'chn-21',
       title: '油品石化贸易服务产业链证据'
     });

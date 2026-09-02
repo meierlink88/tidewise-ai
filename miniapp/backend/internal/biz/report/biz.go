@@ -13,14 +13,20 @@ const (
 	LayerGeopolitics    = "geopolitics"
 	LayerMacroeconomics = "macroeconomics"
 
-	ScopeReportCard         = "report_card"
-	ScopeLayer              = "layer"
-	ScopeAnchor             = "anchor"
-	ScopeReasoningStep      = "reasoning_step"
-	ScopeTransmissionPath   = "transmission_path"
-	ScopeCandidateMechanism = "candidate_mechanism"
-	ScopeIndustryChain      = "industry_chain"
-	ScopeIndustryChainNode  = "industry_chain_node"
+	ScopeLayer                = "layer"
+	ScopeSectionSummary       = "section_summary"
+	ScopeAnchor               = "anchor"
+	ScopeReasoningStep        = "reasoning_step"
+	ScopeTransmission         = "transmission"
+	ScopeIndustryChain        = "industry_chain"
+	ScopeIndustryChainSummary = "industry_chain_summary"
+	ScopeIndustryChainNode    = "industry_chain_node"
+
+	// Deprecated source names remain aliases inside the BFF mapping layer only;
+	// no v1 scope value is sent to Data.
+	ScopeReportCard         = ScopeSectionSummary
+	ScopeTransmissionPath   = ScopeTransmission
+	ScopeCandidateMechanism = ScopeTransmission
 
 	SelectionToday          = "today"
 	SelectionLatestFallback = "latest_fallback"
@@ -39,7 +45,7 @@ var (
 	ErrDataUnavailable       = errors.New("report data unavailable")
 
 	reportIDPattern = regexp.MustCompile(`^RPT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
-	localKeyPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,127}$`)
+	localKeyPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 )
 
 type ListQuery struct {
@@ -50,11 +56,11 @@ type ListQuery struct {
 }
 
 type Summary struct {
-	ID             string
-	SourceReportID string
-	Title          string
-	GeneratedAt    time.Time
-	PublishedAt    time.Time
+	ID                string
+	PublisherReportID string
+	Title             string
+	GeneratedAt       time.Time
+	PublishedAt       time.Time
 }
 
 type Page struct {
@@ -112,19 +118,10 @@ type Card struct {
 	HasEvidence bool
 }
 
-type CompanyBoundary struct {
-	Key          string
-	DisplayOrder int
-	Title        string
-	Published    bool
-	Boundary     string
-}
-
 type Home struct {
 	Report             Summary
 	IndustryChainCount int
 	Cards              []Card
-	Company            CompanyBoundary
 }
 
 type HomeSelection struct {
@@ -165,7 +162,7 @@ type ReasoningStep struct {
 }
 
 type TransmissionTarget struct {
-	Ref    Reference
+	Ref    *Reference
 	Label  string
 	Result Result
 }
@@ -532,10 +529,10 @@ func ValidReference(ref Reference) bool {
 
 func validEvidenceScope(scope EvidenceScope) bool {
 	switch scope.Type {
-	case ScopeLayer:
+	case ScopeSectionSummary:
 		return validLayer(scope.Key)
-	case ScopeReportCard, ScopeAnchor, ScopeReasoningStep, ScopeTransmissionPath,
-		ScopeCandidateMechanism, ScopeIndustryChain, ScopeIndustryChainNode:
+	case ScopeAnchor, ScopeReasoningStep, ScopeTransmission,
+		ScopeIndustryChainSummary, ScopeIndustryChainNode:
 		return validLocalKey(scope.Key)
 	default:
 		return false
@@ -545,7 +542,7 @@ func validEvidenceScope(scope EvidenceScope) bool {
 func validateSummaryOrder(items []Summary) error {
 	seen := make(map[string]struct{}, len(items))
 	for index, item := range items {
-		if !validReportID(item.ID) || item.SourceReportID == "" || item.Title == "" ||
+		if !validReportID(item.ID) || item.PublisherReportID == "" || item.Title == "" ||
 			item.GeneratedAt.IsZero() || item.PublishedAt.IsZero() || item.GeneratedAt.Location() != time.UTC ||
 			item.PublishedAt.Location() != time.UTC {
 			return ErrDataUnavailable
@@ -567,7 +564,7 @@ func validateSummaryOrder(items []Summary) error {
 }
 
 func sameSummary(left, right Summary) bool {
-	return left.ID == right.ID && left.SourceReportID == right.SourceReportID && left.Title == right.Title &&
+	return left.ID == right.ID && left.PublisherReportID == right.PublisherReportID && left.Title == right.Title &&
 		left.GeneratedAt.Equal(right.GeneratedAt) && left.PublishedAt.Equal(right.PublishedAt)
 }
 

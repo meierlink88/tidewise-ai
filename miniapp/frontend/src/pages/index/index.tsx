@@ -9,7 +9,6 @@ import reportActivityPendingIcon from '../../assets/icons/report-activity-pendin
 import reportActivityWarmingIcon from '../../assets/icons/report-activity-warming.svg';
 import reportBarChartIcon from '../../assets/icons/report-bar-chart.svg';
 import reportConfidenceIcon from '../../assets/icons/report-confidence.svg';
-import reportCubeIcon from '../../assets/icons/report-cube.svg';
 import reportGlobeIcon from '../../assets/icons/report-globe.svg';
 import reportLayersIcon from '../../assets/icons/report-layers.svg';
 import reportPublishedClockIcon from '../../assets/icons/report-clock.svg';
@@ -292,26 +291,6 @@ function HomeReportGroupView({
           </View>
         ) : null}
 
-        <View className='home-report-section home-report-section--company'>
-          <HomeReportSectionHeading
-            kind='company'
-            title={group.company.title}
-            subtitle='本次报告未发布企业层结论'
-          />
-          <View className='home-company-boundary'>
-            <View className='home-company-boundary__mark' ariaLabel='企业层'>
-              <Image
-                className='home-company-boundary__icon'
-                src={reportCubeIcon}
-                mode='aspectFit'
-              />
-            </View>
-            <View className='home-company-boundary__copy'>
-              <Text>本次推理尚未进入企业层</Text>
-              <Text>{group.company.boundary}</Text>
-            </View>
-          </View>
-        </View>
       </View>
     </View>
   );
@@ -331,7 +310,7 @@ function HomeReportSectionHeading({
   title,
   subtitle
 }: {
-  kind: ReportCard['kind'] | 'company';
+  kind: ReportCard['kind'];
   title: string;
   subtitle: string;
 }) {
@@ -395,8 +374,9 @@ function HomeReportCard({
               event.stopPropagation();
               onOpenEvidence({
                 reportId,
-                scopeType: 'report_card',
-                scopeKey: card.key,
+                scopeType:
+                  card.kind === 'industry_chain' ? 'industry_chain_summary' : 'section_summary',
+                scopeKey: card.detailRef.key,
                 title: `${card.title}证据`
               });
             }}
@@ -462,11 +442,11 @@ function HomeImpactSignals({ item }: { item: ReportImpactItem }) {
   );
 }
 
-function reportSectionIcon(kind: ReportCard['kind'] | 'company'): string {
+function reportSectionIcon(kind: ReportCard['kind']): string {
   if (kind === 'geopolitics') return reportGlobeIcon;
   if (kind === 'macroeconomics') return reportBarChartIcon;
   if (kind === 'industry_chain') return reportLayersIcon;
-  return reportCubeIcon;
+  return reportLayersIcon;
 }
 
 function reportActivityIcon(result: ReportResultCode): string {

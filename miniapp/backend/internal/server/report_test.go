@@ -33,7 +33,7 @@ func TestReportHTTPBindingsUseVersionedRoutesAndSafeErrors(t *testing.T) {
 		{path: "/api/miniapp/v1/reports/home", operation: api.OperationGetHome},
 		{path: "/api/miniapp/v1/reports/" + reportTestID + "/layers/geopolitics", operation: api.OperationGetLayer},
 		{path: "/api/miniapp/v1/reports/" + reportTestID + "/industry-chains/chain-21", operation: api.OperationGetChain},
-		{path: "/api/miniapp/v1/reports/" + reportTestID + "/evidences?scope_type=report_card&scope_key=geo-card", operation: api.OperationListEvidences},
+		{path: "/api/miniapp/v1/reports/" + reportTestID + "/evidences?scope_type=section_summary&scope_key=geopolitics", operation: api.OperationListEvidences},
 	} {
 		response := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodGet, test.path, nil)
@@ -55,13 +55,13 @@ func TestReportHTTPBindingsUseVersionedRoutesAndSafeErrors(t *testing.T) {
 	if stub.chainRequest == nil || stub.chainRequest.ChainKey != "chain-21" {
 		t.Fatalf("chain request = %#v", stub.chainRequest)
 	}
-	if stub.evidenceRequest == nil || stub.evidenceRequest.ScopeType != biz.ScopeReportCard || stub.evidenceRequest.ScopeKey != "geo-card" {
+	if stub.evidenceRequest == nil || stub.evidenceRequest.ScopeType != biz.ScopeSectionSummary || stub.evidenceRequest.ScopeKey != biz.LayerGeopolitics {
 		t.Fatalf("evidence request = %#v", stub.evidenceRequest)
 	}
 
 	for _, path := range []string{
 		"/api/miniapp/v1/reports/home?unknown=value",
-		"/api/miniapp/v1/reports/" + reportTestID + "/evidences?scope_type=report_card&scope_type=layer&scope_key=geo-card",
+		"/api/miniapp/v1/reports/" + reportTestID + "/evidences?scope_type=section_summary&scope_type=anchor&scope_key=geopolitics",
 	} {
 		response := httptest.NewRecorder()
 		router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
@@ -91,12 +91,14 @@ func TestReportHomeAndEvidenceTraverseRealDataHTTPWithoutLeakingInternalFields(t
 			writeDownstreamResult(t, writer, map[string]any{"items": []any{dataSummary()}, "next_cursor": nil})
 		case dataapi.DataAPIPrefix + "/reports/" + reportTestID + "/home":
 			writeDownstreamResult(t, writer, dataHome())
+		case dataapi.DataAPIPrefix + "/reports/" + reportTestID + "/industry-chains":
+			writeDownstreamResult(t, writer, map[string]any{"items": []any{dataChainSummary()}, "next_cursor": nil})
 		case dataapi.DataAPIPrefix + "/reports/" + reportTestID + "/evidences":
-			if request.URL.Query().Get("scope_type") != "report_card" || request.URL.Query().Get("scope_key") != "geo-card" {
+			if request.URL.Query().Get("scope_type") != "industry_chain_summary" || request.URL.Query().Get("scope_key") != "chain-01" {
 				t.Fatalf("evidence query = %v", request.URL.Query())
 			}
 			writeDownstreamResult(t, writer, map[string]any{
-				"report_id": reportTestID, "scope_type": "report_card", "scope_key": "geo-card",
+				"report_id": reportTestID, "scope_type": "industry_chain_summary", "scope_key": "chain-01",
 				"items": []any{
 					map[string]any{"evidence_id": "EVD11111111-1111-4111-8111-111111111111", "role": "supports", "display_order": 1,
 						"published_at": "2026-09-01T03:00:00Z", "summary": "第一条证据", "keywords": []string{"海湾"}},
@@ -139,9 +141,9 @@ func TestReportHomeAndEvidenceTraverseRealDataHTTPWithoutLeakingInternalFields(t
 	if err := json.Unmarshal(homeResponse.Body.Bytes(), &homeEnvelope); err != nil {
 		t.Fatal(err)
 	}
-	if len(homeEnvelope.Result.Reports) != 1 || homeEnvelope.Result.Reports[0].IndustryChainCount != 54 ||
-		len(homeEnvelope.Result.Reports[0].Cards) != 2 ||
-		homeEnvelope.Result.Reports[0].Cards[0].Key != "geo-card" {
+	if len(homeEnvelope.Result.Reports) != 1 || homeEnvelope.Result.Reports[0].IndustryChainCount != 1 ||
+		len(homeEnvelope.Result.Reports[0].Cards) != 1 ||
+		homeEnvelope.Result.Reports[0].Cards[0].Key != "chain-01" {
 		t.Fatalf("home result = %#v", homeEnvelope.Result)
 	}
 	for _, forbidden := range []string{"source_report_id", "evidence_count", "evidence_id"} {
@@ -152,7 +154,7 @@ func TestReportHomeAndEvidenceTraverseRealDataHTTPWithoutLeakingInternalFields(t
 
 	evidenceResponse := httptest.NewRecorder()
 	router.ServeHTTP(evidenceResponse, httptest.NewRequest(http.MethodGet,
-		"/api/miniapp/v1/reports/"+reportTestID+"/evidences?scope_type=report_card&scope_key=geo-card", nil))
+		"/api/miniapp/v1/reports/"+reportTestID+"/evidences?scope_type=industry_chain_summary&scope_key=chain-01", nil))
 	if evidenceResponse.Code != http.StatusOK {
 		t.Fatalf("evidence status/body = %d/%s", evidenceResponse.Code, evidenceResponse.Body.String())
 	}
@@ -163,7 +165,7 @@ func TestReportHomeAndEvidenceTraverseRealDataHTTPWithoutLeakingInternalFields(t
 		t.Fatal(err)
 	}
 	if len(evidenceEnvelope.Result.Items) != 2 || evidenceEnvelope.Result.Items[0].Summary != "第一条证据" ||
-		evidenceEnvelope.Result.Scope != (api.Scope{Type: "report_card", Key: "geo-card"}) {
+		evidenceEnvelope.Result.Scope != (api.Scope{Type: "industry_chain_summary", Key: "chain-01"}) {
 		t.Fatalf("evidence result = %#v", evidenceEnvelope.Result)
 	}
 	for _, forbidden := range []string{"evidence_id", "display_order", `"role"`, "evidence_count", "source_type", "event_id"} {
@@ -173,7 +175,7 @@ func TestReportHomeAndEvidenceTraverseRealDataHTTPWithoutLeakingInternalFields(t
 	}
 	mutex.Lock()
 	defer mutex.Unlock()
-	if len(seenPaths) != 3 {
+	if len(seenPaths) != 4 {
 		t.Fatalf("Data calls = %v", seenPaths)
 	}
 }
@@ -210,51 +212,39 @@ func (s *reportAPIStub) ListEvidences(_ context.Context, request *api.EvidenceRe
 
 func dataSummary() map[string]any {
 	return map[string]any{
-		"id": reportTestID, "source_report_id": "source-report-1", "report_type": "investment_reasoning",
-		"title": "传导推理报告", "status": "published", "simulation": false,
-		"generated_at": "2026-09-01T12:00:00+08:00", "timezone": "Asia/Shanghai",
-		"published_layers": []string{"geopolitics", "macroeconomics", "industry_chain"},
+		"id": reportTestID, "publisher_report_id": "publisher-report-1", "report_type": "investment_reasoning",
+		"title": "传导推理报告", "generation_status": "complete", "simulation": false,
+		"generated_at": "2026-09-01T04:00:00Z", "timezone": "Asia/Shanghai",
+		"has_geopolitics": false, "has_macroeconomics": false,
 		"statistics": map[string]any{
 			"event_count": 0, "ordinary_fact_count": 0, "signal_fact_count": 0,
-			"transmission_hypothesis_count": 0, "remaining_topology_pending_count": 0,
-			"adaptive_inclusion_threshold": 0.6, "adaptive_continuation_threshold": 0.5,
-			"adaptive_hard_max_hops": 0, "adaptive_observed_max_hops": 0,
-			"adaptive_stopped_by_confidence": 0, "adaptive_stopped_by_no_unvisited_neighbor": 0,
-			"adaptive_rejected_below_inclusion": 0, "geopolitic_anchor_count": 1,
-			"macroeconomic_anchor_count": 1, "signaled_chain_node_count": 0,
-			"industry_chain_count": 54, "unmapped_chain_node_count": 0,
+			"transmission_hypothesis_count": 0, "geopolitic_anchor_count": 0,
+			"macroeconomic_anchor_count": 0, "signaled_chain_node_count": 1,
+			"industry_chain_count": 1,
 		}, "published_at": "2026-09-01T04:01:00Z",
 	}
 }
 
 func dataHome() map[string]any {
-	return map[string]any{"report": dataSummary(), "industry_chain_count": 54, "report_cards": []any{
-		map[string]any{
-			"key": "geo-card", "kind": "geopolitics", "display_order": 1,
-			"detail_ref": map[string]any{"type": "layer", "key": "geopolitics"},
-			"title":      "地缘政治", "subtitle": "风险主线", "conclusion": "海湾风险升温。",
-			"result":     map[string]any{"code": "warming", "label": "升温"},
-			"confidence": map[string]any{"label": "中", "score": nil}, "time_window": "短期",
-			"impact_items": []any{map[string]any{
-				"ref": map[string]any{"type": "anchor", "key": "anchor-g1"}, "name": "海湾安全",
-				"result":     map[string]any{"code": "warming", "label": "升温"},
-				"confidence": map[string]any{"label": "中", "score": nil}, "time_window": "短期", "evidence_count": 0,
-			}}, "evidence_count": 1,
-		},
-		map[string]any{
-			"key": "macro-card", "kind": "macroeconomics", "display_order": 2,
-			"detail_ref": map[string]any{"type": "layer", "key": "macroeconomics"},
-			"title":      "宏观经济", "subtitle": "需求主线", "conclusion": "宏观路径分化。",
-			"result":     map[string]any{"code": "diverging", "label": "分化"},
-			"confidence": map[string]any{"label": "中", "score": nil}, "time_window": "中期",
-			"impact_items": []any{map[string]any{
-				"ref": map[string]any{"type": "anchor", "key": "anchor-m1"}, "name": "需求路径",
-				"result":     map[string]any{"code": "diverging", "label": "分化"},
-				"confidence": map[string]any{"label": "中", "score": nil}, "time_window": "中期", "evidence_count": 1,
-			}}, "evidence_count": 1,
-		},
-	}, "company": map[string]any{"key": "company", "display_order": 4, "title": "企业",
-		"published": false, "boundary": "本次推理尚未进入企业层。"}}
+	return map[string]any{"report": dataSummary(), "geopolitics": nil, "macroeconomics": nil}
+}
+
+func dataChainSummary() map[string]any {
+	return map[string]any{
+		"key": "chain-01", "display_order": 1, "name": "运输产业链",
+		"claim":  map[string]any{"key": "claim-01", "text": "运输成本升温。"},
+		"status": "published", "result": map[string]any{"code": "warming", "label": "升温"},
+		"confidence":  map[string]any{"code": "medium", "label": "中", "score": nil},
+		"time_window": map[string]any{"horizons": []string{"short"}, "lag": nil, "label": "短期"},
+		"impact_items": []any{map[string]any{
+			"key": "impact-01", "display_order": 1, "node_key": "node-01", "name": "运输",
+			"result":         map[string]any{"code": "warming", "label": "升温"},
+			"nature":         map[string]any{"code": "direct_evidence", "label": "直接证据"},
+			"confidence":     map[string]any{"code": "medium", "label": "中", "score": nil},
+			"time_window":    map[string]any{"horizons": []string{"short"}, "lag": nil, "label": "短期"},
+			"evidence_count": 1,
+		}}, "evidence_count": 1,
+	}
 }
 
 func writeDownstreamResult(t *testing.T, writer http.ResponseWriter, result any) {

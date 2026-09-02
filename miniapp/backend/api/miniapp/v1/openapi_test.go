@@ -62,7 +62,7 @@ func TestOpenAPIContractExposesOperationsAndReportRoutes(t *testing.T) {
 	assertRequired(t, schema(t, document, "HealthResponse"), "status", "service", "environment")
 	assertRequired(t, schema(t, document, "ReadinessResponse"), "status", "service", "environment", "checks")
 	assertRequired(t, schema(t, document, "HomeResponse"), "selection", "reports")
-	assertRequired(t, schema(t, document, "HomeReport"), "report", "industry_chain_count", "cards", "company")
+	assertRequired(t, schema(t, document, "HomeReport"), "report", "industry_chain_count", "cards")
 	assertRequired(t, schema(t, document, "Summary"), "id", "title", "generated_at", "published_at")
 	summaryProperties := object(t, schema(t, document, "Summary")["properties"], "Summary properties")
 	if got, want := sortedKeys(summaryProperties), []string{"generated_at", "id", "published_at", "title"}; strings.Join(got, ",") != strings.Join(want, ",") {

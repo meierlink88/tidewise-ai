@@ -78,3 +78,4 @@
 000077	normal	schema	allow observed_at as an Event time anchor while preserving existing business-time Event JSON and publication replay hashes
 000078	high	mixed	remove Research Theme and Reason Tree tables and data in a snapshot-protected zero-compatibility cutover
 000079	normal	schema	add immutable Report and Report Evidence Link storage after the coordinated legacy-domain retirement
+000080	high	mixed	require an empty Report store and replace the unpublished v1 page-shaped contract with report-publication.v2 optional analysis sections

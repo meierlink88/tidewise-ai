@@ -23,6 +23,8 @@ export function ReportImpactSignals({
     warming: reportActivityWarmingIcon,
     cooling: reportActivityCoolingIcon,
     diverging: reportActivityDivergingIcon,
+    stable: reportActivityPendingIcon,
+    mixed: reportActivityDivergingIcon,
     pending: reportActivityPendingIcon
   }[result.code];
   return (
