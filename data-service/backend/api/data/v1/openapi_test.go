@@ -23,21 +23,16 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
 	want := map[string]operationContract{
-		"/healthz":                                {method: "get", operationID: "getDataServiceHealth"},
-		"/readyz":                                 {method: "get", operationID: "getDataServiceReadiness"},
-		namespace + "/evidence-categories":        {method: "get", operationID: "listEvidenceCategories", driftAnchor: "data.v1.listEvidenceCategories", scope: "data.evidence-categories.read"},
-		namespace + "/evidences":                  {method: "get", operationID: "listAdminEvidence", driftAnchor: "data.v1.listAdminEvidence", scope: "data.admin.read"},
-		namespace + "/research/themes":            {method: "get", operationID: "listResearchThemes", driftAnchor: "data.v1.listResearchThemes", scope: "data.research.read"},
-		namespace + "/research/themes/{theme_id}": {method: "get", operationID: "getResearchTheme", driftAnchor: "data.v1.getResearchTheme", scope: "data.research.read"},
-		namespace + "/research/themes/{theme_id}/reasoning-trees":                     {method: "get", operationID: "listResearchThemeReasoningTrees", driftAnchor: "data.v1.listResearchThemeReasoningTrees", scope: "data.research.read"},
-		namespace + "/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}": {method: "get", operationID: "getResearchThemeReasoningTree", driftAnchor: "data.v1.getResearchThemeReasoningTree", scope: "data.research.read"},
+		"/healthz":                                                                  {method: "get", operationID: "getDataServiceHealth"},
+		"/readyz":                                                                   {method: "get", operationID: "getDataServiceReadiness"},
+		namespace + "/evidence-categories":                                          {method: "get", operationID: "listEvidenceCategories", driftAnchor: "data.v1.listEvidenceCategories", scope: "data.evidence-categories.read"},
+		namespace + "/evidences":                                                    {method: "get", operationID: "listAdminEvidence", driftAnchor: "data.v1.listAdminEvidence", scope: "data.admin.read"},
 		namespace + "/events":                                                       {method: "get", operationID: "listAdminEvents", driftAnchor: "data.v1.listAdminEvents", scope: "data.admin.read"},
 		namespace + "/runtime-health":                                               {method: "get", operationID: "getDataRuntimeHealth", driftAnchor: "data.v1.getRuntimeHealth", scope: "data.admin.read"},
 		namespace + "/research-graph:search":                                        {method: "post", operationID: "searchResearchGraph", driftAnchor: "data.v1.searchResearchGraph", scope: "data.research.read"},
 		namespace + "/raw-evidence-publications":                                    {method: "post", operationID: "publishRawEvidence", driftAnchor: "data.v1.publishRawEvidence", scope: "data.raw-evidences.import"},
 		namespace + "/raw-evidences/{id}":                                           {method: "get", operationID: "getRawEvidence", driftAnchor: "data.v1.getRawEvidence", scope: "data.raw-evidences.read"},
 		namespace + "/evidence-publications":                                        {method: "post", operationID: "publishEvidence", driftAnchor: "data.v1.publishEvidence", scope: "data.evidences.import"},
-		namespace + "/research-theme-imports":                                       {method: "post", operationID: "publishResearchTheme", driftAnchor: "data.v1.publishResearchTheme", scope: "data.research.import"},
 		namespace + "/entities/countries":                                           {method: "get", operationID: "listCountries", driftAnchor: "data.v1.listCountries", scope: "data.countries.read"},
 		namespace + "/entities/countries/{country_id}":                              {method: "get", operationID: "getCountry", driftAnchor: "data.v1.getCountry", scope: "data.countries.read"},
 		namespace + "/entities/countries/{country_id}/regions":                      {method: "put", operationID: "replaceCountryRegions", driftAnchor: "data.v1.replaceCountryRegions", scope: "data.countries.write"},
@@ -59,6 +54,13 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 		namespace + "/sources":                                                      {method: "get", operationID: "listSources", driftAnchor: "data.v1.listSources", scope: "data.sources.read"},
 		namespace + "/sources/{source_id}":                                          {method: "put", operationID: "updateSource", driftAnchor: "data.v1.updateSource", scope: "data.sources.write"},
 		namespace + "/source-snapshot":                                              {method: "get", operationID: "getSourceSnapshot", driftAnchor: "data.v1.getSourceSnapshot", scope: "data.sources.read"},
+		namespace + "/report-publications":                                          {method: "post", operationID: "publishReport", driftAnchor: "data.v1.publishReport", scope: "data.reports.publish"},
+		namespace + "/reports":                                                      {method: "get", operationID: "listReports", driftAnchor: "data.v1.listReports", scope: "data.reports.read"},
+		namespace + "/reports/{report_id}/home":                                     {method: "get", operationID: "getReportHome", driftAnchor: "data.v1.getReportHome", scope: "data.reports.read"},
+		namespace + "/reports/{report_id}/layers/{layer_key}":                       {method: "get", operationID: "getReportLayer", driftAnchor: "data.v1.getReportLayer", scope: "data.reports.read"},
+		namespace + "/reports/{report_id}/industry-chains":                          {method: "get", operationID: "listReportIndustryChains", driftAnchor: "data.v1.listReportIndustryChains", scope: "data.reports.read"},
+		namespace + "/reports/{report_id}/industry-chains/{chain_key}":              {method: "get", operationID: "getReportIndustryChain", driftAnchor: "data.v1.getReportIndustryChain", scope: "data.reports.read"},
+		namespace + "/reports/{report_id}/evidences":                                {method: "get", operationID: "listReportEvidence", driftAnchor: "data.v1.listReportEvidence", scope: "data.reports.read"},
 	}
 	additionalMethods := map[string]map[string]struct{}{
 		namespace + "/events":                                                       {"post": {}},
@@ -106,6 +108,88 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 			}
 		}
 	}
+}
+
+func TestOpenAPIContractFreezesImmutableReportPublicationAndReadModels(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	schemas := object(t, object(t, document["components"], "components")["schemas"], "schemas")
+	for _, retired := range []string{
+		"ReportPublicationRequest", "ReportContent", "ReportCard", "ReportCompanyBoundary",
+		"ReportHome", "ReportLayerRead", "ReportIndustryChainRead",
+	} {
+		if _, exists := schemas[retired]; exists {
+			t.Errorf("OpenAPI retains retired report-publication.v1 schema %q", retired)
+		}
+	}
+	publish := object(t, object(t, paths[namespace+"/report-publications"], "Report publication path")["post"], "Report publication operation")
+	assertInt(t, publish, "x-timeout-budget-ms", 20000)
+	requestBody := object(t, publish["requestBody"], "Report publication request body")
+	mediaTypes := object(t, requestBody["content"], "Report publication media types")
+	mediaType := object(t, mediaTypes["application/json"], "Report publication JSON media type")
+	bodySchema := object(t, mediaType["schema"], "Report publication body schema")
+	assertInt(t, bodySchema, "maxLength", 1048576)
+	assertInt(t, bodySchema, "x-max-body-bytes", 1048576)
+	bodySchemaParts := array(t, bodySchema["allOf"], "Report publication body allOf")
+	if len(bodySchemaParts) != 1 {
+		t.Fatalf("Report publication body allOf count = %d, want 1", len(bodySchemaParts))
+	}
+	assertString(t, object(t, bodySchemaParts[0], "Report publication request reference"), "$ref", "#/components/schemas/ReportPublicationRequestV2")
+	request := schema(t, document, "ReportPublicationRequestV2")
+	assertRequired(t, request, "contract_version", "publisher_report_id", "content")
+	requestProperties := object(t, request["properties"], "ReportPublicationRequest properties")
+	for _, retired := range []string{"publication_key", "receipt_id", "report", "publisher"} {
+		if _, exists := requestProperties[retired]; exists {
+			t.Errorf("Report publication request exposes retired field %q", retired)
+		}
+	}
+	assertRequired(t, schema(t, document, "ReportContentV2"),
+		"report_type", "title", "generation_status", "simulation", "generated_at", "analysis_window",
+		"timezone", "provenance", "statistics", "industry_chains",
+	)
+	assertRequired(t, schema(t, document, "ReportIndustryChainV2"),
+		"key", "display_order", "name", "summary", "detail",
+	)
+	chainProperties := object(t, schema(t, document, "ReportIndustryChainV2")["properties"], "ReportIndustryChainV2 properties")
+	chainSummary := object(t, chainProperties["summary"], "ReportIndustryChainV2 summary")
+	assertRequired(t, chainSummary, "claim", "status", "result", "confidence", "time_window", "path", "accepted_hypothesis_summary", "graph", "uncertainty", "evidence_refs")
+	chainDetail := object(t, chainProperties["detail"], "ReportIndustryChainV2 detail")
+	assertRequired(t, chainDetail, "node_impacts")
+	assertRequired(t, schema(t, document, "ReportIndustryChainGraphV2"), "nodes", "edges")
+	assertRequired(t, schema(t, document, "ReportReasoningStepV2"), "key", "display_order", "input", "mechanism", "output", "type", "confidence", "evidence_refs")
+	assertRequired(t, schema(t, document, "ReportTransmissionV2"),
+		"key", "display_order", "source_claim_key", "source_conclusion", "targets", "logic", "relation_nature",
+		"confidence", "status", "evidence_refs",
+	)
+	assertStringSet(t, schema(t, document, "ReportEvidenceScopeType")["enum"],
+		"section_summary", "anchor", "reasoning_step", "transmission", "industry_chain_summary", "industry_chain_node",
+	)
+	assertRequired(t, schema(t, document, "ReportPublicationResult"), "report_id", "content_hash", "published_at", "replayed")
+	assertRequired(t, schema(t, document, "ReportCollectionV2"), "items", "next_cursor")
+	resultProperties := object(t, schema(t, document, "ReportPublicationResult")["properties"], "ReportPublicationResult properties")
+	for _, retired := range []string{"payload_hash", "receipt_id"} {
+		if _, exists := resultProperties[retired]; exists {
+			t.Errorf("Report publication response exposes retired field %q", retired)
+		}
+	}
+	assertRequired(t, schema(t, document, "ReportIndustryChainCollection"), "items", "next_cursor")
+	assertRequired(t, schema(t, document, "ReportLayerSnapshotV2"), "key", "title", "summary")
+	assertRequired(t, schema(t, document, "ReportEvidenceItem"), "evidence_id", "role", "display_order", "published_at", "summary", "keywords")
+
+	for _, path := range []string{
+		namespace + "/reports", namespace + "/reports/{report_id}/home",
+		namespace + "/reports/{report_id}/layers/{layer_key}",
+		namespace + "/reports/{report_id}/industry-chains",
+		namespace + "/reports/{report_id}/industry-chains/{chain_key}",
+		namespace + "/reports/{report_id}/evidences",
+	} {
+		operation := object(t, object(t, paths[path], path)["get"], "GET "+path)
+		assertInt(t, operation, "x-timeout-budget-ms", 5000)
+	}
+	evidenceOperation := object(t, object(t, paths[namespace+"/reports/{report_id}/evidences"], "Report Evidence path")["get"], "Report Evidence operation")
+	assertStringSet(t, evidenceOperation["x-error-codes"],
+		"INVALID_REQUEST", "REPORT_NOT_FOUND", "REPORT_EVIDENCE_SCOPE_NOT_FOUND", "REPORT_REPOSITORY_FAILURE", "DATA_SERVICE_NOT_READY",
+	)
 }
 
 func TestOpenAPIContractFreezesCompanyProjectionSnapshot(t *testing.T) {
@@ -307,20 +391,16 @@ func TestOpenAPIContractFreezesIndustryAndConceptKeysetPagination(t *testing.T) 
 func TestOpenAPICreateContractsDoNotAcceptSystemOwnedPrimaryKeys(t *testing.T) {
 	document := loadContract(t)
 	for schemaName, forbidden := range map[string][]string{
-		"CountryCreateRequest":                    {"id", "country_id"},
-		"IndustryCreateRequest":                   {"id", "industry_id"},
-		"ConceptWriteRequest":                     {"id", "concept_id"},
-		"ChainNodeWriteRequest":                   {"id", "chain_node_id"},
-		"IndustryChainWriteRequest":               {"id", "industry_chain_id"},
-		"CountryRegionsReplaceRequest":            {"id", "country_region_link_id"},
-		"OrganizationCreateRequest":               {"id", "organization_id"},
-		"OrganizationMemberWriteRequest":          {"id", "member_id"},
-		"RawEvidence":                             {"id", "raw_evidence_id"},
-		"AtomicEvidence":                          {"id", "evidence_id"},
-		"ResearchThemeImportRequest":              {"id", "receipt_id", "theme_id", "reasoning_tree_receipt_id"},
-		"ResearchThemeSnapshotItem":               {"id", "theme_id"},
-		"ResearchReasoningTreeSnapshotImportItem": {"id", "reasoning_tree_id"},
-		"ResearchReasoningTreeSnapshotNode":       {"id", "node_id"},
+		"CountryCreateRequest":           {"id", "country_id"},
+		"IndustryCreateRequest":          {"id", "industry_id"},
+		"ConceptWriteRequest":            {"id", "concept_id"},
+		"ChainNodeWriteRequest":          {"id", "chain_node_id"},
+		"IndustryChainWriteRequest":      {"id", "industry_chain_id"},
+		"CountryRegionsReplaceRequest":   {"id", "country_region_link_id"},
+		"OrganizationCreateRequest":      {"id", "organization_id"},
+		"OrganizationMemberWriteRequest": {"id", "member_id"},
+		"RawEvidence":                    {"id", "raw_evidence_id"},
+		"AtomicEvidence":                 {"id", "evidence_id"},
 	} {
 		properties := object(t, schema(t, document, schemaName)["properties"], schemaName+" properties")
 		for _, property := range forbidden {
@@ -452,75 +532,27 @@ func TestOpenAPIContractFreezesEvidenceSourceIDProjection(t *testing.T) {
 	)
 }
 
-func TestOpenAPIContractFreezesResearchReasoningTreeReadV1(t *testing.T) {
+func TestOpenAPIContractDoesNotPublishRetiredResearchThemeContracts(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
-	for _, legacy := range []string{namespace + "/research/anchors", namespace + "/research/anchors/{anchor_id}", namespace + "/research-anchor-imports"} {
-		if _, exists := paths[legacy]; exists {
-			t.Fatalf("legacy research Anchor path remains in OpenAPI: %s", legacy)
-		}
-	}
-
-	for _, path := range []string{
+	for _, retiredPath := range []string{
+		namespace + "/research-theme-imports",
+		namespace + "/research/themes",
+		namespace + "/research/themes/{theme_id}",
 		namespace + "/research/themes/{theme_id}/reasoning-trees",
 		namespace + "/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}",
 	} {
-		operation := object(t, object(t, paths[path], "path "+path)["get"], "GET "+path)
-		parameters := array(t, operation["parameters"], "reasoning tree operation parameters")
-		if len(parameters) != 1 || stringValue(t, object(t, parameters[0], "request ID parameter")["$ref"], "$ref") != "#/components/parameters/RequestID" {
-			t.Fatalf("GET %s must accept only X-Request-ID at operation level: %v", path, parameters)
-		}
-		responses := object(t, operation["responses"], "reasoning tree responses")
-		for _, status := range []string{"200", "400", "401", "403", "404", "500"} {
-			if _, exists := responses[status]; !exists {
-				t.Fatalf("GET %s missing response %s", path, status)
-			}
+		if _, exists := paths[retiredPath]; exists {
+			t.Fatalf("retired Research Theme path remains in OpenAPI: %s", retiredPath)
 		}
 	}
-
-	list := schema(t, document, "ResearchReasoningTreeList")
-	assertRequired(t, list, "theme", "reasoning_trees")
-	listProperties := object(t, list["properties"], "ResearchReasoningTreeList properties")
-	trees := object(t, listProperties["reasoning_trees"], "reasoning_trees")
-	assertString(t, object(t, trees["items"], "reasoning tree summary items"), "$ref", "#/components/schemas/ResearchReasoningTreeSummary")
-
-	tree := schema(t, document, "ResearchReasoningTree")
-	assertRequired(t, tree,
-		"tree_key", "display_name",
-		"reasoning_tree_id", "theme_id", "title",
-		"display_order", "one_line_conclusion", "fact_summary", "transmission_summary",
-		"impact_direction", "impact_strength", "impact_summary", "conclusion_boundary_summary",
-		"support_summary", "counter_summary", "invalidation_conditions", "checkpoints",
-		"published_at", "event_count", "events", "nodes",
-	)
-	node := schema(t, document, "ResearchReasoningTreeNode")
-	assertRequired(t, node,
-		"node_key", "display_name",
-		"id", "position", "state_summary", "impact_direction",
-		"impact_strength", "impact_summary", "reasoning_basis_summary", "evidence_gap_summary",
-		"incoming_transmission_title", "incoming_transmission_mechanism", "incoming_condition_summary",
-		"signals", "primary_signal", "signal_display_summary",
-	)
-	detail := schema(t, document, "ResearchReasoningTreeDetail")
-	assertRequired(t, detail, "theme_id", "theme_key", "publication_mode", "publication_contract_version", "impact_node_ids", "reasoning_tree")
-}
-
-func TestOpenAPIContractFreezesSnapshotOnlyResearchPublication(t *testing.T) {
-	document := loadContract(t)
-	snapshot := schema(t, document, "ResearchThemeImportRequest")
-	assertRequired(t, snapshot, "publication_mode", "analysis_batch_id", "analysis_as_of", "discovery_window_start", "discovery_window_end", "theme", "reasoning_trees")
-	impact := schema(t, document, "ResearchThemeSnapshotImpact")
-	assertRequired(t, impact, "node_key", "display_name", "relation_role", "impact_direction", "impact_summary", "display_order")
-	properties := object(t, impact["properties"], "snapshot impact properties")
-	if _, exists := properties["chain_node_id"]; exists {
-		t.Fatal("analyst_snapshot impact must not expose a formal Entity ID")
-	}
-	node := schema(t, document, "ResearchReasoningTreeSnapshotNode")
-	assertRequired(t, node, "node_key", "display_name", "position", "state_summary", "impact_direction", "impact_strength", "impact_summary", "reasoning_basis_summary", "evidence_gap_summary", "incoming_transmission", "signals")
-	signal := schema(t, document, "ResearchReasoningTreeSnapshotSignal")
-	assertRequired(t, signal, "signal_key", "display_summary", "role", "display_order", "variable_name", "direction")
-	if _, exists := object(t, signal["properties"], "snapshot signal properties")["variable_signal_id"]; exists {
-		t.Fatal("analyst_snapshot signal must not expose a formal VariableSignal ID")
+	schemas := object(t, object(t, document["components"], "components")["schemas"], "schemas")
+	for name := range schemas {
+		if strings.HasPrefix(name, "ResearchTheme") || strings.HasPrefix(name, "ResearchReasoningTree") ||
+			name == "ResearchSnapshotIncomingTransmission" || name == "ResearchDirection" ||
+			name == "ResearchLocalKey" || name == "ResearchImpactStrength" || name == "ResearchEvent" {
+			t.Fatalf("retired Research Theme schema remains in OpenAPI: %s", name)
+		}
 	}
 }
 
@@ -622,7 +654,6 @@ func TestOpenAPIContractFreezesBearerIdentityRequestIDAndStructuredErrors(t *tes
 func TestOpenAPIContractFreezesDTOFormatsEnumsAndSensitiveMetadataBoundary(t *testing.T) {
 	document := loadContract(t)
 	for _, name := range []string{
-		"ResearchThemeCollection", "ResearchThemeDetail", "ResearchReasoningTreeList", "ResearchReasoningTreeDetail",
 		"AdminEventPage", "ErrorEnvelope",
 	} {
 		contractSchema := schema(t, document, name)

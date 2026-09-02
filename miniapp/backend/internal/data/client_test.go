@@ -6,211 +6,89 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"github.com/meierlink88/tidewise-ai/miniapp/backend/internal/biz"
 )
 
-func TestHTTPClientListsResearchThemesWithIdentityAndRequestID(t *testing.T) {
+const testDataPath = DataAPIPrefix + "/test-resource"
+
+type testPayload struct {
+	Value string `json:"value"`
+}
+
+func TestHTTPClientAddsIdentityAndRequestID(t *testing.T) {
 	t.Parallel()
-	var gotAuthorization, gotRequestID, gotQuery string
+	var gotAuthorization, gotRequestID string
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		gotAuthorization = request.Header.Get("Authorization")
 		gotRequestID = request.Header.Get(RequestIDHeader)
-		gotQuery = request.URL.RawQuery
-		if request.URL.Path != ResearchThemesPath {
-			t.Fatalf("path = %q, want %q", request.URL.Path, ResearchThemesPath)
+		if request.Method != http.MethodGet || request.URL.Path != testDataPath {
+			t.Fatalf("request = %s %s", request.Method, request.URL.Path)
 		}
 		writer.Header().Set("Content-Type", "application/json")
-		_, _ = writer.Write([]byte(`{"request_id":"data-req-1","result":{"as_of":"2026-07-17T01:02:03Z","items":[{"id":"11111111-1111-5111-8111-111111111111","title":"theme","conclusion_direction":"positive","impact_strength":"medium","transmission_stage":"diffusion","investment_guidance_summary":"流动性改善后风险偏好可能回升","impacts":[{"node_key":"compute-infrastructure","display_name":"算力基础设施","relation_role":"driver","impact_direction":"positive","impact_summary":"资本开支上升","display_order":1}]}],"next_cursor":null}}`))
+		_, _ = writer.Write([]byte(`{"request_id":"data-req-1","result":{"value":"ok"}}`))
 	}))
 	defer server.Close()
 
 	client := newTestClient(t, server.URL, server.Client(), "miniapp-service-token")
-	page, err := client.ListResearchThemes(WithRequestID(context.Background(), "req-123"), biz.ResearchListQuery{WindowHours: 24, Limit: 20, Cursor: "cursor value"})
+	var envelope responseEnvelope[testPayload]
+	err := client.doJSON(WithRequestID(context.Background(), "req-123"), http.MethodGet, testDataPath, nil, &envelope)
+	value, err := unwrapEnvelope(envelope, err)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotAuthorization != "Bearer miniapp-service-token" || gotRequestID != "req-123" {
-		t.Fatalf("auth/request ID = %q/%q", gotAuthorization, gotRequestID)
-	}
-	for _, fragment := range []string{"window_hours=24", "limit=20", "cursor=cursor+value"} {
-		if !strings.Contains(gotQuery, fragment) {
-			t.Fatalf("query = %q, want %q", gotQuery, fragment)
-		}
-	}
-	if len(page.Items) != 1 || page.Items[0].Title != "theme" || page.Items[0].ImpactStrength != "medium" || page.Items[0].TransmissionStage != "diffusion" || page.Items[0].InvestmentGuidanceSummary != "流动性改善后风险偏好可能回升" || !page.AsOf.Equal(time.Date(2026, 7, 17, 1, 2, 3, 0, time.UTC)) {
-		t.Fatalf("page = %#v", page)
-	}
-	if len(page.Items[0].Impacts) != 1 || *page.Items[0].Impacts[0].ImpactSummary != "资本开支上升" {
-		t.Fatalf("theme impacts = %#v", page.Items[0].Impacts)
-	}
-}
-
-func TestHTTPClientEscapesResearchDetailID(t *testing.T) {
-	t.Parallel()
-	var gotPath, gotQuery, gotRequestID string
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		gotPath, gotQuery, gotRequestID = request.URL.EscapedPath(), request.URL.RawQuery, request.Header.Get(RequestIDHeader)
-		_, _ = writer.Write([]byte(`{"request_id":"data-req-2","result":{"theme":{"id":"theme/id","title":"detail"},"events":[]}}`))
-	}))
-	defer server.Close()
-	client := newTestClient(t, server.URL, server.Client(), "token")
-
-	result, err := client.GetResearchTheme(context.Background(), "theme/id")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if gotPath != ResearchThemesPath+"/theme%2Fid" || gotQuery != "" || gotRequestID == "" || result.Theme.Title != "detail" {
-		t.Fatalf("path/query/request ID/result = %q/%q/%q/%#v", gotPath, gotQuery, gotRequestID, result)
-	}
-}
-
-func TestResearchListPathForwardsExplicitPublicationRange(t *testing.T) {
-	publishedFrom := time.Date(2026, 7, 4, 16, 0, 0, 0, time.UTC)
-	publishedTo := time.Date(2026, 8, 3, 16, 0, 0, 0, time.UTC)
-	path := researchListPath(ResearchThemesPath, biz.ResearchListQuery{
-		PublishedFrom: &publishedFrom, PublishedTo: &publishedTo, Limit: 5, Cursor: "data-cursor",
-	})
-	parsed, err := url.Parse(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	query := parsed.Query()
-	if query.Get("published_from") != "2026-07-04T16:00:00Z" || query.Get("published_to") != "2026-08-03T16:00:00Z" || query.Get("limit") != "5" || query.Get("cursor") != "data-cursor" || query.Has("window_hours") {
-		t.Fatalf("query = %q", parsed.RawQuery)
-	}
-}
-
-func TestHTTPClientReadsResearchReasoningTreeList(t *testing.T) {
-	t.Parallel()
-	var gotAuthorization, gotRequestID, gotPath, gotQuery string
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		gotAuthorization = request.Header.Get("Authorization")
-		gotRequestID = request.Header.Get(RequestIDHeader)
-		gotPath = request.URL.EscapedPath()
-		gotQuery = request.URL.RawQuery
-		writer.Header().Set("Content-Type", "application/json")
-		if _, err := writer.Write([]byte(`{"request_id":"data-req-reasoning-list","result":{"theme":{"id":"c26337f2-a79f-5089-84f4-63d57bc32230"},"reasoning_trees":[{"display_name":"高速光模块产业链"},{}]}}`)); err != nil {
-			t.Errorf("write reasoning tree list response: %v", err)
-		}
-	}))
-	defer server.Close()
-
-	client := newTestClient(t, server.URL, server.Client(), "miniapp-service-token")
-	result, err := client.ListResearchThemeReasoningTrees(WithRequestID(context.Background(), "req-reasoning-list"), "theme/id")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if gotPath != ResearchThemesPath+"/theme%2Fid/reasoning-trees" || gotQuery != "" {
-		t.Fatalf("path/query = %q/%q", gotPath, gotQuery)
-	}
-	if gotAuthorization != "Bearer miniapp-service-token" || gotRequestID != "req-reasoning-list" {
-		t.Fatalf("auth/request ID = %q/%q", gotAuthorization, gotRequestID)
-	}
-	if result.Theme.ID != "c26337f2-a79f-5089-84f4-63d57bc32230" || len(result.ReasoningTrees) != 2 || result.ReasoningTrees[0].DisplayName != "高速光模块产业链" {
-		t.Fatalf("result = %#v", result)
-	}
-}
-
-func TestHTTPClientReadsResearchReasoningTreeDetail(t *testing.T) {
-	t.Parallel()
-	var gotPath, gotQuery string
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		gotPath = request.URL.EscapedPath()
-		gotQuery = request.URL.RawQuery
-		writer.Header().Set("Content-Type", "application/json")
-		if _, err := writer.Write([]byte(`{"request_id":"data-req-reasoning-detail","result":{"theme_id":"c26337f2-a79f-5089-84f4-63d57bc32230","reasoning_tree":{"event_count":2,"events":[{}, {"evidence_role":"contradicting"}],"nodes":[{}, {}, {"primary_signal":{"signal_key":"dsp-demand"}}]}}}`)); err != nil {
-			t.Errorf("write reasoning tree detail response: %v", err)
-		}
-	}))
-	defer server.Close()
-
-	client := newTestClient(t, server.URL, server.Client(), "miniapp-service-token")
-	result, err := client.GetResearchThemeReasoningTree(context.Background(), "theme/id", "tree/id")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if gotPath != ResearchThemesPath+"/theme%2Fid/reasoning-trees/tree%2Fid" || gotQuery != "" {
-		t.Fatalf("path/query = %q/%q", gotPath, gotQuery)
-	}
-	if result.ThemeID != "c26337f2-a79f-5089-84f4-63d57bc32230" || result.ReasoningTree.EventCount != 2 || result.ReasoningTree.Events[1].EvidenceRole != "contradicting" || result.ReasoningTree.Nodes[2].PrimarySignal.SignalKey != "dsp-demand" {
-		t.Fatalf("result = %#v", result)
-	}
-}
-
-func TestHTTPClientPreservesReasoningTreesNotFound(t *testing.T) {
-	t.Parallel()
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		writer.Header().Set("Content-Type", "application/json")
-		writer.WriteHeader(http.StatusNotFound)
-		if _, err := writer.Write([]byte(`{"request_id":"data-req-reasoning-not-found","error":{"code":"RESEARCH_REASONING_TREES_NOT_FOUND","message":"research Theme has no published reasoning trees","details":{}}}`)); err != nil {
-			t.Errorf("write reasoning tree not-found response: %v", err)
-		}
-	}))
-	defer server.Close()
-
-	client := newTestClient(t, server.URL, server.Client(), "miniapp-service-token")
-	_, err := client.ListResearchThemeReasoningTrees(context.Background(), "dddddddd-dddd-4ddd-8ddd-dddddddddddd")
-	if !errors.Is(err, biz.ErrResearchReasoningTreesNotFound) {
-		t.Fatalf("error = %#v, want stable Biz not-found error", err)
+	if gotAuthorization != "Bearer miniapp-service-token" || gotRequestID != "req-123" || value.Value != "ok" {
+		t.Fatalf("auth/request ID/value = %q/%q/%q", gotAuthorization, gotRequestID, value.Value)
 	}
 }
 
 func TestHTTPClientRejectsMalformedSuccessEnvelope(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		_, _ = writer.Write([]byte(`{"items":[]}`))
+		_, _ = writer.Write([]byte(`{"value":"missing-envelope"}`))
 	}))
 	defer server.Close()
 	client := newTestClient(t, server.URL, server.Client(), "token")
 
-	var envelope responseEnvelope[wireResearchThemePage]
-	err := client.doJSON(context.Background(), http.MethodGet, ResearchThemesPath, nil, &envelope)
+	var envelope responseEnvelope[testPayload]
+	err := client.doJSON(context.Background(), http.MethodGet, testDataPath, nil, &envelope)
 	_, err = unwrapEnvelope(envelope, err)
 	assertErrorKind(t, err, ErrorKindDecode)
-
-	_, err = client.ListResearchThemes(context.Background(), biz.ResearchListQuery{})
-	if !errors.Is(err, biz.ErrResearchDataService) {
-		t.Fatalf("public repository error = %v, want stable Biz data-service error", err)
-	}
 }
 
 func TestHTTPClientRetriesOnlySafeRetryableReads(t *testing.T) {
 	t.Parallel()
-	var readAttempts atomic.Int32
+	var attempts atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.Method == http.MethodGet {
-			if readAttempts.Add(1) == 1 {
+			if attempts.Add(1) == 1 {
 				writer.WriteHeader(http.StatusServiceUnavailable)
 				return
 			}
-			_, _ = writer.Write([]byte(`{"request_id":"data-req-3","result":{"items":[]}}`))
+			writer.WriteHeader(http.StatusOK)
 			return
 		}
-		readAttempts.Add(1)
+		attempts.Add(1)
 		writer.WriteHeader(http.StatusServiceUnavailable)
 	}))
 	defer server.Close()
 	client := newTestClient(t, server.URL, server.Client(), "token")
 
-	if _, err := client.ListResearchThemes(context.Background(), biz.ResearchListQuery{}); err != nil {
+	if err := client.doJSON(context.Background(), http.MethodGet, testDataPath, nil, nil); err != nil {
 		t.Fatalf("safe read error = %v", err)
 	}
-	if got := readAttempts.Load(); got != 2 {
+	if got := attempts.Load(); got != 2 {
 		t.Fatalf("safe read attempts = %d, want 2", got)
 	}
 
-	readAttempts.Store(0)
-	err := client.doJSON(context.Background(), http.MethodPost, ResearchThemesPath, map[string]string{"value": "mutation"}, nil)
+	attempts.Store(0)
+	err := client.doJSON(context.Background(), http.MethodPost, testDataPath, map[string]string{"value": "mutation"}, nil)
 	if err == nil {
 		t.Fatal("mutation error = nil")
 	}
-	if got := readAttempts.Load(); got != 1 {
+	if got := attempts.Load(); got != 1 {
 		t.Fatalf("mutation attempts = %d, want 1", got)
 	}
 }
@@ -238,7 +116,7 @@ func TestHTTPClientClassifiesHTTPFailuresWithoutLeakingSecrets(t *testing.T) {
 			defer server.Close()
 			client := newTestClient(t, server.URL, server.Client(), "secret-service-token")
 
-			err := client.doJSON(context.Background(), http.MethodGet, ResearchThemesPath+"/11111111-1111-5111-8111-111111111111", nil, nil)
+			err := client.doJSON(context.Background(), http.MethodGet, testDataPath, nil, nil)
 			var clientErr *Error
 			if !errors.As(err, &clientErr) || clientErr.Kind != test.kind || clientErr.StatusCode != test.status || clientErr.Code != "UPSTREAM_CODE" || clientErr.RequestID != "response-request-id" {
 				t.Fatalf("error = %#v", err)
@@ -264,7 +142,7 @@ func TestHTTPClientClassifiesConnectionFailureAndDeadline(t *testing.T) {
 		connectionAttempts.Add(1)
 		return nil, fmt.Errorf("dial failed with secret-service-token")
 	})}, "secret-service-token")
-	err := connectionClient.doJSON(context.Background(), http.MethodGet, ResearchThemesPath, nil, nil)
+	err := connectionClient.doJSON(context.Background(), http.MethodGet, testDataPath, nil, nil)
 	assertErrorKind(t, err, ErrorKindConnection)
 	if connectionAttempts.Load() != 2 || strings.Contains(err.Error(), "secret-service-token") {
 		t.Fatalf("connection attempts/error = %d/%q", connectionAttempts.Load(), err)
@@ -283,13 +161,13 @@ func TestHTTPClientClassifiesConnectionFailureAndDeadline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = timeoutClient.doJSON(context.Background(), http.MethodGet, ResearchThemesPath, nil, nil)
+	err = timeoutClient.doJSON(context.Background(), http.MethodGet, testDataPath, nil, nil)
 	assertErrorKind(t, err, ErrorKindTimeout)
 
 	transportTimeoutClient := newTestClient(t, "http://data.invalid", &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("transport secret: %w", context.DeadlineExceeded)
 	})}, "token")
-	err = transportTimeoutClient.doJSON(context.Background(), http.MethodGet, ResearchThemesPath, nil, nil)
+	err = transportTimeoutClient.doJSON(context.Background(), http.MethodGet, testDataPath, nil, nil)
 	assertErrorKind(t, err, ErrorKindTimeout)
 	if strings.Contains(err.Error(), "transport secret") {
 		t.Fatalf("unsafe timeout error = %q", err)

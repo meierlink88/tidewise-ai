@@ -2,13 +2,12 @@ import { defineConfig } from '@tarojs/cli';
 import path from 'node:path';
 
 const buildTarget = process.env.TARO_ENV ?? 'weapp';
-const researchSource = process.env.TARO_APP_RESEARCH_SOURCE;
+const reportSource = process.env.TARO_APP_REPORT_SOURCE;
 const miniappApiBaseUrl = process.env.TARO_APP_MINIAPP_API_BASE_URL ?? '';
 const h5ApiProxyTarget = process.env.TARO_APP_H5_API_PROXY_TARGET ?? 'http://127.0.0.1:9012';
-const fixedPixelSelectorBlackList = ['reasoning-'];
 
-if (researchSource !== 'mock' && researchSource !== 'api') {
-  throw new Error('TARO_APP_RESEARCH_SOURCE must explicitly be mock or api');
+if (reportSource !== 'mock' && reportSource !== 'api') {
+  throw new Error('TARO_APP_REPORT_SOURCE must explicitly be mock or api');
 }
 
 const config = defineConfig({
@@ -26,7 +25,7 @@ const config = defineConfig({
     '@': path.resolve(__dirname, '..', 'src')
   },
   env: {
-    TARO_APP_RESEARCH_SOURCE: JSON.stringify(researchSource),
+    TARO_APP_REPORT_SOURCE: JSON.stringify(reportSource),
     TARO_APP_MINIAPP_API_BASE_URL: JSON.stringify(miniappApiBaseUrl)
   },
   plugins: [
@@ -44,10 +43,7 @@ const config = defineConfig({
   mini: {
     postcss: {
       pxtransform: {
-        enable: true,
-        config: {
-          selectorBlackList: fixedPixelSelectorBlackList
-        }
+        enable: true
       },
       cssModules: {
         enable: false,
@@ -61,10 +57,7 @@ const config = defineConfig({
   h5: {
     postcss: {
       pxtransform: {
-        enable: true,
-        config: {
-          selectorBlackList: fixedPixelSelectorBlackList
-        }
+        enable: true
       }
     },
     webpack: {

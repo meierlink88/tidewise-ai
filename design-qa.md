@@ -1,0 +1,239 @@
+# Report Miniapp Homepage Design QA
+
+## QA scope
+
+- Scope is limited to the existing Miniapp homepage shell and the Report content below `今日观潮`.
+- The existing avatar, `观潮家` title, search field, and send action are retained; their Taro component and style implementation was not replaced by prototype code.
+- Detail pages are outside this acceptance pass. The homepage `看传导` action is checked only as a navigation boundary.
+
+## QA setup
+
+- Reference URL: `http://127.0.0.1:4174/?variant=A`
+- Implementation URL: `http://127.0.0.1:4175/?qa=deliverable-2130#/pages/index/index`
+- Viewport: 393 x 852 CSS pixels; implementation DPR 2.
+- State: the Report mock port contains the exact homepage projection of `investment-reasoning-report-2026-09-01-transmission-hypotheses.md` for visual QA.
+- Data boundary: this is not a production data-chain acceptance. Migration `000079_add_report_publications.sql` exists in source, but the runtime PostgreSQL database has not yet been migrated and populated with this report.
+
+### 2026-09-02 fixed-header spacing regression pass
+
+- Source visual truth: `/Users/meierlink/.codex/visualizations/2026/09/01/01a05c0f-87f2-7a23-abb0-f508ae72afee/tidewise-report-homepage-rework/prototype-home-final-reference.png`.
+- User-reported before state: `/Users/meierlink/.codex/visualizations/2026/09/02/report-home-spacing/before-home-spacing.png`.
+- Revised implementation: `/Users/meierlink/.codex/visualizations/2026/09/02/report-home-spacing/after-home-spacing.png`.
+- Implementation screenshot: 515 x 853 pixels, 515 x 853 CSS viewport, DPR 2; the browser capture is CSS-pixel normalized.
+- State: homepage at the top, fixed application header visible, Report mock ready.
+- Focused comparison: the title/header boundary was reviewed together with the archived reference and the revised implementation. No additional focused region was required because this pass changes only that boundary.
+
+## Same-input visual comparisons
+
+The reference and implementation were captured in the same in-app Browser session, emitted together, and reviewed at the same viewport and scroll state.
+
+| Surface               | Reference                                                                                                                                                             | Taro implementation                                                                                                                                              | Result |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| Homepage first screen | `/Users/meierlink/.codex/visualizations/2026/09/01/01a05c0f-87f2-7a23-abb0-f508ae72afee/tidewise-report-homepage-rework/prototype-home-final-reference.png`           | `/Users/meierlink/.codex/visualizations/2026/09/01/01a05c0f-87f2-7a23-abb0-f508ae72afee/tidewise-report-homepage-rework/implementation-home-final.png`           | passed |
+| Industry-chain cards  | `/Users/meierlink/.codex/visualizations/2026/09/01/01a05c0f-87f2-7a23-abb0-f508ae72afee/tidewise-report-homepage-rework/prototype-industry-final-reference.png`       | `/Users/meierlink/.codex/visualizations/2026/09/01/01a05c0f-87f2-7a23-abb0-f508ae72afee/tidewise-report-homepage-rework/implementation-industry-final.png`       | passed |
+| Card Evidence sheet   | `/Users/meierlink/.codex/visualizations/2026/09/01/01a05c0f-87f2-7a23-abb0-f508ae72afee/tidewise-report-homepage-rework/prototype-evidence-sheet-final-reference.png` | `/Users/meierlink/.codex/visualizations/2026/09/01/01a05c0f-87f2-7a23-abb0-f508ae72afee/tidewise-report-homepage-rework/implementation-evidence-sheet-final.png` | passed |
+
+## Visual review
+
+- The report group uses one compact publication row and does not expose the report title.
+- Geopolitics and macroeconomics headings sit outside their conclusion cards.
+- Each card begins with the one-sentence conclusion, then renders one anchor or node per full-width row.
+- Result, confidence, and time window stay right-aligned on the same row. Only the result uses a semantic color pill; confidence and time remain neutral inline signals.
+- The industry section shows `54 条真实产业链 · 首页展示 4 条`, a green chain accent, the chain identity row, and four chain cards.
+- The card footer contains one `依据` action and one `看传导` action at card level. No Evidence control appears inside an anchor or node row.
+- Local SVG assets are rendered through Taro `Image`; no prototype HTML, inline SVG, CSS drawing, emoji, or text-symbol icon was copied into the Miniapp.
+- The fixed header ends before the `今日观潮` content block. The content keeps the prototype's `34rpx` top inset, equal to 17 CSS pixels at the 375px design width, instead of retaining the obsolete `-40rpx` overlap.
+
+## Content and interaction review
+
+- Homepage impact rows: 21 total (`2 + 2 + 5 + 5 + 5 + 2`).
+- Card Evidence actions: 6 total. Anchor/node Evidence actions: 0.
+- Whole-card navigation roles: 0. Dedicated `看传导` actions: 6.
+- Opening `依据` keeps the homepage URL unchanged and draws a content-sized Taro bottom sheet from the bottom, capped at 76vh.
+- The sheet loads the selected persisted Evidence scope through `ReportPort`, and exposes only publication time, summary, and keywords; it does not show Event, Evidence ID, source metadata, or counts.
+- `看传导` navigates to the expected report detail route with `reportId`, `targetType`, and `targetKey`.
+- The card projection has an automated field-level difference count of 0 against the prototype report-data JSON. The six card Evidence lists also use the same referenced objects and order; geopolitics renders all five persisted objects.
+
+## Taro implementation review
+
+- Page and sheet UI use `@tarojs/components` (`View`, `Text`, `Image`, `Button`, and `ScrollView`) and Taro navigation/platform APIs.
+- The implementation remains in the existing page/component/module structure; the standalone React/Vite prototype implementation was not copied.
+- New report colors and shadows are declared in `src/styles/tokens.scss`; page styles consume those tokens instead of scattering a second palette.
+- The fixed-header spacer keeps its static `rpx` height in the page stylesheet and applies the status/navigation-bar height as a separate platform-pixel padding. This avoids an invalid runtime `px + rpx` expression and keeps the static geometry in one named style value.
+- H5, WeChat Mini Program, and Douyin Mini Program builds complete. WeChat and Douyin output verification scripts pass.
+- Frontend tests, TypeScript type checking, and ESLint pass.
+- Runtime layout and console checks in this pass cover H5. WeChat and Douyin runtime spacing remain target-platform acceptance items; their successful builds are not treated as visual proof.
+
+## Spacing comparison history
+
+- Earlier P2: `margin-top: -40rpx` cancelled the heading's `34rpx` top padding after the header became fixed, leaving the title visually attached to the header. The H5 runtime also discarded the mixed-unit dynamic spacer, which could place content underneath the fixed header.
+- Fix: removed the obsolete negative content margin and separated the spacer's stylesheet `rpx` height from its platform-pixel safe-area padding.
+- Post-fix evidence: the current H5 viewport reports `position: fixed`, `margin-top: 0`, a valid spacer height, and no console warning/error. The revised screenshot restores a clear title boundary without changing typography, colors, assets, copy, cards, or interactions.
+
+## Intentional source-of-truth differences
+
+- The product heading is `今日观潮`, following the user's latest explicit product copy decision.
+- The implementation displays Data Service `published_at` (`2026.09.01 12:45`) as the publication fact. It does not substitute the report-generation time (`12:39`).
+- The original Miniapp shell is retained exactly as requested instead of adopting the standalone prototype's simulated device shell.
+
+No actionable homepage P0, P1, or P2 issue remains in the H5 mock-data acceptance pass. WeChat and Douyin runtime visual acceptance remain pending.
+
+final result: H5 passed; WeChat/Douyin runtime visual acceptance pending
+
+---
+
+# Report detail visual QA
+
+## Visual truth
+
+- Layer heading: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-5bdd0116-3309-4a50-bc6e-d431c155b7a7.png`
+- Downward transmission: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-5d7c78e7-d844-4293-b71a-f680e9182e4b.png`
+- Chain boundaries: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-8b56a932-b0b1-42ad-9ffd-1aaf4b6326b9.png`
+
+## Implementation state
+
+- Preview: `http://127.0.0.1:4175/?qa=detail-54#/pages/report/detail/index?reportId=RPT11111111-1111-4111-8111-111111111111&targetType=layer&targetKey=geopolitics`
+- Browser: Codex in-app browser
+- Viewport: 758 x 1100 CSS px
+- Data source: approved report prototype snapshot, 54 industry chains
+- Detail navigation check: the final row `chn-54` opens the wind-power chain detail.
+
+## Combined comparisons
+
+- Header: `/Users/meierlink/.codex/visualizations/2026/09/02/report-detail-qa/compare-header.png`
+- Transmission cards: `/Users/meierlink/.codex/visualizations/2026/09/02/report-detail-qa/compare-transmission.png`
+- Chain boundaries: `/Users/meierlink/.codex/visualizations/2026/09/02/report-detail-qa/compare-boundaries.png`
+
+## Findings and iterations
+
+1. The identity row inherited `space-between`, pushing the layer title toward the evidence button. The identity row now explicitly uses `justify-content: flex-start`.
+2. Published transmission paths and candidate mechanisms lacked the leading link asset. Both headings now render the same Radix `Link2Icon` asset.
+3. The mock port exposed only four manually authored chain details. A generated typed fixture now exposes all 54 report chains to the related-chain list and detail route, while the home showcase remains limited to the approved four cards.
+4. The chain gap and stop-condition blocks lacked semantic assets and used mismatched colors. They now use Radix info/warning assets with the neutral and amber prototype treatments.
+
+## Final result
+
+Passed for the four requested discrepancies: heading alignment, transmission link icons, full 54-chain list/detail loading, and chain boundary icons.
+
+---
+
+# Industry-chain detail metric and node QA
+
+## Visual truth
+
+- Summary metrics: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-ccad2f2b-d0fb-4317-a618-8e28b1f6c9f0.png`
+- Direct-evidence nodes: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-fc92f3af-d453-4163-8f26-d9feb8d8244c.png`
+- Direct/hypothesis comparison: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-e3bc1727-b20a-4ed0-842e-e35bd8bd0c48.png`
+
+## Implementation state
+
+- Preview: `http://127.0.0.1:4175/?qa=chain-node-style-before#/pages/report/detail/index?reportId=RPT11111111-1111-4111-8111-111111111111&targetType=industry_chain&targetKey=chn-01`
+- Browser: Codex in-app browser
+- Viewport: 724 x 1100 CSS px
+- Data source: approved Report mock snapshot
+
+## Combined comparisons
+
+- Summary and metric pills: `/Users/meierlink/.codex/visualizations/2026/09/02/report-chain-detail-qa/compare-summary.png`
+- Direct-evidence node cards: `/Users/meierlink/.codex/visualizations/2026/09/02/report-chain-detail-qa/compare-direct-node.png`
+- Reasoning-hypothesis node card: `/Users/meierlink/.codex/visualizations/2026/09/02/report-chain-detail-qa/compare-hypothesis-node.png`
+
+## Findings and iterations
+
+1. The chain result, time window, and confidence were presented as a segmented grid. They now render as three independent compact pill cards with their existing semantic icons and values.
+2. Node result, confidence, and time remain grouped as factual signals while the nature label has a dedicated bottom-centered position.
+3. `direct_evidence` uses a blue nature chip, `reasoning_hypothesis` uses an amber nature chip, and `pending_validation` retains a neutral treatment. The visible text remains present, so the distinction does not depend on color alone.
+4. Node width and minimum height were increased to prevent long names and delayed-window copy from crowding the centered nature label.
+
+final result: passed
+
+---
+
+# Layer-anchor nature and homepage inner-scroll QA
+
+## Visual truth and acceptance rule
+
+- Missing nature-label capture: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-465d8fdc-37a3-40af-93a9-c66b3a337bad.png` (782 x 390 px).
+- The user's semantic rule is authoritative: geopolitics and macroeconomics anchors show the same nature label as industry-chain nodes; `direct_evidence` is blue and `reasoning_hypothesis` is amber. Only direct-evidence anchors expose `依据`.
+- The user's homepage behavior rule is authoritative: the original fixed application header, `今日观潮`, and the selected Report publication frame stay fixed; only the selected Report's cards scroll vertically.
+
+## Implementation evidence
+
+- Homepage preview: `http://127.0.0.1:4175/?qa=home-inner-scroll-final#/pages/index/index`.
+- Detail preview: `http://127.0.0.1:4175/?qa=anchor-nature-final#/pages/report/detail/index?reportId=RPT11111111-1111-4111-8111-111111111111&targetType=layer&targetKey=geopolitics`.
+- Browser: Codex in-app browser. Homepage viewport/capture: 515 x 853 CSS-normalized px; detail viewport/capture: 679 x 863 CSS-normalized px; DPR 2.
+- Homepage same-input initial/scrolled comparison: `/Users/meierlink/.codex/visualizations/2026/09/02/home-inner-scroll-qa/compare-home-fixed-scroll.png`.
+- Anchor same-input before/after comparison: `/Users/meierlink/.codex/visualizations/2026/09/02/report-anchor-nature-qa/compare-anchor-nature.png`.
+- Final full-view captures: `home-initial-fixed.png` and `home-scrolled.png` in `/Users/meierlink/.codex/visualizations/2026/09/02/home-inner-scroll-qa/`; `after-geopolitics-anchor-final.png` in `/Users/meierlink/.codex/visualizations/2026/09/02/report-anchor-nature-qa/`.
+
+## Findings and iteration history
+
+1. P1: layer-anchor cards omitted the persisted nature even though industry-chain cards already rendered it correctly. `ReportImpactSignals` now receives the anchor nature, reusing the approved blue direct-evidence and amber reasoning-hypothesis chips.
+2. P1: the first internal-scroll attempt left the publication row inside the enhanced ScrollView. H5 runtime testing showed it moved from `top: 209.5` to `top: -550.5` after scrolling, so the sticky assumption was rejected.
+3. Fix: the publication frame is now a sibling above the vertical Taro ScrollView. After an internal scroll of 760 CSS px, the page remains at `window.scrollY = 0`, `今日观潮` remains at `top: 202.7`, and the publication frame remains at `top: 263.1`; the ScrollView alone reports `scrollTop = 760`.
+4. The publication frame also acts as a Report selector when the API returns multiple reports. Selecting another publication replaces the scroll body's active Report instead of mounting several full reports in one long page.
+5. The existing ScrollView refresher remains wired to the Report resource refresh path. Focused tests invoke `onRefresherRefresh` and verify the refresh callback.
+6. Current mock layer anchors are direct Evidence, so browser QA shows four blue labels and four `依据` actions across the visible geopolitics/macroeconomics continuation. A focused component test supplies a reasoning-hypothesis anchor and verifies the amber label plus zero `依据` action.
+7. Console warnings/errors: none in the final homepage and detail browser states.
+
+## Required fidelity surfaces
+
+- Typography: existing homepage and detail hierarchies, weights, line heights, and wrapping remain unchanged; only the missing nature text is added.
+- Spacing/layout: `今日观潮` and publication frame occupy fixed flex rows; the card list receives the remaining fixed height and scrolls internally without document movement.
+- Colors/tokens: nature labels reuse the existing project blue and amber semantic tokens; the publication frame reuses existing card, border, and shadow tokens.
+- Image/icon quality: publication clock and existing report icons remain local SVG assets rendered through Taro `Image`; no prototype asset implementation was copied.
+- Copy/content: Report snapshot fields and card order are unchanged. Nature labels expose the stored semantic classification and do not infer a different Evidence status in the UI.
+
+No actionable P0, P1, or P2 difference remains for the requested anchor-nature labels or homepage fixed publication-frame behavior.
+
+final result: passed
+
+---
+
+# Detail Evidence-entry deduplication QA
+
+## Visual truth and acceptance rule
+
+- Layer-card problem capture: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-29b8e51c-00ce-4c70-9494-208188645459.png` (758 x 426 px).
+- Industry hypothesis problem capture: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-8da972d7-cf53-4c3f-ac5d-a3040c234e16.png` (790 x 534 px).
+- The captures document the rejected duplicated state. The user's explicit acceptance rule is the source of truth: one top-right `依据` action replaces `直接证据`; the bottom-left duplicate is removed; inference and pending-validation nodes expose no Evidence action.
+
+## Implementation evidence
+
+- Preview: `http://127.0.0.1:4175/?qa=evidence-entry-final#/pages/report/detail/index?reportId=RPT11111111-1111-4111-8111-111111111111&targetType=layer&targetKey=macroeconomics`
+- Browser: Codex in-app browser; 679 x 863 CSS px, DPR 2. Browser screenshots are CSS-pixel normalized to 679 x 863 px.
+- State: approved Report mock snapshot; direct Evidence layer anchors, a direct Evidence chain node, and a reasoning-hypothesis chain node were each checked.
+- Full-view screenshots: `after-geopolitics.png`, `after-macroeconomics.png`, `after-direct-node.png`, `after-hypothesis-card.png`, and `after-evidence-sheet.png` in `/Users/meierlink/.codex/visualizations/2026/09/02/report-detail-evidence-entry-qa/`.
+- Focused same-input comparisons:
+  - `/Users/meierlink/.codex/visualizations/2026/09/02/report-detail-evidence-entry-qa/compare-layer-evidence-entry.png`
+  - `/Users/meierlink/.codex/visualizations/2026/09/02/report-detail-evidence-entry-qa/compare-hypothesis-evidence-entry.png`
+- Primary interaction: the single macro-anchor `依据` action opens the existing Evidence bottom sheet with summary and keywords; closing it restores the detail card.
+- Console warnings/errors: none in the final browser state.
+
+## Findings and iteration history
+
+1. P1: direct-evidence layer anchors and chain nodes rendered two actions for one Evidence sheet. The top-right label was `直接证据` while the bottom-left label was `依据`. The bottom action was removed and the remaining top-right action was renamed `依据`.
+2. P1: chain nodes were gated only by `hasEvidence`. A reasoning hypothesis that cited upstream Evidence therefore incorrectly exposed an Evidence action. Rendering now requires both `hasEvidence` and `nature.code === 'direct_evidence'`; the hypothesis state instead shows `暂无直接证据，待后续验证`.
+3. P2: the generated mock projected any non-empty Evidence reference list as direct Evidence availability. The generator and mock port now project `hasEvidence` only for `direct_evidence` nodes. The UI retains the nature gate so a real API response cannot reintroduce the same semantic error.
+4. Post-fix DOM checks: geopolitics and macroeconomics direct anchors each expose exactly one `依据` action and no legacy `直接证据` action; a direct industry node exposes one `依据`; a reasoning-hypothesis node exposes zero Evidence actions.
+
+## Required fidelity surfaces
+
+- Typography: existing card hierarchy, weight, line height, wrapping, and copy styling are unchanged except for the required action label and no-direct-evidence note.
+- Spacing/layout: moving to one top-right action removes the duplicate lower affordance without creating an empty footer row; card padding and dividers remain aligned.
+- Colors/tokens: the existing blue outline Evidence action and neutral no-direct-evidence copy reuse project tokens; no new palette was introduced.
+- Image/icon quality: the redundant document icon disappeared with the lower duplicate action. Existing project icon assets remain unchanged; no custom replacement asset was introduced.
+- Copy/content: direct nodes say `依据`; hypotheses do not claim direct Evidence and clearly state that later validation is required.
+
+No actionable P0, P1, or P2 difference remains for the requested Evidence-entry behavior and visible states.
+
+final result: passed
+
+---
+
+# Latest combined acceptance status
+
+- Layer-anchor nature labels and homepage inner-scroll behavior use the evidence, comparisons, runtime measurements, and five-surface review recorded in `Layer-anchor nature and homepage inner-scroll QA` above.
+- The final H5 browser state has no actionable P0, P1, or P2 difference for this request and no console warning or error.
+
+final result: passed

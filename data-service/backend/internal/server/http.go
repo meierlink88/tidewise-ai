@@ -25,6 +25,7 @@ import (
 	organizationapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/organization"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
+	reportapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/report"
 	researchapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/research"
 	runtimehealthapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/runtimehealth"
 	sourceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/source"
@@ -40,7 +41,7 @@ type healthResponse struct {
 	Checks      map[string]string `json:"checks,omitempty"`
 }
 
-func NewHTTPServer(config conf.Config, runtimeHealthApplication runtimehealthapi.Service, researchApplication researchapi.Service, eventApplication eventapi.Service, evidenceApplication evidenceapi.Service, countryApplication countryapi.Service, industryApplication industryapi.Service, conceptApplication conceptapi.Service, chainNodeApplication chainnodeapi.Service, industryChainApplication industrychainapi.Service, organizationApplication organizationapi.Service, sourceApplication sourceapi.Service, companyApplication companyapi.Service, authenticator *Authenticator, logger *slog.Logger) (*kratoshttp.Server, error) {
+func NewHTTPServer(config conf.Config, runtimeHealthApplication runtimehealthapi.Service, researchApplication researchapi.Service, eventApplication eventapi.Service, evidenceApplication evidenceapi.Service, countryApplication countryapi.Service, industryApplication industryapi.Service, conceptApplication conceptapi.Service, chainNodeApplication chainnodeapi.Service, industryChainApplication industrychainapi.Service, organizationApplication organizationapi.Service, sourceApplication sourceapi.Service, companyApplication companyapi.Service, reportApplication reportapi.Service, authenticator *Authenticator, logger *slog.Logger) (*kratoshttp.Server, error) {
 	if runtimeHealthApplication == nil {
 		return nil, errors.New("Runtime Health API service is required")
 	}
@@ -77,6 +78,9 @@ func NewHTTPServer(config conf.Config, runtimeHealthApplication runtimehealthapi
 	if companyApplication == nil {
 		return nil, errors.New("Company projection API service is required")
 	}
+	if reportApplication == nil {
+		return nil, errors.New("Report API service is required")
+	}
 	if authenticator == nil {
 		return nil, errors.New("Data API authenticator is required")
 	}
@@ -112,6 +116,7 @@ func NewHTTPServer(config conf.Config, runtimeHealthApplication runtimehealthapi
 	organizationapi.RegisterHTTPServer(server, organizationApplication)
 	sourceapi.RegisterHTTPServer(server, sourceApplication)
 	companyapi.RegisterHTTPServer(server, companyApplication)
+	reportapi.RegisterHTTPServer(server, reportApplication)
 
 	documented := wrapAPIDocs(config.App.Env, server.Server.Handler, apiDocsConfig{
 		Title:    "Tidewise Data Service API",

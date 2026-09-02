@@ -1,5 +1,6 @@
 ---
-status: accepted
+status: superseded
+superseded_by: 0052-replace-research-theme-with-report-publications.md
 ---
 
 # 将 Research Theme 定义为不可变发布聚合快照

@@ -8,7 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func TestOpenAPIContractFreezesMiniappRoutesAndEnvelopes(t *testing.T) {
+func TestOpenAPIContractExposesOperationsAndReportRoutes(t *testing.T) {
 	document := parseDocument(t)
 	if document["openapi"] != "3.0.4" {
 		t.Fatalf("openapi = %v, want 3.0.4", document["openapi"])
@@ -22,64 +22,64 @@ func TestOpenAPIContractFreezesMiniappRoutesAndEnvelopes(t *testing.T) {
 	}
 
 	paths := object(t, document["paths"], "paths")
-	want := map[string]struct {
-		operationID string
-		envelope    string
-	}{
-		"/healthz":                        {operationID: "getMiniappHealth"},
-		"/readyz":                         {operationID: "getMiniappReadiness"},
-		"/api/miniapp/v1/research/themes": {operationID: "listMiniappResearchThemes", envelope: "ResearchThemePageEnvelope"},
-		"/api/miniapp/v1/research/themes/{theme_id}":                                     {operationID: "getMiniappResearchTheme", envelope: "ResearchThemeDetailEnvelope"},
-		"/api/miniapp/v1/research/themes/{theme_id}/reasoning-trees":                     {operationID: "listMiniappResearchReasoningTrees", envelope: "ReasoningTreeListEnvelope"},
-		"/api/miniapp/v1/research/themes/{theme_id}/reasoning-trees/{reasoning_tree_id}": {operationID: "getMiniappResearchReasoningTree", envelope: "ReasoningTreeDetailEnvelope"},
+	want := map[string]string{
+		"/healthz":                     "getMiniappHealth",
+		"/readyz":                      "getMiniappReadiness",
+		"/api/miniapp/v1/reports/home": "getReportHome",
+		"/api/miniapp/v1/reports/{report_id}/layers/{layer_key}":          "getReportLayer",
+		"/api/miniapp/v1/reports/{report_id}/industry-chains/{chain_key}": "getReportIndustryChain",
+		"/api/miniapp/v1/reports/{report_id}/evidences":                   "listReportEvidences",
 	}
 	if len(paths) != len(want) {
-		t.Fatalf("paths = %v, want %v", sortedKeys(paths), sortedKeysFromContract(want))
+		t.Fatalf("paths = %v, want %v", sortedKeys(paths), sortedKeys(want))
 	}
 	seenOperations := map[string]bool{}
-	for path, expected := range want {
+	for path, expectedOperation := range want {
 		operation := object(t, object(t, paths[path], "path "+path)["get"], "GET "+path)
 		operationID, _ := operation["operationId"].(string)
-		if operationID != expected.operationID || seenOperations[operationID] {
+		if operationID != expectedOperation || seenOperations[operationID] {
 			t.Fatalf("GET %s operationId = %q, duplicate=%v", path, operationID, seenOperations[operationID])
 		}
 		seenOperations[operationID] = true
-		if expected.envelope == "" {
-			continue
-		}
 		responses := object(t, operation["responses"], "responses")
-		schema := responseSchema(t, document, responses["200"])
-		if schema["$ref"] != "#/components/schemas/"+expected.envelope {
-			t.Fatalf("GET %s success schema = %v", path, schema["$ref"])
-		}
-		statuses := []string{"400", "404", "500"}
-		if strings.Contains(path, "/reasoning-trees") {
-			statuses = append(statuses, "502")
-		}
-		for _, status := range statuses {
-			response, exists := responses[status]
-			if !exists {
-				t.Fatalf("GET %s is missing response %s", path, status)
-			}
-			if ref := object(t, response, status)["$ref"]; ref != "#/components/responses/"+errorResponseName(status) {
-				t.Fatalf("GET %s response %s = %v", path, status, ref)
-			}
+		response := object(t, responses["200"], "200 response")
+		content := object(t, response["content"], "response content")
+		media := object(t, content["application/json"], "application/json")
+		responseSchema := object(t, media["schema"], "response schema")
+		wantSchema := map[string]string{
+			"/healthz":                     "#/components/schemas/HealthResponse",
+			"/readyz":                      "#/components/schemas/ReadinessResponse",
+			"/api/miniapp/v1/reports/home": "#/components/schemas/HomeEnvelope",
+			"/api/miniapp/v1/reports/{report_id}/layers/{layer_key}":          "#/components/schemas/LayerEnvelope",
+			"/api/miniapp/v1/reports/{report_id}/industry-chains/{chain_key}": "#/components/schemas/IndustryChainEnvelope",
+			"/api/miniapp/v1/reports/{report_id}/evidences":                   "#/components/schemas/EvidenceEnvelope",
+		}[path]
+		if responseSchema["$ref"] != wantSchema {
+			t.Fatalf("GET %s schema = %v, want %s", path, responseSchema["$ref"], wantSchema)
 		}
 	}
 
-	errorEnvelope := schema(t, document, "ErrorEnvelope")
-	assertRequired(t, errorEnvelope, "error", "request_id")
-	errorDetail := schema(t, document, "ErrorDetail")
-	assertRequired(t, errorDetail, "code", "message", "details")
-	reasoningTree := schema(t, document, "ReasoningTree")
-	nodes := object(t, object(t, reasoningTree["properties"], "ReasoningTree.properties")["nodes"], "ReasoningTree.nodes")
-	if object(t, nodes["items"], "ReasoningTree.nodes.items")["$ref"] != "#/components/schemas/ReasoningTreeNode" {
-		t.Fatalf("ReasoningTree.nodes = %#v", nodes)
+	assertRequired(t, schema(t, document, "HealthResponse"), "status", "service", "environment")
+	assertRequired(t, schema(t, document, "ReadinessResponse"), "status", "service", "environment", "checks")
+	assertRequired(t, schema(t, document, "HomeResponse"), "selection", "reports")
+	assertRequired(t, schema(t, document, "HomeReport"), "report", "industry_chain_count", "cards")
+	assertRequired(t, schema(t, document, "Summary"), "id", "title", "generated_at", "published_at")
+	summaryProperties := object(t, schema(t, document, "Summary")["properties"], "Summary properties")
+	if got, want := sortedKeys(summaryProperties), []string{"generated_at", "id", "published_at", "title"}; strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("Summary properties = %v, want %v", got, want)
 	}
-	graphEdge := schema(t, document, "ReasoningTreeGraphEdge")
-	assertRequired(t, graphEdge, "id", "relation_type")
-	if got := strings.Join(sortedKeys(object(t, graphEdge["properties"], "ReasoningTreeGraphEdge.properties")), ","); got != "id,relation_type" {
-		t.Fatalf("ReasoningTreeGraphEdge properties = %q, want id,relation_type", got)
+	assertRequired(t, schema(t, document, "Card"), "key", "kind", "display_order", "detail_ref", "impact_items", "has_evidence")
+	assertRequired(t, schema(t, document, "Layer"), "reasoning_steps", "downward_transmission", "uncertainty", "scope", "has_evidence")
+	assertRequired(t, schema(t, document, "IndustryChain"), "nodes", "edges", "uncertainty", "scope", "has_evidence")
+	assertRequired(t, schema(t, document, "EvidenceCollection"), "report_id", "scope", "items")
+	evidenceProperties := object(t, schema(t, document, "EvidenceItem")["properties"], "EvidenceItem properties")
+	if got, want := sortedKeys(evidenceProperties), []string{"keywords", "published_at", "summary"}; strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("EvidenceItem properties = %v, want %v", got, want)
+	}
+	for _, retired := range []string{"/api/miniapp/v1/research/themes", "/api/miniapp/v1/reasoning-trees", "/api/miniapp/v1/events"} {
+		if _, exists := paths[retired]; exists {
+			t.Fatalf("retired path %q remains in OpenAPI", retired)
+		}
 	}
 	assertNoDanglingLocalReferences(t, document)
 }
@@ -91,23 +91,6 @@ func parseDocument(t *testing.T) map[string]any {
 		t.Fatalf("parse OpenAPI: %v", err)
 	}
 	return document
-}
-
-func responseSchema(t *testing.T, document map[string]any, value any) map[string]any {
-	t.Helper()
-	response := object(t, value, "response")
-	if ref, ok := response["$ref"].(string); ok && strings.HasPrefix(ref, "#/components/responses/") {
-		name := strings.TrimPrefix(ref, "#/components/responses/")
-		components := object(t, document["components"], "components")
-		response = object(t, object(t, components["responses"], "responses")[name], "response "+name)
-	}
-	content := object(t, response["content"], "response content")
-	media := object(t, content["application/json"], "application/json")
-	return object(t, media["schema"], "response schema")
-}
-
-func errorResponseName(status string) string {
-	return map[string]string{"400": "BadRequest", "404": "NotFound", "500": "InternalError", "502": "BadGateway"}[status]
 }
 
 func schema(t *testing.T, document map[string]any, name string) map[string]any {
@@ -186,19 +169,7 @@ func array(t *testing.T, value any, name string) []any {
 	return result
 }
 
-func sortedKeys(value map[string]any) []string {
-	keys := make([]string, 0, len(value))
-	for key := range value {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func sortedKeysFromContract(value map[string]struct {
-	operationID string
-	envelope    string
-}) []string {
+func sortedKeys[T any](value map[string]T) []string {
 	keys := make([]string, 0, len(value))
 	for key := range value {
 		keys = append(keys, key)

@@ -15,8 +15,8 @@ import (
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 
 	v1 "github.com/meierlink88/tidewise-ai/miniapp/backend/api/miniapp/v1"
+	reportapi "github.com/meierlink88/tidewise-ai/miniapp/backend/api/miniapp/v1/report"
 	"github.com/meierlink88/tidewise-ai/miniapp/backend/internal/conf"
-	"github.com/meierlink88/tidewise-ai/miniapp/backend/internal/service"
 )
 
 type HealthResponse struct {
@@ -32,7 +32,7 @@ type ReadyResponse struct {
 	Checks      map[string]string `json:"checks"`
 }
 
-func NewHTTPServer(config conf.RuntimeConfig, research *service.ResearchService, logger *slog.Logger) *kratoshttp.Server {
+func NewHTTPServer(config conf.RuntimeConfig, logger *slog.Logger, reportService reportapi.Service) *kratoshttp.Server {
 	server := kratoshttp.NewServer(
 		kratoshttp.Address(config.Server.Address()),
 		kratoshttp.Timeout(0),
@@ -52,9 +52,7 @@ func NewHTTPServer(config conf.RuntimeConfig, research *service.ResearchService,
 	server.Server.WriteTimeout = time.Duration(config.Server.WriteTimeoutSeconds) * time.Second
 
 	registerHealthRoutes(server, config.App)
-	if research != nil {
-		v1.RegisterResearchHTTPServer(server, research)
-	}
+	reportapi.RegisterHTTPServer(server, reportService)
 
 	application := server.Server.Handler
 	documentedApplication := wrapAPIDocs(config.App.Env, application, apiDocsConfig{
@@ -178,27 +176,14 @@ func operationForRequest(request *http.Request) string {
 		return "miniapp.ready"
 	case "/docs", "/openapi.yaml":
 		return "miniapp.docs"
-	case v1.APIPrefix + "/research/themes":
-		return "miniapp.research.listThemes"
+	}
+	if strings.HasPrefix(request.URL.Path, v1.APIPrefix+"/reports/") {
+		return "miniapp.report"
 	}
 	if strings.HasPrefix(request.URL.Path, "/docs/") {
 		return "miniapp.docs"
 	}
-	const prefix = v1.APIPrefix + "/research/themes/"
-	if !strings.HasPrefix(request.URL.Path, prefix) {
-		return "miniapp.unknown"
-	}
-	segments := strings.Split(strings.TrimPrefix(request.URL.Path, prefix), "/")
-	switch {
-	case len(segments) == 1 && segments[0] != "":
-		return "miniapp.research.getTheme"
-	case len(segments) == 2 && segments[0] != "" && segments[1] == "reasoning-trees":
-		return "miniapp.research.listReasoningTrees"
-	case len(segments) == 3 && segments[0] != "" && segments[1] == "reasoning-trees" && segments[2] != "":
-		return "miniapp.research.getReasoningTree"
-	default:
-		return "miniapp.unknown"
-	}
+	return "miniapp.unknown"
 }
 
 type responseStatusWriter struct {

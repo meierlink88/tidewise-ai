@@ -15,6 +15,7 @@ type bindingShape struct {
 	any      bool
 	string   bool
 	boolean  bool
+	number   bool
 	integer  bool
 	null     bool
 	required []string
@@ -24,6 +25,7 @@ var scalarShape = &bindingShape{}
 var anyShape = &bindingShape{any: true}
 var stringShape = &bindingShape{string: true}
 var booleanShape = &bindingShape{boolean: true}
+var numberShape = &bindingShape{number: true}
 var integerShape = &bindingShape{integer: true}
 var nullableStringShape = &bindingShape{string: true, null: true}
 
@@ -151,6 +153,12 @@ func validateBindingValue(decoder *json.Decoder, shape *bindingShape, path strin
 	if shape.boolean {
 		if _, ok := token.(bool); !ok {
 			return &bindingError{path: path, err: fmt.Errorf("must be a JSON boolean")}
+		}
+		return nil
+	}
+	if shape.number {
+		if _, ok := token.(json.Number); !ok {
+			return &bindingError{path: path, err: fmt.Errorf("must be a JSON number")}
 		}
 		return nil
 	}

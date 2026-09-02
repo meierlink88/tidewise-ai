@@ -20,6 +20,7 @@ import (
 	organizationapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/organization"
 	eventapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/event"
 	evidenceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/evidence"
+	reportapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/report"
 	researchapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/research"
 	runtimehealthapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/runtimehealth"
 	sourceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/source"
@@ -27,7 +28,6 @@ import (
 
 const (
 	ScopeResearchRead         = "data.research.read"
-	ScopeResearchImport       = "data.research.import"
 	ScopeAdminRead            = "data.admin.read"
 	ScopeEventPublish         = "data.events.publish"
 	ScopeRawEvidenceImport    = "data.raw-evidences.import"
@@ -49,6 +49,8 @@ const (
 	ScopeSourceRead           = "data.sources.read"
 	ScopeSourceWrite          = "data.sources.write"
 	ScopeCompanyRead          = "data.companies.read"
+	ScopeReportRead           = "data.reports.read"
+	ScopeReportPublish        = "data.reports.publish"
 	operationHealth           = "data.health"
 	operationReady            = "data.ready"
 )
@@ -135,13 +137,9 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeEvidenceImport, true
 	case evidenceapi.OperationListEvidenceCategories:
 		return ScopeEvidenceCategoryRead, true
-	case researchapi.OperationPublishResearchTheme:
-		return ScopeResearchImport, true
 	case eventapi.OperationPublishEvent:
 		return ScopeEventPublish, true
-	case researchapi.OperationListResearchThemes, researchapi.OperationGetResearchTheme,
-		researchapi.OperationListResearchThemeReasoningTrees, researchapi.OperationGetResearchThemeReasoningTree,
-		researchapi.OperationSearchResearchGraph:
+	case researchapi.OperationSearchResearchGraph:
 		return ScopeResearchRead, true
 	case eventapi.OperationListAdminEvents, evidenceapi.OperationListAdminEvidence, runtimehealthapi.OperationGet:
 		return ScopeAdminRead, true
@@ -176,6 +174,11 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeSourceWrite, true
 	case companyapi.OperationList:
 		return ScopeCompanyRead, true
+	case reportapi.OperationPublishReport:
+		return ScopeReportPublish, true
+	case reportapi.OperationListReports, reportapi.OperationGetReportHome, reportapi.OperationGetReportLayer,
+		reportapi.OperationListReportChains, reportapi.OperationGetReportChain, reportapi.OperationListReportEvidence:
+		return ScopeReportRead, true
 	default:
 		return "", false
 	}
