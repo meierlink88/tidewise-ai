@@ -175,6 +175,7 @@ jobs:
             ./data-service/backend/internal/data/event \
             ./data-service/backend/internal/data/evidence \
             ./data-service/backend/internal/data/report \
+            ./data-service/backend/internal/data/runtimeaudit \
             -count=1
       - name: Test Data migration framework
         if: steps.risks.outputs.migration_framework == 'true'
