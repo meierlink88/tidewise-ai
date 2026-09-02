@@ -78,14 +78,7 @@ function homeGroup(summary: typeof report = report) {
   return {
     report: summary,
     industry_chain_count: 54,
-    cards,
-    company: {
-      key: 'company',
-      display_order: 4,
-      title: '企业',
-      published: false,
-      boundary: '本次推理尚未进入企业层。'
-    }
+    cards
   };
 }
 
@@ -112,7 +105,7 @@ const relatedChain = {
   result: warming,
   confidence,
   time_window: '中期',
-  scope: { type: 'industry_chain', key: 'chn-21' },
+  scope: { type: 'industry_chain_summary', key: 'chn-21' },
   has_evidence: true
 };
 
@@ -162,7 +155,7 @@ const layer = {
         evidence_role: '来源与目标证据分离',
         confidence,
         status: '运输节点已闭合。',
-        scope: { type: 'transmission_path', key: 'geo-path-01' },
+        scope: { type: 'transmission', key: 'geo-path-01' },
         has_evidence: true
       }
     ],
@@ -176,7 +169,7 @@ const layer = {
     reversal_condition: '若通行恢复则下调结论。',
     checkpoints: []
   },
-  scope: { type: 'layer', key: 'geopolitics' },
+  scope: { type: 'section_summary', key: 'geopolitics' },
   has_evidence: true
 };
 
@@ -234,7 +227,7 @@ const chain = {
     stop_condition: '运输信号反转则停止。',
     checkpoints: []
   },
-  scope: { type: 'industry_chain', key: 'chn-21' },
+  scope: { type: 'industry_chain_summary', key: 'chn-21' },
   has_evidence: true
 };
 
@@ -317,15 +310,13 @@ describe('Report BFF wire contract', () => {
       reports: [
         {
           ...homeGroup({ ...report, title: legalLongText }),
-          cards: longCards,
-          company: { ...homeGroup().company, title: legalLongText }
+          cards: longCards
         }
       ]
     });
 
     expect(home.reports[0].report.title).toBe(legalLongText);
     expect(home.reports[0].cards[0].impactItems[0].name).toBe(legalLongText);
-    expect(home.reports[0].company.title).toBe(legalLongText);
     expect(() =>
       parseReportHomeWire({
         selection: { mode: 'today', date: '2026-09-01', timezone: 'Asia/Shanghai' },
@@ -366,7 +357,7 @@ describe('Report BFF wire contract', () => {
       parseReportLayerDetailWire(
         {
           report,
-          layer: { ...layer, scope: { type: 'layer', key: 'macroeconomics' } },
+          layer: { ...layer, scope: { type: 'section_summary', key: 'macroeconomics' } },
           related_industry_chains: [relatedChain]
         },
         reportId,
@@ -415,11 +406,11 @@ describe('Report BFF wire contract', () => {
     const evidences = parseReportEvidenceListWire(
       {
         report_id: reportId,
-        scope: { type: 'industry_chain', key: 'chn-21' },
+        scope: { type: 'industry_chain_summary', key: 'chn-21' },
         items: [duplicate, duplicate, { ...duplicate, published_at: null }]
       },
       reportId,
-      { type: 'industry_chain', key: 'chn-21' }
+      { type: 'industry_chain_summary', key: 'chn-21' }
     );
 
     expect(evidences.items).toEqual([
@@ -439,11 +430,11 @@ describe('Report BFF wire contract', () => {
       parseReportEvidenceListWire(
         {
           report_id: reportId,
-          scope: { type: 'industry_chain', key: 'chn-21' },
+          scope: { type: 'industry_chain_summary', key: 'chn-21' },
           items: [{ ...duplicate, evidence_id: 'EVD11111111-1111-4111-8111-111111111111' }]
         },
         reportId,
-        { type: 'industry_chain', key: 'chn-21' }
+        { type: 'industry_chain_summary', key: 'chn-21' }
       )
     ).toThrow('invalid Report wire contract');
   });

@@ -51,20 +51,20 @@ func (s Store) InPublicationTransaction(
 
 type publicationTransaction struct{ tx *sql.Tx }
 
-func (t *publicationTransaction) Lock(ctx context.Context, sourceReportID string) error {
+func (t *publicationTransaction) Lock(ctx context.Context, publisherReportID string) error {
 	_, err := t.tx.ExecContext(ctx,
 		`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
-		"report-publication-v1:"+sourceReportID)
+		"report-publication-v2:"+publisherReportID)
 	if err != nil {
-		return fmt.Errorf("lock Report source identity: %w", err)
+		return fmt.Errorf("lock Report publisher identity: %w", err)
 	}
 	return nil
 }
 
-func (t *publicationTransaction) ReportBySourceID(ctx context.Context, sourceReportID string) (*reportbiz.Record, error) {
-	record, err := scanRecord(t.tx.QueryRowContext(ctx, `SELECT id, source_report_id, contract_version,
+func (t *publicationTransaction) ReportByPublisherID(ctx context.Context, publisherReportID string) (*reportbiz.Record, error) {
+	record, err := scanRecord(t.tx.QueryRowContext(ctx, `SELECT id, publisher_report_id, contract_version,
        content_hash, content, published_at
-FROM reports WHERE source_report_id = $1`, sourceReportID))
+FROM reports WHERE publisher_report_id = $1`, publisherReportID))
 	if errors.Is(err, reportbiz.ErrReportNotFound) {
 		return nil, nil
 	}
@@ -104,8 +104,8 @@ func (t *publicationTransaction) InsertReport(ctx context.Context, record report
 		return fmt.Errorf("encode Report content: %w", err)
 	}
 	_, err = t.tx.ExecContext(ctx, `INSERT INTO reports
-    (id, source_report_id, contract_version, content_hash, content, published_at)
-VALUES ($1,$2,$3,$4,$5,$6)`, record.ID, record.SourceReportID, record.ContractVersion,
+    (id, publisher_report_id, contract_version, content_hash, content, published_at)
+VALUES ($1,$2,$3,$4,$5,$6)`, record.ID, record.PublisherReportID, record.ContractVersion,
 		record.ContentHash, content, record.PublishedAt)
 	if err != nil {
 		return fmt.Errorf("insert Report %q: %w", record.ID, err)

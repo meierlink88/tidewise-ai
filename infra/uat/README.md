@@ -75,6 +75,8 @@ Workflow 在成功后持久保存：
 - `/opt/tidewise/uat/state/pre-data59.*` 与 `/opt/tidewise/uat/pre-data59.runtime.env`：
   migration 59 有界切换专用恢复检查点；它与 `pre-data2.*` 分离，不能覆盖 Tidewise AI 2.0
   切换前的历史审计快照。
+- `/opt/tidewise/uat/state/pre-data60.*`、`pre-data78.*`、`pre-data80.*` 及各自 runtime env：
+  后续有界 Data migration 的独立恢复检查点；不得在不同目标版本之间复用。
 - `/opt/tidewise/uat/previous.runtime.env`：上一成功版本回退所需的临时保留配置，权限 `0600`。
 
 不要启用 root 密码 SSH。Runner 注册 token 是一次性的，不得写入仓库、配置文件、shell 历史或日志。
@@ -191,6 +193,16 @@ migration 59 开始后，失败恢复只允许相同目标 SHA 和目标版本 `
 并在 `dbmigrate -apply -target-version 60` 前停止且证明全部应用与 one-off/restarting
 容器不再运行。迁移开始后只允许同 SHA、目标版本 `60` 的 forward recovery，并使用
 独立 `pre-data60.*` 检查点。该边界实现 ADR 0028 的零 mixed-version 和快照回滚要求。
+
+### Data migration 80 Report publication v2 有界切换
+
+`data_80_cutover` 只接受 Data 当前 migration `79` 且唯一 pending migration 为 `80`。
+该迁移会 fail-closed 地替换 Report 发布合同：只有 `reports` 和
+`report_evidence_links` 都为空时才可执行。模式要求 RDS 恢复点与破坏性 Data 变更
+双重确认，强制四服务 release unit，并在 `dbmigrate -apply -target-version 80`
+前停止且证明全部应用容器不再运行。迁移启动后只允许同 SHA、目标版本 `80`
+的 forward recovery，使用独立 `pre-data80.*` 检查点，不提供非空 Report 数据的
+自动转换或清空路径。
 
 ### AgentRun 一次性退役清理
 

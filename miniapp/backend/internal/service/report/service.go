@@ -115,10 +115,7 @@ func mapHome(value biz.Home) api.HomeReport {
 			TimeWindow: card.TimeWindow, ImpactItems: impacts, HasEvidence: card.HasEvidence}
 	}
 	return api.HomeReport{Report: mapSummary(value.Report), IndustryChainCount: value.IndustryChainCount,
-		Cards: cards, Company: api.CompanyBoundary{
-			Key: value.Company.Key, DisplayOrder: value.Company.DisplayOrder, Title: value.Company.Title,
-			Published: value.Company.Published, Boundary: value.Company.Boundary,
-		}}
+		Cards: cards}
 }
 
 func mapLayerDetail(value biz.LayerDetail) *api.LayerDetail {
@@ -148,7 +145,12 @@ func mapLayer(value biz.Layer) api.Layer {
 	for index, item := range value.DownwardTransmission.PublishedPaths {
 		targets := make([]api.TransmissionTarget, len(item.TargetRefs))
 		for targetIndex, target := range item.TargetRefs {
-			targets[targetIndex] = api.TransmissionTarget{Ref: mapReference(target.Ref), Label: target.Label,
+			var ref *api.Reference
+			if target.Ref != nil {
+				mapped := mapReference(*target.Ref)
+				ref = &mapped
+			}
+			targets[targetIndex] = api.TransmissionTarget{Ref: ref, Label: target.Label,
 				Result: mapResult(target.Result)}
 		}
 		paths[index] = api.TransmissionPath{Key: item.Key, DisplayOrder: item.DisplayOrder,

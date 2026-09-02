@@ -244,10 +244,10 @@ components:
               type: object
     LocalKey:
       type: string
-      pattern: '^[a-z0-9][a-z0-9._-]{0,127}$'
+      pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$'
     ScopeType:
       type: string
-      enum: [report_card, layer, anchor, reasoning_step, transmission_path, candidate_mechanism, industry_chain, industry_chain_node]
+      enum: [section_summary, anchor, reasoning_step, transmission, industry_chain_summary, industry_chain_node]
     ReferenceType:
       type: string
       enum: [layer, anchor, industry_chain, industry_chain_node]
@@ -258,7 +258,7 @@ components:
       properties:
         code:
           type: string
-          enum: [warming, cooling, diverging, pending]
+          enum: [warming, cooling, diverging, stable, mixed, pending]
         label:
           type: string
     Nature:
@@ -380,40 +380,20 @@ components:
             $ref: '#/components/schemas/CardImpactItem'
         has_evidence:
           type: boolean
-    CompanyBoundary:
-      type: object
-      additionalProperties: false
-      required: [key, display_order, title, published, boundary]
-      properties:
-        key:
-          type: string
-          enum: [company]
-        display_order:
-          type: integer
-          minimum: 1
-        title:
-          type: string
-        published:
-          type: boolean
-          enum: [false]
-        boundary:
-          type: string
     HomeReport:
       type: object
       additionalProperties: false
-      required: [report, industry_chain_count, cards, company]
+      required: [report, industry_chain_count, cards]
       properties:
         report:
           $ref: '#/components/schemas/Summary'
         industry_chain_count:
           type: integer
-          minimum: 0
+          minimum: 1
         cards:
           type: array
           items:
             $ref: '#/components/schemas/Card'
-        company:
-          $ref: '#/components/schemas/CompanyBoundary'
     HomeResponse:
       type: object
       additionalProperties: false
@@ -483,7 +463,9 @@ components:
       required: [ref, label, result]
       properties:
         ref:
-          $ref: '#/components/schemas/Reference'
+          allOf:
+            - $ref: '#/components/schemas/Reference'
+          nullable: true
         label:
           type: string
         result:

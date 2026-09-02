@@ -364,3 +364,10 @@ UPDATE/DELETE/TRUNCATE 的 statement trigger，再使用候选 Data binary 完�
 Evidence 读取验证。新旧 publisher/Data/Miniapp binary 不得 mixed traffic。该迁移为
 forward-only；完整回滚必须恢复 migration 79 前快照并同时回退相关应用，不运行
 down migration。
+
+`000080` 是 Issue #369 的 `report-publication.v2` 零数据前向切换。执行前必须确认
+`reports` 与 `report_evidence_links` 都为空；migration 会在发现任一已发布事实时 fail closed，
+不会转换、覆盖或删除不可变 v1 Report。它把外部幂等身份列重命名为
+`publisher_report_id`，将合同固定为 v2，并把 Evidence scope 收敛到 Section summary、锚点、
+推导步骤、传导、产业链 summary 和链节点影响。完整回滚必须恢复 migration 80 前快照并同步
+回退 Data、Miniapp 与 AgentOS publisher，不运行 down migration。

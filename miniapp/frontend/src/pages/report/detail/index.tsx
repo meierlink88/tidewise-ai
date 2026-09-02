@@ -366,7 +366,8 @@ function TransmissionPathView({
   onOpenDetail: (route: ReportDetailRoute) => void;
 }) {
   const target = path.targetRefs[0];
-  const isDetailTarget = target?.ref.type === 'layer' || target?.ref.type === 'industry_chain';
+  const targetRef = target?.ref;
+  const isDetailTarget = targetRef?.type === 'layer' || targetRef?.type === 'industry_chain';
   return (
     <View className='report-transmission-card'>
       <View
@@ -378,8 +379,8 @@ function TransmissionPathView({
             ? () =>
                 onOpenDetail({
                   reportId,
-                  targetType: target.ref.type as 'layer' | 'industry_chain',
-                  targetKey: target.ref.key
+                  targetType: targetRef!.type as 'layer' | 'industry_chain',
+                  targetKey: targetRef!.key
                 })
             : undefined
         }
@@ -426,6 +427,8 @@ function IndustryChainDetailView({
     warming: reportActivityWarmingIcon,
     cooling: reportActivityCoolingIcon,
     diverging: reportActivityDivergingIcon,
+    stable: reportActivityPendingIcon,
+    mixed: reportActivityDivergingIcon,
     pending: reportActivityPendingIcon
   }[industryChain.result.code];
 

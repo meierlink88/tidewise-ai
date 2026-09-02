@@ -3,6 +3,7 @@ status: accepted
 date: 2026-09-01
 issue: 367
 supersedes: 0003-research-theme-batch-snapshots.md
+superseded_in_part_by: 0053-model-report-publication-as-optional-analysis-sections.md
 ---
 
 # 用不可变 Report 发布替换 Research Theme 与 Reason Tree

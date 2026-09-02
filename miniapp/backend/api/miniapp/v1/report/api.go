@@ -97,19 +97,10 @@ type Card struct {
 	HasEvidence  bool             `json:"has_evidence"`
 }
 
-type CompanyBoundary struct {
-	Key          string `json:"key"`
-	DisplayOrder int    `json:"display_order"`
-	Title        string `json:"title"`
-	Published    bool   `json:"published"`
-	Boundary     string `json:"boundary"`
-}
-
 type HomeReport struct {
-	Report             Summary         `json:"report"`
-	IndustryChainCount int             `json:"industry_chain_count"`
-	Cards              []Card          `json:"cards"`
-	Company            CompanyBoundary `json:"company"`
+	Report             Summary `json:"report"`
+	IndustryChainCount int     `json:"industry_chain_count"`
+	Cards              []Card  `json:"cards"`
 }
 
 type HomeResponse struct {
@@ -144,9 +135,9 @@ type ReasoningStep struct {
 }
 
 type TransmissionTarget struct {
-	Ref    Reference `json:"ref"`
-	Label  string    `json:"label"`
-	Result Result    `json:"result"`
+	Ref    *Reference `json:"ref"`
+	Label  string     `json:"label"`
+	Result Result     `json:"result"`
 }
 
 type TransmissionPath struct {

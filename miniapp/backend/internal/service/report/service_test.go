@@ -61,14 +61,14 @@ func TestServiceRejectsInvalidDetailAndEvidenceInputsBeforeData(t *testing.T) {
 		}
 	}
 	if _, callErr := service.GetIndustryChain(context.Background(), &api.IndustryChainRequest{
-		ReportID: serviceTestReportID, ChainKey: "Chain-21",
+		ReportID: serviceTestReportID, ChainKey: "Chain/21",
 	}); !errors.Is(callErr, v1.ErrInvalidRequest) {
 		t.Fatalf("chain error = %v", callErr)
 	}
 	for _, request := range []*api.EvidenceRequest{
 		{ReportID: serviceTestReportID, ScopeType: biz.ScopeAnchor, ScopeKey: "layer/anchor"},
 		{ReportID: serviceTestReportID, ScopeType: "event", ScopeKey: "event-1"},
-		{ReportID: serviceTestReportID, ScopeType: biz.ScopeReportCard, ScopeKey: "geo-card", HasUnknownQuery: true},
+		{ReportID: serviceTestReportID, ScopeType: biz.ScopeSectionSummary, ScopeKey: biz.LayerGeopolitics, HasUnknownQuery: true},
 	} {
 		if _, callErr := service.ListEvidences(context.Background(), request); !errors.Is(callErr, v1.ErrInvalidRequest) {
 			t.Fatalf("evidence error = %v", callErr)
@@ -93,11 +93,11 @@ func TestServiceMapsStableErrorsAndEvidenceSlimDTO(t *testing.T) {
 
 	publishedAt := time.Date(2026, 9, 1, 3, 0, 0, 0, time.UTC)
 	repository.evidence = biz.EvidenceCollection{ReportID: serviceTestReportID,
-		Scope: biz.EvidenceScope{Type: biz.ScopeReportCard, Key: "geo-card"}, Items: []biz.EvidenceItem{{
+		Scope: biz.EvidenceScope{Type: biz.ScopeSectionSummary, Key: biz.LayerGeopolitics}, Items: []biz.EvidenceItem{{
 			PublishedAt: &publishedAt, Summary: "显式关联证据", Keywords: []string{"供应链"},
 		}}}
 	result, callErr := service.ListEvidences(context.Background(), &api.EvidenceRequest{
-		ReportID: serviceTestReportID, ScopeType: biz.ScopeReportCard, ScopeKey: "geo-card",
+		ReportID: serviceTestReportID, ScopeType: biz.ScopeSectionSummary, ScopeKey: biz.LayerGeopolitics,
 	})
 	if callErr != nil {
 		t.Fatal(callErr)

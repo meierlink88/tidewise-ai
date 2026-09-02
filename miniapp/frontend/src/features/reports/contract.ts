@@ -1,16 +1,14 @@
 export type ReportLayerKey = 'geopolitics' | 'macroeconomics';
 export type ReportDetailTargetType = 'layer' | 'industry_chain';
-export type ReportResultCode = 'warming' | 'cooling' | 'diverging' | 'pending';
+export type ReportResultCode = 'warming' | 'cooling' | 'diverging' | 'stable' | 'mixed' | 'pending';
 export type ReportNatureCode = 'direct_evidence' | 'reasoning_hypothesis' | 'pending_validation';
 
 export type ReportEvidenceScopeType =
-  | 'report_card'
-  | 'layer'
+  | 'section_summary'
   | 'anchor'
   | 'reasoning_step'
-  | 'transmission_path'
-  | 'candidate_mechanism'
-  | 'industry_chain'
+  | 'transmission'
+  | 'industry_chain_summary'
   | 'industry_chain_node';
 
 export type ReportReferenceType = 'layer' | 'anchor' | 'industry_chain' | 'industry_chain_node';
@@ -22,7 +20,7 @@ export interface ReportReference<T extends string = ReportReferenceType> {
 
 export interface ReportResult {
   code: ReportResultCode;
-  label: '升温' | '降温' | '分化' | '待验证';
+  label: '升温' | '降温' | '分化' | '稳定' | '混合' | '待验证';
 }
 
 export interface ReportNature {
@@ -76,19 +74,10 @@ export interface ReportCard {
   hasEvidence: boolean;
 }
 
-export interface ReportCompanyBoundary {
-  key: 'company';
-  displayOrder: 4;
-  title: string;
-  published: false;
-  boundary: string;
-}
-
 export interface ReportHomeGroup {
   report: ReportSummary;
   industryChainCount: number;
   cards: ReportCard[];
-  company: ReportCompanyBoundary;
 }
 
 export interface ReportHome {
@@ -123,7 +112,7 @@ export interface ReportReasoningStep {
 }
 
 export interface ReportTransmissionTarget {
-  ref: ReportReference;
+  ref: ReportReference | null;
   label: string;
   result: ReportResult;
 }

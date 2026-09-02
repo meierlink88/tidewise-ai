@@ -53,13 +53,14 @@ _Avoid_: 今日 Theme、只取当日最后一份、前端自行选择、跨 Repo
 该份 Report 的实际发布时间。
 _Avoid_: 今日主题、今日推理、隐藏回退来源
 
-**Report 层投影**:
-每份 Report 持久化的地缘政治、宏观经济与产业链卡片，以及明确未发布的公司层边界。页面可按
-原型组织入口，但每张卡片始终保留所属 `report_id`，不得把不同 Report 伪装为同一推理结果。
-_Avoid_: 前端生成卡片、四份独立 Report、跨 Report 聚合
+**Report 分析投影**:
+每份 Report 的实际分析 Section 及产业链分页摘要。产业链必有；地缘政治与宏观经济按本次报告
+是否存在投影，不生成空卡片；公司能力上线前不生成占位层。卡片是 Miniapp Backend 从同一份
+不可变 Report summary/detail 构造的产品 DTO，不是 Data 持久化事实，并始终保留所属 `report_id`。
+_Avoid_: 固定四层、空层占位、Data 持久化首页卡片、跨 Report 聚合
 
 **Report 卡片详情目标**:
-每张首页 Report 卡片随发布快照携带的结构化层或产业链目标。Miniapp 只把 `report_id`、目标类型
+每张首页 Report 卡片由对应 Section 或产业链 summary 提供结构化详情目标。Miniapp 只把 `report_id`、目标类型
 和 Report-local Key 传入 Taro 非 Tab 详情页；锚点或节点的 Evidence 入口同样使用自身显式作用域。
 _Avoid_: 从标题解析路由、前端检索完整 Report JSON、Reason Tree ID
 
@@ -80,7 +81,7 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
   Report 列表读取该范围内全部结果。
 - 当日查询非空时按 Data 的 `published_at DESC, id ASC` 权威顺序返回全部 Report；当日查询
   为空时，Backend 立即查询全部历史的最新一份。
-- 首页每份 Report 独立投影自己的持久化卡片；详情和 Evidence 导航必须携带所属 `report_id`。
+- 首页每份 Report 独立投影自己的分析摘要；详情和 Evidence 导航必须携带所属 `report_id`。
 - 当日读取不得用固定 `limit=1` 截断；若 Data 列表分页，Backend 必须完整消费当日分页或使用
   Data 提供的有界首页集合合同，并对超出合同容量显式失败。
 - 历史回退查询按 Data 的
@@ -92,8 +93,11 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
 
 ## Report API
 
-- `GET /api/miniapp/v1/reports/home` 返回当日全部 Report 的首页卡片；当日为空时返回历史最新一份，
+- `GET /api/miniapp/v1/reports/home` 返回当日全部 Report 的元数据和各自可选上层摘要；当日为空时返回历史最新一份，
   全部为空时返回明确空集合。
+- 当前 `GET /api/miniapp/v1/reports/home` 为保持既有 Frontend 合同，由 BFF 完整消费 Data 的
+  report-bound 产业链 cursor page 后组装该 Report 的全部卡片；BFF 不解码完整 Report JSON。
+  向 Frontend 暴露增量 cursor endpoint 属于后续性能优化，不伪装成当前已交付能力。
 - `GET /api/miniapp/v1/reports/{report_id}/layers/{layer_key}` 一对一读取
   `geopolitics | macroeconomics` 上层详情。
 - `GET /api/miniapp/v1/reports/{report_id}/industry-chains/{chain_key}` 一对一读取单条产业链详情。
@@ -122,13 +126,16 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
 
 - 首页标题固定为 `今日观潮`，当日多份 Report 按 `published_at DESC, id ASC` 分组展示；每组
   明确保留 Report 身份与实际发布时间。
-- 每份 Report 的地缘政治和宏观经济各展示且只展示一张持久化卡片，顺序为层结论、锚点、下游结论/锚点或
-  相关产业链；不同 Report 的卡片不得合并。
-- 每份 Report 的产业链卡片按自身 `display_order` 展示，每卡展示自己的结论和有序节点预览。
+- 每份 Report 的地缘政治和宏观经济仅在对应 Section 存在时各展示一张摘要卡片；不同 Report
+  的卡片不得合并。
+- 上层摘要卡片的结果由锚点结果聚合；置信度和时间窗口取 `display_order=1` 的主锚点。
+  这是 BFF 的可重复展示投影，不写回 Report，也不从传导步骤反推。
+- 每份 Report 的产业链卡片按自身 `display_order` 全量展示；Data 侧按 cursor page 读取并由
+  BFF 组装，每卡展示自己的结论和有序节点预览。Frontend 增量渲染尚未启用。
 - 产业链标题的总数使用 Report 发布快照中的 `industry_chain_count`，首页展示数使用本组
   已持久化的产业链卡片数；两者不要相互反推或硬编码。
-- 企业 Tab 保持明确未发布空边界，不从 Company 事实生成卡片。
-- 状态同时显示中文文字与颜色，只允许 `升温 / 降温 / 分化 / 待验证`；锚点或节点每行名称
+- 公司分析拥有定稿发布基线前不显示空边界，也不从 Company 正式事实生成卡片。
+- 状态同时显示中文文字与颜色，只允许 `升温 / 降温 / 分化 / 稳定 / 混合 / 待验证`；锚点或节点每行名称
   靠左，结果、置信度和时间窗口统一靠右并自然换行。
 - 卡片 Evidence 入口是带 `查看证据` 可访问名称的 icon-only 文档控件，不显示 ID 或数量。
 

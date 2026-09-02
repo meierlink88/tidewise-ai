@@ -7,8 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -29,6 +27,7 @@ import (
 	runtimehealthapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/runtimehealth"
 	sourceapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/source"
 	"github.com/meierlink88/tidewise-ai/data-service/backend/internal/conf"
+	reportfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/report"
 	researchfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/research"
 	"gopkg.in/yaml.v3"
 )
@@ -208,7 +207,11 @@ func TestServerEnforcesResearchReadScopeOnResearchRoutes(t *testing.T) {
 }
 
 func TestServerEnforcesReportScopesAndRejectsDuplicateQueries(t *testing.T) {
-	payload, err := os.ReadFile(filepath.Join("..", "..", "api", "data", "v1", "report", "testdata", "report-publication.v1.json"))
+	payload, err := json.Marshal(map[string]any{
+		"contract_version":    reportapi.ContractVersion,
+		"publisher_report_id": "publisher-report",
+		"content":             reportfixture.IndustryOnlyContent(),
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -645,6 +648,10 @@ func (serverTestReportService) GetReportHome(context.Context, *reportapi.ReportR
 
 func (serverTestReportService) GetReportLayer(context.Context, *reportapi.LayerRequest) (*dataapi.Response[reportapi.LayerDetail], error) {
 	return serverTestResponse[reportapi.LayerDetail]()
+}
+
+func (serverTestReportService) ListReportIndustryChains(context.Context, *reportapi.ChainListRequest) (*dataapi.Response[reportapi.IndustryChainCollection], error) {
+	return serverTestResponse[reportapi.IndustryChainCollection]()
 }
 
 func (serverTestReportService) GetReportIndustryChain(context.Context, *reportapi.ChainRequest) (*dataapi.Response[reportapi.IndustryChainDetail], error) {

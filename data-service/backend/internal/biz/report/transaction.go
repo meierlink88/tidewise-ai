@@ -10,7 +10,7 @@ type PublicationStore interface {
 
 type PublicationTransaction interface {
 	Lock(context.Context, string) error
-	ReportBySourceID(context.Context, string) (*Record, error)
+	ReportByPublisherID(context.Context, string) (*Record, error)
 	ExistingEvidenceIDs(context.Context, []string) ([]string, error)
 	InsertReport(context.Context, Record) error
 	InsertEvidenceLinks(context.Context, []EvidenceLink) error

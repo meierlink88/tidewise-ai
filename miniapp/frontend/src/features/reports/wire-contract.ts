@@ -35,11 +35,13 @@ import type {
 
 type RecordValue = Record<string, unknown>;
 
-const resultCodes = ['warming', 'cooling', 'diverging', 'pending'] as const;
+const resultCodes = ['warming', 'cooling', 'diverging', 'stable', 'mixed', 'pending'] as const;
 const resultLabels: Record<ReportResultCode, ReportResult['label']> = {
   warming: '升温',
   cooling: '降温',
   diverging: '分化',
+  stable: '稳定',
+  mixed: '混合',
   pending: '待验证'
 };
 const natureCodes = ['direct_evidence', 'reasoning_hypothesis', 'pending_validation'] as const;
@@ -52,19 +54,17 @@ const layerKeys = ['geopolitics', 'macroeconomics'] as const;
 const cardKinds = ['geopolitics', 'macroeconomics', 'industry_chain'] as const;
 const referenceTypes = ['layer', 'anchor', 'industry_chain', 'industry_chain_node'] as const;
 const evidenceScopeTypes = [
-  'report_card',
-  'layer',
+  'section_summary',
   'anchor',
   'reasoning_step',
-  'transmission_path',
-  'candidate_mechanism',
-  'industry_chain',
+  'transmission',
+  'industry_chain_summary',
   'industry_chain_node'
 ] as const;
 const selectionModes = ['today', 'latest_fallback'] as const;
 const reportIDPattern =
   /^RPT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const localKeyPattern = /^[a-z0-9][a-z0-9._-]{0,127}$/;
+const localKeyPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const utcTimestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const displayTextMaxCodePoints = 10_000;
@@ -148,29 +148,14 @@ export function parseReportEvidenceListWire(
 }
 
 function parseHomeGroup(value: unknown): ReportHomeGroup {
-  const group = exactRecord(value, ['report', 'industry_chain_count', 'cards', 'company']);
+  const group = exactRecord(value, ['report', 'industry_chain_count', 'cards']);
   const report = parseReportSummary(group.report);
   const industryChainCount = nonNegativeInteger(group.industry_chain_count);
   const cards = parseOrderedArray(group.cards, parseCard);
-  const companyWire = exactRecord(group.company, [
-    'key',
-    'display_order',
-    'title',
-    'published',
-    'boundary'
-  ]);
-  if (
-    companyWire.key !== 'company' ||
-    companyWire.display_order !== 4 ||
-    companyWire.published !== false
-  ) {
-    invalid();
-  }
-
   unique(cards.map((card) => referenceIdentity(card.detailRef)));
   if (
-    cards.filter((card) => card.kind === 'geopolitics').length !== 1 ||
-    cards.filter((card) => card.kind === 'macroeconomics').length !== 1
+    cards.filter((card) => card.kind === 'geopolitics').length > 1 ||
+    cards.filter((card) => card.kind === 'macroeconomics').length > 1
   ) {
     invalid();
   }
@@ -178,14 +163,7 @@ function parseHomeGroup(value: unknown): ReportHomeGroup {
   return {
     report,
     industryChainCount,
-    cards,
-    company: {
-      key: 'company',
-      displayOrder: 4,
-      title: displayText(companyWire.title),
-      published: false,
-      boundary: displayText(companyWire.boundary)
-    }
+    cards
   };
 }
 
@@ -297,7 +275,7 @@ function parseLayer(value: unknown): ReportLayerDetailContent & {
   return {
     key,
     displayOrder,
-    scope: parseScope(layer.scope, 'layer', key),
+    scope: parseScope(layer.scope, 'section_summary', key),
     title: displayText(layer.title),
     conclusion: displayText(layer.conclusion),
     result: parseResult(layer.result),
@@ -404,7 +382,11 @@ function parseTransmissionPath(value: unknown): ReportTransmissionPath {
   const key = localKey(path.key);
   const targetRefs = array(path.target_refs).map(parseTransmissionTarget);
   if (targetRefs.length === 0) invalid();
-  unique(targetRefs.map((target) => referenceIdentity(target.ref)));
+  unique(
+    targetRefs
+      .filter((target) => target.ref !== null)
+      .map((target) => referenceIdentity(target.ref!))
+  );
   return {
     key,
     displayOrder: positiveInteger(path.display_order),
@@ -415,7 +397,7 @@ function parseTransmissionPath(value: unknown): ReportTransmissionPath {
     evidenceRole: displayText(path.evidence_role),
     confidence: parseConfidence(path.confidence),
     status: displayText(path.status),
-    scope: parseScope(path.scope, 'transmission_path', key),
+    scope: parseScope(path.scope, 'transmission', key),
     hasEvidence: boolean(path.has_evidence)
   };
 }
@@ -423,7 +405,7 @@ function parseTransmissionPath(value: unknown): ReportTransmissionPath {
 function parseTransmissionTarget(value: unknown): ReportTransmissionTarget {
   const target = exactRecord(value, ['ref', 'label', 'result']);
   return {
-    ref: parseReference(target.ref),
+    ref: target.ref === null ? null : parseReference(target.ref),
     label: displayText(target.label),
     result: parseResult(target.result)
   };
@@ -446,7 +428,7 @@ function parseCandidateMechanism(value: unknown): ReportCandidateMechanism {
     mechanism: displayText(candidate.mechanism),
     evidenceGap: nullableDisplayText(candidate.evidence_gap),
     confidence: parseConfidence(candidate.confidence),
-    scope: parseScope(candidate.scope, 'candidate_mechanism', key),
+    scope: parseScope(candidate.scope, 'transmission', key),
     hasEvidence: boolean(candidate.has_evidence)
   };
 }
@@ -491,7 +473,7 @@ function parseRelatedChain(value: unknown): ReportRelatedIndustryChain {
     'has_evidence'
   ]);
   const key = localKey(chain.key);
-  parseScope(chain.scope, 'industry_chain', key);
+  parseScope(chain.scope, 'industry_chain_summary', key);
   parseConfidence(chain.confidence);
   displayText(chain.conclusion);
   displayText(chain.status);
@@ -547,7 +529,7 @@ function parseIndustryChain(value: unknown): ReportIndustryChainDetailContent {
     nodes,
     edges,
     uncertainty: parseIndustryChainUncertainty(chain.uncertainty),
-    scope: parseScope(chain.scope, 'industry_chain', key),
+    scope: parseScope(chain.scope, 'industry_chain_summary', key),
     hasEvidence: boolean(chain.has_evidence)
   };
 }
@@ -633,7 +615,8 @@ function parseScope(
     type: enumValue<ReportEvidenceScopeType>(scope.type, evidenceScopeTypes),
     key: localKey(scope.key)
   };
-  if (result.type === 'layer' && !layerKeys.includes(result.key as ReportLayerKey)) invalid();
+  if (result.type === 'section_summary' && !layerKeys.includes(result.key as ReportLayerKey))
+    invalid();
   if (
     (expectedType !== undefined && result.type !== expectedType) ||
     (expectedKey !== undefined && result.key !== expectedKey)
@@ -646,7 +629,7 @@ function parseScope(
 function validateExpectedScope(scope: ReportEvidenceScope): void {
   if (!evidenceScopeTypes.includes(scope.type)) invalid();
   const key = localKey(scope.key);
-  if (scope.type === 'layer' && !layerKeys.includes(key as ReportLayerKey)) invalid();
+  if (scope.type === 'section_summary' && !layerKeys.includes(key as ReportLayerKey)) invalid();
 }
 
 function parseResult(value: unknown): ReportResult {

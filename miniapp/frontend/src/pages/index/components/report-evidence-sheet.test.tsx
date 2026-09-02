@@ -23,8 +23,8 @@ vi.mock('@tarojs/components', () => ({
 const reportId = 'RPT11111111-1111-4111-8111-111111111111';
 const route: ReportEvidenceRoute = {
   reportId,
-  scopeType: 'report_card',
-  scopeKey: 'card-geopolitics',
+  scopeType: 'section_summary',
+  scopeKey: 'geopolitics',
   title: '地缘政治证据'
 };
 
@@ -32,7 +32,7 @@ describe('HomeReportEvidenceSheet', () => {
   it('loads only the selected persisted Report Evidence scope', async () => {
     const result: ReportEvidenceList = {
       reportId,
-      scope: { type: 'report_card', key: 'card-geopolitics' },
+      scope: { type: 'section_summary', key: 'geopolitics' },
       items: []
     };
     const getEvidences = vi.fn().mockResolvedValue(result);
@@ -46,41 +46,48 @@ describe('HomeReportEvidenceSheet', () => {
     await expect(loadHomeReportEvidences(port, route)).resolves.toBe(result);
     expect(getEvidences).toHaveBeenCalledTimes(1);
     expect(getEvidences).toHaveBeenCalledWith(reportId, {
-      type: 'report_card',
-      key: 'card-geopolitics'
+      type: 'section_summary',
+      key: 'geopolitics'
     });
   });
 
   it('matches all six ordered card Evidence lists used by the prototype', async () => {
     const expectedByScope = {
-      'card-geopolitics': [
+      geopolitics: [
         '霍尔木兹海峡油轮交通量下降并遭袭击警告',
         '中国海警在黄岩岛开展执法巡查',
         '美国政府准备使用捕获法处置扣押的伊朗石油和船只',
         '美伊在霍尔木兹海峡附近发生军事冲突',
         '美伊冲突扰乱霍尔木兹海峡油运'
       ],
-      'card-macroeconomics': [
+      macroeconomics: [
         '世界银行警告全球经济增长可能放缓至1.3%',
         '美联储主席Warsh在杰克逊霍尔会议上暗示可能加息'
       ],
-      'card-chn-01': ['中国举办第二届人形机器人比赛', 'DIGITIMES发表关于具身智能实体化的评论'],
-      'card-chn-02': [
+      'chn-01': ['中国举办第二届人形机器人比赛', 'DIGITIMES发表关于具身智能实体化的评论'],
+      'chn-02': [
         '中国发布首个国家级液冷标准',
         'OpenAI在Hot Chips 2026披露自研AI加速器Jalapeño基准测试结果',
         'Google与Marvell扩大定制芯片合作'
       ],
-      'card-chn-03': [
+      'chn-03': [
         '国家数据局披露全国智算总规模数据',
         'OpenAI在Hot Chips 2026披露自研AI加速器Jalapeño基准测试结果',
         'Google与Marvell扩大定制芯片合作',
         'InferenceXv3实现95%以上KVCache命中率'
       ],
-      'card-chn-21': ['霍尔木兹海峡油轮交通量下降并遭袭击警告', '美伊冲突扰乱霍尔木兹海峡油运']
+      'chn-21': ['霍尔木兹海峡油轮交通量下降并遭袭击警告', '美伊冲突扰乱霍尔木兹海峡油运']
     } as const;
 
     for (const [scopeKey, expected] of Object.entries(expectedByScope)) {
-      const result = await loadHomeReportEvidences(mockReportPort, { ...route, scopeKey });
+      const result = await loadHomeReportEvidences(mockReportPort, {
+        ...route,
+        scopeType:
+          scopeKey === 'geopolitics' || scopeKey === 'macroeconomics'
+            ? 'section_summary'
+            : 'industry_chain_summary',
+        scopeKey
+      });
       expect(result.items.map((item) => item.summary)).toEqual(expected);
     }
   });
@@ -98,7 +105,7 @@ describe('HomeReportEvidenceSheet', () => {
           status: 'ready',
           data: {
             reportId,
-            scope: { type: 'report_card', key: 'geo-card' },
+            scope: { type: 'section_summary', key: 'geopolitics' },
             items: [
               { publishedAt: '2026-09-01T04:00:00Z', summary: '第一条', keywords: [] },
               duplicate,
