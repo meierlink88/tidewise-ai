@@ -171,7 +171,7 @@ func TestPostgresReportPublicationReplayReadsAndImmutableRelationships(t *testin
 
 	assertPostgresCode(t, db, "23503", `INSERT INTO report_evidence_links
         (id,report_id,evidence_id,scope_type,scope_key,role,display_order)
-		VALUES('RPE33333333-3333-4333-8333-333333333333',$1,'EVD33333333-3333-4333-8333-333333333333','section_summary','geopolitics','missing',2)`, first.Record.ID)
+		VALUES('RPE33333333-3333-4333-8333-333333333333',$1,'EVD33333333-3333-4333-8333-333333333333','section_summary','geopolitics','supports_claim',2)`, first.Record.ID)
 	assertPostgresCode(t, db, "23505", `INSERT INTO report_evidence_links
 		(id,report_id,evidence_id,scope_type,scope_key,role,display_order)
 		SELECT 'RPE44444444-4444-4444-8444-444444444444',report_id,evidence_id,scope_type,scope_key,role,99
