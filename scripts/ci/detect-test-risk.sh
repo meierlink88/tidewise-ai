@@ -44,7 +44,7 @@ uat_neo4j=false
 
 shared_go='^(go\.mod|go\.sum)$'
 shared_frontend='^(package\.json|package-lock\.json)$'
-container_assets='(^|/)(Dockerfile|docker-compose[^/]*\.ya?ml)$|^infra/(local|uat|uat-infra)/|^\.github/workflows/(ci|deploy-uat|deploy-uat-infra)\.yml$'
+container_assets='(^|/)(Dockerfile|docker-compose[^/]*\.ya?ml)$|^infra/(local|uat|uat-infra)/|^\.github/workflows/(ci|deploy-uat|deploy-uat-infra|recover-uat-pre-v74-evidence)\.yml$'
 
 if matches '^infra/uat-neo4j/|^scripts/ci/verify-uat-neo4j-contract\.sh$'; then
   uat_neo4j=true

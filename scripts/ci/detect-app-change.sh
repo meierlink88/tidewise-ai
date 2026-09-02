@@ -8,7 +8,7 @@ set -euo pipefail
 scope="${1:-}"
 case "$scope" in
   data)
-    pattern='^(data-service/|go\.mod$|go\.sum$|AGENTS\.md$|CONTEXT-MAP\.md$|docs/(agents/|contexts/data/)|infra/(local|uat|uat-infra)/|scripts/ci/|\.github/workflows/(ci|deploy-uat|deploy-uat-infra)\.yml$)'
+    pattern='^(data-service/|go\.mod$|go\.sum$|AGENTS\.md$|CONTEXT-MAP\.md$|docs/(agents/|contexts/data/)|infra/(local|uat|uat-infra)/|scripts/ci/|\.github/workflows/(ci|deploy-uat|deploy-uat-infra|recover-uat-pre-v74-evidence)\.yml$)'
     ;;
   miniapp)
     pattern='^(miniapp/|data-service/backend/api/|go\.mod$|go\.sum$|package\.json$|package-lock\.json$|AGENTS\.md$|CONTEXT-MAP\.md$|docs/(agents/|contexts/miniapp/)|infra/(local|uat)/|scripts/ci/|\.github/workflows/(ci|deploy-uat)\.yml$)'

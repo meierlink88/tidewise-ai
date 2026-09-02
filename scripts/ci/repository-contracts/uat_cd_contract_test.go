@@ -150,6 +150,50 @@ func TestUATWorkflowExposesBoundedDataCutoversWithoutChangingNormalMode(t *testi
 	}
 }
 
+func TestUATPreV74EvidenceRecoveryIsBoundedAndCountOnly(t *testing.T) {
+	root := repositoryRoot()
+	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "recover-uat-pre-v74-evidence.yml"))
+	for _, required := range []string{
+		"workflow_dispatch:",
+		"expected_cutover_release_sha:",
+		"confirm_high_risk_backup:",
+		"confirm_destructive_data_change:",
+		"group: uat-deploy",
+		"workflow_id: 'ci.yml'",
+		"runs-on: [self-hosted, linux, x64, tidewise-uat-ecs]",
+		"tidewise-2-cutover-in-progress",
+		"release_sha=${EXPECTED_CUTOVER_SHA}",
+		"phase=migration-started",
+		"target_version=77",
+		"flock -n",
+		"com.docker.compose.project=tidewise-uat",
+		"@sha256:",
+		"/usr/local/bin/pre-v74-evidence-recovery",
+		"TIDEWISE_PRE_V74_EVIDENCE_RECOVERY_CONFIRMED=issue-374-uat-pre-v74-evidence-clear",
+		"migration_version",
+		"Event dataset is not empty",
+		"count-only recovery report",
+	} {
+		if !strings.Contains(workflow, required) {
+			t.Fatalf("UAT pre-v74 Evidence recovery workflow missing %q", required)
+		}
+	}
+	for _, forbidden := range []string{"psql", "TRUNCATE", "DROP TABLE", "DROP SCHEMA", "docker compose up", "docker start"} {
+		if strings.Contains(workflow, forbidden) {
+			t.Fatalf("UAT pre-v74 Evidence recovery workflow contains forbidden behavior %q", forbidden)
+		}
+	}
+	dockerfile := readContractFile(t, filepath.Join(root, "data-service", "backend", "Dockerfile"))
+	for _, required := range []string{
+		"./data-service/backend/cmd/pre-v74-evidence-recovery",
+		"/usr/local/bin/pre-v74-evidence-recovery",
+	} {
+		if !strings.Contains(dockerfile, required) {
+			t.Fatalf("Data recovery image is missing %q", required)
+		}
+	}
+}
+
 func TestDataMigrationSmokeExercisesExplicitEmptySchemaRebuild(t *testing.T) {
 	root := repositoryRoot()
 	ci := readContractFile(t, filepath.Join(root, ".github", "workflows", "ci.yml"))

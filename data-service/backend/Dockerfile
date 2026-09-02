@@ -8,6 +8,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/data-service ./data-service/backend/cmd/server
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/dbmigrate ./data-service/backend/cmd/dbmigrate
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/pre-v74-evidence-recovery ./data-service/backend/cmd/pre-v74-evidence-recovery
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/organization-catalog-publish ./data-service/backend/cmd/organization-catalog-publish
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/region-catalog-publish ./data-service/backend/cmd/region-catalog-publish
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/storyline-domain-catalog-publish ./data-service/backend/cmd/storyline-domain-catalog-publish
@@ -25,6 +26,7 @@ WORKDIR /app
 
 COPY --from=builder /out/data-service /usr/local/bin/data-service
 COPY --from=builder /out/dbmigrate /usr/local/bin/dbmigrate
+COPY --from=builder /out/pre-v74-evidence-recovery /usr/local/bin/pre-v74-evidence-recovery
 COPY --from=builder /out/organization-catalog-publish /usr/local/bin/organization-catalog-publish
 COPY --from=builder /out/region-catalog-publish /usr/local/bin/region-catalog-publish
 COPY --from=builder /out/storyline-domain-catalog-publish /usr/local/bin/storyline-domain-catalog-publish

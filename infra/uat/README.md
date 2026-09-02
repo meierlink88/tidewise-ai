@@ -211,6 +211,15 @@ migration 59 开始后，失败恢复只允许相同目标 SHA 和目标版本 `
 cutover marker 且不重启旧应用。成功后可以在 Report 表尚不存在时使用
 `data_78_80_cutover` 直接完成 v2；该模式不放宽普通部署，也不能用于其他起止版本。
 
+若该切换已推进到 migration `73`，并因 migration `74` 检测到旧 Raw Evidence/Evidence
+数据而停止，只能使用 `Recover UAT Pre-v74 Evidence` 工作流。操作员必须提供 marker 中的
+原目标 release SHA，并再次确认 RDS 恢复点与破坏性数据变更。工作流要求 marker 严格处于
+`migration-started`、目标为 `77`，四个应用服务均已停止；随后由 Data 自有的一次性命令在
+单个事务中验证 migration `73`、Event 全部为空，并且只清除 Raw Evidence 分类关系、
+Evidence 与 Raw Evidence。工作流只输出行数，不输出内容；完成后仍保留 marker 和停机状态，
+再以相同目标 SHA 重跑 `data_63_77_cutover` 继续 74→77。任何版本、Event 数据、marker 或
+停写条件不符都会失败，不会自动扩大为清理其他领域数据。
+
 ### Data migrations 78-79 Report 基础存储有界切换
 
 `data_78_79_cutover` 只接受 Data 当前 migration `77` 且 pending 严格为 `78`、`79`。

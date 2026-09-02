@@ -49,6 +49,11 @@ func TestApplicationChangeDetectionRoutesAffectedBoundaries(t *testing.T) {
 			path: "infra/uat-infra/deploy.sh",
 			want: map[string]bool{"data": true, "miniapp": false, "adminportal": false},
 		},
+		{
+			name: "UAT pre-v74 Evidence recovery",
+			path: ".github/workflows/recover-uat-pre-v74-evidence.yml",
+			want: map[string]bool{"data": true, "miniapp": false, "adminportal": false},
+		},
 	}
 
 	script, err := filepath.Abs(filepath.Join(repositoryRoot(), "scripts", "ci", "detect-app-change.sh"))
@@ -172,6 +177,12 @@ func TestRiskBoundaryDetectionSelectsOnlyAffectedSuites(t *testing.T) {
 			name:  "CI workflow selects container contracts",
 			scope: "data",
 			path:  ".github/workflows/ci.yml",
+			want:  map[string]bool{"container": true},
+		},
+		{
+			name:  "UAT pre-v74 Evidence recovery selects container contracts",
+			scope: "data",
+			path:  ".github/workflows/recover-uat-pre-v74-evidence.yml",
 			want:  map[string]bool{"container": true},
 		},
 		{
