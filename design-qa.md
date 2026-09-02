@@ -149,6 +149,47 @@ final result: passed
 
 ---
 
+# Layer-anchor nature and homepage inner-scroll QA
+
+## Visual truth and acceptance rule
+
+- Missing nature-label capture: `/var/folders/51/02rqhzzj69sbg4m15_kfh8q40000gn/T/codex-clipboard-465d8fdc-37a3-40af-93a9-c66b3a337bad.png` (782 x 390 px).
+- The user's semantic rule is authoritative: geopolitics and macroeconomics anchors show the same nature label as industry-chain nodes; `direct_evidence` is blue and `reasoning_hypothesis` is amber. Only direct-evidence anchors expose `依据`.
+- The user's homepage behavior rule is authoritative: the original fixed application header, `今日观潮`, and the selected Report publication frame stay fixed; only the selected Report's cards scroll vertically.
+
+## Implementation evidence
+
+- Homepage preview: `http://127.0.0.1:4175/?qa=home-inner-scroll-final#/pages/index/index`.
+- Detail preview: `http://127.0.0.1:4175/?qa=anchor-nature-final#/pages/report/detail/index?reportId=RPT11111111-1111-4111-8111-111111111111&targetType=layer&targetKey=geopolitics`.
+- Browser: Codex in-app browser. Homepage viewport/capture: 515 x 853 CSS-normalized px; detail viewport/capture: 679 x 863 CSS-normalized px; DPR 2.
+- Homepage same-input initial/scrolled comparison: `/Users/meierlink/.codex/visualizations/2026/09/02/home-inner-scroll-qa/compare-home-fixed-scroll.png`.
+- Anchor same-input before/after comparison: `/Users/meierlink/.codex/visualizations/2026/09/02/report-anchor-nature-qa/compare-anchor-nature.png`.
+- Final full-view captures: `home-initial-fixed.png` and `home-scrolled.png` in `/Users/meierlink/.codex/visualizations/2026/09/02/home-inner-scroll-qa/`; `after-geopolitics-anchor-final.png` in `/Users/meierlink/.codex/visualizations/2026/09/02/report-anchor-nature-qa/`.
+
+## Findings and iteration history
+
+1. P1: layer-anchor cards omitted the persisted nature even though industry-chain cards already rendered it correctly. `ReportImpactSignals` now receives the anchor nature, reusing the approved blue direct-evidence and amber reasoning-hypothesis chips.
+2. P1: the first internal-scroll attempt left the publication row inside the enhanced ScrollView. H5 runtime testing showed it moved from `top: 209.5` to `top: -550.5` after scrolling, so the sticky assumption was rejected.
+3. Fix: the publication frame is now a sibling above the vertical Taro ScrollView. After an internal scroll of 760 CSS px, the page remains at `window.scrollY = 0`, `今日观潮` remains at `top: 202.7`, and the publication frame remains at `top: 263.1`; the ScrollView alone reports `scrollTop = 760`.
+4. The publication frame also acts as a Report selector when the API returns multiple reports. Selecting another publication replaces the scroll body's active Report instead of mounting several full reports in one long page.
+5. The existing ScrollView refresher remains wired to the Report resource refresh path. Focused tests invoke `onRefresherRefresh` and verify the refresh callback.
+6. Current mock layer anchors are direct Evidence, so browser QA shows four blue labels and four `依据` actions across the visible geopolitics/macroeconomics continuation. A focused component test supplies a reasoning-hypothesis anchor and verifies the amber label plus zero `依据` action.
+7. Console warnings/errors: none in the final homepage and detail browser states.
+
+## Required fidelity surfaces
+
+- Typography: existing homepage and detail hierarchies, weights, line heights, and wrapping remain unchanged; only the missing nature text is added.
+- Spacing/layout: `今日观潮` and publication frame occupy fixed flex rows; the card list receives the remaining fixed height and scrolls internally without document movement.
+- Colors/tokens: nature labels reuse the existing project blue and amber semantic tokens; the publication frame reuses existing card, border, and shadow tokens.
+- Image/icon quality: publication clock and existing report icons remain local SVG assets rendered through Taro `Image`; no prototype asset implementation was copied.
+- Copy/content: Report snapshot fields and card order are unchanged. Nature labels expose the stored semantic classification and do not infer a different Evidence status in the UI.
+
+No actionable P0, P1, or P2 difference remains for the requested anchor-nature labels or homepage fixed publication-frame behavior.
+
+final result: passed
+
+---
+
 # Detail Evidence-entry deduplication QA
 
 ## Visual truth and acceptance rule
@@ -185,5 +226,14 @@ final result: passed
 - Copy/content: direct nodes say `依据`; hypotheses do not claim direct Evidence and clearly state that later validation is required.
 
 No actionable P0, P1, or P2 difference remains for the requested Evidence-entry behavior and visible states.
+
+final result: passed
+
+---
+
+# Latest combined acceptance status
+
+- Layer-anchor nature labels and homepage inner-scroll behavior use the evidence, comparisons, runtime measurements, and five-surface review recorded in `Layer-anchor nature and homepage inner-scroll QA` above.
+- The final H5 browser state has no actionable P0, P1, or P2 difference for this request and no console warning or error.
 
 final result: passed

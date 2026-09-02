@@ -1,5 +1,5 @@
 import Taro, { usePullDownRefresh } from '@tarojs/taro';
-import { Button, Image, Text, View } from '@tarojs/components';
+import { Button, Image, ScrollView, Text, View } from '@tarojs/components';
 import { type ReactNode, useMemo, useState } from 'react';
 import fileTextIcon from '../../assets/icons/file-text.svg';
 import reportArrowRightIcon from '../../assets/icons/report-arrow-right-light.svg';
@@ -46,17 +46,22 @@ const isHomeEmpty = (home: ReportHome) => home.reports.length === 0;
 export default function IndexPage() {
   const [query, setQuery] = useState('');
   const [evidenceRoute, setEvidenceRoute] = useState<ReportEvidenceRoute | null>(null);
+  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const chrome = useMemo(() => getHomeChromeMetrics(Taro), []);
   const port = useMemo(() => getReportPort(), []);
   const resource = useReportResource('report-home', () => port.getHome(), isHomeEmpty);
 
-  usePullDownRefresh(async () => {
+  const refreshHome = async () => {
     await resource.refresh();
     const latest = resource.snapshot();
     if ((latest.status === 'ready' || latest.status === 'empty') && latest.refreshFailed) {
       void Taro.showToast({ title: '刷新失败，已保留当前内容', icon: 'none', duration: 1800 });
     }
-    void Taro.stopPullDownRefresh();
+  };
+
+  usePullDownRefresh(async () => {
+    await refreshHome();
+    await stopHomeRefresh(Taro);
   });
 
   return (
@@ -66,7 +71,10 @@ export default function IndexPage() {
         query={query}
         onQueryChange={setQuery}
         state={resource.state}
+        selectedReportId={selectedReportId}
         onRetry={() => void resource.retry()}
+        onRefresh={() => void refreshHome()}
+        onSelectReport={setSelectedReportId}
         onOpenDetail={(route) => navigateToReportDetail(Taro, route)}
         onOpenEvidence={setEvidenceRoute}
       />
@@ -86,7 +94,10 @@ export function IndexView({
   query,
   onQueryChange,
   state,
+  selectedReportId,
   onRetry,
+  onRefresh,
+  onSelectReport,
   onOpenDetail,
   onOpenEvidence
 }: {
@@ -94,7 +105,10 @@ export function IndexView({
   query: string;
   onQueryChange: (query: string) => void;
   state: ReportResourceState<ReportHome>;
+  selectedReportId?: string | null;
   onRetry: () => void;
+  onRefresh: () => void;
+  onSelectReport?: (reportId: string) => void;
   onOpenDetail: (route: ReportDetailRoute) => void;
   onOpenEvidence: (route: ReportEvidenceRoute) => void;
 }) {
@@ -108,7 +122,10 @@ export function IndexView({
         </View>
         <HomeReportState
           state={state}
+          selectedReportId={selectedReportId}
           onRetry={onRetry}
+          onRefresh={onRefresh}
+          onSelectReport={onSelectReport}
           onOpenDetail={onOpenDetail}
           onOpenEvidence={onOpenEvidence}
         />
@@ -119,12 +136,18 @@ export function IndexView({
 
 function HomeReportState({
   state,
+  selectedReportId,
   onRetry,
+  onRefresh,
+  onSelectReport,
   onOpenDetail,
   onOpenEvidence
 }: {
   state: ReportResourceState<ReportHome>;
+  selectedReportId?: string | null;
   onRetry: () => void;
+  onRefresh: () => void;
+  onSelectReport?: (reportId: string) => void;
   onOpenDetail: (route: ReportDetailRoute) => void;
   onOpenEvidence: (route: ReportEvidenceRoute) => void;
 }) {
@@ -145,32 +168,76 @@ function HomeReportState({
   if (state.status === 'empty') {
     return <ReportStatePanel title='暂无推理报告' description='报告发布后会在这里展示' />;
   }
+  const selectedGroup =
+    state.data.reports.find((group) => group.report.id === selectedReportId) ??
+    state.data.reports[0]!;
+
   return (
-    <View className='home-report-list'>
-      {state.refreshFailed ? (
-        <View className='home-refresh-warning'>刷新失败，当前展示上次成功读取的内容</View>
-      ) : null}
-      {state.data.reports.map((group) => (
-        <HomeReportGroupView
-          key={group.report.id}
-          group={group}
-          fallback={state.data.selection.mode === 'latest_fallback'}
-          onOpenDetail={onOpenDetail}
-          onOpenEvidence={onOpenEvidence}
-        />
-      ))}
+    <View className='home-report-frame'>
+      <View className='home-report-group__header'>
+        <View
+          className={`home-report-tabs${state.data.reports.length > 1 ? ' home-report-tabs--multiple' : ''}`}
+          role='tablist'
+        >
+          {state.data.reports.map((group) => {
+            const selected = group.report.id === selectedGroup.report.id;
+            return (
+              <View
+                key={group.report.id}
+                className={`home-report-publish-row${selected ? ' home-report-publish-row--selected' : ''}`}
+                role='tab'
+                ariaLabel={`查看 ${formatShanghaiTimestamp(group.report.publishedAt)} 发布的报告`}
+                onClick={() => onSelectReport?.(group.report.id)}
+              >
+                <Image
+                  className='home-report-publish-row__icon'
+                  src={reportPublishedClockIcon}
+                  mode='aspectFit'
+                />
+                <Text className='home-report-publish-row__label'>发布时间</Text>
+                <Text className='home-report-publish-row__time'>
+                  {formatShanghaiTimestamp(group.report.publishedAt)}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+        {state.data.selection.mode === 'latest_fallback' ? (
+          <Text className='home-report-group__fallback'>最近发布</Text>
+        ) : null}
+      </View>
+
+      <ScrollView
+        key={selectedGroup.report.id}
+        className='home-report-scroll'
+        scrollY
+        enhanced
+        enableFlex
+        refresherEnabled
+        refresherTriggered={state.refreshing}
+        onRefresherRefresh={onRefresh}
+      >
+        <View className='home-report-list'>
+          {state.refreshFailed ? (
+            <View className='home-refresh-warning'>刷新失败，当前展示上次成功读取的内容</View>
+          ) : null}
+          <HomeReportGroupView
+            group={selectedGroup}
+            onOpenDetail={onOpenDetail}
+            onOpenEvidence={onOpenEvidence}
+          />
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
 function HomeReportGroupView({
   group,
-  fallback,
   onOpenDetail,
   onOpenEvidence
 }: {
   group: ReportHomeGroup;
-  fallback: boolean;
   onOpenDetail: (route: ReportDetailRoute) => void;
   onOpenEvidence: (route: ReportEvidenceRoute) => void;
 }) {
@@ -181,21 +248,6 @@ function HomeReportGroupView({
 
   return (
     <View className='home-report-group' ariaLabel='本期观潮报告'>
-      <View className='home-report-group__header'>
-        <View className='home-report-publish-row'>
-          <Image
-            className='home-report-publish-row__icon'
-            src={reportPublishedClockIcon}
-            mode='aspectFit'
-          />
-          <Text className='home-report-publish-row__label'>发布时间</Text>
-          <Text className='home-report-publish-row__time'>
-            {formatShanghaiTimestamp(group.report.publishedAt)}
-          </Text>
-        </View>
-        {fallback ? <Text className='home-report-group__fallback'>最近发布</Text> : null}
-      </View>
-
       <View className='home-report-flow'>
         {geopolitics ? (
           <HomeReportSection card={geopolitics}>

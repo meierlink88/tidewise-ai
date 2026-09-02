@@ -3,9 +3,13 @@
 $home-hero-static-height: 168rpx;
 
 .home-page {
-  min-height: 100vh;
-  overflow-x: hidden;
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
   background: $color-page-background;
+  flex-direction: column;
 }
 
 .home-hero {
@@ -26,6 +30,7 @@ $home-hero-static-height: 168rpx;
   box-sizing: content-box;
   width: 100%;
   height: $home-hero-static-height;
+  flex: 0 0 auto;
 }
 
 .home-hero::after {
@@ -142,15 +147,20 @@ $home-hero-static-height: 168rpx;
 .home-content {
   position: relative;
   z-index: 2;
-  min-height: 70vh;
+  display: flex;
+  box-sizing: border-box;
+  min-height: 0;
+  flex: 1;
   margin-top: 0;
-  padding: 34rpx $spacing-page calc(56rpx + env(safe-area-inset-bottom));
+  padding: 34rpx $spacing-page 0;
   border-radius: 44rpx 44rpx 0 0;
   background: $color-report-canvas;
   box-shadow: $shadow-home-content;
+  flex-direction: column;
 }
 
 .home-section-heading {
+  flex: 0 0 auto;
   margin: 0 4rpx 24rpx;
 }
 
@@ -161,8 +171,24 @@ $home-hero-static-height: 168rpx;
   line-height: 1.2;
 }
 
+.home-report-frame {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.home-report-scroll {
+  display: block;
+  height: 0;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
 .home-report-list {
   display: flex;
+  padding-bottom: calc(56rpx + env(safe-area-inset-bottom));
   flex-direction: column;
   gap: 32rpx;
 }
@@ -178,17 +204,36 @@ $home-hero-static-height: 168rpx;
 .home-report-group__header {
   display: flex;
   min-height: 68rpx;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
+  margin-bottom: 16rpx;
   padding: 20rpx 24rpx;
+  border: 1rpx solid $color-report-group-border;
   border-bottom: 1rpx solid $color-report-slate-200;
+  border-radius: 20rpx;
   background: $color-card;
+  box-shadow: $shadow-report-group;
+}
+
+.home-report-tabs {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  gap: 12rpx;
 }
 
 .home-report-publish-row {
   display: flex;
+  min-width: 0;
   align-items: center;
+  padding: 4rpx 8rpx;
+  border-radius: 12rpx;
   gap: 12rpx;
+}
+
+.home-report-tabs--multiple .home-report-publish-row--selected {
+  background: $color-report-blue-50;
 }
 
 .home-report-publish-row__icon {

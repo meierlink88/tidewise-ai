@@ -144,6 +144,56 @@ describe('Report detail page', () => {
     });
   });
 
+  it('renders semantic nature labels for direct and inferred layer anchors', async () => {
+    const original = await mockReportPort.getLayer(reportId, 'geopolitics');
+    const detail = {
+      ...original,
+      layer: {
+        ...original.layer,
+        anchors: [
+          original.layer.anchors[0],
+          {
+            ...original.layer.anchors[1],
+            nature: { code: 'reasoning_hypothesis' as const, label: '推理假设' as const },
+            hasEvidence: true
+          }
+        ]
+      }
+    };
+
+    renderToStaticMarkup(
+      createElement(ReportDetailView, {
+        state: {
+          status: 'ready',
+          data: { targetType: 'layer', detail },
+          refreshing: false,
+          refreshFailed: false
+        },
+        onRetry: vi.fn(),
+        onOpenDetail: vi.fn(),
+        onOpenEvidence: vi.fn()
+      })
+    );
+
+    expect(
+      captured.texts.some(
+        (props) =>
+          props.children === '直接证据' &&
+          props.className === 'report-nature-chip report-nature-chip--direct_evidence'
+      )
+    ).toBe(true);
+    expect(
+      captured.texts.some(
+        (props) =>
+          props.children === '推理假设' &&
+          props.className === 'report-nature-chip report-nature-chip--reasoning_hypothesis'
+      )
+    ).toBe(true);
+    expect(
+      captured.buttons.some((props) => props.ariaLabel === '查看南海海洋权益与安全争端证据：依据')
+    ).toBe(false);
+  });
+
   it('keeps one explicit layer or chain continuation per transmission card', async () => {
     const original = await mockReportPort.getLayer(reportId, 'geopolitics');
     const firstPath = original.layer.downwardTransmission.publishedPaths[0];

@@ -17,6 +17,7 @@ vi.mock('@tarojs/components', () => ({
   Button: 'button',
   Image: 'image',
   Input: 'input',
+  ScrollView: 'scroll-view',
   Text: 'text',
   View: 'view'
 }));
@@ -26,12 +27,14 @@ const chrome = { statusBarHeight: 44, navigationBarHeight: 44, rightReservedWidt
 describe('Report homepage', () => {
   it('keeps the application shell and renders every persisted card in one Report group', async () => {
     const home = await mockReportPort.getHome();
+    const onRefresh = vi.fn();
     const page = IndexView({
       chrome,
       query: '',
       onQueryChange: vi.fn(),
       state: { status: 'ready', data: home, refreshing: false, refreshFailed: false },
       onRetry: vi.fn(),
+      onRefresh,
       onOpenDetail: vi.fn(),
       onOpenEvidence: vi.fn()
     });
@@ -65,6 +68,17 @@ describe('Report homepage', () => {
     expect(findAllByClass(page, 'home-impact-signal__confidence-icon')).toHaveLength(21);
     expect(findAllByClass(page, 'home-impact-signal__window-icon')).toHaveLength(21);
     expect(findAllByClass(page, 'home-report-card__signals')).toHaveLength(0);
+    const scroll = findAllByClass(page, 'home-report-scroll')[0];
+    expect(scroll).toBeDefined();
+    expect(scroll?.props).toMatchObject({
+      scrollY: true,
+      enhanced: true,
+      refresherEnabled: true
+    });
+    expect(findAllByClass(scroll?.props.children, 'home-report-group__header')).toHaveLength(0);
+    expect(findAllByClass(page, 'home-report-group__header')).toHaveLength(1);
+    scroll?.props.onRefresherRefresh?.();
+    expect(onRefresh).toHaveBeenCalledOnce();
     expect(
       findAllByClass(page, 'home-report-card').every((card) => card.props.role !== 'button')
     ).toBe(true);
@@ -83,6 +97,7 @@ describe('Report homepage', () => {
       onQueryChange: vi.fn(),
       state: { status: 'ready', data: home, refreshing: false, refreshFailed: false },
       onRetry: vi.fn(),
+      onRefresh: vi.fn(),
       onOpenDetail,
       onOpenEvidence
     });
@@ -111,6 +126,7 @@ describe('Report homepage', () => {
       onQueryChange: vi.fn(),
       state: { status: 'ready', data: home, refreshing: false, refreshFailed: false },
       onRetry: vi.fn(),
+      onRefresh: vi.fn(),
       onOpenDetail,
       onOpenEvidence: vi.fn()
     });
@@ -139,6 +155,7 @@ describe('Report homepage', () => {
         refreshFailed: false
       },
       onRetry: vi.fn(),
+      onRefresh: vi.fn(),
       onOpenDetail: vi.fn(),
       onOpenEvidence: vi.fn()
     });
@@ -152,6 +169,7 @@ describe('Report homepage', () => {
       query: '',
       onQueryChange: vi.fn(),
       onRetry: vi.fn(),
+      onRefresh: vi.fn(),
       onOpenDetail: vi.fn(),
       onOpenEvidence: vi.fn()
     };
@@ -188,7 +206,12 @@ interface TestElementProps {
   ariaLabel?: string;
   role?: string;
   onClick?: (event: { stopPropagation: () => void }) => void;
+  onRefresherRefresh?: () => void;
   src?: string;
+  scrollY?: boolean;
+  enhanced?: boolean;
+  usingSticky?: boolean;
+  refresherEnabled?: boolean;
   children?: ReactNode;
 }
 

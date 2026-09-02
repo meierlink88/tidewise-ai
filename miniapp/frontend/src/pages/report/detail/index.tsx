@@ -232,6 +232,7 @@ function LayerDetailView({
                 result={anchor.result}
                 confidence={anchor.confidence}
                 timeWindow={anchor.timeWindow}
+                nature={anchor.nature}
               />
               <Text className='report-anchor-card__state'>{anchor.currentState}</Text>
               <View className='report-anchor-card__reason'>
