@@ -41,9 +41,9 @@ func publishHandler(application Service) kratoshttp.HandlerFunc {
 			return err
 		}
 		request := new(PublicationRequest)
-		if err := v1.DecodeStrictJSON(payload, publicationV2Shape(), request); err != nil {
+		if err := v1.DecodeStrictJSON(payload, publicationShape(), request); err != nil {
 			return v1.NewPublicError(v1.StatusBadRequest, ErrorInvalidRequest,
-				"request body is not valid for report-publication.v2", map[string]any{
+				"request body is not valid for Report publication", map[string]any{
 					"path": v1.StrictJSONErrorPath(err),
 				})
 		}
@@ -121,9 +121,9 @@ func chainHandler(application Service) kratoshttp.HandlerFunc {
 
 func evidenceHandler(application Service) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
-		valid := validQuery(ctx, []string{"scope_type", "scope_key"}, nil)
+		valid := validQuery(ctx, []string{"scope_token"}, nil)
 		request := &EvidenceRequest{ReportID: ctx.Vars().Get("report_id"),
-			ScopeType: ctx.Query().Get("scope_type"), ScopeKey: ctx.Query().Get("scope_key"),
+			ScopeToken:      ctx.Query().Get("scope_token"),
 			HasUnknownQuery: !valid}
 		return callWithBudget(ctx, OperationListReportEvidence, readBudget, request,
 			func(callContext context.Context) (*v1.Response[EvidenceCollection], error) {
@@ -165,75 +165,77 @@ func requiredShape(fields map[string]*v1.StrictJSONShape) *v1.StrictJSONShape {
 	return v1.StrictJSONRequiredObject(required, fields)
 }
 
-func publicationV2Shape() *v1.StrictJSONShape {
-	text, integer := v1.StrictJSONString(), v1.StrictJSONInteger()
-	result := requiredShape(map[string]*v1.StrictJSONShape{"code": text, "label": text})
-	nature := requiredShape(map[string]*v1.StrictJSONShape{"code": text, "label": text})
-	confidence := requiredShape(map[string]*v1.StrictJSONShape{"code": text, "label": text, "score": v1.StrictJSONNullable(v1.StrictJSONNumber())})
-	timeWindow := requiredShape(map[string]*v1.StrictJSONShape{"horizons": v1.StrictJSONArray(text), "lag": v1.StrictJSONNullableString(), "label": text})
-	effect := requiredShape(map[string]*v1.StrictJSONShape{"display_order": integer, "dimension": text, "direction": text, "confidence": text})
-	evidenceRef := requiredShape(map[string]*v1.StrictJSONShape{"evidence_id": text, "role": text, "display_order": integer})
+func publicationShape() *v1.StrictJSONShape {
+	text := v1.StrictJSONString()
+	codedLabel := requiredShape(map[string]*v1.StrictJSONShape{"code": text, "label": text})
+	confidence := codedLabel
+	timeWindow := codedLabel
+	evidenceRef := requiredShape(map[string]*v1.StrictJSONShape{"evidence_id": text, "role": codedLabel})
 	evidenceRefs := v1.StrictJSONArray(evidenceRef)
-	claim := requiredShape(map[string]*v1.StrictJSONShape{"key": text, "text": text})
-	checkpoint := requiredShape(map[string]*v1.StrictJSONShape{"key": text, "display_order": integer, "summary": text})
 	uncertainty := requiredShape(map[string]*v1.StrictJSONShape{
-		"counterevidence": text, "evidence_gap": v1.StrictJSONNullableString(),
-		"boundary": text, "reversal_condition": text,
-		"checkpoints": v1.StrictJSONArray(checkpoint),
+		"counterevidence": v1.StrictJSONNullableString(), "evidence_gap": v1.StrictJSONNullableString(),
+		"boundary": v1.StrictJSONNullableString(), "reversal_condition": v1.StrictJSONNullableString(),
 	})
 	anchor := requiredShape(map[string]*v1.StrictJSONShape{
-		"key": text, "display_order": integer, "name": text, "effects": v1.StrictJSONArray(effect),
-		"result": result, "nature": nature, "reasoning": text, "time_window": timeWindow,
-		"confidence": confidence, "source_ref": v1.StrictJSONNullableString(), "evidence_refs": evidenceRefs,
+		"local_key": text, "name": text, "current_state": text, "result": codedLabel,
+		"conclusion_basis": codedLabel, "validation_status": codedLabel, "reasoning": text,
+		"time_window": timeWindow, "confidence": confidence, "evidence_refs": evidenceRefs,
 	})
 	step := requiredShape(map[string]*v1.StrictJSONShape{
-		"key": text, "display_order": integer, "input": text, "mechanism": text, "output": text,
-		"type": text, "confidence": confidence, "evidence_refs": evidenceRefs,
-	})
-	targetRef := requiredShape(map[string]*v1.StrictJSONShape{"type": text, "key": text})
-	namedResult := requiredShape(map[string]*v1.StrictJSONShape{"name": text, "result": result})
-	targetFields := map[string]*v1.StrictJSONShape{"ref": targetRef, "label": text, "results": v1.StrictJSONArray(namedResult)}
-	target := v1.StrictJSONRequiredObject([]string{"label", "results"}, targetFields)
-	transmission := requiredShape(map[string]*v1.StrictJSONShape{
-		"key": text, "display_order": integer, "source_claim_key": text, "source_conclusion": text,
-		"targets": v1.StrictJSONArray(target), "logic": text, "relation_nature": text,
-		"confidence": confidence, "status": text, "evidence_refs": evidenceRefs,
-	})
-	layerSummary := requiredShape(map[string]*v1.StrictJSONShape{"claim": claim, "transmissions": v1.StrictJSONArray(transmission), "uncertainty": uncertainty, "evidence_refs": evidenceRefs})
-	layerDetail := requiredShape(map[string]*v1.StrictJSONShape{"anchors": v1.StrictJSONArray(anchor), "reasoning_steps": v1.StrictJSONArray(step), "related_chain_keys": v1.StrictJSONArray(text)})
-	layer := requiredShape(map[string]*v1.StrictJSONShape{"key": text, "title": text, "summary": layerSummary, "detail": layerDetail})
-	topologyNode := requiredShape(map[string]*v1.StrictJSONShape{"key": text, "display_order": integer, "name": text})
-	impact := requiredShape(map[string]*v1.StrictJSONShape{
-		"key": text, "display_order": integer, "node_key": text, "effects": v1.StrictJSONArray(effect),
-		"result": result, "nature": nature, "reasoning": text, "time_window": timeWindow,
+		"local_key": text, "input": text, "mechanism": text, "output": text,
 		"confidence": confidence, "evidence_refs": evidenceRefs,
 	})
-	edge := requiredShape(map[string]*v1.StrictJSONShape{"key": text, "display_order": integer, "from_node_key": text, "to_node_key": text, "relation_label": text})
-	chainGraph := requiredShape(map[string]*v1.StrictJSONShape{"nodes": v1.StrictJSONArray(topologyNode), "edges": v1.StrictJSONArray(edge)})
-	chainUncertainty := requiredShape(map[string]*v1.StrictJSONShape{"counterevidence_and_gap": text, "stop_condition": text})
-	chainSummary := requiredShape(map[string]*v1.StrictJSONShape{
-		"claim": claim, "status": text, "result": result, "confidence": confidence, "time_window": timeWindow,
-		"path": text, "accepted_hypothesis_summary": v1.StrictJSONNullableString(), "graph": chainGraph,
+	target := requiredShape(map[string]*v1.StrictJSONShape{
+		"target_type": codedLabel, "target_local_key": text, "target_name": text, "result": codedLabel,
+	})
+	transmission := requiredShape(map[string]*v1.StrictJSONShape{
+		"local_key": text, "source_conclusion": text, "targets": v1.StrictJSONArray(target),
+		"transmission_logic": text, "transmission_kind": codedLabel,
+		"confidence": confidence, "status": codedLabel,
+	})
+	transmissionGroup := requiredShape(map[string]*v1.StrictJSONShape{"summary": text, "paths": v1.StrictJSONArray(transmission)})
+	geoDownward := requiredShape(map[string]*v1.StrictJSONShape{
+		"to_macroeconomics": transmissionGroup, "to_industry_chains": transmissionGroup,
+	})
+	macroDownward := requiredShape(map[string]*v1.StrictJSONShape{"to_industry_chains": transmissionGroup})
+	layerFields := map[string]*v1.StrictJSONShape{
+		"local_key": text, "title": text, "conclusion": text, "result": codedLabel,
+		"time_window": timeWindow, "confidence": confidence,
+		"affected_anchors": v1.StrictJSONArray(anchor), "reasoning_steps": v1.StrictJSONArray(step),
+		"uncertainty": uncertainty, "evidence_refs": evidenceRefs,
+	}
+	geopoliticsFields := make(map[string]*v1.StrictJSONShape, len(layerFields)+1)
+	macroeconomicsFields := make(map[string]*v1.StrictJSONShape, len(layerFields)+1)
+	for name, shape := range layerFields {
+		geopoliticsFields[name], macroeconomicsFields[name] = shape, shape
+	}
+	geopoliticsFields["downward_transmission"] = geoDownward
+	macroeconomicsFields["downward_transmission"] = macroDownward
+	geopolitics := requiredShape(geopoliticsFields)
+	macroeconomics := requiredShape(macroeconomicsFields)
+	impact := requiredShape(map[string]*v1.StrictJSONShape{
+		"local_key": text, "name": text, "impact": text, "result": codedLabel,
+		"conclusion_basis": codedLabel, "validation_status": codedLabel, "reasoning": text,
+		"time_window": timeWindow, "confidence": confidence, "evidence_refs": evidenceRefs,
+	})
+	edge := requiredShape(map[string]*v1.StrictJSONShape{
+		"from_node_local_key": text, "to_node_local_key": text, "relation_label": text,
+	})
+	chainUncertainty := requiredShape(map[string]*v1.StrictJSONShape{
+		"counterevidence_and_gap": v1.StrictJSONNullableString(), "stop_condition": v1.StrictJSONNullableString(),
+	})
+	chain := requiredShape(map[string]*v1.StrictJSONShape{
+		"local_key": text, "name": text, "conclusion": text, "result": codedLabel,
+		"time_window": timeWindow, "confidence": confidence,
+		"path_summary": v1.StrictJSONNullableString(), "accepted_hypothesis_summary": v1.StrictJSONNullableString(),
+		"nodes": v1.StrictJSONArray(impact), "edges": v1.StrictJSONArray(edge),
 		"uncertainty": chainUncertainty, "evidence_refs": evidenceRefs,
 	})
-	chainDetail := requiredShape(map[string]*v1.StrictJSONShape{"node_impacts": v1.StrictJSONArray(impact)})
-	chain := requiredShape(map[string]*v1.StrictJSONShape{"key": text, "display_order": integer, "name": text, "summary": chainSummary, "detail": chainDetail})
-	statistics := requiredShape(map[string]*v1.StrictJSONShape{
-		"event_count": integer, "ordinary_fact_count": integer, "signal_fact_count": integer,
-		"transmission_hypothesis_count": integer, "geopolitic_anchor_count": integer,
-		"macroeconomic_anchor_count": integer, "signaled_chain_node_count": integer, "industry_chain_count": integer,
-	})
-	analysisWindow := requiredShape(map[string]*v1.StrictJSONShape{"started_at": text, "ended_at": text})
-	template := requiredShape(map[string]*v1.StrictJSONShape{"name": text, "version": text, "role": text})
-	provenance := requiredShape(map[string]*v1.StrictJSONShape{
-		"derived_from_report_id": v1.StrictJSONNullableString(), "frozen_source_sha256": v1.StrictJSONNullableString(),
-		"frozen_source_commit": v1.StrictJSONNullableString(), "template": template,
-	})
-	contentFields := map[string]*v1.StrictJSONShape{
-		"report_type": text, "title": text, "generation_status": text, "simulation": v1.StrictJSONBoolean(),
-		"generated_at": text, "analysis_window": analysisWindow, "timezone": text, "provenance": provenance,
-		"statistics": statistics, "geopolitics": layer, "macroeconomics": layer, "industry_chains": v1.StrictJSONArray(chain),
+	reportFields := map[string]*v1.StrictJSONShape{
+		"report_type": codedLabel, "generated_at": text, "timezone": text,
+		"geopolitics": geopolitics, "macroeconomics": macroeconomics,
+		"industry_chains": v1.StrictJSONArray(chain),
 	}
-	content := v1.StrictJSONRequiredObject([]string{"report_type", "title", "generation_status", "simulation", "generated_at", "analysis_window", "timezone", "provenance", "statistics", "industry_chains"}, contentFields)
-	return requiredShape(map[string]*v1.StrictJSONShape{"contract_version": text, "publisher_report_id": text, "content": content})
+	report := v1.StrictJSONRequiredObject([]string{"report_type", "generated_at", "timezone", "industry_chains"}, reportFields)
+	return requiredShape(map[string]*v1.StrictJSONShape{"publisher_report_id": text, "report": report})
 }

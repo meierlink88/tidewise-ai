@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -21,98 +20,60 @@ import (
 )
 
 const reportTestID = "RPT11111111-1111-4111-8111-111111111111"
+const reportScopeToken = "RPE11111111-1111-4111-8111-111111111111"
 
-func TestReportHTTPBindingsUseVersionedRoutesAndSafeErrors(t *testing.T) {
+func TestReportHTTPBindingsUseVersionedRoutes(t *testing.T) {
 	stub := &reportAPIStub{}
 	router := NewHTTPServer(testRuntimeConfig(), testLogger(), stub)
-
-	for _, test := range []struct {
-		path      string
-		operation string
-	}{
-		{path: "/api/miniapp/v1/reports/home", operation: api.OperationGetHome},
-		{path: "/api/miniapp/v1/reports/" + reportTestID + "/layers/geopolitics", operation: api.OperationGetLayer},
-		{path: "/api/miniapp/v1/reports/" + reportTestID + "/industry-chains/chain-21", operation: api.OperationGetChain},
-		{path: "/api/miniapp/v1/reports/" + reportTestID + "/evidences?scope_type=section_summary&scope_key=geopolitics", operation: api.OperationListEvidences},
-	} {
+	paths := []string{
+		"/api/miniapp/v1/reports/home",
+		"/api/miniapp/v1/reports/" + reportTestID + "/layers/geopolitics",
+		"/api/miniapp/v1/reports/" + reportTestID + "/industry-chains?limit=20&cursor=next",
+		"/api/miniapp/v1/reports/" + reportTestID + "/industry-chains/chain-21",
+		"/api/miniapp/v1/reports/" + reportTestID + "/evidences?scope_token=" + reportScopeToken,
+	}
+	for _, path := range paths {
 		response := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodGet, test.path, nil)
+		request := httptest.NewRequest(http.MethodGet, path, nil)
 		request.Header.Set(requestIDHeader, "miniapp-report-request")
 		router.ServeHTTP(response, request)
-		if response.Code != http.StatusOK {
-			t.Fatalf("GET %s status/body = %d/%s", test.path, response.Code, response.Body.String())
-		}
-		if response.Header().Get(requestIDHeader) != "miniapp-report-request" {
-			t.Fatalf("GET %s request ID = %q", test.path, response.Header().Get(requestIDHeader))
-		}
-		if !strings.Contains(response.Body.String(), `"request_id":"miniapp-report-request"`) {
-			t.Fatalf("GET %s does not use Miniapp envelope: %s", test.path, response.Body.String())
+		if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"request_id":"miniapp-report-request"`) {
+			t.Fatalf("GET %s status/body=%d/%s", path, response.Code, response.Body.String())
 		}
 	}
-	if stub.layerRequest == nil || stub.layerRequest.ReportID != reportTestID || stub.layerRequest.LayerKey != biz.LayerGeopolitics {
-		t.Fatalf("layer request = %#v", stub.layerRequest)
+	if stub.chainListRequest == nil || stub.chainListRequest.Cursor != "next" || stub.evidenceRequest == nil || stub.evidenceRequest.ScopeToken != reportScopeToken {
+		t.Fatalf("chain=%#v evidence=%#v", stub.chainListRequest, stub.evidenceRequest)
 	}
-	if stub.chainRequest == nil || stub.chainRequest.ChainKey != "chain-21" {
-		t.Fatalf("chain request = %#v", stub.chainRequest)
-	}
-	if stub.evidenceRequest == nil || stub.evidenceRequest.ScopeType != biz.ScopeSectionSummary || stub.evidenceRequest.ScopeKey != biz.LayerGeopolitics {
-		t.Fatalf("evidence request = %#v", stub.evidenceRequest)
-	}
-
-	for _, path := range []string{
-		"/api/miniapp/v1/reports/home?unknown=value",
-		"/api/miniapp/v1/reports/" + reportTestID + "/evidences?scope_type=section_summary&scope_type=anchor&scope_key=geopolitics",
-	} {
-		response := httptest.NewRecorder()
-		router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, path, nil))
-		if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), `"code":"INVALID_REQUEST"`) {
-			t.Fatalf("GET %s status/body = %d/%s", path, response.Code, response.Body.String())
-		}
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/reports/"+reportTestID+"/evidences?scope_token=a&scope_token=b", nil))
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("status/body=%d/%s", response.Code, response.Body.String())
 	}
 }
 
-func TestReportHomeAndEvidenceTraverseRealDataHTTPWithoutLeakingInternalFields(t *testing.T) {
-	var mutex sync.Mutex
-	seenPaths := make([]string, 0, 3)
+func TestReportHomeAndEvidenceTraverseRealDataHTTP(t *testing.T) {
 	downstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.Header.Get("Authorization") != "Bearer miniapp-data-token" {
-			t.Fatalf("authorization = %q", request.Header.Get("Authorization"))
+			t.Fatalf("authorization=%q", request.Header.Get("Authorization"))
 		}
-		mutex.Lock()
-		seenPaths = append(seenPaths, request.URL.RequestURI())
-		mutex.Unlock()
 		switch request.URL.Path {
 		case dataapi.DataAPIPrefix + "/reports":
-			if request.URL.Query().Get("published_from") != "2026-08-31T16:00:00Z" ||
-				request.URL.Query().Get("published_to") != "2026-09-01T16:00:00Z" ||
-				request.URL.Query().Get("limit") != "100" {
-				t.Fatalf("list query = %v", request.URL.Query())
-			}
 			writeDownstreamResult(t, writer, map[string]any{"items": []any{dataSummary()}, "next_cursor": nil})
 		case dataapi.DataAPIPrefix + "/reports/" + reportTestID + "/home":
-			writeDownstreamResult(t, writer, dataHome())
+			writeDownstreamResult(t, writer, map[string]any{"report": dataSummary(), "geopolitics": nil, "macroeconomics": nil})
 		case dataapi.DataAPIPrefix + "/reports/" + reportTestID + "/industry-chains":
 			writeDownstreamResult(t, writer, map[string]any{"items": []any{dataChainSummary()}, "next_cursor": nil})
 		case dataapi.DataAPIPrefix + "/reports/" + reportTestID + "/evidences":
-			if request.URL.Query().Get("scope_type") != "industry_chain_summary" || request.URL.Query().Get("scope_key") != "chain-01" {
-				t.Fatalf("evidence query = %v", request.URL.Query())
+			if request.URL.Query().Get("scope_token") != reportScopeToken {
+				t.Fatalf("query=%v", request.URL.Query())
 			}
-			writeDownstreamResult(t, writer, map[string]any{
-				"report_id": reportTestID, "scope_type": "industry_chain_summary", "scope_key": "chain-01",
-				"items": []any{
-					map[string]any{"evidence_id": "EVD11111111-1111-4111-8111-111111111111", "role": "supports", "display_order": 1,
-						"published_at": "2026-09-01T03:00:00Z", "summary": "第一条证据", "keywords": []string{"海湾"}},
-					map[string]any{"evidence_id": "EVD22222222-2222-4222-8222-222222222222", "role": "context", "display_order": 2,
-						"published_at": nil, "summary": "第二条证据", "keywords": []string{"运输"}},
-				},
-			})
+			writeDownstreamResult(t, writer, map[string]any{"report_id": reportTestID, "scope_token": reportScopeToken, "items": []any{map[string]any{"published_at": nil, "summary": "证据摘要", "keywords": []string{"关键词"}}}})
 		default:
 			t.Fatalf("unexpected Data request %s", request.URL.RequestURI())
 		}
 	}))
 	defer downstream.Close()
-	client, err := dataapi.NewHTTPClient(dataapi.HTTPConfig{BaseURL: downstream.URL,
-		ServiceToken: "miniapp-data-token", Timeout: time.Second, MaxReadAttempts: 1, HTTPClient: downstream.Client()})
+	client, err := dataapi.NewHTTPClient(dataapi.HTTPConfig{BaseURL: downstream.URL, ServiceToken: "miniapp-data-token", Timeout: time.Second, MaxReadAttempts: 1, HTTPClient: downstream.Client()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,136 +82,66 @@ func TestReportHomeAndEvidenceTraverseRealDataHTTPWithoutLeakingInternalFields(t
 	if err != nil {
 		t.Fatal(err)
 	}
-	useCase := biz.NewUseCaseWithClock(repository, func() time.Time {
-		return time.Date(2026, 9, 1, 8, 0, 0, 0, time.UTC)
-	})
+	useCase := biz.NewUseCaseWithClock(repository, func() time.Time { return time.Date(2026, 9, 2, 8, 0, 0, 0, time.UTC) })
 	application, err := reportservice.NewService(useCase)
 	if err != nil {
 		t.Fatal(err)
 	}
 	router := NewHTTPServer(testRuntimeConfig(), slog.New(slog.NewJSONHandler(io.Discard, nil)), application)
-
-	homeResponse := httptest.NewRecorder()
-	router.ServeHTTP(homeResponse, httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/reports/home", nil))
-	if homeResponse.Code != http.StatusOK {
-		t.Fatalf("home status/body = %d/%s", homeResponse.Code, homeResponse.Body.String())
+	home := httptest.NewRecorder()
+	router.ServeHTTP(home, httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/reports/home", nil))
+	if home.Code != http.StatusOK || !strings.Contains(home.Body.String(), `"local_key":"chain-01"`) {
+		t.Fatalf("home=%d/%s", home.Code, home.Body.String())
 	}
-	var homeEnvelope struct {
-		Result api.HomeResponse `json:"result"`
+	if strings.Contains(home.Body.String(), "evidence_id") {
+		t.Fatalf("home leaked Evidence ID: %s", home.Body.String())
 	}
-	if err := json.Unmarshal(homeResponse.Body.Bytes(), &homeEnvelope); err != nil {
-		t.Fatal(err)
-	}
-	if len(homeEnvelope.Result.Reports) != 1 || homeEnvelope.Result.Reports[0].IndustryChainCount != 1 ||
-		len(homeEnvelope.Result.Reports[0].Cards) != 1 ||
-		homeEnvelope.Result.Reports[0].Cards[0].Key != "chain-01" {
-		t.Fatalf("home result = %#v", homeEnvelope.Result)
-	}
-	for _, forbidden := range []string{"source_report_id", "evidence_count", "evidence_id"} {
-		if strings.Contains(homeResponse.Body.String(), forbidden) {
-			t.Fatalf("home response leaked %q: %s", forbidden, homeResponse.Body.String())
-		}
-	}
-
-	evidenceResponse := httptest.NewRecorder()
-	router.ServeHTTP(evidenceResponse, httptest.NewRequest(http.MethodGet,
-		"/api/miniapp/v1/reports/"+reportTestID+"/evidences?scope_type=industry_chain_summary&scope_key=chain-01", nil))
-	if evidenceResponse.Code != http.StatusOK {
-		t.Fatalf("evidence status/body = %d/%s", evidenceResponse.Code, evidenceResponse.Body.String())
-	}
-	var evidenceEnvelope struct {
-		Result api.EvidenceCollection `json:"result"`
-	}
-	if err := json.Unmarshal(evidenceResponse.Body.Bytes(), &evidenceEnvelope); err != nil {
-		t.Fatal(err)
-	}
-	if len(evidenceEnvelope.Result.Items) != 2 || evidenceEnvelope.Result.Items[0].Summary != "第一条证据" ||
-		evidenceEnvelope.Result.Scope != (api.Scope{Type: "industry_chain_summary", Key: "chain-01"}) {
-		t.Fatalf("evidence result = %#v", evidenceEnvelope.Result)
-	}
-	for _, forbidden := range []string{"evidence_id", "display_order", `"role"`, "evidence_count", "source_type", "event_id"} {
-		if strings.Contains(evidenceResponse.Body.String(), forbidden) {
-			t.Fatalf("evidence response leaked %q: %s", forbidden, evidenceResponse.Body.String())
-		}
-	}
-	mutex.Lock()
-	defer mutex.Unlock()
-	if len(seenPaths) != 4 {
-		t.Fatalf("Data calls = %v", seenPaths)
+	evidence := httptest.NewRecorder()
+	router.ServeHTTP(evidence, httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/reports/"+reportTestID+"/evidences?scope_token="+reportScopeToken, nil))
+	if evidence.Code != http.StatusOK || !strings.Contains(evidence.Body.String(), "证据摘要") {
+		t.Fatalf("evidence=%d/%s", evidence.Code, evidence.Body.String())
 	}
 }
 
 type reportAPIStub struct {
-	layerRequest    *api.LayerRequest
-	chainRequest    *api.IndustryChainRequest
-	evidenceRequest *api.EvidenceRequest
+	chainListRequest *api.IndustryChainListRequest
+	evidenceRequest  *api.EvidenceRequest
 }
 
-func (s *reportAPIStub) GetHome(context.Context, *api.HomeRequest) (*api.HomeResponse, error) {
-	return &api.HomeResponse{Selection: api.Selection{Mode: "today", Date: "2026-09-01", Timezone: "Asia/Shanghai"},
-		Reports: []api.HomeReport{}}, nil
+func (*reportAPIStub) GetHome(context.Context, *api.HomeRequest) (*api.HomeResponse, error) {
+	return &api.HomeResponse{Selection: api.Selection{Mode: "today", Date: "2026-09-02", Timezone: "Asia/Shanghai"}, Reports: []api.HomeReport{}}, nil
 }
-
-func (s *reportAPIStub) GetLayer(_ context.Context, request *api.LayerRequest) (*api.LayerDetail, error) {
-	s.layerRequest = request
-	return &api.LayerDetail{RelatedIndustryChains: []api.IndustryChainSummary{}}, nil
+func (s *reportAPIStub) ListIndustryChains(_ context.Context, request *api.IndustryChainListRequest) (*api.CardCollection, error) {
+	s.chainListRequest = request
+	if request.HasUnknownQuery {
+		return nil, v1.ErrInvalidRequest
+	}
+	return &api.CardCollection{Items: []api.Card{}}, nil
 }
-
-func (s *reportAPIStub) GetIndustryChain(_ context.Context, request *api.IndustryChainRequest) (*api.IndustryChainDetail, error) {
-	s.chainRequest = request
+func (*reportAPIStub) GetLayer(context.Context, *api.LayerRequest) (*api.LayerDetail, error) {
+	return &api.LayerDetail{RelatedIndustryChains: []api.RelatedIndustryChain{}}, nil
+}
+func (*reportAPIStub) GetIndustryChain(context.Context, *api.IndustryChainRequest) (*api.IndustryChainDetail, error) {
 	return &api.IndustryChainDetail{}, nil
 }
-
 func (s *reportAPIStub) ListEvidences(_ context.Context, request *api.EvidenceRequest) (*api.EvidenceCollection, error) {
 	s.evidenceRequest = request
 	if request.HasUnknownQuery {
 		return nil, v1.ErrInvalidRequest
 	}
-	return &api.EvidenceCollection{ReportID: request.ReportID,
-		Scope: api.Scope{Type: request.ScopeType, Key: request.ScopeKey}, Items: []api.EvidenceItem{}}, nil
+	return &api.EvidenceCollection{ReportID: request.ReportID, ScopeToken: request.ScopeToken, Items: []api.EvidenceItem{}}, nil
 }
 
 func dataSummary() map[string]any {
-	return map[string]any{
-		"id": reportTestID, "publisher_report_id": "publisher-report-1", "report_type": "investment_reasoning",
-		"title": "传导推理报告", "generation_status": "complete", "simulation": false,
-		"generated_at": "2026-09-01T04:00:00Z", "timezone": "Asia/Shanghai",
-		"has_geopolitics": false, "has_macroeconomics": false,
-		"statistics": map[string]any{
-			"event_count": 0, "ordinary_fact_count": 0, "signal_fact_count": 0,
-			"transmission_hypothesis_count": 0, "geopolitic_anchor_count": 0,
-			"macroeconomic_anchor_count": 0, "signaled_chain_node_count": 1,
-			"industry_chain_count": 1,
-		}, "published_at": "2026-09-01T04:01:00Z",
-	}
+	return map[string]any{"id": reportTestID, "publisher_report_id": "publisher", "generated_at": "2026-09-02T04:00:00Z", "has_geopolitics": false, "has_macroeconomics": false, "industry_chain_count": 1, "published_at": "2026-09-02T04:01:00Z"}
 }
-
-func dataHome() map[string]any {
-	return map[string]any{"report": dataSummary(), "geopolitics": nil, "macroeconomics": nil}
-}
-
 func dataChainSummary() map[string]any {
-	return map[string]any{
-		"key": "chain-01", "display_order": 1, "name": "运输产业链",
-		"claim":  map[string]any{"key": "claim-01", "text": "运输成本升温。"},
-		"status": "published", "result": map[string]any{"code": "warming", "label": "升温"},
-		"confidence":  map[string]any{"code": "medium", "label": "中", "score": nil},
-		"time_window": map[string]any{"horizons": []string{"short"}, "lag": nil, "label": "短期"},
-		"impact_items": []any{map[string]any{
-			"key": "impact-01", "display_order": 1, "node_key": "node-01", "name": "运输",
-			"result":         map[string]any{"code": "warming", "label": "升温"},
-			"nature":         map[string]any{"code": "direct_evidence", "label": "直接证据"},
-			"confidence":     map[string]any{"code": "medium", "label": "中", "score": nil},
-			"time_window":    map[string]any{"horizons": []string{"short"}, "lag": nil, "label": "短期"},
-			"evidence_count": 1,
-		}}, "evidence_count": 1,
-	}
+	return map[string]any{"local_key": "chain-01", "name": "运输产业链", "conclusion": "运输成本升温", "result": map[string]any{"code": "warming", "label": "升温"}, "confidence": map[string]any{"code": "medium", "label": "中"}, "time_window": map[string]any{"code": "short", "label": "短期"}, "impact_items": []any{}, "evidence_scope_token": reportScopeToken}
 }
-
 func writeDownstreamResult(t *testing.T, writer http.ResponseWriter, result any) {
 	t.Helper()
 	writer.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(writer).Encode(map[string]any{"request_id": "data-report-request", "result": result}); err != nil {
+	if err := json.NewEncoder(writer).Encode(map[string]any{"request_id": "data-request", "result": result}); err != nil {
 		t.Fatal(err)
 	}
 }

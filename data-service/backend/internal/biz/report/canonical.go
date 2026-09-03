@@ -13,7 +13,7 @@ import (
 )
 
 // canonicalPayloadHash implements the RFC 8785 JSON Canonicalization Scheme
-// for the value classes admitted by report-publication.v2.
+// for the value classes admitted by the current versioned Report publication API.
 func canonicalPayloadHash(value any) (string, error) {
 	payload, err := json.Marshal(value)
 	if err != nil {

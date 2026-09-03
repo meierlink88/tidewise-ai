@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -208,9 +209,8 @@ func TestServerEnforcesResearchReadScopeOnResearchRoutes(t *testing.T) {
 
 func TestServerEnforcesReportScopesAndRejectsDuplicateQueries(t *testing.T) {
 	payload, err := json.Marshal(map[string]any{
-		"contract_version":    reportapi.ContractVersion,
 		"publisher_report_id": "publisher-report",
-		"content":             reportfixture.IndustryOnlyContent(),
+		"report":              reportfixture.IndustryOnlyReport(),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -236,7 +236,7 @@ func TestServerEnforcesReportScopesAndRejectsDuplicateQueries(t *testing.T) {
 		{name: "publish", method: http.MethodPost, path: dataapi.APIPrefix + "/report-publications", token: "report-publish-token", body: payload, want: http.StatusNoContent},
 		{name: "publish with reader token", method: http.MethodPost, path: dataapi.APIPrefix + "/report-publications", token: "report-read-token", body: payload, want: http.StatusForbidden},
 		{name: "duplicate list query", method: http.MethodGet, path: dataapi.APIPrefix + "/reports?limit=1&limit=2", token: "report-read-token", want: http.StatusBadRequest},
-		{name: "duplicate evidence scope", method: http.MethodGet, path: dataapi.APIPrefix + "/reports/RPT11111111-1111-4111-8111-111111111111/evidences?scope_type=anchor&scope_type=layer&scope_key=geo-anchor", token: "report-read-token", want: http.StatusBadRequest},
+		{name: "duplicate evidence scope", method: http.MethodGet, path: dataapi.APIPrefix + "/reports/RPT11111111-1111-4111-8111-111111111111/evidences?scope_token=RPE11111111-1111-4111-8111-111111111111&scope_token=RPE22222222-2222-4222-8222-222222222222", token: "report-read-token", want: http.StatusBadRequest},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			response := httptest.NewRecorder()
@@ -250,6 +250,35 @@ func TestServerEnforcesReportScopesAndRejectsDuplicateQueries(t *testing.T) {
 				t.Fatalf("status=%d want=%d body=%s", response.Code, test.want, response.Body.String())
 			}
 		})
+	}
+}
+
+func TestServerAcceptsExactAgentOSReportFixture(t *testing.T) {
+	payload, err := os.ReadFile("../../api/data/v1/report/testdata/investment-report-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	authenticator, err := NewAuthenticator([]Credential{{
+		Secret: "report-publish-token", Principal: dataapi.Principal{Identity: "agentos", Scopes: []string{ScopeReportPublish}},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recorder := &recordingReportService{}
+	server, err := NewHTTPServer(testConfig(), serverTestDataService{}, researchfixture.Service{}, serverTestEventService{}, serverTestEvidenceService{}, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, serverTestCompanyService{}, recorder, authenticator, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, dataapi.APIPrefix+"/report-publications", bytes.NewReader(payload))
+	request.Header.Set("Authorization", "Bearer report-publish-token")
+	request.Header.Set("Content-Type", "application/json")
+	server.ServeHTTP(response, request)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("status=%d body=%s", response.Code, response.Body.String())
+	}
+	if recorder.request == nil || recorder.request.Report.ReportType.Code != "investment_reasoning" || len(recorder.request.Report.IndustryChains) != 1 {
+		t.Fatalf("request=%#v", recorder.request)
 	}
 }
 
@@ -633,6 +662,16 @@ type serverTestSourceService struct{}
 type serverTestCompanyService struct{}
 
 type serverTestReportService struct{}
+
+type recordingReportService struct {
+	serverTestReportService
+	request *reportapi.PublicationRequest
+}
+
+func (s *recordingReportService) PublishReport(_ context.Context, request *reportapi.PublicationRequest) (*dataapi.Response[reportapi.PublicationResult], error) {
+	s.request = request
+	return serverTestResponse[reportapi.PublicationResult]()
+}
 
 func (serverTestReportService) PublishReport(context.Context, *reportapi.PublicationRequest) (*dataapi.Response[reportapi.PublicationResult], error) {
 	return serverTestResponse[reportapi.PublicationResult]()

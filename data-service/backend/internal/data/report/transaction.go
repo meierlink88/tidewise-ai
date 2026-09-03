@@ -54,7 +54,7 @@ type publicationTransaction struct{ tx *sql.Tx }
 func (t *publicationTransaction) Lock(ctx context.Context, publisherReportID string) error {
 	_, err := t.tx.ExecContext(ctx,
 		`SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`,
-		"report-publication-v2:"+publisherReportID)
+		"report-publication:"+publisherReportID)
 	if err != nil {
 		return fmt.Errorf("lock Report publisher identity: %w", err)
 	}
@@ -62,8 +62,8 @@ func (t *publicationTransaction) Lock(ctx context.Context, publisherReportID str
 }
 
 func (t *publicationTransaction) ReportByPublisherID(ctx context.Context, publisherReportID string) (*reportbiz.Record, error) {
-	record, err := scanRecord(t.tx.QueryRowContext(ctx, `SELECT id, publisher_report_id, contract_version,
-       content_hash, content, published_at
+	record, err := scanRecord(t.tx.QueryRowContext(ctx, `SELECT id, publisher_report_id,
+       content_hash, report, published_at
 FROM reports WHERE publisher_report_id = $1`, publisherReportID))
 	if errors.Is(err, reportbiz.ErrReportNotFound) {
 		return nil, nil
@@ -99,14 +99,14 @@ func (t *publicationTransaction) ExistingEvidenceIDs(ctx context.Context, ids []
 }
 
 func (t *publicationTransaction) InsertReport(ctx context.Context, record reportbiz.Record) error {
-	content, err := jsonMarshal(record.Content)
+	report, err := jsonMarshal(record.Report)
 	if err != nil {
-		return fmt.Errorf("encode Report content: %w", err)
+		return fmt.Errorf("encode Report: %w", err)
 	}
 	_, err = t.tx.ExecContext(ctx, `INSERT INTO reports
-    (id, publisher_report_id, contract_version, content_hash, content, published_at)
-VALUES ($1,$2,$3,$4,$5,$6)`, record.ID, record.PublisherReportID, record.ContractVersion,
-		record.ContentHash, content, record.PublishedAt)
+    (id, publisher_report_id, content_hash, report, published_at)
+VALUES ($1,$2,$3,$4,$5)`, record.ID, record.PublisherReportID,
+		record.ContentHash, report, record.PublishedAt)
 	if err != nil {
 		return fmt.Errorf("insert Report %q: %w", record.ID, err)
 	}
@@ -116,9 +116,9 @@ VALUES ($1,$2,$3,$4,$5,$6)`, record.ID, record.PublisherReportID, record.Contrac
 func (t *publicationTransaction) InsertEvidenceLinks(ctx context.Context, links []reportbiz.EvidenceLink) error {
 	for _, link := range links {
 		_, err := t.tx.ExecContext(ctx, `INSERT INTO report_evidence_links
-    (id, report_id, evidence_id, scope_type, scope_key, role, display_order)
-VALUES ($1,$2,$3,$4,$5,$6,$7)`, link.ID, link.ReportID, link.EvidenceID,
-			link.ScopeType, link.ScopeKey, link.Role, link.DisplayOrder)
+    (id, report_id, evidence_id, scope_type, scope_path, position)
+VALUES ($1,$2,$3,$4,$5,$6)`, link.ID, link.ReportID, link.EvidenceID,
+			link.ScopeType, link.ScopePath, link.Position)
 		if err != nil {
 			return fmt.Errorf("insert Report Evidence Link %q: %w", link.ID, err)
 		}

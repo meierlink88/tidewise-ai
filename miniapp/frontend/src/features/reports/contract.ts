@@ -1,43 +1,32 @@
 export type ReportLayerKey = 'geopolitics' | 'macroeconomics';
 export type ReportDetailTargetType = 'layer' | 'industry_chain';
-export type ReportResultCode = 'warming' | 'cooling' | 'diverging' | 'stable' | 'mixed' | 'pending';
-export type ReportNatureCode = 'direct_evidence' | 'reasoning_hypothesis' | 'pending_validation';
+export type ReportCardKind = ReportLayerKey | 'industry_chain';
 
-export type ReportEvidenceScopeType =
-  | 'section_summary'
-  | 'anchor'
-  | 'reasoning_step'
-  | 'transmission'
-  | 'industry_chain_summary'
-  | 'industry_chain_node';
-
-export type ReportReferenceType = 'layer' | 'anchor' | 'industry_chain' | 'industry_chain_node';
-
-export interface ReportReference<T extends string = ReportReferenceType> {
+export interface ReportReference<T extends string = string> {
   type: T;
-  key: string;
+  localKey: string;
 }
 
-export interface ReportResult {
-  code: ReportResultCode;
-  label: '升温' | '降温' | '分化' | '稳定' | '混合' | '待验证';
-}
-
-export interface ReportNature {
-  code: ReportNatureCode;
-  label: '直接证据' | '推理假设' | '待验证';
-}
-
-export interface ReportConfidence {
+/** Codes are server-owned and intentionally open for forward-compatible rendering. */
+export interface ReportCodedLabel {
+  code: string;
   label: string;
-  score: number | null;
 }
+
+export type ReportResult = ReportCodedLabel;
+export type ReportResultCode = string;
+export type ReportNature = ReportCodedLabel;
+export type ReportNatureCode = string;
+
+export interface ReportConfidence extends ReportCodedLabel {}
+
+export interface ReportTimeWindow extends ReportCodedLabel {}
 
 export interface ReportSummary {
   id: string;
-  title: string;
   generatedAt: string;
   publishedAt: string;
+  industryChainCount: number;
 }
 
 export type ReportHomeSelectionMode = 'today' | 'latest_fallback';
@@ -48,36 +37,40 @@ export interface ReportHomeSelection {
   timezone: 'Asia/Shanghai';
 }
 
-export type ReportCardKind = 'geopolitics' | 'macroeconomics' | 'industry_chain';
-
 export interface ReportImpactItem {
   ref: ReportReference;
   name: string;
   result: ReportResult;
+  conclusionBasis: ReportCodedLabel;
+  validationStatus: ReportCodedLabel;
   confidence: ReportConfidence;
-  timeWindow: string;
-  hasEvidence: boolean;
+  timeWindow: ReportTimeWindow;
+  evidenceScopeToken: string | null;
 }
 
 export interface ReportCard {
   key: string;
   kind: ReportCardKind;
-  displayOrder: number;
   detailRef: ReportReference<ReportDetailTargetType>;
   title: string;
   subtitle: string;
   conclusion: string;
   result: ReportResult;
   confidence: ReportConfidence;
-  timeWindow: string;
+  timeWindow: ReportTimeWindow;
   impactItems: ReportImpactItem[];
-  hasEvidence: boolean;
+  evidenceScopeToken: string | null;
+}
+
+export interface ReportCardPage {
+  items: ReportCard[];
+  nextCursor: string | null;
 }
 
 export interface ReportHomeGroup {
   report: ReportSummary;
-  industryChainCount: number;
   cards: ReportCard[];
+  nextCursor: string | null;
 }
 
 export interface ReportHome {
@@ -87,71 +80,40 @@ export interface ReportHome {
 
 export interface ReportAnchor {
   key: string;
-  displayOrder: number;
-  scope: ReportReference<ReportEvidenceScopeType>;
   name: string;
   currentState: string;
   result: ReportResult;
-  nature: ReportNature;
+  conclusionBasis: ReportCodedLabel;
+  validationStatus: ReportCodedLabel;
   reasoning: string;
-  timeWindow: string;
+  timeWindow: ReportTimeWindow;
   confidence: ReportConfidence;
-  hasEvidence: boolean;
+  evidenceScopeToken: string | null;
 }
 
 export interface ReportReasoningStep {
   key: string;
-  displayOrder: number;
-  scope: ReportReference<ReportEvidenceScopeType>;
   input: string;
   mechanism: string;
   output: string;
-  type: string;
   confidence: ReportConfidence;
-  hasEvidence: boolean;
+  evidenceScopeToken: string | null;
 }
 
 export interface ReportTransmissionTarget {
-  ref: ReportReference | null;
-  label: string;
+  ref: ReportReference;
+  name: string;
   result: ReportResult;
 }
 
 export interface ReportTransmissionPath {
   key: string;
-  displayOrder: number;
-  scope: ReportReference<ReportEvidenceScopeType>;
   sourceConclusion: string;
-  targetRefs: ReportTransmissionTarget[];
+  targets: ReportTransmissionTarget[];
   logic: string;
-  relationNature: string;
-  evidenceRole: string;
+  kind: ReportCodedLabel;
   confidence: ReportConfidence;
-  status: string;
-  hasEvidence: boolean;
-}
-
-export interface ReportCandidateMechanism {
-  key: string;
-  displayOrder: number;
-  scope: ReportReference<ReportEvidenceScopeType>;
-  mechanism: string;
-  evidenceGap: string | null;
-  confidence: ReportConfidence;
-  hasEvidence: boolean;
-}
-
-export interface ReportDownwardTransmission {
-  summary: string;
-  publishedPaths: ReportTransmissionPath[];
-  candidateMechanisms: ReportCandidateMechanism[];
-  boundaryNotes: string[];
-}
-
-export interface ReportCheckpoint {
-  key: string;
-  displayOrder: number;
-  summary: string;
+  status: ReportCodedLabel;
 }
 
 export interface ReportLayerUncertainty {
@@ -159,31 +121,26 @@ export interface ReportLayerUncertainty {
   evidenceGap: string | null;
   boundary: string | null;
   reversalCondition: string | null;
-  checkpoints: ReportCheckpoint[];
 }
 
 export interface ReportLayerDetailContent {
   key: ReportLayerKey;
-  displayOrder: number;
-  scope: ReportReference<ReportEvidenceScopeType>;
   title: string;
   conclusion: string;
   result: ReportResult;
   confidence: ReportConfidence;
-  timeWindow: string;
+  timeWindow: ReportTimeWindow;
   anchors: ReportAnchor[];
   reasoningSteps: ReportReasoningStep[];
-  downwardTransmission: ReportDownwardTransmission;
+  transmissions: ReportTransmissionPath[];
   uncertainty: ReportLayerUncertainty;
-  hasEvidence: boolean;
+  evidenceScopeToken: string | null;
 }
 
 export interface ReportRelatedIndustryChain {
   key: string;
-  displayOrder: number;
   name: string;
   result: ReportResult;
-  detailRef: ReportReference<'industry_chain'>;
 }
 
 export interface ReportLayerDetail {
@@ -194,59 +151,48 @@ export interface ReportLayerDetail {
 
 export interface ReportIndustryChainNode {
   key: string;
-  displayOrder: number;
-  scope: ReportReference<ReportEvidenceScopeType>;
   name: string;
   impact: string;
   result: ReportResult;
-  nature: ReportNature;
+  conclusionBasis: ReportCodedLabel;
+  validationStatus: ReportCodedLabel;
   reasoning: string;
-  timeWindow: string;
+  timeWindow: ReportTimeWindow;
   confidence: ReportConfidence;
-  hasEvidence: boolean;
+  evidenceScopeToken: string | null;
 }
 
 export interface ReportGraphEdge {
-  key: string;
-  displayOrder: number;
-  fromNodeKey: string;
-  toNodeKey: string;
+  fromNodeLocalKey: string;
+  toNodeLocalKey: string;
   relationLabel: string;
 }
 
-export interface ReportIndustryChainUncertainty {
-  counterevidenceAndGap: string | null;
-  stopCondition: string | null;
-  checkpoints: ReportCheckpoint[];
+export interface ReportGraphNode {
+  key: string;
+  name: string;
 }
 
 export interface ReportIndustryChainDetailContent {
   key: string;
-  claimKey: string;
-  displayOrder: number;
-  scope: ReportReference<ReportEvidenceScopeType>;
   name: string;
   conclusion: string;
-  status: string;
   result: ReportResult;
   confidence: ReportConfidence;
-  timeWindow: string;
+  timeWindow: ReportTimeWindow;
   pathSummary: string | null;
   acceptedHypothesisSummary: string | null;
+  topologyNodes: ReportGraphNode[];
   nodes: ReportIndustryChainNode[];
   edges: ReportGraphEdge[];
-  uncertainty: ReportIndustryChainUncertainty;
-  hasEvidence: boolean;
+  counterevidenceAndGap: string | null;
+  stopCondition: string | null;
+  evidenceScopeToken: string | null;
 }
 
 export interface ReportIndustryChainDetail {
   report: ReportSummary;
   industryChain: ReportIndustryChainDetailContent;
-}
-
-export interface ReportEvidenceScope {
-  type: ReportEvidenceScopeType;
-  key: string;
 }
 
 export interface ReportEvidence {
@@ -257,15 +203,16 @@ export interface ReportEvidence {
 
 export interface ReportEvidenceList {
   reportId: string;
-  scope: ReportEvidenceScope;
+  scopeToken: string;
   items: ReportEvidence[];
 }
 
 export interface ReportPort {
   getHome(): Promise<ReportHome>;
+  getIndustryChains(reportId: string, cursor?: string, limit?: number): Promise<ReportCardPage>;
   getLayer(reportId: string, layerKey: ReportLayerKey): Promise<ReportLayerDetail>;
   getIndustryChain(reportId: string, chainKey: string): Promise<ReportIndustryChainDetail>;
-  getEvidences(reportId: string, scope: ReportEvidenceScope): Promise<ReportEvidenceList>;
+  getEvidences(reportId: string, scopeToken: string): Promise<ReportEvidenceList>;
 }
 
 export type ReportErrorKind =

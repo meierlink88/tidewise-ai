@@ -1424,10 +1424,10 @@ paths:
               maxLength: 1048576
               x-max-body-bytes: 1048576
               allOf:
-                - $ref: '#/components/schemas/ReportPublicationRequestV2'
+                - $ref: '#/components/schemas/ReportPublicationRequest'
       responses:
         '201': {description: Report 首次发布, content: {application/json: {schema: {$ref: '#/components/schemas/ReportPublicationEnvelope'}}}}
-        '200': {description: 相同 publisher_report_id、contract_version 和 content 安全重放, content: {application/json: {schema: {$ref: '#/components/schemas/ReportPublicationEnvelope'}}}}
+        '200': {description: 相同 publisher_report_id 与 report 安全重放, content: {application/json: {schema: {$ref: '#/components/schemas/ReportPublicationEnvelope'}}}}
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
@@ -1453,7 +1453,7 @@ paths:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
       responses:
-        '200': {description: Report 摘要页, content: {application/json: {schema: {$ref: '#/components/schemas/ReportCollectionEnvelopeV2'}}}}
+        '200': {description: Report 摘要页, content: {application/json: {schema: {$ref: '#/components/schemas/ReportCollectionEnvelope'}}}}
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
@@ -1473,7 +1473,7 @@ paths:
         - $ref: '#/components/parameters/RequestID'
         - $ref: '#/components/parameters/ReportID'
       responses:
-        '200': {description: 首页摘要，产业链通过独立游标接口读取, content: {application/json: {schema: {$ref: '#/components/schemas/ReportHomeEnvelopeV2'}}}}
+        '200': {description: 首页摘要，产业链通过独立游标接口读取, content: {application/json: {schema: {$ref: '#/components/schemas/ReportHomeEnvelope'}}}}
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
@@ -1498,7 +1498,7 @@ paths:
           required: true
           schema: {type: string, enum: [geopolitics, macroeconomics]}
       responses:
-        '200': {description: Section 详情及可跳转产业链摘要, content: {application/json: {schema: {$ref: '#/components/schemas/ReportLayerEnvelopeV2'}}}}
+        '200': {description: Section 详情, content: {application/json: {schema: {$ref: '#/components/schemas/ReportLayerEnvelope'}}}}
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
@@ -1514,7 +1514,7 @@ paths:
       x-retry-policy: safe-get
       x-timeout-budget-ms: 5000
       x-error-codes: [INVALID_REQUEST, REPORT_NOT_FOUND, REPORT_REPOSITORY_FAILURE, DATA_SERVICE_NOT_READY]
-      summary: 按报告内 display_order 游标分页读取产业链摘要
+      summary: 按报告内 JSON 数组顺序游标分页读取产业链摘要
       parameters:
         - $ref: '#/components/parameters/RequestID'
         - $ref: '#/components/parameters/ReportID'
@@ -1546,7 +1546,7 @@ paths:
           required: true
           schema: {$ref: '#/components/schemas/ReportLocalKey'}
       responses:
-        '200': {description: 产业链详情, content: {application/json: {schema: {$ref: '#/components/schemas/ReportIndustryChainEnvelopeV2'}}}}
+        '200': {description: 产业链详情, content: {application/json: {schema: {$ref: '#/components/schemas/ReportIndustryChainEnvelope'}}}}
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
@@ -1562,20 +1562,16 @@ paths:
       x-retry-policy: safe-get
       x-timeout-budget-ms: 5000
       x-error-codes: [INVALID_REQUEST, REPORT_NOT_FOUND, REPORT_EVIDENCE_SCOPE_NOT_FOUND, REPORT_REPOSITORY_FAILURE, DATA_SERVICE_NOT_READY]
-      summary: 按 Report 显式作用域读取 PostgreSQL 持久化 Atomic Evidence
+      summary: 使用 Report 作用域 token 读取 PostgreSQL 持久化 Atomic Evidence
       parameters:
         - $ref: '#/components/parameters/RequestID'
         - $ref: '#/components/parameters/ReportID'
-        - name: scope_type
+        - name: scope_token
           in: query
           required: true
-          schema: {$ref: '#/components/schemas/ReportEvidenceScopeType'}
-        - name: scope_key
-          in: query
-          required: true
-          schema: {$ref: '#/components/schemas/ReportLocalKey'}
+          schema: {$ref: '#/components/schemas/ReportEvidenceScopeToken'}
       responses:
-        '200': {description: 按 link display_order 升序的显式 Evidence 列表, content: {application/json: {schema: {$ref: '#/components/schemas/ReportEvidenceCollectionEnvelope'}}}}
+        '200': {description: 按 link position 升序的显式 Evidence 列表, content: {application/json: {schema: {$ref: '#/components/schemas/ReportEvidenceCollectionEnvelope'}}}}
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
@@ -1877,9 +1873,6 @@ components:
       pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$'
       minLength: 1
       maxLength: 128
-    ReportEvidenceScopeType:
-      type: string
-      enum: [section_summary, anchor, reasoning_step, transmission, industry_chain_summary, industry_chain_node]
     SourceCode:
       type: string
       pattern: '^[a-z0-9][a-z0-9_-]{0,63}$'
@@ -3625,84 +3618,334 @@ components:
           minLength: 1
           maxLength: 128
 
-    ReportNature:
+    ReportEvidenceScopeToken:
+      type: string
+      pattern: '^RPE[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      maxLength: 39
+
+    ReportNullableEvidenceScopeToken:
+      type: string
+      nullable: true
+      pattern: '^RPE[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      maxLength: 39
+
+    ReportEvidenceID:
+      type: string
+      pattern: '^EVD[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      maxLength: 39
+
+    ReportResult:
       type: object
       additionalProperties: false
       required: [code, label]
       properties:
-        code: {type: string, enum: [direct_evidence, reasoning_hypothesis, pending_validation]}
-        label: {type: string, enum: [直接证据, 推理假设, 待验证]}
-      description: code 与中文 label 必须按固定映射成对出现。
+        code: {type: string, enum: [warming, cooling, diverging, pending]}
+        label: {type: string, enum: [升温, 降温, 分化, 待验证]}
+      description: code 与 AgentOS 发布的中文 label 必须按固定映射配对。
+
+    ReportConclusionBasis:
+      type: object
+      additionalProperties: false
+      required: [code, label]
+      properties:
+        code: {type: string, enum: [direct_evidence, reasoning_hypothesis, no_directional_conclusion]}
+        label: {type: string, enum: [直接证据, 推理假设, 无方向性结论]}
+
+    ReportValidationStatus:
+      type: object
+      additionalProperties: false
+      required: [code, label]
+      properties:
+        code: {type: string, enum: [confirmed, pending_validation]}
+        label: {type: string, enum: [已确认, 待验证]}
+
+    ReportConfidence:
+      type: object
+      additionalProperties: false
+      required: [code, label]
+      properties:
+        code: {type: string, enum: [low, medium, high]}
+        label: {type: string, enum: [低, 中, 高]}
+
+    ReportTimeWindow:
+      type: object
+      additionalProperties: false
+      required: [code, label]
+      properties:
+        code:
+          type: string
+          enum: [short, medium, long, short_medium, short_long, medium_long, short_medium_long, follow_up]
+        label:
+          type: string
+          enum: [短期, 中期, 长期, 短期–中期, 短期–长期, 中期–长期, 短期–中期–长期, 后续周期]
+
+    ReportEvidenceRole:
+      type: object
+      additionalProperties: false
+      required: [code, label]
+      properties:
+        code: {type: string, enum: [direct_support, reasoning_support, summary_support]}
+        label: {type: string, enum: [直接依据, 推导依据, 核心依据]}
 
     ReportEvidenceReference:
       type: object
       additionalProperties: false
-      required: [evidence_id, role, display_order]
+      required: [evidence_id, role]
       properties:
-        evidence_id: {type: string, pattern: '^EVD[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', maxLength: 39}
-        role: {type: string, enum: [direct_target, supports_claim, supports_reasoning, supports_transmission]}
-        display_order: {type: integer, minimum: 1}
+        evidence_id: {$ref: '#/components/schemas/ReportEvidenceID'}
+        role: {$ref: '#/components/schemas/ReportEvidenceRole'}
 
-    ReportTargetReference:
+    ReportTransmissionTarget:
       type: object
       additionalProperties: false
-      required: [type, key]
+      required: [target_type, target_local_key, target_name, result]
       properties:
-        type: {type: string, enum: [section, anchor, industry_chain, industry_chain_node]}
-        key: {$ref: '#/components/schemas/ReportLocalKey'}
+        target_type:
+          type: object
+          additionalProperties: false
+          required: [code, label]
+          properties:
+            code: {type: string, enum: [macro_anchor, industry_chain, industry_chain_node]}
+            label: {type: string, enum: [宏观经济锚点, 产业链, 产业链节点]}
+        target_local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        target_name: {type: string, minLength: 1, maxLength: 500}
+        result: {$ref: '#/components/schemas/ReportResult'}
 
-    ReportStatistics:
+    ReportTransmission:
       type: object
       additionalProperties: false
-      required: [event_count, ordinary_fact_count, signal_fact_count, transmission_hypothesis_count, geopolitic_anchor_count, macroeconomic_anchor_count, signaled_chain_node_count, industry_chain_count]
+      required: [local_key, source_conclusion, targets, transmission_logic, transmission_kind, confidence, status]
       properties:
-        event_count: {type: integer, minimum: 0}
-        ordinary_fact_count: {type: integer, minimum: 0}
-        signal_fact_count: {type: integer, minimum: 0}
-        transmission_hypothesis_count: {type: integer, minimum: 0}
-        geopolitic_anchor_count: {type: integer, minimum: 0}
-        macroeconomic_anchor_count: {type: integer, minimum: 0}
-        signaled_chain_node_count: {type: integer, minimum: 0}
-        industry_chain_count: {type: integer, minimum: 1}
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        source_conclusion: {type: string, minLength: 1}
+        targets: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ReportTransmissionTarget'}}
+        transmission_logic: {type: string, minLength: 1}
+        transmission_kind:
+          type: object
+          additionalProperties: false
+          required: [code, label]
+          properties:
+            code: {type: string, enum: [cross_layer_reasoning, same_source_signal]}
+            label: {type: string, enum: [跨层推理, 同源信号]}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        status:
+          type: object
+          additionalProperties: false
+          required: [code, label]
+          properties:
+            code: {type: string, enum: [established]}
+            label: {type: string, enum: [已形成传导]}
 
-    ReportCheckpoint:
+    ReportTransmissionGroup:
       type: object
       additionalProperties: false
-      required: [key, display_order, summary]
+      required: [summary, paths]
       properties:
-        key: {$ref: '#/components/schemas/ReportLocalKey'}
-        display_order: {type: integer, minimum: 1}
         summary: {type: string, minLength: 1}
+        paths: {type: array, items: {$ref: '#/components/schemas/ReportTransmission'}}
+
+    ReportDownwardTransmission:
+      type: object
+      additionalProperties: false
+      properties:
+        to_macroeconomics: {$ref: '#/components/schemas/ReportTransmissionGroup'}
+        to_industry_chains: {$ref: '#/components/schemas/ReportTransmissionGroup'}
+
+    ReportGeopoliticalDownwardTransmission:
+      type: object
+      additionalProperties: false
+      required: [to_macroeconomics, to_industry_chains]
+      properties:
+        to_macroeconomics: {$ref: '#/components/schemas/ReportTransmissionGroup'}
+        to_industry_chains: {$ref: '#/components/schemas/ReportTransmissionGroup'}
+
+    ReportMacroeconomicDownwardTransmission:
+      type: object
+      additionalProperties: false
+      required: [to_industry_chains]
+      properties:
+        to_industry_chains: {$ref: '#/components/schemas/ReportTransmissionGroup'}
 
     ReportLayerUncertainty:
       type: object
       additionalProperties: false
-      required: [counterevidence, evidence_gap, boundary, reversal_condition, checkpoints]
+      required: [counterevidence, evidence_gap, boundary, reversal_condition]
       properties:
-        counterevidence: {type: string, minLength: 1}
-        evidence_gap: {type: string, minLength: 1, nullable: true}
-        boundary: {type: string, minLength: 1}
-        reversal_condition: {type: string, minLength: 1}
-        checkpoints: {type: array, items: {$ref: '#/components/schemas/ReportCheckpoint'}}
+        counterevidence: {type: string, nullable: true}
+        evidence_gap: {type: string, nullable: true}
+        boundary: {type: string, nullable: true}
+        reversal_condition: {type: string, nullable: true}
+
+    ReportAnchor:
+      type: object
+      additionalProperties: false
+      required: [local_key, name, current_state, result, conclusion_basis, validation_status, reasoning, time_window, confidence, evidence_refs]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        name: {type: string, minLength: 1, maxLength: 500}
+        current_state: {type: string, minLength: 1}
+        result: {$ref: '#/components/schemas/ReportResult'}
+        conclusion_basis: {$ref: '#/components/schemas/ReportConclusionBasis'}
+        validation_status: {$ref: '#/components/schemas/ReportValidationStatus'}
+        reasoning: {type: string, minLength: 1}
+        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
+
+    ReportReasoningStep:
+      type: object
+      additionalProperties: false
+      required: [local_key, input, mechanism, output, confidence, evidence_refs]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        input: {type: string, minLength: 1}
+        mechanism: {type: string, minLength: 1}
+        output: {type: string, minLength: 1}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
+
+    ReportGeopoliticalLayer:
+      type: object
+      additionalProperties: false
+      required: [local_key, title, conclusion, result, time_window, confidence, affected_anchors, reasoning_steps, uncertainty, evidence_refs, downward_transmission]
+      properties:
+        local_key: {type: string, enum: [geopolitics]}
+        title: {type: string, minLength: 1, maxLength: 500}
+        conclusion: {type: string, minLength: 1}
+        result: {$ref: '#/components/schemas/ReportResult'}
+        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        affected_anchors: {type: array, items: {$ref: '#/components/schemas/ReportAnchor'}}
+        reasoning_steps: {type: array, items: {$ref: '#/components/schemas/ReportReasoningStep'}}
+        uncertainty: {$ref: '#/components/schemas/ReportLayerUncertainty'}
+        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
+        downward_transmission: {$ref: '#/components/schemas/ReportGeopoliticalDownwardTransmission'}
+
+    ReportMacroeconomicLayer:
+      type: object
+      additionalProperties: false
+      required: [local_key, title, conclusion, result, time_window, confidence, affected_anchors, reasoning_steps, uncertainty, evidence_refs, downward_transmission]
+      properties:
+        local_key: {type: string, enum: [macroeconomics]}
+        title: {type: string, minLength: 1, maxLength: 500}
+        conclusion: {type: string, minLength: 1}
+        result: {$ref: '#/components/schemas/ReportResult'}
+        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        affected_anchors: {type: array, items: {$ref: '#/components/schemas/ReportAnchor'}}
+        reasoning_steps: {type: array, items: {$ref: '#/components/schemas/ReportReasoningStep'}}
+        uncertainty: {$ref: '#/components/schemas/ReportLayerUncertainty'}
+        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
+        downward_transmission: {$ref: '#/components/schemas/ReportMacroeconomicDownwardTransmission'}
+
+    ReportIndustryChainPublicationEdge:
+      type: object
+      additionalProperties: false
+      required: [from_node_local_key, to_node_local_key, relation_label]
+      properties:
+        from_node_local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        to_node_local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        relation_label: {type: string, minLength: 1, maxLength: 500}
+
+    ReportIndustryChainNode:
+      type: object
+      additionalProperties: false
+      required: [local_key, name, impact, result, conclusion_basis, validation_status, reasoning, time_window, confidence, evidence_refs]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        name: {type: string, minLength: 1, maxLength: 500}
+        impact: {type: string, minLength: 1}
+        result: {$ref: '#/components/schemas/ReportResult'}
+        conclusion_basis: {$ref: '#/components/schemas/ReportConclusionBasis'}
+        validation_status: {$ref: '#/components/schemas/ReportValidationStatus'}
+        reasoning: {type: string, minLength: 1}
+        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
+
+    ReportChainUncertainty:
+      type: object
+      additionalProperties: false
+      required: [counterevidence_and_gap, stop_condition]
+      properties:
+        counterevidence_and_gap: {type: string, nullable: true}
+        stop_condition: {type: string, nullable: true}
+
+    ReportIndustryChain:
+      type: object
+      additionalProperties: false
+      required: [local_key, name, conclusion, result, time_window, confidence, path_summary, accepted_hypothesis_summary, nodes, edges, uncertainty, evidence_refs]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        name: {type: string, minLength: 1, maxLength: 500}
+        conclusion: {type: string, minLength: 1}
+        result: {$ref: '#/components/schemas/ReportResult'}
+        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        path_summary: {type: string, nullable: true}
+        accepted_hypothesis_summary: {type: string, nullable: true}
+        nodes: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ReportIndustryChainNode'}}
+        edges: {type: array, items: {$ref: '#/components/schemas/ReportIndustryChainPublicationEdge'}}
+        uncertainty: {$ref: '#/components/schemas/ReportChainUncertainty'}
+        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
+
+    ReportIndustryChainTopologyNode:
+      type: object
+      additionalProperties: false
+      required: [local_key, name]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        name: {type: string, minLength: 1}
 
     ReportIndustryChainEdge:
       type: object
       additionalProperties: false
-      required: [key, display_order, from_node_key, to_node_key, relation_label]
+      required: [from_node_local_key, to_node_local_key, relation_label]
       properties:
-        key: {$ref: '#/components/schemas/ReportLocalKey'}
-        display_order: {type: integer, minimum: 1}
-        from_node_key: {$ref: '#/components/schemas/ReportLocalKey'}
-        to_node_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        from_node_local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        to_node_local_key: {$ref: '#/components/schemas/ReportLocalKey'}
         relation_label: {type: string, minLength: 1}
+
+    ReportIndustryChainGraph:
+      type: object
+      additionalProperties: false
+      required: [nodes, edges]
+      properties:
+        nodes: {type: array, items: {$ref: '#/components/schemas/ReportIndustryChainTopologyNode'}}
+        edges: {type: array, items: {$ref: '#/components/schemas/ReportIndustryChainEdge'}}
+
+    Report:
+      type: object
+      additionalProperties: false
+      required: [report_type, generated_at, timezone, industry_chains]
+      properties:
+        report_type:
+          type: object
+          additionalProperties: false
+          required: [code, label]
+          properties:
+            code: {type: string, enum: [investment_reasoning]}
+            label: {type: string, enum: [投研推理报告]}
+        generated_at: {type: string, format: date-time}
+        timezone: {type: string, enum: [Asia/Shanghai]}
+        geopolitics: {$ref: '#/components/schemas/ReportGeopoliticalLayer'}
+        macroeconomics: {$ref: '#/components/schemas/ReportMacroeconomicLayer'}
+        industry_chains: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ReportIndustryChain'}}
+
+    ReportPublicationRequest:
+      type: object
+      additionalProperties: false
+      required: [publisher_report_id, report]
+      properties:
+        publisher_report_id: {type: string, minLength: 1, maxLength: 200}
+        report: {$ref: '#/components/schemas/Report'}
 
     ReportPublicationResult:
       type: object
       additionalProperties: false
-      required: [report_id, content_hash, published_at, replayed]
+      required: [report_id, published_at, replayed]
       properties:
         report_id: {$ref: '#/components/schemas/ReportID'}
-        content_hash: {type: string, pattern: '^[0-9a-f]{64}$'}
         published_at: {$ref: '#/components/schemas/UTCTimestamp'}
         replayed: {type: boolean}
 
@@ -3714,52 +3957,156 @@ components:
         request_id: {type: string, minLength: 1, maxLength: 128}
         result: {$ref: '#/components/schemas/ReportPublicationResult'}
 
-    ReportIndustryChainSummary:
+    ReportSummary:
       type: object
       additionalProperties: false
-      required: [key, display_order, name, claim, status, result, confidence, time_window, impact_items, evidence_count]
+      required: [id, publisher_report_id, generated_at, has_geopolitics, has_macroeconomics, industry_chain_count, published_at]
       properties:
-        key: {$ref: '#/components/schemas/ReportLocalKey'}
-        display_order: {type: integer, minimum: 1}
-        name: {type: string, minLength: 1}
-        claim:
-          type: object
-          additionalProperties: false
-          required: [key, text]
-          properties:
-            key: {$ref: '#/components/schemas/ReportLocalKey'}
-            text: {type: string, minLength: 1}
-        status: {type: string, minLength: 1}
-        result: {$ref: '#/components/schemas/ReportResultV2'}
-        confidence: {$ref: '#/components/schemas/ReportConfidenceV2'}
-        time_window:
-          type: object
-          additionalProperties: false
-          required: [horizons, lag, label]
-          properties:
-            horizons: {type: array, minItems: 1, uniqueItems: true, items: {type: string, enum: [immediate, short, medium, long, future]}}
-            lag: {type: string, minLength: 1, nullable: true}
-            label: {type: string, minLength: 1}
-        impact_items:
-          type: array
-          minItems: 1
-          items: {$ref: '#/components/schemas/ReportIndustryChainImpactSummary'}
-        evidence_count: {type: integer, minimum: 0}
+        id: {$ref: '#/components/schemas/ReportID'}
+        publisher_report_id: {type: string, minLength: 1, maxLength: 200}
+        generated_at: {$ref: '#/components/schemas/UTCTimestamp'}
+        has_geopolitics: {type: boolean}
+        has_macroeconomics: {type: boolean}
+        industry_chain_count: {type: integer, minimum: 1}
+        published_at: {$ref: '#/components/schemas/UTCTimestamp'}
+
+    ReportCollection:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/ReportSummary'}}
+        next_cursor: {type: string, minLength: 1, maxLength: 2048, nullable: true}
+
+    ReportCollectionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string}
+        result: {$ref: '#/components/schemas/ReportCollection'}
+
+    ReportLayerSummaryProjection:
+      type: object
+      additionalProperties: false
+      required: [conclusion, result, confidence, time_window, downward_transmission, uncertainty, evidence_scope_token]
+      properties:
+        conclusion: {type: string}
+        result: {$ref: '#/components/schemas/ReportResult'}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
+        downward_transmission: {$ref: '#/components/schemas/ReportDownwardTransmission'}
+        uncertainty: {$ref: '#/components/schemas/ReportLayerUncertainty'}
+        evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
+
+    ReportLayerSnapshot:
+      type: object
+      additionalProperties: false
+      required: [key, title, summary]
+      properties:
+        key: {type: string, enum: [geopolitics, macroeconomics]}
+        title: {type: string}
+        summary: {$ref: '#/components/schemas/ReportLayerSummaryProjection'}
+
+    ReportHome:
+      type: object
+      additionalProperties: false
+      required: [report, geopolitics, macroeconomics]
+      properties:
+        report: {$ref: '#/components/schemas/ReportSummary'}
+        geopolitics: {allOf: [{$ref: '#/components/schemas/ReportLayerSnapshot'}], nullable: true}
+        macroeconomics: {allOf: [{$ref: '#/components/schemas/ReportLayerSnapshot'}], nullable: true}
+
+    ReportHomeEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string}
+        result: {$ref: '#/components/schemas/ReportHome'}
+
+    ReportAnchorProjection:
+      type: object
+      additionalProperties: false
+      required: [local_key, name, current_state, result, conclusion_basis, validation_status, reasoning, time_window, confidence, evidence_scope_token]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        name: {type: string}
+        current_state: {type: string}
+        result: {$ref: '#/components/schemas/ReportResult'}
+        conclusion_basis: {$ref: '#/components/schemas/ReportConclusionBasis'}
+        validation_status: {$ref: '#/components/schemas/ReportValidationStatus'}
+        reasoning: {type: string}
+        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
+
+    ReportReasoningStepProjection:
+      type: object
+      additionalProperties: false
+      required: [local_key, input, mechanism, output, confidence, evidence_scope_token]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        input: {type: string}
+        mechanism: {type: string}
+        output: {type: string}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
+
+    ReportLayerProjection:
+      type: object
+      additionalProperties: false
+      required: [key, title, summary, affected_anchors, reasoning_steps]
+      properties:
+        key: {type: string, enum: [geopolitics, macroeconomics]}
+        title: {type: string}
+        summary: {$ref: '#/components/schemas/ReportLayerSummaryProjection'}
+        affected_anchors: {type: array, items: {$ref: '#/components/schemas/ReportAnchorProjection'}}
+        reasoning_steps: {type: array, items: {$ref: '#/components/schemas/ReportReasoningStepProjection'}}
+
+    ReportLayerDetail:
+      type: object
+      additionalProperties: false
+      required: [report, layer]
+      properties:
+        report: {$ref: '#/components/schemas/ReportSummary'}
+        layer: {$ref: '#/components/schemas/ReportLayerProjection'}
+
+    ReportLayerEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string}
+        result: {$ref: '#/components/schemas/ReportLayerDetail'}
 
     ReportIndustryChainImpactSummary:
       type: object
       additionalProperties: false
-      required: [key, display_order, node_key, name, result, nature, confidence, time_window, evidence_count]
+      required: [local_key, name, result, conclusion_basis, validation_status, confidence, time_window, evidence_scope_token]
       properties:
-        key: {$ref: '#/components/schemas/ReportLocalKey'}
-        display_order: {type: integer, minimum: 1}
-        node_key: {$ref: '#/components/schemas/ReportLocalKey'}
-        name: {type: string, minLength: 1}
-        result: {$ref: '#/components/schemas/ReportResultV2'}
-        nature: {$ref: '#/components/schemas/ReportNature'}
-        confidence: {$ref: '#/components/schemas/ReportConfidenceV2'}
-        time_window: {$ref: '#/components/schemas/ReportTimeWindowV2'}
-        evidence_count: {type: integer, minimum: 0}
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        name: {type: string}
+        result: {$ref: '#/components/schemas/ReportResult'}
+        conclusion_basis: {$ref: '#/components/schemas/ReportConclusionBasis'}
+        validation_status: {$ref: '#/components/schemas/ReportValidationStatus'}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
+        evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
+
+    ReportIndustryChainSummary:
+      type: object
+      additionalProperties: false
+      required: [local_key, name, conclusion, result, confidence, time_window, impact_items, evidence_scope_token]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        name: {type: string}
+        conclusion: {type: string}
+        result: {$ref: '#/components/schemas/ReportResult'}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
+        impact_items: {type: array, items: {$ref: '#/components/schemas/ReportIndustryChainImpactSummary'}}
+        evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
 
     ReportIndustryChainCollection:
       type: object
@@ -3774,17 +4121,65 @@ components:
       additionalProperties: false
       required: [request_id, result]
       properties:
-        request_id: {type: string, minLength: 1, maxLength: 128}
+        request_id: {type: string}
         result: {$ref: '#/components/schemas/ReportIndustryChainCollection'}
+
+    ReportIndustryChainNodeProjection:
+      type: object
+      additionalProperties: false
+      required: [local_key, name, impact, result, conclusion_basis, validation_status, reasoning, time_window, confidence, evidence_scope_token]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        name: {type: string}
+        impact: {type: string}
+        result: {$ref: '#/components/schemas/ReportResult'}
+        conclusion_basis: {$ref: '#/components/schemas/ReportConclusionBasis'}
+        validation_status: {$ref: '#/components/schemas/ReportValidationStatus'}
+        reasoning: {type: string}
+        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
+
+    ReportIndustryChainProjection:
+      type: object
+      additionalProperties: false
+      required: [local_key, name, conclusion, result, confidence, time_window, path_summary, accepted_hypothesis_summary, graph, affected_nodes, counterevidence_and_gap, stop_condition, evidence_scope_token]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        name: {type: string}
+        conclusion: {type: string}
+        result: {$ref: '#/components/schemas/ReportResult'}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
+        path_summary: {type: string, nullable: true}
+        accepted_hypothesis_summary: {type: string, nullable: true}
+        graph: {$ref: '#/components/schemas/ReportIndustryChainGraph'}
+        affected_nodes: {type: array, items: {$ref: '#/components/schemas/ReportIndustryChainNodeProjection'}}
+        counterevidence_and_gap: {type: string, nullable: true}
+        stop_condition: {type: string, nullable: true}
+        evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
+
+    ReportIndustryChainDetail:
+      type: object
+      additionalProperties: false
+      required: [report, industry_chain]
+      properties:
+        report: {$ref: '#/components/schemas/ReportSummary'}
+        industry_chain: {$ref: '#/components/schemas/ReportIndustryChainProjection'}
+
+    ReportIndustryChainEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string}
+        result: {$ref: '#/components/schemas/ReportIndustryChainDetail'}
 
     ReportEvidenceItem:
       type: object
       additionalProperties: false
-      required: [evidence_id, role, display_order, published_at, summary, keywords]
+      required: [published_at, summary, keywords]
       properties:
-        evidence_id: {type: string, pattern: '^EVD[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', maxLength: 39}
-        role: {type: string, enum: [direct_target, supports_claim, supports_reasoning, supports_transmission]}
-        display_order: {type: integer, minimum: 1}
         published_at: {type: string, format: date-time, nullable: true}
         summary: {type: string, minLength: 1}
         keywords: {type: array, items: {type: string}}
@@ -3792,11 +4187,10 @@ components:
     ReportEvidenceCollection:
       type: object
       additionalProperties: false
-      required: [report_id, scope_type, scope_key, items]
+      required: [report_id, scope_token, items]
       properties:
         report_id: {$ref: '#/components/schemas/ReportID'}
-        scope_type: {$ref: '#/components/schemas/ReportEvidenceScopeType'}
-        scope_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        scope_token: {$ref: '#/components/schemas/ReportEvidenceScopeToken'}
         items: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceItem'}}
 
     ReportEvidenceCollectionEnvelope:
@@ -3804,352 +4198,5 @@ components:
       additionalProperties: false
       required: [request_id, result]
       properties:
-        request_id: {type: string, minLength: 1, maxLength: 128}
+        request_id: {type: string}
         result: {$ref: '#/components/schemas/ReportEvidenceCollection'}
-
-    ReportResultV2:
-      type: object
-      additionalProperties: false
-      required: [code, label]
-      properties:
-        code: {type: string, enum: [warming, cooling, diverging, stable, mixed, pending]}
-        label: {type: string, minLength: 1, maxLength: 100}
-      description: 单值 code 与标准中文标签严格配对；mixed 保留报告中的组合结果原文，例如“升温 / 局部稳定”。
-
-    ReportConfidenceV2:
-      type: object
-      additionalProperties: false
-      required: [code, label, score]
-      properties:
-        code: {type: string, enum: [high, medium_high, medium, low_medium, low]}
-        label: {type: string, enum: [高, 中–高, 中, 低–中, 低]}
-        score: {type: number, minimum: 0, maximum: 1, nullable: true}
-
-    ReportClaimV2:
-      type: object
-      additionalProperties: false
-      required: [key, text]
-      properties:
-        key: {$ref: '#/components/schemas/ReportLocalKey'}
-        text: {type: string, minLength: 1}
-
-    ReportTimeWindowV2:
-      type: object
-      additionalProperties: false
-      required: [horizons, lag, label]
-      properties:
-        horizons: {type: array, minItems: 1, uniqueItems: true, items: {type: string, enum: [immediate, short, medium, long, future]}}
-        lag: {type: string, minLength: 1, nullable: true}
-        label: {type: string, minLength: 1}
-
-    ReportEffectV2:
-      type: object
-      additionalProperties: false
-      required: [display_order, dimension, direction, confidence]
-      properties:
-        display_order: {type: integer, minimum: 1}
-        dimension: {type: string, minLength: 1}
-        direction: {type: string, enum: [up, down, stable]}
-        confidence: {type: string, enum: [high, medium, low, unknown]}
-
-    ReportAnchorV2:
-      type: object
-      additionalProperties: false
-      required: [key, display_order, name, effects, result, nature, reasoning, time_window, confidence, source_ref, evidence_refs]
-      properties:
-        key: {$ref: '#/components/schemas/ReportLocalKey'}
-        display_order: {type: integer, minimum: 1}
-        name: {type: string, minLength: 1}
-        effects: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ReportEffectV2'}}
-        result: {$ref: '#/components/schemas/ReportResultV2'}
-        nature: {$ref: '#/components/schemas/ReportNature'}
-        reasoning: {type: string, minLength: 1}
-        time_window: {$ref: '#/components/schemas/ReportTimeWindowV2'}
-        confidence: {$ref: '#/components/schemas/ReportConfidenceV2'}
-        source_ref: {type: string, minLength: 1, nullable: true}
-        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
-
-    ReportTransmissionV2:
-      type: object
-      additionalProperties: false
-      required: [key, display_order, source_claim_key, source_conclusion, targets, logic, relation_nature, confidence, status, evidence_refs]
-      properties:
-        key: {$ref: '#/components/schemas/ReportLocalKey'}
-        display_order: {type: integer, minimum: 1}
-        source_claim_key: {$ref: '#/components/schemas/ReportLocalKey'}
-        source_conclusion: {type: string, minLength: 1}
-        targets:
-          type: array
-          minItems: 1
-          items:
-            type: object
-            additionalProperties: false
-            required: [label, results]
-            properties:
-              ref: {$ref: '#/components/schemas/ReportTargetReference'}
-              label: {type: string, minLength: 1}
-              results:
-                type: array
-                minItems: 1
-                items:
-                  type: object
-                  additionalProperties: false
-                  required: [name, result]
-                  properties:
-                    name: {type: string, minLength: 1}
-                    result: {$ref: '#/components/schemas/ReportResultV2'}
-        logic: {type: string, minLength: 1}
-        relation_nature: {type: string, minLength: 1}
-        confidence: {$ref: '#/components/schemas/ReportConfidenceV2'}
-        status: {type: string, minLength: 1}
-        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
-
-    ReportReasoningStepV2:
-      type: object
-      additionalProperties: false
-      required: [key, display_order, input, mechanism, output, type, confidence, evidence_refs]
-      properties:
-        key: {$ref: '#/components/schemas/ReportLocalKey'}
-        display_order: {type: integer, minimum: 1}
-        input: {type: string, minLength: 1}
-        mechanism: {type: string, minLength: 1}
-        output: {type: string, minLength: 1}
-        type: {type: string, minLength: 1}
-        confidence: {$ref: '#/components/schemas/ReportConfidenceV2'}
-        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
-
-    ReportLayerSummaryV2:
-      type: object
-      additionalProperties: false
-      required: [claim, transmissions, uncertainty, evidence_refs]
-      properties:
-        claim: {$ref: '#/components/schemas/ReportClaimV2'}
-        transmissions: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ReportTransmissionV2'}}
-        uncertainty: {$ref: '#/components/schemas/ReportLayerUncertainty'}
-        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
-
-    ReportLayerV2:
-      type: object
-      additionalProperties: false
-      required: [key, title, summary, detail]
-      properties:
-        key: {type: string, enum: [geopolitics, macroeconomics]}
-        title: {type: string, minLength: 1}
-        summary: {$ref: '#/components/schemas/ReportLayerSummaryV2'}
-        detail:
-          type: object
-          additionalProperties: false
-          required: [anchors, reasoning_steps, related_chain_keys]
-          properties:
-            anchors: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ReportAnchorV2'}}
-            reasoning_steps: {type: array, items: {$ref: '#/components/schemas/ReportReasoningStepV2'}}
-            related_chain_keys: {type: array, uniqueItems: true, items: {$ref: '#/components/schemas/ReportLocalKey'}}
-
-    ReportIndustryChainNodeV2:
-      type: object
-      additionalProperties: false
-      required: [key, display_order, node_key, effects, result, nature, reasoning, time_window, confidence, evidence_refs]
-      properties:
-        key: {$ref: '#/components/schemas/ReportLocalKey'}
-        display_order: {type: integer, minimum: 1}
-        node_key: {$ref: '#/components/schemas/ReportLocalKey'}
-        effects: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ReportEffectV2'}}
-        result: {$ref: '#/components/schemas/ReportResultV2'}
-        nature: {$ref: '#/components/schemas/ReportNature'}
-        reasoning: {type: string, minLength: 1}
-        time_window: {$ref: '#/components/schemas/ReportTimeWindowV2'}
-        confidence: {$ref: '#/components/schemas/ReportConfidenceV2'}
-        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
-
-    ReportIndustryChainGraphV2:
-      type: object
-      additionalProperties: false
-      required: [nodes, edges]
-      properties:
-        nodes:
-          type: array
-          minItems: 1
-          items:
-            type: object
-            additionalProperties: false
-            required: [key, display_order, name]
-            properties:
-              key: {$ref: '#/components/schemas/ReportLocalKey'}
-              display_order: {type: integer, minimum: 1}
-              name: {type: string, minLength: 1}
-        edges: {type: array, items: {$ref: '#/components/schemas/ReportIndustryChainEdge'}}
-
-    ReportIndustryChainV2:
-      type: object
-      additionalProperties: false
-      required: [key, display_order, name, summary, detail]
-      properties:
-        key: {$ref: '#/components/schemas/ReportLocalKey'}
-        display_order: {type: integer, minimum: 1}
-        name: {type: string, minLength: 1}
-        summary:
-          type: object
-          additionalProperties: false
-          required: [claim, status, result, confidence, time_window, path, accepted_hypothesis_summary, graph, uncertainty, evidence_refs]
-          properties:
-            claim: {$ref: '#/components/schemas/ReportClaimV2'}
-            status: {type: string, minLength: 1}
-            result: {$ref: '#/components/schemas/ReportResultV2'}
-            confidence: {$ref: '#/components/schemas/ReportConfidenceV2'}
-            time_window: {$ref: '#/components/schemas/ReportTimeWindowV2'}
-            path: {type: string, minLength: 1}
-            accepted_hypothesis_summary: {type: string, minLength: 1, nullable: true}
-            graph: {$ref: '#/components/schemas/ReportIndustryChainGraphV2'}
-            uncertainty:
-              type: object
-              additionalProperties: false
-              required: [counterevidence_and_gap, stop_condition]
-              properties:
-                counterevidence_and_gap: {type: string, minLength: 1}
-                stop_condition: {type: string, minLength: 1}
-            evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
-        detail:
-          type: object
-          additionalProperties: false
-          required: [node_impacts]
-          properties:
-            node_impacts: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ReportIndustryChainNodeV2'}}
-
-    ReportContentV2:
-      type: object
-      additionalProperties: false
-      required: [report_type, title, generation_status, simulation, generated_at, analysis_window, timezone, provenance, statistics, industry_chains]
-      properties:
-        report_type: {type: string, minLength: 1}
-        title: {type: string, minLength: 1}
-        generation_status: {type: string, minLength: 1}
-        simulation: {type: boolean}
-        generated_at: {type: string, format: date-time}
-        analysis_window:
-          type: object
-          additionalProperties: false
-          required: [started_at, ended_at]
-          properties:
-            started_at: {type: string, format: date-time}
-            ended_at: {type: string, format: date-time}
-        timezone: {type: string, minLength: 1}
-        provenance:
-          type: object
-          additionalProperties: false
-          required: [derived_from_report_id, frozen_source_sha256, frozen_source_commit, template]
-          properties:
-            derived_from_report_id: {type: string, minLength: 1, nullable: true}
-            frozen_source_sha256: {type: string, minLength: 1, nullable: true}
-            frozen_source_commit: {type: string, minLength: 1, nullable: true}
-            template:
-              type: object
-              additionalProperties: false
-              required: [name, version, role]
-              properties:
-                name: {type: string, minLength: 1}
-                version: {type: string, minLength: 1}
-                role: {type: string, minLength: 1}
-        statistics: {$ref: '#/components/schemas/ReportStatistics'}
-        geopolitics: {$ref: '#/components/schemas/ReportLayerV2'}
-        macroeconomics: {$ref: '#/components/schemas/ReportLayerV2'}
-        industry_chains: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ReportIndustryChainV2'}}
-
-    ReportPublicationRequestV2:
-      type: object
-      additionalProperties: false
-      required: [contract_version, publisher_report_id, content]
-      properties:
-        contract_version: {type: string, enum: [report-publication.v2]}
-        publisher_report_id: {type: string, minLength: 1, maxLength: 200}
-        content: {$ref: '#/components/schemas/ReportContentV2'}
-
-    ReportSummaryV2:
-      type: object
-      additionalProperties: false
-      required: [id, publisher_report_id, report_type, title, generation_status, simulation, generated_at, timezone, has_geopolitics, has_macroeconomics, statistics, published_at]
-      properties:
-        id: {$ref: '#/components/schemas/ReportID'}
-        publisher_report_id: {type: string, minLength: 1, maxLength: 200}
-        report_type: {type: string, minLength: 1}
-        title: {type: string, minLength: 1}
-        generation_status: {type: string, minLength: 1}
-        simulation: {type: boolean}
-        generated_at: {$ref: '#/components/schemas/UTCTimestamp'}
-        timezone: {type: string, minLength: 1}
-        has_geopolitics: {type: boolean}
-        has_macroeconomics: {type: boolean}
-        statistics: {$ref: '#/components/schemas/ReportStatistics'}
-        published_at: {$ref: '#/components/schemas/UTCTimestamp'}
-
-    ReportCollectionV2:
-      type: object
-      additionalProperties: false
-      required: [items, next_cursor]
-      properties:
-        items: {type: array, items: {$ref: '#/components/schemas/ReportSummaryV2'}}
-        next_cursor: {type: string, minLength: 1, maxLength: 2048, nullable: true}
-
-    ReportCollectionEnvelopeV2:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id: {type: string, minLength: 1, maxLength: 128}
-        result: {$ref: '#/components/schemas/ReportCollectionV2'}
-
-    ReportLayerSnapshotV2:
-      type: object
-      additionalProperties: false
-      required: [key, title, summary]
-      properties:
-        key: {type: string, enum: [geopolitics, macroeconomics]}
-        title: {type: string, minLength: 1}
-        summary: {$ref: '#/components/schemas/ReportLayerSummaryV2'}
-
-    ReportHomeEnvelopeV2:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id: {type: string, minLength: 1, maxLength: 128}
-        result:
-          type: object
-          additionalProperties: false
-          required: [report, geopolitics, macroeconomics]
-          properties:
-            report: {$ref: '#/components/schemas/ReportSummaryV2'}
-            geopolitics:
-              allOf: [{$ref: '#/components/schemas/ReportLayerSnapshotV2'}]
-              nullable: true
-            macroeconomics:
-              allOf: [{$ref: '#/components/schemas/ReportLayerSnapshotV2'}]
-              nullable: true
-
-    ReportLayerEnvelopeV2:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id: {type: string, minLength: 1, maxLength: 128}
-        result:
-          type: object
-          additionalProperties: false
-          required: [report, layer, related_industry_chains]
-          properties:
-            report: {$ref: '#/components/schemas/ReportSummaryV2'}
-            layer: {$ref: '#/components/schemas/ReportLayerV2'}
-            related_industry_chains: {type: array, items: {$ref: '#/components/schemas/ReportIndustryChainSummary'}}
-
-    ReportIndustryChainEnvelopeV2:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id: {type: string, minLength: 1, maxLength: 128}
-        result:
-          type: object
-          additionalProperties: false
-          required: [report, industry_chain]
-          properties:
-            report: {$ref: '#/components/schemas/ReportSummaryV2'}
-            industry_chain: {$ref: '#/components/schemas/ReportIndustryChainV2'}

@@ -1,9 +1,10 @@
 import Taro from '@tarojs/taro';
 import { unwrapMiniappAPIEnvelope } from '../../platform/miniapp-api';
-import type { ReportErrorKind, ReportEvidenceScope, ReportLayerKey, ReportPort } from './contract';
+import type { ReportErrorKind, ReportLayerKey, ReportPort } from './contract';
 import { ReportError } from './contract';
 import {
   parseReportEvidenceListWire,
+  parseReportCardPageWire,
   parseReportHomeWire,
   parseReportIndustryChainDetailWire,
   parseReportLayerDetailWire
@@ -27,6 +28,15 @@ export class APIReportPort implements ReportPort {
     return parseResponse(result, (value) => parseReportLayerDetailWire(value, reportId, layerKey));
   }
 
+  async getIndustryChains(reportId: string, cursor?: string, limit = 20) {
+    const query = `limit=${encodeURIComponent(String(limit))}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
+    const result = await this.get(
+      `/api/miniapp/v1/reports/${encodeURIComponent(reportId)}/industry-chains?${query}`,
+      'reportUnavailable'
+    );
+    return parseResponse(result, (value) => parseReportCardPageWire(value, reportId));
+  }
+
   async getIndustryChain(reportId: string, chainKey: string) {
     const result = await this.get(
       `/api/miniapp/v1/reports/${encodeURIComponent(reportId)}/industry-chains/${encodeURIComponent(chainKey)}`,
@@ -37,13 +47,15 @@ export class APIReportPort implements ReportPort {
     );
   }
 
-  async getEvidences(reportId: string, scope: ReportEvidenceScope) {
-    const query = `scope_type=${encodeURIComponent(scope.type)}&scope_key=${encodeURIComponent(scope.key)}`;
+  async getEvidences(reportId: string, scopeToken: string) {
+    const query = `scope_token=${encodeURIComponent(scopeToken)}`;
     const result = await this.get(
       `/api/miniapp/v1/reports/${encodeURIComponent(reportId)}/evidences?${query}`,
       'evidenceScopeUnavailable'
     );
-    return parseResponse(result, (value) => parseReportEvidenceListWire(value, reportId, scope));
+    return parseResponse(result, (value) =>
+      parseReportEvidenceListWire(value, reportId, scopeToken)
+    );
   }
 
   private async get(path: string, missingKind: ReportErrorKind): Promise<unknown> {

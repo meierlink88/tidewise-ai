@@ -1,8 +1,10 @@
-import type { ReportDetailTargetType, ReportEvidenceScopeType, ReportLayerKey } from './contract';
+import type { ReportDetailTargetType, ReportLayerKey } from './contract';
 
 const reportIDPattern =
   /^RPT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const localKeyPattern = /^[a-z0-9][a-z0-9._-]{0,127}$/;
+const scopeTokenPattern =
+  /^RPE[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const layerKeys = ['geopolitics', 'macroeconomics'] as const;
 const targetTypes = ['layer', 'industry_chain'] as const;
 
@@ -14,9 +16,17 @@ export interface ReportDetailRoute {
 
 export interface ReportEvidenceRoute {
   reportId: string;
-  scopeType: ReportEvidenceScopeType;
-  scopeKey: string;
+  scopeToken: string;
   title: string;
+}
+
+export function parseReportEvidenceRoute(value: unknown): ReportEvidenceRoute {
+  const params = routeRecord(value, ['reportId', 'scopeToken', 'title']);
+  return {
+    reportId: reportID(routeParam(params.reportId, true)),
+    scopeToken: scopeToken(routeParam(params.scopeToken, true)),
+    title: textParam(routeParam(params.title, true), 160)
+  };
 }
 
 export interface ReportNavigator {
@@ -90,6 +100,12 @@ function localKey(value: unknown): string {
   const key = textParam(value, 128);
   if (!localKeyPattern.test(key)) invalidRoute();
   return key;
+}
+
+function scopeToken(value: unknown): string {
+  const parsed = textParam(value, 39);
+  if (!scopeTokenPattern.test(parsed)) invalidRoute();
+  return parsed;
 }
 
 function textParam(value: unknown, maxLength: number): string {

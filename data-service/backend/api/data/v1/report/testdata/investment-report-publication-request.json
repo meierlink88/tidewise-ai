@@ -1,0 +1,396 @@
+{
+  "publisher_report_id": "agentos-investment-run-001",
+  "report": {
+    "report_type": {
+      "code": "investment_reasoning",
+      "label": "投研推理报告"
+    },
+    "generated_at": "2026-09-03T10:30:00+08:00",
+    "timezone": "Asia/Shanghai",
+    "geopolitics": {
+      "local_key": "geopolitics",
+      "title": "地缘政治面",
+      "conclusion": "海湾安全风险上升。",
+      "result": {
+        "code": "warming",
+        "label": "升温"
+      },
+      "time_window": {
+        "code": "short_medium",
+        "label": "短期–中期"
+      },
+      "confidence": {
+        "code": "medium",
+        "label": "中"
+      },
+      "affected_anchors": [
+        {
+          "local_key": "geo-anchor-01",
+          "name": "伊朗—美国及海湾安全对抗",
+          "current_state": "军事与航运风险上升。",
+          "result": {
+            "code": "warming",
+            "label": "升温"
+          },
+          "conclusion_basis": {
+            "code": "direct_evidence",
+            "label": "直接证据"
+          },
+          "validation_status": {
+            "code": "confirmed",
+            "label": "已确认"
+          },
+          "reasoning": "冲突和航运受阻共同推高地区风险。",
+          "time_window": {
+            "code": "short_medium",
+            "label": "短期–中期"
+          },
+          "confidence": {
+            "code": "medium",
+            "label": "中"
+          },
+          "evidence_refs": [
+            {
+              "evidence_id": "EVD11111111-1111-4111-8111-111111111111",
+              "role": {
+                "code": "direct_support",
+                "label": "直接依据"
+              }
+            }
+          ]
+        }
+      ],
+      "reasoning_steps": [
+        {
+          "local_key": "reasoning-01",
+          "input": "冲突和运输受阻。",
+          "mechanism": "关键航道风险上升。",
+          "output": "地区风险升温。",
+          "confidence": {
+            "code": "medium",
+            "label": "中"
+          },
+          "evidence_refs": [
+            {
+              "evidence_id": "EVD11111111-1111-4111-8111-111111111111",
+              "role": {
+                "code": "reasoning_support",
+                "label": "推导依据"
+              }
+            }
+          ]
+        }
+      ],
+      "uncertainty": {
+        "counterevidence": "替代供应可能缓冲冲击。",
+        "evidence_gap": "仍需价格数据验证。",
+        "boundary": "影响取决于冲突持续时间。",
+        "reversal_condition": "若运输恢复则影响减弱。"
+      },
+      "evidence_refs": [
+        {
+          "evidence_id": "EVD11111111-1111-4111-8111-111111111111",
+          "role": {
+            "code": "summary_support",
+            "label": "核心依据"
+          }
+        }
+      ],
+      "downward_transmission": {
+        "to_macroeconomics": {
+          "summary": "风险继续向下传导。",
+          "paths": [
+            {
+              "local_key": "geo-to-macro-01",
+              "source_conclusion": "海湾安全风险上升",
+              "targets": [
+                {
+                  "target_type": {
+                    "code": "macro_anchor",
+                    "label": "宏观经济锚点"
+                  },
+                  "target_local_key": "macro-anchor-01",
+                  "target_name": "能源供应与进口安全",
+                  "result": {
+                    "code": "cooling",
+                    "label": "降温"
+                  }
+                }
+              ],
+              "transmission_logic": "运输风险增加能源供应不确定性。",
+              "transmission_kind": {
+                "code": "cross_layer_reasoning",
+                "label": "跨层推理"
+              },
+              "confidence": {
+                "code": "medium",
+                "label": "中"
+              },
+              "status": {
+                "code": "established",
+                "label": "已形成传导"
+              }
+            }
+          ]
+        },
+        "to_industry_chains": {
+          "summary": "风险继续向下传导。",
+          "paths": [
+            {
+              "local_key": "geo-to-chain-01",
+              "source_conclusion": "海湾运输风险上升",
+              "targets": [
+                {
+                  "target_type": {
+                    "code": "industry_chain",
+                    "label": "产业链"
+                  },
+                  "target_local_key": "chain-01",
+                  "target_name": "油气勘探开发产业链",
+                  "result": {
+                    "code": "warming",
+                    "label": "升温"
+                  }
+                },
+                {
+                  "target_type": {
+                    "code": "industry_chain_node",
+                    "label": "产业链节点"
+                  },
+                  "target_local_key": "node-01",
+                  "target_name": "油气勘探",
+                  "result": {
+                    "code": "warming",
+                    "label": "升温"
+                  }
+                }
+              ],
+              "transmission_logic": "供应风险提高资源保障需求。",
+              "transmission_kind": {
+                "code": "same_source_signal",
+                "label": "同源信号"
+              },
+              "confidence": {
+                "code": "medium",
+                "label": "中"
+              },
+              "status": {
+                "code": "established",
+                "label": "已形成传导"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "macroeconomics": {
+      "local_key": "macroeconomics",
+      "title": "宏观经济面",
+      "conclusion": "能源输入成本承压。",
+      "result": {
+        "code": "diverging",
+        "label": "分化"
+      },
+      "time_window": {
+        "code": "medium",
+        "label": "中期"
+      },
+      "confidence": {
+        "code": "medium",
+        "label": "中"
+      },
+      "affected_anchors": [
+        {
+          "local_key": "macro-anchor-01",
+          "name": "能源供应与进口安全",
+          "current_state": "进口供应稳定性下降。",
+          "result": {
+            "code": "cooling",
+            "label": "降温"
+          },
+          "conclusion_basis": {
+            "code": "reasoning_hypothesis",
+            "label": "推理假设"
+          },
+          "validation_status": {
+            "code": "pending_validation",
+            "label": "待验证"
+          },
+          "reasoning": "运输风险可能增加进口成本。",
+          "time_window": {
+            "code": "medium",
+            "label": "中期"
+          },
+          "confidence": {
+            "code": "medium",
+            "label": "中"
+          },
+          "evidence_refs": []
+        }
+      ],
+      "reasoning_steps": [],
+      "uncertainty": {
+        "counterevidence": "替代供应可能缓冲冲击。",
+        "evidence_gap": "仍需价格数据验证。",
+        "boundary": "影响取决于冲突持续时间。",
+        "reversal_condition": "若运输恢复则影响减弱。"
+      },
+      "evidence_refs": [],
+      "downward_transmission": {
+        "to_industry_chains": {
+          "summary": "成本压力向产业链传导。",
+          "paths": [
+            {
+              "local_key": "geo-to-chain-01",
+              "source_conclusion": "海湾运输风险上升",
+              "targets": [
+                {
+                  "target_type": {
+                    "code": "industry_chain",
+                    "label": "产业链"
+                  },
+                  "target_local_key": "chain-01",
+                  "target_name": "油气勘探开发产业链",
+                  "result": {
+                    "code": "warming",
+                    "label": "升温"
+                  }
+                },
+                {
+                  "target_type": {
+                    "code": "industry_chain_node",
+                    "label": "产业链节点"
+                  },
+                  "target_local_key": "node-01",
+                  "target_name": "油气勘探",
+                  "result": {
+                    "code": "warming",
+                    "label": "升温"
+                  }
+                }
+              ],
+              "transmission_logic": "供应风险提高资源保障需求。",
+              "transmission_kind": {
+                "code": "same_source_signal",
+                "label": "同源信号"
+              },
+              "confidence": {
+                "code": "medium",
+                "label": "中"
+              },
+              "status": {
+                "code": "established",
+                "label": "已形成传导"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "industry_chains": [
+      {
+        "local_key": "chain-01",
+        "name": "油气勘探开发产业链",
+        "conclusion": "上游资源保障需求升温。",
+        "result": {
+          "code": "warming",
+          "label": "升温"
+        },
+        "time_window": {
+          "code": "medium",
+          "label": "中期"
+        },
+        "confidence": {
+          "code": "medium",
+          "label": "中"
+        },
+        "path_summary": "供应风险向勘探开发传导。",
+        "accepted_hypothesis_summary": "设备需求可能随后改善。",
+        "nodes": [
+          {
+            "local_key": "node-01",
+            "name": "油气勘探",
+            "impact": "资源保障需求增强。",
+            "result": {
+              "code": "warming",
+              "label": "升温"
+            },
+            "conclusion_basis": {
+              "code": "direct_evidence",
+              "label": "直接证据"
+            },
+            "validation_status": {
+              "code": "confirmed",
+              "label": "已确认"
+            },
+            "reasoning": "供应风险提高新增储量价值。",
+            "time_window": {
+              "code": "medium",
+              "label": "中期"
+            },
+            "confidence": {
+              "code": "medium",
+              "label": "中"
+            },
+            "evidence_refs": [
+              {
+                "evidence_id": "EVD11111111-1111-4111-8111-111111111111",
+                "role": {
+                  "code": "direct_support",
+                  "label": "直接依据"
+                }
+              }
+            ]
+          },
+          {
+            "local_key": "node-02",
+            "name": "油服设备",
+            "impact": "设备订单可能增加。",
+            "result": {
+              "code": "warming",
+              "label": "升温"
+            },
+            "conclusion_basis": {
+              "code": "reasoning_hypothesis",
+              "label": "推理假设"
+            },
+            "validation_status": {
+              "code": "pending_validation",
+              "label": "待验证"
+            },
+            "reasoning": "勘探活动增加可能带动设备需求。",
+            "time_window": {
+              "code": "medium_long",
+              "label": "中期–长期"
+            },
+            "confidence": {
+              "code": "low",
+              "label": "低"
+            },
+            "evidence_refs": []
+          }
+        ],
+        "edges": [
+          {
+            "from_node_local_key": "node-01",
+            "to_node_local_key": "node-02",
+            "relation_label": "需求传导"
+          }
+        ],
+        "uncertainty": {
+          "counterevidence_and_gap": "仍需订单和价格数据验证。",
+          "stop_condition": "若供应恢复则停止传导。"
+        },
+        "evidence_refs": [
+          {
+            "evidence_id": "EVD11111111-1111-4111-8111-111111111111",
+            "role": {
+              "code": "summary_support",
+              "label": "核心依据"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

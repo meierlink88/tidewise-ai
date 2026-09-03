@@ -61,6 +61,10 @@ pre_data80_runtime="${deployment_root}/pre-data80.runtime.env"
 pre_data80_images="${state_dir}/pre-data80.images.env"
 pre_data80_compose="${state_dir}/pre-data80.compose.yaml"
 pre_data80_sha="${state_dir}/pre-data80.sha"
+pre_data81_runtime="${deployment_root}/pre-data81.runtime.env"
+pre_data81_images="${state_dir}/pre-data81.images.env"
+pre_data81_compose="${state_dir}/pre-data81.compose.yaml"
+pre_data81_sha="${state_dir}/pre-data81.sha"
 agentrun_rollback_marker="${state_dir}/agentrun-010-rollback-required"
 agentrun_version_publication="${state_dir}/agentrun-agent-version-publication.json"
 candidate_services_started=false
@@ -189,8 +193,22 @@ case "$deployment_mode" in
     cutover_checkpoint_compose="$pre_data80_compose"
     cutover_checkpoint_sha="$pre_data80_sha"
     ;;
+  data_81_cutover)
+    bounded_data_cutover=true
+    cutover_target_version=81
+    cutover_target_version_padded=000081
+    cutover_initial_current_version=000080
+    cutover_initial_pending_versions=000081
+    cutover_recovery_minimum_version=80
+    cutover_gate_name=data81
+    cutover_release_state_mode=pre-data81
+    cutover_checkpoint_runtime="$pre_data81_runtime"
+    cutover_checkpoint_images="$pre_data81_images"
+    cutover_checkpoint_compose="$pre_data81_compose"
+    cutover_checkpoint_sha="$pre_data81_sha"
+    ;;
   *)
-    echo "FAIL deployment-mode-gate: DEPLOYMENT_MODE must be normal, tidewise_2_cutover, data_59_cutover, data_60_cutover, data_63_77_cutover, data_78_79_cutover, data_78_80_cutover, or data_80_cutover" >&2
+    echo "FAIL deployment-mode-gate: DEPLOYMENT_MODE must be normal, tidewise_2_cutover, data_59_cutover, data_60_cutover, data_63_77_cutover, data_78_79_cutover, data_78_80_cutover, data_80_cutover, or data_81_cutover" >&2
     exit 1
     ;;
 esac
@@ -339,6 +357,16 @@ restore_interrupted_release_state() {
       install -m 0640 "$pre_data80_compose" "$current_compose"
       install -m 0640 "$pre_data80_sha" "$current_sha"
       ;;
+    pre-data81)
+      if [ ! -s "$pre_data81_runtime" ] || [ ! -s "$pre_data81_images" ] || [ ! -s "$pre_data81_compose" ] || [ ! -s "$pre_data81_sha" ]; then
+        echo "FAIL release-state-recovery: pre-Data-81 snapshot is incomplete" >&2
+        return 1
+      fi
+      install -m 0600 "$pre_data81_runtime" "$current_runtime"
+      install -m 0640 "$pre_data81_images" "$current_images"
+      install -m 0640 "$pre_data81_compose" "$current_compose"
+      install -m 0640 "$pre_data81_sha" "$current_sha"
+      ;;
     none)
       rm -f "$current_runtime" "$current_images" "$current_compose" "$current_sha"
       ;;
@@ -372,7 +400,7 @@ current_release_state_fingerprint() {
 
 verify_planned_release_state() {
   local recovered_cutover_state=false
-  if [ "$bounded_data_cutover" = true ] && [[ "$interrupted_state_recovery_mode" =~ ^(pre-data2|pre-data59|pre-data60|pre-data63|pre-data78|pre-data78-80|pre-data80|committed)$ ]]; then
+  if [ "$bounded_data_cutover" = true ] && [[ "$interrupted_state_recovery_mode" =~ ^(pre-data2|pre-data59|pre-data60|pre-data63|pre-data78|pre-data78-80|pre-data80|pre-data81|committed)$ ]]; then
     recovered_cutover_state=true
   fi
   if [ "$recovered_cutover_state" != true ] && [ "$(current_release_state_fingerprint)" != "$expected_current_state_fingerprint" ]; then

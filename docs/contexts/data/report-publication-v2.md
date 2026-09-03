@@ -1,90 +1,78 @@
-# Report Publication v2 领域契约
+# Report 发布领域契约
 
 ## 权威与边界
 
-本契约依据 `investment-reasoning-report-2026-09-02-presentation-v2.md` 定稿报告拆解，
-由 Data OpenAPI 的 `ReportPublicationRequestV2` 和 Biz validation 执行。发布方必须提交
-结构化 fixed package；Data 不解析 Markdown，Miniapp 卡片不是发布事实。
+HTTP 权威是 Data OpenAPI 的 `ReportPublicationRequest`，具体发布形状以
+`data-service/backend/api/data/v1/report/testdata/investment-report-publication-request.json`
+中从 AgentOS 复制的定稿 fixture 为最高验收基线。AgentOS 发布已完成推理的中文结构化
+快照；Data 不解析 Markdown、不补做研究推理，也不从 Event、Signal、Graphiti 或图主数据
+重建内容。唯一跨领域身份是 canonical `EVD` Atomic Evidence ID。
 
-## 报告根
+## 发布根与幂等
 
-| 字段 | 约束 |
-| --- | --- |
-| `report_type` | 必填，发布方报告类型 |
-| `title` | 必填 |
-| `generation_status` | 必填，表达生成结果而非页面状态 |
-| `simulation` | 必填布尔值 |
-| `generated_at` | 必填 RFC3339 时间 |
-| `analysis_window` | 必填 `{started_at, ended_at}`，且 `started_at < ended_at` |
-| `timezone` | 必填 IANA 时区名 |
-| `provenance` | 必填；包含可空上游报告 ID、冻结源 hash/commit 及必填 template 引用 |
-| `statistics` | 必填非负统计；三个结构计数必须与快照闭合 |
-| `geopolitics` | 可选 Section，缺失时不发布空对象 |
-| `macroeconomics` | 可选 Section，不依赖 `geopolitics` 是否存在 |
-| `industry_chains` | 必填非空有序集合；`display_order` 从 1 连续递增 |
+请求严格为 `{publisher_report_id, report}`。Report 根必须包含：
 
-v2 不含 `company`、`published_layers` 或 `report_cards`。公司层等定稿基线后
-以新合同版本引入。
+- `report_type={code: investment_reasoning, label: 投研推理报告}`；
+- RFC3339 `generated_at`与 `timezone=Asia/Shanghai`；
+- 相互独立可选的 `geopolitics` 与 `macroeconomics`；
+- 必须非空的 `industry_chains`。
 
-## 上层 Section
+可选上层分析不存在时省略对应字段，不发送空占位。相同 `publisher_report_id` 与相同
+canonical report 返回原 `report_id/published_at` 且 `replayed=true`；内容不同则冲突。
 
-`geopolitics` 与 `macroeconomics` 共用同一结构：
+## 地缘政治与宏观经济
 
-- `key` 必须与 Section 名一致，`title` 必填。
-- `summary.claim` 是一句话结论，含 Report-local `key` 与原文 `text`。
-- `summary.transmissions[]` 是向下传导逻辑；每项含源 claim、一个或多个目标、
-  传导逻辑、关系性质、置信度、状态与 Evidence refs。基线只有文本目标而无
-  稳定站内目标时 `ref` 可缺失，不伪造引用。
-- `summary.uncertainty` 分别保留反证、Evidence Gap、边界、反转条件和有序检查点；其中反证、
-  边界和反转条件必填，Evidence Gap 可空。
-- `detail.anchors[]` 是受影响锚点表格的领域表达；含有序 effects、结果、结论性质、
-  原文推理、时间窗口、报告置信度、可选源引用与 Evidence refs。
-- `detail.reasoning_steps[]` 可为空，不因 Section 存在而强制编造。
-- `detail.related_chain_keys[]` 只能指向同一 Report 中存在的产业链。
+两个上层对象都是扁平发布快照，包含
+`local_key/title/conclusion/result/time_window/confidence/affected_anchors/reasoning_steps/
+uncertainty/evidence_refs/downward_transmission`。
 
-## 产业链分析
+- Anchor 包含 `local_key/name/current_state/result/conclusion_basis/validation_status/reasoning/
+  time_window/confidence/evidence_refs`。
+- Reasoning step 包含 `local_key/input/mechanism/output/confidence/evidence_refs`，顺序即报告顺序。
+- Uncertainty 包含四个可空字段：
+  `counterevidence/evidence_gap/boundary/reversal_condition`。
+- 地缘传导按 `to_macroeconomics` 和 `to_industry_chains` 分组；宏观传导按
+  `to_industry_chains` 分组。每组含 `summary/paths`。
+- path 包含 `local_key/source_conclusion/targets/transmission_logic/transmission_kind/
+  confidence/status`。target 使用 `target_type/target_local_key/target_name/result`，必须在
+  同一 Report 中闭合。
 
-每条 `industry_chains[]` 含 `key`、`display_order`、`name`、`summary` 和 `detail`。
+## 产业链
 
-`summary` 字段：
+每条产业链也是扁平快照，包含
+`local_key/name/conclusion/result/time_window/confidence/path_summary/
+accepted_hypothesis_summary/nodes/edges/uncertainty/evidence_refs`。
 
-- `claim`：一句话结论；
-- `status`、`result`、`confidence`、`time_window`：链级聚合结果；
-- `path`：基线中的有序传导路径原文；
-- `accepted_hypothesis_summary`：可空，基线 54 条中只有 18 条存在；
-- `graph.nodes[]` 与 `graph.edges[]`：该链的结构图，节点不携带本期投资结论；
-- `uncertainty.counterevidence_and_gap` 与 `uncertainty.stop_condition`：反证、缺口和停止条件；
-- `evidence_refs`：支持链级 claim 的显式引用。
+- `path_summary` 和 `accepted_hypothesis_summary` 可空，不得由 Data 或 BFF 补写。
+- node 包含 `local_key/name/impact/result/conclusion_basis/validation_status/reasoning/
+  time_window/confidence/evidence_refs`；节点 `local_key` 同时是链图端点。
+- edge 包含 `from_node_local_key/to_node_local_key/relation_label`，端点必须闭合。
+- uncertainty 包含可空 `counterevidence_and_gap/stop_condition`。
 
-`detail` 字段：
+Report-local key 只在所属 `report_id` 内有意义，不是正式图对象身份。
 
-- `node_impacts[]`：非空的本期受影响节点结论，`node_key` 必须指向本链 topology node，
-  同一拓扑节点在一条链内最多一个 impact。
+## code、label 与 Evidence
 
-## 值对象与 Evidence 规则
+- AgentOS 按固定目录同时发布 code 和中文 label；Data 严格校验配对，不生成 label。
+- confidence 只有 `code/label`，没有 score。
+- `conclusion_basis` 与 `validation_status` 是独立维度。直接证据必须是
+  `direct_evidence + confirmed`；推理假设或无方向结论必须是 `pending_validation`。
+- 每个 `evidence_refs` 元素包含 `evidence_id` 与有序 role `{code,label}`。role 只允许
+  `direct_support/直接依据`、`reasoning_support/推导依据`、`summary_support/核心依据`。
+- 直接证据 anchor/node 必须且只能使用 direct support；推理假设 anchor/node 不能携带
+  Evidence。层结论、推理步骤与链结论分别使用自己的显式作用域，不从子对象聚合。
+- 发布事务先批量校验 unique EVD，再同时写 Report 和 links；任一 EVD 缺失整体回滚。
 
-- `result.code`: `warming | cooling | diverging | stable | mixed | pending`；单值 code 与中文 label
-  固定映射，`mixed` 的 label 保留报告组合结果原文（例如“升温 / 局部稳定”）。
-- `confidence.code`: `high | medium_high | medium | low_medium | low`，label 固定映射，
-  `score` 可空或位于 `[0,1]`。
-- `time_window.horizons`: `immediate | short | medium | long | future` 的非空无重复有序数组；
-  `lag` 可空，`label` 保留报告展示原文。
-- `effect.direction`: `up | down | stable`；`effect.confidence`: `high | medium | low | unknown`。
-- `nature.code`: `direct_evidence | reasoning_hypothesis | pending_validation`。
-- Evidence role 限于 `direct_target | supports_claim | supports_reasoning | supports_transmission`。
-  锚点/节点 `direct_evidence` 必须含 `direct_target`；另两种 nature 的直接 Evidence 数组必须为空。
-
-地缘政治或宏观经济 Section 一旦存在，summary 至少包含一条向下传导，detail 至少包含一个
-受影响锚点；推导步骤仍为可空数组，不能因展示需要生成。Section 不存在时整体省略。
-
-所有数组都必须显式发布为数组而非 `null`；所有 `display_order` 在所属集合内从 1
-连续递增。Report-local key 使用 `^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`。
+读取端只获得 report-bound opaque `RPE` scope token。Evidence 查询只返回按 link position
+排序的 `published_at/summary/keywords`，不暴露 EVD ID、scope path 或 role 元数据。
 
 ## 存储与分页
 
-`reports.content` 保存完整不可变 JSONB，`report_evidence_links` 保存对已发布
-Atomic Evidence 的 restrictive 关系。`GET /reports/{report_id}/industry-chains`
-按 `display_order` 在 PostgreSQL JSONB 投影中执行 report-bound cursor 分页；不得先把整份
-Report 解码到 Go 内存再切片。单链 detail 仍通过 key 按需读取。
-列表投影同时从该链的 `detail.node_impacts` 与 `summary.graph.nodes` 在 PostgreSQL 中生成有序
-`impact_items`，供 Miniapp 卡片预览；它不是写回 JSONB 的第二份领域事实。
+`reports.report` 是一行不可变 JSONB snapshot；`report_evidence_links` 是唯一跨领域关系表。
+产业链列表使用 PostgreSQL `jsonb_array_elements(... WITH ORDINALITY)` 分页，cursor 绑定
+report ID 与最后 ordinality，单链详情按 local key 延迟读取。默认页 20，最大页 100。
+
+Migration 000081 是空库 forward-only 切换；遇到已有 Report/link 行以 SQLSTATE 55000 拒绝。
+
+54 链、157 节点、43 个 unique EVD 和 265 条 link 是独立的分页/容量回归基线；
+不替代 AgentOS 定稿 fixture 的精确字段契约。

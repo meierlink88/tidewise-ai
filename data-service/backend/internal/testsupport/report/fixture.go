@@ -13,124 +13,206 @@ const (
 	ReportOne   = "RPT11111111-1111-4111-8111-111111111111"
 )
 
-func Content() reportbiz.Content {
-	content := IndustryOnlyContent()
-	content.Geopolitics = layer("geopolitics", "地缘政治", "C-GEO-01", "地缘风险升温。", "geo-anchor", EvidenceOne)
-	content.Macroeconomics = layer("macroeconomics", "宏观经济", "C-MAC-01", "宏观路径分化。", "macro-anchor", EvidenceTwo)
-	content.Statistics.GeopoliticAnchorCount = 1
-	content.Statistics.MacroeconomicAnchorCount = 1
-	content.Geopolitics.Detail.RelatedChainKeys = []string{"chain-01"}
-	content.Macroeconomics.Detail.RelatedChainKeys = []string{"chain-01"}
-	content.Geopolitics.Summary.Transmissions[0].Targets[0].Ref = &reportbiz.TargetReference{Type: reportbiz.TargetIndustryChain, Key: "chain-01"}
-	content.Macroeconomics.Summary.Transmissions[0].Targets[0].Ref = &reportbiz.TargetReference{Type: reportbiz.TargetIndustryChain, Key: "chain-01"}
-	return content
+func Report() reportbiz.Report {
+	report := IndustryOnlyReport()
+	report.Geopolitics = geopoliticalLayer()
+	report.Macroeconomics = macroeconomicLayer()
+	return report
 }
 
-func IndustryOnlyContent() reportbiz.Content {
-	generatedAt := time.Date(2026, 9, 2, 8, 30, 0, 0, time.FixedZone("CST", 8*60*60))
-	return reportbiz.Content{
-		ReportType:       "investment_reasoning",
-		Title:            "每日投资推理报告",
-		GenerationStatus: "completed",
-		GeneratedAt:      generatedAt,
-		AnalysisWindow: reportbiz.AnalysisWindow{
-			StartedAt: generatedAt.Add(-24 * time.Hour), EndedAt: generatedAt,
-		},
-		Timezone: "Asia/Shanghai",
-		Provenance: reportbiz.Provenance{Template: reportbiz.TemplateReference{
-			Name: "investment-reasoning-report", Version: "presentation-v2", Role: "publication",
-		}},
-		Statistics:     reportbiz.Statistics{IndustryChainCount: 1, SignaledChainNodeCount: 1},
+func IndustryOnlyReport() reportbiz.Report {
+	return reportbiz.Report{
+		ReportType:     coded("investment_reasoning", "投研推理报告"),
+		GeneratedAt:    time.Date(2026, 9, 3, 10, 30, 0, 0, time.FixedZone("CST", 8*60*60)),
+		Timezone:       "Asia/Shanghai",
 		IndustryChains: []reportbiz.IndustryChain{industryChain(1)},
 	}
 }
 
-func ContentWithManyChains(count int) reportbiz.Content {
-	content := IndustryOnlyContent()
-	content.IndustryChains = make([]reportbiz.IndustryChain, count)
-	for index := range content.IndustryChains {
-		content.IndustryChains[index] = industryChain(index + 1)
+func ReportWithManyChains(count int) reportbiz.Report {
+	report := IndustryOnlyReport()
+	report.IndustryChains = make([]reportbiz.IndustryChain, count)
+	for index := range report.IndustryChains {
+		report.IndustryChains[index] = industryChain(index + 1)
 	}
-	content.Statistics.IndustryChainCount = count
-	content.Statistics.SignaledChainNodeCount = count
-	return content
+	return report
 }
 
-func layer(key, title, claimKey, claimText, anchorKey, evidenceID string) *reportbiz.Layer {
-	high := confidence(reportbiz.ConfidenceHigh, "高", 0.88)
-	counterevidence := "相反事实可能削弱该结论。"
-	boundary := "不把缺少直接 Signal 的对象纳入本节结论。"
-	reversal := "若关键 Signal 失效或方向反转，则下调本节结论。"
+func FrozenScaleBaselineReport() reportbiz.Report {
+	report := Report()
+	evidenceIDs := FrozenScaleBaselineEvidenceIDs()
+	report.IndustryChains = make([]reportbiz.IndustryChain, 54)
+	nodeIndex := 0
+	for chainIndex := range report.IndustryChains {
+		chain := industryChain(chainIndex + 1)
+		chain.EvidenceRefs = []reportbiz.EvidenceReference{evidenceRef(evidenceIDs[chainIndex%len(evidenceIDs)], "summary_support", "核心依据")}
+		nodeCount := 3
+		if chainIndex >= 49 {
+			nodeCount = 2
+		}
+		chain.Nodes = make([]reportbiz.IndustryChainNode, nodeCount)
+		chain.Edges = make([]reportbiz.IndustryChainEdge, 0, nodeCount-1)
+		for position := 0; position < nodeCount; position++ {
+			key := fmt.Sprintf("node-%02d-%02d", chainIndex+1, position+1)
+			refs := []reportbiz.EvidenceReference{
+				evidenceRef(evidenceIDs[nodeIndex%len(evidenceIDs)], "direct_support", "直接依据"),
+			}
+			if nodeIndex < 51 {
+				refs = append(refs, evidenceRef(evidenceIDs[(nodeIndex+1)%len(evidenceIDs)], "direct_support", "直接依据"))
+			}
+			chain.Nodes[position] = directNode(key, fmt.Sprintf("产业节点 %02d-%02d", chainIndex+1, position+1), refs)
+			if position > 0 {
+				chain.Edges = append(chain.Edges, reportbiz.IndustryChainEdge{
+					FromNodeLocalKey: chain.Nodes[position-1].LocalKey,
+					ToNodeLocalKey:   key,
+					RelationLabel:    "需求传导",
+				})
+			}
+			nodeIndex++
+		}
+		report.IndustryChains[chainIndex] = chain
+	}
+	return report
+}
+
+func FrozenScaleBaselineEvidenceIDs() []string {
+	result := []string{EvidenceOne, EvidenceTwo}
+	for index := 3; index <= 43; index++ {
+		result = append(result, fmt.Sprintf("EVD%08d-0000-5000-8000-%012d", index, index))
+	}
+	return result
+}
+
+func Content() reportbiz.Report                        { return Report() }
+func IndustryOnlyContent() reportbiz.Report            { return IndustryOnlyReport() }
+func ContentWithManyChains(count int) reportbiz.Report { return ReportWithManyChains(count) }
+
+func geopoliticalLayer() *reportbiz.Layer {
 	return &reportbiz.Layer{
-		Key: key, Title: title,
-		Summary: reportbiz.LayerSummary{
-			Claim: reportbiz.Claim{Key: claimKey, Text: claimText},
-			Transmissions: []reportbiz.Transmission{{
-				Key: key + "-tx-01", DisplayOrder: 1, SourceClaimKey: claimKey, SourceConclusion: claimText,
-				Targets: []reportbiz.TransmissionTarget{{Label: "产业链", Results: []reportbiz.NamedResult{{Name: "供需", Result: warming()}}}},
-				Logic:   "风险通过供需与成本向下传导。", RelationNature: "cross_layer_inference",
-				Confidence: high, Status: "published", EvidenceRefs: roleRefs(evidenceID, reportbiz.EvidenceRoleSupportsTransmission),
-			}},
-			Uncertainty: reportbiz.LayerUncertainty{Counterevidence: &counterevidence, Boundary: &boundary, ReversalCondition: &reversal, Checkpoints: []reportbiz.Checkpoint{}}, EvidenceRefs: roleRefs(evidenceID, reportbiz.EvidenceRoleSupportsClaim),
+		LocalKey: "geopolitics", Title: "地缘政治面", Conclusion: "海湾安全风险上升。",
+		Result: coded(reportbiz.ResultWarming, "升温"), TimeWindow: window("short_medium", "短期–中期"),
+		Confidence: confidence("medium", "中"),
+		AffectedAnchors: []reportbiz.Anchor{{
+			LocalKey: "geo-anchor-01", Name: "伊朗—美国及海湾安全对抗", CurrentState: "军事与航运风险上升。",
+			Result:           coded(reportbiz.ResultWarming, "升温"),
+			ConclusionBasis:  coded(reportbiz.BasisDirectEvidence, "直接证据"),
+			ValidationStatus: coded(reportbiz.ValidationConfirmed, "已确认"),
+			Reasoning:        "冲突和航运受阻共同推高地区风险。",
+			TimeWindow:       window("short_medium", "短期–中期"), Confidence: confidence("medium", "中"),
+			EvidenceRefs: []reportbiz.EvidenceReference{evidenceRef(EvidenceOne, "direct_support", "直接依据")},
+		}},
+		ReasoningSteps: []reportbiz.ReasoningStep{{
+			LocalKey: "reasoning-01", Input: "冲突和运输受阻。", Mechanism: "关键航道风险上升。",
+			Output: "地区风险升温。", Confidence: confidence("medium", "中"),
+			EvidenceRefs: []reportbiz.EvidenceReference{evidenceRef(EvidenceOne, "reasoning_support", "推导依据")},
+		}},
+		Uncertainty: reportbiz.LayerUncertainty{
+			Counterevidence: text("替代供应可能缓冲冲击。"), EvidenceGap: text("仍需价格数据验证。"),
+			Boundary: text("影响取决于冲突持续时间。"), ReversalCondition: text("若运输恢复则影响减弱。"),
 		},
-		Detail: reportbiz.LayerAnalysis{
-			Anchors: []reportbiz.Anchor{{
-				Key: anchorKey, DisplayOrder: 1, Name: title + "影响锚点",
-				Effects: []reportbiz.Effect{{DisplayOrder: 1, Dimension: "风险", Direction: reportbiz.DirectionUp, Confidence: reportbiz.SignalConfidenceHigh}},
-				Result:  warming(), Nature: direct(), Reasoning: "公开事实直接支持该锚点结论。",
-				TimeWindow: window(reportbiz.HorizonShort, "短期"), Confidence: high, EvidenceRefs: refs(evidenceID),
-			}},
-			ReasoningSteps: []reportbiz.ReasoningStep{}, RelatedChainKeys: []string{},
+		EvidenceRefs: []reportbiz.EvidenceReference{evidenceRef(EvidenceOne, "summary_support", "核心依据")},
+		DownwardTransmission: reportbiz.DownwardTransmission{
+			ToMacroeconomics: transmissionGroup("风险继续向下传导。", transmission(
+				"geo-to-macro-01", "海湾安全风险上升", "macro_anchor", "宏观经济锚点",
+				"macro-anchor-01", "能源供应与进口安全", reportbiz.ResultCooling, "降温",
+			)),
+			ToIndustryChains: transmissionGroup("风险继续向下传导。", transmission(
+				"geo-to-chain-01", "海湾运输风险上升", "industry_chain", "产业链",
+				"chain-01", "产业链 01", reportbiz.ResultWarming, "升温",
+			)),
 		},
+	}
+}
+
+func macroeconomicLayer() *reportbiz.Layer {
+	return &reportbiz.Layer{
+		LocalKey: "macroeconomics", Title: "宏观经济面", Conclusion: "能源输入成本承压。",
+		Result: coded(reportbiz.ResultDiverging, "分化"), TimeWindow: window("medium", "中期"),
+		Confidence: confidence("medium", "中"),
+		AffectedAnchors: []reportbiz.Anchor{{
+			LocalKey: "macro-anchor-01", Name: "能源供应与进口安全", CurrentState: "进口供应稳定性下降。",
+			Result:           coded(reportbiz.ResultCooling, "降温"),
+			ConclusionBasis:  coded(reportbiz.BasisReasoningHypothesis, "推理假设"),
+			ValidationStatus: coded(reportbiz.ValidationPending, "待验证"),
+			Reasoning:        "运输风险可能增加进口成本。",
+			TimeWindow:       window("medium", "中期"), Confidence: confidence("medium", "中"),
+			EvidenceRefs: []reportbiz.EvidenceReference{},
+		}},
+		ReasoningSteps: []reportbiz.ReasoningStep{},
+		Uncertainty: reportbiz.LayerUncertainty{
+			Counterevidence: text("替代供应可能缓冲冲击。"), EvidenceGap: text("仍需价格数据验证。"),
+			Boundary: text("影响取决于冲突持续时间。"), ReversalCondition: text("若运输恢复则影响减弱。"),
+		},
+		EvidenceRefs: []reportbiz.EvidenceReference{},
+		DownwardTransmission: reportbiz.DownwardTransmission{
+			ToIndustryChains: transmissionGroup("成本压力向产业链传导。", transmission(
+				"macro-to-chain-01", "海湾运输风险上升", "industry_chain", "产业链",
+				"chain-01", "产业链 01", reportbiz.ResultWarming, "升温",
+			)),
+		},
+	}
+}
+
+func transmissionGroup(summary string, paths ...reportbiz.Transmission) *reportbiz.TransmissionGroup {
+	return &reportbiz.TransmissionGroup{Summary: summary, Paths: paths}
+}
+
+func transmission(key, source, targetCode, targetLabel, targetKey, targetName, resultCode, resultLabel string) reportbiz.Transmission {
+	return reportbiz.Transmission{
+		LocalKey: key, SourceConclusion: source,
+		Targets: []reportbiz.TransmissionTarget{{
+			TargetType: coded(targetCode, targetLabel), TargetLocalKey: targetKey,
+			TargetName: targetName, Result: coded(resultCode, resultLabel),
+		}},
+		TransmissionLogic: "供应风险提高资源保障需求。",
+		TransmissionKind:  coded(reportbiz.TransmissionCrossLayer, "跨层推理"),
+		Confidence:        confidence("medium", "中"), Status: coded("established", "已形成传导"),
 	}
 }
 
 func industryChain(order int) reportbiz.IndustryChain {
-	chainKey := fmt.Sprintf("chain-%02d", order)
-	topologyKey := fmt.Sprintf("topology-node-%02d", order)
-	medium := confidence(reportbiz.ConfidenceMedium, "中", 0.72)
+	key := fmt.Sprintf("chain-%02d", order)
+	nodeKey := fmt.Sprintf("node-%02d", order)
 	return reportbiz.IndustryChain{
-		Key: chainKey, DisplayOrder: order, Name: fmt.Sprintf("产业链 %02d", order),
-		Summary: reportbiz.ChainSummary{
-			Claim:  reportbiz.Claim{Key: fmt.Sprintf("C-CHAIN-%02d", order), Text: "产业链聚合结果升温。"},
-			Status: "completed", Result: warming(), Confidence: medium,
-			TimeWindow: window(reportbiz.HorizonMedium, "中期"), Path: "输入→节点→产出", EvidenceRefs: roleRefs(EvidenceOne, reportbiz.EvidenceRoleSupportsClaim),
-			Graph: reportbiz.IndustryChainGraph{
-				Nodes: []reportbiz.IndustryChainTopologyNode{{Key: topologyKey, DisplayOrder: 1, Name: fmt.Sprintf("产业节点 %02d", order)}},
-				Edges: []reportbiz.IndustryChainEdge{},
-			},
-			Uncertainty: reportbiz.ChainUncertainty{CounterevidenceAndGap: "反证与缺口仍需经营数据验证。", StopCondition: "若后续 Signal 失效或方向反转，停止该链结论。"},
+		LocalKey: key, Name: fmt.Sprintf("产业链 %02d", order), Conclusion: "产业链聚合结果升温。",
+		Result: coded(reportbiz.ResultWarming, "升温"), TimeWindow: window("medium_long", "中期–长期"),
+		Confidence: confidence("medium", "中"), PathSummary: text("输入→节点→产出"),
+		AcceptedHypothesisSummary: text("设备需求可能随后改善。"),
+		Nodes: []reportbiz.IndustryChainNode{
+			directNode(nodeKey, fmt.Sprintf("产业节点 %02d", order), []reportbiz.EvidenceReference{
+				evidenceRef(EvidenceTwo, "direct_support", "直接依据"),
+			}),
 		},
-		Detail: reportbiz.IndustryChainAnalysis{
-			NodeImpacts: []reportbiz.IndustryChainNode{{
-				Key: fmt.Sprintf("impact-%02d", order), DisplayOrder: 1, NodeKey: topologyKey,
-				Effects: []reportbiz.Effect{{DisplayOrder: 1, Dimension: "需求", Direction: reportbiz.DirectionUp, Confidence: reportbiz.SignalConfidenceMedium}},
-				Result:  warming(), Nature: direct(), Reasoning: "目标节点具有直接 Signal。",
-				TimeWindow: window(reportbiz.HorizonMedium, "中期"), Confidence: medium, EvidenceRefs: refs(EvidenceTwo),
-			}},
+		Edges: []reportbiz.IndustryChainEdge{},
+		Uncertainty: reportbiz.ChainUncertainty{
+			CounterevidenceAndGap: text("反证与缺口仍需经营数据验证。"),
+			StopCondition:         text("若后续 Signal 失效或方向反转，停止该链结论。"),
 		},
+		EvidenceRefs: []reportbiz.EvidenceReference{evidenceRef(EvidenceOne, "summary_support", "核心依据")},
 	}
 }
 
-func refs(evidenceID string) []reportbiz.EvidenceReference {
-	return roleRefs(evidenceID, reportbiz.EvidenceRoleDirectTarget)
+func directNode(key, name string, refs []reportbiz.EvidenceReference) reportbiz.IndustryChainNode {
+	return reportbiz.IndustryChainNode{
+		LocalKey: key, Name: name, Impact: "需求 UP",
+		Result:           coded(reportbiz.ResultWarming, "升温"),
+		ConclusionBasis:  coded(reportbiz.BasisDirectEvidence, "直接证据"),
+		ValidationStatus: coded(reportbiz.ValidationConfirmed, "已确认"),
+		Reasoning:        "目标节点具有直接 Signal。", TimeWindow: window("medium", "中期"),
+		Confidence: confidence("medium", "中"), EvidenceRefs: refs,
+	}
 }
 
-func roleRefs(evidenceID string, role reportbiz.EvidenceRoleCode) []reportbiz.EvidenceReference {
-	return []reportbiz.EvidenceReference{{EvidenceID: evidenceID, Role: role, DisplayOrder: 1}}
+func coded(code, label string) reportbiz.CodedLabel {
+	return reportbiz.CodedLabel{Code: code, Label: label}
 }
-
-func confidence(code reportbiz.ConfidenceCode, label string, score float64) reportbiz.Confidence {
-	return reportbiz.Confidence{Code: code, Label: label, Score: &score}
+func confidence(code, label string) reportbiz.Confidence {
+	return reportbiz.Confidence{Code: code, Label: label}
 }
-
-func window(horizon reportbiz.HorizonCode, label string) reportbiz.TimeWindow {
-	return reportbiz.TimeWindow{Horizons: []reportbiz.HorizonCode{horizon}, Label: label}
+func window(code, label string) reportbiz.TimeWindow {
+	return reportbiz.TimeWindow{Code: code, Label: label}
 }
-
-func warming() reportbiz.Result {
-	return reportbiz.Result{Code: reportbiz.ResultWarming, Label: "升温"}
+func evidenceRef(id, code, label string) reportbiz.EvidenceReference {
+	return reportbiz.EvidenceReference{EvidenceID: id, Role: coded(code, label)}
 }
-func direct() reportbiz.Nature {
-	return reportbiz.Nature{Code: reportbiz.NatureDirectEvidence, Label: "直接证据"}
-}
+func text(value string) *string { return &value }

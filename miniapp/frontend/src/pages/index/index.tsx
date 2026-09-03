@@ -1,6 +1,6 @@
 import Taro, { usePullDownRefresh } from '@tarojs/taro';
 import { Button, Image, ScrollView, Text, View } from '@tarojs/components';
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useRef, useState } from 'react';
 import fileTextIcon from '../../assets/icons/file-text.svg';
 import reportArrowRightIcon from '../../assets/icons/report-arrow-right-light.svg';
 import reportActivityCoolingIcon from '../../assets/icons/report-activity-cooling.svg';
@@ -15,6 +15,7 @@ import reportPublishedClockIcon from '../../assets/icons/report-clock.svg';
 import reportWindowClockIcon from '../../assets/icons/report-window-clock.svg';
 import type {
   ReportCard,
+  ReportCardPage,
   ReportHome,
   ReportHomeGroup,
   ReportImpactItem,
@@ -46,15 +47,68 @@ export default function IndexPage() {
   const [query, setQuery] = useState('');
   const [evidenceRoute, setEvidenceRoute] = useState<ReportEvidenceRoute | null>(null);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
+  const [chainPages, setChainPages] = useState<Record<string, ChainPageState>>({});
+  const loadGeneration = useRef(0);
+  const loadingReports = useRef(new Map<string, number>());
   const chrome = useMemo(() => getHomeChromeMetrics(Taro), []);
   const port = useMemo(() => getReportPort(), []);
   const resource = useReportResource('report-home', () => port.getHome(), isHomeEmpty);
 
   const refreshHome = async () => {
+    loadGeneration.current += 1;
+    loadingReports.current.clear();
+    setChainPages({});
     await resource.refresh();
     const latest = resource.snapshot();
     if ((latest.status === 'ready' || latest.status === 'empty') && latest.refreshFailed) {
       void Taro.showToast({ title: '刷新失败，已保留当前内容', icon: 'none', duration: 1800 });
+    }
+  };
+
+  const loadMoreChains = async (reportId: string, cursor: string) => {
+    if (loadingReports.current.has(reportId)) return;
+    const generation = loadGeneration.current;
+    loadingReports.current.set(reportId, generation);
+    setChainPages((current) => ({
+      ...current,
+      [reportId]: {
+        ...(current[reportId] ?? emptyChainPage),
+        nextCursor: cursor,
+        loading: true,
+        failed: false
+      }
+    }));
+    try {
+      const page = await port.getIndustryChains(reportId, cursor, 20);
+      if (loadGeneration.current !== generation) return;
+      setChainPages((current) => {
+        const previous = current[reportId] ?? emptyChainPage;
+        return {
+          ...current,
+          [reportId]: {
+            items: dedupeCards([...previous.items, ...page.items]),
+            nextCursor: page.nextCursor,
+            loading: false,
+            failed: false
+          }
+        };
+      });
+    } catch {
+      if (loadGeneration.current === generation) {
+        setChainPages((current) => ({
+          ...current,
+          [reportId]: {
+            ...(current[reportId] ?? emptyChainPage),
+            nextCursor: cursor,
+            loading: false,
+            failed: true
+          }
+        }));
+      }
+    } finally {
+      if (loadingReports.current.get(reportId) === generation) {
+        loadingReports.current.delete(reportId);
+      }
     }
   };
 
@@ -76,6 +130,8 @@ export default function IndexPage() {
         onSelectReport={setSelectedReportId}
         onOpenDetail={(route) => navigateToReportDetail(Taro, route)}
         onOpenEvidence={setEvidenceRoute}
+        chainPages={chainPages}
+        onLoadMoreChains={(reportId, cursor) => void loadMoreChains(reportId, cursor)}
       />
       {evidenceRoute ? (
         <HomeReportEvidenceSheet
@@ -98,7 +154,9 @@ export function IndexView({
   onRefresh,
   onSelectReport,
   onOpenDetail,
-  onOpenEvidence
+  onOpenEvidence,
+  chainPages = {},
+  onLoadMoreChains
 }: {
   chrome: HomeChromeMetrics;
   query: string;
@@ -110,6 +168,8 @@ export function IndexView({
   onSelectReport?: (reportId: string) => void;
   onOpenDetail: (route: ReportDetailRoute) => void;
   onOpenEvidence: (route: ReportEvidenceRoute) => void;
+  chainPages?: Record<string, ChainPageState>;
+  onLoadMoreChains?: (reportId: string, cursor: string) => void;
 }) {
   return (
     <View className='home-page'>
@@ -127,6 +187,8 @@ export function IndexView({
           onSelectReport={onSelectReport}
           onOpenDetail={onOpenDetail}
           onOpenEvidence={onOpenEvidence}
+          chainPages={chainPages}
+          onLoadMoreChains={onLoadMoreChains}
         />
       </View>
     </View>
@@ -140,7 +202,9 @@ function HomeReportState({
   onRefresh,
   onSelectReport,
   onOpenDetail,
-  onOpenEvidence
+  onOpenEvidence,
+  chainPages,
+  onLoadMoreChains
 }: {
   state: ReportResourceState<ReportHome>;
   selectedReportId?: string | null;
@@ -149,6 +213,8 @@ function HomeReportState({
   onSelectReport?: (reportId: string) => void;
   onOpenDetail: (route: ReportDetailRoute) => void;
   onOpenEvidence: (route: ReportEvidenceRoute) => void;
+  chainPages: Record<string, ChainPageState>;
+  onLoadMoreChains?: (reportId: string, cursor: string) => void;
 }) {
   if (state.status === 'idle' || state.status === 'loading') {
     return <ReportStatePanel title='正在读取报告' description='正在加载本次推理卡片' busy />;
@@ -170,6 +236,8 @@ function HomeReportState({
   const selectedGroup =
     state.data.reports.find((group) => group.report.id === selectedReportId) ??
     state.data.reports[0]!;
+  const chainPage = chainPages[selectedGroup.report.id];
+  const nextCursor = chainPage ? chainPage.nextCursor : selectedGroup.nextCursor;
 
   return (
     <View className='home-report-frame'>
@@ -215,6 +283,10 @@ function HomeReportState({
         refresherEnabled
         refresherTriggered={state.refreshing}
         onRefresherRefresh={onRefresh}
+        lowerThreshold={160}
+        onScrollToLower={() => {
+          if (nextCursor) onLoadMoreChains?.(selectedGroup.report.id, nextCursor);
+        }}
       >
         <View className='home-report-list'>
           {state.refreshFailed ? (
@@ -222,9 +294,24 @@ function HomeReportState({
           ) : null}
           <HomeReportGroupView
             group={selectedGroup}
+            appendedCards={chainPage?.items ?? []}
             onOpenDetail={onOpenDetail}
             onOpenEvidence={onOpenEvidence}
           />
+          {chainPage?.loading ? (
+            <Text className='home-chain-page-state'>正在加载更多产业链…</Text>
+          ) : null}
+          {chainPage?.failed ? (
+            <Button
+              className='tidewise-button home-chain-page-state home-chain-page-state--retry'
+              onClick={() => {
+                if (nextCursor) onLoadMoreChains?.(selectedGroup.report.id, nextCursor);
+              }}
+            >
+              加载失败，点击重试
+            </Button>
+          ) : null}
+          {!nextCursor ? <Text className='home-chain-page-state'>已展示全部产业链</Text> : null}
         </View>
       </ScrollView>
     </View>
@@ -233,17 +320,22 @@ function HomeReportState({
 
 function HomeReportGroupView({
   group,
+  appendedCards,
   onOpenDetail,
   onOpenEvidence
 }: {
   group: ReportHomeGroup;
+  appendedCards: ReportCard[];
   onOpenDetail: (route: ReportDetailRoute) => void;
   onOpenEvidence: (route: ReportEvidenceRoute) => void;
 }) {
   const geopolitics = group.cards.find((card) => card.kind === 'geopolitics');
   const macroeconomics = group.cards.find((card) => card.kind === 'macroeconomics');
-  const industryCards = group.cards.filter((card) => card.kind === 'industry_chain');
-  const industryChainCount = group.industryChainCount;
+  const industryCards = dedupeCards([
+    ...group.cards.filter((card) => card.kind === 'industry_chain'),
+    ...appendedCards
+  ]);
+  const industryChainCount = group.report.industryChainCount;
 
   return (
     <View className='home-report-group' ariaLabel='本期观潮报告'>
@@ -344,7 +436,7 @@ function HomeReportCard({
   const detailRoute: ReportDetailRoute = {
     reportId,
     targetType: card.detailRef.type,
-    targetKey: card.detailRef.key
+    targetKey: card.detailRef.localKey
   };
   return (
     <View className={`home-report-card home-report-card--${card.kind}`} ariaLabel={card.title}>
@@ -357,14 +449,14 @@ function HomeReportCard({
       ) : null}
       <View className='home-impact-list'>
         {card.impactItems.map((item) => (
-          <View className='home-impact-item' key={`${item.ref.type}:${item.ref.key}`}>
+          <View className='home-impact-item' key={`${item.ref.type}:${item.ref.localKey}`}>
             <Text className='home-impact-item__name'>{item.name}</Text>
             <HomeImpactSignals item={item} />
           </View>
         ))}
       </View>
       <View className='home-report-card__actions'>
-        {card.hasEvidence ? (
+        {card.evidenceScopeToken ? (
           <Button
             className='tidewise-button home-card-evidence-action'
             hoverClass='home-card-evidence-action--pressed'
@@ -373,9 +465,7 @@ function HomeReportCard({
               event.stopPropagation();
               onOpenEvidence({
                 reportId,
-                scopeType:
-                  card.kind === 'industry_chain' ? 'industry_chain_summary' : 'section_summary',
-                scopeKey: card.detailRef.key,
+                scopeToken: card.evidenceScopeToken!,
                 title: `${card.title}证据`
               });
             }}
@@ -408,10 +498,10 @@ function HomeImpactSignals({ item }: { item: ReportImpactItem }) {
   return (
     <View
       className='home-impact-signals'
-      ariaLabel={`结果${item.result.label}，置信度${item.confidence.label}，时间窗口${item.timeWindow}`}
+      ariaLabel={`结果${item.result.label}，置信度${item.confidence.label}，时间窗口${item.timeWindow.label}`}
     >
       <View
-        className={`home-impact-signal home-impact-signal--result home-impact-signal--${item.result.code}`}
+        className={`home-impact-signal home-impact-signal--result home-impact-signal--${resultStyle(item.result.code)}`}
       >
         <Image
           className='home-impact-signal__result-icon'
@@ -435,7 +525,7 @@ function HomeImpactSignals({ item }: { item: ReportImpactItem }) {
           src={reportWindowClockIcon}
           mode='aspectFit'
         />
-        <Text className='home-impact-signal__value'>{item.timeWindow}</Text>
+        <Text className='home-impact-signal__value'>{item.timeWindow.label}</Text>
       </View>
     </View>
   );
@@ -455,6 +545,33 @@ function reportActivityIcon(result: ReportResultCode): string {
   return reportActivityPendingIcon;
 }
 
+function resultStyle(result: string): string {
+  return ['warming', 'cooling', 'diverging', 'stable', 'mixed', 'pending'].includes(result)
+    ? result
+    : 'pending';
+}
+
 export async function stopHomeRefresh(api: HomeRefreshAPI): Promise<void> {
   void api.stopPullDownRefresh();
+}
+
+export interface ChainPageState extends ReportCardPage {
+  loading: boolean;
+  failed: boolean;
+}
+
+const emptyChainPage: ChainPageState = {
+  items: [],
+  nextCursor: null,
+  loading: false,
+  failed: false
+};
+
+function dedupeCards(cards: ReportCard[]): ReportCard[] {
+  const seen = new Set<string>();
+  return cards.filter((card) => {
+    if (seen.has(card.key)) return false;
+    seen.add(card.key);
+    return true;
+  });
 }

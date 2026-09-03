@@ -92,32 +92,44 @@ evidence_one="$(jq -er '.result.items | map(select(.input_index == 0)) | .[0].id
 evidence_two="$(jq -er '.result.items | map(select(.input_index == 1)) | .[0].id' <<<"$evidence_response")"
 
 echo "Publishing smoke Report fixture"
-report_response="$(
+if ! report_response="$(
   jq --arg evidence_one "$evidence_one" --arg evidence_two "$evidence_two" \
     --arg publisher_report_id "report-smoke-${run_suffix}" '
       .publisher_report_id = $publisher_report_id
       | walk(
-          if type == "object" and has("evidence_id") then
-            .evidence_id = (
-              if .evidence_id == "EVD11111111-1111-4111-8111-111111111111"
-              then $evidence_one else $evidence_two end
-            )
+          if type == "string" and . == "EVD11111111-1111-4111-8111-111111111111" then
+            $evidence_one
+          elif type == "string" and . == "EVD22222222-2222-4222-8222-222222222222" then
+            $evidence_two
           else . end
         )
-    ' "$repo_root/data-service/backend/api/data/v1/report/testdata/report-publication.v2.json" | \
+    ' "$repo_root/data-service/backend/api/data/v1/report/testdata/investment-report-publication-request.json" | \
     curl --fail-with-body --silent --show-error \
       -H "$auth_header" -H 'Content-Type: application/json' \
       --data-binary @- "$data_api/report-publications"
-)"
+)"; then
+  echo "Report fixture publication failed" >&2
+  printf '%s\n' "$report_response" >&2
+  exit 1
+fi
 report_id="$(jq -er '.result.report_id' <<<"$report_response")"
 
 echo "Reading smoke Miniapp Report homepage"
-home_response="$(curl --fail --silent --show-error "$miniapp_api/reports/home")"
+data_home_response="$(curl --fail --silent --show-error -H "$auth_header" "$data_api/reports/$report_id/home")"
+if ! home_response="$(curl --fail-with-body --silent --show-error "$miniapp_api/reports/home")"; then
+  echo "Miniapp Report homepage read failed" >&2
+  printf '%s\n' "$home_response" >&2
+  printf 'Data Report homepage response: %s\n' "$data_home_response" >&2
+  exit 1
+fi
 jq -e --arg report_id "$report_id" '
   .result.selection.timezone == "Asia/Shanghai"
   and (.result.reports | length == 1)
   and .result.reports[0].report.id == $report_id
   and (.result.reports[0].cards | length == 3)
+  and .result.reports[0].cards[0].detail_ref.local_key == "geopolitics"
+  and .result.reports[0].cards[1].detail_ref.local_key == "macroeconomics"
+  and .result.reports[0].cards[2].detail_ref.local_key == "chain-01"
 ' <<<"$home_response" >/dev/null
 
 layer_response="$(curl --fail --silent --show-error "$miniapp_api/reports/$report_id/layers/geopolitics")"
@@ -126,11 +138,12 @@ jq -e --arg report_id "$report_id" '
   and .result.layer.key == "geopolitics"
   and (.result.related_industry_chains | length == 1)
 ' <<<"$layer_response" >/dev/null
+scope_token="$(jq -er '.result.layer.evidence_scope_token' <<<"$layer_response")"
 
 evidence_list_response="$(curl --fail --silent --show-error \
-  "$miniapp_api/reports/$report_id/evidences?scope_type=section_summary&scope_key=geopolitics")"
-jq -e '
-  .result.scope == {type: "section_summary", key: "geopolitics"}
+  "$miniapp_api/reports/$report_id/evidences?scope_token=$scope_token")"
+jq -e --arg scope_token "$scope_token" '
+  .result.scope_token == $scope_token
   and (.result.items | length == 1)
   and (.result.items[0].summary | length > 0)
   and (.result.items[0] | has("evidence_id") | not)

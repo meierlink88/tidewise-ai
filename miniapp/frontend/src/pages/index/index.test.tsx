@@ -25,7 +25,7 @@ vi.mock('@tarojs/components', () => ({
 const chrome = { statusBarHeight: 44, navigationBarHeight: 44, rightReservedWidth: 102 };
 
 describe('Report homepage', () => {
-  it('keeps the application shell and renders every persisted card in one Report group', async () => {
+  it('keeps the fixed application shell and renders the first paged card batch', async () => {
     const home = await mockReportPort.getHome();
     const onRefresh = vi.fn();
     const page = IndexView({
@@ -48,25 +48,25 @@ describe('Report homepage', () => {
     expect(copy).toContain('2026.09.01 12:45');
     expect(copy).toContain('地缘政治');
     expect(copy).toContain('宏观经济');
-    expect(copy).toContain('54 条真实产业链 · 首页展示 4 条');
+    expect(copy).toContain('54 条真实产业链 · 首页展示 20 条');
     expect(copy).toContain('人形机器人产业链');
     expect(copy).toContain('AI数据中心液冷服务器产业链');
     expect(copy).toContain('AI算力基础设施服务产业链');
-    expect(copy).toContain('油品石化贸易服务产业链');
+    expect(copy).toContain('AI视频生成服务产业链');
     expect(copy).not.toContain('RPT11111111');
     expect(copy).not.toContain('EVT');
     expect(findAllByClass(page, 'home-search__send')).toHaveLength(1);
     expect(findAllByClass(page, 'home-section-heading__summary')).toHaveLength(0);
-    expect(findAllByClass(page, 'home-card-evidence-action')).toHaveLength(6);
-    expect(findAllByClass(page, 'home-card-detail-action')).toHaveLength(6);
+    expect(findAllByClass(page, 'home-card-evidence-action')).toHaveLength(22);
+    expect(findAllByClass(page, 'home-card-detail-action')).toHaveLength(22);
     expect(findAllByClass(page, 'home-report-section__kind-icon')).toHaveLength(3);
-    expect(findAllByClass(page, 'home-report-card__arrow')).toHaveLength(6);
+    expect(findAllByClass(page, 'home-report-card__arrow')).toHaveLength(22);
     expect(findAllByClass(page, 'home-company-boundary__icon')).toHaveLength(0);
-    expect(findAllByClass(page, 'home-industry-identity')).toHaveLength(4);
-    expect(findAllByClass(page, 'home-impact-item')).toHaveLength(21);
-    expect(findAllByClass(page, 'home-impact-signal__result-icon')).toHaveLength(21);
-    expect(findAllByClass(page, 'home-impact-signal__confidence-icon')).toHaveLength(21);
-    expect(findAllByClass(page, 'home-impact-signal__window-icon')).toHaveLength(21);
+    expect(findAllByClass(page, 'home-industry-identity')).toHaveLength(20);
+    expect(findAllByClass(page, 'home-impact-item')).toHaveLength(47);
+    expect(findAllByClass(page, 'home-impact-signal__result-icon')).toHaveLength(47);
+    expect(findAllByClass(page, 'home-impact-signal__confidence-icon')).toHaveLength(47);
+    expect(findAllByClass(page, 'home-impact-signal__window-icon')).toHaveLength(47);
     expect(findAllByClass(page, 'home-report-card__signals')).toHaveLength(0);
     const scroll = findAllByClass(page, 'home-report-scroll')[0];
     expect(scroll).toBeDefined();
@@ -109,8 +109,7 @@ describe('Report homepage', () => {
     expect(stopPropagation).toHaveBeenCalledOnce();
     expect(onOpenEvidence).toHaveBeenCalledWith({
       reportId: 'RPT11111111-1111-4111-8111-111111111111',
-      scopeType: 'section_summary',
-      scopeKey: 'geopolitics',
+      scopeToken: home.reports[0]?.cards[0]?.evidenceScopeToken,
       title: '地缘政治证据'
     });
     expect(onOpenDetail).not.toHaveBeenCalled();
@@ -163,6 +162,44 @@ describe('Report homepage', () => {
     expect(textContent(page)).toContain('2026.09.01 12:45');
   });
 
+  it('appends a bounded page, deduplicates cards, and exposes scroll and retry loading controls', async () => {
+    const home = await mockReportPort.getHome();
+    const group = home.reports[0]!;
+    const cursor = group.nextCursor!;
+    const nextPage = await mockReportPort.getIndustryChains(group.report.id, cursor, 20);
+    const duplicate = group.cards.find((card) => card.kind === 'industry_chain')!;
+    const onLoadMoreChains = vi.fn();
+    const page = IndexView({
+      chrome,
+      query: '',
+      onQueryChange: vi.fn(),
+      state: { status: 'ready', data: home, refreshing: false, refreshFailed: false },
+      onRetry: vi.fn(),
+      onRefresh: vi.fn(),
+      onOpenDetail: vi.fn(),
+      onOpenEvidence: vi.fn(),
+      chainPages: {
+        [group.report.id]: {
+          items: [duplicate, ...nextPage.items],
+          nextCursor: nextPage.nextCursor,
+          loading: false,
+          failed: true
+        }
+      },
+      onLoadMoreChains
+    });
+
+    expect(findAllByClass(page, 'home-industry-identity')).toHaveLength(40);
+    expect(textContent(page)).toContain('首页展示 40 条');
+    const scroll = findAllByClass(page, 'home-report-scroll')[0];
+    scroll?.props.onScrollToLower?.();
+    findAllByClass(page, 'home-chain-page-state--retry')[0]?.props.onClick?.({
+      stopPropagation: vi.fn()
+    });
+    expect(onLoadMoreChains).toHaveBeenCalledTimes(2);
+    expect(onLoadMoreChains).toHaveBeenLastCalledWith(group.report.id, nextPage.nextCursor);
+  });
+
   it('renders explicit loading, empty and retryable error states', () => {
     const base = {
       chrome,
@@ -207,6 +244,7 @@ interface TestElementProps {
   role?: string;
   onClick?: (event: { stopPropagation: () => void }) => void;
   onRefresherRefresh?: () => void;
+  onScrollToLower?: () => void;
   src?: string;
   scrollY?: boolean;
   enhanced?: boolean;

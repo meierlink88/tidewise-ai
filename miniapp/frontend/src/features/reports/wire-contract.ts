@@ -1,93 +1,67 @@
 import type {
   ReportAnchor,
-  ReportCandidateMechanism,
   ReportCard,
-  ReportCheckpoint,
+  ReportCardPage,
+  ReportCodedLabel,
   ReportConfidence,
-  ReportDownwardTransmission,
   ReportEvidence,
   ReportEvidenceList,
-  ReportEvidenceScope,
-  ReportEvidenceScopeType,
   ReportGraphEdge,
   ReportHome,
   ReportHomeGroup,
   ReportIndustryChainDetail,
   ReportIndustryChainDetailContent,
   ReportIndustryChainNode,
-  ReportIndustryChainUncertainty,
   ReportLayerDetail,
   ReportLayerDetailContent,
   ReportLayerKey,
-  ReportLayerUncertainty,
-  ReportNature,
-  ReportNatureCode,
   ReportReasoningStep,
   ReportReference,
-  ReportReferenceType,
   ReportRelatedIndustryChain,
-  ReportResult,
-  ReportResultCode,
   ReportSummary,
+  ReportTimeWindow,
   ReportTransmissionPath,
   ReportTransmissionTarget
 } from './contract';
 
 type RecordValue = Record<string, unknown>;
 
-const resultCodes = ['warming', 'cooling', 'diverging', 'stable', 'mixed', 'pending'] as const;
-const resultLabels: Record<ReportResultCode, ReportResult['label']> = {
-  warming: '升温',
-  cooling: '降温',
-  diverging: '分化',
-  stable: '稳定',
-  mixed: '混合',
-  pending: '待验证'
-};
-const natureCodes = ['direct_evidence', 'reasoning_hypothesis', 'pending_validation'] as const;
-const natureLabels: Record<ReportNatureCode, ReportNature['label']> = {
-  direct_evidence: '直接证据',
-  reasoning_hypothesis: '推理假设',
-  pending_validation: '待验证'
-};
-const layerKeys = ['geopolitics', 'macroeconomics'] as const;
-const cardKinds = ['geopolitics', 'macroeconomics', 'industry_chain'] as const;
-const referenceTypes = ['layer', 'anchor', 'industry_chain', 'industry_chain_node'] as const;
-const evidenceScopeTypes = [
-  'section_summary',
-  'anchor',
-  'reasoning_step',
-  'transmission',
-  'industry_chain_summary',
-  'industry_chain_node'
-] as const;
-const selectionModes = ['today', 'latest_fallback'] as const;
 const reportIDPattern =
   /^RPT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const scopeTokenPattern =
+  /^RPE[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const localKeyPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
-const utcTimestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-const displayTextMaxCodePoints = 10_000;
+const layerKeys = ['geopolitics', 'macroeconomics'] as const;
+const cardKinds = ['geopolitics', 'macroeconomics', 'industry_chain'] as const;
+const referenceTypes = [
+  'layer',
+  'anchor',
+  'macro_anchor',
+  'industry_chain',
+  'industry_chain_node'
+] as const;
 
 export function parseReportHomeWire(value: unknown): ReportHome {
-  const root = exactRecord(value, ['selection', 'reports']);
-  const selectionWire = exactRecord(root.selection, ['mode', 'date', 'timezone']);
+  const root = exact(value, ['selection', 'reports']);
+  const selectionWire = exact(root.selection, ['mode', 'date', 'timezone']);
   const selection = {
-    mode: enumValue(selectionWire.mode, selectionModes),
-    date: dateString(selectionWire.date),
+    mode: enumeration(selectionWire.mode, ['today', 'latest_fallback'] as const),
+    date: match(selectionWire.date, datePattern),
     timezone: literal(selectionWire.timezone, 'Asia/Shanghai')
   } as const;
-  const reports = array(root.reports).map(parseHomeGroup);
-
-  unique(reports.map((group) => group.report.id));
-  validateSummaryOrder(reports.map((group) => group.report));
+  const reports = list(root.reports).map(parseHomeGroup);
+  unique(reports.map((item) => item.report.id));
   if (selection.mode === 'latest_fallback' && reports.length !== 1) invalid();
-  if (selection.mode === 'today') {
-    for (const group of reports) {
-      if (shanghaiDate(group.report.publishedAt) !== selection.date) invalid();
-    }
-  }
   return { selection, reports };
+}
+
+export function parseReportCardPageWire(value: unknown, expectedReportId: string): ReportCardPage {
+  reportID(expectedReportId);
+  const root = exact(value, ['items', 'next_cursor']);
+  const items = list(root.items).map(parseCard);
+  unique(items.map((item) => item.key));
+  return { items, nextCursor: nullableCursor(root.next_cursor) };
 }
 
 export function parseReportLayerDetailWire(
@@ -95,20 +69,12 @@ export function parseReportLayerDetailWire(
   expectedReportId: string,
   expectedLayerKey: ReportLayerKey
 ): ReportLayerDetail {
-  reportID(expectedReportId);
-  const root = exactRecord(value, ['report', 'layer', 'related_industry_chains']);
-  const report = parseReportSummary(root.report);
+  const root = exact(value, ['report', 'layer', 'related_industry_chains']);
+  const report = parseSummary(root.report);
   const layer = parseLayer(root.layer);
-  const relatedIndustryChains = array(root.related_industry_chains).map(parseRelatedChain);
-
-  if (report.id !== expectedReportId || layer.key !== expectedLayerKey) invalid();
-  unique(relatedIndustryChains.map((chain) => chain.key));
-  if (
-    layer.relatedChainKeys.length !== relatedIndustryChains.length ||
-    layer.relatedChainKeys.some((key, index) => key !== relatedIndustryChains[index].key)
-  ) {
-    invalid();
-  }
+  const relatedIndustryChains = list(root.related_industry_chains).map(parseRelatedChain);
+  if (report.id !== reportID(expectedReportId) || layer.key !== expectedLayerKey) invalid();
+  unique(relatedIndustryChains.map((item) => item.key));
   return { report, layer, relatedIndustryChains };
 }
 
@@ -117,61 +83,52 @@ export function parseReportIndustryChainDetailWire(
   expectedReportId: string,
   expectedChainKey: string
 ): ReportIndustryChainDetail {
-  reportID(expectedReportId);
-  localKey(expectedChainKey);
-  const root = exactRecord(value, ['report', 'industry_chain']);
-  const report = parseReportSummary(root.report);
+  const root = exact(value, ['report', 'industry_chain']);
+  const report = parseSummary(root.report);
   const industryChain = parseIndustryChain(root.industry_chain);
-  if (report.id !== expectedReportId || industryChain.key !== expectedChainKey) invalid();
+  if (
+    report.id !== reportID(expectedReportId) ||
+    industryChain.key !== localKey(expectedChainKey)
+  ) {
+    invalid();
+  }
   return { report, industryChain };
 }
 
 export function parseReportEvidenceListWire(
   value: unknown,
   expectedReportId: string,
-  expectedScope: ReportEvidenceScope
+  expectedScopeToken: string
 ): ReportEvidenceList {
-  reportID(expectedReportId);
-  validateExpectedScope(expectedScope);
-  const root = exactRecord(value, ['report_id', 'scope', 'items']);
+  const root = exact(value, ['report_id', 'scope_token', 'items']);
   const reportId = reportID(root.report_id);
-  const scope = parseScope(root.scope);
-  const items = array(root.items).map(parseEvidence);
-  if (
-    reportId !== expectedReportId ||
-    scope.type !== expectedScope.type ||
-    scope.key !== expectedScope.key
-  ) {
+  const scopeToken = token(root.scope_token);
+  if (reportId !== reportID(expectedReportId) || scopeToken !== token(expectedScopeToken))
     invalid();
-  }
-  return { reportId, scope, items };
+  return { reportId, scopeToken, items: list(root.items).map(parseEvidence) };
 }
 
 function parseHomeGroup(value: unknown): ReportHomeGroup {
-  const group = exactRecord(value, ['report', 'industry_chain_count', 'cards']);
-  const report = parseReportSummary(group.report);
-  const industryChainCount = nonNegativeInteger(group.industry_chain_count);
-  const cards = parseOrderedArray(group.cards, parseCard);
-  unique(cards.map((card) => referenceIdentity(card.detailRef)));
-  if (
-    cards.filter((card) => card.kind === 'geopolitics').length > 1 ||
-    cards.filter((card) => card.kind === 'macroeconomics').length > 1
-  ) {
-    invalid();
-  }
+  const root = exact(value, ['report', 'cards', 'next_cursor']);
+  const cards = list(root.cards).map(parseCard);
+  unique(cards.map((item) => item.key));
+  return { report: parseSummary(root.report), cards, nextCursor: nullableCursor(root.next_cursor) };
+}
 
+function parseSummary(value: unknown): ReportSummary {
+  const root = exact(value, ['id', 'generated_at', 'published_at', 'industry_chain_count']);
   return {
-    report,
-    industryChainCount,
-    cards
+    id: reportID(root.id),
+    generatedAt: timestamp(root.generated_at),
+    publishedAt: timestamp(root.published_at),
+    industryChainCount: nonNegativeInteger(root.industry_chain_count)
   };
 }
 
 function parseCard(value: unknown): ReportCard {
-  const card = exactRecord(value, [
-    'key',
+  const root = exact(value, [
+    'local_key',
     'kind',
-    'display_order',
     'detail_ref',
     'title',
     'subtitle',
@@ -180,76 +137,55 @@ function parseCard(value: unknown): ReportCard {
     'confidence',
     'time_window',
     'impact_items',
-    'has_evidence'
+    'evidence_scope_token'
   ]);
-  const kind = enumValue(card.kind, cardKinds);
-  const detailRef = parseReference(card.detail_ref);
-  if (
-    (kind === 'geopolitics' && (detailRef.type !== 'layer' || detailRef.key !== 'geopolitics')) ||
-    (kind === 'macroeconomics' &&
-      (detailRef.type !== 'layer' || detailRef.key !== 'macroeconomics')) ||
-    (kind === 'industry_chain' && detailRef.type !== 'industry_chain')
-  ) {
+  const kind = enumeration(root.kind, cardKinds);
+  const detailRef = parseReference(root.detail_ref);
+  if ((kind === 'industry_chain') !== (detailRef.type === 'industry_chain')) invalid();
+  if (kind !== 'industry_chain' && (detailRef.type !== 'layer' || detailRef.localKey !== kind)) {
     invalid();
   }
-  const impactItems = array(card.impact_items).map((item) => parseImpactItem(item, kind));
-  if (impactItems.length === 0) invalid();
-  unique(impactItems.map((item) => referenceIdentity(item.ref)));
   return {
-    key: localKey(card.key),
+    key: localKey(root.local_key),
     kind,
-    displayOrder: positiveInteger(card.display_order),
     detailRef: detailRef as ReportCard['detailRef'],
-    title: displayText(card.title),
-    subtitle: displayText(card.subtitle),
-    conclusion: displayText(card.conclusion),
-    result: parseResult(card.result),
-    confidence: parseConfidence(card.confidence),
-    timeWindow: displayText(card.time_window),
-    impactItems,
-    hasEvidence: boolean(card.has_evidence)
+    title: text(root.title),
+    subtitle: text(root.subtitle),
+    conclusion: text(root.conclusion),
+    result: coded(root.result),
+    confidence: confidence(root.confidence),
+    timeWindow: timeWindow(root.time_window),
+    impactItems: list(root.impact_items).map(parseImpactItem),
+    evidenceScopeToken: nullableToken(root.evidence_scope_token)
   };
 }
 
-function parseImpactItem(value: unknown, kind: ReportCard['kind']) {
-  const item = exactRecord(value, [
+function parseImpactItem(value: unknown) {
+  const root = exact(value, [
     'ref',
     'name',
     'result',
+    'conclusion_basis',
+    'validation_status',
     'confidence',
     'time_window',
-    'has_evidence'
+    'evidence_scope_token'
   ]);
-  const ref = parseReference(item.ref);
-  const expectedType = kind === 'industry_chain' ? 'industry_chain_node' : 'anchor';
-  if (ref.type !== expectedType) invalid();
   return {
-    ref,
-    name: displayText(item.name),
-    result: parseResult(item.result),
-    confidence: parseConfidence(item.confidence),
-    timeWindow: displayText(item.time_window),
-    hasEvidence: boolean(item.has_evidence)
+    ref: parseReference(root.ref),
+    name: text(root.name),
+    result: coded(root.result),
+    conclusionBasis: coded(root.conclusion_basis),
+    validationStatus: coded(root.validation_status),
+    confidence: confidence(root.confidence),
+    timeWindow: timeWindow(root.time_window),
+    evidenceScopeToken: nullableToken(root.evidence_scope_token)
   };
 }
 
-function parseReportSummary(value: unknown): ReportSummary {
-  const summary = exactRecord(value, ['id', 'title', 'generated_at', 'published_at']);
-  return {
-    id: reportID(summary.id),
-    title: displayText(summary.title),
-    generatedAt: utcTimestamp(summary.generated_at),
-    publishedAt: utcTimestamp(summary.published_at)
-  };
-}
-
-function parseLayer(value: unknown): ReportLayerDetailContent & {
-  relatedAnchorKeys: string[];
-  relatedChainKeys: string[];
-} {
-  const layer = exactRecord(value, [
+function parseLayer(value: unknown): ReportLayerDetailContent {
+  const root = exact(value, [
     'key',
-    'display_order',
     'title',
     'conclusion',
     'result',
@@ -257,552 +193,311 @@ function parseLayer(value: unknown): ReportLayerDetailContent & {
     'time_window',
     'anchors',
     'reasoning_steps',
-    'related_anchor_keys',
-    'related_chain_keys',
-    'downward_transmission',
+    'transmissions',
     'uncertainty',
-    'scope',
-    'has_evidence'
+    'evidence_scope_token'
   ]);
-  const key = enumValue<ReportLayerKey>(layer.key, layerKeys);
-  const displayOrder = positiveInteger(layer.display_order);
-  if (
-    (key === 'geopolitics' && displayOrder !== 1) ||
-    (key === 'macroeconomics' && displayOrder !== 2)
-  ) {
-    invalid();
-  }
   return {
-    key,
-    displayOrder,
-    scope: parseScope(layer.scope, 'section_summary', key),
-    title: displayText(layer.title),
-    conclusion: displayText(layer.conclusion),
-    result: parseResult(layer.result),
-    confidence: parseConfidence(layer.confidence),
-    timeWindow: displayText(layer.time_window),
-    anchors: parseOrderedArray(layer.anchors, parseAnchor),
-    reasoningSteps: parseOrderedArray(layer.reasoning_steps, parseReasoningStep),
-    relatedAnchorKeys: localKeyArray(layer.related_anchor_keys),
-    relatedChainKeys: localKeyArray(layer.related_chain_keys),
-    downwardTransmission: parseDownwardTransmission(layer.downward_transmission),
-    uncertainty: parseLayerUncertainty(layer.uncertainty),
-    hasEvidence: boolean(layer.has_evidence)
+    key: enumeration(root.key, layerKeys),
+    title: text(root.title),
+    conclusion: text(root.conclusion),
+    result: coded(root.result),
+    confidence: confidence(root.confidence),
+    timeWindow: timeWindow(root.time_window),
+    anchors: list(root.anchors).map(parseAnchor),
+    reasoningSteps: list(root.reasoning_steps).map(parseReasoningStep),
+    transmissions: list(root.transmissions).map(parseTransmission),
+    uncertainty: parseLayerUncertainty(root.uncertainty),
+    evidenceScopeToken: nullableToken(root.evidence_scope_token)
   };
 }
 
 function parseAnchor(value: unknown): ReportAnchor {
-  const anchor = exactRecord(value, [
-    'key',
-    'display_order',
+  const root = exact(value, [
+    'local_key',
     'name',
     'current_state',
     'result',
-    'nature',
+    'conclusion_basis',
+    'validation_status',
     'reasoning',
     'time_window',
     'confidence',
-    'scope',
-    'has_evidence'
+    'evidence_scope_token'
   ]);
-  const key = localKey(anchor.key);
   return {
-    key,
-    displayOrder: positiveInteger(anchor.display_order),
-    name: displayText(anchor.name),
-    currentState: displayText(anchor.current_state),
-    result: parseResult(anchor.result),
-    nature: parseNature(anchor.nature),
-    reasoning: displayText(anchor.reasoning),
-    timeWindow: displayText(anchor.time_window),
-    confidence: parseConfidence(anchor.confidence),
-    scope: parseScope(anchor.scope, 'anchor', key),
-    hasEvidence: boolean(anchor.has_evidence)
+    key: localKey(root.local_key),
+    name: text(root.name),
+    currentState: text(root.current_state),
+    result: coded(root.result),
+    conclusionBasis: coded(root.conclusion_basis),
+    validationStatus: coded(root.validation_status),
+    reasoning: text(root.reasoning),
+    timeWindow: timeWindow(root.time_window),
+    confidence: confidence(root.confidence),
+    evidenceScopeToken: nullableToken(root.evidence_scope_token)
   };
 }
 
 function parseReasoningStep(value: unknown): ReportReasoningStep {
-  const step = exactRecord(value, [
-    'key',
-    'display_order',
+  const root = exact(value, [
+    'local_key',
     'input',
     'mechanism',
     'output',
-    'type',
     'confidence',
-    'scope',
-    'has_evidence'
+    'evidence_scope_token'
   ]);
-  const key = localKey(step.key);
   return {
-    key,
-    displayOrder: positiveInteger(step.display_order),
-    input: displayText(step.input),
-    mechanism: displayText(step.mechanism),
-    output: displayText(step.output),
-    type: displayText(step.type),
-    confidence: parseConfidence(step.confidence),
-    scope: parseScope(step.scope, 'reasoning_step', key),
-    hasEvidence: boolean(step.has_evidence)
+    key: localKey(root.local_key),
+    input: text(root.input),
+    mechanism: text(root.mechanism),
+    output: text(root.output),
+    confidence: confidence(root.confidence),
+    evidenceScopeToken: nullableToken(root.evidence_scope_token)
   };
 }
 
-function parseDownwardTransmission(value: unknown): ReportDownwardTransmission {
-  const transmission = exactRecord(value, [
-    'summary',
-    'published_paths',
-    'candidate_mechanisms',
-    'boundary_notes'
-  ]);
-  return {
-    summary: displayText(transmission.summary),
-    publishedPaths: parseOrderedArray(transmission.published_paths, parseTransmissionPath),
-    candidateMechanisms: parseOrderedArray(
-      transmission.candidate_mechanisms,
-      parseCandidateMechanism
-    ),
-    boundaryNotes: displayTextArray(transmission.boundary_notes, 0)
-  };
-}
-
-function parseTransmissionPath(value: unknown): ReportTransmissionPath {
-  const path = exactRecord(value, [
-    'key',
-    'display_order',
+function parseTransmission(value: unknown): ReportTransmissionPath {
+  const root = exact(value, [
+    'local_key',
     'source_conclusion',
-    'target_refs',
+    'targets',
     'logic',
-    'relation_nature',
-    'evidence_role',
+    'kind',
     'confidence',
-    'status',
-    'scope',
-    'has_evidence'
+    'status'
   ]);
-  const key = localKey(path.key);
-  const targetRefs = array(path.target_refs).map(parseTransmissionTarget);
-  if (targetRefs.length === 0) invalid();
-  unique(
-    targetRefs
-      .filter((target) => target.ref !== null)
-      .map((target) => referenceIdentity(target.ref!))
-  );
   return {
-    key,
-    displayOrder: positiveInteger(path.display_order),
-    sourceConclusion: displayText(path.source_conclusion),
-    targetRefs,
-    logic: displayText(path.logic),
-    relationNature: displayText(path.relation_nature),
-    evidenceRole: displayText(path.evidence_role),
-    confidence: parseConfidence(path.confidence),
-    status: displayText(path.status),
-    scope: parseScope(path.scope, 'transmission', key),
-    hasEvidence: boolean(path.has_evidence)
+    key: localKey(root.local_key),
+    sourceConclusion: text(root.source_conclusion),
+    targets: list(root.targets).map(parseTransmissionTarget),
+    logic: text(root.logic),
+    kind: coded(root.kind),
+    confidence: confidence(root.confidence),
+    status: coded(root.status)
   };
 }
 
 function parseTransmissionTarget(value: unknown): ReportTransmissionTarget {
-  const target = exactRecord(value, ['ref', 'label', 'result']);
-  return {
-    ref: target.ref === null ? null : parseReference(target.ref),
-    label: displayText(target.label),
-    result: parseResult(target.result)
-  };
+  const root = exact(value, ['ref', 'name', 'result']);
+  return { ref: parseReference(root.ref), name: text(root.name), result: coded(root.result) };
 }
 
-function parseCandidateMechanism(value: unknown): ReportCandidateMechanism {
-  const candidate = exactRecord(value, [
-    'key',
-    'display_order',
-    'mechanism',
-    'evidence_gap',
-    'confidence',
-    'scope',
-    'has_evidence'
-  ]);
-  const key = localKey(candidate.key);
+function parseLayerUncertainty(value: unknown) {
+  const root = exact(value, ['counterevidence', 'evidence_gap', 'boundary', 'reversal_condition']);
   return {
-    key,
-    displayOrder: positiveInteger(candidate.display_order),
-    mechanism: displayText(candidate.mechanism),
-    evidenceGap: nullableDisplayText(candidate.evidence_gap),
-    confidence: parseConfidence(candidate.confidence),
-    scope: parseScope(candidate.scope, 'transmission', key),
-    hasEvidence: boolean(candidate.has_evidence)
-  };
-}
-
-function parseLayerUncertainty(value: unknown): ReportLayerUncertainty {
-  const uncertainty = exactRecord(value, [
-    'counterevidence',
-    'evidence_gap',
-    'boundary',
-    'reversal_condition',
-    'checkpoints'
-  ]);
-  return {
-    counterevidence: nullableDisplayText(uncertainty.counterevidence),
-    evidenceGap: nullableDisplayText(uncertainty.evidence_gap),
-    boundary: nullableDisplayText(uncertainty.boundary),
-    reversalCondition: nullableDisplayText(uncertainty.reversal_condition),
-    checkpoints: parseOrderedArray(uncertainty.checkpoints, parseCheckpoint)
-  };
-}
-
-function parseCheckpoint(value: unknown): ReportCheckpoint {
-  const checkpoint = exactRecord(value, ['key', 'display_order', 'summary']);
-  return {
-    key: localKey(checkpoint.key),
-    displayOrder: positiveInteger(checkpoint.display_order),
-    summary: displayText(checkpoint.summary)
+    counterevidence: nullableText(root.counterevidence),
+    evidenceGap: nullableText(root.evidence_gap),
+    boundary: nullableText(root.boundary),
+    reversalCondition: nullableText(root.reversal_condition)
   };
 }
 
 function parseRelatedChain(value: unknown): ReportRelatedIndustryChain {
-  const chain = exactRecord(value, [
-    'key',
-    'display_order',
-    'name',
-    'conclusion',
-    'status',
-    'result',
-    'confidence',
-    'time_window',
-    'scope',
-    'has_evidence'
-  ]);
-  const key = localKey(chain.key);
-  parseScope(chain.scope, 'industry_chain_summary', key);
-  parseConfidence(chain.confidence);
-  displayText(chain.conclusion);
-  displayText(chain.status);
-  displayText(chain.time_window);
-  boolean(chain.has_evidence);
-  return {
-    key,
-    displayOrder: positiveInteger(chain.display_order),
-    name: displayText(chain.name),
-    result: parseResult(chain.result),
-    detailRef: { type: 'industry_chain', key }
-  };
+  const root = exact(value, ['local_key', 'name', 'result']);
+  return { key: localKey(root.local_key), name: text(root.name), result: coded(root.result) };
 }
 
 function parseIndustryChain(value: unknown): ReportIndustryChainDetailContent {
-  const chain = exactRecord(value, [
-    'key',
-    'claim_key',
-    'display_order',
+  const root = exact(value, [
+    'local_key',
     'name',
     'conclusion',
-    'status',
     'result',
     'confidence',
     'time_window',
     'path_summary',
     'accepted_hypothesis_summary',
+    'topology_nodes',
     'nodes',
     'edges',
-    'uncertainty',
-    'scope',
-    'has_evidence'
+    'counterevidence_and_gap',
+    'stop_condition',
+    'evidence_scope_token'
   ]);
-  const key = localKey(chain.key);
-  const nodes = parseOrderedArray(chain.nodes, parseIndustryChainNode);
-  const edges = parseOrderedArray(chain.edges, parseGraphEdge);
-  const nodeKeys = new Set(nodes.map((node) => node.key));
-  for (const edge of edges) {
-    if (!nodeKeys.has(edge.fromNodeKey) || !nodeKeys.has(edge.toNodeKey)) invalid();
-  }
+  const topologyNodes = list(root.topology_nodes).map(parseGraphNode);
+  const topologyKeys = new Set(topologyNodes.map((node) => node.key));
+  if (topologyKeys.size !== topologyNodes.length) invalid();
+  const nodes = list(root.nodes).map(parseIndustryNode);
+  const assessmentKeys = new Set(nodes.map((node) => node.key));
+  if (assessmentKeys.size !== nodes.length || nodes.some((node) => !topologyKeys.has(node.key)))
+    invalid();
+  const edges = list(root.edges).map(parseGraphEdge);
+  if (
+    edges.some(
+      (edge) => !topologyKeys.has(edge.fromNodeLocalKey) || !topologyKeys.has(edge.toNodeLocalKey)
+    )
+  )
+    invalid();
   return {
-    key,
-    claimKey: localKey(chain.claim_key),
-    displayOrder: positiveInteger(chain.display_order),
-    name: displayText(chain.name),
-    conclusion: displayText(chain.conclusion),
-    status: displayText(chain.status),
-    result: parseResult(chain.result),
-    confidence: parseConfidence(chain.confidence),
-    timeWindow: displayText(chain.time_window),
-    pathSummary: nullableDisplayText(chain.path_summary),
-    acceptedHypothesisSummary: nullableDisplayText(chain.accepted_hypothesis_summary),
+    key: localKey(root.local_key),
+    name: text(root.name),
+    conclusion: text(root.conclusion),
+    result: coded(root.result),
+    confidence: confidence(root.confidence),
+    timeWindow: timeWindow(root.time_window),
+    pathSummary: nullableText(root.path_summary),
+    acceptedHypothesisSummary: nullableText(root.accepted_hypothesis_summary),
+    topologyNodes,
     nodes,
     edges,
-    uncertainty: parseIndustryChainUncertainty(chain.uncertainty),
-    scope: parseScope(chain.scope, 'industry_chain_summary', key),
-    hasEvidence: boolean(chain.has_evidence)
+    counterevidenceAndGap: nullableText(root.counterevidence_and_gap),
+    stopCondition: nullableText(root.stop_condition),
+    evidenceScopeToken: nullableToken(root.evidence_scope_token)
   };
 }
 
-function parseIndustryChainNode(value: unknown): ReportIndustryChainNode {
-  const node = exactRecord(value, [
-    'key',
-    'display_order',
+function parseGraphNode(value: unknown) {
+  const root = exact(value, ['local_key', 'name']);
+  return { key: localKey(root.local_key), name: text(root.name) };
+}
+
+function parseIndustryNode(value: unknown): ReportIndustryChainNode {
+  const root = exact(value, [
+    'local_key',
     'name',
     'impact',
     'result',
-    'nature',
+    'conclusion_basis',
+    'validation_status',
     'reasoning',
     'time_window',
     'confidence',
-    'scope',
-    'has_evidence'
+    'evidence_scope_token'
   ]);
-  const key = localKey(node.key);
   return {
-    key,
-    displayOrder: positiveInteger(node.display_order),
-    name: displayText(node.name),
-    impact: displayText(node.impact),
-    result: parseResult(node.result),
-    nature: parseNature(node.nature),
-    reasoning: displayText(node.reasoning),
-    timeWindow: displayText(node.time_window),
-    confidence: parseConfidence(node.confidence),
-    scope: parseScope(node.scope, 'industry_chain_node', key),
-    hasEvidence: boolean(node.has_evidence)
+    key: localKey(root.local_key),
+    name: text(root.name),
+    impact: text(root.impact),
+    result: coded(root.result),
+    conclusionBasis: coded(root.conclusion_basis),
+    validationStatus: coded(root.validation_status),
+    reasoning: text(root.reasoning),
+    timeWindow: timeWindow(root.time_window),
+    confidence: confidence(root.confidence),
+    evidenceScopeToken: nullableToken(root.evidence_scope_token)
   };
 }
 
 function parseGraphEdge(value: unknown): ReportGraphEdge {
-  const edge = exactRecord(value, [
-    'key',
-    'display_order',
-    'from_node_key',
-    'to_node_key',
-    'relation_label'
-  ]);
-  const fromNodeKey = localKey(edge.from_node_key);
-  const toNodeKey = localKey(edge.to_node_key);
-  if (fromNodeKey === toNodeKey) invalid();
+  const root = exact(value, ['from_node_local_key', 'to_node_local_key', 'relation_label']);
   return {
-    key: localKey(edge.key),
-    displayOrder: positiveInteger(edge.display_order),
-    fromNodeKey,
-    toNodeKey,
-    relationLabel: displayText(edge.relation_label)
-  };
-}
-
-function parseIndustryChainUncertainty(value: unknown): ReportIndustryChainUncertainty {
-  const uncertainty = exactRecord(value, [
-    'counterevidence_and_gap',
-    'stop_condition',
-    'checkpoints'
-  ]);
-  return {
-    counterevidenceAndGap: nullableDisplayText(uncertainty.counterevidence_and_gap),
-    stopCondition: nullableDisplayText(uncertainty.stop_condition),
-    checkpoints: parseOrderedArray(uncertainty.checkpoints, parseCheckpoint)
-  };
-}
-
-function parseReference(value: unknown): ReportReference {
-  const ref = exactRecord(value, ['type', 'key']);
-  const type = enumValue<ReportReferenceType>(ref.type, referenceTypes);
-  const key = localKey(ref.key);
-  if (type === 'layer' && !layerKeys.includes(key as ReportLayerKey)) invalid();
-  return { type, key };
-}
-
-function parseScope(
-  value: unknown,
-  expectedType?: ReportEvidenceScopeType,
-  expectedKey?: string
-): ReportEvidenceScope {
-  const scope = exactRecord(value, ['type', 'key']);
-  const result = {
-    type: enumValue<ReportEvidenceScopeType>(scope.type, evidenceScopeTypes),
-    key: localKey(scope.key)
-  };
-  if (result.type === 'section_summary' && !layerKeys.includes(result.key as ReportLayerKey))
-    invalid();
-  if (
-    (expectedType !== undefined && result.type !== expectedType) ||
-    (expectedKey !== undefined && result.key !== expectedKey)
-  ) {
-    invalid();
-  }
-  return result;
-}
-
-function validateExpectedScope(scope: ReportEvidenceScope): void {
-  if (!evidenceScopeTypes.includes(scope.type)) invalid();
-  const key = localKey(scope.key);
-  if (scope.type === 'section_summary' && !layerKeys.includes(key as ReportLayerKey)) invalid();
-}
-
-function parseResult(value: unknown): ReportResult {
-  const result = exactRecord(value, ['code', 'label']);
-  const code = enumValue<ReportResultCode>(result.code, resultCodes);
-  if (result.label !== resultLabels[code]) invalid();
-  return { code, label: resultLabels[code] };
-}
-
-function parseNature(value: unknown): ReportNature {
-  const nature = exactRecord(value, ['code', 'label']);
-  const code = enumValue<ReportNatureCode>(nature.code, natureCodes);
-  if (nature.label !== natureLabels[code]) invalid();
-  return { code, label: natureLabels[code] };
-}
-
-function parseConfidence(value: unknown): ReportConfidence {
-  const confidence = exactRecord(value, ['label', 'score']);
-  const score = confidence.score;
-  if (
-    score !== null &&
-    (typeof score !== 'number' || !Number.isFinite(score) || score < 0 || score > 1)
-  ) {
-    invalid();
-  }
-  return {
-    label: displayText(confidence.label),
-    score: score as number | null
+    fromNodeLocalKey: localKey(root.from_node_local_key),
+    toNodeLocalKey: localKey(root.to_node_local_key),
+    relationLabel: text(root.relation_label)
   };
 }
 
 function parseEvidence(value: unknown): ReportEvidence {
-  const evidence = exactRecord(value, ['published_at', 'summary', 'keywords']);
+  const root = exact(value, ['published_at', 'summary', 'keywords']);
   return {
-    publishedAt: evidence.published_at === null ? null : utcTimestamp(evidence.published_at),
-    summary: displayText(evidence.summary),
-    keywords: displayTextArray(evidence.keywords, 50)
+    publishedAt: root.published_at === null ? null : timestamp(root.published_at),
+    summary: text(root.summary),
+    keywords: list(root.keywords).map(text)
   };
 }
 
-function parseOrderedArray<T extends { key: string; displayOrder: number }>(
-  value: unknown,
-  parser: (item: unknown) => T
-): T[] {
-  const items = array(value).map(parser);
-  for (let index = 0; index < items.length; index += 1) {
-    if (items[index].displayOrder !== index + 1) invalid();
-  }
-  unique(items.map((item) => item.key));
-  return items;
+function parseReference(value: unknown): ReportReference {
+  const root = exact(value, ['type', 'local_key']);
+  return { type: enumeration(root.type, referenceTypes), localKey: localKey(root.local_key) };
 }
 
-function localKeyArray(value: unknown): string[] {
-  const values = array(value).map(localKey);
-  unique(values);
-  return values;
+function coded(value: unknown): ReportCodedLabel {
+  const root = exact(value, ['code', 'label']);
+  return { code: text(root.code), label: text(root.label) };
 }
 
-function displayTextArray(value: unknown, maxItems: number): string[] {
-  const values = array(value);
-  if (maxItems > 0 && values.length > maxItems) invalid();
-  const texts = values.map(displayText);
-  unique(texts);
-  return texts;
+function confidence(value: unknown): ReportConfidence {
+  return coded(value);
 }
 
-function validateSummaryOrder(summaries: ReportSummary[]): void {
-  for (let index = 1; index < summaries.length; index += 1) {
-    const previous = summaries[index - 1];
-    const current = summaries[index];
-    const previousTime = Date.parse(previous.publishedAt);
-    const currentTime = Date.parse(current.publishedAt);
-    if (
-      currentTime > previousTime ||
-      (currentTime === previousTime && current.id.localeCompare(previous.id) < 0)
-    ) {
-      invalid();
-    }
-  }
+function timeWindow(value: unknown): ReportTimeWindow {
+  return coded(value);
 }
 
-function shanghaiDate(timestamp: string): string {
-  return new Date(Date.parse(timestamp) + 8 * 60 * 60 * 1_000).toISOString().slice(0, 10);
-}
-
-function exactRecord(value: unknown, keys: readonly string[]): RecordValue {
-  const result = record(value);
-  const actualKeys = Object.keys(result);
-  const expected = new Set(keys);
-  if (actualKeys.length !== keys.length || actualKeys.some((key) => !expected.has(key))) {
+function exact(value: unknown, keys: readonly string[]): RecordValue {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) invalid();
+  const record = value as RecordValue;
+  const actual = Object.keys(record);
+  if (
+    actual.length !== keys.length ||
+    keys.some((key) => !Object.prototype.hasOwnProperty.call(record, key))
+  ) {
     invalid();
   }
-  return result;
+  return record;
 }
 
-function record(value: unknown): RecordValue {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) invalid();
-  return value as RecordValue;
-}
-
-function array(value: unknown): unknown[] {
+function list(value: unknown): unknown[] {
   if (!Array.isArray(value)) invalid();
   return value;
 }
 
-function displayText(value: unknown): string {
-  if (
-    typeof value !== 'string' ||
-    value === '' ||
-    value.trim() !== value ||
-    Array.from(value).length > displayTextMaxCodePoints
-  ) {
-    invalid();
-  }
+function text(value: unknown): string {
+  if (typeof value !== 'string' || value.trim() !== value || value.length === 0) invalid();
   return value;
 }
 
-function nullableDisplayText(value: unknown): string | null {
-  return value === null ? null : displayText(value);
+function nullableText(value: unknown): string | null {
+  return value === null ? null : text(value);
 }
 
 function localKey(value: unknown): string {
-  if (typeof value !== 'string' || !localKeyPattern.test(value)) invalid();
-  return value;
+  const parsed = text(value);
+  if (!localKeyPattern.test(parsed)) invalid();
+  return parsed;
 }
 
 function reportID(value: unknown): string {
-  if (typeof value !== 'string' || !reportIDPattern.test(value)) invalid();
-  return value;
+  const parsed = text(value);
+  if (!reportIDPattern.test(parsed)) invalid();
+  return parsed;
 }
 
-function utcTimestamp(value: unknown): string {
-  if (typeof value !== 'string' || !utcTimestampPattern.test(value)) invalid();
-  const parsed = Date.parse(value);
-  if (!Number.isFinite(parsed)) invalid();
-  return value;
+function token(value: unknown): string {
+  const parsed = text(value);
+  if (!scopeTokenPattern.test(parsed)) invalid();
+  return parsed;
 }
 
-function dateString(value: unknown): string {
-  if (typeof value !== 'string' || !datePattern.test(value)) invalid();
-  const [year, month, day] = value.split('-').map(Number);
-  const parsed = new Date(Date.UTC(year, month - 1, day));
-  if (parsed.toISOString().slice(0, 10) !== value) invalid();
-  return value;
+function nullableToken(value: unknown): string | null {
+  return value === null ? null : token(value);
 }
 
-function positiveInteger(value: unknown): number {
-  if (!Number.isInteger(value) || (value as number) < 1) invalid();
-  return value as number;
+function nullableCursor(value: unknown): string | null {
+  if (value === null) return null;
+  const parsed = text(value);
+  if (parsed.length > 2048) invalid();
+  return parsed;
+}
+
+function timestamp(value: unknown): string {
+  const parsed = text(value);
+  if (!Number.isFinite(Date.parse(parsed))) invalid();
+  return parsed;
 }
 
 function nonNegativeInteger(value: unknown): number {
-  if (!Number.isInteger(value) || (value as number) < 0) invalid();
-  return value as number;
-}
-
-function boolean(value: unknown): boolean {
-  if (typeof value !== 'boolean') invalid();
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) invalid();
   return value;
 }
 
-function literal<T extends string | number | boolean>(value: unknown, expected: T): T {
+function enumeration<T extends string>(value: unknown, values: readonly T[]): T {
+  const parsed = text(value);
+  if (!values.includes(parsed as T)) invalid();
+  return parsed as T;
+}
+
+function literal<T extends string>(value: unknown, expected: T): T {
   if (value !== expected) invalid();
   return expected;
 }
 
-function enumValue<T extends string>(value: unknown, values: readonly T[]): T {
-  if (typeof value !== 'string' || !values.includes(value as T)) invalid();
-  return value as T;
-}
-
-function referenceIdentity(ref: ReportReference): string {
-  return `${ref.type}:${ref.key}`;
+function match(value: unknown, pattern: RegExp): string {
+  const parsed = text(value);
+  if (!pattern.test(parsed)) invalid();
+  return parsed;
 }
 
 function unique(values: string[]): void {
@@ -810,5 +505,5 @@ function unique(values: string[]): void {
 }
 
 function invalid(): never {
-  throw new Error('invalid Report wire contract');
+  throw new Error('invalid Report wire response');
 }

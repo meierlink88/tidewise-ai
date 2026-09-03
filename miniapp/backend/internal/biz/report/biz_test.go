@@ -2,271 +2,130 @@ package report
 
 import (
 	"context"
-	"errors"
-	"sync"
 	"testing"
 	"time"
 )
 
-type Fake struct {
-	ListReportsFunc      func(context.Context, ListQuery) (Page, error)
-	GetHomeFunc          func(context.Context, string) (Home, error)
-	GetLayerFunc         func(context.Context, string, string) (LayerDetail, error)
-	GetIndustryChainFunc func(context.Context, string, string) (IndustryChainDetail, error)
-	ListEvidencesFunc    func(context.Context, string, EvidenceScope) (EvidenceCollection, error)
-}
+const testReportID = "RPT11111111-1111-4111-8111-111111111111"
+const testScopeToken = "RPE11111111-1111-4111-8111-111111111111"
 
-func (f *Fake) ListReports(ctx context.Context, query ListQuery) (Page, error) {
-	if f.ListReportsFunc == nil {
-		return Page{Items: []Summary{}}, nil
+func TestHomeLoadsUpperDetailsAndOnlyFirstIndustryChainPage(t *testing.T) {
+	summary := validSummary()
+	next := "next-page"
+	repository := &fakeRepository{
+		listPage:  Page{Items: []Summary{summary}},
+		home:      HomeSnapshot{Report: summary, Geopolitics: &LayerSnapshot{Key: LayerGeopolitics, Title: "地缘政治", Summary: sampleLayer().summary()}},
+		layer:     LayerDetail{Report: summary, Layer: sampleLayer()},
+		chainPage: IndustryChainPage{Items: []IndustryChainSummary{validChainSummary()}, NextCursor: &next},
 	}
-	return f.ListReportsFunc(ctx, query)
-}
-
-func (f *Fake) GetHome(ctx context.Context, reportID string) (Home, error) {
-	if f.GetHomeFunc == nil {
-		return Home{}, nil
-	}
-	return f.GetHomeFunc(ctx, reportID)
-}
-
-func (f *Fake) GetLayer(ctx context.Context, reportID, layerKey string) (LayerDetail, error) {
-	if f.GetLayerFunc == nil {
-		return LayerDetail{}, nil
-	}
-	return f.GetLayerFunc(ctx, reportID, layerKey)
-}
-
-func (f *Fake) GetIndustryChain(ctx context.Context, reportID, chainKey string) (IndustryChainDetail, error) {
-	if f.GetIndustryChainFunc == nil {
-		return IndustryChainDetail{}, nil
-	}
-	return f.GetIndustryChainFunc(ctx, reportID, chainKey)
-}
-
-func (f *Fake) ListEvidences(ctx context.Context, reportID string, scope EvidenceScope) (EvidenceCollection, error) {
-	if f.ListEvidencesFunc == nil {
-		return EvidenceCollection{Items: []EvidenceItem{}}, nil
-	}
-	return f.ListEvidencesFunc(ctx, reportID, scope)
-}
-
-const (
-	testReportID1 = "RPT11111111-1111-4111-8111-111111111111"
-	testReportID2 = "RPT22222222-2222-4222-8222-222222222222"
-	testReportID3 = "RPT33333333-3333-4333-8333-333333333333"
-)
-
-func TestUseCaseHomeReadsEveryShanghaiTodayPageAndKeepsStableOrder(t *testing.T) {
-	now := time.Date(2026, 8, 31, 17, 30, 0, 0, time.UTC)
-	published := time.Date(2026, 9, 1, 1, 0, 0, 0, time.UTC)
-	summaries := []Summary{
-		testSummary(testReportID1, published.Add(2*time.Minute)),
-		testSummary(testReportID2, published.Add(time.Minute)),
-		testSummary(testReportID3, published),
-	}
-	var mutex sync.Mutex
-	queries := make([]ListQuery, 0, 2)
-	repo := &Fake{
-		ListReportsFunc: func(_ context.Context, query ListQuery) (Page, error) {
-			mutex.Lock()
-			defer mutex.Unlock()
-			queries = append(queries, query)
-			if query.Cursor == "" {
-				next := "page-two"
-				return Page{Items: summaries[:2], NextCursor: &next}, nil
-			}
-			if query.Cursor != "page-two" {
-				t.Fatalf("cursor = %q", query.Cursor)
-			}
-			return Page{Items: summaries[2:]}, nil
-		},
-		GetHomeFunc: func(_ context.Context, reportID string) (Home, error) {
-			// Deliberately finish in reverse order; output must remain Data order.
-			switch reportID {
-			case testReportID1:
-				time.Sleep(15 * time.Millisecond)
-			case testReportID2:
-				time.Sleep(5 * time.Millisecond)
-			}
-			for _, summary := range summaries {
-				if summary.ID == reportID {
-					return Home{Report: summary, Cards: []Card{}}, nil
-				}
-			}
-			return Home{}, ErrReportNotFound
-		},
-	}
-
-	result, err := NewUseCaseWithClock(repo, func() time.Time { return now }).Home(context.Background())
+	useCase := NewUseCaseWithClock(repository, func() time.Time { return time.Date(2026, 9, 2, 9, 0, 0, 0, time.FixedZone("CST", 8*3600)) })
+	home, err := useCase.Home(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Selection != (HomeSelection{Mode: SelectionToday, Date: "2026-09-01", Timezone: "Asia/Shanghai"}) {
-		t.Fatalf("selection = %#v", result.Selection)
+	if len(home.Reports) != 1 || len(home.Reports[0].Cards) != 2 || home.Reports[0].NextCursor == nil || repository.chainQueries[0].Limit != 20 {
+		t.Fatalf("home=%#v queries=%#v", home, repository.chainQueries)
 	}
-	if len(result.Reports) != 3 {
-		t.Fatalf("reports = %#v", result.Reports)
-	}
-	for index, report := range result.Reports {
-		if report.Report.ID != summaries[index].ID {
-			t.Fatalf("reports[%d] = %q, want %q", index, report.Report.ID, summaries[index].ID)
-		}
-	}
-	if len(queries) != 2 || queries[0].Limit != listPageSize || queries[0].PublishedFrom == nil || queries[0].PublishedTo == nil || queries[1].Cursor != "page-two" {
-		t.Fatalf("queries = %#v", queries)
-	}
-	wantFrom := time.Date(2026, 8, 31, 16, 0, 0, 0, time.UTC)
-	wantTo := time.Date(2026, 9, 1, 16, 0, 0, 0, time.UTC)
-	if !queries[0].PublishedFrom.Equal(wantFrom) || !queries[0].PublishedTo.Equal(wantTo) {
-		t.Fatalf("today bounds = %s..%s, want %s..%s", queries[0].PublishedFrom, queries[0].PublishedTo, wantFrom, wantTo)
+	if home.Reports[0].Cards[0].ImpactItems[0].ConclusionBasis.Code != "direct_evidence" {
+		t.Fatalf("card=%#v", home.Reports[0].Cards[0])
 	}
 }
 
-func TestUseCaseHomeFallsBackOnlyAfterEmptyTodayAndKeepsExplicitEmpty(t *testing.T) {
-	t.Run("fallback one latest", func(t *testing.T) {
-		queries := make([]ListQuery, 0, 2)
-		summary := testSummary(testReportID1, time.Date(2026, 8, 31, 4, 0, 0, 0, time.UTC))
-		repo := &Fake{
-			ListReportsFunc: func(_ context.Context, query ListQuery) (Page, error) {
-				queries = append(queries, query)
-				if len(queries) == 1 {
-					return Page{Items: []Summary{}}, nil
-				}
-				next := "older-history-exists"
-				return Page{Items: []Summary{summary}, NextCursor: &next}, nil
-			},
-			GetHomeFunc: func(context.Context, string) (Home, error) {
-				return Home{Report: summary, Cards: []Card{}}, nil
-			},
-		}
-
-		result, err := NewUseCaseWithClock(repo, func() time.Time {
-			return time.Date(2026, 9, 1, 8, 0, 0, 0, time.UTC)
-		}).Home(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
-		if result.Selection.Mode != SelectionLatestFallback || len(result.Reports) != 1 || len(queries) != 2 {
-			t.Fatalf("result/queries = %#v/%#v", result, queries)
-		}
-		if queries[1].Limit != 1 || queries[1].PublishedFrom != nil || queries[1].PublishedTo != nil {
-			t.Fatalf("fallback query = %#v", queries[1])
-		}
-	})
-
-	t.Run("all empty", func(t *testing.T) {
-		homeCalls := 0
-		repo := &Fake{
-			ListReportsFunc: func(context.Context, ListQuery) (Page, error) {
-				return Page{Items: []Summary{}}, nil
-			},
-			GetHomeFunc: func(context.Context, string) (Home, error) {
-				homeCalls++
-				return Home{}, nil
-			},
-		}
-		result, err := NewUseCaseWithClock(repo, func() time.Time {
-			return time.Date(2026, 9, 1, 8, 0, 0, 0, time.UTC)
-		}).Home(context.Background())
-		if err != nil {
-			t.Fatal(err)
-		}
-		if result.Selection.Mode != SelectionToday || result.Reports == nil || len(result.Reports) != 0 || homeCalls != 0 {
-			t.Fatalf("result/home calls = %#v/%d", result, homeCalls)
-		}
-	})
-
-	t.Run("empty fallback page cannot advertise more history", func(t *testing.T) {
-		listCalls := 0
-		repo := &Fake{ListReportsFunc: func(context.Context, ListQuery) (Page, error) {
-			listCalls++
-			if listCalls == 1 {
-				return Page{Items: []Summary{}}, nil
-			}
-			next := "impossible-older-page"
-			return Page{Items: []Summary{}, NextCursor: &next}, nil
-		}}
-
-		_, err := NewUseCaseWithClock(repo, func() time.Time {
-			return time.Date(2026, 9, 1, 8, 0, 0, 0, time.UTC)
-		}).Home(context.Background())
-		if !errors.Is(err, ErrDataUnavailable) {
-			t.Fatalf("fallback cursor error = %v", err)
-		}
-	})
-}
-
-func TestUseCaseHomeFailsClosedOnCursorLoopAndDataErrors(t *testing.T) {
-	cursor := "same-cursor"
-	repo := &Fake{ListReportsFunc: func(context.Context, ListQuery) (Page, error) {
-		return Page{Items: []Summary{testSummary(testReportID1, time.Now().UTC())}, NextCursor: &cursor}, nil
-	}}
-	if _, err := NewUseCase(repo).Home(context.Background()); !errors.Is(err, ErrDataUnavailable) {
-		t.Fatalf("cursor loop error = %v", err)
+func TestIndustryChainsForwardsOpaqueCursorAndDoesNotLoadDetails(t *testing.T) {
+	next := "next"
+	repository := &fakeRepository{chainPage: IndustryChainPage{Items: []IndustryChainSummary{validChainSummary()}, NextCursor: &next}}
+	useCase := NewUseCase(repository)
+	page, err := useCase.IndustryChains(context.Background(), testReportID, 12, "cursor")
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	repo.ListReportsFunc = func(context.Context, ListQuery) (Page, error) {
-		return Page{}, errors.New("secret downstream body")
-	}
-	if _, err := NewUseCase(repo).Home(context.Background()); !errors.Is(err, ErrDataUnavailable) || stringsContain(err.Error(), "secret") {
-		t.Fatalf("downstream error = %v", err)
+	if len(page.Items) != 1 || page.Items[0].DetailRef.LocalKey != "chain-01" || repository.chainQueries[0].Cursor != "cursor" || repository.chainQueries[0].Limit != 12 {
+		t.Fatalf("page=%#v queries=%#v", page, repository.chainQueries)
 	}
 }
 
-func TestUseCaseValidatesDirectReadsAndEvidenceScopes(t *testing.T) {
-	calls := 0
-	repo := &Fake{GetLayerFunc: func(context.Context, string, string) (LayerDetail, error) {
-		calls++
-		return LayerDetail{}, errors.New("postgres password=must-not-leak")
-	}}
-	useCase := NewUseCase(repo)
-
-	if _, err := useCase.Layer(context.Background(), "not-a-report-id", LayerGeopolitics); !errors.Is(err, ErrInvalidRequest) {
-		t.Fatalf("invalid report ID error = %v", err)
+func TestLayerLoadsEveryReportIndustryChainThroughDataPagination(t *testing.T) {
+	summary := validSummary()
+	summary.IndustryChainCount = 3
+	secondCursor := "second-page"
+	first := validChainSummary()
+	second := validChainSummary()
+	second.LocalKey, second.Name = "chain-02", "产业链二"
+	third := validChainSummary()
+	third.LocalKey, third.Name = "chain-03", "产业链三"
+	repository := &fakeRepository{
+		layer: LayerDetail{Report: summary, Layer: sampleLayer()},
+		chainPages: map[string]IndustryChainPage{
+			"":           {Items: []IndustryChainSummary{first, second}, NextCursor: &secondCursor},
+			secondCursor: {Items: []IndustryChainSummary{third}},
+		},
 	}
-	if _, err := useCase.Layer(context.Background(), testReportID1, "company"); !errors.Is(err, ErrInvalidRequest) {
-		t.Fatalf("invalid layer error = %v", err)
+	value, err := NewUseCase(repository).Layer(context.Background(), testReportID, LayerGeopolitics)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if calls != 0 {
-		t.Fatalf("repository calls = %d, want 0", calls)
-	}
-	if _, err := useCase.Layer(context.Background(), testReportID1, LayerGeopolitics); !errors.Is(err, ErrDataUnavailable) {
-		t.Fatalf("repository error = %v", err)
-	}
-	for _, scope := range []EvidenceScope{
-		{Type: ScopeSectionSummary, Key: LayerGeopolitics},
-		{Type: ScopeAnchor, Key: "anchor-1"},
-		{Type: ScopeIndustryChainSummary, Key: "chain-1"},
-		{Type: ScopeIndustryChainNode, Key: "node-1"},
-	} {
-		if !validEvidenceScope(scope) {
-			t.Fatalf("valid scope rejected: %#v", scope)
-		}
-	}
-	for _, scope := range []EvidenceScope{
-		{Type: ScopeSectionSummary, Key: "geo-card"},
-		{Type: ScopeAnchor, Key: "anchor/1"},
-		{Type: "event", Key: "event-1"},
-	} {
-		if validEvidenceScope(scope) {
-			t.Fatalf("invalid scope accepted: %#v", scope)
-		}
+	if len(value.RelatedIndustryChains) != 3 || value.RelatedIndustryChains[2].LocalKey != "chain-03" ||
+		len(repository.chainQueries) != 2 || repository.chainQueries[0].Limit != 100 {
+		t.Fatalf("value=%#v queries=%#v", value, repository.chainQueries)
 	}
 }
 
-func testSummary(id string, publishedAt time.Time) Summary {
-	return Summary{
-		ID: id, PublisherReportID: "publisher-" + id[3:11], Title: "Report " + id[3:11],
-		GeneratedAt: publishedAt.Add(-time.Minute).UTC(), PublishedAt: publishedAt.UTC(),
+func TestEvidenceRequiresOpaqueScopeToken(t *testing.T) {
+	repository := &fakeRepository{evidence: EvidenceCollection{ReportID: testReportID, ScopeToken: testScopeToken, Items: []EvidenceItem{}}}
+	useCase := NewUseCase(repository)
+	if _, err := useCase.Evidences(context.Background(), testReportID, "anchor"); err != ErrInvalidRequest {
+		t.Fatalf("invalid token error=%v", err)
+	}
+	value, err := useCase.Evidences(context.Background(), testReportID, testScopeToken)
+	if err != nil || value.ScopeToken != testScopeToken {
+		t.Fatalf("value=%#v err=%v", value, err)
 	}
 }
 
-func stringsContain(value, part string) bool {
-	for index := 0; index+len(part) <= len(value); index++ {
-		if value[index:index+len(part)] == part {
-			return true
-		}
-	}
-	return false
+func validSummary() Summary {
+	return Summary{ID: testReportID, PublisherReportID: "publisher", GeneratedAt: time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC), PublishedAt: time.Date(2026, 9, 2, 1, 0, 0, 0, time.UTC), IndustryChainCount: 54}
 }
+func sampleLayer() Layer {
+	return Layer{Key: LayerGeopolitics, Title: "地缘政治", Conclusion: "地缘风险升温", Result: CodedLabel{Code: "warming", Label: "升温"}, Confidence: Confidence{Code: "high", Label: "高"}, TimeWindow: TimeWindow{Code: "short", Label: "短期"}, Anchors: []Anchor{{LocalKey: "anchor-01", Name: "锚点", CurrentState: "UP", Result: CodedLabel{Code: "warming", Label: "升温"}, ConclusionBasis: CodedLabel{Code: "direct_evidence", Label: "直接证据"}, ValidationStatus: CodedLabel{Code: "confirmed", Label: "已确认"}, Reasoning: "逻辑", TimeWindow: TimeWindow{Code: "short", Label: "短期"}, Confidence: Confidence{Code: "high", Label: "高"}, EvidenceScopeToken: stringPointer(testScopeToken)}}, ReasoningSteps: []ReasoningStep{}, Transmissions: []Transmission{}, Uncertainty: LayerUncertainty{}, EvidenceScopeToken: stringPointer(testScopeToken)}
+}
+func (l Layer) summary() LayerSummary {
+	return LayerSummary{Conclusion: l.Conclusion, Result: l.Result, Confidence: l.Confidence, TimeWindow: l.TimeWindow, Transmissions: l.Transmissions, Uncertainty: l.Uncertainty, EvidenceScopeToken: l.EvidenceScopeToken}
+}
+func validChainSummary() IndustryChainSummary {
+	return IndustryChainSummary{LocalKey: "chain-01", Name: "产业链", Conclusion: "结论", Result: CodedLabel{Code: "warming", Label: "升温"}, Confidence: Confidence{Code: "medium", Label: "中"}, TimeWindow: TimeWindow{Code: "medium", Label: "中期"}, ImpactItems: []IndustryChainImpactSummary{}, EvidenceScopeToken: stringPointer(testScopeToken)}
+}
+func stringPointer(value string) *string { return &value }
+
+type fakeRepository struct {
+	listPage     Page
+	home         HomeSnapshot
+	layer        LayerDetail
+	chainPage    IndustryChainPage
+	chainPages   map[string]IndustryChainPage
+	chain        IndustryChainDetail
+	evidence     EvidenceCollection
+	chainQueries []ChainListQuery
+}
+
+func (f *fakeRepository) ListReports(context.Context, ListQuery) (Page, error) {
+	return f.listPage, nil
+}
+func (f *fakeRepository) GetHome(context.Context, string) (HomeSnapshot, error) { return f.home, nil }
+func (f *fakeRepository) ListIndustryChains(_ context.Context, query ChainListQuery) (IndustryChainPage, error) {
+	f.chainQueries = append(f.chainQueries, query)
+	if f.chainPages != nil {
+		return f.chainPages[query.Cursor], nil
+	}
+	return f.chainPage, nil
+}
+func (f *fakeRepository) GetLayer(context.Context, string, string) (LayerDetail, error) {
+	return f.layer, nil
+}
+func (f *fakeRepository) GetIndustryChain(context.Context, string, string) (IndustryChainDetail, error) {
+	return f.chain, nil
+}
+func (f *fakeRepository) ListEvidences(context.Context, string, string) (EvidenceCollection, error) {
+	return f.evidence, nil
+}
+
+var _ Repository = (*fakeRepository)(nil)
