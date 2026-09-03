@@ -50,10 +50,7 @@ export function parseReportHomeWire(value: unknown): ReportHome {
   return { selection, reports };
 }
 
-export function parseReportCardPageWire(
-  value: unknown,
-  expectedReportId: string
-): ReportCardPage {
+export function parseReportCardPageWire(value: unknown, expectedReportId: string): ReportCardPage {
   reportID(expectedReportId);
   const root = exact(value, ['items', 'next_cursor']);
   const items = list(root.items).map(parseCard);
@@ -83,7 +80,10 @@ export function parseReportIndustryChainDetailWire(
   const root = exact(value, ['report', 'industry_chain']);
   const report = parseSummary(root.report);
   const industryChain = parseIndustryChain(root.industry_chain);
-  if (report.id !== reportID(expectedReportId) || industryChain.key !== localKey(expectedChainKey)) {
+  if (
+    report.id !== reportID(expectedReportId) ||
+    industryChain.key !== localKey(expectedChainKey)
+  ) {
     invalid();
   }
   return { report, industryChain };
@@ -97,7 +97,8 @@ export function parseReportEvidenceListWire(
   const root = exact(value, ['report_id', 'scope_token', 'items']);
   const reportId = reportID(root.report_id);
   const scopeToken = token(root.scope_token);
-  if (reportId !== reportID(expectedReportId) || scopeToken !== token(expectedScopeToken)) invalid();
+  if (reportId !== reportID(expectedReportId) || scopeToken !== token(expectedScopeToken))
+    invalid();
   return { reportId, scopeToken, items: list(root.items).map(parseEvidence) };
 }
 
@@ -120,8 +121,17 @@ function parseSummary(value: unknown): ReportSummary {
 
 function parseCard(value: unknown): ReportCard {
   const root = exact(value, [
-    'local_key', 'kind', 'detail_ref', 'title', 'subtitle', 'conclusion', 'result',
-    'confidence', 'time_window', 'impact_items', 'evidence_scope_token'
+    'local_key',
+    'kind',
+    'detail_ref',
+    'title',
+    'subtitle',
+    'conclusion',
+    'result',
+    'confidence',
+    'time_window',
+    'impact_items',
+    'evidence_scope_token'
   ]);
   const kind = enumeration(root.kind, cardKinds);
   const detailRef = parseReference(root.detail_ref);
@@ -146,8 +156,14 @@ function parseCard(value: unknown): ReportCard {
 
 function parseImpactItem(value: unknown) {
   const root = exact(value, [
-    'ref', 'name', 'result', 'conclusion_basis', 'validation_status', 'confidence',
-    'time_window', 'evidence_scope_token'
+    'ref',
+    'name',
+    'result',
+    'conclusion_basis',
+    'validation_status',
+    'confidence',
+    'time_window',
+    'evidence_scope_token'
   ]);
   return {
     ref: parseReference(root.ref),
@@ -163,8 +179,17 @@ function parseImpactItem(value: unknown) {
 
 function parseLayer(value: unknown): ReportLayerDetailContent {
   const root = exact(value, [
-    'key', 'title', 'conclusion', 'result', 'confidence', 'time_window', 'anchors',
-    'reasoning_steps', 'transmissions', 'uncertainty', 'evidence_scope_token'
+    'key',
+    'title',
+    'conclusion',
+    'result',
+    'confidence',
+    'time_window',
+    'anchors',
+    'reasoning_steps',
+    'transmissions',
+    'uncertainty',
+    'evidence_scope_token'
   ]);
   return {
     key: enumeration(root.key, layerKeys),
@@ -183,8 +208,16 @@ function parseLayer(value: unknown): ReportLayerDetailContent {
 
 function parseAnchor(value: unknown): ReportAnchor {
   const root = exact(value, [
-    'local_key', 'name', 'current_state', 'result', 'conclusion_basis', 'validation_status',
-    'transmission_logic', 'time_window', 'confidence', 'evidence_scope_token'
+    'local_key',
+    'name',
+    'current_state',
+    'result',
+    'conclusion_basis',
+    'validation_status',
+    'transmission_logic',
+    'time_window',
+    'confidence',
+    'evidence_scope_token'
   ]);
   return {
     key: localKey(root.local_key),
@@ -202,24 +235,40 @@ function parseAnchor(value: unknown): ReportAnchor {
 
 function parseReasoningStep(value: unknown): ReportReasoningStep {
   const root = exact(value, [
-    'input', 'mechanism', 'output', 'reasoning_type', 'confidence', 'evidence_scope_token'
+    'input',
+    'mechanism',
+    'output',
+    'reasoning_type',
+    'confidence',
+    'evidence_scope_token'
   ]);
   return {
-    input: text(root.input), mechanism: text(root.mechanism), output: text(root.output),
-    reasoningType: coded(root.reasoning_type), confidence: confidence(root.confidence),
+    input: text(root.input),
+    mechanism: text(root.mechanism),
+    output: text(root.output),
+    reasoningType: coded(root.reasoning_type),
+    confidence: confidence(root.confidence),
     evidenceScopeToken: nullableToken(root.evidence_scope_token)
   };
 }
 
 function parseTransmission(value: unknown): ReportTransmissionPath {
   const root = exact(value, [
-    'local_key', 'source_conclusion', 'targets', 'logic', 'kind', 'confidence', 'status'
+    'local_key',
+    'source_conclusion',
+    'targets',
+    'logic',
+    'kind',
+    'confidence',
+    'status'
   ]);
   return {
     key: localKey(root.local_key),
     sourceConclusion: text(root.source_conclusion),
     targets: list(root.targets).map(parseTransmissionTarget),
-    logic: text(root.logic), kind: coded(root.kind), confidence: confidence(root.confidence),
+    logic: text(root.logic),
+    kind: coded(root.kind),
+    confidence: confidence(root.confidence),
     status: coded(root.status)
   };
 }
@@ -246,8 +295,20 @@ function parseRelatedChain(value: unknown): ReportRelatedIndustryChain {
 
 function parseIndustryChain(value: unknown): ReportIndustryChainDetailContent {
   const root = exact(value, [
-    'local_key', 'name', 'conclusion', 'status', 'result', 'confidence', 'time_window', 'path',
-    'topology_nodes', 'nodes', 'edges', 'counterevidence_and_gap', 'stop_condition', 'evidence_scope_token'
+    'local_key',
+    'name',
+    'conclusion',
+    'status',
+    'result',
+    'confidence',
+    'time_window',
+    'path',
+    'topology_nodes',
+    'nodes',
+    'edges',
+    'counterevidence_and_gap',
+    'stop_condition',
+    'evidence_scope_token'
   ]);
   const topologyNodes = list(root.topology_nodes).map(parseGraphNode);
   const topologyKeys = new Set(topologyNodes.map((node) => node.key));
@@ -255,14 +316,29 @@ function parseIndustryChain(value: unknown): ReportIndustryChainDetailContent {
   const nodes = list(root.nodes).map(parseIndustryNode);
   const assessedTopologyKeys = new Set(nodes.map((node) => node.nodeLocalKey));
   const assessmentKeys = new Set(nodes.map((node) => node.key));
-  if (assessedTopologyKeys.size !== nodes.length || assessmentKeys.size !== nodes.length ||
-      nodes.some((node) => !topologyKeys.has(node.nodeLocalKey))) invalid();
+  if (
+    assessedTopologyKeys.size !== nodes.length ||
+    assessmentKeys.size !== nodes.length ||
+    nodes.some((node) => !topologyKeys.has(node.nodeLocalKey))
+  )
+    invalid();
   const edges = list(root.edges).map(parseGraphEdge);
-  if (edges.some((edge) => !topologyKeys.has(edge.fromNodeKey) || !topologyKeys.has(edge.toNodeKey))) invalid();
+  if (
+    edges.some((edge) => !topologyKeys.has(edge.fromNodeKey) || !topologyKeys.has(edge.toNodeKey))
+  )
+    invalid();
   return {
-    key: localKey(root.local_key), name: text(root.name), conclusion: text(root.conclusion),
-    status: text(root.status), result: coded(root.result), confidence: confidence(root.confidence),
-    timeWindow: timeWindow(root.time_window), path: text(root.path), topologyNodes, nodes, edges,
+    key: localKey(root.local_key),
+    name: text(root.name),
+    conclusion: text(root.conclusion),
+    status: text(root.status),
+    result: coded(root.result),
+    confidence: confidence(root.confidence),
+    timeWindow: timeWindow(root.time_window),
+    path: text(root.path),
+    topologyNodes,
+    nodes,
+    edges,
     counterevidenceAndGap: text(root.counterevidence_and_gap),
     stopCondition: text(root.stop_condition),
     evidenceScopeToken: nullableToken(root.evidence_scope_token)
@@ -276,23 +352,38 @@ function parseGraphNode(value: unknown) {
 
 function parseIndustryNode(value: unknown): ReportIndustryChainNode {
   const root = exact(value, [
-    'local_key', 'node_local_key', 'name', 'impact', 'result', 'conclusion_basis',
-    'validation_status', 'transmission_logic', 'time_window', 'confidence', 'evidence_scope_token'
+    'local_key',
+    'node_local_key',
+    'name',
+    'impact',
+    'result',
+    'conclusion_basis',
+    'validation_status',
+    'transmission_logic',
+    'time_window',
+    'confidence',
+    'evidence_scope_token'
   ]);
   return {
-    key: localKey(root.local_key), nodeLocalKey: localKey(root.node_local_key), name: text(root.name),
-    impact: text(root.impact), result: coded(root.result),
+    key: localKey(root.local_key),
+    nodeLocalKey: localKey(root.node_local_key),
+    name: text(root.name),
+    impact: text(root.impact),
+    result: coded(root.result),
     conclusionBasis: nullableCoded(root.conclusion_basis),
     validationStatus: nullableCoded(root.validation_status),
-    transmissionLogic: text(root.transmission_logic), timeWindow: timeWindow(root.time_window),
-    confidence: confidence(root.confidence), evidenceScopeToken: nullableToken(root.evidence_scope_token)
+    transmissionLogic: text(root.transmission_logic),
+    timeWindow: timeWindow(root.time_window),
+    confidence: confidence(root.confidence),
+    evidenceScopeToken: nullableToken(root.evidence_scope_token)
   };
 }
 
 function parseGraphEdge(value: unknown): ReportGraphEdge {
   const root = exact(value, ['from_node_key', 'to_node_key', 'relation']);
   return {
-    fromNodeKey: localKey(root.from_node_key), toNodeKey: localKey(root.to_node_key),
+    fromNodeKey: localKey(root.from_node_key),
+    toNodeKey: localKey(root.to_node_key),
     relation: coded(root.relation)
   };
 }
@@ -301,7 +392,8 @@ function parseEvidence(value: unknown): ReportEvidence {
   const root = exact(value, ['published_at', 'summary', 'keywords']);
   return {
     publishedAt: root.published_at === null ? null : timestamp(root.published_at),
-    summary: text(root.summary), keywords: list(root.keywords).map(text)
+    summary: text(root.summary),
+    keywords: list(root.keywords).map(text)
   };
 }
 

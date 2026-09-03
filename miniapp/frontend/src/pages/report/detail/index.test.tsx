@@ -44,7 +44,10 @@ describe('Report detail page', () => {
         targetType: 'layer',
         targetKey: 'geopolitics'
       })
-    ).resolves.toMatchObject({ targetType: 'layer', continuationDetail: { layer: { key: 'macroeconomics' } } });
+    ).resolves.toMatchObject({
+      targetType: 'layer',
+      continuationDetail: { layer: { key: 'macroeconomics' } }
+    });
 
     const port = {
       ...mockReportPort,
@@ -91,7 +94,9 @@ describe('Report detail page', () => {
 
   it('shows Evidence actions only for direct-evidence nodes with a server token', async () => {
     const detail = await mockReportPort.getIndustryChain(reportId, 'chn-01');
-    const directNode = detail.industryChain.nodes.find((node) => node.conclusionBasis?.code === 'direct_evidence');
+    const directNode = detail.industryChain.nodes.find(
+      (node) => node.conclusionBasis?.code === 'direct_evidence'
+    );
     const hypothesisNode = detail.industryChain.nodes.find(
       (node) => node.conclusionBasis?.code === 'reasoning_hypothesis'
     );

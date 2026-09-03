@@ -332,7 +332,9 @@ function LayerDetailView({
                 }
               >
                 <Text>{chainItem.name}</Text>
-                <Text className={`report-result-chip report-result-chip--${resultStyle(chainItem.result.code)}`}>
+                <Text
+                  className={`report-result-chip report-result-chip--${resultStyle(chainItem.result.code)}`}
+                >
                   {chainItem.result.label}
                 </Text>
                 <Image
@@ -385,7 +387,9 @@ function TransmissionPathView({
         />
         <Text>传到{target?.name ?? '下游对象'}</Text>
         {target ? (
-          <Text className={`report-result-chip report-result-chip--${resultStyle(target.result.code)}`}>
+          <Text
+            className={`report-result-chip report-result-chip--${resultStyle(target.result.code)}`}
+          >
             {target.result.label}
           </Text>
         ) : null}
@@ -416,14 +420,17 @@ function IndustryChainDetailView({
   const selectedNode =
     industryChain.nodes.find((nodeItem) => nodeItem.key === selectedNodeKey) ??
     industryChain.nodes[0];
-  const chainResultIcon = ({
-    warming: reportActivityWarmingIcon,
-    cooling: reportActivityCoolingIcon,
-    diverging: reportActivityDivergingIcon,
-    stable: reportActivityPendingIcon,
-    mixed: reportActivityDivergingIcon,
-    pending: reportActivityPendingIcon
-  } as Record<string, string>)[industryChain.result.code] ?? reportActivityPendingIcon;
+  const chainResultIcon =
+    (
+      {
+        warming: reportActivityWarmingIcon,
+        cooling: reportActivityCoolingIcon,
+        diverging: reportActivityDivergingIcon,
+        stable: reportActivityPendingIcon,
+        mixed: reportActivityDivergingIcon,
+        pending: reportActivityPendingIcon
+      } as Record<string, string>
+    )[industryChain.result.code] ?? reportActivityPendingIcon;
 
   return (
     <View className='report-detail-flow'>
@@ -602,7 +609,9 @@ function ChainGraph({
   });
   const laneHeight = 52 + longEdges.length * 34;
   const canvasWidth =
-    canvasPadding * 2 + topologyNodes.length * nodeWidth + Math.max(0, topologyNodes.length - 1) * nodeGap;
+    canvasPadding * 2 +
+    topologyNodes.length * nodeWidth +
+    Math.max(0, topologyNodes.length - 1) * nodeGap;
 
   return (
     <ScrollView className='report-chain-scroll' scrollX>
@@ -701,7 +710,11 @@ function ChainGraph({
                 hoverClass='report-chain-node--pressed'
                 key={topologyNode.key}
                 disabled={!assessment}
-                ariaLabel={assessment ? `查看${topologyNode.name}节点详情` : `${topologyNode.name}暂无本期评估`}
+                ariaLabel={
+                  assessment
+                    ? `查看${topologyNode.name}节点详情`
+                    : `${topologyNode.name}暂无本期评估`
+                }
                 onClick={() => {
                   if (assessment) onSelect(assessment.key);
                 }}

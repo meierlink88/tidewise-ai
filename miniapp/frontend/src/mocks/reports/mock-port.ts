@@ -74,10 +74,18 @@ const macroAnchors: ReportAnchor[] = [
 ];
 
 const chainNames = [
-  '人形机器人产业链', 'AI数据中心液冷服务器产业链', 'AI算力基础设施服务产业链',
-  'AI视频生成服务产业链', '油气勘探开发产业链', '生成式人工智能模型及应用服务产业链',
-  '汽车线控制动执行器产业链', '企业AI智能体产业链', '智能语音技术服务产业链',
-  'AI智能手机产业链', 'AI计算芯片产业链', '电动汽车换电服务产业链'
+  '人形机器人产业链',
+  'AI数据中心液冷服务器产业链',
+  'AI算力基础设施服务产业链',
+  'AI视频生成服务产业链',
+  '油气勘探开发产业链',
+  '生成式人工智能模型及应用服务产业链',
+  '汽车线控制动执行器产业链',
+  '企业AI智能体产业链',
+  '智能语音技术服务产业链',
+  'AI智能手机产业链',
+  'AI计算芯片产业链',
+  '电动汽车换电服务产业链'
 ];
 
 const chains: ReportIndustryChainDetailContent[] = Array.from({ length: 54 }, (_, index) => {
@@ -94,7 +102,10 @@ const chains: ReportIndustryChainDetailContent[] = Array.from({ length: 54 }, (_
     confidence: number === 1 ? medium : low,
     timeWindow: window('medium_long', '中期–长期'),
     path: nodes.map((graphNode) => graphNode.name).join(' → '),
-    topologyNodes: nodes.map((graphNode) => ({ key: graphNode.nodeLocalKey, name: graphNode.name })),
+    topologyNodes: nodes.map((graphNode) => ({
+      key: graphNode.nodeLocalKey,
+      name: graphNode.name
+    })),
     nodes,
     edges: nodes.slice(1).map((graphNode) => ({
       fromNodeKey: graphNode.nodeLocalKey,
@@ -131,7 +142,8 @@ export class MockReportPort implements ReportPort {
   async getIndustryChains(reportId: string, cursor = '', limit = 20): Promise<ReportCardPage> {
     assertReport(reportId);
     const offset = cursor === '' ? 0 : Number(cursor);
-    if (!Number.isSafeInteger(offset) || offset < 0 || limit < 1) throw new ReportError('invalidRequest');
+    if (!Number.isSafeInteger(offset) || offset < 0 || limit < 1)
+      throw new ReportError('invalidRequest');
     const items = chainCards.slice(offset, offset + limit);
     const nextOffset = offset + items.length;
     return { items, nextCursor: nextOffset < chainCards.length ? String(nextOffset) : null };
@@ -187,7 +199,10 @@ function layerDetail(
           sourceConclusion: title,
           targets: [
             {
-              ref: { type: key === 'geopolitics' ? 'layer' : 'industry_chain', localKey: key === 'geopolitics' ? 'macroeconomics' : 'chn-01' },
+              ref: {
+                type: key === 'geopolitics' ? 'layer' : 'industry_chain',
+                localKey: key === 'geopolitics' ? 'macroeconomics' : 'chn-01'
+              },
               name: key === 'geopolitics' ? '宏观经济' : '人形机器人产业链',
               result: diverging
             }
@@ -206,7 +221,11 @@ function layerDetail(
       },
       evidenceScopeToken: evidenceToken(`${title}一句话结论依据`, [title, '报告结论'])
     },
-    relatedIndustryChains: chains.map((chain) => ({ key: chain.key, name: chain.name, result: chain.result }))
+    relatedIndustryChains: chains.map((chain) => ({
+      key: chain.key,
+      name: chain.name,
+      result: chain.result
+    }))
   };
 }
 
@@ -232,7 +251,13 @@ function anchor(
 }
 
 function humanoidNodes(chainKey: string): ReportIndustryChainNode[] {
-  const names = ['人形机器人', '人形机器人传感器', '人形机器人减速器', '人形机器人电机', '机器人控制计算平台'];
+  const names = [
+    '人形机器人',
+    '人形机器人传感器',
+    '人形机器人减速器',
+    '人形机器人电机',
+    '机器人控制计算平台'
+  ];
   return names.map((name, index) => createNode(chainKey, index + 1, name, index < 4));
 }
 
@@ -243,7 +268,12 @@ function standardNodes(chainKey: string, chainName: string): ReportIndustryChain
   ];
 }
 
-function createNode(chainKey: string, number: number, name: string, isDirect: boolean): ReportIndustryChainNode {
+function createNode(
+  chainKey: string,
+  number: number,
+  name: string,
+  isDirect: boolean
+): ReportIndustryChainNode {
   const key = `${chainKey}-n${String(number).padStart(2, '0')}`;
   return {
     key,
@@ -317,7 +347,11 @@ function code(codeValue: string, label: string): ReportCodedLabel {
   return { code: codeValue, label };
 }
 
-function confidence(codeValue: string, label: string, score: number | null = null): ReportConfidence {
+function confidence(
+  codeValue: string,
+  label: string,
+  score: number | null = null
+): ReportConfidence {
   return { code: codeValue, label, score };
 }
 

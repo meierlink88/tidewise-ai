@@ -298,7 +298,9 @@ function HomeReportState({
             onOpenDetail={onOpenDetail}
             onOpenEvidence={onOpenEvidence}
           />
-          {chainPage?.loading ? <Text className='home-chain-page-state'>正在加载更多产业链…</Text> : null}
+          {chainPage?.loading ? (
+            <Text className='home-chain-page-state'>正在加载更多产业链…</Text>
+          ) : null}
           {chainPage?.failed ? (
             <Button
               className='tidewise-button home-chain-page-state home-chain-page-state--retry'
@@ -558,7 +560,12 @@ export interface ChainPageState extends ReportCardPage {
   failed: boolean;
 }
 
-const emptyChainPage: ChainPageState = { items: [], nextCursor: null, loading: false, failed: false };
+const emptyChainPage: ChainPageState = {
+  items: [],
+  nextCursor: null,
+  loading: false,
+  failed: false
+};
 
 function dedupeCards(cards: ReportCard[]): ReportCard[] {
   const seen = new Set<string>();

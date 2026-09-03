@@ -62,7 +62,11 @@ describe('HomeReportEvidenceSheet', () => {
             reportId,
             scopeToken,
             items: [
-              { publishedAt: '2026-09-01T04:00:00Z', summary: '第一条证据摘要', keywords: ['运输', '通道'] },
+              {
+                publishedAt: '2026-09-01T04:00:00Z',
+                summary: '第一条证据摘要',
+                keywords: ['运输', '通道']
+              },
               { publishedAt: null, summary: '时间待确认的证据', keywords: [] }
             ]
           },
@@ -91,7 +95,11 @@ describe('HomeReportEvidenceSheet', () => {
         })
       );
     expect(render({ status: 'loading' })).toContain('正在读取相关证据');
-    expect(render({ status: 'empty', refreshing: false, refreshFailed: false })).toContain('暂无相关证据');
-    expect(render({ status: 'error', error: new ReportError('serviceUnavailable') })).toContain('重新加载');
+    expect(render({ status: 'empty', refreshing: false, refreshFailed: false })).toContain(
+      '暂无相关证据'
+    );
+    expect(render({ status: 'error', error: new ReportError('serviceUnavailable') })).toContain(
+      '重新加载'
+    );
   });
 });

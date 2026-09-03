@@ -26,14 +26,17 @@ export function ReportImpactSignals({
   conclusionBasis?: ReportCodedLabel | null;
   validationStatus?: ReportCodedLabel | null;
 }) {
-  const resultIcon = ({
-    warming: reportActivityWarmingIcon,
-    cooling: reportActivityCoolingIcon,
-    diverging: reportActivityDivergingIcon,
-    stable: reportActivityPendingIcon,
-    mixed: reportActivityDivergingIcon,
-    pending: reportActivityPendingIcon
-  } as Record<string, string>)[result.code] ?? reportActivityPendingIcon;
+  const resultIcon =
+    (
+      {
+        warming: reportActivityWarmingIcon,
+        cooling: reportActivityCoolingIcon,
+        diverging: reportActivityDivergingIcon,
+        stable: reportActivityPendingIcon,
+        mixed: reportActivityDivergingIcon,
+        pending: reportActivityPendingIcon
+      } as Record<string, string>
+    )[result.code] ?? reportActivityPendingIcon;
   const resultStyle = ['warming', 'cooling', 'diverging', 'stable', 'mixed', 'pending'].includes(
     result.code
   )
@@ -46,12 +49,16 @@ export function ReportImpactSignals({
         <Text>{result.label}</Text>
       </View>
       {conclusionBasis ? (
-        <Text className={`report-nature-chip report-nature-chip--${natureStyle(conclusionBasis.code)}`}>
+        <Text
+          className={`report-nature-chip report-nature-chip--${natureStyle(conclusionBasis.code)}`}
+        >
           {conclusionBasis.label}
         </Text>
       ) : null}
       {validationStatus ? (
-        <Text className={`report-nature-chip report-nature-chip--${natureStyle(validationStatus.code)}`}>
+        <Text
+          className={`report-nature-chip report-nature-chip--${natureStyle(validationStatus.code)}`}
+        >
           {validationStatus.label}
         </Text>
       ) : null}
