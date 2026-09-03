@@ -31,8 +31,10 @@ mkdir -p \
   "${fixture_root}/opt/tidewise/reason-uat" \
   "${fixture_root}/opt/tidewise/neo4j-uat"
 cp "$fake_systemctl" "${fixture_root}/usr/bin/systemctl"
+printf 'unit\n' > "${fixture_root}/etc/systemd/system/actions.runner.meierlink88-tidewise-agent-os.tidewise-agentos-uat-ecs.service"
 printf 'unit\n' > "${fixture_root}/etc/systemd/system/actions.runner.meierlink88-tidewise-reason.tidewise-reason-uat-ecs.service"
 printf 'unit\n' > "${fixture_root}/usr/lib/systemd/system/neo4j.service"
+printf 'enabled\n' > "${fixture_root}/etc/systemd/system/.uat-fake-agentos-enabled"
 printf 'enabled\n' > "${fixture_root}/etc/systemd/system/.uat-fake-reason-enabled"
 printf 'enabled\n' > "${fixture_root}/etc/systemd/system/.uat-fake-neo4j-enabled"
 printf 'retired\n' > "${fixture_root}/opt/tidewise/agentos-uat/fixture"
@@ -68,10 +70,12 @@ for retired_path in \
   /opt/tidewise/uat/logs/agentrun \
   /opt/tidewise/reason-uat \
   /opt/tidewise/neo4j-uat \
+  /etc/systemd/system/actions.runner.meierlink88-tidewise-agent-os.tidewise-agentos-uat-ecs.service \
   /etc/systemd/system/actions.runner.meierlink88-tidewise-reason.tidewise-reason-uat-ecs.service; do
   test ! -e "${fixture_root}${retired_path}"
 done
 test -f "${fixture_root}/usr/lib/systemd/system/neo4j.service"
+test ! -e "${fixture_root}/etc/systemd/system/.uat-fake-agentos-enabled"
 test ! -e "${fixture_root}/etc/systemd/system/.uat-fake-reason-enabled"
 test ! -e "${fixture_root}/etc/systemd/system/.uat-fake-neo4j-enabled"
 grep -qx retained "${fixture_root}/opt/tidewise/uat/state/current.sha"

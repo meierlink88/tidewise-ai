@@ -14,11 +14,13 @@ import (
 )
 
 const (
-	hostRoot             = "/host"
-	reasonRunnerUnit     = "actions.runner.meierlink88-tidewise-reason.tidewise-reason-uat-ecs.service"
-	reasonRunnerUnitPath = "/etc/systemd/system/actions.runner.meierlink88-tidewise-reason.tidewise-reason-uat-ecs.service"
-	neo4jUnit            = "neo4j.service"
-	neo4jUnitPath        = "/usr/lib/systemd/system/neo4j.service"
+	hostRoot              = "/host"
+	agentOSRunnerUnit     = "actions.runner.meierlink88-tidewise-agent-os.tidewise-agentos-uat-ecs.service"
+	agentOSRunnerUnitPath = "/etc/systemd/system/actions.runner.meierlink88-tidewise-agent-os.tidewise-agentos-uat-ecs.service"
+	reasonRunnerUnit      = "actions.runner.meierlink88-tidewise-reason.tidewise-reason-uat-ecs.service"
+	reasonRunnerUnitPath  = "/etc/systemd/system/actions.runner.meierlink88-tidewise-reason.tidewise-reason-uat-ecs.service"
+	neo4jUnit             = "neo4j.service"
+	neo4jUnitPath         = "/usr/lib/systemd/system/neo4j.service"
 )
 
 var retiredHostPaths = []string{
@@ -30,6 +32,7 @@ var retiredHostPaths = []string{
 }
 
 var retiredSystemdUnits = []unitTarget{
+	{name: agentOSRunnerUnit, fragmentPath: agentOSRunnerUnitPath, policy: removeProjectUnit},
 	{name: reasonRunnerUnit, fragmentPath: reasonRunnerUnitPath, policy: removeProjectUnit},
 	{name: neo4jUnit, fragmentPath: neo4jUnitPath, policy: retainVendorUnit},
 }

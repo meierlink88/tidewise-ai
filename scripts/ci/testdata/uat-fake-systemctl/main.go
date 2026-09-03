@@ -11,6 +11,10 @@ type fakeUnit struct {
 }
 
 var units = map[string]fakeUnit{
+	"actions.runner.meierlink88-tidewise-agent-os.tidewise-agentos-uat-ecs.service": {
+		fragmentPath: "/etc/systemd/system/actions.runner.meierlink88-tidewise-agent-os.tidewise-agentos-uat-ecs.service",
+		enabledPath:  "/etc/systemd/system/.uat-fake-agentos-enabled",
+	},
 	"actions.runner.meierlink88-tidewise-reason.tidewise-reason-uat-ecs.service": {
 		fragmentPath: "/etc/systemd/system/actions.runner.meierlink88-tidewise-reason.tidewise-reason-uat-ecs.service",
 		enabledPath:  "/etc/systemd/system/.uat-fake-reason-enabled",
