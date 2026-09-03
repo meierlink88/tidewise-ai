@@ -9,6 +9,7 @@ source "${script_directory}/legacy-runtime-manifest.sh"
 expected_runner="${UAT_RUNNER_NAME:?UAT_RUNNER_NAME is required}"
 confirmation="${RETIREMENT_CONFIRMATION:?RETIREMENT_CONFIRMATION is required}"
 rds_audit_binary="${RDS_AUDIT_BINARY:?RDS_AUDIT_BINARY is required}"
+root_retirement_binary="${ROOT_RETIREMENT_BINARY:?ROOT_RETIREMENT_BINARY is required}"
 admin_service_token="${ADMIN_SERVICE_TOKEN:?ADMIN_SERVICE_TOKEN is required}"
 expected_confirmation='retire-agentos-reason-openspg-qdrant-391'
 
@@ -26,11 +27,11 @@ pass() {
 [ "${RUNNER_NAME:-}" = "$expected_runner" ] \
   || fail runner-identity "expected ${expected_runner}, got ${RUNNER_NAME:-unset}"
 [ -x "$rds_audit_binary" ] || fail rds-audit "audit binary is not executable"
+[ -x "$root_retirement_binary" ] || fail root-retirement "root retirement binary is not executable"
 
-for command in curl docker find flock python3 realpath ss sudo systemctl; do
+for command in docker flock python3 ss; do
   command -v "$command" >/dev/null || fail tooling "${command} is required"
 done
-sudo -n true || fail sudo "passwordless sudo is required before any mutation"
 
 exec 8>"${deployment_root}/deploy.lock"
 flock -n 8 || fail deployment-lock "another UAT operation is running"
@@ -38,7 +39,6 @@ flock -n 8 || fail deployment-lock "another UAT operation is running"
 retained_containers=("${UAT_RETAINED_CONTAINERS[@]}")
 retired_containers=("${UAT_RETIRED_CONTAINERS[@]}")
 retired_volumes=("${UAT_RETIRED_VOLUMES[@]}")
-retired_paths=("${UAT_RETIRED_PATHS[@]}")
 retired_ports=("${UAT_RETIRED_PORTS[@]}")
 
 container_exists() {
@@ -168,31 +168,28 @@ for volume in "${retired_volumes[@]}"; do
 done
 pass candidate-volume-references-exact
 
-for retired_path in "${retired_paths[@]}"; do
-  resolved="$(realpath -m -- "$retired_path")"
-  [ "$resolved" = "$retired_path" ] || fail retired-path "unexpected resolved path ${resolved}"
-  case "$retired_path" in
-    /opt/tidewise/agentos-uat|/opt/tidewise/uat/agentrun-artifacts|/opt/tidewise/uat/logs/agentrun|/opt/tidewise/reason-uat|/opt/tidewise/neo4j-uat) ;;
-    *) fail retired-path "unapproved target ${retired_path}" ;;
-  esac
-done
-pass candidate-paths-exact
+root_retirement_image="$(docker inspect --format '{{.Image}}' tidewise-uat-data-1)"
+[[ "$root_retirement_image" =~ ^sha256:[0-9a-f]{64}$ ]] \
+  || fail root-retirement "retained Data image must resolve to a local content ID"
 
-validate_unit() {
-  local unit="$1"
-  local expected_fragment="$2"
-  local fragment
-  fragment="$(systemctl show --property FragmentPath --value "$unit" 2>/dev/null || true)"
-  if [ -n "$fragment" ] && [ "$fragment" != "$expected_fragment" ]; then
-    fail systemd-unit "${unit} fragment ${fragment} is outside the approved target"
-  fi
-  validated_unit_fragments["$unit"]="$fragment"
+run_root_retirement() {
+  local action="$1"
+  docker run --rm \
+    --user 0:0 \
+    --privileged \
+    --pid host \
+    --network none \
+    --read-only \
+    --mount type=bind,source=/,target=/host,readonly \
+    --mount type=bind,source=/etc/systemd/system,target=/host/etc/systemd/system \
+    --mount type=bind,source=/opt/tidewise,target=/host/opt/tidewise \
+    --mount "type=bind,source=${root_retirement_binary},target=/uat-root-retirement,readonly" \
+    --entrypoint /uat-root-retirement \
+    "$root_retirement_image" \
+    "$action"
 }
 
-declare -A validated_unit_fragments
-validate_unit "$UAT_REASON_RUNNER_UNIT" "$UAT_REASON_RUNNER_UNIT_PATH"
-validate_unit "$UAT_NEO4J_UNIT" "$UAT_NEO4J_UNIT_PATH"
-pass candidate-systemd-units-exact
+run_root_retirement preflight
 pass destructive-targets-preflight
 
 declare -A retained_before
@@ -209,24 +206,7 @@ for container in "${retired_containers[@]}"; do
   fi
 done
 
-remove_unit() {
-  local unit="$1"
-  local fragment
-  fragment="${validated_unit_fragments[$unit]}"
-  if [ -z "$fragment" ]; then
-    echo "ABSENT unit ${unit}"
-    return
-  fi
-  sudo -n systemctl disable --now "$unit" >/dev/null
-  active="$(systemctl is-active "$unit" 2>/dev/null || true)"
-  [ "$active" != active ] || fail systemd-unit "${unit} is still active"
-  sudo -n unlink "$fragment"
-  echo "REMOVED unit ${unit}"
-}
-
-remove_unit "$UAT_REASON_RUNNER_UNIT"
-remove_unit "$UAT_NEO4J_UNIT"
-sudo -n systemctl daemon-reload
+run_root_retirement apply
 
 for volume in "${retired_volumes[@]}"; do
   references="$(docker ps -a --filter "volume=${volume}" --format '{{.Names}}' | paste -sd, -)"
@@ -239,15 +219,6 @@ for volume in "${retired_volumes[@]}"; do
   fi
 done
 
-for retired_path in "${retired_paths[@]}"; do
-  if sudo -n test -e "$retired_path"; then
-    sudo -n find -P "$retired_path" -depth -delete
-    echo "REMOVED path ${retired_path}"
-  else
-    echo "ABSENT path ${retired_path}"
-  fi
-done
-
 for container in "${retired_containers[@]}"; do
   container_exists "$container" && fail retired-container "${container} still exists"
 done
@@ -255,10 +226,6 @@ for volume in "${retired_volumes[@]}"; do
   docker volume inspect "$volume" >/dev/null 2>&1 \
     && fail retired-volume "${volume} still exists"
 done
-for retired_path in "${retired_paths[@]}"; do
-  sudo -n test -e "$retired_path" && fail retired-path "${retired_path} still exists"
-done
-
 listeners="$(ss -lntH | awk '{print $4}' | sed 's/.*://' | LC_ALL=C sort -nu)"
 for port in "${retired_ports[@]}"; do
   grep -qx "$port" <<<"$listeners" && fail retired-listener "tcp/${port} is still listening"

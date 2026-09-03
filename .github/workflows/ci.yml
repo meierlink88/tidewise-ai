@@ -42,6 +42,21 @@ jobs:
         if: steps.risks.outputs.architecture == 'true'
         run: go test ./scripts/ci/repository-contracts -count=1
 
+      - name: Verify and test bounded UAT root retirement
+        if: steps.risks.outputs.architecture == 'true'
+        run: |
+          unformatted="$(gofmt -l infra/uat/cmd/uat-root-retirement)"
+          if [ -n "$unformatted" ]; then
+            echo "The following UAT retirement files are not formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+          go vet ./infra/uat/cmd/uat-root-retirement
+          go test ./infra/uat/cmd/uat-root-retirement -count=1
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath \
+            -o /tmp/uat-root-retirement \
+            ./infra/uat/cmd/uat-root-retirement
+
       - name: Smoke immutable UAT deployment bundle container
         if: steps.risks.outputs.architecture == 'true'
         run: bash scripts/ci/smoke-uat-deploy-bundle.sh
@@ -92,7 +107,8 @@ jobs:
           steps.risks.outputs.migration_framework == 'true' ||
           steps.risks.outputs.conf_lifecycle == 'true' ||
           steps.risks.outputs.provider_consumer == 'true' ||
-          steps.risks.outputs.object_schema == 'true'
+          steps.risks.outputs.object_schema == 'true' ||
+          steps.risks.outputs.container == 'true'
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
@@ -217,6 +233,10 @@ jobs:
       - name: Build Data Service image
         if: steps.risks.outputs.container == 'true'
         run: docker build -f data-service/backend/Dockerfile -t tidewise-data:ci .
+
+      - name: Smoke bounded UAT root retirement container
+        if: steps.risks.outputs.container == 'true'
+        run: bash scripts/ci/smoke-uat-root-retirement.sh tidewise-data:ci
 
       - name: Validate local and UAT Compose contracts
         if: steps.risks.outputs.container == 'true'

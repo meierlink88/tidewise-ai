@@ -27,6 +27,11 @@ retained evidence-document reads, so it remains a separate storage lifecycle.
 - Delete only their exact audited volumes and bounded host paths after a main-only, CI-gated,
   confirmation-protected preflight proves that retained services have no legacy dependency keys.
 - Stop and remove the obsolete Tidewise Reason Actions runner service and disabled host Neo4j unit.
+- The daily deployment runner remains non-sudo. A checksum-verified static retirement binary runs as
+  root only inside a one-shot privileged container based on the already-running immutable Data image.
+  The host root is mounted read-only; only `/etc/systemd/system` and `/opt/tidewise` are writable. The
+  binary accepts only `preflight` or `apply` and compiles in the two approved units and five approved
+  directories rather than accepting paths or commands from workflow input.
 - The retired RDS database `tidewise_ai_server` is already absent. Preserve `tidewise_uat`, its role,
   schema and facts. A residual `agentrun_uat` role is not a database and may be removed only through
   a separately authorized RDS-admin operation after dependency proof.
@@ -41,6 +46,11 @@ migration, fingerprints retained containers, and refuses broad Compose shutdown,
 database/schema deletion. It removes exact targets only and then proves all retired containers,
 volumes, paths and listeners absent while retained fingerprints and public health/read paths remain
 unchanged.
+
+The privileged retirement binary performs its own systemd fragment and no-symlink path preflight before
+the shell removes any legacy container. It stops only the compiled units, reloads systemd, removes only
+the compiled paths, and verifies both classes absent. This uses the root-equivalent Docker capability
+already required by the runner instead of granting persistent sudo or changing host sudoers.
 
 Persistent data deletion is intentionally irreversible on the old ECS. The accepted recovery path is
 the externally migrated AgentOS/reasoning system; the existing RDS recovery point protects the
