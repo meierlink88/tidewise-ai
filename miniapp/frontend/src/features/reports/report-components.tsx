@@ -6,36 +6,53 @@ import reportActivityPendingIcon from '../../assets/icons/report-activity-pendin
 import reportActivityWarmingIcon from '../../assets/icons/report-activity-warming.svg';
 import reportConfidenceIcon from '../../assets/icons/report-confidence.svg';
 import reportWindowClockIcon from '../../assets/icons/report-window-clock.svg';
-import type { ReportConfidence, ReportNature, ReportResult } from './contract';
+import type {
+  ReportCodedLabel,
+  ReportConfidence,
+  ReportResult,
+  ReportTimeWindow
+} from './contract';
 
 export function ReportImpactSignals({
   result,
   confidence,
   timeWindow,
-  nature
+  conclusionBasis,
+  validationStatus
 }: {
   result: ReportResult;
   confidence: ReportConfidence;
-  timeWindow: string;
-  nature?: ReportNature;
+  timeWindow: ReportTimeWindow;
+  conclusionBasis?: ReportCodedLabel | null;
+  validationStatus?: ReportCodedLabel | null;
 }) {
-  const resultIcon = {
+  const resultIcon = ({
     warming: reportActivityWarmingIcon,
     cooling: reportActivityCoolingIcon,
     diverging: reportActivityDivergingIcon,
     stable: reportActivityPendingIcon,
     mixed: reportActivityDivergingIcon,
     pending: reportActivityPendingIcon
-  }[result.code];
+  } as Record<string, string>)[result.code] ?? reportActivityPendingIcon;
+  const resultStyle = ['warming', 'cooling', 'diverging', 'stable', 'mixed', 'pending'].includes(
+    result.code
+  )
+    ? result.code
+    : 'pending';
   return (
     <View className='report-impact-signals'>
-      <View className={`report-result-chip report-result-chip--${result.code}`}>
+      <View className={`report-result-chip report-result-chip--${resultStyle}`}>
         <Image className='report-result-chip__icon' src={resultIcon} mode='aspectFit' />
         <Text>{result.label}</Text>
       </View>
-      {nature ? (
-        <Text className={`report-nature-chip report-nature-chip--${nature.code}`}>
-          {nature.label}
+      {conclusionBasis ? (
+        <Text className={`report-nature-chip report-nature-chip--${natureStyle(conclusionBasis.code)}`}>
+          {conclusionBasis.label}
+        </Text>
+      ) : null}
+      {validationStatus ? (
+        <Text className={`report-nature-chip report-nature-chip--${natureStyle(validationStatus.code)}`}>
+          {validationStatus.label}
         </Text>
       ) : null}
       <View className='report-signal-meta'>
@@ -44,10 +61,16 @@ export function ReportImpactSignals({
       </View>
       <View className='report-signal-meta'>
         <Image className='report-signal-meta__icon' src={reportWindowClockIcon} mode='aspectFit' />
-        <Text>{timeWindow}</Text>
+        <Text>{timeWindow.label}</Text>
       </View>
     </View>
   );
+}
+
+function natureStyle(code: string): string {
+  return ['direct_evidence', 'reasoning_hypothesis', 'pending_validation'].includes(code)
+    ? code
+    : 'pending_validation';
 }
 
 export function ReportEvidenceButton({ label, onClick }: { label: string; onClick: () => void }) {

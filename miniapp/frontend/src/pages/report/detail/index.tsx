@@ -15,12 +15,11 @@ import reportLinkIcon from '../../../assets/icons/report-link.svg';
 import reportWarningIcon from '../../../assets/icons/report-warning.svg';
 import reportWindowClockIcon from '../../../assets/icons/report-window-clock.svg';
 import type {
-  ReportEvidenceScope,
   ReportIndustryChainDetail,
   ReportIndustryChainNode,
+  ReportGraphNode,
   ReportLayerDetail,
   ReportLayerKey,
-  ReportNatureCode,
   ReportPort,
   ReportTransmissionPath
 } from '../../../features/reports/contract';
@@ -102,15 +101,30 @@ export async function loadReportDetail(
     if (route.targetKey === 'geopolitics') {
       const [detail, continuationDetail] = await Promise.all([
         port.getLayer(route.reportId, 'geopolitics'),
-        port.getLayer(route.reportId, 'macroeconomics')
+        optionalLayer(port, route.reportId, 'macroeconomics')
       ]);
-      return { targetType: 'layer', detail, continuationDetail };
+      return continuationDetail
+        ? { targetType: 'layer', detail, continuationDetail }
+        : { targetType: 'layer', detail };
     }
     const detail = await port.getLayer(route.reportId, route.targetKey as ReportLayerKey);
     return { targetType: 'layer', detail };
   }
   const detail = await port.getIndustryChain(route.reportId, route.targetKey);
   return { targetType: 'industry_chain', detail };
+}
+
+async function optionalLayer(
+  port: ReportPort,
+  reportId: string,
+  layerKey: ReportLayerKey
+): Promise<ReportLayerDetail | undefined> {
+  try {
+    return await port.getLayer(reportId, layerKey);
+  } catch (error) {
+    if (error instanceof ReportError && error.kind === 'layerUnavailable') return undefined;
+    throw error;
+  }
 }
 
 export function ReportDetailView({
@@ -197,10 +211,10 @@ function LayerDetailView({
               <Text className='report-layer-heading__title'>{layer.title}层推导</Text>
             </View>
           </View>
-          {layer.hasEvidence ? (
+          {layer.evidenceScopeToken ? (
             <ScopeEvidenceButton
               reportId={report.id}
-              scope={layer.scope}
+              scopeToken={layer.evidenceScopeToken}
               title={`${layer.title}证据`}
               onOpen={onOpenEvidence}
             />
@@ -218,10 +232,10 @@ function LayerDetailView({
             <View className='report-anchor-card' key={anchor.key}>
               <View className='report-anchor-card__top'>
                 <Text className='report-anchor-card__name'>{anchor.name}</Text>
-                {hasDirectEvidence(anchor.hasEvidence, anchor.nature.code) ? (
+                {hasDirectEvidence(anchor.evidenceScopeToken, anchor.conclusionBasis?.code) ? (
                   <ScopeEvidenceTextButton
                     reportId={report.id}
-                    scope={anchor.scope}
+                    scopeToken={anchor.evidenceScopeToken!}
                     title={`${anchor.name}证据`}
                     label='依据'
                     onOpen={onOpenEvidence}
@@ -232,12 +246,13 @@ function LayerDetailView({
                 result={anchor.result}
                 confidence={anchor.confidence}
                 timeWindow={anchor.timeWindow}
-                nature={anchor.nature}
+                conclusionBasis={anchor.conclusionBasis}
+                validationStatus={anchor.validationStatus}
               />
               <Text className='report-anchor-card__state'>{anchor.currentState}</Text>
               <View className='report-anchor-card__reason'>
                 <Text>为什么</Text>
-                <Text>{anchor.reasoning}</Text>
+                <Text>{anchor.transmissionLogic}</Text>
               </View>
             </View>
           ))}
@@ -263,35 +278,13 @@ function LayerDetailView({
 
         <SectionHeading title='向下传导' />
         <View className='report-transmission-list'>
-          {layer.downwardTransmission.publishedPaths.map((path) => (
+          {layer.transmissions.map((path) => (
             <TransmissionPathView
               key={path.key}
               reportId={report.id}
               path={path}
               onOpenDetail={onOpenDetail}
             />
-          ))}
-          {layer.downwardTransmission.candidateMechanisms.map((candidate) => (
-            <View className='report-transmission-card' key={candidate.key}>
-              <View className='report-transmission-card__heading'>
-                <Image
-                  className='report-transmission-card__link-icon'
-                  src={reportLinkIcon}
-                  mode='aspectFit'
-                />
-                <Text>传到产业链</Text>
-                <Text className='report-result-chip report-result-chip--pending'>待验证</Text>
-              </View>
-              <Text className='report-transmission-card__source'>{candidate.mechanism}</Text>
-              <Text className='report-transmission-card__nature'>待补证</Text>
-              {candidate.evidenceGap ? (
-                <Text className='report-transmission-card__logic'>{candidate.evidenceGap}</Text>
-              ) : null}
-              <View className='report-transmission-card__status'>
-                <Text>边界</Text>
-                <Text>{layer.downwardTransmission.boundaryNotes.join('；')}</Text>
-              </View>
-            </View>
           ))}
         </View>
       </View>
@@ -333,13 +326,13 @@ function LayerDetailView({
                 onClick={() =>
                   onOpenDetail({
                     reportId: report.id,
-                    targetType: chainItem.detailRef.type,
-                    targetKey: chainItem.detailRef.key
+                    targetType: 'industry_chain',
+                    targetKey: chainItem.key
                   })
                 }
               >
                 <Text>{chainItem.name}</Text>
-                <Text className={`report-result-chip report-result-chip--${chainItem.result.code}`}>
+                <Text className={`report-result-chip report-result-chip--${resultStyle(chainItem.result.code)}`}>
                   {chainItem.result.label}
                 </Text>
                 <Image
@@ -365,7 +358,7 @@ function TransmissionPathView({
   path: ReportTransmissionPath;
   onOpenDetail: (route: ReportDetailRoute) => void;
 }) {
-  const target = path.targetRefs[0];
+  const target = path.targets[0];
   const targetRef = target?.ref;
   const isDetailTarget = targetRef?.type === 'layer' || targetRef?.type === 'industry_chain';
   return (
@@ -373,14 +366,14 @@ function TransmissionPathView({
       <View
         className={`report-transmission-card__heading ${isDetailTarget ? 'is-clickable' : ''}`}
         role={isDetailTarget ? 'button' : undefined}
-        ariaLabel={isDetailTarget ? `查看${target.label}推理详情` : undefined}
+        ariaLabel={isDetailTarget ? `查看${target.name}推理详情` : undefined}
         onClick={
           isDetailTarget
             ? () =>
                 onOpenDetail({
                   reportId,
                   targetType: targetRef!.type as 'layer' | 'industry_chain',
-                  targetKey: targetRef!.key
+                  targetKey: targetRef!.localKey
                 })
             : undefined
         }
@@ -390,19 +383,19 @@ function TransmissionPathView({
           src={reportLinkIcon}
           mode='aspectFit'
         />
-        <Text>传到{target?.label ?? '下游对象'}</Text>
+        <Text>传到{target?.name ?? '下游对象'}</Text>
         {target ? (
-          <Text className={`report-result-chip report-result-chip--${target.result.code}`}>
+          <Text className={`report-result-chip report-result-chip--${resultStyle(target.result.code)}`}>
             {target.result.label}
           </Text>
         ) : null}
       </View>
       <Text className='report-transmission-card__source'>{path.sourceConclusion}</Text>
-      <Text className='report-transmission-card__nature'>{path.relationNature}</Text>
+      <Text className='report-transmission-card__nature'>{path.kind.label}</Text>
       <Text className='report-transmission-card__logic'>{path.logic}</Text>
       <View className='report-transmission-card__status'>
-        <Text>边界</Text>
-        <Text>{path.status}</Text>
+        <Text>状态</Text>
+        <Text>{path.status.label}</Text>
       </View>
     </View>
   );
@@ -423,14 +416,14 @@ function IndustryChainDetailView({
   const selectedNode =
     industryChain.nodes.find((nodeItem) => nodeItem.key === selectedNodeKey) ??
     industryChain.nodes[0];
-  const chainResultIcon = {
+  const chainResultIcon = ({
     warming: reportActivityWarmingIcon,
     cooling: reportActivityCoolingIcon,
     diverging: reportActivityDivergingIcon,
     stable: reportActivityPendingIcon,
     mixed: reportActivityDivergingIcon,
     pending: reportActivityPendingIcon
-  }[industryChain.result.code];
+  } as Record<string, string>)[industryChain.result.code] ?? reportActivityPendingIcon;
 
   return (
     <View className='report-detail-flow'>
@@ -449,10 +442,10 @@ function IndustryChainDetailView({
               <Text className='report-layer-heading__title'>{industryChain.name}</Text>
             </View>
           </View>
-          {industryChain.hasEvidence ? (
+          {industryChain.evidenceScopeToken ? (
             <ScopeEvidenceButton
               reportId={report.id}
-              scope={industryChain.scope}
+              scopeToken={industryChain.evidenceScopeToken}
               title={`${industryChain.name}证据`}
               onOpen={onOpenEvidence}
             />
@@ -466,7 +459,7 @@ function IndustryChainDetailView({
 
         <View className='report-chain-metrics'>
           <View
-            className={`report-chain-metric report-chain-metric--result report-chain-metric--${industryChain.result.code}`}
+            className={`report-chain-metric report-chain-metric--result report-chain-metric--${resultStyle(industryChain.result.code)}`}
           >
             <Image
               className='report-chain-metric__icon report-chain-metric__icon--result'
@@ -486,7 +479,7 @@ function IndustryChainDetailView({
             />
             <View className='report-chain-metric__copy'>
               <Text className='report-chain-metric__label'>时间窗口</Text>
-              <Text className='report-chain-metric__value'>{industryChain.timeWindow}</Text>
+              <Text className='report-chain-metric__value'>{industryChain.timeWindow.label}</Text>
             </View>
           </View>
           <View className='report-chain-metric report-chain-metric--confidence'>
@@ -504,6 +497,7 @@ function IndustryChainDetailView({
 
         <SectionHeading title='产业链图' aside='横向滑动 · 点击节点查看详情' />
         <ChainGraph
+          topologyNodes={industryChain.topologyNodes}
           nodes={industryChain.nodes}
           edges={industryChain.edges}
           selectedNodeKey={selectedNodeKey}
@@ -514,10 +508,13 @@ function IndustryChainDetailView({
           <View className='report-node-detail'>
             <View className='report-node-detail__heading'>
               <Text>{selectedNode.name}</Text>
-              {hasDirectEvidence(selectedNode.hasEvidence, selectedNode.nature.code) ? (
+              {hasDirectEvidence(
+                selectedNode.evidenceScopeToken,
+                selectedNode.conclusionBasis?.code
+              ) ? (
                 <ScopeEvidenceTextButton
                   reportId={report.id}
-                  scope={selectedNode.scope}
+                  scopeToken={selectedNode.evidenceScopeToken!}
                   title={`${selectedNode.name}证据`}
                   label='依据'
                   onOpen={onOpenEvidence}
@@ -528,7 +525,8 @@ function IndustryChainDetailView({
               result={selectedNode.result}
               confidence={selectedNode.confidence}
               timeWindow={selectedNode.timeWindow}
-              nature={selectedNode.nature}
+              conclusionBasis={selectedNode.conclusionBasis}
+              validationStatus={selectedNode.validationStatus}
             />
             <View className='report-detail-fact'>
               <Text>本次影响</Text>
@@ -536,15 +534,18 @@ function IndustryChainDetailView({
             </View>
             <View className='report-detail-fact'>
               <Text>传导逻辑</Text>
-              <Text>{selectedNode.reasoning}</Text>
+              <Text>{selectedNode.transmissionLogic}</Text>
             </View>
-            {!hasDirectEvidence(selectedNode.hasEvidence, selectedNode.nature.code) ? (
+            {!hasDirectEvidence(
+              selectedNode.evidenceScopeToken,
+              selectedNode.conclusionBasis?.code
+            ) ? (
               <Text className='report-node-detail__evidence-note'>暂无直接证据，待后续验证</Text>
             ) : null}
           </View>
         ) : null}
 
-        {industryChain.uncertainty.counterevidenceAndGap ? (
+        {industryChain.counterevidenceAndGap ? (
           <View className='report-chain-boundary report-chain-boundary--gap'>
             <Image
               className='report-chain-boundary__icon report-chain-boundary__icon--gap'
@@ -553,11 +554,11 @@ function IndustryChainDetailView({
             />
             <View className='report-chain-boundary__copy'>
               <Text>反证与缺口</Text>
-              <Text>{industryChain.uncertainty.counterevidenceAndGap}</Text>
+              <Text>{industryChain.counterevidenceAndGap}</Text>
             </View>
           </View>
         ) : null}
-        {industryChain.uncertainty.stopCondition ? (
+        {industryChain.stopCondition ? (
           <View className='report-chain-boundary report-chain-boundary--stop'>
             <Image
               className='report-chain-boundary__icon report-chain-boundary__icon--stop'
@@ -566,7 +567,7 @@ function IndustryChainDetailView({
             />
             <View className='report-chain-boundary__copy'>
               <Text>停止条件</Text>
-              <Text>{industryChain.uncertainty.stopCondition}</Text>
+              <Text>{industryChain.stopCondition}</Text>
             </View>
           </View>
         ) : null}
@@ -576,11 +577,13 @@ function IndustryChainDetailView({
 }
 
 function ChainGraph({
+  topologyNodes,
   nodes,
   edges,
   selectedNodeKey,
   onSelect
 }: {
+  topologyNodes: ReportGraphNode[];
   nodes: ReportIndustryChainNode[];
   edges: ReportIndustryChainDetail['industryChain']['edges'];
   selectedNodeKey: string;
@@ -590,7 +593,8 @@ function ChainGraph({
   const nodeGap = 56;
   const canvasPadding = 28;
   const step = nodeWidth + nodeGap;
-  const nodeIndexes = new Map(nodes.map((item, index) => [item.key, index]));
+  const nodeIndexes = new Map(topologyNodes.map((item, index) => [item.key, index]));
+  const assessments = new Map(nodes.map((item) => [item.nodeLocalKey, item]));
   const longEdges = edges.filter((edgeItem) => {
     const from = nodeIndexes.get(edgeItem.fromNodeKey);
     const to = nodeIndexes.get(edgeItem.toNodeKey);
@@ -598,7 +602,7 @@ function ChainGraph({
   });
   const laneHeight = 52 + longEdges.length * 34;
   const canvasWidth =
-    canvasPadding * 2 + nodes.length * nodeWidth + Math.max(0, nodes.length - 1) * nodeGap;
+    canvasPadding * 2 + topologyNodes.length * nodeWidth + Math.max(0, topologyNodes.length - 1) * nodeGap;
 
   return (
     <ScrollView className='report-chain-scroll' scrollX>
@@ -620,7 +624,7 @@ function ChainGraph({
             const sourceX = canvasPadding + fromIndex * step + (movesRight ? nodeWidth : 0);
             const targetX = canvasPadding + toIndex * step + (movesRight ? 0 : nodeWidth);
             return (
-              <View key={edgeItem.key}>
+              <View key={`${edgeItem.fromNodeKey}:${edgeItem.toNodeKey}`}>
                 <View
                   className='report-chain-edge report-chain-edge--adjacent'
                   style={graphStyle([
@@ -629,7 +633,7 @@ function ChainGraph({
                     ['width', Math.abs(targetX - sourceX)]
                   ])}
                 >
-                  <Text>{edgeItem.relationLabel}</Text>
+                  <Text>{edgeItem.relation.label}</Text>
                 </View>
                 <View
                   className={`report-chain-edge-arrow ${movesRight ? 'is-right' : 'is-left'}`}
@@ -643,10 +647,14 @@ function ChainGraph({
           }
           const sourceX = canvasPadding + fromIndex * step + nodeWidth / 2;
           const targetX = canvasPadding + toIndex * step + nodeWidth / 2;
-          const lane = longEdges.findIndex((candidate) => candidate.key === edgeItem.key);
+          const lane = longEdges.findIndex(
+            (candidate) =>
+              candidate.fromNodeKey === edgeItem.fromNodeKey &&
+              candidate.toNodeKey === edgeItem.toNodeKey
+          );
           const laneTop = 18 + lane * 34;
           return (
-            <View key={edgeItem.key}>
+            <View key={`${edgeItem.fromNodeKey}:${edgeItem.toNodeKey}`}>
               <View
                 className='report-chain-edge report-chain-edge--long'
                 style={graphStyle([
@@ -655,7 +663,7 @@ function ChainGraph({
                   ['width', Math.abs(targetX - sourceX)]
                 ])}
               >
-                <Text>{edgeItem.relationLabel}</Text>
+                <Text>{edgeItem.relation.label}</Text>
               </View>
               <View
                 className='report-chain-edge-vertical'
@@ -685,27 +693,34 @@ function ChainGraph({
         })}
 
         <View className='report-chain-node-row'>
-          {nodes.map((nodeItem) => (
-            <Button
-              className={`tidewise-button report-chain-node ${selectedNodeKey === nodeItem.key ? 'is-selected' : ''}`}
-              hoverClass='report-chain-node--pressed'
-              key={nodeItem.key}
-              ariaLabel={`查看${nodeItem.name}节点详情`}
-              onClick={() => onSelect(nodeItem.key)}
-            >
-              <Text className='report-chain-node__name'>{nodeItem.name}</Text>
-              <ReportImpactSignals
-                result={nodeItem.result}
-                confidence={nodeItem.confidence}
-                timeWindow={nodeItem.timeWindow}
-              />
-              <Text
-                className={`report-nature-chip report-nature-chip--${nodeItem.nature.code} report-chain-node__nature`}
+          {topologyNodes.map((topologyNode) => {
+            const assessment = assessments.get(topologyNode.key);
+            return (
+              <Button
+                className={`tidewise-button report-chain-node ${assessment && selectedNodeKey === assessment.key ? 'is-selected' : ''}`}
+                hoverClass='report-chain-node--pressed'
+                key={topologyNode.key}
+                disabled={!assessment}
+                ariaLabel={assessment ? `查看${topologyNode.name}节点详情` : `${topologyNode.name}暂无本期评估`}
+                onClick={() => {
+                  if (assessment) onSelect(assessment.key);
+                }}
               >
-                {nodeItem.nature.label}
-              </Text>
-            </Button>
-          ))}
+                <Text className='report-chain-node__name'>{topologyNode.name}</Text>
+                {assessment ? (
+                  <ReportImpactSignals
+                    result={assessment.result}
+                    confidence={assessment.confidence}
+                    timeWindow={assessment.timeWindow}
+                    conclusionBasis={assessment.conclusionBasis}
+                    validationStatus={assessment.validationStatus}
+                  />
+                ) : (
+                  <Text className='report-chain-node__unassessed'>暂无本期评估</Text>
+                )}
+              </Button>
+            );
+          })}
         </View>
       </View>
     </ScrollView>
@@ -727,12 +742,12 @@ function resetPageScroll(): void {
 
 function ScopeEvidenceButton({
   reportId,
-  scope,
+  scopeToken,
   title,
   onOpen
 }: {
   reportId: string;
-  scope: ReportEvidenceScope;
+  scopeToken: string;
   title: string;
   onOpen: (route: ReportEvidenceRoute) => void;
 }) {
@@ -742,8 +757,7 @@ function ScopeEvidenceButton({
       onClick={() =>
         onOpen({
           reportId,
-          scopeType: scope.type,
-          scopeKey: scope.key,
+          scopeToken,
           title
         })
       }
@@ -753,13 +767,13 @@ function ScopeEvidenceButton({
 
 function ScopeEvidenceTextButton({
   reportId,
-  scope,
+  scopeToken,
   title,
   label,
   onOpen
 }: {
   reportId: string;
-  scope: ReportEvidenceScope;
+  scopeToken: string;
   title: string;
   label: string;
   onOpen: (route: ReportEvidenceRoute) => void;
@@ -773,8 +787,7 @@ function ScopeEvidenceTextButton({
         event.stopPropagation();
         onOpen({
           reportId,
-          scopeType: scope.type,
-          scopeKey: scope.key,
+          scopeToken,
           title
         });
       }}
@@ -784,8 +797,14 @@ function ScopeEvidenceTextButton({
   );
 }
 
-function hasDirectEvidence(hasEvidence: boolean, natureCode: ReportNatureCode): boolean {
-  return hasEvidence && natureCode === 'direct_evidence';
+function hasDirectEvidence(scopeToken: string | null, conclusionBasisCode?: string): boolean {
+  return scopeToken !== null && conclusionBasisCode === 'direct_evidence';
+}
+
+function resultStyle(result: string): string {
+  return ['warming', 'cooling', 'diverging', 'stable', 'mixed', 'pending'].includes(result)
+    ? result
+    : 'pending';
 }
 
 function SectionHeading({ title, aside }: { title: string; aside?: string }) {

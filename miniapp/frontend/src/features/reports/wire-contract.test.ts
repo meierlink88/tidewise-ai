@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  parseReportCardPageWire,
   parseReportEvidenceListWire,
   parseReportHomeWire,
   parseReportIndustryChainDetailWire,
@@ -7,435 +8,200 @@ import {
 } from './wire-contract';
 
 const reportId = 'RPT11111111-1111-4111-8111-111111111111';
+const scopeToken = 'RPE11111111-1111-4111-8111-111111111111';
+const coded = { code: 'warming', label: '升温' };
+const confidence = { code: 'medium', label: '中', score: null };
+const timeWindow = { code: 'medium', label: '中期' };
 const report = {
   id: reportId,
-  title: '当前事件如何从地缘政治与宏观经济传导至产业链',
   generated_at: '2026-09-01T04:39:03Z',
-  published_at: '2026-09-01T04:40:00Z'
+  published_at: '2026-09-01T04:40:00Z',
+  industry_chain_count: 54
 };
-const warming = { code: 'warming', label: '升温' } as const;
-const cooling = { code: 'cooling', label: '降温' } as const;
-const confidence = { label: '中', score: null } as const;
-const nature = { code: 'direct_evidence', label: '直接证据' } as const;
 
-function impact(type: 'anchor' | 'industry_chain_node', key: string, name: string) {
+function card(localKey = 'card-chn-01') {
   return {
-    ref: { type, key },
-    name,
-    result: warming,
-    confidence,
-    time_window: '中期',
-    has_evidence: true
-  };
-}
-
-const cards = [
-  {
-    key: 'card-geopolitics',
-    kind: 'geopolitics',
-    display_order: 1,
-    detail_ref: { type: 'layer', key: 'geopolitics' },
-    title: '地缘政治',
-    subtitle: '安全对抗与通道可用性',
-    conclusion: '海湾安全对抗持续升温。',
-    result: warming,
-    confidence,
-    time_window: '即时–中期',
-    impact_items: [impact('anchor', 'geo-a01', '海湾安全对抗')],
-    has_evidence: true
-  },
-  {
-    key: 'card-macroeconomics',
-    kind: 'macroeconomics',
-    display_order: 2,
-    detail_ref: { type: 'layer', key: 'macroeconomics' },
-    title: '宏观经济',
-    subtitle: '增长预期与政策利率',
-    conclusion: '增长预期下降。',
-    result: cooling,
-    confidence,
-    time_window: '中期',
-    impact_items: [impact('anchor', 'macro-a01', '增长预期')],
-    has_evidence: true
-  },
-  {
-    key: 'card-chn-21',
+    local_key: localKey,
     kind: 'industry_chain',
-    display_order: 3,
-    detail_ref: { type: 'industry_chain', key: 'chn-21' },
-    title: '油品石化贸易服务产业链',
-    subtitle: '海湾风险直接关联链',
-    conclusion: '油品运输服务分化。',
-    result: warming,
+    detail_ref: { type: 'industry_chain', local_key: 'chn-01' },
+    title: '人形机器人产业链',
+    subtitle: '产业链',
+    conclusion: '链结论',
+    result: coded,
     confidence,
-    time_window: '中期',
-    impact_items: [impact('industry_chain_node', 'chn-21-n01', '油品运输服务')],
-    has_evidence: true
-  }
-] as const;
-
-function homeGroup(summary: typeof report = report) {
-  return {
-    report: summary,
-    industry_chain_count: 54,
-    cards
-  };
-}
-
-const anchor = {
-  key: 'geo-a01',
-  display_order: 1,
-  name: '海湾安全对抗',
-  current_state: '风险上升',
-  result: warming,
-  nature,
-  reasoning: '通行量下降与袭击风险共同推高安全压力。',
-  time_window: '即时–中期',
-  confidence,
-  scope: { type: 'anchor', key: 'geo-a01' },
-  has_evidence: true
-};
-
-const relatedChain = {
-  key: 'chn-21',
-  display_order: 21,
-  name: '油品石化贸易服务产业链',
-  conclusion: '油品运输服务分化。',
-  status: '运输节点已闭合',
-  result: warming,
-  confidence,
-  time_window: '中期',
-  scope: { type: 'industry_chain_summary', key: 'chn-21' },
-  has_evidence: true
-};
-
-const layer = {
-  key: 'geopolitics',
-  display_order: 1,
-  title: '地缘政治',
-  conclusion: '海湾安全对抗持续升温。',
-  result: warming,
-  confidence,
-  time_window: '即时–中期',
-  anchors: [anchor],
-  reasoning_steps: [
-    {
-      key: 'geo-step-01',
-      display_order: 1,
-      input: '通行量下降',
-      mechanism: '安全风险重定价',
-      output: '航运压力上升',
-      type: '证据 → 推理',
-      confidence,
-      scope: { type: 'reasoning_step', key: 'geo-step-01' },
-      has_evidence: true
-    }
-  ],
-  related_anchor_keys: ['macro-a01'],
-  related_chain_keys: ['chn-21'],
-  downward_transmission: {
-    summary: '只发布有结构化目标的传导。',
-    published_paths: [
+    time_window: timeWindow,
+    impact_items: [
       {
-        key: 'geo-path-01',
-        display_order: 1,
-        source_conclusion: '海湾通道压力上升',
-        target_refs: [
-          { ref: { type: 'layer', key: 'macroeconomics' }, label: '宏观经济', result: cooling },
-          { ref: { type: 'anchor', key: 'macro-a01' }, label: '增长预期', result: cooling },
-          { ref: { type: 'industry_chain', key: 'chn-21' }, label: '油品贸易链', result: warming },
-          {
-            ref: { type: 'industry_chain_node', key: 'chn-21-n01' },
-            label: '油品运输服务',
-            result: warming
-          }
-        ],
-        logic: '通行受阻抬高运输成本。',
-        relation_nature: '推理假设',
-        evidence_role: '来源与目标证据分离',
+        ref: { type: 'industry_chain_node', local_key: 'chn-01-n01' },
+        name: '人形机器人',
+        result: coded,
+        conclusion_basis: { code: 'direct_evidence', label: '直接证据' },
+        validation_status: null,
         confidence,
-        status: '运输节点已闭合。',
-        scope: { type: 'transmission', key: 'geo-path-01' },
-        has_evidence: true
+        time_window: timeWindow,
+        evidence_scope_token: scopeToken
       }
     ],
-    candidate_mechanisms: [],
-    boundary_notes: ['不把同源信号改写为直接因果。']
-  },
-  uncertainty: {
-    counterevidence: '商业航运仍局部稳定。',
-    evidence_gap: '缺少连续船舶量。',
-    boundary: '国家仅作背景。',
-    reversal_condition: '若通行恢复则下调结论。',
-    checkpoints: []
-  },
-  scope: { type: 'section_summary', key: 'geopolitics' },
-  has_evidence: true
-};
-
-const chain = {
-  key: 'chn-21',
-  claim_key: 'chn-21-claim',
-  display_order: 21,
-  name: '油品石化贸易服务产业链',
-  conclusion: '油品运输服务分化。',
-  status: '运输节点已闭合',
-  result: warming,
-  confidence,
-  time_window: '中期',
-  path_summary: '运输成本向批发交付传导。',
-  accepted_hypothesis_summary: null,
-  nodes: [
-    {
-      key: 'chn-21-n01',
-      display_order: 1,
-      name: '油品运输服务',
-      impact: '交付周期上升',
-      result: warming,
-      nature,
-      reasoning: '通行受阻延长运输周期。',
-      time_window: '中期',
-      confidence,
-      scope: { type: 'industry_chain_node', key: 'chn-21-n01' },
-      has_evidence: true
-    },
-    {
-      key: 'chn-21-n02',
-      display_order: 2,
-      name: '成品油批发交付服务',
-      impact: '经营景气承压',
-      result: cooling,
-      nature: { code: 'reasoning_hypothesis', label: '推理假设' },
-      reasoning: '更高物流成本继续向交付环节传导。',
-      time_window: '短期–中期',
-      confidence,
-      scope: { type: 'industry_chain_node', key: 'chn-21-n02' },
-      has_evidence: false
-    }
-  ],
-  edges: [
-    {
-      key: 'chn-21-edge-01',
-      display_order: 1,
-      from_node_key: 'chn-21-n02',
-      to_node_key: 'chn-21-n01',
-      relation_label: '依赖'
-    }
-  ],
-  uncertainty: {
-    counterevidence_and_gap: '批发交付仍需经营数据。',
-    stop_condition: '运输信号反转则停止。',
-    checkpoints: []
-  },
-  scope: { type: 'industry_chain_summary', key: 'chn-21' },
-  has_evidence: true
-};
+    evidence_scope_token: scopeToken
+  };
+}
 
 describe('Report BFF wire contract', () => {
-  it('parses all same-day Report groups without merging cards', () => {
-    const second = {
-      ...report,
-      id: 'RPT22222222-2222-4222-8222-222222222222',
-      published_at: '2026-09-01T04:30:00Z'
-    };
-    const home = parseReportHomeWire({
+  it('parses the new home contract and preserves unknown future codes and labels', () => {
+    const futureCard = card();
+    futureCard.result = { code: 'future_direction', label: '未来方向' };
+    const value = parseReportHomeWire({
       selection: { mode: 'today', date: '2026-09-01', timezone: 'Asia/Shanghai' },
-      reports: [homeGroup(), homeGroup(second)]
+      reports: [{ report, cards: [futureCard], next_cursor: 'opaque-cursor' }]
     });
-
-    expect(home.reports).toHaveLength(2);
-    expect(home.reports[0].cards.map((card) => card.key)).toEqual([
-      'card-geopolitics',
-      'card-macroeconomics',
-      'card-chn-21'
-    ]);
-    expect(home.reports[1].report.id).toBe(second.id);
-    expect(home.reports[0].industryChainCount).toBe(54);
-  });
-
-  it('accepts today empty and fails closed on legacy/surplus/fallback-empty shapes', () => {
-    expect(
-      parseReportHomeWire({
-        selection: { mode: 'today', date: '2026-09-01', timezone: 'Asia/Shanghai' },
-        reports: []
-      }).reports
-    ).toEqual([]);
-    expect(() =>
-      parseReportHomeWire({
-        selection: {
-          mode: 'latest_fallback',
-          date: '2026-09-01',
-          timezone: 'Asia/Shanghai'
-        },
-        reports: []
-      })
-    ).toThrow('invalid Report wire contract');
-    expect(() => parseReportHomeWire({ report: homeGroup() })).toThrow(
-      'invalid Report wire contract'
-    );
-    const { industry_chain_count: _missingIndustryChainCount, ...missingCount } = homeGroup();
-    expect(() =>
-      parseReportHomeWire({
-        selection: { mode: 'today', date: '2026-09-01', timezone: 'Asia/Shanghai' },
-        reports: [missingCount]
-      })
-    ).toThrow('invalid Report wire contract');
-    expect(() =>
-      parseReportHomeWire({
-        selection: { mode: 'today', date: '2026-09-01', timezone: 'Asia/Shanghai' },
-        reports: [
-          {
-            ...homeGroup(),
-            report: { ...report, unexpected_legacy_field: 'private-value' }
-          }
-        ]
-      })
-    ).toThrow('invalid Report wire contract');
-  });
-
-  it('accepts provider-valid display strings beyond legacy frontend limits', () => {
-    const legalLongText = '长'.repeat(501);
-    const longCards = cards.map((card, index) =>
-      index === 0
-        ? {
-            ...card,
-            title: legalLongText,
-            time_window: legalLongText,
-            impact_items: [{ ...card.impact_items[0], name: legalLongText }]
-          }
-        : card
-    );
-    const home = parseReportHomeWire({
-      selection: { mode: 'today', date: '2026-09-01', timezone: 'Asia/Shanghai' },
-      reports: [
-        {
-          ...homeGroup({ ...report, title: legalLongText }),
-          cards: longCards
-        }
-      ]
+    expect(value.reports[0]?.report.industryChainCount).toBe(54);
+    expect(value.reports[0]?.cards[0]?.result).toEqual({
+      code: 'future_direction',
+      label: '未来方向'
     });
+    expect(value.reports[0]?.nextCursor).toBe('opaque-cursor');
+  });
 
-    expect(home.reports[0].report.title).toBe(legalLongText);
-    expect(home.reports[0].cards[0].impactItems[0].name).toBe(legalLongText);
+  it('fails closed on retired home fields', () => {
     expect(() =>
       parseReportHomeWire({
         selection: { mode: 'today', date: '2026-09-01', timezone: 'Asia/Shanghai' },
-        reports: [homeGroup({ ...report, title: '超'.repeat(10_001) })]
+        reports: [{ report, cards: [card()], next_cursor: null, industry_chain_count: 54 }]
       })
-    ).toThrow('invalid Report wire contract');
+    ).toThrow('invalid Report wire response');
   });
 
-  it('parses layer scopes, full target reference types and gapped related-chain order', () => {
-    const providerValidBoundaryNotes = Array.from(
-      { length: 101 },
-      (_, index) => `边界说明 ${index + 1}`
-    );
-    const detail = parseReportLayerDetailWire(
+  it('parses a report-bound industry-chain page', () => {
+    expect(parseReportCardPageWire({ items: [card()], next_cursor: null }, reportId)).toEqual({
+      items: [expect.objectContaining({ key: 'card-chn-01' })],
+      nextCursor: null
+    });
+  });
+
+  it('parses optional layer content with split basis and validation status', () => {
+    const value = parseReportLayerDetailWire(
       {
         report,
         layer: {
-          ...layer,
-          downward_transmission: {
-            ...layer.downward_transmission,
-            boundary_notes: providerValidBoundaryNotes
-          }
+          key: 'geopolitics',
+          title: '地缘政治',
+          conclusion: '一句话结论',
+          result: coded,
+          confidence,
+          time_window: timeWindow,
+          anchors: [
+            {
+              local_key: 'geo-a01',
+              name: '海湾安全对抗',
+              current_state: '风险上升',
+              result: coded,
+              conclusion_basis: { code: 'direct_evidence', label: '直接证据' },
+              validation_status: null,
+              transmission_logic: '直接事件形成节点信号。',
+              time_window: timeWindow,
+              confidence,
+              evidence_scope_token: scopeToken
+            }
+          ],
+          reasoning_steps: [],
+          transmissions: [],
+          uncertainty: {
+            counterevidence: null,
+            evidence_gap: null,
+            boundary: null,
+            reversal_condition: null
+          },
+          evidence_scope_token: scopeToken
         },
-        related_industry_chains: [relatedChain]
+        related_industry_chains: [{ local_key: 'chn-01', name: '人形机器人产业链', result: coded }]
       },
       reportId,
       'geopolitics'
     );
-
-    expect(detail.layer.downwardTransmission.publishedPaths[0].targetRefs).toHaveLength(4);
-    expect(detail.layer.downwardTransmission.boundaryNotes).toEqual(providerValidBoundaryNotes);
-    expect(detail.relatedIndustryChains[0]).toMatchObject({
-      key: 'chn-21',
-      displayOrder: 21,
-      detailRef: { type: 'industry_chain', key: 'chn-21' }
-    });
-    expect(() =>
-      parseReportLayerDetailWire(
-        {
-          report,
-          layer: { ...layer, scope: { type: 'section_summary', key: 'macroeconomics' } },
-          related_industry_chains: [relatedChain]
-        },
-        reportId,
-        'geopolitics'
-      )
-    ).toThrow('invalid Report wire contract');
+    expect(value.layer.anchors[0]?.conclusionBasis?.code).toBe('direct_evidence');
+    expect(value.layer.anchors[0]?.validationStatus).toBeNull();
   });
 
-  it('preserves only explicit chain edges and rejects unknown graph endpoints', () => {
-    const detail = parseReportIndustryChainDetailWire(
-      { report, industry_chain: chain },
-      reportId,
-      'chn-21'
-    );
-
-    expect(detail.industryChain.edges).toEqual([
-      {
-        key: 'chn-21-edge-01',
-        displayOrder: 1,
-        fromNodeKey: 'chn-21-n02',
-        toNodeKey: 'chn-21-n01',
-        relationLabel: '依赖'
-      }
-    ]);
-    expect(() =>
-      parseReportIndustryChainDetailWire(
-        {
-          report,
-          industry_chain: {
-            ...chain,
-            edges: [{ ...chain.edges[0], to_node_key: 'missing-node' }]
+  it('validates industry-chain topology against node_local_key', () => {
+    const payload = {
+      report,
+      industry_chain: {
+        local_key: 'chn-01',
+        name: '人形机器人产业链',
+        conclusion: '一句话结论',
+        status: '已发布',
+        result: coded,
+        confidence,
+        time_window: timeWindow,
+        path: '整机 → 控制平台',
+        topology_nodes: [
+          { local_key: 'node-01', name: '人形机器人' },
+          { local_key: 'node-02', name: '控制平台' },
+          { local_key: 'node-03', name: '结构上下文节点' }
+        ],
+        nodes: [
+          {
+            local_key: 'impact-01',
+            node_local_key: 'node-01',
+            name: '人形机器人',
+            impact: '需求上升',
+            result: coded,
+            conclusion_basis: { code: 'direct_evidence', label: '直接证据' },
+            validation_status: null,
+            transmission_logic: '直接形成信号。',
+            time_window: timeWindow,
+            confidence,
+            evidence_scope_token: scopeToken
+          },
+          {
+            local_key: 'impact-02',
+            node_local_key: 'node-02',
+            name: '控制平台',
+            impact: '需求上升',
+            result: coded,
+            conclusion_basis: { code: 'reasoning_hypothesis', label: '推理假设' },
+            validation_status: { code: 'pending_validation', label: '待验证' },
+            transmission_logic: '同链传导。',
+            time_window: timeWindow,
+            confidence,
+            evidence_scope_token: null
           }
-        },
-        reportId,
-        'chn-21'
-      )
-    ).toThrow('invalid Report wire contract');
+        ],
+        edges: [
+          {
+            from_node_key: 'node-02',
+            to_node_key: 'node-01',
+            relation: { code: 'component_of', label: '组成' }
+          }
+        ],
+        counterevidence_and_gap: '仍需经营数据。',
+        stop_condition: '信号反转则停止。',
+        evidence_scope_token: scopeToken
+      }
+    };
+    const parsed = parseReportIndustryChainDetailWire(payload, reportId, 'chn-01').industryChain;
+    expect(parsed.edges).toHaveLength(1);
+    expect(parsed.topologyNodes).toHaveLength(3);
+    const broken = structuredClone(payload);
+    broken.industry_chain.edges[0]!.to_node_key = 'missing-node';
+    expect(() => parseReportIndustryChainDetailWire(broken, reportId, 'chn-01')).toThrow();
   });
 
-  it('parses only Evidence display fields and preserves BFF order including duplicates', () => {
-    const duplicate = {
-      published_at: '2026-09-01T03:00:00Z',
-      summary: '霍尔木兹通行扰动进入油品运输周期。',
-      keywords: ['霍尔木兹', '油品运输']
-    };
-    const evidences = parseReportEvidenceListWire(
-      {
-        report_id: reportId,
-        scope: { type: 'industry_chain_summary', key: 'chn-21' },
-        items: [duplicate, duplicate, { ...duplicate, published_at: null }]
-      },
-      reportId,
-      { type: 'industry_chain_summary', key: 'chn-21' }
-    );
-
-    expect(evidences.items).toEqual([
-      {
-        publishedAt: '2026-09-01T03:00:00Z',
-        summary: duplicate.summary,
-        keywords: duplicate.keywords
-      },
-      {
-        publishedAt: '2026-09-01T03:00:00Z',
-        summary: duplicate.summary,
-        keywords: duplicate.keywords
-      },
-      { publishedAt: null, summary: duplicate.summary, keywords: duplicate.keywords }
-    ]);
-    expect(() =>
+  it('binds evidence responses to the opaque report scope token', () => {
+    expect(
       parseReportEvidenceListWire(
         {
           report_id: reportId,
-          scope: { type: 'industry_chain_summary', key: 'chn-21' },
-          items: [{ ...duplicate, evidence_id: 'EVD11111111-1111-4111-8111-111111111111' }]
+          scope_token: scopeToken,
+          items: [{ published_at: null, summary: '证据摘要', keywords: ['海湾', '航运'] }]
         },
         reportId,
-        { type: 'industry_chain_summary', key: 'chn-21' }
+        scopeToken
       )
-    ).toThrow('invalid Report wire contract');
+    ).toEqual({
+      reportId,
+      scopeToken,
+      items: [{ publishedAt: null, summary: '证据摘要', keywords: ['海湾', '航运'] }]
+    });
   });
 });

@@ -3,6 +3,8 @@ package report
 import (
 	"context"
 	"errors"
+	"strconv"
+	"strings"
 	"time"
 
 	v1 "github.com/meierlink88/tidewise-ai/miniapp/backend/api/miniapp/v1"
@@ -10,9 +12,7 @@ import (
 	biz "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/biz/report"
 )
 
-type Service struct {
-	useCase *biz.UseCase
-}
+type Service struct{ useCase *biz.UseCase }
 
 func NewService(useCase *biz.UseCase) (*Service, error) {
 	if useCase == nil {
@@ -33,9 +33,30 @@ func (s *Service) GetHome(ctx context.Context, request *api.HomeRequest) (*api.H
 	for index, item := range result.Reports {
 		reports[index] = mapHome(item)
 	}
-	return &api.HomeResponse{Selection: api.Selection{
-		Mode: result.Selection.Mode, Date: result.Selection.Date, Timezone: result.Selection.Timezone,
-	}, Reports: reports}, nil
+	return &api.HomeResponse{Selection: api.Selection{Mode: result.Selection.Mode, Date: result.Selection.Date, Timezone: result.Selection.Timezone}, Reports: reports}, nil
+}
+
+func (s *Service) ListIndustryChains(ctx context.Context, request *api.IndustryChainListRequest) (*api.CardCollection, error) {
+	if s == nil || s.useCase == nil || request == nil || request.HasUnknownQuery {
+		return nil, v1.ErrInvalidRequest
+	}
+	limit := 0
+	if strings.TrimSpace(request.Limit) != "" {
+		value, err := strconv.Atoi(request.Limit)
+		if err != nil {
+			return nil, v1.ErrInvalidRequest
+		}
+		limit = value
+	}
+	page, err := s.useCase.IndustryChains(ctx, request.ReportID, limit, request.Cursor)
+	if err != nil {
+		return nil, publicError(err)
+	}
+	items := make([]api.Card, len(page.Items))
+	for index, item := range page.Items {
+		items[index] = mapCard(item)
+	}
+	return &api.CardCollection{Items: items, NextCursor: page.NextCursor}, nil
 }
 
 func (s *Service) GetLayer(ctx context.Context, request *api.LayerRequest) (*api.LayerDetail, error) {
@@ -64,8 +85,7 @@ func (s *Service) ListEvidences(ctx context.Context, request *api.EvidenceReques
 	if s == nil || s.useCase == nil || request == nil || request.HasUnknownQuery {
 		return nil, v1.ErrInvalidRequest
 	}
-	scope := biz.EvidenceScope{Type: request.ScopeType, Key: request.ScopeKey}
-	result, err := s.useCase.Evidences(ctx, request.ReportID, scope)
+	result, err := s.useCase.Evidences(ctx, request.ReportID, request.ScopeToken)
 	if err != nil {
 		return nil, publicError(err)
 	}
@@ -76,11 +96,83 @@ func (s *Service) ListEvidences(ctx context.Context, request *api.EvidenceReques
 			formatted := formatTime(*item.PublishedAt)
 			publishedAt = &formatted
 		}
-		items[index] = api.EvidenceItem{PublishedAt: publishedAt, Summary: item.Summary,
-			Keywords: cloneStrings(item.Keywords)}
+		items[index] = api.EvidenceItem{PublishedAt: publishedAt, Summary: item.Summary, Keywords: cloneStrings(item.Keywords)}
 	}
-	return &api.EvidenceCollection{ReportID: result.ReportID,
-		Scope: mapScope(result.Scope), Items: items}, nil
+	return &api.EvidenceCollection{ReportID: result.ReportID, ScopeToken: result.ScopeToken, Items: items}, nil
+}
+
+func mapHome(value biz.Home) api.HomeReport {
+	cards := make([]api.Card, len(value.Cards))
+	for index, card := range value.Cards {
+		cards[index] = mapCard(card)
+	}
+	return api.HomeReport{Report: mapSummary(value.Report), Cards: cards, NextCursor: value.NextCursor}
+}
+
+func mapCard(value biz.Card) api.Card {
+	impacts := make([]api.CardImpactItem, len(value.ImpactItems))
+	for index, item := range value.ImpactItems {
+		impacts[index] = api.CardImpactItem{
+			Ref: mapReference(item.Ref), Name: item.Name, Result: mapCoded(item.Result),
+			ConclusionBasis: mapOptionalCoded(item.ConclusionBasis), ValidationStatus: mapOptionalCoded(item.ValidationStatus),
+			Confidence: mapConfidence(item.Confidence), TimeWindow: mapTimeWindow(item.TimeWindow), EvidenceScopeToken: item.EvidenceScopeToken,
+		}
+	}
+	return api.Card{
+		LocalKey: value.LocalKey, Kind: value.Kind, DetailRef: mapReference(value.DetailRef), Title: value.Title,
+		Subtitle: value.Subtitle, Conclusion: value.Conclusion, Result: mapCoded(value.Result),
+		Confidence: mapConfidence(value.Confidence), TimeWindow: mapTimeWindow(value.TimeWindow),
+		ImpactItems: impacts, EvidenceScopeToken: value.EvidenceScopeToken,
+	}
+}
+
+func mapLayerDetail(value biz.LayerDetail) *api.LayerDetail {
+	related := make([]api.RelatedIndustryChain, len(value.RelatedIndustryChains))
+	for index, item := range value.RelatedIndustryChains {
+		related[index] = api.RelatedIndustryChain{LocalKey: item.LocalKey, Name: item.Name, Result: mapCoded(item.Result)}
+	}
+	return &api.LayerDetail{Report: mapSummary(value.Report), Layer: mapLayer(value.Layer), RelatedIndustryChains: related}
+}
+
+func mapLayer(value biz.Layer) api.Layer {
+	anchors := make([]api.Anchor, len(value.Anchors))
+	for index, item := range value.Anchors {
+		anchors[index] = api.Anchor{
+			LocalKey: item.LocalKey, Name: item.Name, CurrentState: item.CurrentState, Result: mapCoded(item.Result),
+			ConclusionBasis: mapOptionalCoded(item.ConclusionBasis), ValidationStatus: mapOptionalCoded(item.ValidationStatus),
+			TransmissionLogic: item.TransmissionLogic, TimeWindow: mapTimeWindow(item.TimeWindow), Confidence: mapConfidence(item.Confidence), EvidenceScopeToken: item.EvidenceScopeToken,
+		}
+	}
+	steps := make([]api.ReasoningStep, len(value.ReasoningSteps))
+	for index, item := range value.ReasoningSteps {
+		steps[index] = api.ReasoningStep{Input: item.Input, Mechanism: item.Mechanism, Output: item.Output, ReasoningType: mapCoded(item.ReasoningType), Confidence: mapConfidence(item.Confidence), EvidenceScopeToken: item.EvidenceScopeToken}
+	}
+	transmissions := make([]api.TransmissionPath, len(value.Transmissions))
+	for index, item := range value.Transmissions {
+		targets := make([]api.TransmissionTarget, len(item.Targets))
+		for targetIndex, target := range item.Targets {
+			targets[targetIndex] = api.TransmissionTarget{Ref: mapReference(target.Ref), Name: target.Name, Result: mapCoded(target.Result)}
+		}
+		transmissions[index] = api.TransmissionPath{LocalKey: item.LocalKey, SourceConclusion: item.SourceConclusion, Targets: targets, Logic: item.Logic, Kind: mapCoded(item.Kind), Confidence: mapConfidence(item.Confidence), Status: mapCoded(item.Status)}
+	}
+	return api.Layer{Key: value.Key, Title: value.Title, Conclusion: value.Conclusion, Result: mapCoded(value.Result), Confidence: mapConfidence(value.Confidence), TimeWindow: mapTimeWindow(value.TimeWindow), Anchors: anchors, ReasoningSteps: steps, Transmissions: transmissions, Uncertainty: api.LayerUncertainty{Counterevidence: value.Uncertainty.Counterevidence, EvidenceGap: value.Uncertainty.EvidenceGap, Boundary: value.Uncertainty.Boundary, ReversalCondition: value.Uncertainty.ReversalCondition}, EvidenceScopeToken: value.EvidenceScopeToken}
+}
+
+func mapIndustryChainDetail(value biz.IndustryChainDetail) *api.IndustryChainDetail {
+	chain := value.IndustryChain
+	topologyNodes := make([]api.IndustryChainTopologyNode, len(chain.TopologyNodes))
+	for index, item := range chain.TopologyNodes {
+		topologyNodes[index] = api.IndustryChainTopologyNode{LocalKey: item.LocalKey, Name: item.Name}
+	}
+	nodes := make([]api.IndustryChainNode, len(chain.Nodes))
+	for index, item := range chain.Nodes {
+		nodes[index] = api.IndustryChainNode{LocalKey: item.LocalKey, NodeLocalKey: item.NodeLocalKey, Name: item.Name, Impact: item.Impact, Result: mapCoded(item.Result), ConclusionBasis: mapOptionalCoded(item.ConclusionBasis), ValidationStatus: mapOptionalCoded(item.ValidationStatus), TransmissionLogic: item.TransmissionLogic, TimeWindow: mapTimeWindow(item.TimeWindow), Confidence: mapConfidence(item.Confidence), EvidenceScopeToken: item.EvidenceScopeToken}
+	}
+	edges := make([]api.IndustryChainEdge, len(chain.Edges))
+	for index, item := range chain.Edges {
+		edges[index] = api.IndustryChainEdge{FromNodeKey: item.FromNodeKey, ToNodeKey: item.ToNodeKey, Relation: mapCoded(item.Relation)}
+	}
+	return &api.IndustryChainDetail{Report: mapSummary(value.Report), IndustryChain: api.IndustryChain{LocalKey: chain.LocalKey, Name: chain.Name, Conclusion: chain.Conclusion, Status: chain.Status, Result: mapCoded(chain.Result), Confidence: mapConfidence(chain.Confidence), TimeWindow: mapTimeWindow(chain.TimeWindow), Path: chain.Path, TopologyNodes: topologyNodes, Nodes: nodes, Edges: edges, CounterevidenceAndGap: chain.CounterevidenceAndGap, StopCondition: chain.StopCondition, EvidenceScopeToken: chain.EvidenceScopeToken}}
 }
 
 func publicError(err error) error {
@@ -99,158 +191,29 @@ func publicError(err error) error {
 		return v1.ErrReportServiceUnavailable
 	}
 }
-
-func mapHome(value biz.Home) api.HomeReport {
-	cards := make([]api.Card, len(value.Cards))
-	for index, card := range value.Cards {
-		impacts := make([]api.CardImpactItem, len(card.ImpactItems))
-		for impactIndex, impact := range card.ImpactItems {
-			impacts[impactIndex] = api.CardImpactItem{Ref: mapReference(impact.Ref), Name: impact.Name,
-				Result: mapResult(impact.Result), Confidence: mapConfidence(impact.Confidence),
-				TimeWindow: impact.TimeWindow, HasEvidence: impact.HasEvidence}
-		}
-		cards[index] = api.Card{Key: card.Key, Kind: card.Kind, DisplayOrder: card.Order,
-			DetailRef: mapReference(card.DetailRef), Title: card.Title, Subtitle: card.Subtitle,
-			Conclusion: card.Conclusion, Result: mapResult(card.Result), Confidence: mapConfidence(card.Confidence),
-			TimeWindow: card.TimeWindow, ImpactItems: impacts, HasEvidence: card.HasEvidence}
-	}
-	return api.HomeReport{Report: mapSummary(value.Report), IndustryChainCount: value.IndustryChainCount,
-		Cards: cards}
-}
-
-func mapLayerDetail(value biz.LayerDetail) *api.LayerDetail {
-	chains := make([]api.IndustryChainSummary, len(value.RelatedIndustryChains))
-	for index, chain := range value.RelatedIndustryChains {
-		chains[index] = mapIndustryChainSummary(chain)
-	}
-	return &api.LayerDetail{Report: mapSummary(value.Report), Layer: mapLayer(value.Layer),
-		RelatedIndustryChains: chains}
-}
-
-func mapLayer(value biz.Layer) api.Layer {
-	anchors := make([]api.Anchor, len(value.Anchors))
-	for index, item := range value.Anchors {
-		anchors[index] = api.Anchor{Key: item.Key, DisplayOrder: item.DisplayOrder, Name: item.Name,
-			CurrentState: item.CurrentState, Result: mapResult(item.Result), Nature: mapNature(item.Nature),
-			Reasoning: item.Reasoning, TimeWindow: item.TimeWindow, Confidence: mapConfidence(item.Confidence),
-			Scope: mapScope(item.Scope), HasEvidence: item.HasEvidence}
-	}
-	steps := make([]api.ReasoningStep, len(value.ReasoningSteps))
-	for index, item := range value.ReasoningSteps {
-		steps[index] = api.ReasoningStep{Key: item.Key, DisplayOrder: item.DisplayOrder,
-			Input: item.Input, Mechanism: item.Mechanism, Output: item.Output, Type: item.Type,
-			Confidence: mapConfidence(item.Confidence), Scope: mapScope(item.Scope), HasEvidence: item.HasEvidence}
-	}
-	paths := make([]api.TransmissionPath, len(value.DownwardTransmission.PublishedPaths))
-	for index, item := range value.DownwardTransmission.PublishedPaths {
-		targets := make([]api.TransmissionTarget, len(item.TargetRefs))
-		for targetIndex, target := range item.TargetRefs {
-			var ref *api.Reference
-			if target.Ref != nil {
-				mapped := mapReference(*target.Ref)
-				ref = &mapped
-			}
-			targets[targetIndex] = api.TransmissionTarget{Ref: ref, Label: target.Label,
-				Result: mapResult(target.Result)}
-		}
-		paths[index] = api.TransmissionPath{Key: item.Key, DisplayOrder: item.DisplayOrder,
-			SourceConclusion: item.SourceConclusion, TargetRefs: targets, Logic: item.Logic,
-			RelationNature: item.RelationNature, EvidenceRole: item.EvidenceRole,
-			Confidence: mapConfidence(item.Confidence), Status: item.Status,
-			Scope: mapScope(item.Scope), HasEvidence: item.HasEvidence}
-	}
-	candidates := make([]api.CandidateMechanism, len(value.DownwardTransmission.CandidateMechanisms))
-	for index, item := range value.DownwardTransmission.CandidateMechanisms {
-		candidates[index] = api.CandidateMechanism{Key: item.Key, DisplayOrder: item.DisplayOrder,
-			Mechanism: item.Mechanism, EvidenceGap: item.EvidenceGap, Confidence: mapConfidence(item.Confidence),
-			Scope: mapScope(item.Scope), HasEvidence: item.HasEvidence}
-	}
-	checkpoints := mapCheckpoints(value.Uncertainty.Checkpoints)
-	return api.Layer{Key: value.Key, DisplayOrder: value.DisplayOrder, Title: value.Title,
-		Conclusion: value.Conclusion, Result: mapResult(value.Result), Confidence: mapConfidence(value.Confidence),
-		TimeWindow: value.TimeWindow, Anchors: anchors, ReasoningSteps: steps,
-		RelatedAnchorKeys: cloneStrings(value.RelatedAnchorKeys),
-		RelatedChainKeys:  cloneStrings(value.RelatedChainKeys),
-		DownwardTransmission: api.DownwardTransmission{Summary: value.DownwardTransmission.Summary,
-			PublishedPaths: paths, CandidateMechanisms: candidates,
-			BoundaryNotes: cloneStrings(value.DownwardTransmission.BoundaryNotes)},
-		Uncertainty: api.LayerUncertainty{Counterevidence: value.Uncertainty.Counterevidence,
-			EvidenceGap: value.Uncertainty.EvidenceGap, Boundary: value.Uncertainty.Boundary,
-			ReversalCondition: value.Uncertainty.ReversalCondition, Checkpoints: checkpoints},
-		Scope: mapScope(value.Scope), HasEvidence: value.HasEvidence}
-}
-
-func mapIndustryChainSummary(value biz.IndustryChainSummary) api.IndustryChainSummary {
-	return api.IndustryChainSummary{Key: value.Key, DisplayOrder: value.DisplayOrder, Name: value.Name,
-		Conclusion: value.Conclusion, Status: value.Status, Result: mapResult(value.Result),
-		Confidence: mapConfidence(value.Confidence), TimeWindow: value.TimeWindow,
-		Scope: mapScope(value.Scope), HasEvidence: value.HasEvidence}
-}
-
-func mapIndustryChainDetail(value biz.IndustryChainDetail) *api.IndustryChainDetail {
-	chain := value.IndustryChain
-	nodes := make([]api.IndustryChainNode, len(chain.Nodes))
-	for index, item := range chain.Nodes {
-		nodes[index] = api.IndustryChainNode{Key: item.Key, DisplayOrder: item.DisplayOrder,
-			Name: item.Name, Impact: item.Impact, Result: mapResult(item.Result), Nature: mapNature(item.Nature),
-			Reasoning: item.Reasoning, TimeWindow: item.TimeWindow, Confidence: mapConfidence(item.Confidence),
-			Scope: mapScope(item.Scope), HasEvidence: item.HasEvidence}
-	}
-	edges := make([]api.IndustryChainEdge, len(chain.Edges))
-	for index, item := range chain.Edges {
-		edges[index] = api.IndustryChainEdge{Key: item.Key, DisplayOrder: item.DisplayOrder,
-			FromNodeKey: item.FromNodeKey, ToNodeKey: item.ToNodeKey, RelationLabel: item.RelationLabel}
-	}
-	return &api.IndustryChainDetail{Report: mapSummary(value.Report), IndustryChain: api.IndustryChain{
-		Key: chain.Key, ClaimKey: chain.ClaimKey, DisplayOrder: chain.DisplayOrder, Name: chain.Name,
-		Conclusion: chain.Conclusion, Status: chain.Status, Result: mapResult(chain.Result),
-		Confidence: mapConfidence(chain.Confidence), TimeWindow: chain.TimeWindow,
-		PathSummary: chain.PathSummary, AcceptedHypothesisSummary: chain.AcceptedHypothesisSummary,
-		Nodes: nodes, Edges: edges, Uncertainty: api.ChainUncertainty{
-			CounterevidenceAndGap: chain.Uncertainty.CounterevidenceAndGap,
-			StopCondition:         chain.Uncertainty.StopCondition,
-			Checkpoints:           mapCheckpoints(chain.Uncertainty.Checkpoints)},
-		Scope: mapScope(chain.Scope), HasEvidence: chain.HasEvidence,
-	}}
-}
-
-func mapCheckpoints(values []biz.Checkpoint) []api.Checkpoint {
-	items := make([]api.Checkpoint, len(values))
-	for index, item := range values {
-		items[index] = api.Checkpoint{Key: item.Key, DisplayOrder: item.DisplayOrder, Summary: item.Summary}
-	}
-	return items
-}
-
 func mapSummary(value biz.Summary) api.Summary {
-	return api.Summary{ID: value.ID, Title: value.Title,
-		GeneratedAt: formatTime(value.GeneratedAt), PublishedAt: formatTime(value.PublishedAt)}
+	return api.Summary{ID: value.ID, GeneratedAt: formatTime(value.GeneratedAt), PublishedAt: formatTime(value.PublishedAt), IndustryChainCount: value.IndustryChainCount}
 }
-
-func mapResult(value biz.Result) api.Result {
-	return api.Result{Code: value.Code, Label: value.Label}
+func mapCoded(value biz.CodedLabel) api.CodedLabel {
+	return api.CodedLabel{Code: value.Code, Label: value.Label}
 }
-
-func mapNature(value biz.Nature) api.Nature {
-	return api.Nature{Code: value.Code, Label: value.Label}
+func mapOptionalCoded(value *biz.CodedLabel) *api.CodedLabel {
+	if value == nil {
+		return nil
+	}
+	mapped := mapCoded(*value)
+	return &mapped
 }
-
 func mapConfidence(value biz.Confidence) api.Confidence {
-	return api.Confidence{Label: value.Label, Score: value.Score}
+	return api.Confidence{Code: value.Code, Label: value.Label, Score: value.Score}
 }
-
+func mapTimeWindow(value biz.TimeWindow) api.TimeWindow {
+	return api.TimeWindow{Code: value.Code, Label: value.Label}
+}
 func mapReference(value biz.Reference) api.Reference {
-	return api.Reference{Type: value.Type, Key: value.Key}
+	return api.Reference{Type: value.Type, LocalKey: value.LocalKey}
 }
-
-func mapScope(value biz.EvidenceScope) api.Scope {
-	return api.Scope{Type: value.Type, Key: value.Key}
-}
-
-func formatTime(value time.Time) string {
-	return value.UTC().Format(time.RFC3339Nano)
-}
-
+func formatTime(value time.Time) string { return value.UTC().Format(time.RFC3339Nano) }
 func cloneStrings(values []string) []string {
 	result := make([]string, len(values))
 	copy(result, values)

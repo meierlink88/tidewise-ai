@@ -597,6 +597,22 @@ $home-hero-static-height: 168rpx;
   line-height: 1.5;
 }
 
+.home-chain-page-state {
+  display: block;
+  width: 100%;
+  padding: 24rpx 0 10rpx;
+  color: $color-report-slate-500;
+  font-size: 22rpx;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.home-chain-page-state--retry {
+  border: 0;
+  background: transparent;
+  color: $color-report-blue-800;
+}
+
 @media screen and (max-width: 350px) {
   .home-impact-item {
     gap: 12rpx;

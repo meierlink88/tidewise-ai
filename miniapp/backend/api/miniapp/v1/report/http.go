@@ -18,8 +18,32 @@ func RegisterHTTPServer(server *kratoshttp.Server, application Service) {
 	router := server.Route(v1.APIPrefix)
 	router.GET("/reports/home", homeHandler(application))
 	router.GET("/reports/{report_id}/layers/{layer_key}", layerHandler(application))
+	router.GET("/reports/{report_id}/industry-chains", industryChainListHandler(application))
 	router.GET("/reports/{report_id}/industry-chains/{chain_key}", industryChainHandler(application))
 	router.GET("/reports/{report_id}/evidences", evidenceHandler(application))
+}
+
+func industryChainListHandler(application Service) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		query := ctx.Request().URL.Query()
+		request := &IndustryChainListRequest{
+			ReportID:        ctx.Vars().Get("report_id"),
+			HasUnknownQuery: hasUnknownQuery(query, "limit", "cursor"),
+		}
+		if values := query["limit"]; len(values) == 1 {
+			request.Limit = values[0]
+		} else if len(values) > 1 {
+			request.HasUnknownQuery = true
+		}
+		if values := query["cursor"]; len(values) == 1 {
+			request.Cursor = values[0]
+		} else if len(values) > 1 {
+			request.HasUnknownQuery = true
+		}
+		return callWithBudget(ctx, OperationListChains, request, func(callContext context.Context) (any, error) {
+			return application.ListIndustryChains(callContext, request)
+		})
+	}
 }
 
 func homeHandler(application Service) kratoshttp.HandlerFunc {
@@ -62,15 +86,10 @@ func evidenceHandler(application Service) kratoshttp.HandlerFunc {
 		query := ctx.Request().URL.Query()
 		request := &EvidenceRequest{
 			ReportID:        ctx.Vars().Get("report_id"),
-			HasUnknownQuery: hasUnknownQuery(query, "scope_type", "scope_key"),
+			HasUnknownQuery: hasUnknownQuery(query, "scope_token"),
 		}
-		if values := query["scope_type"]; len(values) == 1 {
-			request.ScopeType = values[0]
-		} else {
-			request.HasUnknownQuery = true
-		}
-		if values := query["scope_key"]; len(values) == 1 {
-			request.ScopeKey = values[0]
+		if values := query["scope_token"]; len(values) == 1 {
+			request.ScopeToken = values[0]
 		} else {
 			request.HasUnknownQuery = true
 		}

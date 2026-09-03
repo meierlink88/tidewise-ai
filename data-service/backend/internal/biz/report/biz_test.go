@@ -11,60 +11,79 @@ import (
 	reportfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/report"
 )
 
-func TestValidateContentAcceptsIndustryOnlyReportWithFiftyFourChains(t *testing.T) {
-	content := reportfixture.ContentWithManyChains(54)
-	if content.Geopolitics != nil || content.Macroeconomics != nil {
+func TestValidateReportAcceptsIndustryOnlyReportWithFiftyFourChains(t *testing.T) {
+	report := reportfixture.ReportWithManyChains(54)
+	if report.Geopolitics != nil || report.Macroeconomics != nil {
 		t.Fatal("optional upper sections were materialized")
 	}
-	if err := reportbiz.ValidateContent(content); err != nil {
-		t.Fatalf("ValidateContent() error = %v", err)
+	if err := reportbiz.ValidateReport(report); err != nil {
+		t.Fatalf("ValidateReport() error = %v", err)
 	}
 }
 
-func TestValidateContentPreservesMixedResultLabelFromReport(t *testing.T) {
-	content := reportfixture.Content()
-	content.Geopolitics.Detail.Anchors[0].Result = reportbiz.Result{Code: reportbiz.ResultMixed, Label: "升温 / 局部稳定"}
-	if err := reportbiz.ValidateContent(content); err != nil {
-		t.Fatalf("ValidateContent() error = %v", err)
+func TestFrozenScaleBaselineCardinalityAndEvidenceScopes(t *testing.T) {
+	report := reportfixture.FrozenScaleBaselineReport()
+	if err := reportbiz.ValidateReport(report); err != nil {
+		t.Fatalf("ValidateReport() error = %v", err)
+	}
+	affectedNodes := 0
+	for _, chain := range report.IndustryChains {
+		affectedNodes += len(chain.Detail.AffectedNodes)
+	}
+	if len(report.IndustryChains) != 54 || affectedNodes != 157 {
+		t.Fatalf("chains=%d affected_nodes=%d", len(report.IndustryChains), affectedNodes)
+	}
+
+	evidenceIDs := reportfixture.FrozenScaleBaselineEvidenceIDs()
+	store := newFakeStore(evidenceIDs...)
+	useCase, err := reportbiz.NewUseCase(store, time.Now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := useCase.Publish(context.Background(), "publisher-frozen-scale-baseline", report); err != nil {
+		t.Fatal(err)
+	}
+	unique := map[string]struct{}{}
+	for _, link := range store.links {
+		unique[link.EvidenceID] = struct{}{}
+	}
+	if len(unique) != 43 || len(store.links) != 265 {
+		t.Fatalf("unique_evidence=%d links=%d", len(unique), len(store.links))
 	}
 }
 
-func TestValidateContentRejectsDomainContractViolations(t *testing.T) {
+func TestValidateReportPreservesPublishedLabels(t *testing.T) {
+	report := reportfixture.Report()
+	report.Geopolitics.Detail.AffectedAnchors[0].Result = reportbiz.CodedLabel{Code: reportbiz.ResultMixed, Label: "混合"}
+	if err := reportbiz.ValidateReport(report); err != nil {
+		t.Fatalf("ValidateReport() error = %v", err)
+	}
+}
+
+func TestValidateReportRejectsDomainContractViolations(t *testing.T) {
 	for _, test := range []struct {
 		name   string
-		mutate func(*reportbiz.Content)
+		mutate func(*reportbiz.Report)
 		path   string
 	}{
-		{"no industry analysis", func(c *reportbiz.Content) {
-			c.IndustryChains = []reportbiz.IndustryChain{}
-			c.Statistics.IndustryChainCount = 0
-		}, "content.industry_chains"},
-		{"structural count mismatch", func(c *reportbiz.Content) { c.Statistics.IndustryChainCount = 2 }, "content.statistics"},
-		{"unknown related chain", func(c *reportbiz.Content) { c.Geopolitics.Detail.RelatedChainKeys = []string{"missing"} }, "content.geopolitics.detail.related_chain_keys[0]"},
-		{"present layer has no downward transmission", func(c *reportbiz.Content) { c.Geopolitics.Summary.Transmissions = []reportbiz.Transmission{} }, "content.geopolitics.summary.transmissions"},
-		{"present layer has no affected anchor", func(c *reportbiz.Content) { c.Geopolitics.Detail.Anchors = []reportbiz.Anchor{} }, "content.geopolitics.detail.anchors"},
-		{"present layer has no boundary", func(c *reportbiz.Content) { c.Geopolitics.Summary.Uncertainty.Boundary = nil }, "content.geopolitics.summary.uncertainty.boundary"},
-		{"chain summary has no graph nodes", func(c *reportbiz.Content) {
-			c.IndustryChains[0].Summary.Graph.Nodes = []reportbiz.IndustryChainTopologyNode{}
-		}, "content.industry_chains[0]"},
-		{"chain summary has no counterevidence", func(c *reportbiz.Content) { c.IndustryChains[0].Summary.Uncertainty.CounterevidenceAndGap = "" }, "content.industry_chains[0].summary.uncertainty.counterevidence_and_gap"},
-		{"chain detail has no affected nodes", func(c *reportbiz.Content) { c.IndustryChains[0].Detail.NodeImpacts = []reportbiz.IndustryChainNode{} }, "content.industry_chains[0]"},
-		{"topology and impact mixed", func(c *reportbiz.Content) { c.IndustryChains[0].Detail.NodeImpacts[0].NodeKey = "missing" }, "content.industry_chains[0].detail.node_impacts[0].node_key"},
-		{"hypothesis cites direct evidence", func(c *reportbiz.Content) {
-			c.IndustryChains[0].Detail.NodeImpacts[0].Nature = reportbiz.Nature{Code: reportbiz.NatureReasoningHypothesis, Label: "推理假设"}
-		}, "content.industry_chains[0].detail.node_impacts[0].evidence_refs"},
-		{"direct conclusion has no evidence", func(c *reportbiz.Content) {
-			c.IndustryChains[0].Detail.NodeImpacts[0].EvidenceRefs = []reportbiz.EvidenceReference{}
-		}, "content.industry_chains[0].detail.node_impacts[0].evidence_refs"},
-		{"claim label drift", func(c *reportbiz.Content) { c.IndustryChains[0].Summary.Result.Label = "降温" }, "content.industry_chains[0].summary.result.label"},
-		{"duplicate claim key", func(c *reportbiz.Content) {
-			c.IndustryChains[0].Summary.Claim.Key = c.Geopolitics.Summary.Claim.Key
-		}, "content.industry_chains[0].summary.claim.key"},
+		{"no industry analysis", func(r *reportbiz.Report) { r.IndustryChains = []reportbiz.IndustryChain{} }, "report.industry_chains"},
+		{"unknown transmission target", func(r *reportbiz.Report) {
+			r.Geopolitics.Summary.DownwardTransmission[0].Targets[0].LocalKey = "missing"
+		}, "targets[0]"},
+		{"graph endpoint outside chain", func(r *reportbiz.Report) {
+			r.IndustryChains[0].Summary.Graph.Edges = []reportbiz.IndustryChainEdge{{FromNodeKey: "missing", ToNodeKey: "topology-node-01", Relation: reportbiz.CodedLabel{Code: "component", Label: "组成"}}}
+		}, "from_node_key"},
+		{"affected node outside graph", func(r *reportbiz.Report) { r.IndustryChains[0].Detail.AffectedNodes[0].NodeLocalKey = "missing" }, "node_local_key"},
+		{"hypothesis exposes evidence", func(r *reportbiz.Report) {
+			r.IndustryChains[0].Detail.AffectedNodes[0].ConclusionBasis = &reportbiz.CodedLabel{Code: reportbiz.BasisReasoningHypothesis, Label: "推理假设"}
+		}, "evidence_ids"},
+		{"direct conclusion has no evidence", func(r *reportbiz.Report) { r.IndustryChains[0].Detail.AffectedNodes[0].EvidenceIDs = []string{} }, "evidence_ids"},
+		{"label drift", func(r *reportbiz.Report) { r.IndustryChains[0].Summary.Result.Label = "降温" }, "result.label"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			content := reportfixture.Content()
-			test.mutate(&content)
-			err := reportbiz.ValidateContent(content)
+			report := reportfixture.Report()
+			test.mutate(&report)
+			err := reportbiz.ValidateReport(report)
 			if err == nil || !strings.Contains(err.Error(), test.path) {
 				t.Fatalf("error=%v want path %s", err, test.path)
 			}
@@ -72,39 +91,42 @@ func TestValidateContentRejectsDomainContractViolations(t *testing.T) {
 	}
 }
 
-func TestPublishCreatesImmutableReportAndExactEvidenceLinksThenReplays(t *testing.T) {
+func TestPublishCreatesImmutableReportAndScopedEvidenceThenReplays(t *testing.T) {
 	store := newFakeStore(reportfixture.EvidenceOne, reportfixture.EvidenceTwo)
 	clock := time.Date(2026, 9, 2, 1, 2, 3, 456789000, time.UTC)
 	useCase, err := reportbiz.NewUseCase(store, func() time.Time { return clock })
 	if err != nil {
 		t.Fatal(err)
 	}
-	created, err := useCase.Publish(context.Background(), reportbiz.ContractVersion, "publisher-report-2026-09-02", reportfixture.Content())
+	created, err := useCase.Publish(context.Background(), "publisher-report-2026-09-02", reportfixture.Report())
 	if err != nil {
 		t.Fatal(err)
 	}
 	if created.Replayed || created.Record.PublisherReportID != "publisher-report-2026-09-02" || !created.Record.PublishedAt.Equal(clock) {
 		t.Fatalf("created=%#v", created)
 	}
-	want := map[reportbiz.ScopeType]bool{reportbiz.ScopeSectionSummary: false, reportbiz.ScopeAnchor: false, reportbiz.ScopeTransmission: false, reportbiz.ScopeIndustryChainSummary: false, reportbiz.ScopeIndustryChainNode: false}
+	want := map[reportbiz.ScopeType]bool{
+		reportbiz.ScopeSectionSummary: false, reportbiz.ScopeAnchor: false,
+		reportbiz.ScopeIndustryChainSummary: false, reportbiz.ScopeIndustryChainNode: false,
+	}
 	for _, link := range store.links {
 		want[link.ScopeType] = true
+		if link.ScopePath == "" || link.Position < 1 {
+			t.Fatalf("invalid Evidence link %#v", link)
+		}
 	}
 	for scope, seen := range want {
 		if !seen {
 			t.Errorf("scope %s did not produce a link", scope)
 		}
 	}
-	replayed, err := useCase.Publish(context.Background(), reportbiz.ContractVersion, "publisher-report-2026-09-02", reportfixture.Content())
-	if err != nil {
-		t.Fatal(err)
+	replayed, err := useCase.Publish(context.Background(), "publisher-report-2026-09-02", reportfixture.Report())
+	if err != nil || !replayed.Replayed || replayed.Record.ID != created.Record.ID || len(store.reports) != 1 {
+		t.Fatalf("replayed=%#v err=%v", replayed, err)
 	}
-	if !replayed.Replayed || replayed.Record.ID != created.Record.ID || len(store.reports) != 1 {
-		t.Fatalf("replayed=%#v", replayed)
-	}
-	changed := reportfixture.Content()
-	changed.Title = "另一份报告"
-	_, err = useCase.Publish(context.Background(), reportbiz.ContractVersion, "publisher-report-2026-09-02", changed)
+	changed := reportfixture.Report()
+	changed.IndustryChains[0].Name = "另一条产业链"
+	_, err = useCase.Publish(context.Background(), "publisher-report-2026-09-02", changed)
 	if !errors.Is(err, reportbiz.ErrPublicationConflict) {
 		t.Fatalf("conflict error=%v", err)
 	}
@@ -113,7 +135,7 @@ func TestPublishCreatesImmutableReportAndExactEvidenceLinksThenReplays(t *testin
 func TestPublishRejectsMissingEvidenceAtomically(t *testing.T) {
 	store := newFakeStore(reportfixture.EvidenceOne)
 	useCase, _ := reportbiz.NewUseCase(store, time.Now)
-	_, err := useCase.Publish(context.Background(), reportbiz.ContractVersion, "publisher-report", reportfixture.Content())
+	_, err := useCase.Publish(context.Background(), "publisher-report", reportfixture.Report())
 	var reference *reportbiz.ReferenceError
 	if !errors.As(err, &reference) || reference.Reference != reportfixture.EvidenceTwo {
 		t.Fatalf("error=%v", err)
@@ -125,7 +147,7 @@ func TestPublishRejectsMissingEvidenceAtomically(t *testing.T) {
 
 func TestIndustryChainCursorIsReportBound(t *testing.T) {
 	store := newFakeStore()
-	store.chainPage = reportbiz.IndustryChainStorePage{Items: []reportbiz.IndustryChainSummary{{Key: "chain-01", DisplayOrder: 1}}, HasMore: true}
+	store.chainPage = reportbiz.IndustryChainStorePage{Items: []reportbiz.IndustryChainSummary{{LocalKey: "chain-01", Ordinal: 1}}, HasMore: true}
 	useCase, _ := reportbiz.NewUseCase(store, time.Now)
 	page, err := useCase.ListIndustryChains(context.Background(), reportbiz.IndustryChainListRequest{ReportID: reportfixture.ReportOne, Limit: 1})
 	if err != nil || page.NextCursor == nil {
@@ -147,12 +169,13 @@ type fakeStore struct {
 }
 
 func newFakeStore(ids ...string) *fakeStore {
-	s := &fakeStore{existing: map[string]struct{}{}, byPublisher: map[string]reportbiz.Record{}}
+	store := &fakeStore{existing: map[string]struct{}{}, byPublisher: map[string]reportbiz.Record{}}
 	for _, id := range ids {
-		s.existing[id] = struct{}{}
+		store.existing[id] = struct{}{}
 	}
-	return s
+	return store
 }
+
 func (s *fakeStore) InPublicationTransaction(ctx context.Context, fn func(reportbiz.PublicationTransaction) error) error {
 	return fn((*fakeTransaction)(s))
 }
@@ -165,19 +188,16 @@ func (s *fakeStore) GetReport(context.Context, string) (reportbiz.Record, error)
 func (s *fakeStore) GetHome(context.Context, string) (reportbiz.Home, error) {
 	return reportbiz.Home{}, reportbiz.ErrReportNotFound
 }
-func (s *fakeStore) GetLayer(context.Context, string, string) (reportbiz.Summary, reportbiz.Layer, []reportbiz.IndustryChainSummary, error) {
-	return reportbiz.Summary{}, reportbiz.Layer{}, nil, reportbiz.ErrReportNotFound
+func (s *fakeStore) GetLayer(context.Context, string, string) (reportbiz.Summary, reportbiz.LayerProjection, error) {
+	return reportbiz.Summary{}, reportbiz.LayerProjection{}, reportbiz.ErrReportNotFound
 }
 func (s *fakeStore) ListIndustryChains(context.Context, reportbiz.IndustryChainListFilter) (reportbiz.IndustryChainStorePage, error) {
 	return s.chainPage, nil
 }
-func (s *fakeStore) GetIndustryChain(context.Context, string, string) (reportbiz.Summary, reportbiz.IndustryChain, error) {
-	return reportbiz.Summary{}, reportbiz.IndustryChain{}, reportbiz.ErrReportNotFound
+func (s *fakeStore) GetIndustryChain(context.Context, string, string) (reportbiz.Summary, reportbiz.IndustryChainProjection, error) {
+	return reportbiz.Summary{}, reportbiz.IndustryChainProjection{}, reportbiz.ErrReportNotFound
 }
-func (s *fakeStore) ReportScopeExists(context.Context, string, reportbiz.ScopeType, string) (bool, bool, error) {
-	return false, false, nil
-}
-func (s *fakeStore) ListEvidence(context.Context, string, reportbiz.ScopeType, string) ([]reportbiz.Evidence, error) {
+func (s *fakeStore) ListEvidence(context.Context, string, string) ([]reportbiz.Evidence, error) {
 	return []reportbiz.Evidence{}, nil
 }
 

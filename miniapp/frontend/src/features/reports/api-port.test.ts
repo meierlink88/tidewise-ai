@@ -30,18 +30,33 @@ describe('APIReportPort', () => {
     );
   });
 
-  it('passes direct local Evidence scope keys and maps not-found errors', async () => {
+  it('passes the opaque Evidence scope token and maps not-found errors', async () => {
     request.mockResolvedValue({ statusCode: 404, data: {} });
     const port = new APIReportPort('https://miniapp.example.com');
     const reportId = 'RPT11111111-1111-4111-8111-111111111111';
 
     await expect(
-      port.getEvidences(reportId, { type: 'industry_chain_node', key: 'chn-21-n01' })
+      port.getEvidences(reportId, 'RPE11111111-1111-4111-8111-111111111111')
     ).rejects.toMatchObject({ kind: 'evidenceScopeUnavailable' });
     expect(request.mock.calls[0][0].url).toContain(
-      'scope_type=industry_chain_node&scope_key=chn-21-n01'
+      'scope_token=RPE11111111-1111-4111-8111-111111111111'
     );
     expect(request.mock.calls[0][0].url).not.toContain('%2F');
+  });
+
+  it('requests report-bound cursor pages for industry cards', async () => {
+    request.mockResolvedValue({
+      statusCode: 200,
+      data: { request_id: 'req-page', result: { items: [], next_cursor: null } }
+    });
+    const port = new APIReportPort('https://miniapp.example.com');
+    const reportId = 'RPT11111111-1111-4111-8111-111111111111';
+
+    await expect(port.getIndustryChains(reportId, 'opaque cursor', 20)).resolves.toEqual({
+      items: [],
+      nextCursor: null
+    });
+    expect(request.mock.calls[0][0].url).toContain('limit=20&cursor=opaque%20cursor');
   });
 
   it('fails closed on surplus envelopes and malformed DTOs', async () => {

@@ -115,8 +115,8 @@ func TestOpenAPIContractFreezesImmutableReportPublicationAndReadModels(t *testin
 	paths := object(t, document["paths"], "paths")
 	schemas := object(t, object(t, document["components"], "components")["schemas"], "schemas")
 	for _, retired := range []string{
-		"ReportPublicationRequest", "ReportContent", "ReportCard", "ReportCompanyBoundary",
-		"ReportHome", "ReportLayerRead", "ReportIndustryChainRead",
+		"ReportPublicationRequestV2", "ReportContentV2", "ReportCard", "ReportCompanyBoundary",
+		"ReportLayerRead", "ReportIndustryChainRead",
 	} {
 		if _, exists := schemas[retired]; exists {
 			t.Errorf("OpenAPI retains retired report-publication.v1 schema %q", retired)
@@ -134,47 +134,41 @@ func TestOpenAPIContractFreezesImmutableReportPublicationAndReadModels(t *testin
 	if len(bodySchemaParts) != 1 {
 		t.Fatalf("Report publication body allOf count = %d, want 1", len(bodySchemaParts))
 	}
-	assertString(t, object(t, bodySchemaParts[0], "Report publication request reference"), "$ref", "#/components/schemas/ReportPublicationRequestV2")
-	request := schema(t, document, "ReportPublicationRequestV2")
-	assertRequired(t, request, "contract_version", "publisher_report_id", "content")
+	assertString(t, object(t, bodySchemaParts[0], "Report publication request reference"), "$ref", "#/components/schemas/ReportPublicationRequest")
+	request := schema(t, document, "ReportPublicationRequest")
+	assertRequired(t, request, "publisher_report_id", "report")
 	requestProperties := object(t, request["properties"], "ReportPublicationRequest properties")
-	for _, retired := range []string{"publication_key", "receipt_id", "report", "publisher"} {
+	for _, retired := range []string{"publication_key", "receipt_id", "contract_version", "content", "publisher"} {
 		if _, exists := requestProperties[retired]; exists {
 			t.Errorf("Report publication request exposes retired field %q", retired)
 		}
 	}
-	assertRequired(t, schema(t, document, "ReportContentV2"),
-		"report_type", "title", "generation_status", "simulation", "generated_at", "analysis_window",
-		"timezone", "provenance", "statistics", "industry_chains",
+	assertRequired(t, schema(t, document, "Report"), "generated_at", "industry_chains")
+	assertRequired(t, schema(t, document, "ReportIndustryChain"), "local_key", "name", "summary", "detail")
+	chainProperties := object(t, schema(t, document, "ReportIndustryChain")["properties"], "ReportIndustryChain properties")
+	assertRequired(t, schema(t, document, "ReportChainSummary"),
+		"conclusion", "status", "result", "confidence", "time_window", "path", "graph",
+		"counterevidence_and_gap", "stop_condition", "evidence_ids",
 	)
-	assertRequired(t, schema(t, document, "ReportIndustryChainV2"),
-		"key", "display_order", "name", "summary", "detail",
+	assertRequired(t, object(t, chainProperties["detail"], "ReportIndustryChain detail"), "affected_nodes")
+	assertRequired(t, schema(t, document, "ReportIndustryChainGraph"), "nodes", "edges")
+	assertRequired(t, schema(t, document, "ReportReasoningStep"), "input", "mechanism", "output", "reasoning_type", "confidence", "evidence_ids")
+	assertRequired(t, schema(t, document, "ReportTransmission"),
+		"local_key", "source_conclusion", "targets", "transmission_logic", "transmission_kind",
+		"confidence", "status",
 	)
-	chainProperties := object(t, schema(t, document, "ReportIndustryChainV2")["properties"], "ReportIndustryChainV2 properties")
-	chainSummary := object(t, chainProperties["summary"], "ReportIndustryChainV2 summary")
-	assertRequired(t, chainSummary, "claim", "status", "result", "confidence", "time_window", "path", "accepted_hypothesis_summary", "graph", "uncertainty", "evidence_refs")
-	chainDetail := object(t, chainProperties["detail"], "ReportIndustryChainV2 detail")
-	assertRequired(t, chainDetail, "node_impacts")
-	assertRequired(t, schema(t, document, "ReportIndustryChainGraphV2"), "nodes", "edges")
-	assertRequired(t, schema(t, document, "ReportReasoningStepV2"), "key", "display_order", "input", "mechanism", "output", "type", "confidence", "evidence_refs")
-	assertRequired(t, schema(t, document, "ReportTransmissionV2"),
-		"key", "display_order", "source_claim_key", "source_conclusion", "targets", "logic", "relation_nature",
-		"confidence", "status", "evidence_refs",
-	)
-	assertStringSet(t, schema(t, document, "ReportEvidenceScopeType")["enum"],
-		"section_summary", "anchor", "reasoning_step", "transmission", "industry_chain_summary", "industry_chain_node",
-	)
-	assertRequired(t, schema(t, document, "ReportPublicationResult"), "report_id", "content_hash", "published_at", "replayed")
-	assertRequired(t, schema(t, document, "ReportCollectionV2"), "items", "next_cursor")
+	assertRequired(t, schema(t, document, "ReportPublicationResult"), "report_id", "published_at", "replayed")
+	assertRequired(t, schema(t, document, "ReportCollection"), "items", "next_cursor")
 	resultProperties := object(t, schema(t, document, "ReportPublicationResult")["properties"], "ReportPublicationResult properties")
-	for _, retired := range []string{"payload_hash", "receipt_id"} {
+	for _, retired := range []string{"payload_hash", "content_hash", "receipt_id"} {
 		if _, exists := resultProperties[retired]; exists {
 			t.Errorf("Report publication response exposes retired field %q", retired)
 		}
 	}
 	assertRequired(t, schema(t, document, "ReportIndustryChainCollection"), "items", "next_cursor")
-	assertRequired(t, schema(t, document, "ReportLayerSnapshotV2"), "key", "title", "summary")
-	assertRequired(t, schema(t, document, "ReportEvidenceItem"), "evidence_id", "role", "display_order", "published_at", "summary", "keywords")
+	assertRequired(t, schema(t, document, "ReportLayerSnapshot"), "key", "title", "summary")
+	assertRequired(t, schema(t, document, "ReportEvidenceItem"), "published_at", "summary", "keywords")
+	assertRequired(t, schema(t, document, "ReportEvidenceCollection"), "report_id", "scope_token", "items")
 
 	for _, path := range []string{
 		namespace + "/reports", namespace + "/reports/{report_id}/home",

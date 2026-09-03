@@ -15,13 +15,13 @@ import (
 )
 
 type UseCase interface {
-	Publish(context.Context, string, string, reportbiz.Content) (reportbiz.PublicationResult, error)
+	Publish(context.Context, string, reportbiz.Report) (reportbiz.PublicationResult, error)
 	List(context.Context, reportbiz.ListRequest) (reportbiz.Page, error)
 	GetHome(context.Context, string) (reportbiz.Home, error)
-	GetLayer(context.Context, string, string) (reportbiz.Summary, reportbiz.Layer, []reportbiz.IndustryChainSummary, error)
+	GetLayer(context.Context, string, string) (reportbiz.Summary, reportbiz.LayerProjection, error)
 	ListIndustryChains(context.Context, reportbiz.IndustryChainListRequest) (reportbiz.IndustryChainPage, error)
-	GetIndustryChain(context.Context, string, string) (reportbiz.Summary, reportbiz.IndustryChain, error)
-	ListEvidence(context.Context, string, reportbiz.ScopeType, string) ([]reportbiz.Evidence, error)
+	GetIndustryChain(context.Context, string, string) (reportbiz.Summary, reportbiz.IndustryChainProjection, error)
+	ListEvidence(context.Context, string, string) ([]reportbiz.Evidence, error)
 }
 
 type Service struct{ useCase UseCase }
@@ -40,11 +40,11 @@ func (s *Service) PublishReport(ctx context.Context, request *reportapi.Publicat
 	if s == nil || s.useCase == nil {
 		return nil, publicError(v1.StatusInternalServerError, reportapi.ErrorDataServiceNotReady, "Report service is unavailable")
 	}
-	var content reportbiz.Content
-	if err := mapContract(request.Content, &content); err != nil {
-		return nil, publicError(v1.StatusUnprocessableEntity, reportapi.ErrorInvalidRequest, "Report content timestamps are not RFC3339")
+	var report reportbiz.Report
+	if err := mapContract(request.Report, &report); err != nil {
+		return nil, publicError(v1.StatusUnprocessableEntity, reportapi.ErrorInvalidRequest, "Report generated_at is not RFC3339")
 	}
-	result, err := s.useCase.Publish(ctx, request.ContractVersion, request.PublisherReportID, content)
+	result, err := s.useCase.Publish(ctx, request.PublisherReportID, report)
 	if err != nil {
 		return nil, publicationError(err)
 	}
@@ -52,7 +52,9 @@ func (s *Service) PublishReport(ctx context.Context, request *reportapi.Publicat
 	if result.Replayed {
 		status = v1.StatusOK
 	}
-	return &v1.Response[reportapi.PublicationResult]{Status: status, Result: reportapi.PublicationResult{ReportID: result.Record.ID, ContentHash: result.ContentHash, PublishedAt: result.Record.PublishedAt.UTC().Format(time.RFC3339Nano), Replayed: result.Replayed}}, nil
+	return &v1.Response[reportapi.PublicationResult]{Status: status, Result: reportapi.PublicationResult{
+		ReportID: result.Record.ID, PublishedAt: result.Record.PublishedAt.UTC().Format(time.RFC3339Nano), Replayed: result.Replayed,
+	}}, nil
 }
 
 func (s *Service) ListReports(ctx context.Context, request *reportapi.ListRequest) (*v1.Response[reportapi.Collection], error) {
@@ -76,8 +78,8 @@ func (s *Service) ListReports(ctx context.Context, request *reportapi.ListReques
 		return nil, readError(err)
 	}
 	items := make([]reportapi.Summary, len(page.Items))
-	for i, item := range page.Items {
-		items[i] = apiSummary(item)
+	for index, item := range page.Items {
+		items[index] = apiSummary(item)
 	}
 	return &v1.Response[reportapi.Collection]{Status: v1.StatusOK, Result: reportapi.Collection{Items: items, NextCursor: page.NextCursor}}, nil
 }
@@ -92,13 +94,13 @@ func (s *Service) GetReportHome(ctx context.Context, request *reportapi.ReportRe
 	}
 	result := reportapi.Home{Report: apiSummary(home.Report)}
 	if home.Geopolitics != nil {
-		result.Geopolitics = &reportapi.LayerSnapshot{}
+		result.Geopolitics = new(reportapi.LayerSnapshot)
 		if err := mapContract(home.Geopolitics, result.Geopolitics); err != nil {
 			return nil, repositoryMappingError()
 		}
 	}
 	if home.Macroeconomics != nil {
-		result.Macroeconomics = &reportapi.LayerSnapshot{}
+		result.Macroeconomics = new(reportapi.LayerSnapshot)
 		if err := mapContract(home.Macroeconomics, result.Macroeconomics); err != nil {
 			return nil, repositoryMappingError()
 		}
@@ -110,21 +112,15 @@ func (s *Service) GetReportLayer(ctx context.Context, request *reportapi.LayerRe
 	if request == nil {
 		return nil, publicError(v1.StatusBadRequest, reportapi.ErrorInvalidRequest, "Report section identity is required")
 	}
-	summary, layer, related, err := s.useCase.GetLayer(ctx, request.ReportID, request.LayerKey)
+	summary, layer, err := s.useCase.GetLayer(ctx, request.ReportID, request.LayerKey)
 	if err != nil {
 		return nil, readError(err)
 	}
-	var apiLayer reportapi.Layer
+	var apiLayer reportapi.LayerProjection
 	if err := mapContract(layer, &apiLayer); err != nil {
 		return nil, repositoryMappingError()
 	}
-	apiRelated := make([]reportapi.IndustryChainSummary, len(related))
-	for i, item := range related {
-		if err := mapContract(item, &apiRelated[i]); err != nil {
-			return nil, repositoryMappingError()
-		}
-	}
-	return &v1.Response[reportapi.LayerDetail]{Status: v1.StatusOK, Result: reportapi.LayerDetail{Report: apiSummary(summary), Layer: apiLayer, RelatedIndustryChains: apiRelated}}, nil
+	return &v1.Response[reportapi.LayerDetail]{Status: v1.StatusOK, Result: reportapi.LayerDetail{Report: apiSummary(summary), Layer: apiLayer}}, nil
 }
 
 func (s *Service) ListReportIndustryChains(ctx context.Context, request *reportapi.ChainListRequest) (*v1.Response[reportapi.IndustryChainCollection], error) {
@@ -140,8 +136,8 @@ func (s *Service) ListReportIndustryChains(ctx context.Context, request *reporta
 		return nil, readError(err)
 	}
 	items := make([]reportapi.IndustryChainSummary, len(page.Items))
-	for i, item := range page.Items {
-		if err := mapContract(item, &items[i]); err != nil {
+	for index, item := range page.Items {
+		if err := mapContract(item, &items[index]); err != nil {
 			return nil, repositoryMappingError()
 		}
 	}
@@ -156,7 +152,7 @@ func (s *Service) GetReportIndustryChain(ctx context.Context, request *reportapi
 	if err != nil {
 		return nil, readError(err)
 	}
-	var apiChain reportapi.IndustryChain
+	var apiChain reportapi.IndustryChainProjection
 	if err := mapContract(chain, &apiChain); err != nil {
 		return nil, repositoryMappingError()
 	}
@@ -164,23 +160,25 @@ func (s *Service) GetReportIndustryChain(ctx context.Context, request *reportapi
 }
 
 func (s *Service) ListReportEvidence(ctx context.Context, request *reportapi.EvidenceRequest) (*v1.Response[reportapi.EvidenceCollection], error) {
-	if request == nil || request.HasUnknownQuery || strings.TrimSpace(request.ScopeType) == "" || strings.TrimSpace(request.ScopeKey) == "" {
-		return nil, publicError(v1.StatusBadRequest, reportapi.ErrorInvalidRequest, "scope_type and scope_key are required")
+	if request == nil || request.HasUnknownQuery || strings.TrimSpace(request.ScopeToken) == "" {
+		return nil, publicError(v1.StatusBadRequest, reportapi.ErrorInvalidRequest, "scope_token is required")
 	}
-	values, err := s.useCase.ListEvidence(ctx, request.ReportID, reportbiz.ScopeType(request.ScopeType), request.ScopeKey)
+	values, err := s.useCase.ListEvidence(ctx, request.ReportID, request.ScopeToken)
 	if err != nil {
 		return nil, readError(err)
 	}
 	items := make([]reportapi.EvidenceItem, len(values))
-	for i, item := range values {
+	for index, item := range values {
 		var publishedAt *string
 		if item.PublishedAt != nil {
 			formatted := item.PublishedAt.UTC().Format(time.RFC3339Nano)
 			publishedAt = &formatted
 		}
-		items[i] = reportapi.EvidenceItem{EvidenceID: item.EvidenceID, Role: item.Role, DisplayOrder: item.DisplayOrder, PublishedAt: publishedAt, Summary: item.Summary, Keywords: item.Keywords}
+		items[index] = reportapi.EvidenceItem{PublishedAt: publishedAt, Summary: item.Summary, Keywords: item.Keywords}
 	}
-	return &v1.Response[reportapi.EvidenceCollection]{Status: v1.StatusOK, Result: reportapi.EvidenceCollection{ReportID: request.ReportID, ScopeType: request.ScopeType, ScopeKey: request.ScopeKey, Items: items}}, nil
+	return &v1.Response[reportapi.EvidenceCollection]{Status: v1.StatusOK, Result: reportapi.EvidenceCollection{
+		ReportID: request.ReportID, ScopeToken: request.ScopeToken, Items: items,
+	}}, nil
 }
 
 func mapContract(source, target any) error {
@@ -194,7 +192,12 @@ func mapContract(source, target any) error {
 }
 
 func apiSummary(value reportbiz.Summary) reportapi.Summary {
-	return reportapi.Summary{ID: value.ID, PublisherReportID: value.PublisherReportID, ReportType: value.ReportType, Title: value.Title, GenerationStatus: value.GenerationStatus, Simulation: value.Simulation, GeneratedAt: value.GeneratedAt.UTC().Format(time.RFC3339Nano), Timezone: value.Timezone, HasGeopolitics: value.HasGeopolitics, HasMacroeconomics: value.HasMacroeconomics, Statistics: reportapi.Statistics{EventCount: value.Statistics.EventCount, OrdinaryFactCount: value.Statistics.OrdinaryFactCount, SignalFactCount: value.Statistics.SignalFactCount, TransmissionHypothesisCount: value.Statistics.TransmissionHypothesisCount, GeopoliticAnchorCount: value.Statistics.GeopoliticAnchorCount, MacroeconomicAnchorCount: value.Statistics.MacroeconomicAnchorCount, SignaledChainNodeCount: value.Statistics.SignaledChainNodeCount, IndustryChainCount: value.Statistics.IndustryChainCount}, PublishedAt: value.PublishedAt.UTC().Format(time.RFC3339Nano)}
+	return reportapi.Summary{
+		ID: value.ID, PublisherReportID: value.PublisherReportID,
+		GeneratedAt: value.GeneratedAt.UTC().Format(time.RFC3339Nano), HasGeopolitics: value.HasGeopolitics,
+		HasMacroeconomics: value.HasMacroeconomics, IndustryChainCount: value.IndustryChainCount,
+		PublishedAt: value.PublishedAt.UTC().Format(time.RFC3339Nano),
+	}
 }
 
 func parseLimit(raw string) (int, error) {
@@ -207,6 +210,7 @@ func parseLimit(raw string) (int, error) {
 	}
 	return value, nil
 }
+
 func optionalUTC(raw string) (*time.Time, error) {
 	if strings.TrimSpace(raw) == "" {
 		return nil, nil
@@ -233,6 +237,7 @@ func publicationError(err error) error {
 	}
 	return repositoryMappingError()
 }
+
 func readError(err error) error {
 	var validation *reportbiz.ValidationError
 	switch {
@@ -250,6 +255,7 @@ func readError(err error) error {
 		return repositoryMappingError()
 	}
 }
+
 func repositoryMappingError() error {
 	return publicError(v1.StatusInternalServerError, reportapi.ErrorReportRepositoryFailure, "Report operation failed")
 }

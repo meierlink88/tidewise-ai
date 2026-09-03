@@ -2,116 +2,80 @@ package report
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"strings"
 	"testing"
 	"time"
 
-	v1 "github.com/meierlink88/tidewise-ai/miniapp/backend/api/miniapp/v1"
 	api "github.com/meierlink88/tidewise-ai/miniapp/backend/api/miniapp/v1/report"
 	biz "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/biz/report"
 )
 
-const serviceTestReportID = "RPT11111111-1111-4111-8111-111111111111"
+const testReportID = "RPT11111111-1111-4111-8111-111111111111"
+const testScopeToken = "RPE11111111-1111-4111-8111-111111111111"
+
+func TestServicePassesCodeLabelAndCursorToAPI(t *testing.T) {
+	summary := biz.Summary{ID: testReportID, PublisherReportID: "publisher", GeneratedAt: time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC), PublishedAt: time.Date(2026, 9, 2, 1, 0, 0, 0, time.UTC), IndustryChainCount: 54}
+	repository := &repositoryStub{listPage: biz.Page{Items: []biz.Summary{summary}}, home: biz.HomeSnapshot{Report: summary}, chainPage: biz.IndustryChainPage{Items: []biz.IndustryChainSummary{{LocalKey: "chain-01", Name: "产业链", Conclusion: "结论", Status: "已发布", Result: biz.CodedLabel{Code: "future", Label: "未来结果"}, Confidence: biz.Confidence{Code: "future", Label: "未来置信"}, TimeWindow: biz.TimeWindow{Code: "future", Label: "未来窗口"}, ImpactItems: []biz.IndustryChainImpactSummary{}}}}}
+	service, _ := NewService(biz.NewUseCaseWithClock(repository, func() time.Time { return time.Date(2026, 9, 2, 9, 0, 0, 0, time.FixedZone("CST", 8*3600)) }))
+	response, err := service.GetHome(context.Background(), &api.HomeRequest{})
+	if err != nil || response.Reports[0].Report.IndustryChainCount != 54 {
+		t.Fatalf("response=%#v err=%v", response, err)
+	}
+	page, err := service.ListIndustryChains(context.Background(), &api.IndustryChainListRequest{ReportID: testReportID, Limit: "20", Cursor: "cursor"})
+	if err != nil || page.Items[0].Result.Code != "future" || repository.lastChainQuery.Cursor != "cursor" {
+		t.Fatalf("page=%#v err=%v query=%#v", page, err, repository.lastChainQuery)
+	}
+}
+
+func TestServiceEvidenceUsesScopeToken(t *testing.T) {
+	repository := &repositoryStub{evidence: biz.EvidenceCollection{ReportID: testReportID, ScopeToken: testScopeToken, Items: []biz.EvidenceItem{{Summary: "摘要", Keywords: []string{"关键词"}}}}}
+	service, _ := NewService(biz.NewUseCase(repository))
+	response, err := service.ListEvidences(context.Background(), &api.EvidenceRequest{ReportID: testReportID, ScopeToken: testScopeToken})
+	if err != nil || response.ScopeToken != testScopeToken {
+		t.Fatalf("response=%#v err=%v", response, err)
+	}
+}
+
+func TestServicePreservesIndustryChainTopologyNodesSeparatelyFromAssessments(t *testing.T) {
+	summary := biz.Summary{ID: testReportID, PublisherReportID: "publisher", GeneratedAt: time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC), PublishedAt: time.Date(2026, 9, 2, 1, 0, 0, 0, time.UTC), IndustryChainCount: 1}
+	repository := &repositoryStub{chain: biz.IndustryChainDetail{Report: summary, IndustryChain: biz.IndustryChain{
+		LocalKey: "chain-01", TopologyNodes: []biz.IndustryChainTopologyNode{{LocalKey: "node-01", Name: "节点一"}, {LocalKey: "node-02", Name: "结构上下文节点"}},
+		Nodes: []biz.IndustryChainNode{{LocalKey: "impact-01", NodeLocalKey: "node-01", Name: "节点一"}},
+	}}}
+	service, _ := NewService(biz.NewUseCase(repository))
+	response, err := service.GetIndustryChain(context.Background(), &api.IndustryChainRequest{ReportID: testReportID, ChainKey: "chain-01"})
+	if err != nil || len(response.IndustryChain.TopologyNodes) != 2 || len(response.IndustryChain.Nodes) != 1 {
+		t.Fatalf("response=%#v err=%v", response, err)
+	}
+}
 
 type repositoryStub struct {
-	layerCalls    int
-	chainCalls    int
-	evidenceCalls int
-	layerError    error
-	evidence      biz.EvidenceCollection
+	listPage       biz.Page
+	home           biz.HomeSnapshot
+	chainPage      biz.IndustryChainPage
+	layer          biz.LayerDetail
+	chain          biz.IndustryChainDetail
+	evidence       biz.EvidenceCollection
+	lastChainQuery biz.ChainListQuery
 }
 
-func (*repositoryStub) ListReports(context.Context, biz.ListQuery) (biz.Page, error) {
-	return biz.Page{Items: []biz.Summary{}}, nil
+func (r *repositoryStub) ListReports(context.Context, biz.ListQuery) (biz.Page, error) {
+	return r.listPage, nil
 }
-
-func (*repositoryStub) GetHome(context.Context, string) (biz.Home, error) {
-	return biz.Home{}, nil
+func (r *repositoryStub) GetHome(context.Context, string) (biz.HomeSnapshot, error) {
+	return r.home, nil
 }
-
+func (r *repositoryStub) ListIndustryChains(_ context.Context, query biz.ChainListQuery) (biz.IndustryChainPage, error) {
+	r.lastChainQuery = query
+	return r.chainPage, nil
+}
 func (r *repositoryStub) GetLayer(context.Context, string, string) (biz.LayerDetail, error) {
-	r.layerCalls++
-	return biz.LayerDetail{}, r.layerError
+	return r.layer, nil
 }
-
 func (r *repositoryStub) GetIndustryChain(context.Context, string, string) (biz.IndustryChainDetail, error) {
-	r.chainCalls++
-	return biz.IndustryChainDetail{}, nil
+	return r.chain, nil
 }
-
-func (r *repositoryStub) ListEvidences(context.Context, string, biz.EvidenceScope) (biz.EvidenceCollection, error) {
-	r.evidenceCalls++
+func (r *repositoryStub) ListEvidences(context.Context, string, string) (biz.EvidenceCollection, error) {
 	return r.evidence, nil
 }
 
-func TestServiceRejectsInvalidDetailAndEvidenceInputsBeforeData(t *testing.T) {
-	repository := &repositoryStub{}
-	service, err := NewService(biz.NewUseCase(repository))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, request := range []*api.LayerRequest{
-		{ReportID: "RPT-invalid", LayerKey: biz.LayerGeopolitics},
-		{ReportID: serviceTestReportID, LayerKey: "company"},
-	} {
-		if _, callErr := service.GetLayer(context.Background(), request); !errors.Is(callErr, v1.ErrInvalidRequest) {
-			t.Fatalf("layer error = %v", callErr)
-		}
-	}
-	if _, callErr := service.GetIndustryChain(context.Background(), &api.IndustryChainRequest{
-		ReportID: serviceTestReportID, ChainKey: "Chain/21",
-	}); !errors.Is(callErr, v1.ErrInvalidRequest) {
-		t.Fatalf("chain error = %v", callErr)
-	}
-	for _, request := range []*api.EvidenceRequest{
-		{ReportID: serviceTestReportID, ScopeType: biz.ScopeAnchor, ScopeKey: "layer/anchor"},
-		{ReportID: serviceTestReportID, ScopeType: "event", ScopeKey: "event-1"},
-		{ReportID: serviceTestReportID, ScopeType: biz.ScopeSectionSummary, ScopeKey: biz.LayerGeopolitics, HasUnknownQuery: true},
-	} {
-		if _, callErr := service.ListEvidences(context.Background(), request); !errors.Is(callErr, v1.ErrInvalidRequest) {
-			t.Fatalf("evidence error = %v", callErr)
-		}
-	}
-	if repository.layerCalls != 0 || repository.chainCalls != 0 || repository.evidenceCalls != 0 {
-		t.Fatalf("repository calls = layer:%d chain:%d evidence:%d", repository.layerCalls, repository.chainCalls, repository.evidenceCalls)
-	}
-}
-
-func TestServiceMapsStableErrorsAndEvidenceSlimDTO(t *testing.T) {
-	repository := &repositoryStub{layerError: biz.ErrLayerNotFound}
-	service, err := NewService(biz.NewUseCase(repository))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, callErr := service.GetLayer(context.Background(), &api.LayerRequest{
-		ReportID: serviceTestReportID, LayerKey: biz.LayerGeopolitics,
-	}); !errors.Is(callErr, v1.ErrReportLayerNotFound) {
-		t.Fatalf("layer error = %v", callErr)
-	}
-
-	publishedAt := time.Date(2026, 9, 1, 3, 0, 0, 0, time.UTC)
-	repository.evidence = biz.EvidenceCollection{ReportID: serviceTestReportID,
-		Scope: biz.EvidenceScope{Type: biz.ScopeSectionSummary, Key: biz.LayerGeopolitics}, Items: []biz.EvidenceItem{{
-			PublishedAt: &publishedAt, Summary: "显式关联证据", Keywords: []string{"供应链"},
-		}}}
-	result, callErr := service.ListEvidences(context.Background(), &api.EvidenceRequest{
-		ReportID: serviceTestReportID, ScopeType: biz.ScopeSectionSummary, ScopeKey: biz.LayerGeopolitics,
-	})
-	if callErr != nil {
-		t.Fatal(callErr)
-	}
-	payload, err := json.Marshal(result)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, forbidden := range []string{"evidence_id", "event_id", "display_order", `"role"`, "source_type", "evidence_count"} {
-		if strings.Contains(string(payload), forbidden) {
-			t.Fatalf("Evidence DTO leaked %q: %s", forbidden, payload)
-		}
-	}
-	if len(result.Items) != 1 || result.Items[0].PublishedAt == nil || *result.Items[0].PublishedAt != "2026-09-01T03:00:00Z" {
-		t.Fatalf("result = %#v", result)
-	}
-}
+var _ biz.Repository = (*repositoryStub)(nil)

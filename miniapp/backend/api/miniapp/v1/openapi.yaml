@@ -2,7 +2,7 @@ openapi: 3.0.4
 info:
   title: Tidewise Miniapp Service API
   version: 1.0.0
-  description: Miniapp BFF 的手写 REST + JSON 合同。
+  description: Miniapp BFF 的手写 REST + JSON 合同；报告内容只重组 Data 投影，不翻译 code 或 label。
 servers:
   - url: /
     description: 由运行环境注入 Miniapp Service origin。
@@ -16,785 +16,447 @@ paths:
       operationId: getMiniappHealth
       summary: Miniapp Service 存活检查
       responses:
-        '200':
-          description: 进程存活
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HealthResponse'
+        '200': {description: 进程存活, content: {application/json: {schema: {$ref: '#/components/schemas/HealthResponse'}}}}
   /readyz:
     get:
       tags: [Operations]
       operationId: getMiniappReadiness
       summary: Miniapp Service 就绪检查
       responses:
-        '200':
-          description: 服务配置就绪
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ReadinessResponse'
+        '200': {description: 服务配置就绪, content: {application/json: {schema: {$ref: '#/components/schemas/ReadinessResponse'}}}}
   /api/miniapp/v1/reports/home:
     get:
       tags: [Reports]
       operationId: getReportHome
-      summary: 读取上海当日全部 Report 首页投影；空日回退最新一份
+      summary: 读取上海当日全部 Report 首页首批投影；空日回退最新一份
       responses:
-        '200':
-          description: Report 首页集合或明确空集合
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HomeEnvelope'
-        '400':
-          $ref: '#/components/responses/InvalidRequest'
-        '503':
-          $ref: '#/components/responses/ReportServiceUnavailable'
+        '200': {description: Report 首页集合或明确空集合, content: {application/json: {schema: {$ref: '#/components/schemas/HomeEnvelope'}}}}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '503': {$ref: '#/components/responses/ReportServiceUnavailable'}
+  /api/miniapp/v1/reports/{report_id}/industry-chains:
+    get:
+      tags: [Reports]
+      operationId: listReportIndustryChains
+      summary: 使用 Data 主导的 report-bound cursor 分页读取产业链卡片
+      parameters:
+        - $ref: '#/components/parameters/ReportID'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200': {description: 产业链卡片页, content: {application/json: {schema: {$ref: '#/components/schemas/CardCollectionEnvelope'}}}}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/ReportServiceUnavailable'}
   /api/miniapp/v1/reports/{report_id}/layers/{layer_key}:
     get:
       tags: [Reports]
       operationId: getReportLayer
-      summary: 读取一份 Report 的上层推理详情
+      summary: 读取一份 Report 中存在的可选上层详情
       parameters:
         - $ref: '#/components/parameters/ReportID'
         - name: layer_key
           in: path
           required: true
-          schema:
-            type: string
-            enum: [geopolitics, macroeconomics]
+          schema: {type: string, enum: [geopolitics, macroeconomics]}
       responses:
-        '200':
-          description: 上层推理详情
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LayerEnvelope'
-        '400':
-          $ref: '#/components/responses/InvalidRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '503':
-          $ref: '#/components/responses/ReportServiceUnavailable'
+        '200': {description: 上层详情, content: {application/json: {schema: {$ref: '#/components/schemas/LayerEnvelope'}}}}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/ReportServiceUnavailable'}
   /api/miniapp/v1/reports/{report_id}/industry-chains/{chain_key}:
     get:
       tags: [Reports]
       operationId: getReportIndustryChain
-      summary: 读取一份 Report 的产业链推理详情
+      summary: 读取一份 Report 的产业链详情
       parameters:
         - $ref: '#/components/parameters/ReportID'
         - name: chain_key
           in: path
           required: true
-          schema:
-            $ref: '#/components/schemas/LocalKey'
+          schema: {$ref: '#/components/schemas/LocalKey'}
       responses:
-        '200':
-          description: 产业链推理详情
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/IndustryChainEnvelope'
-        '400':
-          $ref: '#/components/responses/InvalidRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '503':
-          $ref: '#/components/responses/ReportServiceUnavailable'
+        '200': {description: 产业链详情, content: {application/json: {schema: {$ref: '#/components/schemas/IndustryChainEnvelope'}}}}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/ReportServiceUnavailable'}
   /api/miniapp/v1/reports/{report_id}/evidences:
     get:
       tags: [Reports]
       operationId: listReportEvidences
-      summary: 读取一个显式 Report scope 的相关 Evidence 产品投影
+      summary: 使用 Data 签发的 opaque scope token 读取 Evidence 展示投影
       parameters:
         - $ref: '#/components/parameters/ReportID'
-        - name: scope_type
+        - name: scope_token
           in: query
           required: true
-          schema:
-            $ref: '#/components/schemas/ScopeType'
-        - name: scope_key
-          in: query
-          required: true
-          schema:
-            $ref: '#/components/schemas/LocalKey'
+          schema: {$ref: '#/components/schemas/ScopeToken'}
       responses:
-        '200':
-          description: 按 Report 显式 display_order 排列的 Evidence 展示列表
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/EvidenceEnvelope'
-        '400':
-          $ref: '#/components/responses/InvalidRequest'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '503':
-          $ref: '#/components/responses/ReportServiceUnavailable'
+        '200': {description: Evidence 展示列表, content: {application/json: {schema: {$ref: '#/components/schemas/EvidenceEnvelope'}}}}
+        '400': {$ref: '#/components/responses/InvalidRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '503': {$ref: '#/components/responses/ReportServiceUnavailable'}
 components:
   parameters:
     ReportID:
       name: report_id
       in: path
       required: true
-      schema:
-        type: string
-        pattern: '^RPT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      schema: {$ref: '#/components/schemas/ReportID'}
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      schema: {type: string, minLength: 1, maxLength: 2048}
   responses:
     InvalidRequest:
       description: 请求参数无效
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
     NotFound:
       description: Report、详情或 Evidence scope 不存在
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
     ReportServiceUnavailable:
       description: Data Report 服务暂不可用或返回无效合同
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorEnvelope'
+      content: {application/json: {schema: {$ref: '#/components/schemas/ErrorEnvelope'}}}
   schemas:
     HealthResponse:
       type: object
       additionalProperties: false
       required: [status, service, environment]
       properties:
-        status:
-          type: string
-          enum: [ok]
-        service:
-          type: string
-        environment:
-          type: string
+        status: {type: string, enum: [ok]}
+        service: {type: string}
+        environment: {type: string}
     ReadinessResponse:
       type: object
       additionalProperties: false
       required: [status, service, environment, checks]
       properties:
-        status:
-          type: string
-          enum: [ready]
-        service:
-          type: string
-        environment:
-          type: string
-        checks:
-          type: object
-          additionalProperties:
-            type: string
-    HomeEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/HomeResponse'
-    LayerEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/LayerDetail'
-    IndustryChainEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/IndustryChainDetail'
-    EvidenceEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id:
-          type: string
-        result:
-          $ref: '#/components/schemas/EvidenceCollection'
+        status: {type: string, enum: [ready]}
+        service: {type: string}
+        environment: {type: string}
+        checks: {type: object, additionalProperties: {type: string}}
     ErrorEnvelope:
       type: object
       additionalProperties: false
       required: [error, request_id]
       properties:
-        request_id:
-          type: string
+        request_id: {type: string}
         error:
           type: object
           additionalProperties: false
           required: [code, message, details]
           properties:
-            code:
-              type: string
-            message:
-              type: string
-            details:
-              type: object
+            code: {type: string}
+            message: {type: string}
+            details: {type: object}
+    ReportID:
+      type: string
+      pattern: '^RPT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    ScopeToken:
+      type: string
+      pattern: '^RPE[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    NullableScopeToken:
+      type: string
+      nullable: true
+      pattern: '^RPE[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
     LocalKey:
       type: string
       pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$'
-    ScopeType:
-      type: string
-      enum: [section_summary, anchor, reasoning_step, transmission, industry_chain_summary, industry_chain_node]
-    ReferenceType:
-      type: string
-      enum: [layer, anchor, industry_chain, industry_chain_node]
-    Result:
+    CodedLabel:
       type: object
       additionalProperties: false
       required: [code, label]
       properties:
-        code:
-          type: string
-          enum: [warming, cooling, diverging, stable, mixed, pending]
-        label:
-          type: string
-    Nature:
-      type: object
-      additionalProperties: false
-      required: [code, label]
-      properties:
-        code:
-          type: string
-          enum: [direct_evidence, reasoning_hypothesis, pending_validation]
-        label:
-          type: string
+        code: {type: string, minLength: 1}
+        label: {type: string, minLength: 1}
+      description: BFF 原样透传 Data 发布的 code 与中文 label；前端未知 code 使用中性样式。
     Confidence:
       type: object
       additionalProperties: false
-      required: [label, score]
+      required: [code, label, score]
       properties:
-        label:
-          type: string
-        score:
-          type: number
-          nullable: true
-          minimum: 0
-          maximum: 1
+        code: {type: string, minLength: 1}
+        label: {type: string, minLength: 1}
+        score: {type: number, minimum: 0, maximum: 1, nullable: true}
+    TimeWindow:
+      type: object
+      additionalProperties: false
+      required: [code, label]
+      properties:
+        code: {type: string, minLength: 1}
+        label: {type: string, minLength: 1}
     Reference:
       type: object
       additionalProperties: false
-      required: [type, key]
+      required: [type, local_key]
       properties:
-        type:
-          $ref: '#/components/schemas/ReferenceType'
-        key:
-          $ref: '#/components/schemas/LocalKey'
-    Scope:
-      type: object
-      additionalProperties: false
-      required: [type, key]
-      properties:
-        type:
-          $ref: '#/components/schemas/ScopeType'
-        key:
-          $ref: '#/components/schemas/LocalKey'
+        type: {type: string, enum: [layer, anchor, industry_chain, industry_chain_node]}
+        local_key: {$ref: '#/components/schemas/LocalKey'}
     Summary:
       type: object
       additionalProperties: false
-      required: [id, title, generated_at, published_at]
+      required: [id, generated_at, published_at, industry_chain_count]
       properties:
-        id:
-          type: string
-        title:
-          type: string
-        generated_at:
-          type: string
-          format: date-time
-        published_at:
-          type: string
-          format: date-time
+        id: {$ref: '#/components/schemas/ReportID'}
+        generated_at: {type: string, format: date-time}
+        published_at: {type: string, format: date-time}
+        industry_chain_count: {type: integer, minimum: 1}
     Selection:
       type: object
       additionalProperties: false
       required: [mode, date, timezone]
       properties:
-        mode:
-          type: string
-          enum: [today, latest_fallback]
-        date:
-          type: string
-          format: date
-        timezone:
-          type: string
-          enum: [Asia/Shanghai]
+        mode: {type: string, enum: [today, latest_fallback]}
+        date: {type: string, format: date}
+        timezone: {type: string, enum: [Asia/Shanghai]}
     CardImpactItem:
       type: object
       additionalProperties: false
-      required: [ref, name, result, confidence, time_window, has_evidence]
+      required: [ref, name, result, conclusion_basis, validation_status, confidence, time_window, evidence_scope_token]
       properties:
-        ref:
-          $ref: '#/components/schemas/Reference'
-        name:
-          type: string
-        result:
-          $ref: '#/components/schemas/Result'
-        confidence:
-          $ref: '#/components/schemas/Confidence'
-        time_window:
-          type: string
-        has_evidence:
-          type: boolean
+        ref: {$ref: '#/components/schemas/Reference'}
+        name: {type: string}
+        result: {$ref: '#/components/schemas/CodedLabel'}
+        conclusion_basis: {allOf: [{$ref: '#/components/schemas/CodedLabel'}], nullable: true}
+        validation_status: {allOf: [{$ref: '#/components/schemas/CodedLabel'}], nullable: true}
+        confidence: {$ref: '#/components/schemas/Confidence'}
+        time_window: {$ref: '#/components/schemas/TimeWindow'}
+        evidence_scope_token: {$ref: '#/components/schemas/NullableScopeToken'}
     Card:
       type: object
       additionalProperties: false
-      required: [key, kind, display_order, detail_ref, title, subtitle, conclusion, result, confidence, time_window, impact_items, has_evidence]
+      required: [local_key, kind, detail_ref, title, subtitle, conclusion, result, confidence, time_window, impact_items, evidence_scope_token]
       properties:
-        key:
-          $ref: '#/components/schemas/LocalKey'
-        kind:
-          type: string
-          enum: [geopolitics, macroeconomics, industry_chain]
-        display_order:
-          type: integer
-          minimum: 1
-        detail_ref:
-          $ref: '#/components/schemas/Reference'
-        title:
-          type: string
-        subtitle:
-          type: string
-        conclusion:
-          type: string
-        result:
-          $ref: '#/components/schemas/Result'
-        confidence:
-          $ref: '#/components/schemas/Confidence'
-        time_window:
-          type: string
-        impact_items:
-          type: array
-          items:
-            $ref: '#/components/schemas/CardImpactItem'
-        has_evidence:
-          type: boolean
+        local_key: {$ref: '#/components/schemas/LocalKey'}
+        kind: {type: string, enum: [geopolitics, macroeconomics, industry_chain]}
+        detail_ref: {$ref: '#/components/schemas/Reference'}
+        title: {type: string}
+        subtitle: {type: string}
+        conclusion: {type: string}
+        result: {$ref: '#/components/schemas/CodedLabel'}
+        confidence: {$ref: '#/components/schemas/Confidence'}
+        time_window: {$ref: '#/components/schemas/TimeWindow'}
+        impact_items: {type: array, items: {$ref: '#/components/schemas/CardImpactItem'}}
+        evidence_scope_token: {$ref: '#/components/schemas/NullableScopeToken'}
+    CardCollection:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/Card'}}
+        next_cursor: {type: string, minLength: 1, maxLength: 2048, nullable: true}
     HomeReport:
       type: object
       additionalProperties: false
-      required: [report, industry_chain_count, cards]
+      required: [report, cards, next_cursor]
       properties:
-        report:
-          $ref: '#/components/schemas/Summary'
-        industry_chain_count:
-          type: integer
-          minimum: 1
-        cards:
-          type: array
-          items:
-            $ref: '#/components/schemas/Card'
+        report: {$ref: '#/components/schemas/Summary'}
+        cards: {type: array, items: {$ref: '#/components/schemas/Card'}}
+        next_cursor: {type: string, minLength: 1, maxLength: 2048, nullable: true}
     HomeResponse:
       type: object
       additionalProperties: false
       required: [selection, reports]
       properties:
-        selection:
-          $ref: '#/components/schemas/Selection'
-        reports:
-          type: array
-          items:
-            $ref: '#/components/schemas/HomeReport'
+        selection: {$ref: '#/components/schemas/Selection'}
+        reports: {type: array, items: {$ref: '#/components/schemas/HomeReport'}}
     Anchor:
       type: object
       additionalProperties: false
-      required: [key, display_order, name, current_state, result, nature, reasoning, time_window, confidence, scope, has_evidence]
+      required: [local_key, name, current_state, result, conclusion_basis, validation_status, transmission_logic, time_window, confidence, evidence_scope_token]
       properties:
-        key:
-          $ref: '#/components/schemas/LocalKey'
-        display_order:
-          type: integer
-          minimum: 1
-        name:
-          type: string
-        current_state:
-          type: string
-        result:
-          $ref: '#/components/schemas/Result'
-        nature:
-          $ref: '#/components/schemas/Nature'
-        reasoning:
-          type: string
-        time_window:
-          type: string
-        confidence:
-          $ref: '#/components/schemas/Confidence'
-        scope:
-          $ref: '#/components/schemas/Scope'
-        has_evidence:
-          type: boolean
+        local_key: {$ref: '#/components/schemas/LocalKey'}
+        name: {type: string}
+        current_state: {type: string}
+        result: {$ref: '#/components/schemas/CodedLabel'}
+        conclusion_basis: {allOf: [{$ref: '#/components/schemas/CodedLabel'}], nullable: true}
+        validation_status: {allOf: [{$ref: '#/components/schemas/CodedLabel'}], nullable: true}
+        transmission_logic: {type: string}
+        time_window: {$ref: '#/components/schemas/TimeWindow'}
+        confidence: {$ref: '#/components/schemas/Confidence'}
+        evidence_scope_token: {$ref: '#/components/schemas/NullableScopeToken'}
     ReasoningStep:
       type: object
       additionalProperties: false
-      required: [key, display_order, input, mechanism, output, type, confidence, scope, has_evidence]
+      required: [input, mechanism, output, reasoning_type, confidence, evidence_scope_token]
       properties:
-        key:
-          $ref: '#/components/schemas/LocalKey'
-        display_order:
-          type: integer
-          minimum: 1
-        input:
-          type: string
-        mechanism:
-          type: string
-        output:
-          type: string
-        type:
-          type: string
-        confidence:
-          $ref: '#/components/schemas/Confidence'
-        scope:
-          $ref: '#/components/schemas/Scope'
-        has_evidence:
-          type: boolean
+        input: {type: string}
+        mechanism: {type: string}
+        output: {type: string}
+        reasoning_type: {$ref: '#/components/schemas/CodedLabel'}
+        confidence: {$ref: '#/components/schemas/Confidence'}
+        evidence_scope_token: {$ref: '#/components/schemas/NullableScopeToken'}
     TransmissionTarget:
       type: object
       additionalProperties: false
-      required: [ref, label, result]
+      required: [ref, name, result]
       properties:
-        ref:
-          allOf:
-            - $ref: '#/components/schemas/Reference'
-          nullable: true
-        label:
-          type: string
-        result:
-          $ref: '#/components/schemas/Result'
+        ref: {$ref: '#/components/schemas/Reference'}
+        name: {type: string}
+        result: {$ref: '#/components/schemas/CodedLabel'}
     TransmissionPath:
       type: object
       additionalProperties: false
-      required: [key, display_order, source_conclusion, target_refs, logic, relation_nature, evidence_role, confidence, status, scope, has_evidence]
+      required: [local_key, source_conclusion, targets, logic, kind, confidence, status]
       properties:
-        key:
-          $ref: '#/components/schemas/LocalKey'
-        display_order:
-          type: integer
-          minimum: 1
-        source_conclusion:
-          type: string
-        target_refs:
-          type: array
-          minItems: 1
-          items:
-            $ref: '#/components/schemas/TransmissionTarget'
-        logic:
-          type: string
-        relation_nature:
-          type: string
-        evidence_role:
-          type: string
-        confidence:
-          $ref: '#/components/schemas/Confidence'
-        status:
-          type: string
-        scope:
-          $ref: '#/components/schemas/Scope'
-        has_evidence:
-          type: boolean
-    CandidateMechanism:
-      type: object
-      additionalProperties: false
-      required: [key, display_order, mechanism, evidence_gap, confidence, scope, has_evidence]
-      properties:
-        key:
-          $ref: '#/components/schemas/LocalKey'
-        display_order:
-          type: integer
-          minimum: 1
-        mechanism:
-          type: string
-        evidence_gap:
-          type: string
-          nullable: true
-        confidence:
-          $ref: '#/components/schemas/Confidence'
-        scope:
-          $ref: '#/components/schemas/Scope'
-        has_evidence:
-          type: boolean
-    Checkpoint:
-      type: object
-      additionalProperties: false
-      required: [key, display_order, summary]
-      properties:
-        key:
-          $ref: '#/components/schemas/LocalKey'
-        display_order:
-          type: integer
-          minimum: 1
-        summary:
-          type: string
-    DownwardTransmission:
-      type: object
-      additionalProperties: false
-      required: [summary, published_paths, candidate_mechanisms, boundary_notes]
-      properties:
-        summary:
-          type: string
-        published_paths:
-          type: array
-          items:
-            $ref: '#/components/schemas/TransmissionPath'
-        candidate_mechanisms:
-          type: array
-          items:
-            $ref: '#/components/schemas/CandidateMechanism'
-        boundary_notes:
-          type: array
-          items:
-            type: string
+        local_key: {$ref: '#/components/schemas/LocalKey'}
+        source_conclusion: {type: string}
+        targets: {type: array, minItems: 1, items: {$ref: '#/components/schemas/TransmissionTarget'}}
+        logic: {type: string}
+        kind: {$ref: '#/components/schemas/CodedLabel'}
+        confidence: {$ref: '#/components/schemas/Confidence'}
+        status: {$ref: '#/components/schemas/CodedLabel'}
     LayerUncertainty:
       type: object
       additionalProperties: false
-      required: [counterevidence, evidence_gap, boundary, reversal_condition, checkpoints]
+      required: [counterevidence, evidence_gap, boundary, reversal_condition]
       properties:
-        counterevidence:
-          type: string
-          nullable: true
-        evidence_gap:
-          type: string
-          nullable: true
-        boundary:
-          type: string
-          nullable: true
-        reversal_condition:
-          type: string
-          nullable: true
-        checkpoints:
-          type: array
-          items:
-            $ref: '#/components/schemas/Checkpoint'
+        counterevidence: {type: string, nullable: true}
+        evidence_gap: {type: string, nullable: true}
+        boundary: {type: string, nullable: true}
+        reversal_condition: {type: string, nullable: true}
     Layer:
       type: object
       additionalProperties: false
-      required: [key, display_order, title, conclusion, result, confidence, time_window, anchors, reasoning_steps, related_anchor_keys, related_chain_keys, downward_transmission, uncertainty, scope, has_evidence]
+      required: [key, title, conclusion, result, confidence, time_window, anchors, reasoning_steps, transmissions, uncertainty, evidence_scope_token]
       properties:
-        key:
-          type: string
-          enum: [geopolitics, macroeconomics]
-        display_order:
-          type: integer
-          minimum: 1
-        title:
-          type: string
-        conclusion:
-          type: string
-        result:
-          $ref: '#/components/schemas/Result'
-        confidence:
-          $ref: '#/components/schemas/Confidence'
-        time_window:
-          type: string
-        anchors:
-          type: array
-          items:
-            $ref: '#/components/schemas/Anchor'
-        reasoning_steps:
-          type: array
-          items:
-            $ref: '#/components/schemas/ReasoningStep'
-        related_anchor_keys:
-          type: array
-          items:
-            $ref: '#/components/schemas/LocalKey'
-        related_chain_keys:
-          type: array
-          items:
-            $ref: '#/components/schemas/LocalKey'
-        downward_transmission:
-          $ref: '#/components/schemas/DownwardTransmission'
-        uncertainty:
-          $ref: '#/components/schemas/LayerUncertainty'
-        scope:
-          $ref: '#/components/schemas/Scope'
-        has_evidence:
-          type: boolean
-    IndustryChainSummary:
+        key: {type: string, enum: [geopolitics, macroeconomics]}
+        title: {type: string}
+        conclusion: {type: string}
+        result: {$ref: '#/components/schemas/CodedLabel'}
+        confidence: {$ref: '#/components/schemas/Confidence'}
+        time_window: {$ref: '#/components/schemas/TimeWindow'}
+        anchors: {type: array, items: {$ref: '#/components/schemas/Anchor'}}
+        reasoning_steps: {type: array, items: {$ref: '#/components/schemas/ReasoningStep'}}
+        transmissions: {type: array, items: {$ref: '#/components/schemas/TransmissionPath'}}
+        uncertainty: {$ref: '#/components/schemas/LayerUncertainty'}
+        evidence_scope_token: {$ref: '#/components/schemas/NullableScopeToken'}
+    RelatedIndustryChain:
       type: object
       additionalProperties: false
-      required: [key, display_order, name, conclusion, status, result, confidence, time_window, scope, has_evidence]
+      required: [local_key, name, result]
       properties:
-        key:
-          $ref: '#/components/schemas/LocalKey'
-        display_order:
-          type: integer
-          minimum: 1
-        name:
-          type: string
-        conclusion:
-          type: string
-        status:
-          type: string
-        result:
-          $ref: '#/components/schemas/Result'
-        confidence:
-          $ref: '#/components/schemas/Confidence'
-        time_window:
-          type: string
-        scope:
-          $ref: '#/components/schemas/Scope'
-        has_evidence:
-          type: boolean
+        local_key: {$ref: '#/components/schemas/LocalKey'}
+        name: {type: string}
+        result: {$ref: '#/components/schemas/CodedLabel'}
     LayerDetail:
       type: object
       additionalProperties: false
       required: [report, layer, related_industry_chains]
       properties:
-        report:
-          $ref: '#/components/schemas/Summary'
-        layer:
-          $ref: '#/components/schemas/Layer'
-        related_industry_chains:
-          type: array
-          items:
-            $ref: '#/components/schemas/IndustryChainSummary'
+        report: {$ref: '#/components/schemas/Summary'}
+        layer: {$ref: '#/components/schemas/Layer'}
+        related_industry_chains: {type: array, items: {$ref: '#/components/schemas/RelatedIndustryChain'}}
     IndustryChainNode:
       type: object
       additionalProperties: false
-      required: [key, display_order, name, impact, result, nature, reasoning, time_window, confidence, scope, has_evidence]
+      required: [local_key, node_local_key, name, impact, result, conclusion_basis, validation_status, transmission_logic, time_window, confidence, evidence_scope_token]
       properties:
-        key:
-          $ref: '#/components/schemas/LocalKey'
-        display_order:
-          type: integer
-          minimum: 1
-        name:
-          type: string
-        impact:
-          type: string
-        result:
-          $ref: '#/components/schemas/Result'
-        nature:
-          $ref: '#/components/schemas/Nature'
-        reasoning:
-          type: string
-        time_window:
-          type: string
-        confidence:
-          $ref: '#/components/schemas/Confidence'
-        scope:
-          $ref: '#/components/schemas/Scope'
-        has_evidence:
-          type: boolean
+        local_key: {$ref: '#/components/schemas/LocalKey'}
+        node_local_key: {$ref: '#/components/schemas/LocalKey'}
+        name: {type: string}
+        impact: {type: string}
+        result: {$ref: '#/components/schemas/CodedLabel'}
+        conclusion_basis: {allOf: [{$ref: '#/components/schemas/CodedLabel'}], nullable: true}
+        validation_status: {allOf: [{$ref: '#/components/schemas/CodedLabel'}], nullable: true}
+        transmission_logic: {type: string}
+        time_window: {$ref: '#/components/schemas/TimeWindow'}
+        confidence: {$ref: '#/components/schemas/Confidence'}
+        evidence_scope_token: {$ref: '#/components/schemas/NullableScopeToken'}
     IndustryChainEdge:
       type: object
       additionalProperties: false
-      required: [key, display_order, from_node_key, to_node_key, relation_label]
+      required: [from_node_key, to_node_key, relation]
       properties:
-        key:
-          $ref: '#/components/schemas/LocalKey'
-        display_order:
-          type: integer
-          minimum: 1
-        from_node_key:
-          $ref: '#/components/schemas/LocalKey'
-        to_node_key:
-          $ref: '#/components/schemas/LocalKey'
-        relation_label:
-          type: string
-    ChainUncertainty:
+        from_node_key: {$ref: '#/components/schemas/LocalKey'}
+        to_node_key: {$ref: '#/components/schemas/LocalKey'}
+        relation: {$ref: '#/components/schemas/CodedLabel'}
+    IndustryChainTopologyNode:
       type: object
       additionalProperties: false
-      required: [counterevidence_and_gap, stop_condition, checkpoints]
+      required: [local_key, name]
       properties:
-        counterevidence_and_gap:
-          type: string
-          nullable: true
-        stop_condition:
-          type: string
-          nullable: true
-        checkpoints:
-          type: array
-          items:
-            $ref: '#/components/schemas/Checkpoint'
+        local_key: {$ref: '#/components/schemas/LocalKey'}
+        name: {type: string}
     IndustryChain:
       type: object
       additionalProperties: false
-      required: [key, claim_key, display_order, name, conclusion, status, result, confidence, time_window, path_summary, accepted_hypothesis_summary, nodes, edges, uncertainty, scope, has_evidence]
+      required: [local_key, name, conclusion, status, result, confidence, time_window, path, topology_nodes, nodes, edges, counterevidence_and_gap, stop_condition, evidence_scope_token]
       properties:
-        key:
-          $ref: '#/components/schemas/LocalKey'
-        claim_key:
-          $ref: '#/components/schemas/LocalKey'
-        display_order:
-          type: integer
-          minimum: 1
-        name:
-          type: string
-        conclusion:
-          type: string
-        status:
-          type: string
-        result:
-          $ref: '#/components/schemas/Result'
-        confidence:
-          $ref: '#/components/schemas/Confidence'
-        time_window:
-          type: string
-        path_summary:
-          type: string
-          nullable: true
-        accepted_hypothesis_summary:
-          type: string
-          nullable: true
-        nodes:
-          type: array
-          items:
-            $ref: '#/components/schemas/IndustryChainNode'
-        edges:
-          type: array
-          items:
-            $ref: '#/components/schemas/IndustryChainEdge'
-        uncertainty:
-          $ref: '#/components/schemas/ChainUncertainty'
-        scope:
-          $ref: '#/components/schemas/Scope'
-        has_evidence:
-          type: boolean
+        local_key: {$ref: '#/components/schemas/LocalKey'}
+        name: {type: string}
+        conclusion: {type: string}
+        status: {type: string}
+        result: {$ref: '#/components/schemas/CodedLabel'}
+        confidence: {$ref: '#/components/schemas/Confidence'}
+        time_window: {$ref: '#/components/schemas/TimeWindow'}
+        path: {type: string}
+        topology_nodes: {type: array, items: {$ref: '#/components/schemas/IndustryChainTopologyNode'}}
+        nodes: {type: array, items: {$ref: '#/components/schemas/IndustryChainNode'}}
+        edges: {type: array, items: {$ref: '#/components/schemas/IndustryChainEdge'}}
+        counterevidence_and_gap: {type: string}
+        stop_condition: {type: string}
+        evidence_scope_token: {$ref: '#/components/schemas/NullableScopeToken'}
     IndustryChainDetail:
       type: object
       additionalProperties: false
       required: [report, industry_chain]
       properties:
-        report:
-          $ref: '#/components/schemas/Summary'
-        industry_chain:
-          $ref: '#/components/schemas/IndustryChain'
+        report: {$ref: '#/components/schemas/Summary'}
+        industry_chain: {$ref: '#/components/schemas/IndustryChain'}
     EvidenceItem:
       type: object
       additionalProperties: false
       required: [published_at, summary, keywords]
       properties:
-        published_at:
-          type: string
-          format: date-time
-          nullable: true
-        summary:
-          type: string
-        keywords:
-          type: array
-          items:
-            type: string
+        published_at: {type: string, format: date-time, nullable: true}
+        summary: {type: string}
+        keywords: {type: array, items: {type: string}}
     EvidenceCollection:
       type: object
       additionalProperties: false
-      required: [report_id, scope, items]
+      required: [report_id, scope_token, items]
       properties:
-        report_id:
-          type: string
-        scope:
-          $ref: '#/components/schemas/Scope'
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/EvidenceItem'
+        report_id: {$ref: '#/components/schemas/ReportID'}
+        scope_token: {$ref: '#/components/schemas/ScopeToken'}
+        items: {type: array, items: {$ref: '#/components/schemas/EvidenceItem'}}
+    HomeEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string}
+        result: {$ref: '#/components/schemas/HomeResponse'}
+    CardCollectionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string}
+        result: {$ref: '#/components/schemas/CardCollection'}
+    LayerEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string}
+        result: {$ref: '#/components/schemas/LayerDetail'}
+    IndustryChainEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string}
+        result: {$ref: '#/components/schemas/IndustryChainDetail'}
+    EvidenceEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string}
+        result: {$ref: '#/components/schemas/EvidenceCollection'}

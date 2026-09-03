@@ -208,9 +208,8 @@ func TestServerEnforcesResearchReadScopeOnResearchRoutes(t *testing.T) {
 
 func TestServerEnforcesReportScopesAndRejectsDuplicateQueries(t *testing.T) {
 	payload, err := json.Marshal(map[string]any{
-		"contract_version":    reportapi.ContractVersion,
 		"publisher_report_id": "publisher-report",
-		"content":             reportfixture.IndustryOnlyContent(),
+		"report":              reportfixture.IndustryOnlyReport(),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -236,7 +235,7 @@ func TestServerEnforcesReportScopesAndRejectsDuplicateQueries(t *testing.T) {
 		{name: "publish", method: http.MethodPost, path: dataapi.APIPrefix + "/report-publications", token: "report-publish-token", body: payload, want: http.StatusNoContent},
 		{name: "publish with reader token", method: http.MethodPost, path: dataapi.APIPrefix + "/report-publications", token: "report-read-token", body: payload, want: http.StatusForbidden},
 		{name: "duplicate list query", method: http.MethodGet, path: dataapi.APIPrefix + "/reports?limit=1&limit=2", token: "report-read-token", want: http.StatusBadRequest},
-		{name: "duplicate evidence scope", method: http.MethodGet, path: dataapi.APIPrefix + "/reports/RPT11111111-1111-4111-8111-111111111111/evidences?scope_type=anchor&scope_type=layer&scope_key=geo-anchor", token: "report-read-token", want: http.StatusBadRequest},
+		{name: "duplicate evidence scope", method: http.MethodGet, path: dataapi.APIPrefix + "/reports/RPT11111111-1111-4111-8111-111111111111/evidences?scope_token=RPE11111111-1111-4111-8111-111111111111&scope_token=RPE22222222-2222-4222-8222-222222222222", token: "report-read-token", want: http.StatusBadRequest},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			response := httptest.NewRecorder()

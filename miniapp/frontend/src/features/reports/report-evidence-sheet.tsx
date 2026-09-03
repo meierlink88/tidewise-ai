@@ -1,6 +1,6 @@
 import { Image, ScrollView, Text, View } from '@tarojs/components';
 import reportClockIcon from '../../assets/icons/report-clock.svg';
-import type { ReportEvidenceList, ReportEvidenceScope, ReportPort } from './contract';
+import type { ReportEvidenceList, ReportPort } from './contract';
 import type { ReportEvidenceRoute } from './navigation';
 import { evidenceStableKey, formatShanghaiTimestamp, reportErrorCopy } from './presentation';
 import { ReportStatePanel } from './report-components';
@@ -20,7 +20,7 @@ export function ReportEvidenceSheet({
   onClose: () => void;
 }) {
   const resource = useReportResource(
-    `report-evidences:${route.reportId}:${route.scopeType}:${route.scopeKey}`,
+    `report-evidences:${route.reportId}:${route.scopeToken}`,
     () => loadReportEvidences(port, route),
     isEvidenceEmpty
   );
@@ -39,8 +39,7 @@ export function loadReportEvidences(
   port: ReportPort,
   route: ReportEvidenceRoute
 ): Promise<ReportEvidenceList> {
-  const scope: ReportEvidenceScope = { type: route.scopeType, key: route.scopeKey };
-  return port.getEvidences(route.reportId, scope);
+  return port.getEvidences(route.reportId, route.scopeToken);
 }
 
 export function ReportEvidenceSheetView({

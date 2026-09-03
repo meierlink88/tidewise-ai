@@ -544,6 +544,17 @@
   line-height: 1.45;
 }
 
+.report-chain-node[disabled] {
+  opacity: 1;
+}
+
+.report-chain-node__unassessed {
+  margin-top: auto;
+  color: #94a3b8;
+  font-size: 18rpx;
+  line-height: 1.4;
+}
+
 .report-chain-node .report-impact-signals {
   justify-content: flex-start;
   margin-top: auto;
