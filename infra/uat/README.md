@@ -333,6 +333,9 @@ Runner 不需要也不获得通用 `sudo`。Workflow 在 GitHub-hosted runner �
 容器的本地不可变 image ID 启动一次性 privileged container；host root 只读，仅
 `/etc/systemd/system` 和 `/opt/tidewise` 为可写子挂载。Binary 不接收 unit、路径或
 shell command，只能对 ADR 0055 固化的两个 unit 和五个目录执行 `preflight`/`apply`。
+项目自管的 Reason runner unit 会被删除；系统包提供的
+`/usr/lib/systemd/system/neo4j.service` 只允许被停止并禁用，apply 后必须保持 disabled
+且 inactive，不会为删除包元数据而扩大 host 可写挂载。
 
 主机退役成功后，在 GitHub 上进行两类分离的 control-plane 收尾：
 

@@ -18,7 +18,7 @@ const (
 	reasonRunnerUnit     = "actions.runner.meierlink88-tidewise-reason.tidewise-reason-uat-ecs.service"
 	reasonRunnerUnitPath = "/etc/systemd/system/actions.runner.meierlink88-tidewise-reason.tidewise-reason-uat-ecs.service"
 	neo4jUnit            = "neo4j.service"
-	neo4jUnitPath        = "/etc/systemd/system/neo4j.service"
+	neo4jUnitPath        = "/usr/lib/systemd/system/neo4j.service"
 )
 
 var retiredHostPaths = []string{
@@ -30,8 +30,8 @@ var retiredHostPaths = []string{
 }
 
 var retiredSystemdUnits = []unitTarget{
-	{name: reasonRunnerUnit, fragmentPath: reasonRunnerUnitPath},
-	{name: neo4jUnit, fragmentPath: neo4jUnitPath},
+	{name: reasonRunnerUnit, fragmentPath: reasonRunnerUnitPath, policy: removeProjectUnit},
+	{name: neo4jUnit, fragmentPath: neo4jUnitPath, policy: retainVendorUnit},
 }
 
 var (
@@ -68,15 +68,42 @@ const (
 	activeStateRefreshing   systemdActiveState = "refreshing"
 )
 
+type systemdUnitFileState string
+
+const (
+	unitFileStateEnabled        systemdUnitFileState = "enabled"
+	unitFileStateEnabledRuntime systemdUnitFileState = "enabled-runtime"
+	unitFileStateLinked         systemdUnitFileState = "linked"
+	unitFileStateLinkedRuntime  systemdUnitFileState = "linked-runtime"
+	unitFileStateAlias          systemdUnitFileState = "alias"
+	unitFileStateMasked         systemdUnitFileState = "masked"
+	unitFileStateMaskedRuntime  systemdUnitFileState = "masked-runtime"
+	unitFileStateStatic         systemdUnitFileState = "static"
+	unitFileStateDisabled       systemdUnitFileState = "disabled"
+	unitFileStateIndirect       systemdUnitFileState = "indirect"
+	unitFileStateGenerated      systemdUnitFileState = "generated"
+	unitFileStateTransient      systemdUnitFileState = "transient"
+	unitFileStateBad            systemdUnitFileState = "bad"
+)
+
+type unitRetirementPolicy uint8
+
+const (
+	removeProjectUnit unitRetirementPolicy = iota
+	retainVendorUnit
+)
+
 type unitTarget struct {
 	name         string
 	fragmentPath string
+	policy       unitRetirementPolicy
 }
 
 type unitState struct {
-	loadState    systemdLoadState
-	activeState  systemdActiveState
-	fragmentPath string
+	loadState     systemdLoadState
+	activeState   systemdActiveState
+	unitFileState systemdUnitFileState
+	fragmentPath  string
 }
 
 type systemdController interface {
@@ -145,13 +172,15 @@ func execute(ctx context.Context, root string, action retirementAction, systemd 
 			if err != nil {
 				return fmt.Errorf("verify stopped unit %s: %w", target.name, err)
 			}
-			if stopped.loadState != loadStateLoaded || stopped.activeState != activeStateInactive || stopped.fragmentPath != target.fragmentPath {
-				return fmt.Errorf("%w: unit %s after stop has load_state=%s active_state=%s fragment=%s", errUnexpectedSystemdState, target.name, stopped.loadState, stopped.activeState, stopped.fragmentPath)
+			if stopped.loadState != loadStateLoaded || stopped.activeState != activeStateInactive || stopped.unitFileState != unitFileStateDisabled || stopped.fragmentPath != target.fragmentPath {
+				return fmt.Errorf("%w: unit %s after stop has load_state=%s active_state=%s unit_file_state=%s fragment=%s", errUnexpectedSystemdState, target.name, stopped.loadState, stopped.activeState, stopped.unitFileState, stopped.fragmentPath)
 			}
 			fmt.Fprintf(output, "STOPPED unit %s\n", target.name)
 		}
-		if err := removeExactFile(root, target.fragmentPath); err != nil {
-			return fmt.Errorf("remove unit file %s: %w", target.fragmentPath, err)
+		if target.policy == removeProjectUnit {
+			if err := removeExactFile(root, target.fragmentPath); err != nil {
+				return fmt.Errorf("remove unit file %s: %w", target.fragmentPath, err)
+			}
 		}
 	}
 	if err := systemd.reload(ctx); err != nil {
@@ -175,14 +204,21 @@ func execute(ctx context.Context, root string, action retirementAction, systemd 
 	for _, target := range retiredSystemdUnits {
 		state, err := systemd.inspect(ctx, target.name)
 		if err != nil {
-			return fmt.Errorf("verify removed unit %s: %w", target.name, err)
+			return fmt.Errorf("verify retired unit %s: %w", target.name, err)
 		}
-		if state.loadState != loadStateNotFound || state.activeState != activeStateInactive || state.fragmentPath != "" {
-			return fmt.Errorf("unit %s remains load_state=%s fragment=%s", target.name, state.loadState, state.fragmentPath)
+		if target.policy == removeProjectUnit {
+			if state.loadState != loadStateNotFound || state.activeState != activeStateInactive || state.unitFileState != "" || state.fragmentPath != "" {
+				return fmt.Errorf("unit %s remains load_state=%s active_state=%s unit_file_state=%s fragment=%s", target.name, state.loadState, state.activeState, state.unitFileState, state.fragmentPath)
+			}
+			if _, err := os.Lstat(hostPath(root, target.fragmentPath)); !errors.Is(err, os.ErrNotExist) {
+				return fmt.Errorf("unit file %s remains", target.fragmentPath)
+			}
+			continue
 		}
-		if _, err := os.Lstat(hostPath(root, target.fragmentPath)); !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("unit file %s remains", target.fragmentPath)
+		if state.loadState != loadStateLoaded || state.activeState != activeStateInactive || state.unitFileState != unitFileStateDisabled || state.fragmentPath != target.fragmentPath {
+			return fmt.Errorf("vendor unit %s is not safely retired: load_state=%s active_state=%s unit_file_state=%s fragment=%s", target.name, state.loadState, state.activeState, state.unitFileState, state.fragmentPath)
 		}
+		fmt.Fprintf(output, "RETAINED disabled inactive vendor unit file %s\n", target.name)
 	}
 	for _, target := range retiredHostPaths {
 		if _, err := os.Lstat(hostPath(root, target)); !errors.Is(err, os.ErrNotExist) {
@@ -198,14 +234,15 @@ func validateTargets(ctx context.Context, root string, systemd systemdController
 		return nil, fmt.Errorf("host root must be a bounded absolute mount")
 	}
 	for _, target := range retiredHostPaths {
-		if err := validateNoSymlinkPath(root, target); err != nil {
+		if _, err := inspectExactPath(root, target); err != nil {
 			return nil, err
 		}
 	}
 
 	states := make(map[string]unitState, len(retiredSystemdUnits))
 	for _, target := range retiredSystemdUnits {
-		if err := validateNoSymlinkPath(root, target.fragmentPath); err != nil {
+		fragmentExists, err := inspectExactPath(root, target.fragmentPath)
+		if err != nil {
 			return nil, err
 		}
 		state, err := systemd.inspect(ctx, target.name)
@@ -216,14 +253,28 @@ func validateTargets(ctx context.Context, root string, systemd systemdController
 			return nil, fmt.Errorf("unit %s: %w", target.name, err)
 		}
 		if state.loadState == loadStateNotFound {
+			if fragmentExists {
+				return nil, fmt.Errorf("%w: unit %s is not found but exact fragment file exists", errUnexpectedSystemdState, target.name)
+			}
+			if target.policy == retainVendorUnit {
+				return nil, fmt.Errorf("%w: required vendor unit %s is not found", errUnexpectedSystemdState, target.name)
+			}
 			if state.fragmentPath != "" {
 				return nil, fmt.Errorf("%w: unit %s is not found but has fragment %s", errUnexpectedSystemdFragment, target.name, state.fragmentPath)
 			}
 			if state.activeState != activeStateInactive {
 				return nil, fmt.Errorf("%w: unit %s is not found but active_state=%s", errUnexpectedSystemdState, target.name, state.activeState)
 			}
-		} else if state.fragmentPath != target.fragmentPath {
-			return nil, fmt.Errorf("%w: unit %s has fragment %s", errUnexpectedSystemdFragment, target.name, state.fragmentPath)
+		} else {
+			if !fragmentExists {
+				return nil, fmt.Errorf("%w: unit %s is loaded but exact fragment file is absent", errUnexpectedSystemdState, target.name)
+			}
+			if state.fragmentPath != target.fragmentPath {
+				return nil, fmt.Errorf("%w: unit %s has fragment %s", errUnexpectedSystemdFragment, target.name, state.fragmentPath)
+			}
+			if state.unitFileState != unitFileStateEnabled && state.unitFileState != unitFileStateDisabled {
+				return nil, fmt.Errorf("%w: unit %s cannot prove disable transition from unit_file_state=%s", errUnexpectedSystemdState, target.name, state.unitFileState)
+			}
 		}
 		states[target.name] = state
 	}
@@ -237,16 +288,30 @@ func validateUnitState(state unitState) error {
 	switch state.activeState {
 	case activeStateActive, activeStateReloading, activeStateInactive, activeStateFailed,
 		activeStateActivating, activeStateDeactivating, activeStateMaintenance, activeStateRefreshing:
-		return nil
 	default:
 		return fmt.Errorf("%w: active_state=%q", errUnexpectedSystemdState, state.activeState)
 	}
+	if state.loadState == loadStateNotFound {
+		if state.unitFileState != "" {
+			return fmt.Errorf("%w: not-found unit_file_state=%q", errUnexpectedSystemdState, state.unitFileState)
+		}
+		return nil
+	}
+	switch state.unitFileState {
+	case unitFileStateEnabled, unitFileStateEnabledRuntime, unitFileStateLinked, unitFileStateLinkedRuntime,
+		unitFileStateAlias, unitFileStateMasked, unitFileStateMaskedRuntime, unitFileStateStatic,
+		unitFileStateDisabled, unitFileStateIndirect, unitFileStateGenerated, unitFileStateTransient,
+		unitFileStateBad:
+		return nil
+	default:
+		return fmt.Errorf("%w: unit_file_state=%q", errUnexpectedSystemdState, state.unitFileState)
+	}
 }
 
-func validateNoSymlinkPath(root, target string) error {
+func inspectExactPath(root, target string) (bool, error) {
 	cleanTarget := filepath.Clean(target)
 	if !filepath.IsAbs(cleanTarget) || cleanTarget == string(filepath.Separator) {
-		return fmt.Errorf("target %q is not a bounded absolute path", target)
+		return false, fmt.Errorf("target %q is not a bounded absolute path", target)
 	}
 	current := filepath.Clean(root)
 	parts := strings.Split(strings.TrimPrefix(cleanTarget, string(filepath.Separator)), string(filepath.Separator))
@@ -254,16 +319,16 @@ func validateNoSymlinkPath(root, target string) error {
 		current = filepath.Join(current, part)
 		info, err := os.Lstat(current)
 		if errors.Is(err, os.ErrNotExist) {
-			return nil
+			return false, nil
 		}
 		if err != nil {
-			return fmt.Errorf("inspect target %s: %w", target, err)
+			return false, fmt.Errorf("inspect target %s: %w", target, err)
 		}
 		if info.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("%w: target %s via %s", errSymbolicLinkTarget, target, current)
+			return false, fmt.Errorf("%w: target %s via %s", errSymbolicLinkTarget, target, current)
 		}
 	}
-	return nil
+	return true, nil
 }
 
 func removeExactFile(root, target string) error {
@@ -286,12 +351,13 @@ func hostPath(root, target string) string {
 }
 
 func (systemd hostSystemd) inspect(ctx context.Context, name string) (unitState, error) {
-	output, err := systemd.run(ctx, "show", "--property=LoadState", "--property=ActiveState", "--property=FragmentPath", name)
+	output, err := systemd.run(ctx, "show", "--property=LoadState", "--property=ActiveState", "--property=UnitFileState", "--property=FragmentPath", name)
 	if err != nil {
 		return unitState{}, err
 	}
 	var loadState string
 	var activeState string
+	var unitFileState string
 	state := unitState{}
 	for _, line := range strings.Split(string(output), "\n") {
 		key, value, found := strings.Cut(line, "=")
@@ -303,12 +369,15 @@ func (systemd hostSystemd) inspect(ctx context.Context, name string) (unitState,
 			loadState = value
 		case "ActiveState":
 			activeState = value
+		case "UnitFileState":
+			unitFileState = value
 		case "FragmentPath":
 			state.fragmentPath = value
 		}
 	}
 	state.loadState = systemdLoadState(loadState)
 	state.activeState = systemdActiveState(activeState)
+	state.unitFileState = systemdUnitFileState(unitFileState)
 	return state, nil
 }
 
