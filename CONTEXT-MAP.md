@@ -50,9 +50,6 @@ AgentOS 运行时快照见 `docs/adr/0031-data-owns-source-management.md`。
 Company 投影只能通过 Data 版本化快照 API，不得直连 PostgreSQL；该边界见
 `docs/adr/0050-expose-company-projection-snapshot.md`。
 
-UAT 中的 OpenSPG MySQL 与共享 MinIO 由独立 `tidewise-infra-uat` 项目运行，不属于四个
-应用服务、AgentOS 或 Reason Server 的发布事务；详见
-`docs/adr/0029-independent-uat-mysql-and-minio.md`。Huawei RDS、主机级 Neo4j 和独立 Qdrant
-保持独立 ownership 与生命周期。其中专用 UAT Neo4j 的版本、插件、认证、备份/清理、
-网络暴露与基础设施验证由本仓库统一管理；Reason Server 只消费且验证该合同，详见
-`docs/adr/0030-own-uat-neo4j-for-reason.md`。
+UAT ECS 只保留四个应用服务与独立 `tidewise-infra-uat` MinIO/raw-evidence 存储。
+AgentOS、Reason/OpenSPG、KAG、MySQL、Neo4j 与 Qdrant 已迁出或退役，不属于当前 ECS、RDS
+或本仓库 UAT 生命周期；详见 `docs/adr/0055-retire-uat-reasoning-runtime.md`。

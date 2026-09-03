@@ -62,6 +62,8 @@ func TestUATRuntimeAuditIsMainOnlyReadOnlyAndSecretSafe(t *testing.T) {
 	root := repositoryRoot()
 	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "audit-uat-runtime.yml"))
 	audit := readContractFile(t, filepath.Join(root, "infra", "uat", "audit-retired-runtime.sh"))
+	manifest := readContractFile(t, filepath.Join(root, "infra", "uat", "legacy-runtime-manifest.sh"))
+	auditContract := audit + "\n" + manifest
 
 	for _, required := range []string{
 		"workflow_dispatch:",
@@ -87,8 +89,8 @@ func TestUATRuntimeAuditIsMainOnlyReadOnlyAndSecretSafe(t *testing.T) {
 	for _, required := range []string{
 		"flock -n",
 		"tidewise-uat-data-1",
-		"tidewise-agentos-uat-agentos-1",
 		"tidewise-infra-uat-minio-1",
+		"tidewise-agentos-uat-agentos-1",
 		"reason-server-uat",
 		"tidewise-uat-qdrant",
 		"tidewise-infra-uat-mysql-1",
@@ -96,11 +98,10 @@ func TestUATRuntimeAuditIsMainOnlyReadOnlyAndSecretSafe(t *testing.T) {
 		"/usr/local/bin/dbmigrate",
 		"tidewise_ai_server",
 		"agentrun_uat",
-		"http://127.0.0.1:9081/health",
 		"http://127.0.0.1:9000/minio/health/live",
 		"PASS retained-runtime",
 	} {
-		if !strings.Contains(audit, required) {
+		if !strings.Contains(auditContract, required) {
 			t.Fatalf("UAT runtime audit script missing %q", required)
 		}
 	}
@@ -109,7 +110,7 @@ func TestUATRuntimeAuditIsMainOnlyReadOnlyAndSecretSafe(t *testing.T) {
 		"docker rm", "docker stop", "docker compose down", "docker volume rm",
 		"DROP DATABASE", "DROP ROLE", "systemctl disable", "systemctl stop",
 	} {
-		if strings.Contains(audit, forbidden) {
+		if strings.Contains(auditContract, forbidden) {
 			t.Fatalf("UAT runtime audit script contains mutating behavior %q", forbidden)
 		}
 	}
