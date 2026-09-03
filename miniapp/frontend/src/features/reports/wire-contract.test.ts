@@ -62,6 +62,20 @@ describe('Report BFF wire contract', () => {
     expect(value.reports[0]?.nextCursor).toBe('opaque-cursor');
   });
 
+  it('accepts an empty presentation subtitle from the BFF contract', () => {
+    const parseSubtitle = (subtitle: string) => {
+      const cardWithSubtitle = card();
+      cardWithSubtitle.subtitle = subtitle;
+      return parseReportHomeWire({
+        selection: { mode: 'today', date: '2026-09-01', timezone: 'Asia/Shanghai' },
+        reports: [{ report, cards: [cardWithSubtitle], next_cursor: null }]
+      }).reports[0]?.cards[0]?.subtitle;
+    };
+
+    expect(parseSubtitle('')).toBe('');
+    expect(() => parseSubtitle(' ')).toThrow('invalid Report wire response');
+  });
+
   it('fails closed on retired home fields', () => {
     expect(() =>
       parseReportHomeWire({

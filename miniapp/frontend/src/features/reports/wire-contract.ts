@@ -150,7 +150,7 @@ function parseCard(value: unknown): ReportCard {
     kind,
     detailRef: detailRef as ReportCard['detailRef'],
     title: text(root.title),
-    subtitle: text(root.subtitle),
+    subtitle: textOrEmpty(root.subtitle),
     conclusion: text(root.conclusion),
     result: coded(root.result),
     confidence: confidence(root.confidence),
@@ -437,6 +437,10 @@ function list(value: unknown): unknown[] {
 function text(value: unknown): string {
   if (typeof value !== 'string' || value.trim() !== value || value.length === 0) invalid();
   return value;
+}
+
+function textOrEmpty(value: unknown): string {
+  return value === '' ? '' : text(value);
 }
 
 function nullableText(value: unknown): string | null {
