@@ -81,22 +81,29 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Build read-only RDS audit command
+      - name: Build retirement binaries
         shell: bash
         run: |
           set -euo pipefail
-          artifact_dir="${RUNNER_TEMP}/uat-retirement-rds-audit"
+          artifact_dir="${RUNNER_TEMP}/uat-retirement-binaries"
           mkdir -p "$artifact_dir"
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath \
             -o "${artifact_dir}/uat-retired-runtime-db-audit" \
             ./data-service/backend/cmd/uat-retired-runtime-audit
-          (cd "$artifact_dir" && sha256sum uat-retired-runtime-db-audit > uat-retired-runtime-db-audit.sha256)
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath \
+            -o "${artifact_dir}/uat-root-retirement" \
+            ./infra/uat/cmd/uat-root-retirement
+          (
+            cd "$artifact_dir"
+            sha256sum uat-retired-runtime-db-audit uat-root-retirement \
+              > uat-retired-runtime-binaries.sha256
+          )
 
-      - name: Upload RDS audit command
+      - name: Upload retirement binaries
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: uat-retirement-rds-audit-${{ steps.release.outputs.commit_sha }}
-          path: ${{ runner.temp }}/uat-retirement-rds-audit
+          name: uat-retirement-binaries-${{ steps.release.outputs.commit_sha }}
+          path: ${{ runner.temp }}/uat-retirement-binaries
           if-no-files-found: error
           retention-days: 1
 
@@ -115,20 +122,23 @@ jobs:
         with:
           ref: ${{ needs.resolve-release.outputs.commit_sha }}
 
-      - name: Download RDS audit command
+      - name: Download retirement binaries
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: uat-retirement-rds-audit-${{ needs.resolve-release.outputs.commit_sha }}
-          path: ${{ runner.temp }}/uat-retirement-rds-audit-${{ github.run_id }}
+          name: uat-retirement-binaries-${{ needs.resolve-release.outputs.commit_sha }}
+          path: ${{ runner.temp }}/uat-retirement-binaries-${{ github.run_id }}
 
-      - name: Verify RDS audit command
+      - name: Verify retirement binaries
         shell: bash
         run: |
           set -euo pipefail
-          artifact_dir="${RUNNER_TEMP}/uat-retirement-rds-audit-${GITHUB_RUN_ID}"
-          (cd "$artifact_dir" && sha256sum --check uat-retired-runtime-db-audit.sha256)
-          chmod 0700 "${artifact_dir}/uat-retired-runtime-db-audit"
+          artifact_dir="${RUNNER_TEMP}/uat-retirement-binaries-${GITHUB_RUN_ID}"
+          (cd "$artifact_dir" && sha256sum --check uat-retired-runtime-binaries.sha256)
+          chmod 0700 \
+            "${artifact_dir}/uat-retired-runtime-db-audit" \
+            "${artifact_dir}/uat-root-retirement"
           echo "RDS_AUDIT_BINARY=${artifact_dir}/uat-retired-runtime-db-audit" >> "$GITHUB_ENV"
+          echo "ROOT_RETIREMENT_BINARY=${artifact_dir}/uat-root-retirement" >> "$GITHUB_ENV"
 
       - name: Retire exact approved runtime
         id: retirement
@@ -167,9 +177,9 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-      - name: Remove temporary audit command
+      - name: Remove temporary retirement binaries
         if: always()
         shell: bash
         run: |
-          rm -rf -- "${RUNNER_TEMP}/uat-retirement-rds-audit-${GITHUB_RUN_ID}"
+          rm -rf -- "${RUNNER_TEMP}/uat-retirement-binaries-${GITHUB_RUN_ID}"
           rm -f -- "${RUNNER_TEMP}/uat-retirement-${GITHUB_RUN_ID}.txt"

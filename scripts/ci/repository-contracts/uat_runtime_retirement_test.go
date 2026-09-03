@@ -103,7 +103,11 @@ func TestRetainedRuntimeSmokeTraversesReportsDetailsEvidenceAndAdmin(t *testing.
 func TestUATLegacyRuntimeRetirementRejectsWrongConfirmationBeforeMutation(t *testing.T) {
 	root := repositoryRoot()
 	audit := filepath.Join(t.TempDir(), "rds-audit")
+	rootRetirement := filepath.Join(t.TempDir(), "root-retirement")
 	if err := os.WriteFile(audit, []byte("#!/usr/bin/env bash\nexit 0\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(rootRetirement, []byte("#!/usr/bin/env bash\nexit 0\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	command := exec.Command("bash", filepath.Join(root, "infra", "uat", "retire-legacy-runtime.sh"))
@@ -113,6 +117,7 @@ func TestUATLegacyRuntimeRetirementRejectsWrongConfirmationBeforeMutation(t *tes
 		"RUNNER_NAME=fixture-runner",
 		"RETIREMENT_CONFIRMATION=wrong",
 		"RDS_AUDIT_BINARY="+audit,
+		"ROOT_RETIREMENT_BINARY="+rootRetirement,
 		"ADMIN_SERVICE_TOKEN=fixture-admin-token",
 	)
 	output, err := command.CombinedOutput()

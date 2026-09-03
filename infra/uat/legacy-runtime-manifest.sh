@@ -39,8 +39,3 @@ readonly -a UAT_RETIRED_PATHS=(
 )
 
 readonly -a UAT_RETIRED_PORTS=(3306 6333 6334 7474 7687 8887 9081)
-
-readonly UAT_REASON_RUNNER_UNIT='actions.runner.meierlink88-tidewise-reason.tidewise-reason-uat-ecs.service'
-readonly UAT_REASON_RUNNER_UNIT_PATH='/etc/systemd/system/actions.runner.meierlink88-tidewise-reason.tidewise-reason-uat-ecs.service'
-readonly UAT_NEO4J_UNIT='neo4j.service'
-readonly UAT_NEO4J_UNIT_PATH='/etc/systemd/system/neo4j.service'

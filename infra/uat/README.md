@@ -328,6 +328,12 @@ Qdrant、MySQL 与 Neo4j 容器、卷和限定目录，同时保留四个应用�
 Miniapp/Admin 冒烟。当前 MinIO 不能随推理运行时删除，因为
 `https://tideai.tripwise.cn/raw-evidence/` 仍是 Admin 的证据原文读取边界。
 
+Runner 不需要也不获得通用 `sudo`。Workflow 在 GitHub-hosted runner 构建静态
+`uat-root-retirement` binary，与 RDS audit binary 一起校验 SHA-256。ECS 以当前 Data
+容器的本地不可变 image ID 启动一次性 privileged container；host root 只读，仅
+`/etc/systemd/system` 和 `/opt/tidewise` 为可写子挂载。Binary 不接收 unit、路径或
+shell command，只能对 ADR 0055 固化的两个 unit 和五个目录执行 `preflight`/`apply`。
+
 主机退役成功后，在 GitHub 上进行两类分离的 control-plane 收尾：
 
 1. 先以 `gh api repos/meierlink88/tidewise-reason/actions/runners` 查询名为
