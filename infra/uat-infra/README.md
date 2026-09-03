@@ -1,27 +1,24 @@
-# UAT independent infrastructure
+# UAT raw-evidence storage
 
-This directory owns the independently managed MySQL and MinIO services on the Tidewise UAT ECS.
-It is not part of the four-service Tidewise application release and never owns Huawei RDS,
-the independently released OpenSPG Neo4j provider, Qdrant, AgentOS, or Reason Server.
+This directory owns the independently managed MinIO raw-evidence storage on the Tidewise UAT ECS.
+It is not part of the four-service Tidewise application release and never owns Huawei RDS or any
+AgentOS, OpenSPG, Neo4j, Qdrant, MySQL, KAG, or Reason runtime.
 
 ## Topology
 
 ```text
 Huawei ECS
 ├── tidewise-uat network
-│   ├── mysql:3306              # OpenSPG metadata, loopback host binding
 │   └── minio:9000              # shared S3 API, loopback host binding
 ├── MinIO Console :9001          # office-allowlisted ECS host binding
-├── OpenSPG Neo4j :7474/:7687    # independent container; office-allowlisted Browser and Bolt
 └── Nginx :443
     └── /raw-evidence/* -> 127.0.0.1:9000/raw-evidence/*
 
-Huawei RDS PostgreSQL              # application and AgentOS databases
+Huawei RDS PostgreSQL              # Tidewise Data database
 ```
 
-The Compose project is `tidewise-infra-uat`. It creates the persistent named volumes
-`tidewise-infra-uat-mysql-data` and `tidewise-infra-uat-minio-data`. Normal deployment and rollback
-never remove either volume.
+The Compose project is `tidewise-infra-uat`. It creates and preserves only the named volume
+`tidewise-infra-uat-minio-data`.
 
 The existing Huawei Cloud security-group source-IP allowlist is the outer boundary for the native
 UAT operator ports. Office users reach MinIO Console at `http://123.60.99.198:9001`; port `9000`
@@ -43,14 +40,14 @@ Nginx and reloads it. It does not create credentials, containers, buckets or vol
 Existing SWR and runner variables are reused. Add:
 
 - Variable `RAW_EVIDENCE_PUBLIC_BASE_URL=https://tideai.tripwise.cn`.
-- Secrets `OPENSPG_MYSQL_ROOT_PASSWORD`, `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`.
+- Secrets `MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD`.
 - Secrets `MINIO_ACCESS_KEY`, `MINIO_SECRET_KEY` for the bucket-scoped AgentOS runtime user. Set the
   same generated pair in the `tidewise-agent-os` repository's UAT Environment.
 
 Never reuse the local demo credentials. The deployment creates `raw-evidence`, attaches a dedicated
 bucket policy to the AgentOS user, grants anonymous `GetObject` only (no public bucket listing), and
-proves authenticated write/read/delete, browser read, anonymous-write denial, and that existing UAT
-application, AgentOS, Neo4j and Qdrant workloads remain healthy and retain their start fingerprints.
+proves authenticated write/read/delete, browser read, anonymous-write denial, and that the four UAT
+application workloads remain healthy and retain their start fingerprints.
 The Data container's `dbmigrate` command runs without `-apply` to prove a real read-only Huawei RDS
 connection and migration-readiness check without changing the database.
 
@@ -74,15 +71,15 @@ The first probe must load MinIO Console and the second must prove that the S3 AP
 
 Run **Deploy UAT Infrastructure** manually from `main`. The selected commit must belong to `main`
 and have a successful CI run. The workflow builds a digest-addressed deployment bundle, pulls it on
-the self-hosted ECS runner, takes the shared UAT deployment lock, and updates only MySQL and MinIO.
+the self-hosted ECS runner, takes the shared UAT deployment lock, and updates only MinIO.
 
 Successful state is recorded under `/opt/tidewise/infra-uat/state`. A failed later candidate restores
 the previous runtime/Compose snapshot. A failed first candidate stops the candidate containers while
-preserving both named volumes. The manual rollback command uses the recorded snapshot:
+preserving the named volume. The manual rollback command uses the recorded snapshot:
 
 ```bash
 docker compose \
   --env-file /opt/tidewise/infra-uat/state/previous.runtime.env \
   -f /opt/tidewise/infra-uat/state/previous.compose.yaml \
-  up -d --wait mysql minio
+  up -d --wait minio
 ```

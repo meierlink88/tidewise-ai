@@ -152,7 +152,7 @@ RDS 恢复点回滚，再按旧 release 恢复应用。
 | Miniapp Backend Service      |        `9012` | 开发联调按需开放                                          |
 | Admin Portal Backend Service |        `9013` | 仅 Compose 内网，不映射到 ECS host                        |
 | Admin Portal Frontend        |        `9014` | Admin 浏览器唯一入口，开发联调按需开放                    |
-| Qdrant HTTP/gRPC             | `6333`/`6334` | 独立运维；不属于应用发布单元                         |
+| MinIO S3/Console             | `9000`/`9001` | S3 仅 loopback；Console 受办公网来源限制             |
 
 IP/HTTP 方式只适用于开发者工具联调。体验版、真机验收或上线前必须配置备案域名、HTTPS 与微信服务器域名白名单。
 
@@ -161,9 +161,9 @@ Admin 浏览器始终请求同源相对路径 `/api/admin/*`，Frontend nginx �
 `${UAT_PUBLIC_BASE_URL}:9014` Origin。Miniapp 开发者工具另行把
 `TARO_APP_MINIAPP_API_BASE_URL` 设置为 `${UAT_PUBLIC_BASE_URL}:9012`。
 
-Qdrant 和 PostgreSQL 均由独立运维动作维护，不属于应用 Compose/CD 发布单元。
-Qdrant 镜像版本、命名卷、重启策略和升级回退均不写入应用 release state。
-Deploy 不检查、安装、升级、重启、删除或回滚 Qdrant，也不要求 Qdrant SWR mirror。
+PostgreSQL 与 MinIO 均由独立运维动作维护，不属于应用 Compose/CD 发布单元。AgentOS、
+Reason/OpenSPG、KAG、MySQL、Neo4j 与 Qdrant 已退出本 ECS/RDS 运行边界；普通 Deploy 不得
+重新创建或管理这些已退役运行时。
 
 ## Schema Migration、备份门禁与回退
 
@@ -318,6 +318,28 @@ Data migration 通过候选 Data 镜像执行只读预检和风险分类，成�
 
 Data no longer runs Entity seed/import operations or writes Neo4j/Qdrant projections. Historical
 migration state remains untouched.
+
+## Retired AgentOS and reasoning runtime
+
+Issue #391 的一次性 `Retire UAT Legacy Runtime` 工作流只允许从 `main` 的成功 CI 提交手工
+触发，并要求精确确认短语。它在共享发布锁内删除已审计的 AgentOS、Reason/OpenSPG、
+Qdrant、MySQL 与 Neo4j 容器、卷和限定目录，同时保留四个应用服务、`tidewise_uat`、
+`tidewise-uat` 网络及 MinIO/raw-evidence。执行后必须再次运行 `Audit UAT Runtime` 与公网
+Miniapp/Admin 冒烟。当前 MinIO 不能随推理运行时删除，因为
+`https://tideai.tripwise.cn/raw-evidence/` 仍是 Admin 的证据原文读取边界。
+
+主机退役成功后，在 GitHub 上进行两类分离的 control-plane 收尾：
+
+1. 先以 `gh api repos/meierlink88/tidewise-reason/actions/runners` 查询名为
+   `tidewise-reason-uat-ecs` 的精确 runner ID，再对该 ID 调用
+   `gh api -X DELETE repos/meierlink88/tidewise-reason/actions/runners/<reviewed-id>`；不得按位置或模糊名称删除。
+2. 从 `uat` Environment 删除已退役的 `DATA_NEO4J_HEALTH_URI`、
+   `DATA_NEO4J_HEALTH_USERNAME`、`NEO4J_DATABASE`、`NEO4J_URI`、`NEO4J_USERNAME`
+   Variables，以及 `DATA_NEO4J_HEALTH_PASSWORD`、`NEO4J_PASSWORD`、
+   `OPENSPG_MYSQL_ROOT_PASSWORD` Secrets。删除后只校验名称缺席，不读取或输出 Secret 值。
+
+Reason runner 注册和 GitHub Environment 配置不由 ECS 脚本管理；两项收尾都要保留命令结果，
+并与 `Audit UAT Runtime`、公网冒烟和退役 receipt 共同构成最终验收证据。
 
 部署事务内的主机端口检查使用 ECS loopback 地址访问 `9012` 和 `9014`，并通过 `9014`
 验证 Admin API 代理链路。Admin Backend `9013` 只在容器内检查，不发布到 ECS。这样既验证

@@ -46,10 +46,6 @@ jobs:
         if: steps.risks.outputs.architecture == 'true'
         run: bash scripts/ci/smoke-uat-deploy-bundle.sh
 
-      - name: Verify UAT Neo4j adoption contract
-        if: steps.risks.outputs.uat_neo4j == 'true'
-        run: bash scripts/ci/verify-uat-neo4j-contract.sh
-
   data:
     name: Data Service
     runs-on: ubuntu-latest
@@ -230,7 +226,7 @@ jobs:
           docker compose --env-file infra/uat/.env.example -f infra/uat/docker-compose.yaml config --quiet
           docker compose --env-file infra/uat-infra/.env.example -f infra/uat-infra/docker-compose.yaml config --quiet
 
-      - name: Smoke UAT MySQL and MinIO behavior
+      - name: Smoke UAT MinIO raw-evidence behavior
         if: steps.risks.outputs.uat_infra == 'true'
         run: bash scripts/ci/smoke-uat-infra.sh
 

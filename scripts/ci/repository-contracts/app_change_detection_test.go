@@ -192,12 +192,6 @@ func TestRiskBoundaryDetectionSelectsOnlyAffectedSuites(t *testing.T) {
 			want:  map[string]bool{"container": true, "uat_infra": true},
 		},
 		{
-			name:  "UAT Neo4j change selects its provider contract",
-			scope: "repository",
-			path:  "infra/uat-neo4j/verify.sh",
-			want:  map[string]bool{"architecture": true, "uat_neo4j": true},
-		},
-		{
 			name:  "Runtime configuration selects the conditional lifecycle seam",
 			scope: "adminportal",
 			path:  "admin-portal/backend/internal/conf/config.go",
@@ -263,7 +257,7 @@ func TestRiskBoundaryDetectionSelectsOnlyAffectedSuites(t *testing.T) {
 			for _, risk := range []string{
 				"default", "frontend", "data", "migration", "migration_smoke", "migration_framework", "conf_lifecycle",
 				"provider_consumer", "container", "architecture",
-				"object_schema", "uat_infra", "uat_neo4j",
+				"object_schema", "uat_infra",
 			} {
 				if got[risk] != tt.want[risk] {
 					t.Fatalf("%s = %t, want %t; output=%q", risk, got[risk], tt.want[risk], result)

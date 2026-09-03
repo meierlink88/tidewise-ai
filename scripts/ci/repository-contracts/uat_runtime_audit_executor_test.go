@@ -17,12 +17,12 @@ func TestUATRuntimeAuditExecutesReadOnlyAndRedactsEnvironmentValues(t *testing.T
 	for _, required := range []string{
 		"PASS miniapp-health",
 		"PASS admin-health",
-		"PASS agentos-health",
 		"PASS minio-health",
 		"PASS miniapp-report-read",
 		"PASS retained-runtime",
 		"retired-database=tidewise_ai_server present=true",
 		"retired-role=agentrun_uat present=true",
+		"ABSENT container tidewise-agentos-uat-agentos-1",
 		"ABSENT container reason-server-uat",
 		"ABSENT container tidewise-uat-qdrant",
 		"ABSENT container tidewise-infra-uat-mysql-1",
@@ -174,7 +174,7 @@ printf '%s\n' '{"current_database":"tidewise_uat","current_role":"tidewise_uat",
 const fakeDockerCommand = `#!/bin/sh
 printf 'docker %s\n' "$*" >> "$FAKE_COMMAND_LOG"
 
-retired=' tidewise-uat-agentrun-1 agentrun-service agentrun-migrate agentrun-agent-version reason-server-uat tidewise-uat-qdrant tidewise-infra-uat-mysql-1 tidewise-uat-openspg-neo4j '
+retired=' tidewise-agentos-uat-agentos-1 tidewise-uat-agentrun-1 agentrun-service agentrun-migrate agentrun-agent-version reason-server-uat tidewise-uat-qdrant tidewise-infra-uat-mysql-1 tidewise-uat-openspg-neo4j '
 
 case "$1" in
   inspect)

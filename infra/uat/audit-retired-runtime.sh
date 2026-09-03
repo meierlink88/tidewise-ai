@@ -3,6 +3,9 @@
 set -Eeuo pipefail
 
 deployment_root="${DEPLOY_ROOT:-/opt/tidewise/uat}"
+script_directory="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=legacy-runtime-manifest.sh
+source "${script_directory}/legacy-runtime-manifest.sh"
 expected_runner="${UAT_RUNNER_NAME:?UAT_RUNNER_NAME is required}"
 actual_runner="${RUNNER_NAME:-}"
 rds_audit_binary="${RDS_AUDIT_BINARY:?RDS_AUDIT_BINARY is required}"
@@ -38,33 +41,11 @@ flock -n 8 || {
   exit 1
 }
 
-retained_required=(
-  tidewise-uat-data-1
-  tidewise-uat-miniapp-1
-  tidewise-uat-adminportal-1
-  tidewise-uat-admin-1
-  tidewise-agentos-uat-agentos-1
-  tidewise-infra-uat-minio-1
-)
-retirement_candidates=(
-  tidewise-uat-agentrun-1
-  agentrun-service
-  agentrun-migrate
-  agentrun-agent-version
-  reason-server-uat
-  tidewise-uat-qdrant
-  tidewise-infra-uat-mysql-1
-  tidewise-uat-openspg-neo4j
-)
-candidate_volumes=(
-  tidewise-app-agentrun-artifacts
-  tidewise-uat-qdrant-data
-  tidewise-infra-uat-mysql-data
-  tidewise-uat-openspg-neo4j-data
-  tidewise-uat-openspg-neo4j-logs
-)
-candidate_ports=(3306 6333 6334 7474 7687 8887 9080)
-dependency_key_pattern='AGENTRUN|QDRANT|MYSQL|NEO4J|REASON(_SERVER|_SERVICE)?'
+retained_required=("${UAT_RETAINED_CONTAINERS[@]}")
+retirement_candidates=("${UAT_RETIRED_CONTAINERS[@]}")
+candidate_volumes=("${UAT_RETIRED_VOLUMES[@]}")
+candidate_ports=("${UAT_RETIRED_PORTS[@]}")
+dependency_key_pattern='AGENTOS|AGENTRUN|QDRANT|MYSQL|NEO4J|REASON(_SERVER|_SERVICE)?|OPENSPG|KAG'
 
 container_exists() {
   docker inspect "$1" >/dev/null 2>&1
@@ -152,11 +133,7 @@ done
 
 echo
 echo "## Candidate host paths"
-for path in \
-  /opt/tidewise/uat/agentrun-artifacts \
-  /opt/tidewise/uat/logs/agentrun \
-  /opt/tidewise/neo4j-uat \
-  /opt/tidewise/reason-uat; do
+for path in "${UAT_RETIRED_PATHS[@]}"; do
   if [ -e "$path" ]; then
     size_bytes="$(du -sb -- "$path" 2>/dev/null | awk '{print $1}' || true)"
     echo "PRESENT path ${path} bytes=${size_bytes:-unreadable}"
@@ -223,7 +200,7 @@ echo
 echo "## Candidate systemd units"
 units="$(systemctl list-unit-files --type=service --no-legend --no-pager 2>/dev/null \
   | awk '{print $1}' \
-  | grep -Ei 'agentrun|agent-run|qdrant|mysql|neo4j|reason' \
+  | grep -Ei 'agentos|agentrun|agent-run|qdrant|mysql|neo4j|reason|openspg|kag' \
   | LC_ALL=C sort -u || true)"
 if [ -z "$units" ]; then
   echo "ABSENT matching systemd units"
@@ -301,8 +278,6 @@ curl --fail --silent --show-error --max-time 5 http://127.0.0.1:9012/healthz >/d
 echo "PASS miniapp-health"
 curl --fail --silent --show-error --max-time 5 http://127.0.0.1:9014/healthz >/dev/null
 echo "PASS admin-health"
-curl --fail --silent --show-error --max-time 5 http://127.0.0.1:9081/health >/dev/null
-echo "PASS agentos-health"
 curl --fail --silent --show-error --max-time 5 http://127.0.0.1:9000/minio/health/live >/dev/null
 echo "PASS minio-health"
 home_status="$(curl --silent --show-error --max-time 10 -o /dev/null -w '%{http_code}' \

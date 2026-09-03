@@ -45,13 +45,7 @@ if url.port or url.path not in ("", "/") or url.query or url.fragment:
 PY
 pass public-base-url
 
-curl -fsS --connect-timeout 3 --max-time 5 http://127.0.0.1:7474/ >/dev/null \
-  || fail neo4j "OpenSPG Neo4j is unavailable"
-[ "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' tidewise-uat-openspg-neo4j)" = healthy ] \
-  || fail neo4j "OpenSPG Neo4j container is not healthy"
-pass openspg-neo4j
-
-for port in 3306 9000 9001; do
+for port in 9000 9001; do
   while read -r container_id; do
     [ -z "$container_id" ] && continue
     project="$(docker inspect --format '{{ index .Config.Labels "com.docker.compose.project" }}' "$container_id")"

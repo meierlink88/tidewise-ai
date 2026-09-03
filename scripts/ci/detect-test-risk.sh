@@ -40,15 +40,10 @@ container=false
 architecture=false
 object_schema=false
 uat_infra=false
-uat_neo4j=false
 
 shared_go='^(go\.mod|go\.sum)$'
 shared_frontend='^(package\.json|package-lock\.json)$'
 container_assets='(^|/)(Dockerfile|docker-compose[^/]*\.ya?ml)$|^infra/(local|uat|uat-infra)/|^\.github/workflows/(ci|deploy-uat|deploy-uat-infra|recover-uat-pre-v74-evidence|replace-uat-public-schema)\.yml$'
-
-if matches '^infra/uat-neo4j/|^scripts/ci/verify-uat-neo4j-contract\.sh$'; then
-  uat_neo4j=true
-fi
 
 case "$scope" in
   data)
@@ -122,7 +117,7 @@ case "$scope" in
     fi
     ;;
   repository)
-    if matches '^(go\.mod|go\.sum|AGENTS\.md|CONTEXT-MAP\.md)$|^(data-service|miniapp|admin-portal)/backend/.*\.go$|^docs/(agents/|adr/|contexts/|development-standards/)|^infra/(uat|uat-infra|uat-neo4j)/|^scripts/ci/|^\.github/workflows/'; then
+    if matches '^(go\.mod|go\.sum|AGENTS\.md|CONTEXT-MAP\.md)$|^(data-service|miniapp|admin-portal)/backend/.*\.go$|^docs/(agents/|adr/|contexts/|development-standards/)|^infra/(uat|uat-infra)/|^scripts/ci/|^\.github/workflows/'; then
       architecture=true
     fi
     ;;
@@ -141,5 +136,4 @@ esac
   echo "architecture=$architecture"
   echo "object_schema=$object_schema"
   echo "uat_infra=$uat_infra"
-  echo "uat_neo4j=$uat_neo4j"
 } >>"$GITHUB_OUTPUT"

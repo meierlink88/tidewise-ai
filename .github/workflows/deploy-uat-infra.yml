@@ -113,7 +113,7 @@ jobs:
           echo "bundle_image=${tag}@${DIGEST}" >> "$GITHUB_OUTPUT"
 
   deploy:
-    name: Deploy MySQL and MinIO to UAT ECS
+    name: Deploy MinIO raw-evidence storage to UAT ECS
     runs-on: [self-hosted, linux, x64, tidewise-uat-ecs]
     needs: [resolve-release, build-bundle]
     environment: uat
@@ -124,7 +124,6 @@ jobs:
       BUNDLE_IMAGE: ${{ needs.build-bundle.outputs.bundle_image }}
       RELEASE_SHA: ${{ needs.resolve-release.outputs.commit_sha }}
       RAW_EVIDENCE_PUBLIC_BASE_URL: ${{ vars.RAW_EVIDENCE_PUBLIC_BASE_URL }}
-      OPENSPG_MYSQL_ROOT_PASSWORD: ${{ secrets.OPENSPG_MYSQL_ROOT_PASSWORD }}
       MINIO_ROOT_USER: ${{ secrets.MINIO_ROOT_USER }}
       MINIO_ROOT_PASSWORD: ${{ secrets.MINIO_ROOT_PASSWORD }}
       MINIO_ACCESS_KEY: ${{ secrets.MINIO_ACCESS_KEY }}
@@ -162,8 +161,6 @@ jobs:
           set -euo pipefail
           runtime="${RUNNER_TEMP}/tidewise-uat-infra-${GITHUB_RUN_ID}.env"
           umask 077
-          [[ "$OPENSPG_MYSQL_ROOT_PASSWORD" =~ ^[A-Za-z0-9_-]{24,64}$ ]] \
-            || { echo "OPENSPG_MYSQL_ROOT_PASSWORD must be 24-64 URL-safe characters" >&2; exit 1; }
           for name in MINIO_ROOT_USER MINIO_ACCESS_KEY; do
             value="${!name}"
             [[ "$value" =~ ^[A-Za-z0-9_-]{16,20}$ ]] \
@@ -175,7 +172,6 @@ jobs:
               || { echo "$name must be 32-64 URL-safe characters" >&2; exit 1; }
           done
           printf '%s\n' \
-            "OPENSPG_MYSQL_ROOT_PASSWORD=${OPENSPG_MYSQL_ROOT_PASSWORD}" \
             "MINIO_ROOT_USER=${MINIO_ROOT_USER}" \
             "MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}" > "$runtime"
           echo "runtime=$runtime" >> "$GITHUB_OUTPUT"
