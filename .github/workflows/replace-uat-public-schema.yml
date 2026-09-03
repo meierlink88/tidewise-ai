@@ -1,0 +1,345 @@
+name: Replace UAT Public Schema
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_asset_id:
+        description: Numeric GitHub draft Release asset ID containing the AES-encrypted approved snapshot.
+        required: true
+        type: string
+      encrypted_snapshot_sha256:
+        description: SHA-256 of the encrypted snapshot asset.
+        required: true
+        type: string
+      snapshot_sha256:
+        description: SHA-256 of the approved decrypted tidewise_local v81 snapshot.
+        required: true
+        type: string
+      confirm_high_risk_backup:
+        description: Confirm a fresh Huawei Cloud RDS recovery point is available.
+        required: true
+        default: false
+        type: boolean
+      confirm_destructive_data_change:
+        description: Confirm complete replacement of only tidewise_uat.public.
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: uat-deploy
+  cancel-in-progress: false
+
+jobs:
+  validate-refresh:
+    name: Validate approved UAT snapshot refresh
+    runs-on: ubuntu-latest
+    outputs:
+      control_sha: ${{ steps.refresh.outputs.control_sha }}
+      asset_id: ${{ steps.refresh.outputs.asset_id }}
+      encrypted_sha256: ${{ steps.refresh.outputs.encrypted_sha256 }}
+      snapshot_sha256: ${{ steps.refresh.outputs.snapshot_sha256 }}
+    steps:
+      - name: Checkout main history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Validate destructive refresh scope
+        id: refresh
+        env:
+          RELEASE_ASSET_ID: ${{ inputs.release_asset_id }}
+          ENCRYPTED_SNAPSHOT_SHA256: ${{ inputs.encrypted_snapshot_sha256 }}
+          SNAPSHOT_SHA256: ${{ inputs.snapshot_sha256 }}
+          HIGH_RISK_BACKUP_CONFIRMED: ${{ inputs.confirm_high_risk_backup }}
+          DESTRUCTIVE_DATA_CHANGE_CONFIRMED: ${{ inputs.confirm_destructive_data_change }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          approved_snapshot_sha256=cb178f849357d71c2490638ad69b56d8dbb268082370903e3b652a7fbdd142ef
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "UAT public-schema replacement must be dispatched from main" >&2
+            exit 1
+          fi
+          if [ "$HIGH_RISK_BACKUP_CONFIRMED" != true ] || [ "$DESTRUCTIVE_DATA_CHANGE_CONFIRMED" != true ]; then
+            echo "Both recovery-point and destructive-data confirmations are required" >&2
+            exit 1
+          fi
+          if ! [[ "$RELEASE_ASSET_ID" =~ ^[1-9][0-9]*$ ]]; then
+            echo "release_asset_id must be numeric" >&2
+            exit 1
+          fi
+          if ! [[ "$ENCRYPTED_SNAPSHOT_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "encrypted_snapshot_sha256 must be a lowercase SHA-256" >&2
+            exit 1
+          fi
+          if [ "$SNAPSHOT_SHA256" != "$approved_snapshot_sha256" ]; then
+            echo "snapshot_sha256 is not the approved tidewise_local v81 snapshot" >&2
+            exit 1
+          fi
+          git fetch --no-tags origin main
+          control_sha="$(git rev-parse "$GITHUB_SHA")"
+          if ! git merge-base --is-ancestor "$control_sha" origin/main; then
+            echo "Refresh control commit is no longer part of main" >&2
+            exit 1
+          fi
+          echo "control_sha=$control_sha" >> "$GITHUB_OUTPUT"
+          echo "asset_id=$RELEASE_ASSET_ID" >> "$GITHUB_OUTPUT"
+          echo "encrypted_sha256=$ENCRYPTED_SNAPSHOT_SHA256" >> "$GITHUB_OUTPUT"
+          echo "snapshot_sha256=$SNAPSHOT_SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Require successful CI for the refresh control commit
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          TARGET_SHA: ${{ steps.refresh.outputs.control_sha }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const response = await github.rest.actions.listWorkflowRuns({
+              owner,
+              repo,
+              workflow_id: 'ci.yml',
+              head_sha: process.env.TARGET_SHA,
+              status: 'completed',
+              per_page: 100,
+            });
+            const succeeded = response.data.workflow_runs.some(
+              (run) => run.head_sha === process.env.TARGET_SHA && run.conclusion === 'success',
+            );
+            if (!succeeded) {
+              core.setFailed(`No successful CI run exists for ${process.env.TARGET_SHA}`);
+            }
+
+  build-refresh-image:
+    name: Build encrypted UAT refresh image
+    runs-on: ubuntu-latest
+    needs: validate-refresh
+    environment: uat
+    outputs:
+      refresh_image: ${{ steps.image.outputs.refresh_image }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SWR_REGISTRY: ${{ vars.SWR_REGISTRY }}
+      SWR_NAMESPACE: ${{ vars.SWR_NAMESPACE }}
+      SWR_DEPLOY_REPOSITORY: ${{ vars.SWR_DEPLOY_REPOSITORY }}
+    steps:
+      - name: Checkout validated refresh control commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.validate-refresh.outputs.control_sha }}
+
+      - name: Download and verify encrypted snapshot asset
+        id: context
+        env:
+          RELEASE_ASSET_ID: ${{ needs.validate-refresh.outputs.asset_id }}
+          EXPECTED_ENCRYPTED_SHA256: ${{ needs.validate-refresh.outputs.encrypted_sha256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          build_context="${RUNNER_TEMP}/tidewise-uat-public-refresh-${GITHUB_RUN_ID}"
+          rm -rf "$build_context"
+          mkdir -m 0700 "$build_context"
+          curl --fail --location --silent --show-error \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "Accept: application/octet-stream" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/assets/${RELEASE_ASSET_ID}" \
+            --output "$build_context/snapshot.dump.enc"
+          echo "${EXPECTED_ENCRYPTED_SHA256}  ${build_context}/snapshot.dump.enc" | sha256sum --check
+          cp infra/uat/uat-public-refresh.Dockerfile "$build_context/Dockerfile"
+          cp infra/uat/restore-public-schema.sh "$build_context/restore-public-schema.sh"
+          echo "build_context=$build_context" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve refresh image tag
+        id: tag
+        env:
+          CONTROL_SHA: ${{ needs.validate-refresh.outputs.control_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${SWR_REGISTRY:?Set the SWR_REGISTRY uat Environment variable}"
+          : "${SWR_NAMESPACE:?Set the SWR_NAMESPACE uat Environment variable}"
+          : "${SWR_DEPLOY_REPOSITORY:?Set the SWR_DEPLOY_REPOSITORY uat Environment variable}"
+          echo "tag=${SWR_REGISTRY}/${SWR_NAMESPACE}/${SWR_DEPLOY_REPOSITORY}:${CONTROL_SHA}-public-refresh-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+
+      - name: Login to SWR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.SWR_REGISTRY }}
+          username: ${{ secrets.SWR_USERNAME }}
+          password: ${{ secrets.SWR_PASSWORD }}
+
+      - name: Build and push encrypted refresh image
+        id: build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: ${{ steps.context.outputs.build_context }}
+          file: ${{ steps.context.outputs.build_context }}/Dockerfile
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: ${{ steps.tag.outputs.tag }}
+          labels: |
+            org.opencontainers.image.revision=${{ needs.validate-refresh.outputs.control_sha }}
+            com.tidewise.uat.operation=public-schema-refresh
+            com.tidewise.uat.snapshot-sha256=${{ needs.validate-refresh.outputs.snapshot_sha256 }}
+
+      - name: Resolve immutable refresh image
+        id: image
+        env:
+          IMAGE_TAG: ${{ steps.tag.outputs.tag }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! [[ "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Refresh image build did not return an immutable digest" >&2
+            exit 1
+          fi
+          echo "refresh_image=${IMAGE_TAG}@${IMAGE_DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Remove temporary encrypted snapshot context
+        if: always() && steps.context.outcome == 'success'
+        shell: bash
+        run: rm -rf "${{ steps.context.outputs.build_context }}"
+
+  replace-public-schema:
+    name: Replace only tidewise_uat.public
+    runs-on: [self-hosted, linux, x64, tidewise-uat-ecs]
+    needs: [validate-refresh, build-refresh-image]
+    environment: uat
+    env:
+      DEPLOY_ROOT: /opt/tidewise/uat
+      SWR_REGISTRY: ${{ vars.SWR_REGISTRY }}
+      REFRESH_IMAGE: ${{ needs.build-refresh-image.outputs.refresh_image }}
+      SNAPSHOT_SHA256: ${{ needs.validate-refresh.outputs.snapshot_sha256 }}
+      EXPECTED_ENCRYPTED_SHA256: ${{ needs.validate-refresh.outputs.encrypted_sha256 }}
+      REPORT_DIR: /tmp/tidewise-uat-public-refresh-${{ github.run_id }}
+    steps:
+      - name: Login to SWR with pull credentials
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.SWR_REGISTRY }}
+          username: ${{ secrets.SWR_PULL_USERNAME }}
+          password: ${{ secrets.SWR_PULL_PASSWORD }}
+
+      - name: Pull immutable encrypted refresh image
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! [[ "$REFRESH_IMAGE" =~ @sha256:[0-9a-f]{64}$ ]]; then
+            echo "Refresh image must be addressed by digest" >&2
+            exit 1
+          fi
+          docker pull "$REFRESH_IMAGE"
+
+      - name: Verify snapshot, stop applications, and replace public schema
+        id: refresh
+        shell: bash
+        env:
+          SNAPSHOT_DECRYPTION_KEY: ${{ secrets.UAT_DATA_REFRESH_KEY }}
+          TIDEWISW_DB_PASSWORD: ${{ secrets.TIDEWISW_DB_PASSWORD }}
+        run: |
+          set -euo pipefail
+          runtime_file="${DEPLOY_ROOT}/runtime.env"
+          images_file="${DEPLOY_ROOT}/state/current.images.env"
+          compose_file="${DEPLOY_ROOT}/state/current.compose.yaml"
+          lock_file="${DEPLOY_ROOT}/deploy.lock"
+          secret_dir="${RUNNER_TEMP}/tidewise-uat-public-refresh-secrets-${GITHUB_RUN_ID}"
+          mkdir -m 0700 -p "$REPORT_DIR" "$secret_dir"
+          echo "secret_dir=$secret_dir" >> "$GITHUB_OUTPUT"
+          umask 077
+          printf '%s' "$SNAPSHOT_DECRYPTION_KEY" > "$secret_dir/snapshot_key"
+          printf '%s' "$TIDEWISW_DB_PASSWORD" > "$secret_dir/database_password"
+          [ -s "$secret_dir/snapshot_key" ]
+          [ -s "$secret_dir/database_password" ]
+
+          exec 9>"$lock_file"
+          if ! flock -n 9; then
+            echo "Another UAT deployment holds the deployment lock" >&2
+            exit 1
+          fi
+          for path in "$runtime_file" "$images_file" "$compose_file"; do
+            [ -s "$path" ] || { echo "Required UAT release state is missing: $path" >&2; exit 1; }
+          done
+
+          compose=(env -u DATA_IMAGE -u MINIAPP_IMAGE -u ADMINPORTAL_IMAGE -u ADMIN_IMAGE docker compose --env-file "$runtime_file" --env-file "$images_file" -f "$compose_file")
+          actual_services="$("${compose[@]}" config --services | sort)"
+          expected_services="$(printf '%s\n' admin adminportal data miniapp)"
+          if [ "$actual_services" != "$expected_services" ]; then
+            echo "UAT release state must contain exactly data, miniapp, adminportal, and admin" >&2
+            exit 1
+          fi
+
+          refresh_container() {
+            action="$1"
+            runner_uid="$(id -u)"
+            runner_gid="$(id -g)"
+            docker run --rm \
+              --user "${runner_uid}:${runner_gid}" \
+              --tmpfs "/work:rw,noexec,nosuid,nodev,size=512m,uid=${runner_uid},gid=${runner_gid}" \
+              --mount "type=bind,src=${secret_dir}/snapshot_key,dst=/run/secrets/snapshot_key,readonly" \
+              --mount "type=bind,src=${secret_dir}/database_password,dst=/run/secrets/database_password,readonly" \
+              -e PGHOST=775b3ecf9c934ae185c0b8eda157c50din03.internal.cn-east-3.postgresql.rds.myhuaweicloud.com \
+              -e PGPORT=5432 \
+              -e PGDATABASE=tidewise_uat \
+              -e PGUSER=tidewise_uat \
+              -e PGSSLMODE=require \
+              -e "SNAPSHOT_SHA256=${SNAPSHOT_SHA256}" \
+              -e "EXPECTED_ENCRYPTED_SHA256=${EXPECTED_ENCRYPTED_SHA256}" \
+              -e TIDEWISE_UAT_PUBLIC_REPLACEMENT_CONFIRMED=issue-389-tidewise-uat-public-replacement \
+              "$REFRESH_IMAGE" "$action"
+          }
+
+          refresh_container check > "$REPORT_DIR/check.json"
+          "${compose[@]}" stop
+          running="$(docker ps \
+            --filter label=com.docker.compose.project=tidewise-uat \
+            --format '{{.ID}}')"
+          if [ -n "$running" ]; then
+            echo "At least one tidewise-uat application or one-off container is still running" >&2
+            exit 1
+          fi
+
+          if ! refresh_container apply > "$REPORT_DIR/apply.json"; then
+            echo "Public-schema replacement failed after applications were stopped." >&2
+            echo "Keep all four applications stopped and restore the confirmed Huawei Cloud RDS recovery point before retrying." >&2
+            exit 1
+          fi
+          echo "Database refresh succeeded. Applications intentionally remain stopped until Deploy UAT publishes current main."
+          {
+            echo "### UAT public schema replaced"
+            echo
+            echo "- Database: \`tidewise_uat\`"
+            echo "- Replaced schema: \`public\` only"
+            echo "- Application services: stopped"
+            echo "- Next required action: run \`Deploy UAT\` for current \`main\`"
+            echo
+            echo '```json'
+            cat "$REPORT_DIR/apply.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload count-only refresh report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: uat-public-schema-refresh-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/*.json
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Remove temporary secrets and reports
+        if: always()
+        shell: bash
+        run: |
+          rm -rf "${{ steps.refresh.outputs.secret_dir }}" "$REPORT_DIR"
+          docker image rm "$REFRESH_IMAGE" >/dev/null 2>&1 || true

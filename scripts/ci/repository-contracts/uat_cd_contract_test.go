@@ -251,6 +251,82 @@ func TestUATPreV74EvidenceRecoveryIsBoundedAndCountOnly(t *testing.T) {
 	}
 }
 
+func TestUATPublicSchemaReplacementIsEncryptedBoundedAndLeavesAppsStopped(t *testing.T) {
+	root := repositoryRoot()
+	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "replace-uat-public-schema.yml"))
+	restore := readContractFile(t, filepath.Join(root, "infra", "uat", "restore-public-schema.sh"))
+	dockerfile := readContractFile(t, filepath.Join(root, "infra", "uat", "uat-public-refresh.Dockerfile"))
+
+	for _, required := range []string{
+		"workflow_dispatch:",
+		"confirm_high_risk_backup:",
+		"confirm_destructive_data_change:",
+		"$GITHUB_REF\" != refs/heads/main",
+		"workflow_id: 'ci.yml'",
+		"group: uat-deploy",
+		"releases/assets/${RELEASE_ASSET_ID}",
+		"Authorization: Bearer ${GH_TOKEN}",
+		"SWR_DEPLOY_REPOSITORY",
+		"@sha256:",
+		"runs-on: [self-hosted, linux, x64, tidewise-uat-ecs]",
+		"flock -n",
+		"com.docker.compose.project=tidewise-uat",
+		"printf '%s' \"$SNAPSHOT_DECRYPTION_KEY\"",
+		"/run/secrets/snapshot_key",
+		"--tmpfs \"/work:",
+		"PGDATABASE=tidewise_uat",
+		"PGUSER=tidewise_uat",
+		"PGSSLMODE=require",
+		"refresh_container check",
+		"refresh_container apply",
+		"Applications intentionally remain stopped",
+		"restore the confirmed Huawei Cloud RDS recovery point",
+	} {
+		if !strings.Contains(workflow, required) {
+			t.Fatalf("UAT public-schema replacement workflow missing %q", required)
+		}
+	}
+	for _, forbidden := range []string{"docker compose up", "docker start", "DROP DATABASE", "DROP ROLE", "pg_dumpall", "--create"} {
+		if strings.Contains(workflow, forbidden) {
+			t.Fatalf("UAT public-schema replacement workflow contains forbidden behavior %q", forbidden)
+		}
+	}
+
+	for _, required := range []string{
+		"cb178f849357d71c2490638ad69b56d8dbb268082370903e3b652a7fbdd142ef",
+		"tidewise_uat",
+		"PGSSLMODE",
+		"target PostgreSQL must be version 16 or newer",
+		"other tidewise_uat client connection count",
+		"openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000",
+		"DROP SCHEMA public CASCADE",
+		"CREATE SCHEMA public AUTHORIZATION pg_database_owner",
+		"--section=pre-data",
+		"--section=data",
+		"--section=post-data",
+		"SET search_path TO public, pg_catalog",
+		"RESET search_path",
+		"expected_table_count=\"51\"",
+		"expected_report_count=\"2\"",
+		"expected_source_count=\"27\"",
+		"expected_raw_evidence_count=\"93\"",
+	} {
+		if !strings.Contains(restore, required) {
+			t.Fatalf("UAT public-schema restore script missing %q", required)
+		}
+	}
+	for _, forbidden := range []string{"DROP DATABASE", "DROP ROLE", "pg_dumpall", "--create"} {
+		if strings.Contains(restore, forbidden) {
+			t.Fatalf("UAT public-schema restore script contains forbidden behavior %q", forbidden)
+		}
+	}
+	for _, required := range []string{"FROM postgres:16.14-alpine@sha256:", "apk add --no-cache openssl", "USER postgres"} {
+		if !strings.Contains(dockerfile, required) {
+			t.Fatalf("UAT public-schema refresh image missing %q", required)
+		}
+	}
+}
+
 func TestDataMigrationSmokeExercisesExplicitEmptySchemaRebuild(t *testing.T) {
 	root := repositoryRoot()
 	ci := readContractFile(t, filepath.Join(root, ".github", "workflows", "ci.yml"))

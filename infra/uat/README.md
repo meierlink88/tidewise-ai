@@ -115,10 +115,34 @@ Secrets：
 | `DATA_SERVICE_TOKEN`                     | 所有受信服务调用 Data Service 的统一身份    |
 | `ADMIN_SERVICE_TOKEN`                    | Admin Portal Backend 的浏览器/API 鉴权      |
 
+`UAT_DATA_REFRESH_KEY` 不是常驻运行时 Secret。它只在执行一次性
+`Replace UAT Public Schema` 工作流前临时创建，用于解密已经锁定 SHA-256 的本地快照；
+刷新成功并完成 `Deploy UAT` 后必须删除该 Secret 与对应的 GitHub draft Release。
+
 RDS 的 host、port、database、user 与 `sslmode=require` 固定保存在 Data
 `config.uat.yaml`；GitHub Environment 只保存数据库密码，不得通过完整数据库 URL 覆盖。
 
 RDS 不开放公网，只允许 ECS 私网来源访问 5432。Miniapp Backend、Admin Portal Backend 和 Frontend 容器中没有数据库连接信息。`sslmode=require` 会加密链路，但不使用 CA 校验服务器身份；这是本期明确接受的 UAT 安全取舍，不得降级为 `prefer` 或 `disable`。
+
+## 一次性本地快照替换
+
+`Replace UAT Public Schema` 只用于 Issue #389 已批准的本地 v81 快照。工作流把快照明文
+SHA-256、migration 与核心计数写死在受信脚本中，输入不能把它扩展成通用数据库导入入口。
+快照在本地使用 AES-256-CBC + PBKDF2 加密后，作为 draft Release asset 暂存；GitHub-hosted
+runner 校验密文 SHA-256，并把密文封装进不可变 SWR 镜像。解密密钥只作为临时 `uat`
+Environment Secret 存在，明文只写入 ECS 恢复容器的 tmpfs。
+
+恢复工作流在任何 DDL 前验证：目标为 PostgreSQL 16+、database/user 都是
+`tidewise_uat`、当前 migration 为 `80`、连接使用 `sslmode=require`，并取得与普通发布共用的
+`/opt/tidewise/uat/deploy.lock`。之后停止且确认 `data`、`miniapp`、`adminportal`、`admin`
+四个服务，唯一允许的结构替换是 `tidewise_uat.public`。恢复按 pre-data、data、post-data
+三阶段执行；恢复结果必须是 migration `81`、51 张 public 表、2 份报告、27 个 source、
+93 条 raw evidence。
+
+恢复成功后旧应用仍保持停止，必须立即对当前 `main` 运行普通 `Deploy UAT`。只有四个当前
+应用全部健康且 Miniapp/Admin 读取验证通过后，才删除 draft Release 和临时
+`UAT_DATA_REFRESH_KEY`。若 schema 写入后失败，不得启动旧 v80 应用；使用操作前确认的华为云
+RDS 恢复点回滚，再按旧 release 恢复应用。
 
 ## 端口
 
