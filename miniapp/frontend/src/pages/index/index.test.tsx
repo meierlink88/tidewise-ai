@@ -60,6 +60,8 @@ describe('Report homepage', () => {
     expect(findAllByClass(page, 'home-card-evidence-action')).toHaveLength(22);
     expect(findAllByClass(page, 'home-card-detail-action')).toHaveLength(22);
     expect(findAllByClass(page, 'home-report-section__kind-icon')).toHaveLength(3);
+    expect(findAllByClass(page, 'home-report-publication')).toHaveLength(1);
+    expect(findAllByClass(page, 'home-report-tabs')).toHaveLength(0);
     expect(findAllByClass(page, 'home-report-card__arrow')).toHaveLength(22);
     expect(findAllByClass(page, 'home-company-boundary__icon')).toHaveLength(0);
     expect(findAllByClass(page, 'home-industry-identity')).toHaveLength(20);

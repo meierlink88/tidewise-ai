@@ -5,7 +5,6 @@ import (
 	"errors"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -17,7 +16,6 @@ const (
 	listPageSize        = 100
 	chainPageSize       = 20
 	maxListPages        = 100
-	homeReadConcurrency = 4
 )
 
 var (
@@ -250,79 +248,41 @@ func (u *UseCase) Home(ctx context.Context) (HomeCollection, error) {
 	}
 	from, to, date := shanghaiDay(u.now())
 	selection := HomeSelection{Mode: SelectionToday, Date: date, Timezone: "Asia/Shanghai"}
-	summaries, err := u.listAll(ctx, ListQuery{PublishedFrom: &from, PublishedTo: &to, Limit: listPageSize})
+	summary, err := u.latestSummary(ctx, ListQuery{PublishedFrom: &from, PublishedTo: &to, Limit: 1})
 	if err != nil {
-		return HomeCollection{}, normalizeRepositoryError(err)
+		return HomeCollection{}, err
 	}
-	if len(summaries) == 0 {
-		page, listErr := u.repository.ListReports(ctx, ListQuery{Limit: 1})
-		if listErr != nil {
-			return HomeCollection{}, normalizeRepositoryError(listErr)
+	if summary == nil {
+		summary, err = u.latestSummary(ctx, ListQuery{Limit: 1})
+		if err != nil {
+			return HomeCollection{}, err
 		}
-		if len(page.Items) > 1 || (len(page.Items) == 0 && page.NextCursor != nil) {
-			return HomeCollection{}, ErrDataUnavailable
-		}
-		summaries = page.Items
-		if len(summaries) > 0 {
+		if summary != nil {
 			selection.Mode = SelectionFallback
 		}
 	}
-	if err := validateSummaryOrder(summaries); err != nil {
-		return HomeCollection{}, err
-	}
-	if len(summaries) == 0 {
+	if summary == nil {
 		return HomeCollection{Selection: selection, Reports: []Home{}}, nil
 	}
-	homes, err := u.readHomes(ctx, summaries)
+	home, err := u.readHome(ctx, *summary)
 	if err != nil {
 		return HomeCollection{}, err
 	}
-	return HomeCollection{Selection: selection, Reports: homes}, nil
+	return HomeCollection{Selection: selection, Reports: []Home{home}}, nil
 }
 
-func (u *UseCase) readHomes(ctx context.Context, summaries []Summary) ([]Home, error) {
-	homes := make([]Home, len(summaries))
-	workersCount := homeReadConcurrency
-	if len(summaries) < workersCount {
-		workersCount = len(summaries)
+func (u *UseCase) latestSummary(ctx context.Context, query ListQuery) (*Summary, error) {
+	page, err := u.repository.ListReports(ctx, query)
+	if err != nil {
+		return nil, normalizeRepositoryError(err)
 	}
-	readContext, cancel := context.WithCancel(ctx)
-	defer cancel()
-	jobs := make(chan int)
-	var workers sync.WaitGroup
-	var failOnce sync.Once
-	var readErr error
-	workers.Add(workersCount)
-	for worker := 0; worker < workersCount; worker++ {
-		go func() {
-			defer workers.Done()
-			for index := range jobs {
-				home, err := u.readHome(readContext, summaries[index])
-				if err != nil {
-					failOnce.Do(func() { readErr = err; cancel() })
-					continue
-				}
-				homes[index] = home
-			}
-		}()
-	}
-send:
-	for index := range summaries {
-		select {
-		case jobs <- index:
-		case <-readContext.Done():
-			break send
-		}
-	}
-	close(jobs)
-	workers.Wait()
-	if readErr != nil {
-		return nil, readErr
-	}
-	if ctx.Err() != nil {
+	if len(page.Items) > 1 || (len(page.Items) == 0 && page.NextCursor != nil) || validateSummaryOrder(page.Items) != nil {
 		return nil, ErrDataUnavailable
 	}
-	return homes, nil
+	if len(page.Items) == 0 {
+		return nil, nil
+	}
+	return &page.Items[0], nil
 }
 
 func (u *UseCase) readHome(ctx context.Context, summary Summary) (Home, error) {

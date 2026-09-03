@@ -52,7 +52,8 @@ export function parseReportHomeWire(value: unknown): ReportHome {
   } as const;
   const reports = list(root.reports).map(parseHomeGroup);
   unique(reports.map((item) => item.report.id));
-  if (selection.mode === 'latest_fallback' && reports.length !== 1) invalid();
+  if (reports.length > 1 || (selection.mode === 'latest_fallback' && reports.length !== 1))
+    invalid();
   return { selection, reports };
 }
 

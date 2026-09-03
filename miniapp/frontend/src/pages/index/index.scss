@@ -216,24 +216,14 @@ $home-hero-static-height: 168rpx;
   box-shadow: $shadow-report-group;
 }
 
-.home-report-tabs {
+.home-report-publication {
   display: flex;
   min-width: 0;
   flex: 1;
-  gap: 12rpx;
-}
-
-.home-report-publish-row {
-  display: flex;
-  min-width: 0;
   align-items: center;
   padding: 4rpx 8rpx;
   border-radius: 12rpx;
   gap: 12rpx;
-}
-
-.home-report-tabs--multiple .home-report-publish-row--selected {
-  background: $color-report-blue-50;
 }
 
 .home-report-publish-row__icon {

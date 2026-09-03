@@ -31,6 +31,62 @@ func TestHomeLoadsUpperDetailsAndOnlyFirstIndustryChainPage(t *testing.T) {
 	}
 }
 
+func TestHomeSelectsOnlyLatestReportPublishedToday(t *testing.T) {
+	latest := validSummary()
+	latest.ID = "RPT22222222-2222-4222-8222-222222222222"
+	latest.PublishedAt = time.Date(2026, 9, 2, 2, 0, 0, 0, time.UTC)
+	older := validSummary()
+	repository := &fakeRepository{
+		listPage: Page{Items: []Summary{latest, older}},
+		homes: map[string]HomeSnapshot{
+			latest.ID: {Report: latest},
+			older.ID:  {Report: older},
+		},
+		chainPage: IndustryChainPage{Items: []IndustryChainSummary{validChainSummary()}},
+	}
+	useCase := NewUseCaseWithClock(repository, func() time.Time {
+		return time.Date(2026, 9, 2, 18, 0, 0, 0, time.FixedZone("CST", 8*3600))
+	})
+
+	home, err := useCase.Home(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(home.Reports) != 1 || home.Reports[0].Report.ID != latest.ID {
+		t.Fatalf("reports=%#v", home.Reports)
+	}
+	if len(repository.listQueries) != 1 || repository.listQueries[0].Limit != 1 ||
+		repository.listQueries[0].PublishedFrom == nil || repository.listQueries[0].PublishedTo == nil {
+		t.Fatalf("queries=%#v", repository.listQueries)
+	}
+}
+
+func TestHomeFallsBackToLatestHistoricalReportWhenTodayIsEmpty(t *testing.T) {
+	historical := validSummary()
+	repository := &fakeRepository{
+		listPages: []Page{{Items: []Summary{}}, {Items: []Summary{historical}}},
+		homes:     map[string]HomeSnapshot{historical.ID: {Report: historical}},
+		chainPage: IndustryChainPage{Items: []IndustryChainSummary{validChainSummary()}},
+	}
+	useCase := NewUseCaseWithClock(repository, func() time.Time {
+		return time.Date(2026, 9, 3, 18, 0, 0, 0, time.FixedZone("CST", 8*3600))
+	})
+
+	home, err := useCase.Home(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if home.Selection.Mode != SelectionFallback || len(home.Reports) != 1 ||
+		home.Reports[0].Report.ID != historical.ID {
+		t.Fatalf("home=%#v", home)
+	}
+	if len(repository.listQueries) != 2 || repository.listQueries[0].Limit != 1 ||
+		repository.listQueries[1].Limit != 1 || repository.listQueries[1].PublishedFrom != nil ||
+		repository.listQueries[1].PublishedTo != nil {
+		t.Fatalf("queries=%#v", repository.listQueries)
+	}
+}
+
 func TestIndustryChainsForwardsOpaqueCursorAndDoesNotLoadDetails(t *testing.T) {
 	next := "next"
 	repository := &fakeRepository{chainPage: IndustryChainPage{Items: []IndustryChainSummary{validChainSummary()}, NextCursor: &next}}
@@ -98,7 +154,10 @@ func stringPointer(value string) *string { return &value }
 
 type fakeRepository struct {
 	listPage     Page
+	listPages    []Page
+	listQueries  []ListQuery
 	home         HomeSnapshot
+	homes        map[string]HomeSnapshot
 	layer        LayerDetail
 	chainPage    IndustryChainPage
 	chainPages   map[string]IndustryChainPage
@@ -107,10 +166,23 @@ type fakeRepository struct {
 	chainQueries []ChainListQuery
 }
 
-func (f *fakeRepository) ListReports(context.Context, ListQuery) (Page, error) {
-	return f.listPage, nil
+func (f *fakeRepository) ListReports(_ context.Context, query ListQuery) (Page, error) {
+	f.listQueries = append(f.listQueries, query)
+	page := f.listPage
+	if len(f.listPages) >= len(f.listQueries) {
+		page = f.listPages[len(f.listQueries)-1]
+	}
+	if query.Limit > 0 && len(page.Items) > query.Limit {
+		page.Items = page.Items[:query.Limit]
+	}
+	return page, nil
 }
-func (f *fakeRepository) GetHome(context.Context, string) (HomeSnapshot, error) { return f.home, nil }
+func (f *fakeRepository) GetHome(_ context.Context, reportID string) (HomeSnapshot, error) {
+	if f.homes != nil {
+		return f.homes[reportID], nil
+	}
+	return f.home, nil
+}
 func (f *fakeRepository) ListIndustryChains(_ context.Context, query ChainListQuery) (IndustryChainPage, error) {
 	f.chainQueries = append(f.chainQueries, query)
 	if f.chainPages != nil {

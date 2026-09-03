@@ -64,6 +64,11 @@ func TestOpenAPIContractExposesOperationsAndReportRoutes(t *testing.T) {
 	assertRequired(t, schema(t, document, "HealthResponse"), "status", "service", "environment")
 	assertRequired(t, schema(t, document, "ReadinessResponse"), "status", "service", "environment", "checks")
 	assertRequired(t, schema(t, document, "HomeResponse"), "selection", "reports")
+	homeProperties := object(t, schema(t, document, "HomeResponse")["properties"], "HomeResponse properties")
+	reportsProperty := object(t, homeProperties["reports"], "HomeResponse reports property")
+	if reportsProperty["maxItems"] != 1 {
+		t.Fatalf("HomeResponse reports maxItems = %v, want 1", reportsProperty["maxItems"])
+	}
 	assertRequired(t, schema(t, document, "HomeReport"), "report", "cards", "next_cursor")
 	assertRequired(t, schema(t, document, "Summary"), "id", "generated_at", "published_at", "industry_chain_count")
 	summaryProperties := object(t, schema(t, document, "Summary")["properties"], "Summary properties")
