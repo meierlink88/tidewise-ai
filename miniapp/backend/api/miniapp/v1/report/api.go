@@ -49,9 +49,8 @@ type CodedLabel struct {
 }
 
 type Confidence struct {
-	Code  string   `json:"code"`
-	Label string   `json:"label"`
-	Score *float64 `json:"score"`
+	Code  string `json:"code"`
+	Label string `json:"label"`
 }
 
 type TimeWindow struct {
@@ -65,14 +64,14 @@ type Reference struct {
 }
 
 type CardImpactItem struct {
-	Ref                Reference   `json:"ref"`
-	Name               string      `json:"name"`
-	Result             CodedLabel  `json:"result"`
-	ConclusionBasis    *CodedLabel `json:"conclusion_basis"`
-	ValidationStatus   *CodedLabel `json:"validation_status"`
-	Confidence         Confidence  `json:"confidence"`
-	TimeWindow         TimeWindow  `json:"time_window"`
-	EvidenceScopeToken *string     `json:"evidence_scope_token"`
+	Ref                Reference  `json:"ref"`
+	Name               string     `json:"name"`
+	Result             CodedLabel `json:"result"`
+	ConclusionBasis    CodedLabel `json:"conclusion_basis"`
+	ValidationStatus   CodedLabel `json:"validation_status"`
+	Confidence         Confidence `json:"confidence"`
+	TimeWindow         TimeWindow `json:"time_window"`
+	EvidenceScopeToken *string    `json:"evidence_scope_token"`
 }
 
 type Card struct {
@@ -106,23 +105,23 @@ type HomeResponse struct {
 }
 
 type Anchor struct {
-	LocalKey           string      `json:"local_key"`
-	Name               string      `json:"name"`
-	CurrentState       string      `json:"current_state"`
-	Result             CodedLabel  `json:"result"`
-	ConclusionBasis    *CodedLabel `json:"conclusion_basis"`
-	ValidationStatus   *CodedLabel `json:"validation_status"`
-	TransmissionLogic  string      `json:"transmission_logic"`
-	TimeWindow         TimeWindow  `json:"time_window"`
-	Confidence         Confidence  `json:"confidence"`
-	EvidenceScopeToken *string     `json:"evidence_scope_token"`
+	LocalKey           string     `json:"local_key"`
+	Name               string     `json:"name"`
+	CurrentState       string     `json:"current_state"`
+	Result             CodedLabel `json:"result"`
+	ConclusionBasis    CodedLabel `json:"conclusion_basis"`
+	ValidationStatus   CodedLabel `json:"validation_status"`
+	Reasoning          string     `json:"reasoning"`
+	TimeWindow         TimeWindow `json:"time_window"`
+	Confidence         Confidence `json:"confidence"`
+	EvidenceScopeToken *string    `json:"evidence_scope_token"`
 }
 
 type ReasoningStep struct {
+	LocalKey           string     `json:"local_key"`
 	Input              string     `json:"input"`
 	Mechanism          string     `json:"mechanism"`
 	Output             string     `json:"output"`
-	ReasoningType      CodedLabel `json:"reasoning_type"`
 	Confidence         Confidence `json:"confidence"`
 	EvidenceScopeToken *string    `json:"evidence_scope_token"`
 }
@@ -177,23 +176,22 @@ type LayerDetail struct {
 }
 
 type IndustryChainNode struct {
-	LocalKey           string      `json:"local_key"`
-	NodeLocalKey       string      `json:"node_local_key"`
-	Name               string      `json:"name"`
-	Impact             string      `json:"impact"`
-	Result             CodedLabel  `json:"result"`
-	ConclusionBasis    *CodedLabel `json:"conclusion_basis"`
-	ValidationStatus   *CodedLabel `json:"validation_status"`
-	TransmissionLogic  string      `json:"transmission_logic"`
-	TimeWindow         TimeWindow  `json:"time_window"`
-	Confidence         Confidence  `json:"confidence"`
-	EvidenceScopeToken *string     `json:"evidence_scope_token"`
+	LocalKey           string     `json:"local_key"`
+	Name               string     `json:"name"`
+	Impact             string     `json:"impact"`
+	Result             CodedLabel `json:"result"`
+	ConclusionBasis    CodedLabel `json:"conclusion_basis"`
+	ValidationStatus   CodedLabel `json:"validation_status"`
+	Reasoning          string     `json:"reasoning"`
+	TimeWindow         TimeWindow `json:"time_window"`
+	Confidence         Confidence `json:"confidence"`
+	EvidenceScopeToken *string    `json:"evidence_scope_token"`
 }
 
 type IndustryChainEdge struct {
-	FromNodeKey string     `json:"from_node_key"`
-	ToNodeKey   string     `json:"to_node_key"`
-	Relation    CodedLabel `json:"relation"`
+	FromNodeLocalKey string `json:"from_node_local_key"`
+	ToNodeLocalKey   string `json:"to_node_local_key"`
+	RelationLabel    string `json:"relation_label"`
 }
 
 type IndustryChainTopologyNode struct {
@@ -202,20 +200,20 @@ type IndustryChainTopologyNode struct {
 }
 
 type IndustryChain struct {
-	LocalKey              string                      `json:"local_key"`
-	Name                  string                      `json:"name"`
-	Conclusion            string                      `json:"conclusion"`
-	Status                string                      `json:"status"`
-	Result                CodedLabel                  `json:"result"`
-	Confidence            Confidence                  `json:"confidence"`
-	TimeWindow            TimeWindow                  `json:"time_window"`
-	Path                  string                      `json:"path"`
-	TopologyNodes         []IndustryChainTopologyNode `json:"topology_nodes"`
-	Nodes                 []IndustryChainNode         `json:"nodes"`
-	Edges                 []IndustryChainEdge         `json:"edges"`
-	CounterevidenceAndGap string                      `json:"counterevidence_and_gap"`
-	StopCondition         string                      `json:"stop_condition"`
-	EvidenceScopeToken    *string                     `json:"evidence_scope_token"`
+	LocalKey                  string                      `json:"local_key"`
+	Name                      string                      `json:"name"`
+	Conclusion                string                      `json:"conclusion"`
+	Result                    CodedLabel                  `json:"result"`
+	Confidence                Confidence                  `json:"confidence"`
+	TimeWindow                TimeWindow                  `json:"time_window"`
+	PathSummary               *string                     `json:"path_summary"`
+	AcceptedHypothesisSummary *string                     `json:"accepted_hypothesis_summary"`
+	TopologyNodes             []IndustryChainTopologyNode `json:"topology_nodes"`
+	Nodes                     []IndustryChainNode         `json:"nodes"`
+	Edges                     []IndustryChainEdge         `json:"edges"`
+	CounterevidenceAndGap     *string                     `json:"counterevidence_and_gap"`
+	StopCondition             *string                     `json:"stop_condition"`
+	EvidenceScopeToken        *string                     `json:"evidence_scope_token"`
 }
 
 type IndustryChainDetail struct {

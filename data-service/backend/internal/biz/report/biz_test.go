@@ -2,7 +2,10 @@ package report_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +13,22 @@ import (
 	reportbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/report"
 	reportfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/report"
 )
+
+func TestValidateReportAcceptsExactAgentOSFixture(t *testing.T) {
+	payload, err := os.ReadFile(filepath.Join("..", "..", "..", "api", "data", "v1", "report", "testdata", "investment-report-publication-request.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var request struct {
+		Report reportbiz.Report `json:"report"`
+	}
+	if err := json.Unmarshal(payload, &request); err != nil {
+		t.Fatal(err)
+	}
+	if err := reportbiz.ValidateReport(request.Report); err != nil {
+		t.Fatalf("ValidateReport() error = %v", err)
+	}
+}
 
 func TestValidateReportAcceptsIndustryOnlyReportWithFiftyFourChains(t *testing.T) {
 	report := reportfixture.ReportWithManyChains(54)
@@ -28,7 +47,7 @@ func TestFrozenScaleBaselineCardinalityAndEvidenceScopes(t *testing.T) {
 	}
 	affectedNodes := 0
 	for _, chain := range report.IndustryChains {
-		affectedNodes += len(chain.Detail.AffectedNodes)
+		affectedNodes += len(chain.Nodes)
 	}
 	if len(report.IndustryChains) != 54 || affectedNodes != 157 {
 		t.Fatalf("chains=%d affected_nodes=%d", len(report.IndustryChains), affectedNodes)
@@ -52,9 +71,9 @@ func TestFrozenScaleBaselineCardinalityAndEvidenceScopes(t *testing.T) {
 	}
 }
 
-func TestValidateReportPreservesPublishedLabels(t *testing.T) {
+func TestValidateReportAcceptsFrozenCodeLabelCatalog(t *testing.T) {
 	report := reportfixture.Report()
-	report.Geopolitics.Detail.AffectedAnchors[0].Result = reportbiz.CodedLabel{Code: reportbiz.ResultMixed, Label: "混合"}
+	report.Geopolitics.AffectedAnchors[0].ValidationStatus = reportbiz.CodedLabel{Code: reportbiz.ValidationConfirmed, Label: "已确认"}
 	if err := reportbiz.ValidateReport(report); err != nil {
 		t.Fatalf("ValidateReport() error = %v", err)
 	}
@@ -68,17 +87,17 @@ func TestValidateReportRejectsDomainContractViolations(t *testing.T) {
 	}{
 		{"no industry analysis", func(r *reportbiz.Report) { r.IndustryChains = []reportbiz.IndustryChain{} }, "report.industry_chains"},
 		{"unknown transmission target", func(r *reportbiz.Report) {
-			r.Geopolitics.Summary.DownwardTransmission[0].Targets[0].LocalKey = "missing"
+			r.Geopolitics.DownwardTransmission.ToIndustryChains.Paths[0].Targets[0].TargetLocalKey = "missing"
 		}, "targets[0]"},
 		{"graph endpoint outside chain", func(r *reportbiz.Report) {
-			r.IndustryChains[0].Summary.Graph.Edges = []reportbiz.IndustryChainEdge{{FromNodeKey: "missing", ToNodeKey: "topology-node-01", Relation: reportbiz.CodedLabel{Code: "component", Label: "组成"}}}
-		}, "from_node_key"},
-		{"affected node outside graph", func(r *reportbiz.Report) { r.IndustryChains[0].Detail.AffectedNodes[0].NodeLocalKey = "missing" }, "node_local_key"},
+			r.IndustryChains[0].Edges = []reportbiz.IndustryChainEdge{{FromNodeLocalKey: "missing", ToNodeLocalKey: r.IndustryChains[0].Nodes[0].LocalKey, RelationLabel: "组成"}}
+		}, "from_node_local_key"},
 		{"hypothesis exposes evidence", func(r *reportbiz.Report) {
-			r.IndustryChains[0].Detail.AffectedNodes[0].ConclusionBasis = &reportbiz.CodedLabel{Code: reportbiz.BasisReasoningHypothesis, Label: "推理假设"}
-		}, "evidence_ids"},
-		{"direct conclusion has no evidence", func(r *reportbiz.Report) { r.IndustryChains[0].Detail.AffectedNodes[0].EvidenceIDs = []string{} }, "evidence_ids"},
-		{"label drift", func(r *reportbiz.Report) { r.IndustryChains[0].Summary.Result.Label = "降温" }, "result.label"},
+			r.IndustryChains[0].Nodes[0].ConclusionBasis = reportbiz.CodedLabel{Code: reportbiz.BasisReasoningHypothesis, Label: "推理假设"}
+			r.IndustryChains[0].Nodes[0].ValidationStatus = reportbiz.CodedLabel{Code: reportbiz.ValidationPending, Label: "待验证"}
+		}, "evidence_refs"},
+		{"direct conclusion has no evidence", func(r *reportbiz.Report) { r.IndustryChains[0].Nodes[0].EvidenceRefs = []reportbiz.EvidenceReference{} }, "evidence_refs"},
+		{"label drift", func(r *reportbiz.Report) { r.IndustryChains[0].Result.Label = "降温" }, "result.label"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			report := reportfixture.Report()

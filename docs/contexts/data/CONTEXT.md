@@ -402,32 +402,33 @@ canonical report 返回原 Report，同 ID 不同 report 冲突，纠错必须�
 _Avoid_: Research Theme、Reason Tree、长期主题身份、原地修订、只保存当前报告
 
 **Report Publication Package**:
-版本化 Data REST 合同原子提交严格的 `{publisher_report_id, report}`；Report 只含生成时间、
-相互独立的可选地缘政治/宏观经济 Section 和至少一条产业链分析。每个存在的 Section 和每条
-产业链分析显式区分 summary 与 detail；数组顺序就是发布顺序，引用必须在包内闭合。Data 只
-验证结构和引用，不接收 workflow audit 元数据，不从自由文本推断研究结论。公司分析在拥有定稿
-发布基线前不属于当前合同。
+版本化 Data REST 合同原子提交严格的 `{publisher_report_id, report}`。Report 根包含
+`report_type/generated_at/timezone`、相互独立可选的地缘政治/宏观经济对象，以及至少一条
+扁平产业链分析。AgentOS 定稿 fixture 是字段形状的最高验收基线；数组顺序就是发布顺序，
+引用必须在包内闭合。Data 只验证结构和引用，不接收 workflow audit 元数据，不从自由文本
+推断研究结论。公司分析在拥有定稿发布基线前不属于当前合同。
 _Avoid_: Markdown 上传、任意 JSON、按现有 Data 图谱补全报告、服务端报告转换器
 
 **Report Analysis Section**:
 一份 Report 中实际存在的一类分析。当前 `industry_chain` 必须存在且至少包含一条产业链；
 `geopolitics` 与 `macroeconomics` 各自可缺失且互不要求。缺失表示本次报告没有该类结论，空对象
-不表示缺失。Section 的 summary 是对象级结论、传导与边界；上层 detail 是锚点和可空推导步骤；
-产业链 summary 还拥有链图与反证/缺口，detail 是本期节点影响。首页卡片是 Miniapp 只读投影，
+不表示缺失。上层对象扁平包含对象级结论、锚点、推理步骤、分组传导、边界和有序 Evidence refs；
+产业链对象扁平包含结论、节点、边、可空路径/已接受假设摘要和反证/缺口。首页卡片和详情是 Miniapp 只读投影，
 不是 Report 子对象。
 _Avoid_: 固定四层、空 Section 占位、持久化首页卡片、按页面组件命名领域事实
 
 **Report Target Reference**:
-Report 内从传导路径或影响项指向 Section、锚点、产业链或链节点的结构化引用，由 target type
+Report 内从传导路径指向宏观锚点、产业链或链节点的结构化引用，由 target type
 与 Report-local Key 共同定位。一个传导路径可以拥有多个目标及各自结果；读取方不得从名称、
 结论文案或 `CHN-xx` 字符串中解析导航目标。Miniapp v1 只把层与产业链引用作为独立详情
-页路由；锚点与链节点引用仍是有效传导目标，但不伪造独立页面跳转。
+页路由；宏观锚点与链节点引用仍是有效传导目标，但不伪造独立页面跳转。
 _Avoid_: 展示文案路由、单目标覆盖多目标结果、正式图谱对象引用
 
 **Report Result / Conclusion Basis / Validation Status**:
 Report 显式发布的分析状态。Result 只允许
-`warming | cooling | diverging | stable | mixed | pending`；Conclusion Basis 只表达
-`direct_evidence | reasoning_hypothesis`，Validation Status 独立表达 `pending_validation`。
+`warming | cooling | diverging | pending`；Conclusion Basis 表达
+`direct_evidence | reasoning_hypothesis | no_directional_conclusion`，Validation Status 表达
+`confirmed | pending_validation`。
 机器 code 与中文 label 一起保存，Data 不从文案、颜色、置信度或 Evidence 是否存在推断。
 _Avoid_: Event 状态、Signal、仅颜色状态、自由文本枚举
 
@@ -440,10 +441,11 @@ Report 内 key 唯一；key 使用 ASCII 字母、数字、点、下划线与连
 _Avoid_: IndustryChain ID、ChainNode ID、Event ID、跨报告自动合并
 
 **Report Evidence Reference**:
-Report 对既有 Atomic Evidence 的直接、带作用域引用。每个作用域发布有序 canonical `EVD` ID
-数组；Data 以独立 `RPE` 关系保存 scope path 与 position，并 restrictive 引用 `evidences.id`。它不经 Event 或
+Report 对既有 Atomic Evidence 的直接、带作用域引用。每个作用域发布有序
+`evidence_refs[{evidence_id,role:{code,label}}]`；Data 以独立 `RPE` 关系保存 scope path 与 position，
+并 restrictive 引用 `evidences.id`。它不经 Event 或
 Event Evidence Link，不复制 Evidence 内容，也不允许 `EVT` 或 `EEL` 身份。scope 支持
-Section summary、锚点、推导步骤、产业链 summary 和链节点影响；JSON refs 与关系行
+Section 结论、锚点、推理步骤、产业链结论和链节点；JSON refs 与关系行
 逐项一致，不自动把子对象 Evidence 聚合到父对象。直接证据目标必须有直接 EVD；推理假设和
 待验证目标不得用上游或机制材料伪装成直接 EVD。
 _Avoid_: Report Event、Evidence 正文副本、Event-to-Evidence 动态展开、跨域 Evidence 推断

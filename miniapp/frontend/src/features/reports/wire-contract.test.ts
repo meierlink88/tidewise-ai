@@ -10,7 +10,7 @@ import {
 const reportId = 'RPT11111111-1111-4111-8111-111111111111';
 const scopeToken = 'RPE11111111-1111-4111-8111-111111111111';
 const coded = { code: 'warming', label: '升温' };
-const confidence = { code: 'medium', label: '中', score: null };
+const confidence = { code: 'medium', label: '中' };
 const timeWindow = { code: 'medium', label: '中期' };
 const report = {
   id: reportId,
@@ -36,7 +36,7 @@ function card(localKey = 'card-chn-01') {
         name: '人形机器人',
         result: coded,
         conclusion_basis: { code: 'direct_evidence', label: '直接证据' },
-        validation_status: null,
+        validation_status: { code: 'confirmed', label: '已确认' },
         confidence,
         time_window: timeWindow,
         evidence_scope_token: scopeToken
@@ -96,8 +96,8 @@ describe('Report BFF wire contract', () => {
               current_state: '风险上升',
               result: coded,
               conclusion_basis: { code: 'direct_evidence', label: '直接证据' },
-              validation_status: null,
-              transmission_logic: '直接事件形成节点信号。',
+              validation_status: { code: 'confirmed', label: '已确认' },
+              reasoning: '直接事件形成节点信号。',
               time_window: timeWindow,
               confidence,
               evidence_scope_token: scopeToken
@@ -119,21 +119,21 @@ describe('Report BFF wire contract', () => {
       'geopolitics'
     );
     expect(value.layer.anchors[0]?.conclusionBasis?.code).toBe('direct_evidence');
-    expect(value.layer.anchors[0]?.validationStatus).toBeNull();
+    expect(value.layer.anchors[0]?.validationStatus.code).toBe('confirmed');
   });
 
-  it('validates industry-chain topology against node_local_key', () => {
+  it('validates industry-chain topology against node local keys', () => {
     const payload = {
       report,
       industry_chain: {
         local_key: 'chn-01',
         name: '人形机器人产业链',
         conclusion: '一句话结论',
-        status: '已发布',
         result: coded,
         confidence,
         time_window: timeWindow,
-        path: '整机 → 控制平台',
+        path_summary: '整机 → 控制平台',
+        accepted_hypothesis_summary: null,
         topology_nodes: [
           { local_key: 'node-01', name: '人形机器人' },
           { local_key: 'node-02', name: '控制平台' },
@@ -141,27 +141,25 @@ describe('Report BFF wire contract', () => {
         ],
         nodes: [
           {
-            local_key: 'impact-01',
-            node_local_key: 'node-01',
+            local_key: 'node-01',
             name: '人形机器人',
             impact: '需求上升',
             result: coded,
             conclusion_basis: { code: 'direct_evidence', label: '直接证据' },
-            validation_status: null,
-            transmission_logic: '直接形成信号。',
+            validation_status: { code: 'confirmed', label: '已确认' },
+            reasoning: '直接形成信号。',
             time_window: timeWindow,
             confidence,
             evidence_scope_token: scopeToken
           },
           {
-            local_key: 'impact-02',
-            node_local_key: 'node-02',
+            local_key: 'node-02',
             name: '控制平台',
             impact: '需求上升',
             result: coded,
             conclusion_basis: { code: 'reasoning_hypothesis', label: '推理假设' },
             validation_status: { code: 'pending_validation', label: '待验证' },
-            transmission_logic: '同链传导。',
+            reasoning: '同链传导。',
             time_window: timeWindow,
             confidence,
             evidence_scope_token: null
@@ -169,9 +167,9 @@ describe('Report BFF wire contract', () => {
         ],
         edges: [
           {
-            from_node_key: 'node-02',
-            to_node_key: 'node-01',
-            relation: { code: 'component_of', label: '组成' }
+            from_node_local_key: 'node-02',
+            to_node_local_key: 'node-01',
+            relation_label: '组成'
           }
         ],
         counterevidence_and_gap: '仍需经营数据。',
@@ -183,7 +181,7 @@ describe('Report BFF wire contract', () => {
     expect(parsed.edges).toHaveLength(1);
     expect(parsed.topologyNodes).toHaveLength(3);
     const broken = structuredClone(payload);
-    broken.industry_chain.edges[0]!.to_node_key = 'missing-node';
+    broken.industry_chain.edges[0]!.to_node_local_key = 'missing-node';
     expect(() => parseReportIndustryChainDetailWire(broken, reportId, 'chn-01')).toThrow();
   });
 

@@ -136,7 +136,7 @@ func dataSummary() map[string]any {
 	return map[string]any{"id": reportTestID, "publisher_report_id": "publisher", "generated_at": "2026-09-02T04:00:00Z", "has_geopolitics": false, "has_macroeconomics": false, "industry_chain_count": 1, "published_at": "2026-09-02T04:01:00Z"}
 }
 func dataChainSummary() map[string]any {
-	return map[string]any{"local_key": "chain-01", "name": "运输产业链", "conclusion": "运输成本升温", "status": "已发布", "result": map[string]any{"code": "warming", "label": "升温"}, "confidence": map[string]any{"code": "medium", "label": "中", "score": nil}, "time_window": map[string]any{"code": "short", "label": "短期"}, "impact_items": []any{}, "evidence_scope_token": reportScopeToken}
+	return map[string]any{"local_key": "chain-01", "name": "运输产业链", "conclusion": "运输成本升温", "result": map[string]any{"code": "warming", "label": "升温"}, "confidence": map[string]any{"code": "medium", "label": "中"}, "time_window": map[string]any{"code": "short", "label": "短期"}, "impact_items": []any{}, "evidence_scope_token": reportScopeToken}
 }
 func writeDownstreamResult(t *testing.T, writer http.ResponseWriter, result any) {
 	t.Helper()

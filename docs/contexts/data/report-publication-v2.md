@@ -2,85 +2,77 @@
 
 ## 权威与边界
 
-HTTP 权威是 Data OpenAPI 的 `ReportPublicationRequest`。AgentOS 发布已经完成推理的结构化中文
-快照；Data 不解析 Markdown、不补做研究推理，也不通过 Event、Signal、Graphiti、IndustryChain
-或 ChainNode 主数据重建内容。唯一跨领域身份是 canonical `EVD` Atomic Evidence ID。
+HTTP 权威是 Data OpenAPI 的 `ReportPublicationRequest`，具体发布形状以
+`data-service/backend/api/data/v1/report/testdata/investment-report-publication-request.json`
+中从 AgentOS 复制的定稿 fixture 为最高验收基线。AgentOS 发布已完成推理的中文结构化
+快照；Data 不解析 Markdown、不补做研究推理，也不从 Event、Signal、Graphiti 或图主数据
+重建内容。唯一跨领域身份是 canonical `EVD` Atomic Evidence ID。
 
 ## 发布根与幂等
 
-请求只允许：
+请求严格为 `{publisher_report_id, report}`。Report 根必须包含：
 
-```json
-{
-  "publisher_report_id": "AgentOS 的重试稳定报告身份",
-  "report": {
-    "generated_at": "RFC3339",
-    "geopolitics": null,
-    "macroeconomics": null,
-    "industry_chains": []
-  }
-}
-```
+- `report_type={code: investment_reasoning, label: 投研推理报告}`；
+- RFC3339 `generated_at`与 `timezone=Asia/Shanghai`；
+- 相互独立可选的 `geopolitics` 与 `macroeconomics`；
+- 必须非空的 `industry_chains`。
 
-JSON 实际不存在的可选 Section 应省略，不发送空占位。`industry_chains` 必须非空。相同
-`publisher_report_id` 与相同 canonical report 返回原 `report_id/published_at` 且
-`replayed=true`；不同内容返回冲突。API 不接收或返回 `contract_version/content_hash`。
+可选上层分析不存在时省略对应字段，不发送空占位。相同 `publisher_report_id` 与相同
+canonical report 返回原 `report_id/published_at` 且 `replayed=true`；内容不同则冲突。
 
-## 上层 Section
+## 地缘政治与宏观经济
 
-`geopolitics`、`macroeconomics` 相互独立可选，均含：
+两个上层对象都是扁平发布快照，包含
+`local_key/title/conclusion/result/time_window/confidence/affected_anchors/reasoning_steps/
+uncertainty/evidence_refs/downward_transmission`。
 
-- `title`；
-- `summary`：`conclusion/result/confidence/time_window/downward_transmission/uncertainty/evidence_ids`；
-- `detail`：`affected_anchors/reasoning_steps`，两者显式为数组且可为空。
-
-Transmission 包含 `local_key/source_conclusion/targets/transmission_logic/transmission_kind/
-confidence/status`，没有 Evidence 和 per-transmission boundary。target 只能引用同一 Report 的
-Section、anchor、industry chain 或 affected node。
-
-Uncertainty 保留四个独立可空字段：`counterevidence/evidence_gap/boundary/reversal_condition`。
-
-Anchor 包含 `local_key/name/current_state/result/conclusion_basis/validation_status/
-transmission_logic/time_window/confidence/evidence_ids`。Reasoning step 包含
-`input/mechanism/output/reasoning_type/confidence/evidence_ids`；数组顺序就是推理步骤顺序。
+- Anchor 包含 `local_key/name/current_state/result/conclusion_basis/validation_status/reasoning/
+  time_window/confidence/evidence_refs`。
+- Reasoning step 包含 `local_key/input/mechanism/output/confidence/evidence_refs`，顺序即报告顺序。
+- Uncertainty 包含四个可空字段：
+  `counterevidence/evidence_gap/boundary/reversal_condition`。
+- 地缘传导按 `to_macroeconomics` 和 `to_industry_chains` 分组；宏观传导按
+  `to_industry_chains` 分组。每组含 `summary/paths`。
+- path 包含 `local_key/source_conclusion/targets/transmission_logic/transmission_kind/
+  confidence/status`。target 使用 `target_type/target_local_key/target_name/result`，必须在
+  同一 Report 中闭合。
 
 ## 产业链
 
-每项包含 `local_key/name/summary/detail`：
+每条产业链也是扁平快照，包含
+`local_key/name/conclusion/result/time_window/confidence/path_summary/
+accepted_hypothesis_summary/nodes/edges/uncertainty/evidence_refs`。
 
-- summary：`conclusion/status/result/confidence/time_window/path/graph/
-  counterevidence_and_gap/stop_condition/evidence_ids`；
-- graph node：`local_key/name`；edge：`from_node_key/to_node_key/relation`，端点必须闭合；
-- detail：非空 `affected_nodes`；每项包含独立 impact local key、graph `node_local_key`、name、
-  impact、result、conclusion basis、validation status、transmission logic、window、confidence 和
-  Evidence IDs。
+- `path_summary` 和 `accepted_hypothesis_summary` 可空，不得由 Data 或 BFF 补写。
+- node 包含 `local_key/name/impact/result/conclusion_basis/validation_status/reasoning/
+  time_window/confidence/evidence_refs`；节点 `local_key` 同时是链图端点。
+- edge 包含 `from_node_local_key/to_node_local_key/relation_label`，端点必须闭合。
+- uncertainty 包含可空 `counterevidence_and_gap/stop_condition`。
 
 Report-local key 只在所属 `report_id` 内有意义，不是正式图对象身份。
 
 ## code、label 与 Evidence
 
-- AgentOS 同时发布 code 和中文 label；Data 校验已知结构映射，不生成 label。
-- `conclusion_basis`: `direct_evidence/直接证据` 或 `reasoning_hypothesis/推理假设`，可空。
-- `validation_status`: `pending_validation/待验证`，可空，不能代替 conclusion basis。
-- 只有 direct-evidence anchor/node 必须且允许带 Evidence IDs；推理假设即使待验证也没有依据入口。
-- summary 和 reasoning-step Evidence 是各自显式作用域，不能从子对象聚合。
-- 发布事务先批量验证 unique EVD，再同时写 Report 与全部 links；任一 EVD 缺失则整体回滚。
+- AgentOS 按固定目录同时发布 code 和中文 label；Data 严格校验配对，不生成 label。
+- confidence 只有 `code/label`，没有 score。
+- `conclusion_basis` 与 `validation_status` 是独立维度。直接证据必须是
+  `direct_evidence + confirmed`；推理假设或无方向结论必须是 `pending_validation`。
+- 每个 `evidence_refs` 元素包含 `evidence_id` 与有序 role `{code,label}`。role 只允许
+  `direct_support/直接依据`、`reasoning_support/推导依据`、`summary_support/核心依据`。
+- 直接证据 anchor/node 必须且只能使用 direct support；推理假设 anchor/node 不能携带
+  Evidence。层结论、推理步骤与链结论分别使用自己的显式作用域，不从子对象聚合。
+- 发布事务先批量校验 unique EVD，再同时写 Report 和 links；任一 EVD 缺失整体回滚。
 
-读取端返回 nullable opaque `evidence_scope_token (RPE...)`。调用
-`GET /reports/{report_id}/evidences?scope_token=...` 时，Data 在 report 内解析 token，并只返回按
-`position` 排列的 `published_at/summary/keywords`，不暴露 EVD ID、scope path 或 link 元数据。
+读取端只获得 report-bound opaque `RPE` scope token。Evidence 查询只返回按 link position
+排序的 `published_at/summary/keywords`，不暴露 EVD ID、scope path 或 role 元数据。
 
 ## 存储与分页
 
-`reports` 是一行不可变 JSONB snapshot；`report_evidence_links` 是唯一关系表。产业链列表使用
-PostgreSQL `jsonb_array_elements(... WITH ORDINALITY)` 直接分页，不先解码整份 Report。cursor
-绑定 report ID 与最后 ordinality；单链详情按 report-local key 延迟读取。默认页 20，最大页 100。
+`reports.report` 是一行不可变 JSONB snapshot；`report_evidence_links` 是唯一跨领域关系表。
+产业链列表使用 PostgreSQL `jsonb_array_elements(... WITH ORDINALITY)` 分页，cursor 绑定
+report ID 与最后 ordinality，单链详情按 local key 延迟读取。默认页 20，最大页 100。
 
-Migration 000081 是空库、forward-only 切换；遇到已有 Report/link 行时以 SQLSTATE 55000 拒绝。
+Migration 000081 是空库 forward-only 切换；遇到已有 Report/link 行以 SQLSTATE 55000 拒绝。
 
-## 定稿规模基线
-
-以 `investment-reasoning-report-2026-09-02-presentation-v2.md` 的实际表格为准：54 条产业链、
-157 个受影响节点、43 个唯一 EVD。保留上层 summary/anchor/reasoning-step 以及产业链
-summary/affected-node 的显式 Evidence 作用域后，共产生 265 条 Report-Evidence link。
-测试 fixture 使用等规模、确定性内容锁定这些结构计数，不把 AgentOS 的中文报告正文复制进 Data。
+54 链、157 节点、43 个 unique EVD 和 265 条 link 是独立的分页/容量回归基线；
+不替代 AgentOS 定稿 fixture 的精确字段契约。

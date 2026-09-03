@@ -11,17 +11,18 @@ import (
 	reportfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/report"
 )
 
-func TestPublicationFixtureMatchesStrictContract(t *testing.T) {
-	payload, err := os.ReadFile("testdata/report-publication.json")
+func TestAgentOSPublicationFixtureMatchesStrictContract(t *testing.T) {
+	payload, err := os.ReadFile("testdata/investment-report-publication-request.json")
 	if err != nil {
 		t.Fatal(err)
 	}
 	var request PublicationRequest
 	if err := v1.DecodeStrictJSON(payload, publicationShape(), &request); err != nil {
-		t.Fatalf("fixture error=%v path=%s", err, v1.StrictJSONErrorPath(err))
+		t.Fatalf("AgentOS fixture error=%v path=%s", err, v1.StrictJSONErrorPath(err))
 	}
-	if request.PublisherReportID == "" || request.Report.Geopolitics == nil ||
-		request.Report.Macroeconomics != nil || len(request.Report.IndustryChains) != 1 {
+	if request.PublisherReportID != "agentos-investment-run-001" ||
+		request.Report.ReportType.Code != "investment_reasoning" ||
+		request.Report.Timezone != "Asia/Shanghai" || len(request.Report.IndustryChains) != 1 {
 		t.Fatalf("fixture=%#v", request)
 	}
 }

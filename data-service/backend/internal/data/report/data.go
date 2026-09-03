@@ -89,14 +89,14 @@ func (s Store) GetHome(ctx context.Context, reportID string) (reportbiz.Home, er
 		if err != nil {
 			return reportbiz.Home{}, persistedInvariant("Report home", "geopolitics", err.Error())
 		}
-		home.Geopolitics = &reportbiz.LayerSnapshot{Key: "geopolitics", Title: layer.Title, Summary: projectLayerSummary(layer.Summary, tokens["geopolitics/summary"])}
+		home.Geopolitics = &reportbiz.LayerSnapshot{Key: "geopolitics", Title: layer.Title, Summary: projectLayerSummary(layer, tokens["geopolitics/evidence_refs"])}
 	}
 	if summary.HasMacroeconomics {
 		layer, err := decodeLayer(macroeconomicsJSON)
 		if err != nil {
 			return reportbiz.Home{}, persistedInvariant("Report home", "macroeconomics", err.Error())
 		}
-		home.Macroeconomics = &reportbiz.LayerSnapshot{Key: "macroeconomics", Title: layer.Title, Summary: projectLayerSummary(layer.Summary, tokens["macroeconomics/summary"])}
+		home.Macroeconomics = &reportbiz.LayerSnapshot{Key: "macroeconomics", Title: layer.Title, Summary: projectLayerSummary(layer, tokens["macroeconomics/evidence_refs"])}
 	}
 	return home, nil
 }
@@ -285,30 +285,30 @@ FROM report_evidence_links WHERE report_id = $1 ORDER BY scope_path, position, i
 	return result, nil
 }
 
-func projectLayerSummary(summary reportbiz.LayerSummary, token *string) reportbiz.LayerSummaryProjection {
+func projectLayerSummary(layer reportbiz.Layer, token *string) reportbiz.LayerSummaryProjection {
 	return reportbiz.LayerSummaryProjection{
-		Conclusion: summary.Conclusion, Result: summary.Result, Confidence: summary.Confidence,
-		TimeWindow: summary.TimeWindow, DownwardTransmission: summary.DownwardTransmission,
-		Uncertainty: summary.Uncertainty, EvidenceScopeToken: token,
+		Conclusion: layer.Conclusion, Result: layer.Result, Confidence: layer.Confidence,
+		TimeWindow: layer.TimeWindow, DownwardTransmission: layer.DownwardTransmission,
+		Uncertainty: layer.Uncertainty, EvidenceScopeToken: token,
 	}
 }
 
 func projectLayer(key string, layer reportbiz.Layer, tokens map[string]*string) reportbiz.LayerProjection {
-	result := reportbiz.LayerProjection{Key: key, Title: layer.Title, Summary: projectLayerSummary(layer.Summary, tokens[key+"/summary"])}
-	result.AffectedAnchors = make([]reportbiz.AnchorProjection, len(layer.Detail.AffectedAnchors))
-	for index, anchor := range layer.Detail.AffectedAnchors {
+	result := reportbiz.LayerProjection{Key: key, Title: layer.Title, Summary: projectLayerSummary(layer, tokens[key+"/evidence_refs"])}
+	result.AffectedAnchors = make([]reportbiz.AnchorProjection, len(layer.AffectedAnchors))
+	for index, anchor := range layer.AffectedAnchors {
 		result.AffectedAnchors[index] = reportbiz.AnchorProjection{
 			LocalKey: anchor.LocalKey, Name: anchor.Name, CurrentState: anchor.CurrentState, Result: anchor.Result,
 			ConclusionBasis: anchor.ConclusionBasis, ValidationStatus: anchor.ValidationStatus,
-			TransmissionLogic: anchor.TransmissionLogic, TimeWindow: anchor.TimeWindow, Confidence: anchor.Confidence,
-			EvidenceScopeToken: tokens[key+"/detail/affected_anchors/"+anchor.LocalKey],
+			Reasoning: anchor.Reasoning, TimeWindow: anchor.TimeWindow, Confidence: anchor.Confidence,
+			EvidenceScopeToken: tokens[key+"/affected_anchors/"+anchor.LocalKey+"/evidence_refs"],
 		}
 	}
-	result.ReasoningSteps = make([]reportbiz.ReasoningStepProjection, len(layer.Detail.ReasoningSteps))
-	for index, step := range layer.Detail.ReasoningSteps {
+	result.ReasoningSteps = make([]reportbiz.ReasoningStepProjection, len(layer.ReasoningSteps))
+	for index, step := range layer.ReasoningSteps {
 		result.ReasoningSteps[index] = reportbiz.ReasoningStepProjection{
-			Input: step.Input, Mechanism: step.Mechanism, Output: step.Output, ReasoningType: step.ReasoningType,
-			Confidence: step.Confidence, EvidenceScopeToken: tokens[fmt.Sprintf("%s/detail/reasoning_steps/%d", key, index+1)],
+			LocalKey: step.LocalKey, Input: step.Input, Mechanism: step.Mechanism, Output: step.Output,
+			Confidence: step.Confidence, EvidenceScopeToken: tokens[key+"/reasoning_steps/"+step.LocalKey+"/evidence_refs"],
 		}
 	}
 	return result
@@ -317,16 +317,17 @@ func projectLayer(key string, layer reportbiz.Layer, tokens map[string]*string) 
 func projectChainSummary(ordinal int, chain reportbiz.IndustryChain, tokens map[string]*string) reportbiz.IndustryChainSummary {
 	prefix := "industry_chains/" + chain.LocalKey
 	result := reportbiz.IndustryChainSummary{
-		Ordinal: ordinal, LocalKey: chain.LocalKey, Name: chain.Name, Conclusion: chain.Summary.Conclusion,
-		Status: chain.Summary.Status, Result: chain.Summary.Result, Confidence: chain.Summary.Confidence,
-		TimeWindow: chain.Summary.TimeWindow, EvidenceScopeToken: tokens[prefix+"/summary"],
-		ImpactItems: make([]reportbiz.IndustryChainImpactSummary, len(chain.Detail.AffectedNodes)),
+		Ordinal: ordinal, LocalKey: chain.LocalKey, Name: chain.Name, Conclusion: chain.Conclusion,
+		Result: chain.Result, Confidence: chain.Confidence, TimeWindow: chain.TimeWindow,
+		EvidenceScopeToken: tokens[prefix+"/evidence_refs"],
+		ImpactItems:        make([]reportbiz.IndustryChainImpactSummary, len(chain.Nodes)),
 	}
-	for index, node := range chain.Detail.AffectedNodes {
+	for index, node := range chain.Nodes {
 		result.ImpactItems[index] = reportbiz.IndustryChainImpactSummary{
-			LocalKey: node.LocalKey, Name: node.Name, Result: node.Result, ConclusionBasis: node.ConclusionBasis,
-			ValidationStatus: node.ValidationStatus, Confidence: node.Confidence, TimeWindow: node.TimeWindow,
-			EvidenceScopeToken: tokens[prefix+"/detail/affected_nodes/"+node.LocalKey],
+			LocalKey: node.LocalKey, Name: node.Name, Result: node.Result,
+			ConclusionBasis: node.ConclusionBasis, ValidationStatus: node.ValidationStatus,
+			Confidence: node.Confidence, TimeWindow: node.TimeWindow,
+			EvidenceScopeToken: tokens[prefix+"/nodes/"+node.LocalKey+"/evidence_refs"],
 		}
 	}
 	return result
@@ -334,19 +335,32 @@ func projectChainSummary(ordinal int, chain reportbiz.IndustryChain, tokens map[
 
 func projectChain(chain reportbiz.IndustryChain, tokens map[string]*string) reportbiz.IndustryChainProjection {
 	prefix := "industry_chains/" + chain.LocalKey
-	result := reportbiz.IndustryChainProjection{
-		LocalKey: chain.LocalKey, Name: chain.Name, Conclusion: chain.Summary.Conclusion, Status: chain.Summary.Status,
-		Result: chain.Summary.Result, Confidence: chain.Summary.Confidence, TimeWindow: chain.Summary.TimeWindow,
-		Path: chain.Summary.Path, Graph: chain.Summary.Graph, CounterevidenceAndGap: chain.Summary.CounterevidenceAndGap,
-		StopCondition: chain.Summary.StopCondition, EvidenceScopeToken: tokens[prefix+"/summary"],
-		AffectedNodes: make([]reportbiz.IndustryChainNodeProjection, len(chain.Detail.AffectedNodes)),
+	graph := reportbiz.IndustryChainGraph{
+		Nodes: make([]reportbiz.IndustryChainTopologyNode, len(chain.Nodes)),
+		Edges: make([]reportbiz.IndustryChainEdgeProjection, len(chain.Edges)),
 	}
-	for index, node := range chain.Detail.AffectedNodes {
+	for index, node := range chain.Nodes {
+		graph.Nodes[index] = reportbiz.IndustryChainTopologyNode{LocalKey: node.LocalKey, Name: node.Name}
+	}
+	for index, edge := range chain.Edges {
+		graph.Edges[index] = reportbiz.IndustryChainEdgeProjection{
+			FromNodeLocalKey: edge.FromNodeLocalKey, ToNodeLocalKey: edge.ToNodeLocalKey, RelationLabel: edge.RelationLabel,
+		}
+	}
+	result := reportbiz.IndustryChainProjection{
+		LocalKey: chain.LocalKey, Name: chain.Name, Conclusion: chain.Conclusion,
+		Result: chain.Result, Confidence: chain.Confidence, TimeWindow: chain.TimeWindow,
+		PathSummary: chain.PathSummary, AcceptedHypothesisSummary: chain.AcceptedHypothesisSummary,
+		Graph: graph, CounterevidenceAndGap: chain.Uncertainty.CounterevidenceAndGap,
+		StopCondition: chain.Uncertainty.StopCondition, EvidenceScopeToken: tokens[prefix+"/evidence_refs"],
+		AffectedNodes: make([]reportbiz.IndustryChainNodeProjection, len(chain.Nodes)),
+	}
+	for index, node := range chain.Nodes {
 		result.AffectedNodes[index] = reportbiz.IndustryChainNodeProjection{
-			LocalKey: node.LocalKey, NodeLocalKey: node.NodeLocalKey, Name: node.Name, Impact: node.Impact,
-			Result: node.Result, ConclusionBasis: node.ConclusionBasis, ValidationStatus: node.ValidationStatus,
-			TransmissionLogic: node.TransmissionLogic, TimeWindow: node.TimeWindow, Confidence: node.Confidence,
-			EvidenceScopeToken: tokens[prefix+"/detail/affected_nodes/"+node.LocalKey],
+			LocalKey: node.LocalKey, Name: node.Name, Impact: node.Impact, Result: node.Result,
+			ConclusionBasis: node.ConclusionBasis, ValidationStatus: node.ValidationStatus,
+			Reasoning: node.Reasoning, TimeWindow: node.TimeWindow, Confidence: node.Confidence,
+			EvidenceScopeToken: tokens[prefix+"/nodes/"+node.LocalKey+"/evidence_refs"],
 		}
 	}
 	return result

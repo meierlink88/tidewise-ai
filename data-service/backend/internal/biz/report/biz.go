@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
 	"regexp"
 	"sort"
 	"strings"
@@ -35,11 +34,11 @@ const (
 	ResultWarming            = "warming"
 	ResultCooling            = "cooling"
 	ResultDiverging          = "diverging"
-	ResultStable             = "stable"
-	ResultMixed              = "mixed"
 	ResultPending            = "pending"
 	BasisDirectEvidence      = "direct_evidence"
 	BasisReasoningHypothesis = "reasoning_hypothesis"
+	BasisNoDirectional       = "no_directional_conclusion"
+	ValidationConfirmed      = "confirmed"
 	ValidationPending        = "pending_validation"
 	TransmissionCrossLayer   = "cross_layer_reasoning"
 	TransmissionSameSource   = "same_source_signal"
@@ -50,22 +49,23 @@ type CodedLabel struct {
 	Label string `json:"label"`
 }
 
-type Confidence struct {
-	Code  string   `json:"code"`
-	Label string   `json:"label"`
-	Score *float64 `json:"score"`
-}
+type Confidence = CodedLabel
 
 type TimeWindow struct {
 	Code  string `json:"code"`
 	Label string `json:"label"`
 }
 
+type EvidenceReference struct {
+	EvidenceID string     `json:"evidence_id"`
+	Role       CodedLabel `json:"role"`
+}
+
 type TransmissionTarget struct {
-	Type     string     `json:"type"`
-	LocalKey string     `json:"local_key"`
-	Name     string     `json:"name"`
-	Result   CodedLabel `json:"result"`
+	TargetType     CodedLabel `json:"target_type"`
+	TargetLocalKey string     `json:"target_local_key"`
+	TargetName     string     `json:"target_name"`
+	Result         CodedLabel `json:"result"`
 }
 
 type Transmission struct {
@@ -78,6 +78,16 @@ type Transmission struct {
 	Status            CodedLabel           `json:"status"`
 }
 
+type TransmissionGroup struct {
+	Summary string         `json:"summary"`
+	Paths   []Transmission `json:"paths"`
+}
+
+type DownwardTransmission struct {
+	ToMacroeconomics *TransmissionGroup `json:"to_macroeconomics,omitempty"`
+	ToIndustryChains *TransmissionGroup `json:"to_industry_chains,omitempty"`
+}
+
 type LayerUncertainty struct {
 	Counterevidence   *string `json:"counterevidence"`
 	EvidenceGap       *string `json:"evidence_gap"`
@@ -85,105 +95,85 @@ type LayerUncertainty struct {
 	ReversalCondition *string `json:"reversal_condition"`
 }
 
-type LayerSummary struct {
-	Conclusion           string           `json:"conclusion"`
-	Result               CodedLabel       `json:"result"`
-	Confidence           Confidence       `json:"confidence"`
-	TimeWindow           TimeWindow       `json:"time_window"`
-	DownwardTransmission []Transmission   `json:"downward_transmission"`
-	Uncertainty          LayerUncertainty `json:"uncertainty"`
-	EvidenceIDs          []string         `json:"evidence_ids"`
-}
-
 type Anchor struct {
-	LocalKey          string      `json:"local_key"`
-	Name              string      `json:"name"`
-	CurrentState      string      `json:"current_state"`
-	Result            CodedLabel  `json:"result"`
-	ConclusionBasis   *CodedLabel `json:"conclusion_basis"`
-	ValidationStatus  *CodedLabel `json:"validation_status"`
-	TransmissionLogic string      `json:"transmission_logic"`
-	TimeWindow        TimeWindow  `json:"time_window"`
-	Confidence        Confidence  `json:"confidence"`
-	EvidenceIDs       []string    `json:"evidence_ids"`
+	LocalKey         string              `json:"local_key"`
+	Name             string              `json:"name"`
+	CurrentState     string              `json:"current_state"`
+	Result           CodedLabel          `json:"result"`
+	ConclusionBasis  CodedLabel          `json:"conclusion_basis"`
+	ValidationStatus CodedLabel          `json:"validation_status"`
+	Reasoning        string              `json:"reasoning"`
+	TimeWindow       TimeWindow          `json:"time_window"`
+	Confidence       Confidence          `json:"confidence"`
+	EvidenceRefs     []EvidenceReference `json:"evidence_refs"`
 }
 
 type ReasoningStep struct {
-	Input         string     `json:"input"`
-	Mechanism     string     `json:"mechanism"`
-	Output        string     `json:"output"`
-	ReasoningType CodedLabel `json:"reasoning_type"`
-	Confidence    Confidence `json:"confidence"`
-	EvidenceIDs   []string   `json:"evidence_ids"`
-}
-
-type LayerAnalysis struct {
-	AffectedAnchors []Anchor        `json:"affected_anchors"`
-	ReasoningSteps  []ReasoningStep `json:"reasoning_steps"`
-}
-
-type Layer struct {
-	Title   string        `json:"title"`
-	Summary LayerSummary  `json:"summary"`
-	Detail  LayerAnalysis `json:"detail"`
-}
-
-type IndustryChainTopologyNode struct {
-	LocalKey string `json:"local_key"`
-	Name     string `json:"name"`
+	LocalKey     string              `json:"local_key"`
+	Input        string              `json:"input"`
+	Mechanism    string              `json:"mechanism"`
+	Output       string              `json:"output"`
+	Confidence   Confidence          `json:"confidence"`
+	EvidenceRefs []EvidenceReference `json:"evidence_refs"`
 }
 
 type IndustryChainEdge struct {
-	FromNodeKey string     `json:"from_node_key"`
-	ToNodeKey   string     `json:"to_node_key"`
-	Relation    CodedLabel `json:"relation"`
-}
-
-type IndustryChainGraph struct {
-	Nodes []IndustryChainTopologyNode `json:"nodes"`
-	Edges []IndustryChainEdge         `json:"edges"`
-}
-
-type ChainSummary struct {
-	Conclusion            string             `json:"conclusion"`
-	Status                string             `json:"status"`
-	Result                CodedLabel         `json:"result"`
-	Confidence            Confidence         `json:"confidence"`
-	TimeWindow            TimeWindow         `json:"time_window"`
-	Path                  string             `json:"path"`
-	Graph                 IndustryChainGraph `json:"graph"`
-	CounterevidenceAndGap string             `json:"counterevidence_and_gap"`
-	StopCondition         string             `json:"stop_condition"`
-	EvidenceIDs           []string           `json:"evidence_ids"`
+	FromNodeLocalKey string `json:"from_node_local_key"`
+	ToNodeLocalKey   string `json:"to_node_local_key"`
+	RelationLabel    string `json:"relation_label"`
 }
 
 type IndustryChainNode struct {
-	LocalKey          string      `json:"local_key"`
-	NodeLocalKey      string      `json:"node_local_key"`
-	Name              string      `json:"name"`
-	Impact            string      `json:"impact"`
-	Result            CodedLabel  `json:"result"`
-	ConclusionBasis   *CodedLabel `json:"conclusion_basis"`
-	ValidationStatus  *CodedLabel `json:"validation_status"`
-	TransmissionLogic string      `json:"transmission_logic"`
-	TimeWindow        TimeWindow  `json:"time_window"`
-	Confidence        Confidence  `json:"confidence"`
-	EvidenceIDs       []string    `json:"evidence_ids"`
+	LocalKey         string              `json:"local_key"`
+	Name             string              `json:"name"`
+	Impact           string              `json:"impact"`
+	Result           CodedLabel          `json:"result"`
+	ConclusionBasis  CodedLabel          `json:"conclusion_basis"`
+	ValidationStatus CodedLabel          `json:"validation_status"`
+	Reasoning        string              `json:"reasoning"`
+	TimeWindow       TimeWindow          `json:"time_window"`
+	Confidence       Confidence          `json:"confidence"`
+	EvidenceRefs     []EvidenceReference `json:"evidence_refs"`
 }
 
-type IndustryChainAnalysis struct {
-	AffectedNodes []IndustryChainNode `json:"affected_nodes"`
+type Layer struct {
+	LocalKey             string               `json:"local_key"`
+	Title                string               `json:"title"`
+	Conclusion           string               `json:"conclusion"`
+	Result               CodedLabel           `json:"result"`
+	TimeWindow           TimeWindow           `json:"time_window"`
+	Confidence           Confidence           `json:"confidence"`
+	AffectedAnchors      []Anchor             `json:"affected_anchors"`
+	ReasoningSteps       []ReasoningStep      `json:"reasoning_steps"`
+	Uncertainty          LayerUncertainty     `json:"uncertainty"`
+	EvidenceRefs         []EvidenceReference  `json:"evidence_refs"`
+	DownwardTransmission DownwardTransmission `json:"downward_transmission"`
+}
+
+type ChainUncertainty struct {
+	CounterevidenceAndGap *string `json:"counterevidence_and_gap"`
+	StopCondition         *string `json:"stop_condition"`
 }
 
 type IndustryChain struct {
-	LocalKey string                `json:"local_key"`
-	Name     string                `json:"name"`
-	Summary  ChainSummary          `json:"summary"`
-	Detail   IndustryChainAnalysis `json:"detail"`
+	LocalKey                  string              `json:"local_key"`
+	Name                      string              `json:"name"`
+	Conclusion                string              `json:"conclusion"`
+	Result                    CodedLabel          `json:"result"`
+	TimeWindow                TimeWindow          `json:"time_window"`
+	Confidence                Confidence          `json:"confidence"`
+	PathSummary               *string             `json:"path_summary"`
+	AcceptedHypothesisSummary *string             `json:"accepted_hypothesis_summary"`
+	Nodes                     []IndustryChainNode `json:"nodes"`
+	Edges                     []IndustryChainEdge `json:"edges"`
+	Uncertainty               ChainUncertainty    `json:"uncertainty"`
+	EvidenceRefs              []EvidenceReference `json:"evidence_refs"`
 }
 
 type Report struct {
+	ReportType     CodedLabel      `json:"report_type"`
 	GeneratedAt    time.Time       `json:"generated_at"`
+	Timezone       string          `json:"timezone"`
 	Geopolitics    *Layer          `json:"geopolitics,omitempty"`
 	Macroeconomics *Layer          `json:"macroeconomics,omitempty"`
 	IndustryChains []IndustryChain `json:"industry_chains"`
@@ -223,13 +213,13 @@ type Summary struct {
 }
 
 type LayerSummaryProjection struct {
-	Conclusion           string           `json:"conclusion"`
-	Result               CodedLabel       `json:"result"`
-	Confidence           Confidence       `json:"confidence"`
-	TimeWindow           TimeWindow       `json:"time_window"`
-	DownwardTransmission []Transmission   `json:"downward_transmission"`
-	Uncertainty          LayerUncertainty `json:"uncertainty"`
-	EvidenceScopeToken   *string          `json:"evidence_scope_token"`
+	Conclusion           string               `json:"conclusion"`
+	Result               CodedLabel           `json:"result"`
+	Confidence           Confidence           `json:"confidence"`
+	TimeWindow           TimeWindow           `json:"time_window"`
+	DownwardTransmission DownwardTransmission `json:"downward_transmission"`
+	Uncertainty          LayerUncertainty     `json:"uncertainty"`
+	EvidenceScopeToken   *string              `json:"evidence_scope_token"`
 }
 
 type LayerSnapshot struct {
@@ -245,23 +235,23 @@ type Home struct {
 }
 
 type AnchorProjection struct {
-	LocalKey           string      `json:"local_key"`
-	Name               string      `json:"name"`
-	CurrentState       string      `json:"current_state"`
-	Result             CodedLabel  `json:"result"`
-	ConclusionBasis    *CodedLabel `json:"conclusion_basis"`
-	ValidationStatus   *CodedLabel `json:"validation_status"`
-	TransmissionLogic  string      `json:"transmission_logic"`
-	TimeWindow         TimeWindow  `json:"time_window"`
-	Confidence         Confidence  `json:"confidence"`
-	EvidenceScopeToken *string     `json:"evidence_scope_token"`
+	LocalKey           string     `json:"local_key"`
+	Name               string     `json:"name"`
+	CurrentState       string     `json:"current_state"`
+	Result             CodedLabel `json:"result"`
+	ConclusionBasis    CodedLabel `json:"conclusion_basis"`
+	ValidationStatus   CodedLabel `json:"validation_status"`
+	Reasoning          string     `json:"reasoning"`
+	TimeWindow         TimeWindow `json:"time_window"`
+	Confidence         Confidence `json:"confidence"`
+	EvidenceScopeToken *string    `json:"evidence_scope_token"`
 }
 
 type ReasoningStepProjection struct {
+	LocalKey           string     `json:"local_key"`
 	Input              string     `json:"input"`
 	Mechanism          string     `json:"mechanism"`
 	Output             string     `json:"output"`
-	ReasoningType      CodedLabel `json:"reasoning_type"`
 	Confidence         Confidence `json:"confidence"`
 	EvidenceScopeToken *string    `json:"evidence_scope_token"`
 }
@@ -275,14 +265,14 @@ type LayerProjection struct {
 }
 
 type IndustryChainImpactSummary struct {
-	LocalKey           string      `json:"local_key"`
-	Name               string      `json:"name"`
-	Result             CodedLabel  `json:"result"`
-	ConclusionBasis    *CodedLabel `json:"conclusion_basis"`
-	ValidationStatus   *CodedLabel `json:"validation_status"`
-	Confidence         Confidence  `json:"confidence"`
-	TimeWindow         TimeWindow  `json:"time_window"`
-	EvidenceScopeToken *string     `json:"evidence_scope_token"`
+	LocalKey           string     `json:"local_key"`
+	Name               string     `json:"name"`
+	Result             CodedLabel `json:"result"`
+	ConclusionBasis    CodedLabel `json:"conclusion_basis"`
+	ValidationStatus   CodedLabel `json:"validation_status"`
+	Confidence         Confidence `json:"confidence"`
+	TimeWindow         TimeWindow `json:"time_window"`
+	EvidenceScopeToken *string    `json:"evidence_scope_token"`
 }
 
 type IndustryChainSummary struct {
@@ -290,7 +280,6 @@ type IndustryChainSummary struct {
 	LocalKey           string                       `json:"local_key"`
 	Name               string                       `json:"name"`
 	Conclusion         string                       `json:"conclusion"`
-	Status             string                       `json:"status"`
 	Result             CodedLabel                   `json:"result"`
 	Confidence         Confidence                   `json:"confidence"`
 	TimeWindow         TimeWindow                   `json:"time_window"`
@@ -299,33 +288,48 @@ type IndustryChainSummary struct {
 }
 
 type IndustryChainNodeProjection struct {
-	LocalKey           string      `json:"local_key"`
-	NodeLocalKey       string      `json:"node_local_key"`
-	Name               string      `json:"name"`
-	Impact             string      `json:"impact"`
-	Result             CodedLabel  `json:"result"`
-	ConclusionBasis    *CodedLabel `json:"conclusion_basis"`
-	ValidationStatus   *CodedLabel `json:"validation_status"`
-	TransmissionLogic  string      `json:"transmission_logic"`
-	TimeWindow         TimeWindow  `json:"time_window"`
-	Confidence         Confidence  `json:"confidence"`
-	EvidenceScopeToken *string     `json:"evidence_scope_token"`
+	LocalKey           string     `json:"local_key"`
+	Name               string     `json:"name"`
+	Impact             string     `json:"impact"`
+	Result             CodedLabel `json:"result"`
+	ConclusionBasis    CodedLabel `json:"conclusion_basis"`
+	ValidationStatus   CodedLabel `json:"validation_status"`
+	Reasoning          string     `json:"reasoning"`
+	TimeWindow         TimeWindow `json:"time_window"`
+	Confidence         Confidence `json:"confidence"`
+	EvidenceScopeToken *string    `json:"evidence_scope_token"`
+}
+
+type IndustryChainTopologyNode struct {
+	LocalKey string `json:"local_key"`
+	Name     string `json:"name"`
+}
+
+type IndustryChainEdgeProjection struct {
+	FromNodeLocalKey string `json:"from_node_local_key"`
+	ToNodeLocalKey   string `json:"to_node_local_key"`
+	RelationLabel    string `json:"relation_label"`
+}
+
+type IndustryChainGraph struct {
+	Nodes []IndustryChainTopologyNode   `json:"nodes"`
+	Edges []IndustryChainEdgeProjection `json:"edges"`
 }
 
 type IndustryChainProjection struct {
-	LocalKey              string                        `json:"local_key"`
-	Name                  string                        `json:"name"`
-	Conclusion            string                        `json:"conclusion"`
-	Status                string                        `json:"status"`
-	Result                CodedLabel                    `json:"result"`
-	Confidence            Confidence                    `json:"confidence"`
-	TimeWindow            TimeWindow                    `json:"time_window"`
-	Path                  string                        `json:"path"`
-	Graph                 IndustryChainGraph            `json:"graph"`
-	AffectedNodes         []IndustryChainNodeProjection `json:"affected_nodes"`
-	CounterevidenceAndGap string                        `json:"counterevidence_and_gap"`
-	StopCondition         string                        `json:"stop_condition"`
-	EvidenceScopeToken    *string                       `json:"evidence_scope_token"`
+	LocalKey                  string                        `json:"local_key"`
+	Name                      string                        `json:"name"`
+	Conclusion                string                        `json:"conclusion"`
+	Result                    CodedLabel                    `json:"result"`
+	Confidence                Confidence                    `json:"confidence"`
+	TimeWindow                TimeWindow                    `json:"time_window"`
+	PathSummary               *string                       `json:"path_summary"`
+	AcceptedHypothesisSummary *string                       `json:"accepted_hypothesis_summary"`
+	Graph                     IndustryChainGraph            `json:"graph"`
+	AffectedNodes             []IndustryChainNodeProjection `json:"affected_nodes"`
+	CounterevidenceAndGap     *string                       `json:"counterevidence_and_gap"`
+	StopCondition             *string                       `json:"stop_condition"`
+	EvidenceScopeToken        *string                       `json:"evidence_scope_token"`
 }
 
 type IndustryChainListRequest struct {
@@ -474,7 +478,7 @@ func (s *UseCase) Publish(ctx context.Context, publisherReportID string, report 
 			return err
 		}
 		if missing := firstMissingEvidence(ids, existingIDs); missing != "" {
-			return &ReferenceError{Path: "report.evidence_ids", Reference: missing, Message: "does not identify an existing Atomic Evidence"}
+			return &ReferenceError{Path: "report.evidence_refs", Reference: missing, Message: "does not identify an existing Atomic Evidence"}
 		}
 		record := Record{ID: reportID, PublisherReportID: publisherReportID, ContentHash: payloadHash, Report: report, PublishedAt: s.now().UTC()}
 		if err := tx.InsertReport(ctx, record); err != nil {
@@ -654,28 +658,62 @@ func decodeIndustryChainCursor(value string) (industryChainCursor, error) {
 
 var localKeyPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 
+var (
+	resultLabels = map[string]string{
+		ResultWarming: "升温", ResultCooling: "降温", ResultDiverging: "分化", ResultPending: "待验证",
+	}
+	confidenceLabels = map[string]string{"low": "低", "medium": "中", "high": "高"}
+	timeWindowLabels = map[string]string{
+		"short": "短期", "medium": "中期", "long": "长期", "short_medium": "短期–中期",
+		"short_long": "短期–长期", "medium_long": "中期–长期",
+		"short_medium_long": "短期–中期–长期", "follow_up": "后续周期",
+	}
+	basisLabels = map[string]string{
+		BasisDirectEvidence: "直接证据", BasisReasoningHypothesis: "推理假设",
+		BasisNoDirectional: "无方向性结论",
+	}
+	validationLabels   = map[string]string{ValidationConfirmed: "已确认", ValidationPending: "待验证"}
+	evidenceRoleLabels = map[string]string{
+		"direct_support": "直接依据", "reasoning_support": "推导依据", "summary_support": "核心依据",
+	}
+	transmissionKindLabels = map[string]string{
+		TransmissionCrossLayer: "跨层推理", TransmissionSameSource: "同源信号",
+	}
+	transmissionStatusLabels = map[string]string{"established": "已形成传导"}
+	targetTypeLabels         = map[string]string{
+		"macro_anchor": "宏观经济锚点", "industry_chain": "产业链", "industry_chain_node": "产业链节点",
+	}
+)
+
 func ValidateReport(report Report) error {
+	if err := validateMappedLabel("report.report_type", report.ReportType, map[string]string{"investment_reasoning": "投研推理报告"}); err != nil {
+		return err
+	}
 	if report.GeneratedAt.IsZero() {
 		return invalid("report.generated_at", "must be a timestamp")
+	}
+	if report.Timezone != "Asia/Shanghai" {
+		return invalid("report.timezone", "must be Asia/Shanghai")
 	}
 	if len(report.IndustryChains) == 0 {
 		return invalid("report.industry_chains", "must contain at least one industry-chain analysis")
 	}
-	index := reportIndex{sections: map[string]struct{}{}, anchors: map[string]struct{}{}, chains: map[string]struct{}{}, nodes: map[string]struct{}{}, allKeys: map[string]struct{}{}}
+	index := reportIndex{
+		anchors: map[string]string{}, chains: map[string]struct{}{},
+		nodes: map[string]struct{}{}, allKeys: map[string]struct{}{},
+	}
 	if report.Geopolitics != nil {
-		index.sections["geopolitics"] = struct{}{}
-		if err := validateLayer("report.geopolitics", *report.Geopolitics, &index); err != nil {
+		if err := validateLayer("report.geopolitics", "geopolitics", *report.Geopolitics, true, &index); err != nil {
 			return err
 		}
 	}
 	if report.Macroeconomics != nil {
-		index.sections["macroeconomics"] = struct{}{}
-		if err := validateLayer("report.macroeconomics", *report.Macroeconomics, &index); err != nil {
+		if err := validateLayer("report.macroeconomics", "macroeconomics", *report.Macroeconomics, false, &index); err != nil {
 			return err
 		}
 	}
-	for i, chain := range report.IndustryChains {
-		if err := validateIndustryChain(fmt.Sprintf("report.industry_chains[%d]", i), chain, &index); err != nil {
+	for position, chain := range report.IndustryChains {
+		if err := validateIndustryChain(fmt.Sprintf("report.industry_chains[%d]", position), chain, &index); err != nil {
 			return err
 		}
 	}
@@ -683,11 +721,10 @@ func ValidateReport(report Report) error {
 }
 
 type reportIndex struct {
-	sections map[string]struct{}
-	anchors  map[string]struct{}
-	chains   map[string]struct{}
-	nodes    map[string]struct{}
-	allKeys  map[string]struct{}
+	anchors map[string]string
+	chains  map[string]struct{}
+	nodes   map[string]struct{}
+	allKeys map[string]struct{}
 }
 
 func (i *reportIndex) add(path, key string) error {
@@ -701,72 +738,134 @@ func (i *reportIndex) add(path, key string) error {
 	return nil
 }
 
-func validateLayer(path string, layer Layer, index *reportIndex) error {
-	if err := requiredText(path+".title", layer.Title, 500); err != nil {
+func validateLayer(path, expectedKey string, layer Layer, geopolitics bool, index *reportIndex) error {
+	if layer.LocalKey != expectedKey {
+		return invalid(path+".local_key", "does not match its Report layer")
+	}
+	for field, value := range map[string]string{
+		"title": layer.Title, "conclusion": layer.Conclusion,
+	} {
+		if err := requiredText(path+"."+field, value, 10_000); err != nil {
+			return err
+		}
+	}
+	if err := validateResult(path+".result", layer.Result); err != nil {
 		return err
 	}
-	if err := validateLayerSummary(path+".summary", layer.Summary); err != nil {
+	if err := validateTimeWindow(path+".time_window", layer.TimeWindow); err != nil {
 		return err
 	}
-	if layer.Detail.AffectedAnchors == nil || layer.Detail.ReasoningSteps == nil {
-		return invalid(path+".detail", "collections must be arrays")
+	if err := validateConfidence(path+".confidence", layer.Confidence); err != nil {
+		return err
 	}
-	for i, anchor := range layer.Detail.AffectedAnchors {
-		itemPath := fmt.Sprintf("%s.detail.affected_anchors[%d]", path, i)
+	if layer.AffectedAnchors == nil || layer.ReasoningSteps == nil {
+		return invalid(path, "affected_anchors and reasoning_steps must be arrays")
+	}
+	for position, anchor := range layer.AffectedAnchors {
+		itemPath := fmt.Sprintf("%s.affected_anchors[%d]", path, position)
 		if err := index.add(itemPath+".local_key", anchor.LocalKey); err != nil {
 			return err
 		}
-		index.anchors[anchor.LocalKey] = struct{}{}
-		if err := validateAssessment(itemPath, "current_state", anchor.Name, anchor.CurrentState, anchor.TransmissionLogic, anchor.Result, anchor.ConclusionBasis, anchor.ValidationStatus, anchor.TimeWindow, anchor.Confidence, anchor.EvidenceIDs); err != nil {
+		index.anchors[anchor.LocalKey] = expectedKey
+		if err := validateAssessment(itemPath, anchor.Name, "current_state", anchor.CurrentState, anchor.Reasoning,
+			anchor.Result, anchor.ConclusionBasis, anchor.ValidationStatus, anchor.TimeWindow,
+			anchor.Confidence, anchor.EvidenceRefs); err != nil {
 			return err
 		}
 	}
-	for i, step := range layer.Detail.ReasoningSteps {
-		itemPath := fmt.Sprintf("%s.detail.reasoning_steps[%d]", path, i)
-		for name, value := range map[string]string{"input": step.Input, "mechanism": step.Mechanism, "output": step.Output} {
-			if err := requiredText(itemPath+"."+name, value, 10_000); err != nil {
+	for position, step := range layer.ReasoningSteps {
+		itemPath := fmt.Sprintf("%s.reasoning_steps[%d]", path, position)
+		if err := index.add(itemPath+".local_key", step.LocalKey); err != nil {
+			return err
+		}
+		for field, value := range map[string]string{
+			"input": step.Input, "mechanism": step.Mechanism, "output": step.Output,
+		} {
+			if err := requiredText(itemPath+"."+field, value, 10_000); err != nil {
 				return err
 			}
-		}
-		if err := validateOpenCodedLabel(itemPath+".reasoning_type", step.ReasoningType); err != nil {
-			return err
 		}
 		if err := validateConfidence(itemPath+".confidence", step.Confidence); err != nil {
 			return err
 		}
-		if err := validateEvidenceIDs(itemPath+".evidence_ids", step.EvidenceIDs); err != nil {
+		if err := validateEvidenceRefs(itemPath+".evidence_refs", step.EvidenceRefs, "reasoning_support"); err != nil {
 			return err
 		}
 	}
-	for i, transmission := range layer.Summary.DownwardTransmission {
-		itemPath := fmt.Sprintf("%s.summary.downward_transmission[%d]", path, i)
-		if err := index.add(itemPath+".local_key", transmission.LocalKey); err != nil {
+	for field, value := range map[string]*string{
+		"counterevidence":    layer.Uncertainty.Counterevidence,
+		"evidence_gap":       layer.Uncertainty.EvidenceGap,
+		"boundary":           layer.Uncertainty.Boundary,
+		"reversal_condition": layer.Uncertainty.ReversalCondition,
+	} {
+		if err := optionalText(path+".uncertainty."+field, value, 10_000); err != nil {
 			return err
 		}
-		if err := requiredText(itemPath+".source_conclusion", transmission.SourceConclusion, 10_000); err != nil {
+	}
+	if err := validateEvidenceRefs(path+".evidence_refs", layer.EvidenceRefs, "summary_support"); err != nil {
+		return err
+	}
+	if geopolitics {
+		if layer.DownwardTransmission.ToMacroeconomics == nil || layer.DownwardTransmission.ToIndustryChains == nil {
+			return invalid(path+".downward_transmission", "must contain to_macroeconomics and to_industry_chains")
+		}
+		if err := validateTransmissionGroup(path+".downward_transmission.to_macroeconomics", *layer.DownwardTransmission.ToMacroeconomics); err != nil {
 			return err
 		}
-		if err := requiredText(itemPath+".transmission_logic", transmission.TransmissionLogic, 10_000); err != nil {
-			return err
+	} else if layer.DownwardTransmission.ToMacroeconomics != nil {
+		return invalid(path+".downward_transmission.to_macroeconomics", "is not supported for macroeconomics")
+	} else if layer.DownwardTransmission.ToIndustryChains == nil {
+		return invalid(path+".downward_transmission.to_industry_chains", "is required")
+	}
+	return validateTransmissionGroup(path+".downward_transmission.to_industry_chains", *layer.DownwardTransmission.ToIndustryChains)
+}
+
+func validateTransmissionGroup(path string, group TransmissionGroup) error {
+	if err := requiredText(path+".summary", group.Summary, 10_000); err != nil {
+		return err
+	}
+	if group.Paths == nil {
+		return invalid(path+".paths", "must be an array")
+	}
+	seen := make(map[string]struct{}, len(group.Paths))
+	for position, transmission := range group.Paths {
+		itemPath := fmt.Sprintf("%s.paths[%d]", path, position)
+		if !localKeyPattern.MatchString(transmission.LocalKey) {
+			return invalid(itemPath+".local_key", "must be a Report-local key")
+		}
+		if _, duplicate := seen[transmission.LocalKey]; duplicate {
+			return invalid(itemPath+".local_key", "duplicates a local key in this transmission group")
+		}
+		seen[transmission.LocalKey] = struct{}{}
+		for field, value := range map[string]string{
+			"source_conclusion":  transmission.SourceConclusion,
+			"transmission_logic": transmission.TransmissionLogic,
+		} {
+			if err := requiredText(itemPath+"."+field, value, 10_000); err != nil {
+				return err
+			}
 		}
 		if len(transmission.Targets) == 0 {
 			return invalid(itemPath+".targets", "must contain at least one target")
 		}
-		if err := validateMappedLabel(itemPath+".transmission_kind", transmission.TransmissionKind, map[string]string{TransmissionCrossLayer: "跨层推理", TransmissionSameSource: "同源信号"}); err != nil {
+		if err := validateMappedLabel(itemPath+".transmission_kind", transmission.TransmissionKind, transmissionKindLabels); err != nil {
 			return err
 		}
 		if err := validateConfidence(itemPath+".confidence", transmission.Confidence); err != nil {
 			return err
 		}
-		if err := validateOpenCodedLabel(itemPath+".status", transmission.Status); err != nil {
+		if err := validateMappedLabel(itemPath+".status", transmission.Status, transmissionStatusLabels); err != nil {
 			return err
 		}
-		for j, target := range transmission.Targets {
-			targetPath := fmt.Sprintf("%s.targets[%d]", itemPath, j)
-			if !validTargetType(target.Type) || !localKeyPattern.MatchString(target.LocalKey) {
-				return invalid(targetPath, "must identify a supported Report-local target")
+		for targetPosition, target := range transmission.Targets {
+			targetPath := fmt.Sprintf("%s.targets[%d]", itemPath, targetPosition)
+			if err := validateMappedLabel(targetPath+".target_type", target.TargetType, targetTypeLabels); err != nil {
+				return err
 			}
-			if err := requiredText(targetPath+".name", target.Name, 500); err != nil {
+			if !localKeyPattern.MatchString(target.TargetLocalKey) {
+				return invalid(targetPath+".target_local_key", "must be a Report-local key")
+			}
+			if err := requiredText(targetPath+".target_name", target.TargetName, 500); err != nil {
 				return err
 			}
 			if err := validateResult(targetPath+".result", target.Result); err != nil {
@@ -777,111 +876,79 @@ func validateLayer(path string, layer Layer, index *reportIndex) error {
 	return nil
 }
 
-func validateLayerSummary(path string, summary LayerSummary) error {
-	if err := requiredText(path+".conclusion", summary.Conclusion, 10_000); err != nil {
-		return err
-	}
-	if err := validateResult(path+".result", summary.Result); err != nil {
-		return err
-	}
-	if err := validateConfidence(path+".confidence", summary.Confidence); err != nil {
-		return err
-	}
-	if err := validateTimeWindow(path+".time_window", summary.TimeWindow); err != nil {
-		return err
-	}
-	if summary.DownwardTransmission == nil {
-		return invalid(path+".downward_transmission", "must be an array")
-	}
-	for name, value := range map[string]*string{"counterevidence": summary.Uncertainty.Counterevidence, "evidence_gap": summary.Uncertainty.EvidenceGap, "boundary": summary.Uncertainty.Boundary, "reversal_condition": summary.Uncertainty.ReversalCondition} {
-		if err := optionalText(path+".uncertainty."+name, value, 10_000); err != nil {
-			return err
-		}
-	}
-	return validateEvidenceIDs(path+".evidence_ids", summary.EvidenceIDs)
-}
-
 func validateIndustryChain(path string, chain IndustryChain, index *reportIndex) error {
 	if err := index.add(path+".local_key", chain.LocalKey); err != nil {
 		return err
 	}
 	index.chains[chain.LocalKey] = struct{}{}
-	if err := requiredText(path+".name", chain.Name, 500); err != nil {
-		return err
-	}
-	summary := chain.Summary
-	for name, value := range map[string]string{"conclusion": summary.Conclusion, "status": summary.Status, "path": summary.Path, "counterevidence_and_gap": summary.CounterevidenceAndGap, "stop_condition": summary.StopCondition} {
-		if err := requiredText(path+".summary."+name, value, 10_000); err != nil {
+	for field, value := range map[string]string{"name": chain.Name, "conclusion": chain.Conclusion} {
+		if err := requiredText(path+"."+field, value, 10_000); err != nil {
 			return err
 		}
 	}
-	if err := validateResult(path+".summary.result", summary.Result); err != nil {
+	if err := validateResult(path+".result", chain.Result); err != nil {
 		return err
 	}
-	if err := validateConfidence(path+".summary.confidence", summary.Confidence); err != nil {
+	if err := validateTimeWindow(path+".time_window", chain.TimeWindow); err != nil {
 		return err
 	}
-	if err := validateTimeWindow(path+".summary.time_window", summary.TimeWindow); err != nil {
+	if err := validateConfidence(path+".confidence", chain.Confidence); err != nil {
 		return err
 	}
-	if err := validateEvidenceIDs(path+".summary.evidence_ids", summary.EvidenceIDs); err != nil {
+	if err := optionalText(path+".path_summary", chain.PathSummary, 10_000); err != nil {
 		return err
 	}
-	if len(summary.Graph.Nodes) == 0 || summary.Graph.Edges == nil || len(chain.Detail.AffectedNodes) == 0 {
-		return invalid(path, "graph nodes and affected nodes must be non-empty; edges must be an array")
+	if err := optionalText(path+".accepted_hypothesis_summary", chain.AcceptedHypothesisSummary, 10_000); err != nil {
+		return err
 	}
-	topology := map[string]string{}
-	for i, node := range summary.Graph.Nodes {
-		nodePath := fmt.Sprintf("%s.summary.graph.nodes[%d]", path, i)
-		if !localKeyPattern.MatchString(node.LocalKey) {
-			return invalid(nodePath+".local_key", "must be a Report-local graph node key")
-		}
-		if _, exists := topology[node.LocalKey]; exists {
-			return invalid(nodePath+".local_key", "duplicates a graph node")
-		}
-		if err := requiredText(nodePath+".name", node.Name, 500); err != nil {
-			return err
-		}
-		topology[node.LocalKey] = node.Name
+	if len(chain.Nodes) == 0 || chain.Edges == nil {
+		return invalid(path, "nodes must be non-empty and edges must be an array")
 	}
-	for i, edge := range summary.Graph.Edges {
-		edgePath := fmt.Sprintf("%s.summary.graph.edges[%d]", path, i)
-		if _, exists := topology[edge.FromNodeKey]; !exists {
-			return invalid(edgePath+".from_node_key", "must reference this chain graph")
-		}
-		if _, exists := topology[edge.ToNodeKey]; !exists {
-			return invalid(edgePath+".to_node_key", "must reference this chain graph")
-		}
-		if edge.FromNodeKey == edge.ToNodeKey {
-			return invalid(edgePath, "must not be a self edge")
-		}
-		if err := validateOpenCodedLabel(edgePath+".relation", edge.Relation); err != nil {
-			return err
-		}
+	if err := validateEvidenceRefs(path+".evidence_refs", chain.EvidenceRefs, "summary_support"); err != nil {
+		return err
 	}
-	seenNodes := map[string]struct{}{}
-	for i, node := range chain.Detail.AffectedNodes {
-		nodePath := fmt.Sprintf("%s.detail.affected_nodes[%d]", path, i)
+	if err := optionalText(path+".uncertainty.counterevidence_and_gap", chain.Uncertainty.CounterevidenceAndGap, 10_000); err != nil {
+		return err
+	}
+	if err := optionalText(path+".uncertainty.stop_condition", chain.Uncertainty.StopCondition, 10_000); err != nil {
+		return err
+	}
+	chainNodeKeys := make(map[string]struct{}, len(chain.Nodes))
+	for position, node := range chain.Nodes {
+		nodePath := fmt.Sprintf("%s.nodes[%d]", path, position)
 		if err := index.add(nodePath+".local_key", node.LocalKey); err != nil {
 			return err
 		}
 		index.nodes[node.LocalKey] = struct{}{}
-		if _, exists := topology[node.NodeLocalKey]; !exists {
-			return invalid(nodePath+".node_local_key", "must reference this chain graph")
+		chainNodeKeys[node.LocalKey] = struct{}{}
+		if err := validateAssessment(nodePath, node.Name, "impact", node.Impact, node.Reasoning,
+			node.Result, node.ConclusionBasis, node.ValidationStatus, node.TimeWindow,
+			node.Confidence, node.EvidenceRefs); err != nil {
+			return err
 		}
-		if _, exists := seenNodes[node.NodeLocalKey]; exists {
-			return invalid(nodePath+".node_local_key", "duplicates an affected graph node")
+	}
+	for position, edge := range chain.Edges {
+		edgePath := fmt.Sprintf("%s.edges[%d]", path, position)
+		if _, exists := chainNodeKeys[edge.FromNodeLocalKey]; !exists {
+			return invalid(edgePath+".from_node_local_key", "must reference this chain")
 		}
-		seenNodes[node.NodeLocalKey] = struct{}{}
-		if err := validateAssessment(nodePath, "impact", node.Name, node.Impact, node.TransmissionLogic, node.Result, node.ConclusionBasis, node.ValidationStatus, node.TimeWindow, node.Confidence, node.EvidenceIDs); err != nil {
+		if _, exists := chainNodeKeys[edge.ToNodeLocalKey]; !exists {
+			return invalid(edgePath+".to_node_local_key", "must reference this chain")
+		}
+		if edge.FromNodeLocalKey == edge.ToNodeLocalKey {
+			return invalid(edgePath, "must not be a self edge")
+		}
+		if err := requiredText(edgePath+".relation_label", edge.RelationLabel, 500); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func validateAssessment(path, stateField, name, state, logic string, result CodedLabel, basis, validation *CodedLabel, window TimeWindow, confidence Confidence, evidenceIDs []string) error {
-	for field, value := range map[string]string{"name": name, stateField: state, "transmission_logic": logic} {
+func validateAssessment(path, name, stateField, state, reasoning string, result CodedLabel, basis, validation CodedLabel,
+	window TimeWindow, confidence Confidence, evidenceRefs []EvidenceReference,
+) error {
+	for field, value := range map[string]string{"name": name, "reasoning": reasoning, stateField: state} {
 		if err := requiredText(path+"."+field, value, 10_000); err != nil {
 			return err
 		}
@@ -889,10 +956,10 @@ func validateAssessment(path, stateField, name, state, logic string, result Code
 	if err := validateResult(path+".result", result); err != nil {
 		return err
 	}
-	if err := validateOptionalMappedLabel(path+".conclusion_basis", basis, map[string]string{BasisDirectEvidence: "直接证据", BasisReasoningHypothesis: "推理假设"}); err != nil {
+	if err := validateMappedLabel(path+".conclusion_basis", basis, basisLabels); err != nil {
 		return err
 	}
-	if err := validateOptionalMappedLabel(path+".validation_status", validation, map[string]string{ValidationPending: "待验证"}); err != nil {
+	if err := validateMappedLabel(path+".validation_status", validation, validationLabels); err != nil {
 		return err
 	}
 	if err := validateTimeWindow(path+".time_window", window); err != nil {
@@ -901,80 +968,81 @@ func validateAssessment(path, stateField, name, state, logic string, result Code
 	if err := validateConfidence(path+".confidence", confidence); err != nil {
 		return err
 	}
-	if err := validateEvidenceIDs(path+".evidence_ids", evidenceIDs); err != nil {
+	if err := validateEvidenceRefs(path+".evidence_refs", evidenceRefs, "direct_support"); err != nil {
 		return err
 	}
-	if basis != nil && basis.Code == BasisDirectEvidence && len(evidenceIDs) == 0 {
-		return invalid(path+".evidence_ids", "direct evidence requires at least one Evidence ID")
-	}
-	if (basis == nil || basis.Code != BasisDirectEvidence) && len(evidenceIDs) != 0 {
-		return invalid(path+".evidence_ids", "only direct-evidence assessments may expose Evidence")
+	switch basis.Code {
+	case BasisDirectEvidence:
+		if validation.Code != ValidationConfirmed {
+			return invalid(path+".validation_status", "direct evidence must be confirmed")
+		}
+		if len(evidenceRefs) == 0 {
+			return invalid(path+".evidence_refs", "direct evidence requires at least one Evidence reference")
+		}
+	case BasisReasoningHypothesis, BasisNoDirectional:
+		if validation.Code != ValidationPending {
+			return invalid(path+".validation_status", "non-direct conclusions must be pending validation")
+		}
+		if len(evidenceRefs) != 0 {
+			return invalid(path+".evidence_refs", "non-direct conclusions cannot expose direct Evidence")
+		}
 	}
 	return nil
 }
 
 func validateTransmissionTargets(report Report, index reportIndex) error {
-	for sectionName, layer := range map[string]*Layer{"geopolitics": report.Geopolitics, "macroeconomics": report.Macroeconomics} {
+	validateLayerTargets := func(path string, layer *Layer) error {
 		if layer == nil {
-			continue
+			return nil
 		}
-		for i, transmission := range layer.Summary.DownwardTransmission {
-			for j, target := range transmission.Targets {
-				exists := false
-				switch target.Type {
-				case "section":
-					_, exists = index.sections[target.LocalKey]
-				case "anchor":
-					_, exists = index.anchors[target.LocalKey]
-				case "industry_chain":
-					_, exists = index.chains[target.LocalKey]
-				case "industry_chain_node":
-					_, exists = index.nodes[target.LocalKey]
-				}
-				if !exists {
-					return &ReferenceError{Path: fmt.Sprintf("report.%s.summary.downward_transmission[%d].targets[%d]", sectionName, i, j), Reference: target.Type + ":" + target.LocalKey, Message: "does not identify a Report-local target"}
+		groups := []*TransmissionGroup{
+			layer.DownwardTransmission.ToMacroeconomics,
+			layer.DownwardTransmission.ToIndustryChains,
+		}
+		for _, group := range groups {
+			if group == nil {
+				continue
+			}
+			for pathPosition, transmission := range group.Paths {
+				for targetPosition, target := range transmission.Targets {
+					exists := false
+					switch target.TargetType.Code {
+					case "macro_anchor":
+						section, ok := index.anchors[target.TargetLocalKey]
+						exists = ok && section == "macroeconomics"
+					case "industry_chain":
+						_, exists = index.chains[target.TargetLocalKey]
+					case "industry_chain_node":
+						_, exists = index.nodes[target.TargetLocalKey]
+					}
+					if !exists {
+						return &ReferenceError{
+							Path:      fmt.Sprintf("%s.downward_transmission.paths[%d].targets[%d]", path, pathPosition, targetPosition),
+							Reference: target.TargetType.Code + ":" + target.TargetLocalKey,
+							Message:   "does not identify a Report-local target",
+						}
+					}
 				}
 			}
 		}
+		return nil
 	}
-	return nil
-}
-
-func validTargetType(value string) bool {
-	return value == "section" || value == "anchor" || value == "industry_chain" || value == "industry_chain_node"
+	if err := validateLayerTargets("report.geopolitics", report.Geopolitics); err != nil {
+		return err
+	}
+	return validateLayerTargets("report.macroeconomics", report.Macroeconomics)
 }
 
 func validateResult(path string, value CodedLabel) error {
-	return validateMappedLabel(path, value, map[string]string{
-		ResultWarming: "升温", ResultCooling: "降温", ResultDiverging: "分化",
-		ResultStable: "稳定", ResultMixed: "混合", ResultPending: "待验证",
-	})
+	return validateMappedLabel(path, value, resultLabels)
 }
 
 func validateConfidence(path string, value Confidence) error {
-	if err := validateMappedLabel(path, CodedLabel{Code: value.Code, Label: value.Label}, map[string]string{
-		"high": "高", "medium_high": "中–高", "medium": "中", "low_medium": "低–中", "low": "低",
-	}); err != nil {
-		return err
-	}
-	if value.Score != nil && (math.IsNaN(*value.Score) || math.IsInf(*value.Score, 0) || *value.Score < 0 || *value.Score > 1) {
-		return invalid(path+".score", "must be null or between 0 and 1")
-	}
-	return nil
+	return validateMappedLabel(path, value, confidenceLabels)
 }
 
 func validateTimeWindow(path string, value TimeWindow) error {
-	if err := requiredText(path+".code", value.Code, 100); err != nil {
-		return err
-	}
-	return requiredText(path+".label", value.Label, 500)
-}
-
-func validateOptionalMappedLabel(path string, value *CodedLabel, values map[string]string) error {
-	if value == nil {
-		return nil
-	}
-	return validateMappedLabel(path, *value, values)
+	return validateMappedLabel(path, CodedLabel(value), timeWindowLabels)
 }
 
 func validateMappedLabel(path string, value CodedLabel, values map[string]string) error {
@@ -988,26 +1056,26 @@ func validateMappedLabel(path string, value CodedLabel, values map[string]string
 	return nil
 }
 
-func validateOpenCodedLabel(path string, value CodedLabel) error {
-	if err := requiredText(path+".code", value.Code, 100); err != nil {
-		return err
-	}
-	return requiredText(path+".label", value.Label, 500)
-}
-
-func validateEvidenceIDs(path string, values []string) error {
+func validateEvidenceRefs(path string, values []EvidenceReference, requiredRole string) error {
 	if values == nil {
 		return invalid(path, "must be an array")
 	}
-	seen := map[string]struct{}{}
-	for i, id := range values {
-		if !coreid.Is(id, coreid.Evidence) {
-			return &ReferenceError{Path: fmt.Sprintf("%s[%d]", path, i), Reference: id, Message: "must be a canonical Atomic Evidence ID"}
+	seen := make(map[string]struct{}, len(values))
+	for position, reference := range values {
+		itemPath := fmt.Sprintf("%s[%d]", path, position)
+		if !coreid.Is(reference.EvidenceID, coreid.Evidence) {
+			return &ReferenceError{Path: itemPath + ".evidence_id", Reference: reference.EvidenceID, Message: "must be a canonical Atomic Evidence ID"}
 		}
-		if _, duplicate := seen[id]; duplicate {
-			return invalid(fmt.Sprintf("%s[%d]", path, i), "duplicates an Evidence in this scope")
+		if _, duplicate := seen[reference.EvidenceID]; duplicate {
+			return invalid(itemPath+".evidence_id", "duplicates an Evidence in this scope")
 		}
-		seen[id] = struct{}{}
+		seen[reference.EvidenceID] = struct{}{}
+		if err := validateMappedLabel(itemPath+".role", reference.Role, evidenceRoleLabels); err != nil {
+			return err
+		}
+		if reference.Role.Code != requiredRole {
+			return invalid(itemPath+".role.code", "does not match this Evidence scope")
+		}
 	}
 	return nil
 }
@@ -1030,39 +1098,45 @@ func optionalText(path string, value *string, max int) error {
 }
 
 func buildEvidenceLinks(reportID string, report Report) ([]EvidenceLink, error) {
-	type scopedIDs struct {
+	type scopedRefs struct {
 		typeName ScopeType
 		path     string
-		ids      []string
+		refs     []EvidenceReference
 	}
-	values := make([]scopedIDs, 0)
-	for sectionName, layer := range map[string]*Layer{"geopolitics": report.Geopolitics, "macroeconomics": report.Macroeconomics} {
-		if layer == nil {
+	values := make([]scopedRefs, 0)
+	for _, section := range []struct {
+		name  string
+		layer *Layer
+	}{{"geopolitics", report.Geopolitics}, {"macroeconomics", report.Macroeconomics}} {
+		if section.layer == nil {
 			continue
 		}
-		values = append(values, scopedIDs{ScopeSectionSummary, sectionName + "/summary", layer.Summary.EvidenceIDs})
-		for _, anchor := range layer.Detail.AffectedAnchors {
-			values = append(values, scopedIDs{ScopeAnchor, sectionName + "/detail/affected_anchors/" + anchor.LocalKey, anchor.EvidenceIDs})
+		values = append(values, scopedRefs{ScopeSectionSummary, section.name + "/evidence_refs", section.layer.EvidenceRefs})
+		for _, anchor := range section.layer.AffectedAnchors {
+			values = append(values, scopedRefs{ScopeAnchor, section.name + "/affected_anchors/" + anchor.LocalKey + "/evidence_refs", anchor.EvidenceRefs})
 		}
-		for i, step := range layer.Detail.ReasoningSteps {
-			values = append(values, scopedIDs{ScopeReasoningStep, fmt.Sprintf("%s/detail/reasoning_steps/%d", sectionName, i+1), step.EvidenceIDs})
+		for _, step := range section.layer.ReasoningSteps {
+			values = append(values, scopedRefs{ScopeReasoningStep, section.name + "/reasoning_steps/" + step.LocalKey + "/evidence_refs", step.EvidenceRefs})
 		}
 	}
 	for _, chain := range report.IndustryChains {
 		prefix := "industry_chains/" + chain.LocalKey
-		values = append(values, scopedIDs{ScopeIndustryChainSummary, prefix + "/summary", chain.Summary.EvidenceIDs})
-		for _, node := range chain.Detail.AffectedNodes {
-			values = append(values, scopedIDs{ScopeIndustryChainNode, prefix + "/detail/affected_nodes/" + node.LocalKey, node.EvidenceIDs})
+		values = append(values, scopedRefs{ScopeIndustryChainSummary, prefix + "/evidence_refs", chain.EvidenceRefs})
+		for _, node := range chain.Nodes {
+			values = append(values, scopedRefs{ScopeIndustryChainNode, prefix + "/nodes/" + node.LocalKey + "/evidence_refs", node.EvidenceRefs})
 		}
 	}
 	links := make([]EvidenceLink, 0)
 	for _, value := range values {
-		for position, evidenceID := range value.ids {
+		for position, reference := range value.refs {
 			linkID, err := coreid.New(coreid.ReportEvidenceLink)
 			if err != nil {
 				return nil, fmt.Errorf("generate Report Evidence Link ID: %w", err)
 			}
-			links = append(links, EvidenceLink{ID: linkID, ReportID: reportID, EvidenceID: evidenceID, ScopeType: value.typeName, ScopePath: value.path, Position: position + 1})
+			links = append(links, EvidenceLink{
+				ID: linkID, ReportID: reportID, EvidenceID: reference.EvidenceID,
+				ScopeType: value.typeName, ScopePath: value.path, Position: position + 1,
+			})
 		}
 	}
 	return links, nil

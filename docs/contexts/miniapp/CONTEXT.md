@@ -56,11 +56,12 @@ _Avoid_: 今日主题、今日推理、隐藏回退来源
 **Report 分析投影**:
 每份 Report 的实际分析 Section 及产业链分页摘要。产业链必有；地缘政治与宏观经济按本次报告
 是否存在投影，不生成空卡片；公司能力上线前不生成占位层。卡片是 Miniapp Backend 从同一份
-不可变 Report summary/detail 构造的产品 DTO，不是 Data 持久化事实，并始终保留所属 `report_id`。
+不可变、扁平 AgentOS Report 发布快照构造的产品 DTO，不是 Data 持久化事实，并始终保留所属
+`report_id`。
 _Avoid_: 固定四层、空层占位、Data 持久化首页卡片、跨 Report 聚合
 
 **Report 卡片详情目标**:
-每张首页 Report 卡片由对应 Section 或产业链 summary 提供结构化详情目标。Miniapp 只把 `report_id`、目标类型
+每张首页 Report 卡片由对应 Section 或产业链的 Data 读取投影提供结构化详情目标。Miniapp 只把 `report_id`、目标类型
 和 Report-local Key 传入 Taro 非 Tab 详情页；Evidence 入口只使用 Data 签发、绑定 Report 的 opaque scope token。
 _Avoid_: 从标题解析路由、前端检索完整 Report JSON、Reason Tree ID
 
@@ -130,14 +131,14 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
   明确保留 Report 身份与实际发布时间。
 - 每份 Report 的地缘政治和宏观经济仅在对应 Section 存在时各展示一张摘要卡片；不同 Report
   的卡片不得合并。
-- 上层摘要卡片直接使用 AgentOS 发布的 Section summary 结果、置信度和时间窗口；BFF 不从锚点
+- 上层摘要卡片直接使用 AgentOS 发布的 Section 根结论、结果、置信度和时间窗口；BFF 不从锚点
   聚合或从传导步骤反推。
 - 每份 Report 的产业链卡片按 JSON 数组顺序全量可达；Frontend 在固定内部 ScrollView 中每次
   追加一个 bounded page，按 card local key 去重，并隔离刷新或切换 Report 后晚到的旧响应。
 - 产业链标题的总数使用 Report 发布快照中的 `industry_chain_count`，首页展示数使用本组
   已持久化的产业链卡片数；两者不要相互反推或硬编码。
 - 公司分析拥有定稿发布基线前不显示空边界，也不从 Company 正式事实生成卡片。
-- 状态同时显示中文文字与颜色；已知 code 使用 `升温 / 降温 / 分化 / 稳定 / 混合 / 待验证`
+- 状态同时显示中文文字与颜色；已知 code 使用 `升温 / 降温 / 分化 / 待验证`
   的规范样式，未知 code 保留发布方 label 并使用中性样式。锚点或节点每行名称靠左，结果、置信度
   和时间窗口统一靠右并自然换行。
 - 卡片 Evidence 入口显示为 `依据`，带 `查看证据` 可访问名称，不显示 ID 或数量。
@@ -146,14 +147,14 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
 
 - 地缘政治和宏观详情从各自一句话结论、影响锚点与“为什么”开始，再展示独立反转条件和
   向下传导；不展示已废弃的“推理步骤”或合并式“不确定性与反转条件”区块，不引入报告之外的研究判断。
-- 传导目标保留层、锚点、产业链和链节点四种结构化引用；只有层与产业链目标可进入
-  v1 独立详情页，锚点与链节点目标仅展示，不生成无法加载的跳转。
+- 传导目标保留 AgentOS 发布的宏观锚点、产业链和产业链节点结构化引用；v1 只允许产业链
+  目标进入独立详情页，锚点与链节点目标仅展示，不生成无法加载的跳转。
 - 上层详情末尾列出同一 Report 中全部产业链名称与结果，数量必须与 Report 摘要一致；
   上层页不嵌入链节点或产业链推理图，选择产业链进入独立详情页。
-- 产业链详情先展示名称、一句话结论、结果、时间窗口和置信度；不在图前重复路径、状态或
-  已接受假设文案。
+- 产业链详情先展示名称、一句话结论、结果、时间窗口和置信度；AgentOS 发布的可空
+  `path_summary/accepted_hypothesis_summary` 仅在产品确认需要的位置展示，不由 BFF 生成。
 - 图在一个横向 `ScrollView` 画布中布局全部 topology nodes，只绘制 Report 显式有向边；
-  `affected_nodes` 通过 `node_local_key` 叠加本期评估，未评估的结构节点仍保留但不可打开详情。
+  节点 `local_key` 同时是链图端点；未评估的结构节点仍保留但不可打开详情。
   长边使用独立正交通道和端口，不把没有边的相邻节点表现成关系。
 - 图节点和选中节点卡都将 `直接证据 / 推理假设` 结论依据与 `待验证` 验证状态分开展示。
   选中节点额外展示本次影响、传导逻辑，以及链级反证与 Gap、停止条件。

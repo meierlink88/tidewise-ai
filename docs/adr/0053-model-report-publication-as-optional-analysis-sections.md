@@ -18,27 +18,29 @@ supersedes_in_part: 0052-replace-research-theme-with-report-publications.md
 
 ## 决策
 
+- AgentOS 定稿发布 fixture 是字段形状的最高验收基线；Data OpenAPI、领域类型、存储投影
+  与 Miniapp 消费者必须保持一致。
 - 发布请求严格为 `{publisher_report_id, report}`。`publisher_report_id` 是 AgentOS 对一次报告
   Artifact 的全局唯一、重试稳定身份；同身份同 canonical report 安全重放，不同 report 冲突。
-- Report 根只含 `generated_at`、可选 `geopolitics`、可选 `macroeconomics` 与必选非空
-  `industry_chains`。公司层在出现真实定稿基线前不进入合同。
-- 上层 Section 分为 summary/detail。summary 保留结论、结果、置信度、时间窗口、向下传导、
-  uncertainty 与 summary Evidence；detail 保留受影响锚点和可空推理步骤。
-- 每条产业链也分为 summary/detail。summary 保留结论、状态、结果、窗口、置信度、路径、链图、
-  反证与缺口、停止条件和 summary Evidence；detail 保留全部受影响节点。
-- 结果、置信度、时间窗口、结论依据、验证状态、传导类型和图关系由 AgentOS 同时发布稳定 code
+- Report 根严格包含 `report_type/generated_at/timezone/industry_chains`，并可选包含
+  `geopolitics/macroeconomics`。公司层在出现真实定稿基线前不进入合同。
+- 上层 Section 按 AgentOS 契约扁平发布结论、结果、置信度、窗口、锚点、推理步骤、
+  uncertainty、有序 Evidence refs 和分组向下传导；不在发布 JSON 中人为嵌套 summary/detail。
+- 每条产业链也按 AgentOS 契约扁平发布结论、结果、窗口、置信度、可空路径摘要、
+  可空已接受假设摘要、节点、边、uncertainty 和有序 Evidence refs。
+- 结果、置信度、时间窗口、结论依据、验证状态、Evidence role 与传导类型由 AgentOS 同时发布稳定 code
   与中文 label。Data 校验已知结构映射但不生成中文；Miniapp Backend 原样透传；Frontend 按 code
   选择样式、按 label 展示，未知 code 使用中性样式。
 - `conclusion_basis` 与 `validation_status` 是独立维度。只有
   `conclusion_basis.code=direct_evidence` 的锚点或节点允许并必须带 Evidence；推理假设不能获得
   “依据”入口。
-- 传导保留 source conclusion、闭包 targets、logic、kind、confidence 与 status；不携带
-  Evidence，也不增加每条传导自己的 boundary。
+- 传导按 AgentOS 的 `to_macroeconomics/to_industry_chains` 分组，保留 source conclusion、
+  闭包 targets、logic、kind、confidence 与 status；不携带 Evidence。
 - `reports.report` 保存完整不可变 JSONB，`content_hash` 只用于服务端幂等且不暴露 API。
   `report_evidence_links` 只保存 `id/report_id/evidence_id/scope_type/scope_path/position`；scope path
   由 Data 从 JSON 位置生成。
 - Data 读取端只暴露 report-bound opaque `RPE` scope token，不暴露 Evidence ID、JSON path 或
-  scope type/key。summary Evidence 是显式作用域，不能从子节点聚合。
+  scope type/key。层、推理步骤与链结论 Evidence 是显式作用域，不能从子节点聚合。
 - Data 在 PostgreSQL 用 JSON array ordinality 做 report-bound cursor 分页；BFF 转发分页并生成
   产品 DTO，Frontend 在固定内部 ScrollView 中每次追加 20 张卡片并去重、隔离过期响应。
 - Migration 000081 只允许空 Report store 前向切换：移除 `contract_version`，重命名

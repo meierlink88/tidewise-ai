@@ -143,16 +143,13 @@ func TestOpenAPIContractFreezesImmutableReportPublicationAndReadModels(t *testin
 			t.Errorf("Report publication request exposes retired field %q", retired)
 		}
 	}
-	assertRequired(t, schema(t, document, "Report"), "generated_at", "industry_chains")
-	assertRequired(t, schema(t, document, "ReportIndustryChain"), "local_key", "name", "summary", "detail")
-	chainProperties := object(t, schema(t, document, "ReportIndustryChain")["properties"], "ReportIndustryChain properties")
-	assertRequired(t, schema(t, document, "ReportChainSummary"),
-		"conclusion", "status", "result", "confidence", "time_window", "path", "graph",
-		"counterevidence_and_gap", "stop_condition", "evidence_ids",
+	assertRequired(t, schema(t, document, "Report"), "report_type", "generated_at", "timezone", "industry_chains")
+	assertRequired(t, schema(t, document, "ReportIndustryChain"),
+		"local_key", "name", "conclusion", "result", "time_window", "confidence",
+		"path_summary", "accepted_hypothesis_summary", "nodes", "edges", "uncertainty", "evidence_refs",
 	)
-	assertRequired(t, object(t, chainProperties["detail"], "ReportIndustryChain detail"), "affected_nodes")
 	assertRequired(t, schema(t, document, "ReportIndustryChainGraph"), "nodes", "edges")
-	assertRequired(t, schema(t, document, "ReportReasoningStep"), "input", "mechanism", "output", "reasoning_type", "confidence", "evidence_ids")
+	assertRequired(t, schema(t, document, "ReportReasoningStep"), "local_key", "input", "mechanism", "output", "confidence", "evidence_refs")
 	assertRequired(t, schema(t, document, "ReportTransmission"),
 		"local_key", "source_conclusion", "targets", "transmission_logic", "transmission_kind",
 		"confidence", "status",

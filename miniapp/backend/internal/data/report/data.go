@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"math"
 	"net/url"
 	"reflect"
 	"regexp"
@@ -341,9 +340,8 @@ type wireCodedLabel struct {
 	Label string `json:"label"`
 }
 type wireConfidence struct {
-	Code  string   `json:"code"`
-	Label string   `json:"label"`
-	Score *float64 `json:"score"`
+	Code  string `json:"code"`
+	Label string `json:"label"`
 }
 type wireTimeWindow struct {
 	Code  string `json:"code"`
@@ -369,10 +367,10 @@ type wirePage struct {
 	NextCursor *string       `json:"next_cursor"`
 }
 type wireTransmissionTarget struct {
-	Type     string         `json:"type"`
-	LocalKey string         `json:"local_key"`
-	Name     string         `json:"name"`
-	Result   wireCodedLabel `json:"result"`
+	TargetType     wireCodedLabel `json:"target_type"`
+	TargetLocalKey string         `json:"target_local_key"`
+	TargetName     string         `json:"target_name"`
+	Result         wireCodedLabel `json:"result"`
 }
 type wireTransmission struct {
 	LocalKey          string                   `json:"local_key"`
@@ -384,13 +382,21 @@ type wireTransmission struct {
 	Status            wireCodedLabel           `json:"status"`
 }
 type wireLayerSummary struct {
-	Conclusion           string             `json:"conclusion"`
-	Result               wireCodedLabel     `json:"result"`
-	Confidence           wireConfidence     `json:"confidence"`
-	TimeWindow           wireTimeWindow     `json:"time_window"`
-	DownwardTransmission []wireTransmission `json:"downward_transmission"`
-	Uncertainty          wireUncertainty    `json:"uncertainty"`
-	EvidenceScopeToken   *string            `json:"evidence_scope_token"`
+	Conclusion           string                   `json:"conclusion"`
+	Result               wireCodedLabel           `json:"result"`
+	Confidence           wireConfidence           `json:"confidence"`
+	TimeWindow           wireTimeWindow           `json:"time_window"`
+	DownwardTransmission wireDownwardTransmission `json:"downward_transmission"`
+	Uncertainty          wireUncertainty          `json:"uncertainty"`
+	EvidenceScopeToken   *string                  `json:"evidence_scope_token"`
+}
+type wireTransmissionGroup struct {
+	Summary string             `json:"summary"`
+	Paths   []wireTransmission `json:"paths"`
+}
+type wireDownwardTransmission struct {
+	ToMacroeconomics *wireTransmissionGroup `json:"to_macroeconomics,omitempty"`
+	ToIndustryChains *wireTransmissionGroup `json:"to_industry_chains,omitempty"`
 }
 type wireLayerSnapshot struct {
 	Key     string           `json:"key"`
@@ -403,22 +409,22 @@ type wireHome struct {
 	Macroeconomics *wireLayerSnapshot `json:"macroeconomics"`
 }
 type wireAnchor struct {
-	LocalKey           string          `json:"local_key"`
-	Name               string          `json:"name"`
-	CurrentState       string          `json:"current_state"`
-	Result             wireCodedLabel  `json:"result"`
-	ConclusionBasis    *wireCodedLabel `json:"conclusion_basis"`
-	ValidationStatus   *wireCodedLabel `json:"validation_status"`
-	TransmissionLogic  string          `json:"transmission_logic"`
-	TimeWindow         wireTimeWindow  `json:"time_window"`
-	Confidence         wireConfidence  `json:"confidence"`
-	EvidenceScopeToken *string         `json:"evidence_scope_token"`
+	LocalKey           string         `json:"local_key"`
+	Name               string         `json:"name"`
+	CurrentState       string         `json:"current_state"`
+	Result             wireCodedLabel `json:"result"`
+	ConclusionBasis    wireCodedLabel `json:"conclusion_basis"`
+	ValidationStatus   wireCodedLabel `json:"validation_status"`
+	Reasoning          string         `json:"reasoning"`
+	TimeWindow         wireTimeWindow `json:"time_window"`
+	Confidence         wireConfidence `json:"confidence"`
+	EvidenceScopeToken *string        `json:"evidence_scope_token"`
 }
 type wireReasoningStep struct {
+	LocalKey           string         `json:"local_key"`
 	Input              string         `json:"input"`
 	Mechanism          string         `json:"mechanism"`
 	Output             string         `json:"output"`
-	ReasoningType      wireCodedLabel `json:"reasoning_type"`
 	Confidence         wireConfidence `json:"confidence"`
 	EvidenceScopeToken *string        `json:"evidence_scope_token"`
 }
@@ -434,20 +440,19 @@ type wireLayerDetail struct {
 	Layer  wireLayer   `json:"layer"`
 }
 type wireImpactSummary struct {
-	LocalKey           string          `json:"local_key"`
-	Name               string          `json:"name"`
-	Result             wireCodedLabel  `json:"result"`
-	ConclusionBasis    *wireCodedLabel `json:"conclusion_basis"`
-	ValidationStatus   *wireCodedLabel `json:"validation_status"`
-	Confidence         wireConfidence  `json:"confidence"`
-	TimeWindow         wireTimeWindow  `json:"time_window"`
-	EvidenceScopeToken *string         `json:"evidence_scope_token"`
+	LocalKey           string         `json:"local_key"`
+	Name               string         `json:"name"`
+	Result             wireCodedLabel `json:"result"`
+	ConclusionBasis    wireCodedLabel `json:"conclusion_basis"`
+	ValidationStatus   wireCodedLabel `json:"validation_status"`
+	Confidence         wireConfidence `json:"confidence"`
+	TimeWindow         wireTimeWindow `json:"time_window"`
+	EvidenceScopeToken *string        `json:"evidence_scope_token"`
 }
 type wireChainSummary struct {
 	LocalKey           string              `json:"local_key"`
 	Name               string              `json:"name"`
 	Conclusion         string              `json:"conclusion"`
-	Status             string              `json:"status"`
 	Result             wireCodedLabel      `json:"result"`
 	Confidence         wireConfidence      `json:"confidence"`
 	TimeWindow         wireTimeWindow      `json:"time_window"`
@@ -463,41 +468,40 @@ type wireGraphNode struct {
 	Name     string `json:"name"`
 }
 type wireGraphEdge struct {
-	FromNodeKey string         `json:"from_node_key"`
-	ToNodeKey   string         `json:"to_node_key"`
-	Relation    wireCodedLabel `json:"relation"`
+	FromNodeLocalKey string `json:"from_node_local_key"`
+	ToNodeLocalKey   string `json:"to_node_local_key"`
+	RelationLabel    string `json:"relation_label"`
 }
 type wireGraph struct {
 	Nodes []wireGraphNode `json:"nodes"`
 	Edges []wireGraphEdge `json:"edges"`
 }
 type wireChainNode struct {
-	LocalKey           string          `json:"local_key"`
-	NodeLocalKey       string          `json:"node_local_key"`
-	Name               string          `json:"name"`
-	Impact             string          `json:"impact"`
-	Result             wireCodedLabel  `json:"result"`
-	ConclusionBasis    *wireCodedLabel `json:"conclusion_basis"`
-	ValidationStatus   *wireCodedLabel `json:"validation_status"`
-	TransmissionLogic  string          `json:"transmission_logic"`
-	TimeWindow         wireTimeWindow  `json:"time_window"`
-	Confidence         wireConfidence  `json:"confidence"`
-	EvidenceScopeToken *string         `json:"evidence_scope_token"`
+	LocalKey           string         `json:"local_key"`
+	Name               string         `json:"name"`
+	Impact             string         `json:"impact"`
+	Result             wireCodedLabel `json:"result"`
+	ConclusionBasis    wireCodedLabel `json:"conclusion_basis"`
+	ValidationStatus   wireCodedLabel `json:"validation_status"`
+	Reasoning          string         `json:"reasoning"`
+	TimeWindow         wireTimeWindow `json:"time_window"`
+	Confidence         wireConfidence `json:"confidence"`
+	EvidenceScopeToken *string        `json:"evidence_scope_token"`
 }
 type wireIndustryChain struct {
-	LocalKey              string          `json:"local_key"`
-	Name                  string          `json:"name"`
-	Conclusion            string          `json:"conclusion"`
-	Status                string          `json:"status"`
-	Result                wireCodedLabel  `json:"result"`
-	Confidence            wireConfidence  `json:"confidence"`
-	TimeWindow            wireTimeWindow  `json:"time_window"`
-	Path                  string          `json:"path"`
-	Graph                 wireGraph       `json:"graph"`
-	AffectedNodes         []wireChainNode `json:"affected_nodes"`
-	CounterevidenceAndGap string          `json:"counterevidence_and_gap"`
-	StopCondition         string          `json:"stop_condition"`
-	EvidenceScopeToken    *string         `json:"evidence_scope_token"`
+	LocalKey                  string          `json:"local_key"`
+	Name                      string          `json:"name"`
+	Conclusion                string          `json:"conclusion"`
+	Result                    wireCodedLabel  `json:"result"`
+	Confidence                wireConfidence  `json:"confidence"`
+	TimeWindow                wireTimeWindow  `json:"time_window"`
+	PathSummary               *string         `json:"path_summary"`
+	AcceptedHypothesisSummary *string         `json:"accepted_hypothesis_summary"`
+	Graph                     wireGraph       `json:"graph"`
+	AffectedNodes             []wireChainNode `json:"affected_nodes"`
+	CounterevidenceAndGap     *string         `json:"counterevidence_and_gap"`
+	StopCondition             *string         `json:"stop_condition"`
+	EvidenceScopeToken        *string         `json:"evidence_scope_token"`
 }
 type wireIndustryChainDetail struct {
 	Report        wireSummary       `json:"report"`
@@ -533,6 +537,12 @@ func mapLayerSnapshot(wire wireLayerSnapshot) (biz.LayerSnapshot, error) {
 	if !validLayer(wire.Key) || !validText(wire.Title, 500) {
 		return biz.LayerSnapshot{}, biz.ErrDataUnavailable
 	}
+	if wire.Key == biz.LayerGeopolitics && (wire.Summary.DownwardTransmission.ToMacroeconomics == nil || wire.Summary.DownwardTransmission.ToIndustryChains == nil) {
+		return biz.LayerSnapshot{}, biz.ErrDataUnavailable
+	}
+	if wire.Key == biz.LayerMacroeconomics && (wire.Summary.DownwardTransmission.ToMacroeconomics != nil || wire.Summary.DownwardTransmission.ToIndustryChains == nil) {
+		return biz.LayerSnapshot{}, biz.ErrDataUnavailable
+	}
 	summary, err := mapLayerSummary(wire.Summary)
 	if err != nil {
 		return biz.LayerSnapshot{}, err
@@ -553,7 +563,7 @@ func mapLayerSummary(wire wireLayerSummary) (biz.LayerSummary, error) {
 	if err != nil {
 		return biz.LayerSummary{}, err
 	}
-	transmissions, err := mapTransmissions(wire.DownwardTransmission)
+	transmissions, err := mapDownwardTransmission(wire.DownwardTransmission)
 	if err != nil {
 		return biz.LayerSummary{}, err
 	}
@@ -574,11 +584,11 @@ func mapLayer(wire wireLayer) (biz.Layer, error) {
 		if err != nil {
 			return biz.Layer{}, err
 		}
-		basis, err := mapOptionalCoded(item.ConclusionBasis)
+		basis, err := mapCoded(item.ConclusionBasis)
 		if err != nil {
 			return biz.Layer{}, err
 		}
-		status, err := mapOptionalCoded(item.ValidationStatus)
+		status, err := mapCoded(item.ValidationStatus)
 		if err != nil {
 			return biz.Layer{}, err
 		}
@@ -590,25 +600,21 @@ func mapLayer(wire wireLayer) (biz.Layer, error) {
 		if err != nil {
 			return biz.Layer{}, err
 		}
-		if !validLocalKey(item.LocalKey) || !validText(item.Name, 500) || !validText(item.CurrentState, 10_000) || !validText(item.TransmissionLogic, 10_000) || !validToken(item.EvidenceScopeToken) {
+		if !validLocalKey(item.LocalKey) || !validText(item.Name, 500) || !validText(item.CurrentState, 10_000) || !validText(item.Reasoning, 10_000) || !validToken(item.EvidenceScopeToken) {
 			return biz.Layer{}, biz.ErrDataUnavailable
 		}
-		anchors[index] = biz.Anchor{LocalKey: item.LocalKey, Name: item.Name, CurrentState: item.CurrentState, Result: result, ConclusionBasis: basis, ValidationStatus: status, TransmissionLogic: item.TransmissionLogic, TimeWindow: window, Confidence: confidence, EvidenceScopeToken: item.EvidenceScopeToken}
+		anchors[index] = biz.Anchor{LocalKey: item.LocalKey, Name: item.Name, CurrentState: item.CurrentState, Result: result, ConclusionBasis: basis, ValidationStatus: status, Reasoning: item.Reasoning, TimeWindow: window, Confidence: confidence, EvidenceScopeToken: item.EvidenceScopeToken}
 	}
 	steps := make([]biz.ReasoningStep, len(wire.ReasoningSteps))
 	for index, item := range wire.ReasoningSteps {
-		kind, err := mapCoded(item.ReasoningType)
-		if err != nil {
-			return biz.Layer{}, err
-		}
 		confidence, err := mapConfidence(item.Confidence)
 		if err != nil {
 			return biz.Layer{}, err
 		}
-		if !validText(item.Input, 10_000) || !validText(item.Mechanism, 10_000) || !validText(item.Output, 10_000) || !validToken(item.EvidenceScopeToken) {
+		if !validLocalKey(item.LocalKey) || !validText(item.Input, 10_000) || !validText(item.Mechanism, 10_000) || !validText(item.Output, 10_000) || !validToken(item.EvidenceScopeToken) {
 			return biz.Layer{}, biz.ErrDataUnavailable
 		}
-		steps[index] = biz.ReasoningStep{Input: item.Input, Mechanism: item.Mechanism, Output: item.Output, ReasoningType: kind, Confidence: confidence, EvidenceScopeToken: item.EvidenceScopeToken}
+		steps[index] = biz.ReasoningStep{LocalKey: item.LocalKey, Input: item.Input, Mechanism: item.Mechanism, Output: item.Output, Confidence: confidence, EvidenceScopeToken: item.EvidenceScopeToken}
 	}
 	return biz.Layer{Key: snapshot.Key, Title: snapshot.Title, Conclusion: snapshot.Summary.Conclusion, Result: snapshot.Summary.Result, Confidence: snapshot.Summary.Confidence, TimeWindow: snapshot.Summary.TimeWindow, Anchors: anchors, ReasoningSteps: steps, Transmissions: snapshot.Summary.Transmissions, Uncertainty: snapshot.Summary.Uncertainty, EvidenceScopeToken: snapshot.Summary.EvidenceScopeToken}, nil
 }
@@ -637,12 +643,31 @@ func mapTransmissions(values []wireTransmission) ([]biz.Transmission, error) {
 		targets := make([]biz.TransmissionTarget, len(item.Targets))
 		for targetIndex, target := range item.Targets {
 			mappedResult, err := mapCoded(target.Result)
-			if err != nil || !validReference(target.Type, target.LocalKey) || !validText(target.Name, 500) {
+			targetType, typeErr := mapCoded(target.TargetType)
+			if err != nil || typeErr != nil || !validReference(targetType.Code, target.TargetLocalKey) || !validText(target.TargetName, 500) {
 				return nil, biz.ErrDataUnavailable
 			}
-			targets[targetIndex] = biz.TransmissionTarget{Ref: biz.Reference{Type: target.Type, LocalKey: target.LocalKey}, Name: target.Name, Result: mappedResult}
+			targets[targetIndex] = biz.TransmissionTarget{Ref: biz.Reference{Type: targetType.Code, LocalKey: target.TargetLocalKey}, Name: target.TargetName, Result: mappedResult}
 		}
 		result[index] = biz.Transmission{LocalKey: item.LocalKey, SourceConclusion: item.SourceConclusion, Targets: targets, Logic: item.TransmissionLogic, Kind: kind, Confidence: confidence, Status: status}
+	}
+	return result, nil
+}
+
+func mapDownwardTransmission(value wireDownwardTransmission) ([]biz.Transmission, error) {
+	result := []biz.Transmission{}
+	for _, group := range []*wireTransmissionGroup{value.ToMacroeconomics, value.ToIndustryChains} {
+		if group == nil {
+			continue
+		}
+		if !validText(group.Summary, 10_000) {
+			return nil, biz.ErrDataUnavailable
+		}
+		paths, err := mapTransmissions(group.Paths)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, paths...)
 	}
 	return result, nil
 }
@@ -660,7 +685,7 @@ func mapChainSummary(wire wireChainSummary) (biz.IndustryChainSummary, error) {
 	if err != nil {
 		return biz.IndustryChainSummary{}, err
 	}
-	if !validLocalKey(wire.LocalKey) || !validText(wire.Name, 500) || !validText(wire.Conclusion, 10_000) || !validText(wire.Status, 10_000) || wire.ImpactItems == nil || !validToken(wire.EvidenceScopeToken) {
+	if !validLocalKey(wire.LocalKey) || !validText(wire.Name, 500) || !validText(wire.Conclusion, 10_000) || wire.ImpactItems == nil || !validToken(wire.EvidenceScopeToken) {
 		return biz.IndustryChainSummary{}, biz.ErrDataUnavailable
 	}
 	impacts := make([]biz.IndustryChainImpactSummary, len(wire.ImpactItems))
@@ -669,11 +694,11 @@ func mapChainSummary(wire wireChainSummary) (biz.IndustryChainSummary, error) {
 		if err != nil {
 			return biz.IndustryChainSummary{}, err
 		}
-		basis, err := mapOptionalCoded(item.ConclusionBasis)
+		basis, err := mapCoded(item.ConclusionBasis)
 		if err != nil {
 			return biz.IndustryChainSummary{}, err
 		}
-		status, err := mapOptionalCoded(item.ValidationStatus)
+		status, err := mapCoded(item.ValidationStatus)
 		if err != nil {
 			return biz.IndustryChainSummary{}, err
 		}
@@ -690,7 +715,7 @@ func mapChainSummary(wire wireChainSummary) (biz.IndustryChainSummary, error) {
 		}
 		impacts[index] = biz.IndustryChainImpactSummary{LocalKey: item.LocalKey, Name: item.Name, Result: itemResult, ConclusionBasis: basis, ValidationStatus: status, Confidence: itemConfidence, TimeWindow: itemWindow, EvidenceScopeToken: item.EvidenceScopeToken}
 	}
-	return biz.IndustryChainSummary{LocalKey: wire.LocalKey, Name: wire.Name, Conclusion: wire.Conclusion, Status: wire.Status, Result: result, Confidence: confidence, TimeWindow: window, ImpactItems: impacts, EvidenceScopeToken: wire.EvidenceScopeToken}, nil
+	return biz.IndustryChainSummary{LocalKey: wire.LocalKey, Name: wire.Name, Conclusion: wire.Conclusion, Result: result, Confidence: confidence, TimeWindow: window, ImpactItems: impacts, EvidenceScopeToken: wire.EvidenceScopeToken}, nil
 }
 
 func mapIndustryChain(wire wireIndustryChain) (biz.IndustryChain, error) {
@@ -706,7 +731,7 @@ func mapIndustryChain(wire wireIndustryChain) (biz.IndustryChain, error) {
 	if err != nil {
 		return biz.IndustryChain{}, err
 	}
-	if !validLocalKey(wire.LocalKey) || !validText(wire.Name, 500) || !validText(wire.Conclusion, 10_000) || !validText(wire.Status, 10_000) || !validText(wire.Path, 10_000) || !validText(wire.CounterevidenceAndGap, 10_000) || !validText(wire.StopCondition, 10_000) || wire.Graph.Nodes == nil || wire.Graph.Edges == nil || wire.AffectedNodes == nil || !validToken(wire.EvidenceScopeToken) {
+	if !validLocalKey(wire.LocalKey) || !validText(wire.Name, 500) || !validText(wire.Conclusion, 10_000) || !validNullableText(wire.PathSummary, 10_000) || !validNullableText(wire.AcceptedHypothesisSummary, 10_000) || !validNullableText(wire.CounterevidenceAndGap, 10_000) || !validNullableText(wire.StopCondition, 10_000) || wire.Graph.Nodes == nil || wire.Graph.Edges == nil || wire.AffectedNodes == nil || !validToken(wire.EvidenceScopeToken) {
 		return biz.IndustryChain{}, biz.ErrDataUnavailable
 	}
 	topology := map[string]struct{}{}
@@ -723,38 +748,37 @@ func mapIndustryChain(wire wireIndustryChain) (biz.IndustryChain, error) {
 	}
 	edges := make([]biz.IndustryChainEdge, len(wire.Graph.Edges))
 	for index, edge := range wire.Graph.Edges {
-		_, from := topology[edge.FromNodeKey]
-		_, to := topology[edge.ToNodeKey]
-		relation, err := mapCoded(edge.Relation)
-		if err != nil || !from || !to || edge.FromNodeKey == edge.ToNodeKey {
+		_, from := topology[edge.FromNodeLocalKey]
+		_, to := topology[edge.ToNodeLocalKey]
+		if !validText(edge.RelationLabel, 500) || !from || !to || edge.FromNodeLocalKey == edge.ToNodeLocalKey {
 			return biz.IndustryChain{}, biz.ErrDataUnavailable
 		}
-		edges[index] = biz.IndustryChainEdge{FromNodeKey: edge.FromNodeKey, ToNodeKey: edge.ToNodeKey, Relation: relation}
+		edges[index] = biz.IndustryChainEdge{FromNodeKey: edge.FromNodeLocalKey, ToNodeKey: edge.ToNodeLocalKey, RelationLabel: edge.RelationLabel}
 	}
 	nodes := make([]biz.IndustryChainNode, len(wire.AffectedNodes))
 	assessedTopology := map[string]struct{}{}
 	assessmentKeys := map[string]struct{}{}
 	for index, item := range wire.AffectedNodes {
-		if _, ok := topology[item.NodeLocalKey]; !ok {
+		if _, ok := topology[item.LocalKey]; !ok {
 			return biz.IndustryChain{}, biz.ErrDataUnavailable
 		}
-		if _, duplicate := assessedTopology[item.NodeLocalKey]; duplicate {
+		if _, duplicate := assessedTopology[item.LocalKey]; duplicate {
 			return biz.IndustryChain{}, biz.ErrDataUnavailable
 		}
 		if _, duplicate := assessmentKeys[item.LocalKey]; duplicate {
 			return biz.IndustryChain{}, biz.ErrDataUnavailable
 		}
-		assessedTopology[item.NodeLocalKey] = struct{}{}
+		assessedTopology[item.LocalKey] = struct{}{}
 		assessmentKeys[item.LocalKey] = struct{}{}
 		itemResult, err := mapCoded(item.Result)
 		if err != nil {
 			return biz.IndustryChain{}, err
 		}
-		basis, err := mapOptionalCoded(item.ConclusionBasis)
+		basis, err := mapCoded(item.ConclusionBasis)
 		if err != nil {
 			return biz.IndustryChain{}, err
 		}
-		status, err := mapOptionalCoded(item.ValidationStatus)
+		status, err := mapCoded(item.ValidationStatus)
 		if err != nil {
 			return biz.IndustryChain{}, err
 		}
@@ -766,12 +790,12 @@ func mapIndustryChain(wire wireIndustryChain) (biz.IndustryChain, error) {
 		if err != nil {
 			return biz.IndustryChain{}, err
 		}
-		if !validLocalKey(item.LocalKey) || !validText(item.Name, 500) || !validText(item.Impact, 10_000) || !validText(item.TransmissionLogic, 10_000) || !validToken(item.EvidenceScopeToken) {
+		if !validLocalKey(item.LocalKey) || !validText(item.Name, 500) || !validText(item.Impact, 10_000) || !validText(item.Reasoning, 10_000) || !validToken(item.EvidenceScopeToken) {
 			return biz.IndustryChain{}, biz.ErrDataUnavailable
 		}
-		nodes[index] = biz.IndustryChainNode{LocalKey: item.LocalKey, NodeLocalKey: item.NodeLocalKey, Name: item.Name, Impact: item.Impact, Result: itemResult, ConclusionBasis: basis, ValidationStatus: status, TransmissionLogic: item.TransmissionLogic, TimeWindow: itemWindow, Confidence: itemConfidence, EvidenceScopeToken: item.EvidenceScopeToken}
+		nodes[index] = biz.IndustryChainNode{LocalKey: item.LocalKey, Name: item.Name, Impact: item.Impact, Result: itemResult, ConclusionBasis: basis, ValidationStatus: status, Reasoning: item.Reasoning, TimeWindow: itemWindow, Confidence: itemConfidence, EvidenceScopeToken: item.EvidenceScopeToken}
 	}
-	return biz.IndustryChain{LocalKey: wire.LocalKey, Name: wire.Name, Conclusion: wire.Conclusion, Status: wire.Status, Result: result, Confidence: confidence, TimeWindow: window, Path: wire.Path, TopologyNodes: topologyNodes, Nodes: nodes, Edges: edges, CounterevidenceAndGap: wire.CounterevidenceAndGap, StopCondition: wire.StopCondition, EvidenceScopeToken: wire.EvidenceScopeToken}, nil
+	return biz.IndustryChain{LocalKey: wire.LocalKey, Name: wire.Name, Conclusion: wire.Conclusion, Result: result, Confidence: confidence, TimeWindow: window, PathSummary: wire.PathSummary, AcceptedHypothesisSummary: wire.AcceptedHypothesisSummary, TopologyNodes: topologyNodes, Nodes: nodes, Edges: edges, CounterevidenceAndGap: wire.CounterevidenceAndGap, StopCondition: wire.StopCondition, EvidenceScopeToken: wire.EvidenceScopeToken}, nil
 }
 
 func mapCoded(wire wireCodedLabel) (biz.CodedLabel, error) {
@@ -780,21 +804,11 @@ func mapCoded(wire wireCodedLabel) (biz.CodedLabel, error) {
 	}
 	return biz.CodedLabel{Code: wire.Code, Label: wire.Label}, nil
 }
-func mapOptionalCoded(wire *wireCodedLabel) (*biz.CodedLabel, error) {
-	if wire == nil {
-		return nil, nil
-	}
-	value, err := mapCoded(*wire)
-	if err != nil {
-		return nil, err
-	}
-	return &value, nil
-}
 func mapConfidence(wire wireConfidence) (biz.Confidence, error) {
-	if !validText(wire.Code, 100) || !validText(wire.Label, 500) || (wire.Score != nil && (math.IsNaN(*wire.Score) || math.IsInf(*wire.Score, 0) || *wire.Score < 0 || *wire.Score > 1)) {
+	if !validText(wire.Code, 100) || !validText(wire.Label, 500) {
 		return biz.Confidence{}, biz.ErrDataUnavailable
 	}
-	return biz.Confidence{Code: wire.Code, Label: wire.Label, Score: wire.Score}, nil
+	return biz.Confidence{Code: wire.Code, Label: wire.Label}, nil
 }
 func mapTimeWindow(wire wireTimeWindow) (biz.TimeWindow, error) {
 	if !validText(wire.Code, 100) || !validText(wire.Label, 500) {
@@ -812,7 +826,7 @@ func validReference(kind, key string) bool {
 	switch kind {
 	case "section":
 		return validLayer(key)
-	case "anchor", "industry_chain", "industry_chain_node":
+	case "macro_anchor", "industry_chain", "industry_chain_node":
 		return validLocalKey(key)
 	default:
 		return false

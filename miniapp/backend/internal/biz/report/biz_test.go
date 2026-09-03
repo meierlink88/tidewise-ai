@@ -86,14 +86,13 @@ func validSummary() Summary {
 	return Summary{ID: testReportID, PublisherReportID: "publisher", GeneratedAt: time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC), PublishedAt: time.Date(2026, 9, 2, 1, 0, 0, 0, time.UTC), IndustryChainCount: 54}
 }
 func sampleLayer() Layer {
-	score := 0.8
-	return Layer{Key: LayerGeopolitics, Title: "地缘政治", Conclusion: "地缘风险升温", Result: CodedLabel{Code: "warming", Label: "升温"}, Confidence: Confidence{Code: "high", Label: "高", Score: &score}, TimeWindow: TimeWindow{Code: "short", Label: "短期"}, Anchors: []Anchor{{LocalKey: "anchor-01", Name: "锚点", CurrentState: "UP", Result: CodedLabel{Code: "warming", Label: "升温"}, ConclusionBasis: &CodedLabel{Code: "direct_evidence", Label: "直接证据"}, TransmissionLogic: "逻辑", TimeWindow: TimeWindow{Code: "short", Label: "短期"}, Confidence: Confidence{Code: "high", Label: "高", Score: &score}, EvidenceScopeToken: stringPointer(testScopeToken)}}, ReasoningSteps: []ReasoningStep{}, Transmissions: []Transmission{}, Uncertainty: LayerUncertainty{}, EvidenceScopeToken: stringPointer(testScopeToken)}
+	return Layer{Key: LayerGeopolitics, Title: "地缘政治", Conclusion: "地缘风险升温", Result: CodedLabel{Code: "warming", Label: "升温"}, Confidence: Confidence{Code: "high", Label: "高"}, TimeWindow: TimeWindow{Code: "short", Label: "短期"}, Anchors: []Anchor{{LocalKey: "anchor-01", Name: "锚点", CurrentState: "UP", Result: CodedLabel{Code: "warming", Label: "升温"}, ConclusionBasis: CodedLabel{Code: "direct_evidence", Label: "直接证据"}, ValidationStatus: CodedLabel{Code: "confirmed", Label: "已确认"}, Reasoning: "逻辑", TimeWindow: TimeWindow{Code: "short", Label: "短期"}, Confidence: Confidence{Code: "high", Label: "高"}, EvidenceScopeToken: stringPointer(testScopeToken)}}, ReasoningSteps: []ReasoningStep{}, Transmissions: []Transmission{}, Uncertainty: LayerUncertainty{}, EvidenceScopeToken: stringPointer(testScopeToken)}
 }
 func (l Layer) summary() LayerSummary {
 	return LayerSummary{Conclusion: l.Conclusion, Result: l.Result, Confidence: l.Confidence, TimeWindow: l.TimeWindow, Transmissions: l.Transmissions, Uncertainty: l.Uncertainty, EvidenceScopeToken: l.EvidenceScopeToken}
 }
 func validChainSummary() IndustryChainSummary {
-	return IndustryChainSummary{LocalKey: "chain-01", Name: "产业链", Conclusion: "结论", Status: "已发布", Result: CodedLabel{Code: "warming", Label: "升温"}, Confidence: Confidence{Code: "medium", Label: "中"}, TimeWindow: TimeWindow{Code: "medium", Label: "中期"}, ImpactItems: []IndustryChainImpactSummary{}, EvidenceScopeToken: stringPointer(testScopeToken)}
+	return IndustryChainSummary{LocalKey: "chain-01", Name: "产业链", Conclusion: "结论", Result: CodedLabel{Code: "warming", Label: "升温"}, Confidence: Confidence{Code: "medium", Label: "中"}, TimeWindow: TimeWindow{Code: "medium", Label: "中期"}, ImpactItems: []IndustryChainImpactSummary{}, EvidenceScopeToken: stringPointer(testScopeToken)}
 }
 func stringPointer(value string) *string { return &value }
 

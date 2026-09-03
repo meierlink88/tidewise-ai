@@ -22,7 +22,7 @@ ALTER TABLE reports
 COMMENT ON COLUMN reports.content_hash IS
     '服务端对 immutable report JSON 计算的 lowercase SHA-256；不对 API 暴露。';
 COMMENT ON COLUMN reports.report IS
-    'AgentOS 发布的不可变完整 Report JSONB 快照；不从 Event、Signal 或图主数据重建。';
+    'AgentOS 发布的不可变、扁平完整 Report JSONB 快照；精确形状由定稿发布 fixture 与 OpenAPI 约束，不从 Event、Signal 或图主数据重建。';
 
 ALTER TABLE report_evidence_links
     DROP CONSTRAINT chk_report_evidence_links_scope_type,

@@ -3634,71 +3634,81 @@ components:
       pattern: '^EVD[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
       maxLength: 39
 
-    ReportOpenCodedLabel:
-      type: object
-      additionalProperties: false
-      required: [code, label]
-      properties:
-        code: {type: string, minLength: 1, maxLength: 100}
-        label: {type: string, minLength: 1, maxLength: 500}
-
     ReportResult:
       type: object
       additionalProperties: false
       required: [code, label]
       properties:
-        code: {type: string, enum: [warming, cooling, diverging, stable, mixed, pending]}
-        label: {type: string, enum: [升温, 降温, 分化, 稳定, 混合, 待验证]}
+        code: {type: string, enum: [warming, cooling, diverging, pending]}
+        label: {type: string, enum: [升温, 降温, 分化, 待验证]}
       description: code 与 AgentOS 发布的中文 label 必须按固定映射配对。
 
     ReportConclusionBasis:
       type: object
-      nullable: true
       additionalProperties: false
       required: [code, label]
       properties:
-        code: {type: string, enum: [direct_evidence, reasoning_hypothesis]}
-        label: {type: string, enum: [直接证据, 推理假设]}
+        code: {type: string, enum: [direct_evidence, reasoning_hypothesis, no_directional_conclusion]}
+        label: {type: string, enum: [直接证据, 推理假设, 无方向性结论]}
 
     ReportValidationStatus:
       type: object
-      nullable: true
       additionalProperties: false
       required: [code, label]
       properties:
-        code: {type: string, enum: [pending_validation]}
-        label: {type: string, enum: [待验证]}
+        code: {type: string, enum: [confirmed, pending_validation]}
+        label: {type: string, enum: [已确认, 待验证]}
 
     ReportConfidence:
       type: object
       additionalProperties: false
-      required: [code, label, score]
+      required: [code, label]
       properties:
-        code: {type: string, enum: [high, medium_high, medium, low_medium, low]}
-        label: {type: string, enum: [高, 中–高, 中, 低–中, 低]}
-        score: {type: number, minimum: 0, maximum: 1, nullable: true}
+        code: {type: string, enum: [low, medium, high]}
+        label: {type: string, enum: [低, 中, 高]}
 
     ReportTimeWindow:
       type: object
       additionalProperties: false
       required: [code, label]
       properties:
-        code: {type: string, minLength: 1, maxLength: 100}
-        label: {type: string, minLength: 1, maxLength: 500}
+        code:
+          type: string
+          enum: [short, medium, long, short_medium, short_long, medium_long, short_medium_long, follow_up]
+        label:
+          type: string
+          enum: [短期, 中期, 长期, 短期–中期, 短期–长期, 中期–长期, 短期–中期–长期, 后续周期]
 
-    ReportEvidenceIDs:
-      type: array
-      uniqueItems: true
-      items: {$ref: '#/components/schemas/ReportEvidenceID'}
+    ReportEvidenceRole:
+      type: object
+      additionalProperties: false
+      required: [code, label]
+      properties:
+        code: {type: string, enum: [direct_support, reasoning_support, summary_support]}
+        label: {type: string, enum: [直接依据, 推导依据, 核心依据]}
+
+    ReportEvidenceReference:
+      type: object
+      additionalProperties: false
+      required: [evidence_id, role]
+      properties:
+        evidence_id: {$ref: '#/components/schemas/ReportEvidenceID'}
+        role: {$ref: '#/components/schemas/ReportEvidenceRole'}
 
     ReportTransmissionTarget:
       type: object
       additionalProperties: false
-      required: [type, local_key, name, result]
+      required: [target_type, target_local_key, target_name, result]
       properties:
-        type: {type: string, enum: [section, anchor, industry_chain, industry_chain_node]}
-        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
-        name: {type: string, minLength: 1, maxLength: 500}
+        target_type:
+          type: object
+          additionalProperties: false
+          required: [code, label]
+          properties:
+            code: {type: string, enum: [macro_anchor, industry_chain, industry_chain_node]}
+            label: {type: string, enum: [宏观经济锚点, 产业链, 产业链节点]}
+        target_local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        target_name: {type: string, minLength: 1, maxLength: 500}
         result: {$ref: '#/components/schemas/ReportResult'}
 
     ReportTransmission:
@@ -3718,7 +3728,43 @@ components:
             code: {type: string, enum: [cross_layer_reasoning, same_source_signal]}
             label: {type: string, enum: [跨层推理, 同源信号]}
         confidence: {$ref: '#/components/schemas/ReportConfidence'}
-        status: {$ref: '#/components/schemas/ReportOpenCodedLabel'}
+        status:
+          type: object
+          additionalProperties: false
+          required: [code, label]
+          properties:
+            code: {type: string, enum: [established]}
+            label: {type: string, enum: [已形成传导]}
+
+    ReportTransmissionGroup:
+      type: object
+      additionalProperties: false
+      required: [summary, paths]
+      properties:
+        summary: {type: string, minLength: 1}
+        paths: {type: array, items: {$ref: '#/components/schemas/ReportTransmission'}}
+
+    ReportDownwardTransmission:
+      type: object
+      additionalProperties: false
+      properties:
+        to_macroeconomics: {$ref: '#/components/schemas/ReportTransmissionGroup'}
+        to_industry_chains: {$ref: '#/components/schemas/ReportTransmissionGroup'}
+
+    ReportGeopoliticalDownwardTransmission:
+      type: object
+      additionalProperties: false
+      required: [to_macroeconomics, to_industry_chains]
+      properties:
+        to_macroeconomics: {$ref: '#/components/schemas/ReportTransmissionGroup'}
+        to_industry_chains: {$ref: '#/components/schemas/ReportTransmissionGroup'}
+
+    ReportMacroeconomicDownwardTransmission:
+      type: object
+      additionalProperties: false
+      required: [to_industry_chains]
+      properties:
+        to_industry_chains: {$ref: '#/components/schemas/ReportTransmissionGroup'}
 
     ReportLayerUncertainty:
       type: object
@@ -3730,61 +3776,118 @@ components:
         boundary: {type: string, nullable: true}
         reversal_condition: {type: string, nullable: true}
 
-    ReportLayerSummary:
-      type: object
-      additionalProperties: false
-      required: [conclusion, result, confidence, time_window, downward_transmission, uncertainty, evidence_ids]
-      properties:
-        conclusion: {type: string, minLength: 1}
-        result: {$ref: '#/components/schemas/ReportResult'}
-        confidence: {$ref: '#/components/schemas/ReportConfidence'}
-        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
-        downward_transmission: {type: array, items: {$ref: '#/components/schemas/ReportTransmission'}}
-        uncertainty: {$ref: '#/components/schemas/ReportLayerUncertainty'}
-        evidence_ids: {$ref: '#/components/schemas/ReportEvidenceIDs'}
-
     ReportAnchor:
       type: object
       additionalProperties: false
-      required: [local_key, name, current_state, result, conclusion_basis, validation_status, transmission_logic, time_window, confidence, evidence_ids]
+      required: [local_key, name, current_state, result, conclusion_basis, validation_status, reasoning, time_window, confidence, evidence_refs]
       properties:
         local_key: {$ref: '#/components/schemas/ReportLocalKey'}
-        name: {type: string, minLength: 1}
+        name: {type: string, minLength: 1, maxLength: 500}
         current_state: {type: string, minLength: 1}
         result: {$ref: '#/components/schemas/ReportResult'}
         conclusion_basis: {$ref: '#/components/schemas/ReportConclusionBasis'}
         validation_status: {$ref: '#/components/schemas/ReportValidationStatus'}
-        transmission_logic: {type: string, minLength: 1}
+        reasoning: {type: string, minLength: 1}
         time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
         confidence: {$ref: '#/components/schemas/ReportConfidence'}
-        evidence_ids: {$ref: '#/components/schemas/ReportEvidenceIDs'}
+        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
 
     ReportReasoningStep:
       type: object
       additionalProperties: false
-      required: [input, mechanism, output, reasoning_type, confidence, evidence_ids]
+      required: [local_key, input, mechanism, output, confidence, evidence_refs]
       properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
         input: {type: string, minLength: 1}
         mechanism: {type: string, minLength: 1}
         output: {type: string, minLength: 1}
-        reasoning_type: {$ref: '#/components/schemas/ReportOpenCodedLabel'}
         confidence: {$ref: '#/components/schemas/ReportConfidence'}
-        evidence_ids: {$ref: '#/components/schemas/ReportEvidenceIDs'}
+        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
 
-    ReportLayer:
+    ReportGeopoliticalLayer:
       type: object
       additionalProperties: false
-      required: [title, summary, detail]
+      required: [local_key, title, conclusion, result, time_window, confidence, affected_anchors, reasoning_steps, uncertainty, evidence_refs, downward_transmission]
       properties:
-        title: {type: string, minLength: 1}
-        summary: {$ref: '#/components/schemas/ReportLayerSummary'}
-        detail:
-          type: object
-          additionalProperties: false
-          required: [affected_anchors, reasoning_steps]
-          properties:
-            affected_anchors: {type: array, items: {$ref: '#/components/schemas/ReportAnchor'}}
-            reasoning_steps: {type: array, items: {$ref: '#/components/schemas/ReportReasoningStep'}}
+        local_key: {type: string, enum: [geopolitics]}
+        title: {type: string, minLength: 1, maxLength: 500}
+        conclusion: {type: string, minLength: 1}
+        result: {$ref: '#/components/schemas/ReportResult'}
+        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        affected_anchors: {type: array, items: {$ref: '#/components/schemas/ReportAnchor'}}
+        reasoning_steps: {type: array, items: {$ref: '#/components/schemas/ReportReasoningStep'}}
+        uncertainty: {$ref: '#/components/schemas/ReportLayerUncertainty'}
+        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
+        downward_transmission: {$ref: '#/components/schemas/ReportGeopoliticalDownwardTransmission'}
+
+    ReportMacroeconomicLayer:
+      type: object
+      additionalProperties: false
+      required: [local_key, title, conclusion, result, time_window, confidence, affected_anchors, reasoning_steps, uncertainty, evidence_refs, downward_transmission]
+      properties:
+        local_key: {type: string, enum: [macroeconomics]}
+        title: {type: string, minLength: 1, maxLength: 500}
+        conclusion: {type: string, minLength: 1}
+        result: {$ref: '#/components/schemas/ReportResult'}
+        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        affected_anchors: {type: array, items: {$ref: '#/components/schemas/ReportAnchor'}}
+        reasoning_steps: {type: array, items: {$ref: '#/components/schemas/ReportReasoningStep'}}
+        uncertainty: {$ref: '#/components/schemas/ReportLayerUncertainty'}
+        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
+        downward_transmission: {$ref: '#/components/schemas/ReportMacroeconomicDownwardTransmission'}
+
+    ReportIndustryChainPublicationEdge:
+      type: object
+      additionalProperties: false
+      required: [from_node_local_key, to_node_local_key, relation_label]
+      properties:
+        from_node_local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        to_node_local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        relation_label: {type: string, minLength: 1, maxLength: 500}
+
+    ReportIndustryChainNode:
+      type: object
+      additionalProperties: false
+      required: [local_key, name, impact, result, conclusion_basis, validation_status, reasoning, time_window, confidence, evidence_refs]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        name: {type: string, minLength: 1, maxLength: 500}
+        impact: {type: string, minLength: 1}
+        result: {$ref: '#/components/schemas/ReportResult'}
+        conclusion_basis: {$ref: '#/components/schemas/ReportConclusionBasis'}
+        validation_status: {$ref: '#/components/schemas/ReportValidationStatus'}
+        reasoning: {type: string, minLength: 1}
+        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
+
+    ReportChainUncertainty:
+      type: object
+      additionalProperties: false
+      required: [counterevidence_and_gap, stop_condition]
+      properties:
+        counterevidence_and_gap: {type: string, nullable: true}
+        stop_condition: {type: string, nullable: true}
+
+    ReportIndustryChain:
+      type: object
+      additionalProperties: false
+      required: [local_key, name, conclusion, result, time_window, confidence, path_summary, accepted_hypothesis_summary, nodes, edges, uncertainty, evidence_refs]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        name: {type: string, minLength: 1, maxLength: 500}
+        conclusion: {type: string, minLength: 1}
+        result: {$ref: '#/components/schemas/ReportResult'}
+        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        path_summary: {type: string, nullable: true}
+        accepted_hypothesis_summary: {type: string, nullable: true}
+        nodes: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ReportIndustryChainNode'}}
+        edges: {type: array, items: {$ref: '#/components/schemas/ReportIndustryChainPublicationEdge'}}
+        uncertainty: {$ref: '#/components/schemas/ReportChainUncertainty'}
+        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
 
     ReportIndustryChainTopologyNode:
       type: object
@@ -3797,76 +3900,36 @@ components:
     ReportIndustryChainEdge:
       type: object
       additionalProperties: false
-      required: [from_node_key, to_node_key, relation]
+      required: [from_node_local_key, to_node_local_key, relation_label]
       properties:
-        from_node_key: {$ref: '#/components/schemas/ReportLocalKey'}
-        to_node_key: {$ref: '#/components/schemas/ReportLocalKey'}
-        relation: {$ref: '#/components/schemas/ReportOpenCodedLabel'}
+        from_node_local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        to_node_local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        relation_label: {type: string, minLength: 1}
 
     ReportIndustryChainGraph:
       type: object
       additionalProperties: false
       required: [nodes, edges]
       properties:
-        nodes: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ReportIndustryChainTopologyNode'}}
+        nodes: {type: array, items: {$ref: '#/components/schemas/ReportIndustryChainTopologyNode'}}
         edges: {type: array, items: {$ref: '#/components/schemas/ReportIndustryChainEdge'}}
-
-    ReportChainSummary:
-      type: object
-      additionalProperties: false
-      required: [conclusion, status, result, confidence, time_window, path, graph, counterevidence_and_gap, stop_condition, evidence_ids]
-      properties:
-        conclusion: {type: string, minLength: 1}
-        status: {type: string, minLength: 1}
-        result: {$ref: '#/components/schemas/ReportResult'}
-        confidence: {$ref: '#/components/schemas/ReportConfidence'}
-        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
-        path: {type: string, minLength: 1}
-        graph: {$ref: '#/components/schemas/ReportIndustryChainGraph'}
-        counterevidence_and_gap: {type: string, minLength: 1}
-        stop_condition: {type: string, minLength: 1}
-        evidence_ids: {$ref: '#/components/schemas/ReportEvidenceIDs'}
-
-    ReportIndustryChainNode:
-      type: object
-      additionalProperties: false
-      required: [local_key, node_local_key, name, impact, result, conclusion_basis, validation_status, transmission_logic, time_window, confidence, evidence_ids]
-      properties:
-        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
-        node_local_key: {$ref: '#/components/schemas/ReportLocalKey'}
-        name: {type: string, minLength: 1}
-        impact: {type: string, minLength: 1}
-        result: {$ref: '#/components/schemas/ReportResult'}
-        conclusion_basis: {$ref: '#/components/schemas/ReportConclusionBasis'}
-        validation_status: {$ref: '#/components/schemas/ReportValidationStatus'}
-        transmission_logic: {type: string, minLength: 1}
-        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
-        confidence: {$ref: '#/components/schemas/ReportConfidence'}
-        evidence_ids: {$ref: '#/components/schemas/ReportEvidenceIDs'}
-
-    ReportIndustryChain:
-      type: object
-      additionalProperties: false
-      required: [local_key, name, summary, detail]
-      properties:
-        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
-        name: {type: string, minLength: 1}
-        summary: {$ref: '#/components/schemas/ReportChainSummary'}
-        detail:
-          type: object
-          additionalProperties: false
-          required: [affected_nodes]
-          properties:
-            affected_nodes: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ReportIndustryChainNode'}}
 
     Report:
       type: object
       additionalProperties: false
-      required: [generated_at, industry_chains]
+      required: [report_type, generated_at, timezone, industry_chains]
       properties:
+        report_type:
+          type: object
+          additionalProperties: false
+          required: [code, label]
+          properties:
+            code: {type: string, enum: [investment_reasoning]}
+            label: {type: string, enum: [投研推理报告]}
         generated_at: {type: string, format: date-time}
-        geopolitics: {$ref: '#/components/schemas/ReportLayer'}
-        macroeconomics: {$ref: '#/components/schemas/ReportLayer'}
+        timezone: {type: string, enum: [Asia/Shanghai]}
+        geopolitics: {$ref: '#/components/schemas/ReportGeopoliticalLayer'}
+        macroeconomics: {$ref: '#/components/schemas/ReportMacroeconomicLayer'}
         industry_chains: {type: array, minItems: 1, items: {$ref: '#/components/schemas/ReportIndustryChain'}}
 
     ReportPublicationRequest:
@@ -3932,7 +3995,7 @@ components:
         result: {$ref: '#/components/schemas/ReportResult'}
         confidence: {$ref: '#/components/schemas/ReportConfidence'}
         time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
-        downward_transmission: {type: array, items: {$ref: '#/components/schemas/ReportTransmission'}}
+        downward_transmission: {$ref: '#/components/schemas/ReportDownwardTransmission'}
         uncertainty: {$ref: '#/components/schemas/ReportLayerUncertainty'}
         evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
 
@@ -3965,7 +4028,7 @@ components:
     ReportAnchorProjection:
       type: object
       additionalProperties: false
-      required: [local_key, name, current_state, result, conclusion_basis, validation_status, transmission_logic, time_window, confidence, evidence_scope_token]
+      required: [local_key, name, current_state, result, conclusion_basis, validation_status, reasoning, time_window, confidence, evidence_scope_token]
       properties:
         local_key: {$ref: '#/components/schemas/ReportLocalKey'}
         name: {type: string}
@@ -3973,7 +4036,7 @@ components:
         result: {$ref: '#/components/schemas/ReportResult'}
         conclusion_basis: {$ref: '#/components/schemas/ReportConclusionBasis'}
         validation_status: {$ref: '#/components/schemas/ReportValidationStatus'}
-        transmission_logic: {type: string}
+        reasoning: {type: string}
         time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
         confidence: {$ref: '#/components/schemas/ReportConfidence'}
         evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
@@ -3981,12 +4044,12 @@ components:
     ReportReasoningStepProjection:
       type: object
       additionalProperties: false
-      required: [input, mechanism, output, reasoning_type, confidence, evidence_scope_token]
+      required: [local_key, input, mechanism, output, confidence, evidence_scope_token]
       properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
         input: {type: string}
         mechanism: {type: string}
         output: {type: string}
-        reasoning_type: {$ref: '#/components/schemas/ReportOpenCodedLabel'}
         confidence: {$ref: '#/components/schemas/ReportConfidence'}
         evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
 
@@ -4034,12 +4097,11 @@ components:
     ReportIndustryChainSummary:
       type: object
       additionalProperties: false
-      required: [local_key, name, conclusion, status, result, confidence, time_window, impact_items, evidence_scope_token]
+      required: [local_key, name, conclusion, result, confidence, time_window, impact_items, evidence_scope_token]
       properties:
         local_key: {$ref: '#/components/schemas/ReportLocalKey'}
         name: {type: string}
         conclusion: {type: string}
-        status: {type: string}
         result: {$ref: '#/components/schemas/ReportResult'}
         confidence: {$ref: '#/components/schemas/ReportConfidence'}
         time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
@@ -4065,16 +4127,15 @@ components:
     ReportIndustryChainNodeProjection:
       type: object
       additionalProperties: false
-      required: [local_key, node_local_key, name, impact, result, conclusion_basis, validation_status, transmission_logic, time_window, confidence, evidence_scope_token]
+      required: [local_key, name, impact, result, conclusion_basis, validation_status, reasoning, time_window, confidence, evidence_scope_token]
       properties:
         local_key: {$ref: '#/components/schemas/ReportLocalKey'}
-        node_local_key: {$ref: '#/components/schemas/ReportLocalKey'}
         name: {type: string}
         impact: {type: string}
         result: {$ref: '#/components/schemas/ReportResult'}
         conclusion_basis: {$ref: '#/components/schemas/ReportConclusionBasis'}
         validation_status: {$ref: '#/components/schemas/ReportValidationStatus'}
-        transmission_logic: {type: string}
+        reasoning: {type: string}
         time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
         confidence: {$ref: '#/components/schemas/ReportConfidence'}
         evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
@@ -4082,20 +4143,20 @@ components:
     ReportIndustryChainProjection:
       type: object
       additionalProperties: false
-      required: [local_key, name, conclusion, status, result, confidence, time_window, path, graph, affected_nodes, counterevidence_and_gap, stop_condition, evidence_scope_token]
+      required: [local_key, name, conclusion, result, confidence, time_window, path_summary, accepted_hypothesis_summary, graph, affected_nodes, counterevidence_and_gap, stop_condition, evidence_scope_token]
       properties:
         local_key: {$ref: '#/components/schemas/ReportLocalKey'}
         name: {type: string}
         conclusion: {type: string}
-        status: {type: string}
         result: {$ref: '#/components/schemas/ReportResult'}
         confidence: {$ref: '#/components/schemas/ReportConfidence'}
         time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
-        path: {type: string}
+        path_summary: {type: string, nullable: true}
+        accepted_hypothesis_summary: {type: string, nullable: true}
         graph: {$ref: '#/components/schemas/ReportIndustryChainGraph'}
         affected_nodes: {type: array, items: {$ref: '#/components/schemas/ReportIndustryChainNodeProjection'}}
-        counterevidence_and_gap: {type: string}
-        stop_condition: {type: string}
+        counterevidence_and_gap: {type: string, nullable: true}
+        stop_condition: {type: string, nullable: true}
         evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
 
     ReportIndustryChainDetail:

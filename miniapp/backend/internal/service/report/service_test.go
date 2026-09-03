@@ -14,7 +14,7 @@ const testScopeToken = "RPE11111111-1111-4111-8111-111111111111"
 
 func TestServicePassesCodeLabelAndCursorToAPI(t *testing.T) {
 	summary := biz.Summary{ID: testReportID, PublisherReportID: "publisher", GeneratedAt: time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC), PublishedAt: time.Date(2026, 9, 2, 1, 0, 0, 0, time.UTC), IndustryChainCount: 54}
-	repository := &repositoryStub{listPage: biz.Page{Items: []biz.Summary{summary}}, home: biz.HomeSnapshot{Report: summary}, chainPage: biz.IndustryChainPage{Items: []biz.IndustryChainSummary{{LocalKey: "chain-01", Name: "产业链", Conclusion: "结论", Status: "已发布", Result: biz.CodedLabel{Code: "future", Label: "未来结果"}, Confidence: biz.Confidence{Code: "future", Label: "未来置信"}, TimeWindow: biz.TimeWindow{Code: "future", Label: "未来窗口"}, ImpactItems: []biz.IndustryChainImpactSummary{}}}}}
+	repository := &repositoryStub{listPage: biz.Page{Items: []biz.Summary{summary}}, home: biz.HomeSnapshot{Report: summary}, chainPage: biz.IndustryChainPage{Items: []biz.IndustryChainSummary{{LocalKey: "chain-01", Name: "产业链", Conclusion: "结论", Result: biz.CodedLabel{Code: "future", Label: "未来结果"}, Confidence: biz.Confidence{Code: "future", Label: "未来置信"}, TimeWindow: biz.TimeWindow{Code: "future", Label: "未来窗口"}, ImpactItems: []biz.IndustryChainImpactSummary{}}}}}
 	service, _ := NewService(biz.NewUseCaseWithClock(repository, func() time.Time { return time.Date(2026, 9, 2, 9, 0, 0, 0, time.FixedZone("CST", 8*3600)) }))
 	response, err := service.GetHome(context.Background(), &api.HomeRequest{})
 	if err != nil || response.Reports[0].Report.IndustryChainCount != 54 {
@@ -39,7 +39,7 @@ func TestServicePreservesIndustryChainTopologyNodesSeparatelyFromAssessments(t *
 	summary := biz.Summary{ID: testReportID, PublisherReportID: "publisher", GeneratedAt: time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC), PublishedAt: time.Date(2026, 9, 2, 1, 0, 0, 0, time.UTC), IndustryChainCount: 1}
 	repository := &repositoryStub{chain: biz.IndustryChainDetail{Report: summary, IndustryChain: biz.IndustryChain{
 		LocalKey: "chain-01", TopologyNodes: []biz.IndustryChainTopologyNode{{LocalKey: "node-01", Name: "节点一"}, {LocalKey: "node-02", Name: "结构上下文节点"}},
-		Nodes: []biz.IndustryChainNode{{LocalKey: "impact-01", NodeLocalKey: "node-01", Name: "节点一"}},
+		Nodes: []biz.IndustryChainNode{{LocalKey: "node-01", Name: "节点一"}},
 	}}}
 	service, _ := NewService(biz.NewUseCase(repository))
 	response, err := service.GetIndustryChain(context.Background(), &api.IndustryChainRequest{ReportID: testReportID, ChainKey: "chain-01"})

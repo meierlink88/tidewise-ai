@@ -43,7 +43,7 @@ func TestRepositoryPassesPublishedCodesLabelsAndCursorWithoutTranslation(t *test
 		t.Fatal(err)
 	}
 	home, err := repository.GetHome(context.Background(), testReportID)
-	if err != nil || home.Geopolitics == nil || home.Geopolitics.Summary.Result.Code != "future_result" {
+	if err != nil || home.Geopolitics == nil || home.Macroeconomics == nil || home.Geopolitics.Summary.Result.Code != "future_result" || len(home.Geopolitics.Summary.Transmissions) != 2 || home.Geopolitics.Summary.Transmissions[0].LocalKey != "geo-macro" || home.Geopolitics.Summary.Transmissions[1].LocalKey != "geo-chain" || len(home.Macroeconomics.Summary.Transmissions) != 1 || home.Macroeconomics.Summary.Transmissions[0].LocalKey != "macro-chain" {
 		t.Fatalf("home=%#v err=%v", home, err)
 	}
 	layer, err := repository.GetLayer(context.Background(), testReportID, "geopolitics")
@@ -105,19 +105,30 @@ func window() wireTimeWindow {
 	return wireTimeWindow{Code: "future_window", Label: "未来时间窗口"}
 }
 func layerSummaryFixture() wireLayerSummary {
-	return wireLayerSummary{Conclusion: "结论", Result: coded("future_result", "未来结果"), Confidence: confidence(), TimeWindow: window(), DownwardTransmission: []wireTransmission{}, Uncertainty: wireUncertainty{}, EvidenceScopeToken: stringPointer(testScopeToken)}
+	return wireLayerSummary{Conclusion: "结论", Result: coded("future_result", "未来结果"), Confidence: confidence(), TimeWindow: window(), DownwardTransmission: wireDownwardTransmission{ToMacroeconomics: &wireTransmissionGroup{Summary: "宏观传导", Paths: []wireTransmission{}}, ToIndustryChains: &wireTransmissionGroup{Summary: "产业链传导", Paths: []wireTransmission{}}}, Uncertainty: wireUncertainty{}, EvidenceScopeToken: stringPointer(testScopeToken)}
 }
 func homeFixture() wireHome {
-	return wireHome{Report: summaryFixture(), Geopolitics: &wireLayerSnapshot{Key: "geopolitics", Title: "地缘政治", Summary: layerSummaryFixture()}}
+	report := summaryFixture()
+	report.HasMacroeconomics = true
+	geopolitics := layerSummaryFixture()
+	geopolitics.DownwardTransmission.ToMacroeconomics.Paths = []wireTransmission{transmissionFixture("geo-macro", "macro_anchor")}
+	geopolitics.DownwardTransmission.ToIndustryChains.Paths = []wireTransmission{transmissionFixture("geo-chain", "industry_chain")}
+	macroeconomics := layerSummaryFixture()
+	macroeconomics.DownwardTransmission.ToMacroeconomics = nil
+	macroeconomics.DownwardTransmission.ToIndustryChains.Paths = []wireTransmission{transmissionFixture("macro-chain", "industry_chain")}
+	return wireHome{Report: report, Geopolitics: &wireLayerSnapshot{Key: "geopolitics", Title: "地缘政治", Summary: geopolitics}, Macroeconomics: &wireLayerSnapshot{Key: "macroeconomics", Title: "宏观经济", Summary: macroeconomics}}
+}
+func transmissionFixture(localKey, targetType string) wireTransmission {
+	return wireTransmission{LocalKey: localKey, SourceConclusion: "源结论", Targets: []wireTransmissionTarget{{TargetType: coded(targetType, "目标类型"), TargetLocalKey: "target-01", TargetName: "目标", Result: coded("future_result", "未来结果")}}, TransmissionLogic: "传导逻辑", TransmissionKind: coded("cross_layer_reasoning", "跨层推理"), Confidence: confidence(), Status: coded("established", "已形成传导")}
 }
 func layerFixture() wireLayerDetail {
-	return wireLayerDetail{Report: summaryFixture(), Layer: wireLayer{Key: "geopolitics", Title: "地缘政治", Summary: layerSummaryFixture(), AffectedAnchors: []wireAnchor{{LocalKey: "anchor-01", Name: "锚点", CurrentState: "UP", Result: coded("future_result", "未来结果"), ConclusionBasis: &wireCodedLabel{Code: "direct_evidence", Label: "直接证据"}, TransmissionLogic: "逻辑", TimeWindow: window(), Confidence: confidence(), EvidenceScopeToken: stringPointer(testScopeToken)}}, ReasoningSteps: []wireReasoningStep{}}}
+	return wireLayerDetail{Report: summaryFixture(), Layer: wireLayer{Key: "geopolitics", Title: "地缘政治", Summary: layerSummaryFixture(), AffectedAnchors: []wireAnchor{{LocalKey: "anchor-01", Name: "锚点", CurrentState: "UP", Result: coded("future_result", "未来结果"), ConclusionBasis: coded("direct_evidence", "直接证据"), ValidationStatus: coded("confirmed", "已确认"), Reasoning: "逻辑", TimeWindow: window(), Confidence: confidence(), EvidenceScopeToken: stringPointer(testScopeToken)}}, ReasoningSteps: []wireReasoningStep{}}}
 }
 func chainSummaryFixture() wireChainSummary {
-	return wireChainSummary{LocalKey: "chain-01", Name: "产业链", Conclusion: "结论", Status: "已发布", Result: coded("future_result", "未来结果"), Confidence: confidence(), TimeWindow: window(), ImpactItems: []wireImpactSummary{}, EvidenceScopeToken: stringPointer(testScopeToken)}
+	return wireChainSummary{LocalKey: "chain-01", Name: "产业链", Conclusion: "结论", Result: coded("future_result", "未来结果"), Confidence: confidence(), TimeWindow: window(), ImpactItems: []wireImpactSummary{}, EvidenceScopeToken: stringPointer(testScopeToken)}
 }
 func chainFixture() wireIndustryChainDetail {
-	return wireIndustryChainDetail{Report: summaryFixture(), IndustryChain: wireIndustryChain{LocalKey: "chain-01", Name: "产业链", Conclusion: "结论", Status: "已发布", Result: coded("warming", "升温"), Confidence: confidence(), TimeWindow: window(), Path: "路径", Graph: wireGraph{Nodes: []wireGraphNode{{LocalKey: "node-01", Name: "节点一"}, {LocalKey: "node-02", Name: "节点二"}, {LocalKey: "node-03", Name: "结构上下文节点"}}, Edges: []wireGraphEdge{{FromNodeKey: "node-01", ToNodeKey: "node-03", Relation: coded("component", "组成")}}}, AffectedNodes: []wireChainNode{{LocalKey: "impact-01", NodeLocalKey: "node-01", Name: "节点一", Impact: "UP", Result: coded("warming", "升温"), ConclusionBasis: &wireCodedLabel{Code: "direct_evidence", Label: "直接证据"}, TransmissionLogic: "逻辑", TimeWindow: window(), Confidence: confidence(), EvidenceScopeToken: stringPointer(testScopeToken)}, {LocalKey: "impact-02", NodeLocalKey: "node-02", Name: "节点二", Impact: "UP", Result: coded("pending", "待验证"), ConclusionBasis: &wireCodedLabel{Code: "reasoning_hypothesis", Label: "推理假设"}, ValidationStatus: &wireCodedLabel{Code: "pending_validation", Label: "待验证"}, TransmissionLogic: "逻辑", TimeWindow: window(), Confidence: confidence()}}, CounterevidenceAndGap: "反证与缺口", StopCondition: "停止条件", EvidenceScopeToken: stringPointer(testScopeToken)}}
+	return wireIndustryChainDetail{Report: summaryFixture(), IndustryChain: wireIndustryChain{LocalKey: "chain-01", Name: "产业链", Conclusion: "结论", Result: coded("warming", "升温"), Confidence: confidence(), TimeWindow: window(), PathSummary: stringPointer("路径"), Graph: wireGraph{Nodes: []wireGraphNode{{LocalKey: "node-01", Name: "节点一"}, {LocalKey: "node-02", Name: "节点二"}, {LocalKey: "node-03", Name: "结构上下文节点"}}, Edges: []wireGraphEdge{{FromNodeLocalKey: "node-01", ToNodeLocalKey: "node-03", RelationLabel: "组成"}}}, AffectedNodes: []wireChainNode{{LocalKey: "node-01", Name: "节点一", Impact: "UP", Result: coded("warming", "升温"), ConclusionBasis: coded("direct_evidence", "直接证据"), ValidationStatus: coded("confirmed", "已确认"), Reasoning: "逻辑", TimeWindow: window(), Confidence: confidence(), EvidenceScopeToken: stringPointer(testScopeToken)}, {LocalKey: "node-02", Name: "节点二", Impact: "UP", Result: coded("pending", "待验证"), ConclusionBasis: coded("reasoning_hypothesis", "推理假设"), ValidationStatus: coded("pending_validation", "待验证"), Reasoning: "逻辑", TimeWindow: window(), Confidence: confidence()}}, CounterevidenceAndGap: stringPointer("反证与缺口"), StopCondition: stringPointer("停止条件"), EvidenceScopeToken: stringPointer(testScopeToken)}}
 }
 func stringPointer(value string) *string { return &value }
 

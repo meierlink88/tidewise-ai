@@ -21,13 +21,14 @@ import { ReportError } from '../../features/reports/contract';
 const REPORT_ID = 'RPT11111111-1111-4111-8111-111111111111';
 const direct = code('direct_evidence', '直接证据');
 const hypothesis = code('reasoning_hypothesis', '推理假设');
+const confirmed = code('confirmed', '已确认');
 const pendingValidation = code('pending_validation', '待验证');
 const warming = code('warming', '升温');
 const cooling = code('cooling', '降温');
 const diverging = code('diverging', '分化');
 const medium = confidence('medium', '中');
 const high = confidence('high', '高');
-const low = confidence('low', '低', 0.6);
+const low = confidence('low', '低');
 
 const report: ReportSummary = {
   id: REPORT_ID,
@@ -97,20 +98,20 @@ const chains: ReportIndustryChainDetailContent[] = Array.from({ length: 54 }, (_
     key,
     name,
     conclusion: `${name}的直接信号与结构化传导已形成当前报告结论，相邻节点仍需后续验证。`,
-    status: '已发布',
     result: number % 9 === 0 ? diverging : warming,
     confidence: number === 1 ? medium : low,
     timeWindow: window('medium_long', '中期–长期'),
-    path: nodes.map((graphNode) => graphNode.name).join(' → '),
+    pathSummary: nodes.map((graphNode) => graphNode.name).join(' → '),
+    acceptedHypothesisSummary: null,
     topologyNodes: nodes.map((graphNode) => ({
-      key: graphNode.nodeLocalKey,
+      key: graphNode.key,
       name: graphNode.name
     })),
     nodes,
     edges: nodes.slice(1).map((graphNode) => ({
-      fromNodeKey: graphNode.nodeLocalKey,
-      toNodeKey: nodes[0]!.nodeLocalKey,
-      relation: code('component_of', '组成')
+      fromNodeLocalKey: graphNode.key,
+      toNodeLocalKey: nodes[0]!.key,
+      relationLabel: '组成'
     })),
     counterevidenceAndGap: '仍需目标节点的订单、价格、产能或经营数据验证。',
     stopCondition: '若后续事件使节点信号失效、方向反转或链语境不成立，则修正本链结论。',
@@ -234,7 +235,7 @@ function anchor(
   name: string,
   currentState: string,
   result: ReportResult,
-  transmissionLogic: string
+  reasoning: string
 ): ReportAnchor {
   return {
     key,
@@ -242,8 +243,8 @@ function anchor(
     currentState,
     result,
     conclusionBasis: direct,
-    validationStatus: null,
-    transmissionLogic,
+    validationStatus: confirmed,
+    reasoning,
     timeWindow: window('medium', '即时–中期'),
     confidence: high,
     evidenceScopeToken: evidenceToken(`${name}的直接依据`, [name, '直接证据'])
@@ -277,13 +278,12 @@ function createNode(
   const key = `${chainKey}-n${String(number).padStart(2, '0')}`;
   return {
     key,
-    nodeLocalKey: key,
     name,
     impact: isDirect ? '商业化进度 UP/MEDIUM' : '市场需求 UP/LOW',
     result: warming,
     conclusionBasis: isDirect ? direct : hypothesis,
-    validationStatus: isDirect ? null : pendingValidation,
-    transmissionLogic: isDirect
+    validationStatus: isDirect ? confirmed : pendingValidation,
+    reasoning: isDirect
       ? '公开事件直接形成节点信号。'
       : '同链结构关系支持传导假设，仍需目标节点经营数据验证。',
     timeWindow: window('medium_long', isDirect ? '中期–长期' : '中期–长期（传导滞后）'),
@@ -347,12 +347,8 @@ function code(codeValue: string, label: string): ReportCodedLabel {
   return { code: codeValue, label };
 }
 
-function confidence(
-  codeValue: string,
-  label: string,
-  score: number | null = null
-): ReportConfidence {
-  return { code: codeValue, label, score };
+function confidence(codeValue: string, label: string): ReportConfidence {
+  return { code: codeValue, label };
 }
 
 function window(codeValue: string, label: string): ReportTimeWindow {

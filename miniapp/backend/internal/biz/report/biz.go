@@ -53,10 +53,7 @@ type Page struct {
 	NextCursor *string
 }
 type CodedLabel struct{ Code, Label string }
-type Confidence struct {
-	Code, Label string
-	Score       *float64
-}
+type Confidence struct{ Code, Label string }
 type TimeWindow struct{ Code, Label string }
 type Reference struct{ Type, LocalKey string }
 
@@ -80,19 +77,19 @@ type HomeSnapshot struct {
 }
 
 type Anchor struct {
-	LocalKey, Name, CurrentState      string
-	Result                            CodedLabel
-	ConclusionBasis, ValidationStatus *CodedLabel
-	TransmissionLogic                 string
-	TimeWindow                        TimeWindow
-	Confidence                        Confidence
-	EvidenceScopeToken                *string
+	LocalKey, Name, CurrentState string
+	Result                       CodedLabel
+	ConclusionBasis              CodedLabel
+	ValidationStatus             CodedLabel
+	Reasoning                    string
+	TimeWindow                   TimeWindow
+	Confidence                   Confidence
+	EvidenceScopeToken           *string
 }
 type ReasoningStep struct {
-	Input, Mechanism, Output string
-	ReasoningType            CodedLabel
-	Confidence               Confidence
-	EvidenceScopeToken       *string
+	LocalKey, Input, Mechanism, Output string
+	Confidence                         Confidence
+	EvidenceScopeToken                 *string
 }
 type TransmissionTarget struct {
 	Ref    Reference
@@ -131,50 +128,50 @@ type RelatedIndustryChain struct {
 type IndustryChainImpactSummary struct {
 	LocalKey, Name                    string
 	Result                            CodedLabel
-	ConclusionBasis, ValidationStatus *CodedLabel
+	ConclusionBasis, ValidationStatus CodedLabel
 	Confidence                        Confidence
 	TimeWindow                        TimeWindow
 	EvidenceScopeToken                *string
 }
 type IndustryChainSummary struct {
-	LocalKey, Name, Conclusion, Status string
-	Result                             CodedLabel
-	Confidence                         Confidence
-	TimeWindow                         TimeWindow
-	ImpactItems                        []IndustryChainImpactSummary
-	EvidenceScopeToken                 *string
+	LocalKey, Name, Conclusion string
+	Result                     CodedLabel
+	Confidence                 Confidence
+	TimeWindow                 TimeWindow
+	ImpactItems                []IndustryChainImpactSummary
+	EvidenceScopeToken         *string
 }
 type IndustryChainPage struct {
 	Items      []IndustryChainSummary
 	NextCursor *string
 }
 type IndustryChainNode struct {
-	LocalKey, NodeLocalKey, Name, Impact string
-	Result                               CodedLabel
-	ConclusionBasis, ValidationStatus    *CodedLabel
-	TransmissionLogic                    string
-	TimeWindow                           TimeWindow
-	Confidence                           Confidence
-	EvidenceScopeToken                   *string
+	LocalKey, Name, Impact            string
+	Result                            CodedLabel
+	ConclusionBasis, ValidationStatus CodedLabel
+	Reasoning                         string
+	TimeWindow                        TimeWindow
+	Confidence                        Confidence
+	EvidenceScopeToken                *string
 }
 type IndustryChainEdge struct {
 	FromNodeKey, ToNodeKey string
-	Relation               CodedLabel
+	RelationLabel          string
 }
 type IndustryChainTopologyNode struct {
 	LocalKey, Name string
 }
 type IndustryChain struct {
-	LocalKey, Name, Conclusion, Status   string
-	Result                               CodedLabel
-	Confidence                           Confidence
-	TimeWindow                           TimeWindow
-	Path                                 string
-	TopologyNodes                        []IndustryChainTopologyNode
-	Nodes                                []IndustryChainNode
-	Edges                                []IndustryChainEdge
-	CounterevidenceAndGap, StopCondition string
-	EvidenceScopeToken                   *string
+	LocalKey, Name, Conclusion             string
+	Result                                 CodedLabel
+	Confidence                             Confidence
+	TimeWindow                             TimeWindow
+	PathSummary, AcceptedHypothesisSummary *string
+	TopologyNodes                          []IndustryChainTopologyNode
+	Nodes                                  []IndustryChainNode
+	Edges                                  []IndustryChainEdge
+	CounterevidenceAndGap, StopCondition   *string
+	EvidenceScopeToken                     *string
 }
 type IndustryChainDetail struct {
 	Report        Summary
@@ -195,7 +192,7 @@ type CardImpactItem struct {
 	Ref                               Reference
 	Name                              string
 	Result                            CodedLabel
-	ConclusionBasis, ValidationStatus *CodedLabel
+	ConclusionBasis, ValidationStatus CodedLabel
 	Confidence                        Confidence
 	TimeWindow                        TimeWindow
 	EvidenceScopeToken                *string
@@ -523,7 +520,7 @@ func chainCard(chain IndustryChainSummary) Card {
 	}
 	return Card{
 		LocalKey: chain.LocalKey, Kind: "industry_chain", DetailRef: Reference{Type: "industry_chain", LocalKey: chain.LocalKey},
-		Title: chain.Name, Subtitle: chain.Status, Conclusion: chain.Conclusion, Result: chain.Result,
+		Title: chain.Name, Conclusion: chain.Conclusion, Result: chain.Result,
 		Confidence: chain.Confidence, TimeWindow: chain.TimeWindow, ImpactItems: impacts, EvidenceScopeToken: chain.EvidenceScopeToken,
 	}
 }

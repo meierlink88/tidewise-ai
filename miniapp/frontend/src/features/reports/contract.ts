@@ -18,9 +18,7 @@ export type ReportResultCode = string;
 export type ReportNature = ReportCodedLabel;
 export type ReportNatureCode = string;
 
-export interface ReportConfidence extends ReportCodedLabel {
-  score: number | null;
-}
+export interface ReportConfidence extends ReportCodedLabel {}
 
 export interface ReportTimeWindow extends ReportCodedLabel {}
 
@@ -43,8 +41,8 @@ export interface ReportImpactItem {
   ref: ReportReference;
   name: string;
   result: ReportResult;
-  conclusionBasis: ReportCodedLabel | null;
-  validationStatus: ReportCodedLabel | null;
+  conclusionBasis: ReportCodedLabel;
+  validationStatus: ReportCodedLabel;
   confidence: ReportConfidence;
   timeWindow: ReportTimeWindow;
   evidenceScopeToken: string | null;
@@ -85,19 +83,19 @@ export interface ReportAnchor {
   name: string;
   currentState: string;
   result: ReportResult;
-  conclusionBasis: ReportCodedLabel | null;
-  validationStatus: ReportCodedLabel | null;
-  transmissionLogic: string;
+  conclusionBasis: ReportCodedLabel;
+  validationStatus: ReportCodedLabel;
+  reasoning: string;
   timeWindow: ReportTimeWindow;
   confidence: ReportConfidence;
   evidenceScopeToken: string | null;
 }
 
 export interface ReportReasoningStep {
+  key: string;
   input: string;
   mechanism: string;
   output: string;
-  reasoningType: ReportCodedLabel;
   confidence: ReportConfidence;
   evidenceScopeToken: string | null;
 }
@@ -153,22 +151,21 @@ export interface ReportLayerDetail {
 
 export interface ReportIndustryChainNode {
   key: string;
-  nodeLocalKey: string;
   name: string;
   impact: string;
   result: ReportResult;
-  conclusionBasis: ReportCodedLabel | null;
-  validationStatus: ReportCodedLabel | null;
-  transmissionLogic: string;
+  conclusionBasis: ReportCodedLabel;
+  validationStatus: ReportCodedLabel;
+  reasoning: string;
   timeWindow: ReportTimeWindow;
   confidence: ReportConfidence;
   evidenceScopeToken: string | null;
 }
 
 export interface ReportGraphEdge {
-  fromNodeKey: string;
-  toNodeKey: string;
-  relation: ReportCodedLabel;
+  fromNodeLocalKey: string;
+  toNodeLocalKey: string;
+  relationLabel: string;
 }
 
 export interface ReportGraphNode {
@@ -180,16 +177,16 @@ export interface ReportIndustryChainDetailContent {
   key: string;
   name: string;
   conclusion: string;
-  status: string;
   result: ReportResult;
   confidence: ReportConfidence;
   timeWindow: ReportTimeWindow;
-  path: string;
+  pathSummary: string | null;
+  acceptedHypothesisSummary: string | null;
   topologyNodes: ReportGraphNode[];
   nodes: ReportIndustryChainNode[];
   edges: ReportGraphEdge[];
-  counterevidenceAndGap: string;
-  stopCondition: string;
+  counterevidenceAndGap: string | null;
+  stopCondition: string | null;
   evidenceScopeToken: string | null;
 }
 

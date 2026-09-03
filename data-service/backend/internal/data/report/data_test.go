@@ -24,7 +24,7 @@ import (
 func TestPostgresReportPublicationReplayAndReadProjections(t *testing.T) {
 	db := openReportTestDatabase(t, 0)
 	evidenceIDs := publishReportEvidence(t, db)
-	report := reportWithEvidenceIDs(t, reportfixture.Report(), evidenceIDs[0], evidenceIDs[1])
+	report := reportWithEvidenceIDs(t, agentOSFixtureReport(t), evidenceIDs[0], evidenceIDs[1])
 	store, err := NewStore(db)
 	if err != nil {
 		t.Fatal(err)
@@ -36,11 +36,11 @@ func TestPostgresReportPublicationReplayAndReadProjections(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	first, err := useCase.Publish(ctx, "agentos-report-2026-09-02", report)
+	first, err := useCase.Publish(ctx, "agentos-investment-run-001", report)
 	if err != nil {
 		t.Fatal(err)
 	}
-	replay, err := useCase.Publish(ctx, "agentos-report-2026-09-02", report)
+	replay, err := useCase.Publish(ctx, "agentos-investment-run-001", report)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func TestPostgresReportPublicationReplayAndReadProjections(t *testing.T) {
 	if err := db.QueryRow(`SELECT count(*) FROM report_evidence_links WHERE report_id=$1`, first.Record.ID).Scan(&linkCount); err != nil {
 		t.Fatal(err)
 	}
-	if reportCount != 1 || linkCount != 6 {
+	if reportCount != 1 || linkCount != 5 {
 		t.Fatalf("reports=%d links=%d", reportCount, linkCount)
 	}
 
@@ -76,11 +76,11 @@ func TestPostgresReportPublicationReplayAndReadProjections(t *testing.T) {
 		t.Fatalf("layer=%#v err=%v", layer, err)
 	}
 	_, chain, err := useCase.GetIndustryChain(ctx, first.Record.ID, "chain-01")
-	if err != nil || len(chain.AffectedNodes) != 1 || chain.AffectedNodes[0].EvidenceScopeToken == nil {
+	if err != nil || len(chain.AffectedNodes) != 2 || chain.AffectedNodes[0].EvidenceScopeToken == nil || chain.AffectedNodes[1].EvidenceScopeToken != nil {
 		t.Fatalf("chain=%#v err=%v", chain, err)
 	}
 	evidence, err := useCase.ListEvidence(ctx, first.Record.ID, *chain.AffectedNodes[0].EvidenceScopeToken)
-	if err != nil || len(evidence) != 1 || evidence[0].Summary != "第二条报告依据" || !reflect.DeepEqual(evidence[0].Keywords, []string{"依据二"}) {
+	if err != nil || len(evidence) != 1 || evidence[0].Summary != "第一条报告依据" || !reflect.DeepEqual(evidence[0].Keywords, []string{"依据一"}) {
 		t.Fatalf("evidence=%#v err=%v", evidence, err)
 	}
 	_, err = useCase.ListEvidence(ctx, first.Record.ID, "RPE33333333-3333-4333-8333-333333333333")
@@ -90,15 +90,24 @@ func TestPostgresReportPublicationReplayAndReadProjections(t *testing.T) {
 
 	changed := report
 	changed.IndustryChains[0].Name = "变更后的产业链"
-	_, err = useCase.Publish(ctx, "agentos-report-2026-09-02", changed)
+	_, err = useCase.Publish(ctx, "agentos-investment-run-001", changed)
 	if !errors.Is(err, reportbiz.ErrPublicationConflict) {
 		t.Fatalf("conflict error=%v", err)
 	}
-	missing := reportWithEvidenceIDs(t, reportfixture.Report(), evidenceIDs[0], "EVD33333333-3333-4333-8333-333333333333")
+	missing := reportWithEvidenceIDs(t, agentOSFixtureReport(t), "EVD33333333-3333-4333-8333-333333333333", evidenceIDs[1])
 	_, err = useCase.Publish(ctx, "agentos-report-missing", missing)
 	var reference *reportbiz.ReferenceError
 	if !errors.As(err, &reference) {
 		t.Fatalf("missing Evidence error=%v", err)
+	}
+	if err := db.QueryRow(`SELECT count(*) FROM reports`).Scan(&reportCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(`SELECT count(*) FROM report_evidence_links`).Scan(&linkCount); err != nil {
+		t.Fatal(err)
+	}
+	if reportCount != 1 || linkCount != 5 {
+		t.Fatalf("missing Evidence was not rolled back: reports=%d links=%d", reportCount, linkCount)
 	}
 	assertPostgresCode(t, db, "55000", `UPDATE reports SET content_hash=repeat('b',64) WHERE id=$1`, first.Record.ID)
 }
@@ -124,6 +133,7 @@ func TestPostgresReportIndustryChainCursorPagesFiftyFourSummaries(t *testing.T) 
 	request := reportbiz.IndustryChainListRequest{ReportID: published.Record.ID, Limit: 20}
 	pageSizes := []int{}
 	keys := []string{}
+	uniqueKeys := map[string]struct{}{}
 	for {
 		page, err := useCase.ListIndustryChains(context.Background(), request)
 		if err != nil {
@@ -132,13 +142,14 @@ func TestPostgresReportIndustryChainCursorPagesFiftyFourSummaries(t *testing.T) 
 		pageSizes = append(pageSizes, len(page.Items))
 		for _, item := range page.Items {
 			keys = append(keys, item.LocalKey)
+			uniqueKeys[item.LocalKey] = struct{}{}
 		}
 		if page.NextCursor == nil {
 			break
 		}
 		request.Cursor = *page.NextCursor
 	}
-	if !reflect.DeepEqual(pageSizes, []int{20, 20, 14}) || len(keys) != 54 || keys[0] != "chain-01" || keys[53] != "chain-54" {
+	if !reflect.DeepEqual(pageSizes, []int{20, 20, 14}) || len(keys) != 54 || len(uniqueKeys) != 54 || keys[0] != "chain-01" || keys[53] != "chain-54" {
 		t.Fatalf("sizes=%v keys=%d first=%q last=%q", pageSizes, len(keys), keys[0], keys[len(keys)-1])
 	}
 }
@@ -273,6 +284,21 @@ func reportWithEvidenceIDs(t *testing.T, source reportbiz.Report, first, second 
 		t.Fatal(err)
 	}
 	return report
+}
+
+func agentOSFixtureReport(t *testing.T) reportbiz.Report {
+	t.Helper()
+	payload, err := os.ReadFile(filepath.Join("..", "..", "..", "api", "data", "v1", "report", "testdata", "investment-report-publication-request.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var request struct {
+		Report reportbiz.Report `json:"report"`
+	}
+	if err := json.Unmarshal(payload, &request); err != nil {
+		t.Fatal(err)
+	}
+	return request.Report
 }
 
 func openReportTestDatabase(t *testing.T, version int64) *sql.DB {

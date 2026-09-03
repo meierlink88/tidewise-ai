@@ -252,7 +252,7 @@ function LayerDetailView({
               <Text className='report-anchor-card__state'>{anchor.currentState}</Text>
               <View className='report-anchor-card__reason'>
                 <Text>为什么</Text>
-                <Text>{anchor.transmissionLogic}</Text>
+                <Text>{anchor.reasoning}</Text>
               </View>
             </View>
           ))}
@@ -541,7 +541,7 @@ function IndustryChainDetailView({
             </View>
             <View className='report-detail-fact'>
               <Text>传导逻辑</Text>
-              <Text>{selectedNode.transmissionLogic}</Text>
+              <Text>{selectedNode.reasoning}</Text>
             </View>
             {!hasDirectEvidence(
               selectedNode.evidenceScopeToken,
@@ -601,10 +601,10 @@ function ChainGraph({
   const canvasPadding = 28;
   const step = nodeWidth + nodeGap;
   const nodeIndexes = new Map(topologyNodes.map((item, index) => [item.key, index]));
-  const assessments = new Map(nodes.map((item) => [item.nodeLocalKey, item]));
+  const assessments = new Map(nodes.map((item) => [item.key, item]));
   const longEdges = edges.filter((edgeItem) => {
-    const from = nodeIndexes.get(edgeItem.fromNodeKey);
-    const to = nodeIndexes.get(edgeItem.toNodeKey);
+    const from = nodeIndexes.get(edgeItem.fromNodeLocalKey);
+    const to = nodeIndexes.get(edgeItem.toNodeLocalKey);
     return from !== undefined && to !== undefined && Math.abs(from - to) > 1;
   });
   const laneHeight = 52 + longEdges.length * 34;
@@ -623,8 +623,8 @@ function ChainGraph({
         ])}
       >
         {edges.map((edgeItem) => {
-          const fromIndex = nodeIndexes.get(edgeItem.fromNodeKey);
-          const toIndex = nodeIndexes.get(edgeItem.toNodeKey);
+          const fromIndex = nodeIndexes.get(edgeItem.fromNodeLocalKey);
+          const toIndex = nodeIndexes.get(edgeItem.toNodeLocalKey);
           if (fromIndex === undefined || toIndex === undefined) return null;
           const adjacent = Math.abs(fromIndex - toIndex) === 1;
           const movesRight = fromIndex < toIndex;
@@ -633,7 +633,7 @@ function ChainGraph({
             const sourceX = canvasPadding + fromIndex * step + (movesRight ? nodeWidth : 0);
             const targetX = canvasPadding + toIndex * step + (movesRight ? 0 : nodeWidth);
             return (
-              <View key={`${edgeItem.fromNodeKey}:${edgeItem.toNodeKey}`}>
+              <View key={`${edgeItem.fromNodeLocalKey}:${edgeItem.toNodeLocalKey}`}>
                 <View
                   className='report-chain-edge report-chain-edge--adjacent'
                   style={graphStyle([
@@ -642,7 +642,7 @@ function ChainGraph({
                     ['width', Math.abs(targetX - sourceX)]
                   ])}
                 >
-                  <Text>{edgeItem.relation.label}</Text>
+                  <Text>{edgeItem.relationLabel}</Text>
                 </View>
                 <View
                   className={`report-chain-edge-arrow ${movesRight ? 'is-right' : 'is-left'}`}
@@ -658,12 +658,12 @@ function ChainGraph({
           const targetX = canvasPadding + toIndex * step + nodeWidth / 2;
           const lane = longEdges.findIndex(
             (candidate) =>
-              candidate.fromNodeKey === edgeItem.fromNodeKey &&
-              candidate.toNodeKey === edgeItem.toNodeKey
+              candidate.fromNodeLocalKey === edgeItem.fromNodeLocalKey &&
+              candidate.toNodeLocalKey === edgeItem.toNodeLocalKey
           );
           const laneTop = 18 + lane * 34;
           return (
-            <View key={`${edgeItem.fromNodeKey}:${edgeItem.toNodeKey}`}>
+            <View key={`${edgeItem.fromNodeLocalKey}:${edgeItem.toNodeLocalKey}`}>
               <View
                 className='report-chain-edge report-chain-edge--long'
                 style={graphStyle([
@@ -672,7 +672,7 @@ function ChainGraph({
                   ['width', Math.abs(targetX - sourceX)]
                 ])}
               >
-                <Text>{edgeItem.relation.label}</Text>
+                <Text>{edgeItem.relationLabel}</Text>
               </View>
               <View
                 className='report-chain-edge-vertical'

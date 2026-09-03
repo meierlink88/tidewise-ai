@@ -375,5 +375,6 @@ down migration。
 `000081` 是 Issue #369 的最终 Report 发布合同切换。它只允许在 `reports` 与
 `report_evidence_links` 均为空时执行，删除 `contract_version`，将 `content` 收敛为
 `report` immutable JSONB，并将 Evidence 关联收敛为 `scope_path + position`。它不转换或
-覆盖已发布报告；发现任何历史行就 fail closed。完整回滚必须恢复 migration 81 前
+覆盖已发布报告；最终 JSONB 是 AgentOS 定稿 fixture 定义的扁平 Report 快照，不是过渡期
+summary/detail 形状。发现任何历史行就 fail closed。完整回滚必须恢复 migration 81 前
 已确认的 RDS 恢复点，并同步回退 Data、Miniapp 与 AgentOS publisher，不运行 down migration。

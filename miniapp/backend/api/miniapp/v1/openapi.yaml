@@ -178,11 +178,10 @@ components:
     Confidence:
       type: object
       additionalProperties: false
-      required: [code, label, score]
+      required: [code, label]
       properties:
         code: {type: string, minLength: 1}
         label: {type: string, minLength: 1}
-        score: {type: number, minimum: 0, maximum: 1, nullable: true}
     TimeWindow:
       type: object
       additionalProperties: false
@@ -195,7 +194,7 @@ components:
       additionalProperties: false
       required: [type, local_key]
       properties:
-        type: {type: string, enum: [layer, anchor, industry_chain, industry_chain_node]}
+        type: {type: string, enum: [layer, anchor, macro_anchor, industry_chain, industry_chain_node]}
         local_key: {$ref: '#/components/schemas/LocalKey'}
     Summary:
       type: object
@@ -222,8 +221,8 @@ components:
         ref: {$ref: '#/components/schemas/Reference'}
         name: {type: string}
         result: {$ref: '#/components/schemas/CodedLabel'}
-        conclusion_basis: {allOf: [{$ref: '#/components/schemas/CodedLabel'}], nullable: true}
-        validation_status: {allOf: [{$ref: '#/components/schemas/CodedLabel'}], nullable: true}
+        conclusion_basis: {$ref: '#/components/schemas/CodedLabel'}
+        validation_status: {$ref: '#/components/schemas/CodedLabel'}
         confidence: {$ref: '#/components/schemas/Confidence'}
         time_window: {$ref: '#/components/schemas/TimeWindow'}
         evidence_scope_token: {$ref: '#/components/schemas/NullableScopeToken'}
@@ -268,27 +267,27 @@ components:
     Anchor:
       type: object
       additionalProperties: false
-      required: [local_key, name, current_state, result, conclusion_basis, validation_status, transmission_logic, time_window, confidence, evidence_scope_token]
+      required: [local_key, name, current_state, result, conclusion_basis, validation_status, reasoning, time_window, confidence, evidence_scope_token]
       properties:
         local_key: {$ref: '#/components/schemas/LocalKey'}
         name: {type: string}
         current_state: {type: string}
         result: {$ref: '#/components/schemas/CodedLabel'}
-        conclusion_basis: {allOf: [{$ref: '#/components/schemas/CodedLabel'}], nullable: true}
-        validation_status: {allOf: [{$ref: '#/components/schemas/CodedLabel'}], nullable: true}
-        transmission_logic: {type: string}
+        conclusion_basis: {$ref: '#/components/schemas/CodedLabel'}
+        validation_status: {$ref: '#/components/schemas/CodedLabel'}
+        reasoning: {type: string}
         time_window: {$ref: '#/components/schemas/TimeWindow'}
         confidence: {$ref: '#/components/schemas/Confidence'}
         evidence_scope_token: {$ref: '#/components/schemas/NullableScopeToken'}
     ReasoningStep:
       type: object
       additionalProperties: false
-      required: [input, mechanism, output, reasoning_type, confidence, evidence_scope_token]
+      required: [local_key, input, mechanism, output, confidence, evidence_scope_token]
       properties:
+        local_key: {$ref: '#/components/schemas/LocalKey'}
         input: {type: string}
         mechanism: {type: string}
         output: {type: string}
-        reasoning_type: {$ref: '#/components/schemas/CodedLabel'}
         confidence: {$ref: '#/components/schemas/Confidence'}
         evidence_scope_token: {$ref: '#/components/schemas/NullableScopeToken'}
     TransmissionTarget:
@@ -355,27 +354,26 @@ components:
     IndustryChainNode:
       type: object
       additionalProperties: false
-      required: [local_key, node_local_key, name, impact, result, conclusion_basis, validation_status, transmission_logic, time_window, confidence, evidence_scope_token]
+      required: [local_key, name, impact, result, conclusion_basis, validation_status, reasoning, time_window, confidence, evidence_scope_token]
       properties:
         local_key: {$ref: '#/components/schemas/LocalKey'}
-        node_local_key: {$ref: '#/components/schemas/LocalKey'}
         name: {type: string}
         impact: {type: string}
         result: {$ref: '#/components/schemas/CodedLabel'}
-        conclusion_basis: {allOf: [{$ref: '#/components/schemas/CodedLabel'}], nullable: true}
-        validation_status: {allOf: [{$ref: '#/components/schemas/CodedLabel'}], nullable: true}
-        transmission_logic: {type: string}
+        conclusion_basis: {$ref: '#/components/schemas/CodedLabel'}
+        validation_status: {$ref: '#/components/schemas/CodedLabel'}
+        reasoning: {type: string}
         time_window: {$ref: '#/components/schemas/TimeWindow'}
         confidence: {$ref: '#/components/schemas/Confidence'}
         evidence_scope_token: {$ref: '#/components/schemas/NullableScopeToken'}
     IndustryChainEdge:
       type: object
       additionalProperties: false
-      required: [from_node_key, to_node_key, relation]
+      required: [from_node_local_key, to_node_local_key, relation_label]
       properties:
-        from_node_key: {$ref: '#/components/schemas/LocalKey'}
-        to_node_key: {$ref: '#/components/schemas/LocalKey'}
-        relation: {$ref: '#/components/schemas/CodedLabel'}
+        from_node_local_key: {$ref: '#/components/schemas/LocalKey'}
+        to_node_local_key: {$ref: '#/components/schemas/LocalKey'}
+        relation_label: {type: string, minLength: 1}
     IndustryChainTopologyNode:
       type: object
       additionalProperties: false
@@ -386,21 +384,21 @@ components:
     IndustryChain:
       type: object
       additionalProperties: false
-      required: [local_key, name, conclusion, status, result, confidence, time_window, path, topology_nodes, nodes, edges, counterevidence_and_gap, stop_condition, evidence_scope_token]
+      required: [local_key, name, conclusion, result, confidence, time_window, path_summary, accepted_hypothesis_summary, topology_nodes, nodes, edges, counterevidence_and_gap, stop_condition, evidence_scope_token]
       properties:
         local_key: {$ref: '#/components/schemas/LocalKey'}
         name: {type: string}
         conclusion: {type: string}
-        status: {type: string}
         result: {$ref: '#/components/schemas/CodedLabel'}
         confidence: {$ref: '#/components/schemas/Confidence'}
         time_window: {$ref: '#/components/schemas/TimeWindow'}
-        path: {type: string}
+        path_summary: {type: string, nullable: true}
+        accepted_hypothesis_summary: {type: string, nullable: true}
         topology_nodes: {type: array, items: {$ref: '#/components/schemas/IndustryChainTopologyNode'}}
         nodes: {type: array, items: {$ref: '#/components/schemas/IndustryChainNode'}}
         edges: {type: array, items: {$ref: '#/components/schemas/IndustryChainEdge'}}
-        counterevidence_and_gap: {type: string}
-        stop_condition: {type: string}
+        counterevidence_and_gap: {type: string, nullable: true}
+        stop_condition: {type: string, nullable: true}
         evidence_scope_token: {$ref: '#/components/schemas/NullableScopeToken'}
     IndustryChainDetail:
       type: object

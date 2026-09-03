@@ -92,7 +92,7 @@ evidence_one="$(jq -er '.result.items | map(select(.input_index == 0)) | .[0].id
 evidence_two="$(jq -er '.result.items | map(select(.input_index == 1)) | .[0].id' <<<"$evidence_response")"
 
 echo "Publishing smoke Report fixture"
-report_response="$(
+if ! report_response="$(
   jq --arg evidence_one "$evidence_one" --arg evidence_two "$evidence_two" \
     --arg publisher_report_id "report-smoke-${run_suffix}" '
       .publisher_report_id = $publisher_report_id
@@ -103,20 +103,33 @@ report_response="$(
             $evidence_two
           else . end
         )
-    ' "$repo_root/data-service/backend/api/data/v1/report/testdata/report-publication.json" | \
+    ' "$repo_root/data-service/backend/api/data/v1/report/testdata/investment-report-publication-request.json" | \
     curl --fail-with-body --silent --show-error \
       -H "$auth_header" -H 'Content-Type: application/json' \
       --data-binary @- "$data_api/report-publications"
-)"
+)"; then
+  echo "Report fixture publication failed" >&2
+  printf '%s\n' "$report_response" >&2
+  exit 1
+fi
 report_id="$(jq -er '.result.report_id' <<<"$report_response")"
 
 echo "Reading smoke Miniapp Report homepage"
-home_response="$(curl --fail --silent --show-error "$miniapp_api/reports/home")"
+data_home_response="$(curl --fail --silent --show-error -H "$auth_header" "$data_api/reports/$report_id/home")"
+if ! home_response="$(curl --fail-with-body --silent --show-error "$miniapp_api/reports/home")"; then
+  echo "Miniapp Report homepage read failed" >&2
+  printf '%s\n' "$home_response" >&2
+  printf 'Data Report homepage response: %s\n' "$data_home_response" >&2
+  exit 1
+fi
 jq -e --arg report_id "$report_id" '
   .result.selection.timezone == "Asia/Shanghai"
   and (.result.reports | length == 1)
   and .result.reports[0].report.id == $report_id
-  and (.result.reports[0].cards | length == 2)
+  and (.result.reports[0].cards | length == 3)
+  and .result.reports[0].cards[0].detail_ref.local_key == "geopolitics"
+  and .result.reports[0].cards[1].detail_ref.local_key == "macroeconomics"
+  and .result.reports[0].cards[2].detail_ref.local_key == "chain-01"
 ' <<<"$home_response" >/dev/null
 
 layer_response="$(curl --fail --silent --show-error "$miniapp_api/reports/$report_id/layers/geopolitics")"

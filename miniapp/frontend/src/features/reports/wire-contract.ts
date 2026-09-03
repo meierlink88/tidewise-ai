@@ -34,7 +34,13 @@ const localKeyPattern = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 const layerKeys = ['geopolitics', 'macroeconomics'] as const;
 const cardKinds = ['geopolitics', 'macroeconomics', 'industry_chain'] as const;
-const referenceTypes = ['layer', 'anchor', 'industry_chain', 'industry_chain_node'] as const;
+const referenceTypes = [
+  'layer',
+  'anchor',
+  'macro_anchor',
+  'industry_chain',
+  'industry_chain_node'
+] as const;
 
 export function parseReportHomeWire(value: unknown): ReportHome {
   const root = exact(value, ['selection', 'reports']);
@@ -169,8 +175,8 @@ function parseImpactItem(value: unknown) {
     ref: parseReference(root.ref),
     name: text(root.name),
     result: coded(root.result),
-    conclusionBasis: nullableCoded(root.conclusion_basis),
-    validationStatus: nullableCoded(root.validation_status),
+    conclusionBasis: coded(root.conclusion_basis),
+    validationStatus: coded(root.validation_status),
     confidence: confidence(root.confidence),
     timeWindow: timeWindow(root.time_window),
     evidenceScopeToken: nullableToken(root.evidence_scope_token)
@@ -214,7 +220,7 @@ function parseAnchor(value: unknown): ReportAnchor {
     'result',
     'conclusion_basis',
     'validation_status',
-    'transmission_logic',
+    'reasoning',
     'time_window',
     'confidence',
     'evidence_scope_token'
@@ -224,9 +230,9 @@ function parseAnchor(value: unknown): ReportAnchor {
     name: text(root.name),
     currentState: text(root.current_state),
     result: coded(root.result),
-    conclusionBasis: nullableCoded(root.conclusion_basis),
-    validationStatus: nullableCoded(root.validation_status),
-    transmissionLogic: text(root.transmission_logic),
+    conclusionBasis: coded(root.conclusion_basis),
+    validationStatus: coded(root.validation_status),
+    reasoning: text(root.reasoning),
     timeWindow: timeWindow(root.time_window),
     confidence: confidence(root.confidence),
     evidenceScopeToken: nullableToken(root.evidence_scope_token)
@@ -235,18 +241,18 @@ function parseAnchor(value: unknown): ReportAnchor {
 
 function parseReasoningStep(value: unknown): ReportReasoningStep {
   const root = exact(value, [
+    'local_key',
     'input',
     'mechanism',
     'output',
-    'reasoning_type',
     'confidence',
     'evidence_scope_token'
   ]);
   return {
+    key: localKey(root.local_key),
     input: text(root.input),
     mechanism: text(root.mechanism),
     output: text(root.output),
-    reasoningType: coded(root.reasoning_type),
     confidence: confidence(root.confidence),
     evidenceScopeToken: nullableToken(root.evidence_scope_token)
   };
@@ -298,11 +304,11 @@ function parseIndustryChain(value: unknown): ReportIndustryChainDetailContent {
     'local_key',
     'name',
     'conclusion',
-    'status',
     'result',
     'confidence',
     'time_window',
-    'path',
+    'path_summary',
+    'accepted_hypothesis_summary',
     'topology_nodes',
     'nodes',
     'edges',
@@ -314,33 +320,30 @@ function parseIndustryChain(value: unknown): ReportIndustryChainDetailContent {
   const topologyKeys = new Set(topologyNodes.map((node) => node.key));
   if (topologyKeys.size !== topologyNodes.length) invalid();
   const nodes = list(root.nodes).map(parseIndustryNode);
-  const assessedTopologyKeys = new Set(nodes.map((node) => node.nodeLocalKey));
   const assessmentKeys = new Set(nodes.map((node) => node.key));
-  if (
-    assessedTopologyKeys.size !== nodes.length ||
-    assessmentKeys.size !== nodes.length ||
-    nodes.some((node) => !topologyKeys.has(node.nodeLocalKey))
-  )
+  if (assessmentKeys.size !== nodes.length || nodes.some((node) => !topologyKeys.has(node.key)))
     invalid();
   const edges = list(root.edges).map(parseGraphEdge);
   if (
-    edges.some((edge) => !topologyKeys.has(edge.fromNodeKey) || !topologyKeys.has(edge.toNodeKey))
+    edges.some(
+      (edge) => !topologyKeys.has(edge.fromNodeLocalKey) || !topologyKeys.has(edge.toNodeLocalKey)
+    )
   )
     invalid();
   return {
     key: localKey(root.local_key),
     name: text(root.name),
     conclusion: text(root.conclusion),
-    status: text(root.status),
     result: coded(root.result),
     confidence: confidence(root.confidence),
     timeWindow: timeWindow(root.time_window),
-    path: text(root.path),
+    pathSummary: nullableText(root.path_summary),
+    acceptedHypothesisSummary: nullableText(root.accepted_hypothesis_summary),
     topologyNodes,
     nodes,
     edges,
-    counterevidenceAndGap: text(root.counterevidence_and_gap),
-    stopCondition: text(root.stop_condition),
+    counterevidenceAndGap: nullableText(root.counterevidence_and_gap),
+    stopCondition: nullableText(root.stop_condition),
     evidenceScopeToken: nullableToken(root.evidence_scope_token)
   };
 }
@@ -353,26 +356,24 @@ function parseGraphNode(value: unknown) {
 function parseIndustryNode(value: unknown): ReportIndustryChainNode {
   const root = exact(value, [
     'local_key',
-    'node_local_key',
     'name',
     'impact',
     'result',
     'conclusion_basis',
     'validation_status',
-    'transmission_logic',
+    'reasoning',
     'time_window',
     'confidence',
     'evidence_scope_token'
   ]);
   return {
     key: localKey(root.local_key),
-    nodeLocalKey: localKey(root.node_local_key),
     name: text(root.name),
     impact: text(root.impact),
     result: coded(root.result),
-    conclusionBasis: nullableCoded(root.conclusion_basis),
-    validationStatus: nullableCoded(root.validation_status),
-    transmissionLogic: text(root.transmission_logic),
+    conclusionBasis: coded(root.conclusion_basis),
+    validationStatus: coded(root.validation_status),
+    reasoning: text(root.reasoning),
     timeWindow: timeWindow(root.time_window),
     confidence: confidence(root.confidence),
     evidenceScopeToken: nullableToken(root.evidence_scope_token)
@@ -380,11 +381,11 @@ function parseIndustryNode(value: unknown): ReportIndustryChainNode {
 }
 
 function parseGraphEdge(value: unknown): ReportGraphEdge {
-  const root = exact(value, ['from_node_key', 'to_node_key', 'relation']);
+  const root = exact(value, ['from_node_local_key', 'to_node_local_key', 'relation_label']);
   return {
-    fromNodeKey: localKey(root.from_node_key),
-    toNodeKey: localKey(root.to_node_key),
-    relation: coded(root.relation)
+    fromNodeLocalKey: localKey(root.from_node_local_key),
+    toNodeLocalKey: localKey(root.to_node_local_key),
+    relationLabel: text(root.relation_label)
   };
 }
 
@@ -407,15 +408,8 @@ function coded(value: unknown): ReportCodedLabel {
   return { code: text(root.code), label: text(root.label) };
 }
 
-function nullableCoded(value: unknown): ReportCodedLabel | null {
-  return value === null ? null : coded(value);
-}
-
 function confidence(value: unknown): ReportConfidence {
-  const root = exact(value, ['code', 'label', 'score']);
-  const score = root.score === null ? null : finiteNumber(root.score);
-  if (score !== null && (score < 0 || score > 1)) invalid();
-  return { code: text(root.code), label: text(root.label), score };
+  return coded(value);
 }
 
 function timeWindow(value: unknown): ReportTimeWindow {
@@ -486,11 +480,6 @@ function timestamp(value: unknown): string {
 
 function nonNegativeInteger(value: unknown): number {
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) invalid();
-  return value;
-}
-
-function finiteNumber(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) invalid();
   return value;
 }
 
