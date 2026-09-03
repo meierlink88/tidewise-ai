@@ -46,7 +46,6 @@ const isHomeEmpty = (home: ReportHome) => home.reports.length === 0;
 export default function IndexPage() {
   const [query, setQuery] = useState('');
   const [evidenceRoute, setEvidenceRoute] = useState<ReportEvidenceRoute | null>(null);
-  const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [chainPages, setChainPages] = useState<Record<string, ChainPageState>>({});
   const loadGeneration = useRef(0);
   const loadingReports = useRef(new Map<string, number>());
@@ -124,10 +123,8 @@ export default function IndexPage() {
         query={query}
         onQueryChange={setQuery}
         state={resource.state}
-        selectedReportId={selectedReportId}
         onRetry={() => void resource.retry()}
         onRefresh={() => void refreshHome()}
-        onSelectReport={setSelectedReportId}
         onOpenDetail={(route) => navigateToReportDetail(Taro, route)}
         onOpenEvidence={setEvidenceRoute}
         chainPages={chainPages}
@@ -149,10 +146,8 @@ export function IndexView({
   query,
   onQueryChange,
   state,
-  selectedReportId,
   onRetry,
   onRefresh,
-  onSelectReport,
   onOpenDetail,
   onOpenEvidence,
   chainPages = {},
@@ -162,10 +157,8 @@ export function IndexView({
   query: string;
   onQueryChange: (query: string) => void;
   state: ReportResourceState<ReportHome>;
-  selectedReportId?: string | null;
   onRetry: () => void;
   onRefresh: () => void;
-  onSelectReport?: (reportId: string) => void;
   onOpenDetail: (route: ReportDetailRoute) => void;
   onOpenEvidence: (route: ReportEvidenceRoute) => void;
   chainPages?: Record<string, ChainPageState>;
@@ -181,10 +174,8 @@ export function IndexView({
         </View>
         <HomeReportState
           state={state}
-          selectedReportId={selectedReportId}
           onRetry={onRetry}
           onRefresh={onRefresh}
-          onSelectReport={onSelectReport}
           onOpenDetail={onOpenDetail}
           onOpenEvidence={onOpenEvidence}
           chainPages={chainPages}
@@ -197,20 +188,16 @@ export function IndexView({
 
 function HomeReportState({
   state,
-  selectedReportId,
   onRetry,
   onRefresh,
-  onSelectReport,
   onOpenDetail,
   onOpenEvidence,
   chainPages,
   onLoadMoreChains
 }: {
   state: ReportResourceState<ReportHome>;
-  selectedReportId?: string | null;
   onRetry: () => void;
   onRefresh: () => void;
-  onSelectReport?: (reportId: string) => void;
   onOpenDetail: (route: ReportDetailRoute) => void;
   onOpenEvidence: (route: ReportEvidenceRoute) => void;
   chainPages: Record<string, ChainPageState>;
@@ -233,41 +220,23 @@ function HomeReportState({
   if (state.status === 'empty') {
     return <ReportStatePanel title='暂无推理报告' description='报告发布后会在这里展示' />;
   }
-  const selectedGroup =
-    state.data.reports.find((group) => group.report.id === selectedReportId) ??
-    state.data.reports[0]!;
-  const chainPage = chainPages[selectedGroup.report.id];
-  const nextCursor = chainPage ? chainPage.nextCursor : selectedGroup.nextCursor;
+  const reportGroup = state.data.reports[0]!;
+  const chainPage = chainPages[reportGroup.report.id];
+  const nextCursor = chainPage ? chainPage.nextCursor : reportGroup.nextCursor;
 
   return (
     <View className='home-report-frame'>
       <View className='home-report-group__header'>
-        <View
-          className={`home-report-tabs${state.data.reports.length > 1 ? ' home-report-tabs--multiple' : ''}`}
-          role='tablist'
-        >
-          {state.data.reports.map((group) => {
-            const selected = group.report.id === selectedGroup.report.id;
-            return (
-              <View
-                key={group.report.id}
-                className={`home-report-publish-row${selected ? ' home-report-publish-row--selected' : ''}`}
-                role='tab'
-                ariaLabel={`查看 ${formatShanghaiTimestamp(group.report.publishedAt)} 发布的报告`}
-                onClick={() => onSelectReport?.(group.report.id)}
-              >
-                <Image
-                  className='home-report-publish-row__icon'
-                  src={reportPublishedClockIcon}
-                  mode='aspectFit'
-                />
-                <Text className='home-report-publish-row__label'>发布时间</Text>
-                <Text className='home-report-publish-row__time'>
-                  {formatShanghaiTimestamp(group.report.publishedAt)}
-                </Text>
-              </View>
-            );
-          })}
+        <View className='home-report-publication'>
+          <Image
+            className='home-report-publish-row__icon'
+            src={reportPublishedClockIcon}
+            mode='aspectFit'
+          />
+          <Text className='home-report-publish-row__label'>发布时间</Text>
+          <Text className='home-report-publish-row__time'>
+            {formatShanghaiTimestamp(reportGroup.report.publishedAt)}
+          </Text>
         </View>
         {state.data.selection.mode === 'latest_fallback' ? (
           <Text className='home-report-group__fallback'>最近发布</Text>
@@ -275,7 +244,7 @@ function HomeReportState({
       </View>
 
       <ScrollView
-        key={selectedGroup.report.id}
+        key={reportGroup.report.id}
         className='home-report-scroll'
         scrollY
         enhanced
@@ -285,7 +254,7 @@ function HomeReportState({
         onRefresherRefresh={onRefresh}
         lowerThreshold={160}
         onScrollToLower={() => {
-          if (nextCursor) onLoadMoreChains?.(selectedGroup.report.id, nextCursor);
+          if (nextCursor) onLoadMoreChains?.(reportGroup.report.id, nextCursor);
         }}
       >
         <View className='home-report-list'>
@@ -293,7 +262,7 @@ function HomeReportState({
             <View className='home-refresh-warning'>刷新失败，当前展示上次成功读取的内容</View>
           ) : null}
           <HomeReportGroupView
-            group={selectedGroup}
+            group={reportGroup}
             appendedCards={chainPage?.items ?? []}
             onOpenDetail={onOpenDetail}
             onOpenEvidence={onOpenEvidence}
@@ -305,7 +274,7 @@ function HomeReportState({
             <Button
               className='tidewise-button home-chain-page-state home-chain-page-state--retry'
               onClick={() => {
-                if (nextCursor) onLoadMoreChains?.(selectedGroup.report.id, nextCursor);
+                if (nextCursor) onLoadMoreChains?.(reportGroup.report.id, nextCursor);
               }}
             >
               加载失败，点击重试

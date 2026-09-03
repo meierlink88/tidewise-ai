@@ -14,7 +14,7 @@ Service 需要 Data、User 或 Payment 能力时，只能调用对应 Domain Ser
 - Miniapp 对外 API、认证入口和前端专用 DTO。
 - 多个 Domain Service 的产品编排。
 - Data API 错误、分页、时间和字段到 Miniapp contract 的转换。
-- “上海当日全部优先、当日没有则最新一份”的首页 Report 集合选择语义。
+- “上海当日最新一份优先、当日没有则历史最新一份”的首页 Report 选择语义。
 - Miniapp 专用缓存和降级策略，但不拥有 Data 事实。
 
 ## Backend Implementation
@@ -42,14 +42,14 @@ Miniapp 保持 HTTP-only 和固定 Data Service URL，不使用 gRPC、服务发
 
 ## Product Language
 
-**首页 Report 集合**:
-首页本次会话展示的不可变 Data Report 集合。Miniapp Backend 在上海自然日当日有发布时选择
-当日全部 Report；当日没有发布时只回退到全部历史中最后发布的一份。每份 Report 独立分组，
-不得跨报告合并卡片、锚点、产业链或 Evidence。
-_Avoid_: 今日 Theme、只取当日最后一份、前端自行选择、跨 Report 聚合
+**首页 Report**:
+首页本次会话展示的零或一份不可变 Data Report。Miniapp Backend 在上海自然日当日有发布时，
+只选择 `published_at DESC, id ASC` 排序的第一份；当日没有发布时，回退到全部历史的最新一份。
+Data 仍保留所有已发布 Report，首页选择不删除、合并或修改历史报告。
+_Avoid_: 今日 Theme、当日多 Report Tab、前端自行排序或选择、跨 Report 聚合
 
 **今日观潮**:
-首页 Report 集合的产品入口标题。它不承诺 Report 一定在当日生成；发生历史回退时继续展示
+首页 Report 的产品入口标题。它不承诺 Report 一定在当日生成；发生历史回退时继续展示
 该份 Report 的实际发布时间。
 _Avoid_: 今日主题、今日推理、隐藏回退来源
 
@@ -79,12 +79,10 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
 ## Home Report Selection
 
 - Miniapp Backend 使用 `Asia/Shanghai` 计算当日 `[00:00, next 00:00)`，转为 UTC 后向 Data
-  Report 列表读取该范围内全部结果。
-- 当日查询非空时按 Data 的 `published_at DESC, id ASC` 权威顺序返回全部 Report；当日查询
-  为空时，Backend 立即查询全部历史的最新一份。
-- 首页每份 Report 独立投影自己的分析摘要；详情和 Evidence 导航必须携带所属 `report_id`。
-- 当日读取不得用固定 `limit=1` 截断；若 Data 列表分页，Backend 必须完整消费当日分页或使用
-  Data 提供的有界首页集合合同，并对超出合同容量显式失败。
+  Report 列表以 `limit=1` 读取该范围内的最新结果。
+- 当日查询非空时只返回 Data `published_at DESC, id ASC` 权威顺序的第一份 Report；当日查询
+  为空时，Backend 立即以 `limit=1` 查询全部历史的最新一份。
+- 首页只投影选中 Report 的分析摘要；详情和 Evidence 导航必须携带所属 `report_id`。
 - 历史回退查询按 Data 的
   `published_at DESC, id ASC` 权威顺序。
 - 全部没有 Report 是正常产品空态，不生成占位 Report、不回退 mock、不读取数据库。
@@ -94,9 +92,9 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
 
 ## Report API
 
-- `GET /api/miniapp/v1/reports/home` 返回当日全部 Report 的元数据和各自可选上层摘要；当日为空时返回历史最新一份，
+- `GET /api/miniapp/v1/reports/home` 返回当日最新 Report 的元数据和可选上层摘要；当日为空时返回历史最新一份，
   全部为空时返回明确空集合。
-- `GET /api/miniapp/v1/reports/home` 为每份 Report 返回可选上层卡片和首个产业链 page，同时返回
+- `GET /api/miniapp/v1/reports/home` 为选中 Report 返回可选上层卡片和首个产业链 page，同时返回
   `next_cursor`；BFF 不完整消费产业链集合，也不解码完整 Report JSON。
 - `GET /api/miniapp/v1/reports/{report_id}/industry-chains?limit=&cursor=` 原样推进 Data 主导的
   report-bound cursor，并返回下一批产业链卡片。
@@ -127,14 +125,12 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
 
 ## Homepage Presentation
 
-- 首页标题固定为 `今日观潮`，当日多份 Report 按 `published_at DESC, id ASC` 分组展示；每组
-  明确保留 Report 身份与实际发布时间。
-- 每份 Report 的地缘政治和宏观经济仅在对应 Section 存在时各展示一张摘要卡片；不同 Report
-  的卡片不得合并。
+- 首页标题固定为 `今日观潮`，只展示选中 Report 的实际发布时间，不提供当日多 Report Tab。
+- 选中 Report 的地缘政治和宏观经济仅在对应 Section 存在时各展示一张摘要卡片。
 - 上层摘要卡片直接使用 AgentOS 发布的 Section 根结论、结果、置信度和时间窗口；BFF 不从锚点
   聚合或从传导步骤反推。
-- 每份 Report 的产业链卡片按 JSON 数组顺序全量可达；Frontend 在固定内部 ScrollView 中每次
-  追加一个 bounded page，按 card local key 去重，并隔离刷新或切换 Report 后晚到的旧响应。
+- 选中 Report 的产业链卡片按 JSON 数组顺序全量可达；Frontend 在固定内部 ScrollView 中每次
+  追加一个 bounded page，按 card local key 去重，并隔离刷新后晚到的旧响应。
 - 产业链标题的总数使用 Report 发布快照中的 `industry_chain_count`，首页展示数使用本组
   已持久化的产业链卡片数；两者不要相互反推或硬编码。
 - 公司分析拥有定稿发布基线前不显示空边界，也不从 Company 正式事实生成卡片。

@@ -76,6 +76,24 @@ describe('Report BFF wire contract', () => {
     expect(() => parseSubtitle(' ')).toThrow('invalid Report wire response');
   });
 
+  it('fails closed when the home API returns more than one Report', () => {
+    const secondReport = {
+      ...report,
+      id: 'RPT22222222-2222-4222-8222-222222222222',
+      published_at: '2026-09-01T03:40:00Z'
+    };
+
+    expect(() =>
+      parseReportHomeWire({
+        selection: { mode: 'today', date: '2026-09-01', timezone: 'Asia/Shanghai' },
+        reports: [
+          { report, cards: [card()], next_cursor: null },
+          { report: secondReport, cards: [card('card-chn-02')], next_cursor: null }
+        ]
+      })
+    ).toThrow('invalid Report wire response');
+  });
+
   it('fails closed on retired home fields', () => {
     expect(() =>
       parseReportHomeWire({

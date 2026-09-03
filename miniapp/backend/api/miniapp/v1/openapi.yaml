@@ -263,7 +263,7 @@ components:
       required: [selection, reports]
       properties:
         selection: {$ref: '#/components/schemas/Selection'}
-        reports: {type: array, items: {$ref: '#/components/schemas/HomeReport'}}
+        reports: {type: array, maxItems: 1, items: {$ref: '#/components/schemas/HomeReport'}}
     Anchor:
       type: object
       additionalProperties: false
