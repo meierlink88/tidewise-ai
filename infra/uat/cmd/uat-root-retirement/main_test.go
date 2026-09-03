@@ -36,6 +36,7 @@ func (systemd *recordingSystemd) disableAndStop(_ context.Context, name string) 
 	systemd.mutations = append(systemd.mutations, "disable:"+name)
 	state := systemd.units[name]
 	state.activeState = activeStateInactive
+	state.unitFileState = unitFileStateDisabled
 	systemd.units[name] = state
 	return nil
 }
@@ -48,7 +49,7 @@ func (systemd *recordingSystemd) reload(_ context.Context) error {
 func TestPreflightRejectsUnexpectedSystemdFragmentWithoutMutation(t *testing.T) {
 	root := retirementFixtureRoot(t)
 	systemd := &recordingSystemd{root: root, units: map[string]unitState{
-		reasonRunnerUnit: {loadState: loadStateLoaded, activeState: activeStateInactive, fragmentPath: "/usr/lib/systemd/system/unexpected.service"},
+		reasonRunnerUnit: {loadState: loadStateLoaded, activeState: activeStateInactive, unitFileState: unitFileStateDisabled, fragmentPath: "/usr/lib/systemd/system/unexpected.service"},
 	}}
 
 	err := execute(context.Background(), root, actionPreflight, systemd, &bytes.Buffer{})
@@ -70,8 +71,8 @@ func TestApplyStopsExactUnitsAndDeletesOnlyApprovedPaths(t *testing.T) {
 	protected := filepath.Join(root, "opt", "tidewise", "uat", "state", "current.sha")
 	writeRetirementFixture(t, protected, "retained\n")
 	systemd := &recordingSystemd{root: root, followFilesystem: true, units: map[string]unitState{
-		reasonRunnerUnit: {loadState: loadStateLoaded, activeState: activeStateActive, fragmentPath: reasonRunnerUnitPath},
-		neo4jUnit:        {loadState: loadStateLoaded, activeState: activeStateFailed, fragmentPath: neo4jUnitPath},
+		reasonRunnerUnit: {loadState: loadStateLoaded, activeState: activeStateActive, unitFileState: unitFileStateEnabled, fragmentPath: reasonRunnerUnitPath},
+		neo4jUnit:        {loadState: loadStateLoaded, activeState: activeStateFailed, unitFileState: unitFileStateEnabled, fragmentPath: neo4jUnitPath},
 	}}
 	var output bytes.Buffer
 
@@ -83,6 +84,12 @@ func TestApplyStopsExactUnitsAndDeletesOnlyApprovedPaths(t *testing.T) {
 			t.Fatalf("retired path %s remains: %v", target, err)
 		}
 	}
+	if _, err := os.Lstat(hostPath(root, reasonRunnerUnitPath)); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("retired runner unit file remains: %v", err)
+	}
+	if _, err := os.Lstat(hostPath(root, neo4jUnitPath)); err != nil {
+		t.Fatalf("vendor Neo4j unit file was removed: %v", err)
+	}
 	if content, err := os.ReadFile(protected); err != nil || string(content) != "retained\n" {
 		t.Fatalf("retained state changed: content=%q err=%v", content, err)
 	}
@@ -92,6 +99,9 @@ func TestApplyStopsExactUnitsAndDeletesOnlyApprovedPaths(t *testing.T) {
 	}
 	if !strings.Contains(output.String(), "PASS root-retirement-apply") {
 		t.Fatalf("missing apply receipt: %s", output.String())
+	}
+	if !strings.Contains(output.String(), "RETAINED disabled inactive vendor unit file neo4j.service") {
+		t.Fatalf("missing vendor-unit receipt: %s", output.String())
 	}
 }
 
@@ -126,12 +136,61 @@ func TestParseActionRejectsUnknownValue(t *testing.T) {
 func TestPreflightRejectsUnknownSystemdStateWithoutMutation(t *testing.T) {
 	root := retirementFixtureRoot(t)
 	systemd := &recordingSystemd{root: root, units: map[string]unitState{
-		reasonRunnerUnit: {loadState: loadStateLoaded, activeState: systemdActiveState("surprising"), fragmentPath: reasonRunnerUnitPath},
+		reasonRunnerUnit: {loadState: loadStateLoaded, activeState: systemdActiveState("surprising"), unitFileState: unitFileStateEnabled, fragmentPath: reasonRunnerUnitPath},
 	}}
 
 	err := execute(context.Background(), root, actionPreflight, systemd, &bytes.Buffer{})
 	if !errors.Is(err, errUnexpectedSystemdState) {
 		t.Fatalf("preflight error = %v, want unexpected state", err)
+	}
+	if len(systemd.mutations) != 0 {
+		t.Fatalf("preflight mutated systemd: %v", systemd.mutations)
+	}
+}
+
+func TestPreflightRejectsMissingRequiredVendorUnitWithoutMutation(t *testing.T) {
+	root := retirementFixtureRoot(t)
+	if err := os.Remove(hostPath(root, neo4jUnitPath)); err != nil {
+		t.Fatal(err)
+	}
+	systemd := &recordingSystemd{root: root, units: map[string]unitState{
+		reasonRunnerUnit: {loadState: loadStateLoaded, activeState: activeStateInactive, unitFileState: unitFileStateDisabled, fragmentPath: reasonRunnerUnitPath},
+	}}
+
+	err := execute(context.Background(), root, actionPreflight, systemd, &bytes.Buffer{})
+	if !errors.Is(err, errUnexpectedSystemdState) {
+		t.Fatalf("preflight error = %v, want missing vendor-unit rejection", err)
+	}
+	if len(systemd.mutations) != 0 {
+		t.Fatalf("preflight mutated systemd: %v", systemd.mutations)
+	}
+}
+
+func TestPreflightRejectsNotFoundUnitWithExistingFragmentWithoutMutation(t *testing.T) {
+	root := retirementFixtureRoot(t)
+	systemd := &recordingSystemd{root: root, units: map[string]unitState{
+		reasonRunnerUnit: {loadState: loadStateLoaded, activeState: activeStateInactive, unitFileState: unitFileStateDisabled, fragmentPath: reasonRunnerUnitPath},
+	}}
+
+	err := execute(context.Background(), root, actionPreflight, systemd, &bytes.Buffer{})
+	if !errors.Is(err, errUnexpectedSystemdState) {
+		t.Fatalf("preflight error = %v, want systemd/filesystem inconsistency rejection", err)
+	}
+	if len(systemd.mutations) != 0 {
+		t.Fatalf("preflight mutated systemd: %v", systemd.mutations)
+	}
+}
+
+func TestPreflightRejectsUnprovableDisableTransitionWithoutMutation(t *testing.T) {
+	root := retirementFixtureRoot(t)
+	systemd := &recordingSystemd{root: root, units: map[string]unitState{
+		reasonRunnerUnit: {loadState: loadStateLoaded, activeState: activeStateInactive, unitFileState: unitFileStateStatic, fragmentPath: reasonRunnerUnitPath},
+		neo4jUnit:        {loadState: loadStateLoaded, activeState: activeStateInactive, unitFileState: unitFileStateDisabled, fragmentPath: neo4jUnitPath},
+	}}
+
+	err := execute(context.Background(), root, actionPreflight, systemd, &bytes.Buffer{})
+	if !errors.Is(err, errUnexpectedSystemdState) {
+		t.Fatalf("preflight error = %v, want disable-transition rejection", err)
 	}
 	if len(systemd.mutations) != 0 {
 		t.Fatalf("preflight mutated systemd: %v", systemd.mutations)

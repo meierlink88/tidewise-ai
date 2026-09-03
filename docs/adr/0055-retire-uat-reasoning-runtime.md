@@ -26,7 +26,9 @@ retained evidence-document reads, so it remains a separate storage lifecycle.
   containers from the old ECS.
 - Delete only their exact audited volumes and bounded host paths after a main-only, CI-gated,
   confirmation-protected preflight proves that retained services have no legacy dependency keys.
-- Stop and remove the obsolete Tidewise Reason Actions runner service and disabled host Neo4j unit.
+- Stop, disable and remove the obsolete project-owned Tidewise Reason Actions runner service. Stop
+  and disable the host Neo4j service, while retaining its package-owned
+  `/usr/lib/systemd/system/neo4j.service` metadata outside the writable retirement boundary.
 - The daily deployment runner remains non-sudo. A checksum-verified static retirement binary runs as
   root only inside a one-shot privileged container based on the already-running immutable Data image.
   The host root is mounted read-only; only `/etc/systemd/system` and `/opt/tidewise` are writable. The
@@ -49,8 +51,9 @@ unchanged.
 
 The privileged retirement binary performs its own systemd fragment and no-symlink path preflight before
 the shell removes any legacy container. It stops only the compiled units, reloads systemd, removes only
-the compiled paths, and verifies both classes absent. This uses the root-equivalent Docker capability
-already required by the runner instead of granting persistent sudo or changing host sudoers.
+the project-owned unit and compiled paths, and verifies the vendor Neo4j unit remains disabled and
+inactive. This uses the root-equivalent Docker capability already required by the runner instead of
+granting persistent sudo or changing host sudoers.
 
 Persistent data deletion is intentionally irreversible on the old ECS. The accepted recovery path is
 the externally migrated AgentOS/reasoning system; the existing RDS recovery point protects the
@@ -61,4 +64,5 @@ retained Data database but is not used to restore retired middleware state.
 Future Tidewise UAT application or MinIO deployments cannot recreate OpenSPG MySQL, Neo4j or Qdrant.
 AgentOS publishes and reads through versioned Data APIs from its external runtime. MinIO remains only
 for the current raw-evidence archive boundary until a separate storage migration decision replaces
-that URL and data.
+that URL and data. The inactive Neo4j vendor unit file remains package metadata only; uninstalling the
+host package is a separate OS-lifecycle decision.
