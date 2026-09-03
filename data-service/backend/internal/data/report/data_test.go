@@ -216,7 +216,19 @@ func publishReportEvidenceCount(t *testing.T, db *sql.DB, count int) []string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return result.IDs
+	evidenceIDs := make([]string, len(result.Items))
+	for _, item := range result.Items {
+		if item.InputIndex < 0 || item.InputIndex >= len(evidenceIDs) {
+			t.Fatalf("Evidence result input_index=%d out of range", item.InputIndex)
+		}
+		evidenceIDs[item.InputIndex] = item.ID
+	}
+	for index, id := range evidenceIDs {
+		if id == "" {
+			t.Fatalf("Evidence result is missing input_index=%d", index)
+		}
+	}
+	return evidenceIDs
 }
 
 func reportWithEvidenceIDMap(t *testing.T, source reportbiz.Report, placeholders, replacements []string) reportbiz.Report {
