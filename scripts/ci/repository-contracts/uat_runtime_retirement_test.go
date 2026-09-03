@@ -126,6 +126,46 @@ func TestUATLegacyRuntimeRetirementRejectsWrongConfirmationBeforeMutation(t *tes
 	}
 }
 
+func TestUATLegacyRuntimeRetirementMigrationGate(t *testing.T) {
+	root := repositoryRoot()
+	validator := filepath.Join(root, "infra", "uat", "verify-retirement-migration.py")
+	testCases := []struct {
+		name    string
+		report  map[string]any
+		wantErr bool
+	}{
+		{name: "canonical string", report: map[string]any{"current_version": "000081", "pending": []any{}}},
+		{name: "unpadded string", report: map[string]any{"current_version": "81", "pending": []any{}}},
+		{name: "legacy numeric", report: map[string]any{"current_version": 81, "pending": []any{}}},
+		{name: "wrong version", report: map[string]any{"current_version": "000080", "pending": []any{}}, wantErr: true},
+		{name: "pending migration", report: map[string]any{"current_version": "000081", "pending": []any{map[string]any{"version": "000082"}}}, wantErr: true},
+		{name: "missing version", report: map[string]any{"pending": []any{}}, wantErr: true},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			reportPath := filepath.Join(t.TempDir(), "migration.json")
+			content, err := json.Marshal(testCase.report)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(reportPath, content, 0o600); err != nil {
+				t.Fatal(err)
+			}
+			output, err := exec.Command("python3", validator, reportPath).CombinedOutput()
+			if testCase.wantErr {
+				if err == nil || !strings.Contains(string(output), "FAIL data-migration") {
+					t.Fatalf("migration gate error = %v, output = %s", err, output)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("migration gate rejected valid report: %v\n%s", err, output)
+			}
+		})
+	}
+}
+
 func writeRetirementJSON(t *testing.T, response http.ResponseWriter, value any) {
 	t.Helper()
 	if err := json.NewEncoder(response).Encode(value); err != nil {

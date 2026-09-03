@@ -118,16 +118,7 @@ cleanup_reports() {
 trap cleanup_reports EXIT
 
 docker exec tidewise-uat-data-1 /usr/local/bin/dbmigrate >"$migration_report"
-python3 - "$migration_report" <<'PY'
-import json
-import sys
-
-with open(sys.argv[1], encoding="utf-8") as handle:
-    report = json.load(handle)
-pending = report.get("pending") or report.get("pending_migrations") or []
-if report.get("current_version") != 81 or pending:
-    raise SystemExit("FAIL data-migration: expected current 81 with no pending migration")
-PY
+python3 "${script_directory}/verify-retirement-migration.py" "$migration_report"
 "$rds_audit_binary" >"$rds_report"
 python3 - "$rds_report" <<'PY'
 import json
