@@ -1,5 +1,6 @@
 export default defineAppConfig({
   pages: ['pages/index/index', 'pages/report/detail/index'],
+  ...(process.env.TARO_ENV === 'weapp' ? { lazyCodeLoading: 'requiredComponents' as const } : {}),
   window: {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#071735',
