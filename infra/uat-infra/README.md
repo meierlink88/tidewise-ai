@@ -21,7 +21,7 @@ The Compose project is `tidewise-infra-uat`. It creates and preserves only the n
 `tidewise-infra-uat-minio-data`.
 
 The existing Huawei Cloud security-group source-IP allowlist is the outer boundary for the native
-UAT operator ports. Office users reach MinIO Console at `http://124.71.201.208:9001`; port `9000`
+UAT operator ports. Office users reach MinIO Console at `http://123.60.99.198:9001`; port `9000`
 remains loopback-only. This direct HTTP exception is UAT-only and must not be copied to production.
 
 ## One-time root bootstrap
@@ -58,8 +58,8 @@ anonymous-read/write-denial behavior, DNS aliases and restart persistence.
 After a successful deployment, verify the office-network boundary from outside the ECS:
 
 ```bash
-curl --fail --show-error --silent http://124.71.201.208:9001/ >/dev/null
-if nc -z -w 3 124.71.201.208 9000; then
+curl --fail --show-error --silent http://123.60.99.198:9001/ >/dev/null
+if nc -z -w 3 123.60.99.198 9000; then
   echo 'MinIO S3 API must remain private' >&2
   exit 1
 fi

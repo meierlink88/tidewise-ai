@@ -615,6 +615,20 @@ func TestUATServiceConfigsAndImagesUseFixedPortsAndNonRoot(t *testing.T) {
 			t.Fatalf("Data UAT config missing %q", required)
 		}
 	}
+	compose := readContractFile(t, filepath.Join(root, "infra", "uat", "docker-compose.yaml"))
+	dataService := composeServiceSection(t, compose, "data")
+	if !strings.Contains(dataService, "TIDEWISE_DB_HOST: ${TIDEWISE_DB_HOST:?TIDEWISE_DB_HOST is required}") {
+		t.Fatal("Data UAT service must receive the Action-owned private RDS host override")
+	}
+	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "deploy-uat.yml"))
+	for _, required := range []string{
+		"TIDEWISE_DB_HOST: ${{ vars.UAT_DB_HOST }}",
+		`"TIDEWISE_DB_HOST=${TIDEWISE_DB_HOST}"`,
+	} {
+		if !strings.Contains(workflow, required) {
+			t.Fatalf("Deploy UAT workflow missing RDS host contract %q", required)
+		}
+	}
 	const privateRDSHost = "775b3ecf9c934ae185c0b8eda157c50din03.internal.cn-east-3.postgresql.rds.myhuaweicloud.com"
 	for service, config := range map[string]string{"Data": dataConfig} {
 		if !strings.Contains(config, "host: "+privateRDSHost) ||

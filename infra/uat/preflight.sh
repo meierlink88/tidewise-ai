@@ -6,6 +6,7 @@ deployment_root="${DEPLOY_ROOT:?DEPLOY_ROOT is required}"
 expected_runner="${UAT_RUNNER_NAME:?UAT_RUNNER_NAME is required}"
 swr_registry="${SWR_REGISTRY:?SWR_REGISTRY is required}"
 public_base_url="${UAT_PUBLIC_BASE_URL:?UAT_PUBLIC_BASE_URL is required}"
+export TIDEWISE_DB_HOST="${TIDEWISE_DB_HOST:?TIDEWISE_DB_HOST is required}"
 
 pass() {
   echo "PASS $1"
@@ -82,7 +83,10 @@ def database_config(path):
     return values
 
 data_endpoint = database_config("data-service/backend/configs/config.uat.yaml")
-with socket.create_connection((data_endpoint["host"], int(data_endpoint["port"])), timeout=10):
+database_host = os.environ["TIDEWISE_DB_HOST"].strip()
+if not database_host.endswith(".internal.cn-east-3.postgresql.rds.myhuaweicloud.com"):
+    raise SystemExit("FAIL rds-config: TIDEWISE_DB_HOST must use the Huawei RDS private hostname")
+with socket.create_connection((database_host, int(data_endpoint["port"])), timeout=10):
     pass
 
 public_endpoint = urlparse(os.environ["UAT_PUBLIC_BASE_URL"])
