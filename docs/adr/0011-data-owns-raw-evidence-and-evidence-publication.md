@@ -5,6 +5,7 @@ supersedes_in_part: 0005-agentrun-owns-source-and-raw-artifacts.md
 superseded_in_part_by:
   - 0021-simplify-atomic-evidence-semantics.md
   - 0028-rebuild-event-domain-around-atomic-evidence.md
+  - 0056-agentos-owns-raw-evidence-document-archive.md
 ---
 
 # Data 拥有 Raw Evidence 与原子 Evidence 发布

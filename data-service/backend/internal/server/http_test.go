@@ -359,9 +359,8 @@ func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *te
 			"source_level":"L2_WIRE",
 			"source_url":"https://example.test/category",
 			"is_original":true,
-			"raw_text":"Powell expects another rate increase this year.",
+			"raw_text":"/raw-evidence/documents/2026/08/14/2222222222222222222222222222222222222222222222222222222222222222.md",
 			"collected_at":"2026-08-14T01:05:00Z",
-			"keywords":["美联储","加息"],
 			"category_ids":["EVC083b086f-c9ee-504c-85e9-639fa8d39e8f","EVC097bf77a-fb8a-5756-ae47-e122c4367985"]
 		}
 	}`, publicationKey)
@@ -374,6 +373,9 @@ func TestProductionServerRawEvidenceCategoriesUsePostgresAndPublicContract(t *te
 	raw := detail["result"].(map[string]any)["raw_evidence"].(map[string]any)
 	if raw["id"] != rawEvidenceID {
 		t.Fatalf("Raw Evidence identity = %#v", raw["id"])
+	}
+	if raw["raw_text"] != "/raw-evidence/documents/2026/08/14/2222222222222222222222222222222222222222222222222222222222222222.md" {
+		t.Fatalf("Raw Evidence raw_text = %#v, want stored object path", raw["raw_text"])
 	}
 	categories := raw["categories"].([]any)
 	if len(categories) != 2 || categories[0].(map[string]any)["id"] != "EVC083b086f-c9ee-504c-85e9-639fa8d39e8f" || categories[1].(map[string]any)["id"] != "EVC097bf77a-fb8a-5756-ae47-e122c4367985" {

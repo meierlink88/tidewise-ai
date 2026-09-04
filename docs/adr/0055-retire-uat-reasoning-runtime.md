@@ -3,6 +3,7 @@ status: accepted
 date: 2026-09-03
 issue: 391
 supersedes_in_part: 0029, 0041
+superseded_in_part_by: 0056-agentos-owns-raw-evidence-document-archive.md
 ---
 
 # Retire the migrated UAT AgentOS and reasoning runtime

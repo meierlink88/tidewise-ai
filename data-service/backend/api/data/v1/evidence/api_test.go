@@ -78,6 +78,9 @@ func TestEvidencePublicationProviderFixturesAreContractNeutralAndTwoPhase(t *tes
 	if rawRequest.RawEvidence.PublicationKey == "" || !strings.HasPrefix(evidenceRequest.RawEvidenceID, "RAW") {
 		t.Fatalf("fixture identities = publication key %q, Raw Evidence %q", rawRequest.RawEvidence.PublicationKey, evidenceRequest.RawEvidenceID)
 	}
+	if rawRequest.RawEvidence.RawText != "/raw-evidence/documents/2026/08/11/1111111111111111111111111111111111111111111111111111111111111111.md" {
+		t.Fatalf("fixture raw_text = %q, want environment-neutral object path", rawRequest.RawEvidence.RawText)
+	}
 	if len(rawRequest.RawEvidence.CategoryIDs) != 2 || rawRequest.RawEvidence.CategoryIDs[0] != "EVCed6e9380-8b20-53d5-b748-fa45c774fa67" || rawRequest.RawEvidence.CategoryIDs[1] != "EVC5b12ffce-178d-56ed-a54f-c01696c486f4" {
 		t.Fatalf("fixture Raw Evidence categories = %#v", rawRequest.RawEvidence.CategoryIDs)
 	}

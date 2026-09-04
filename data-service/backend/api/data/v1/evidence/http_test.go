@@ -15,7 +15,7 @@ import (
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 )
 
-const validRawEvidencePublicationBody = `{"raw_evidence":{"publication_key":"example-article-1","source_id":"SRC_example_00000000000000000000","source_name":"Example Wire","source_level":"L2_WIRE","source_url":"https://example.test/article/1","is_original":true,"raw_text":"article","collected_at":"2026-08-11T01:05:00Z"}}`
+const validRawEvidencePublicationBody = `{"raw_evidence":{"publication_key":"example-article-1","source_id":"SRC_example_00000000000000000000","source_name":"Example Wire","source_level":"L2_WIRE","source_url":"https://example.test/article/1","is_original":true,"raw_text":"/raw-evidence/documents/2026/08/11/1111111111111111111111111111111111111111111111111111111111111111.md","collected_at":"2026-08-11T01:05:00Z"}}`
 
 const validEvidencePublicationBody = `{"raw_evidence_id":"RAW15bec7e3-998c-5434-aa5d-29712c4c67cf","evidences":[{"summary":"Example Corp expands production","keywords":["扩产","产能"],"semantic":{"actors":["Example Corp"],"action":"expands production","objects":["production capacity"],"stage":"ANNOUNCED","modality":"FACT","time":{"raw":null,"start_at":null,"end_at":null,"precision":"UNKNOWN"},"jurisdictions":["Shanghai"],"reason":null,"method":"by adding a new line","metrics":[],"attribution":{"reported_by":"Example Wire","claimed_by":"Example Corp"}}}]}`
 

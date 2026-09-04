@@ -8,7 +8,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 
 - Entity 事实、独立 Object 事实、Object Schema、产业链节点及关系、
   Index 等正式事实。
-- 完整 Raw Evidence、原子 Evidence、Evidence 阅读辅助 Keywords 及其确定性正式身份。
+- Raw Evidence 元数据与归档文档引用、原子 Evidence、Evidence 阅读辅助 Keywords 及其确定性正式身份。
 - 正式 Event、Event 与 Atomic Evidence 的证据关联，以及 Event-owned Actor/Asset 关系快照。
 - 独立 Storyline 事实、三类蓝图锚点，以及 Storyline 与 Event 的当前关联事实。
 - 不可变 Report，以及 Report 到 Atomic Evidence 的直接关联。
@@ -34,11 +34,12 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 - Neo4j、Qdrant、embedding Provider 的写入、同步、运行健康或生命周期管理。
 - Event Semantic 候选、租约、审核、Submission、Resolution 或 Variable Signal 能力与持久化。
 - AgentOS 的报告生成、Markdown 转换、推理正确性判断、发布调度或运行状态。
+- AgentOS 原始文档的对象存储、对象内容、访问地址、鉴权、生命周期或可用性。
 
 ## Acquisition And Agent Boundary
 
-Data 拥有 Source 配置与正式 Raw Evidence、Evidence 及发布合同；外部 Agent OS 只拥有
-采集、Evidence 关键词生成、清洗和语义提取执行。AgentOS 在每次 Raw Collection Workflow
+Data 拥有 Source 配置与正式 Raw Evidence 记录、Evidence 及发布合同；外部 Agent OS 拥有
+采集、原始文档归档、Evidence 关键词生成、清洗和语义提取执行。AgentOS 在每次 Raw Collection Workflow
 开始前通过 Data 版本化 API 读取一次完整 active Source 快照，之后为该 workflow
 冻结。执行方也必须通过 Data API 发布结果，不直接访问 Data 数据库。Data 不反向调用、
 不读取 AgentOS 数据库或本地 Artifact，也不执行 connector、parser、prompt、schedule
@@ -184,9 +185,12 @@ Country 与 Organization 之间带成员类型和生效历史的关系事实。�
 _Avoid_: member_count、重叠历史、用追加行表达 expiry_date 修正
 
 **Raw Evidence**:
-Data 正式保存的一份完整原始采集材料，以 `RAW + canonical lowercase UUID` 为 `id`，
-包含来源与转载快照、完整正文、文章发布时间、
-采集时间、正文哈希和受控内容分类。它可以在清洗完成前暂时没有 Evidence，但不能以
+Data 正式保存的一份原始采集材料记录，以 `RAW + canonical lowercase UUID` 为 `id`，
+包含来源与转载快照、归档文档引用、文章发布时间、采集时间、持久化值哈希和受控内容分类。
+新发布记录的 `raw_text` 是不含环境 origin 的 `/{bucket}/{object_key}` 相对路径；AgentOS
+拥有路径指向的完整 Markdown 文档和 MinIO 生命周期。历史 `raw_text` 正文继续原样保留，
+不迁移、不回填。Data 不访问、校验或代理对象存储；`content_hash` 只校验 Data 持久化值的
+不可变性，不证明远端对象内容。Raw Evidence 可以在清洗完成前暂时没有 Evidence，但不能以
 零 Evidence 作为正式清洗结果。
 Data 还为新建 Raw Evidence 保存数据库生成的内部 `created_at`；发布方不提交，发布 API
 不返回，历史行不回填。
@@ -231,7 +235,8 @@ Data 根据所属 Raw Evidence 身份与 Atomic Evidence 的 `summary + keywords
 _Avoid_: 调用方 Evidence ID、Expression Key、Evidence Group、Data 语义召回、embedding
 
 **Raw Evidence Publication**:
-采集完成后把一份完整 Raw Evidence 及可选 Content Category 集合原子接纳为正式 Data 事实的同步发布。
+AgentOS 完成完整原始文档归档后，把 Raw Evidence 元数据、归档文档相对路径及可选 Content Category
+集合原子接纳为正式 Data 事实的同步发布。发布合同沿用 `raw_text` 字段，不增加对象存储 origin；
 相同身份的全部内容及无序分类集合一致时允许安全重试，内容或分类漂移时冲突；成功响应只返回正式 Raw Evidence ID，
 不创建发布回执或返回创建/复用分类；响应以 `id` 字段返回该身份。
 _Avoid_: Evidence Publication、异步 Import Job、Idempotency-Key

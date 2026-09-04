@@ -249,10 +249,11 @@ paths:
       x-required-service-scope: data.raw-evidences.read
       x-retry-policy: safe-get
       x-timeout-budget-ms: 3000
-      summary: 读取一份完整 Raw Evidence
+      summary: 读取一份正式 Raw Evidence 记录
       description: >-
-        按正式身份读取完整 Raw Evidence、原始 Keywords 和按 Category ID 稳定排序的
-        Evidence Category 内容。历史未分类 Raw Evidence 返回空 categories。
+        按正式身份读取 Raw Evidence 元数据、归档文档引用和按 Category ID 稳定排序的
+        Evidence Category 内容。历史未分类 Raw Evidence 返回空 categories；历史 raw_text
+        正文值仍原样返回。
       parameters:
         - $ref: '#/components/parameters/RequestID'
         - name: id
@@ -265,7 +266,7 @@ paths:
             pattern: '^RAW[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
       responses:
         '200':
-          description: 返回完整 Raw Evidence 及其内容分类
+          description: 返回正式 Raw Evidence 记录及其内容分类
           headers:
             X-Request-ID:
               $ref: '#/components/headers/RequestID'
@@ -376,11 +377,12 @@ paths:
       x-timeout-budget-ms: 3000
       x-atomicity: raw-evidence-single-postgresql-transaction
       x-transaction-membership: raw-evidence
-      summary: 发布一份完整 Raw Evidence
+      summary: 发布一份正式 Raw Evidence 记录
       description: >-
-        采集完成后同步发布完整 Raw Evidence 及有序 Keywords。接口不使用
-        Idempotency-Key；相同 publication_key 仅在全部业务字段一致时安全重试。Data
-        由该自然键确定性生成正式 Raw Evidence ID，成功响应只返回该系统身份。
+        AgentOS 归档完整文档后，同步发布 Raw Evidence 元数据、归档文档相对路径和可选
+        Content Category 集合。接口不使用 Idempotency-Key；相同 publication_key 仅在
+        全部业务字段一致时安全重试。Data 由该自然键确定性生成正式 Raw Evidence ID，
+        成功响应只返回该系统身份。
       parameters:
         - $ref: '#/components/parameters/RequestID'
       requestBody:
@@ -2994,6 +2996,9 @@ components:
         raw_text:
           type: string
           minLength: 1
+          description: >-
+            新发布记录使用不含 origin 的 /{bucket}/{object_key} 归档文档相对路径。历史记录
+            可以保留正文值；Data 对该值只做不可变存储与原样返回，不访问、校验或代理对象存储。
         published_at:
           allOf:
             - $ref: '#/components/schemas/UTCTimestamp'
@@ -3167,6 +3172,9 @@ components:
         raw_text:
           type: string
           minLength: 1
+          description: >-
+            新发布记录为不含 origin 的 /{bucket}/{object_key} 归档文档相对路径；历史记录
+            可能是正文。Data 原样返回持久化值，不访问、校验或代理对象存储。
         published_at:
           allOf:
             - $ref: '#/components/schemas/UTCTimestamp'
