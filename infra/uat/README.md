@@ -10,7 +10,7 @@ UAT 由 GitHub Actions 手工发布到华为云 ECS，运行时数据库使用�
 - 同一时间只允许一个 UAT 发布；Actions concurrency、本机 `flock` 和 PostgreSQL advisory lock 形成三层互斥。
 - Workflow 比较 ECS 上次成功 release SHA 与目标 SHA；变更只位于四个应用目录时，
   GitHub-hosted runner 只构建受影响的 `linux/amd64` 业务镜像，任一目录外变更或状态异常
-	则构建全部四个。新镜像和 deployment bundle 推送到 SWR，tag 固定为 Git commit SHA。
+  则构建全部四个。新镜像和 deployment bundle 推送到 SWR，tag 固定为 Git commit SHA。
 - Deployment bundle 包含 release Compose/UAT 配置和受信 control-plane
   脚本/风险清单；ECS 使用 build job 返回的 image digest 拉取，并在 migration 前
   校验 release SHA、control-plane SHA 和逐文件 SHA-256。Bundle tag 使用
@@ -54,7 +54,12 @@ x64
 tidewise-uat-ecs
 ```
 
-ECS 需要 Ubuntu 24.04 AMD64。仓库提供幂等的 `bootstrap-ecs.sh`，由用户在 ECS 上以 root 手工运行；日常 CD 不执行任何 root 或云平台操作。
+当前 UAT ECS 公网地址为 `124.71.201.208`，私网地址为 `192.168.0.13`。ECS 需要 Ubuntu
+24.04 AMD64。RDS 入站规则只允许该 ECS 的精确私网来源或绑定的安全组访问 `5432`，不得为
+迁移临时开放 PostgreSQL 公网访问。
+
+仓库提供幂等的 `bootstrap-ecs.sh`，由用户在 ECS 上以 root 手工运行；日常 CD 不执行任何
+root 或云平台操作。
 
 Bootstrap 需要用户先从 GitHub Actions Runner 官方发布页下载 Linux x64 archive。敏感的一次性 runner registration token 只通过当前 shell 环境传入：
 
@@ -68,6 +73,16 @@ ACTIONS_RUNNER_ARCHIVE_SHA256=<official-sha256> \
 ```
 
 如需迁移现有 runner，优先传入准确的 `OLD_RUNNER_ROOT` 让旧 runner 的 `svc.sh` 卸载原 systemd unit；无法取得旧目录时才使用 `OLD_RUNNER_SERVICE` 停用准确 unit。脚本安装并启用 Docker/Compose，创建 `tidewise-deploy`，配置固定目录、runner 标签与开机自启；安全组、RDS 白名单和 root 密码轮换仍由用户在华为云控制台完成。
+
+从已有 ECS 克隆新主机时，不得复用克隆目录中的 `.runner`、`.credentials` 或
+`.credentials_rsaparams`。这些文件绑定同一个 GitHub runner session，两台主机同时启动会产生
+session conflict。迁移必须先停止旧主机上的 deploy runner，并在 GitHub 核对准确 runner ID；
+然后在新主机使用一个全新的 `TIDEWISE_RUNNER_ROOT`，把克隆目录作为
+`OLD_RUNNER_ROOT` 传给 bootstrap，并用新的一次性 registration token 注册。旧主机在新 runner、
+普通发布和公网冒烟全部通过前保留，但不得再次启动旧 runner。
+
+Runner 切换前必须先确认新 ECS 私网来源可以访问 RDS `5432`。`UAT_PUBLIC_BASE_URL` 只在
+GitHub `uat` Environment 中维护；它不改变 runner 选择，workflow 仍只通过固定 labels 调度。
 
 Workflow 在成功后持久保存：
 
@@ -92,17 +107,17 @@ Workflow 在成功后持久保存：
 
 Variables：
 
-| Name                         | Purpose                                                  |
-| ---------------------------- | -------------------------------------------------------- |
-| `SWR_REGISTRY`               | `swr.<region>.myhuaweicloud.com`                         |
-| `SWR_NAMESPACE`              | SWR 组织名                                               |
-| `SWR_DATA_REPOSITORY`        | Data Service 镜像仓库名                                  |
-| `SWR_MINIAPP_REPOSITORY`     | Miniapp Backend 镜像仓库名                               |
-| `SWR_ADMINPORTAL_REPOSITORY` | Admin Portal Backend 镜像仓库名                          |
-| `SWR_ADMIN_REPOSITORY`       | Admin Portal Frontend 镜像仓库名                         |
-| `SWR_DEPLOY_REPOSITORY`      | UAT deployment bundle 镜像仓库名                         |
-| `UAT_RUNNER_NAME`            | ECS runner 的准确名称                                    |
-| `UAT_PUBLIC_BASE_URL`        | 不带端口和路径的 UAT HTTP 地址，如 `http://203.0.113.10` |
+| Name                           | Purpose                                                  |
+| ------------------------------ | -------------------------------------------------------- |
+| `SWR_REGISTRY`                 | `swr.<region>.myhuaweicloud.com`                         |
+| `SWR_NAMESPACE`                | SWR 组织名                                               |
+| `SWR_DATA_REPOSITORY`          | Data Service 镜像仓库名                                  |
+| `SWR_MINIAPP_REPOSITORY`       | Miniapp Backend 镜像仓库名                               |
+| `SWR_ADMINPORTAL_REPOSITORY`   | Admin Portal Backend 镜像仓库名                          |
+| `SWR_ADMIN_REPOSITORY`         | Admin Portal Frontend 镜像仓库名                         |
+| `SWR_DEPLOY_REPOSITORY`        | UAT deployment bundle 镜像仓库名                         |
+| `UAT_RUNNER_NAME`              | ECS runner 的准确名称                                    |
+| `UAT_PUBLIC_BASE_URL`          | 不带端口和路径的 UAT HTTP 地址，如 `http://203.0.113.10` |
 | `RAW_EVIDENCE_PUBLIC_BASE_URL` | 采集文档公开读取 origin，不带路径                        |
 
 Secrets：
@@ -146,13 +161,13 @@ RDS 恢复点回滚，再按旧 release 恢复应用。
 
 ## 端口
 
-| Component                    |          Port | Public access                                             |
-| ---------------------------- | ------------: | --------------------------------------------------------- |
-| Data Domain Service          |        `9011` | 不映射到 ECS host                                         |
-| Miniapp Backend Service      |        `9012` | 开发联调按需开放                                          |
-| Admin Portal Backend Service |        `9013` | 仅 Compose 内网，不映射到 ECS host                        |
-| Admin Portal Frontend        |        `9014` | Admin 浏览器唯一入口，开发联调按需开放                    |
-| MinIO S3/Console             | `9000`/`9001` | S3 仅 loopback；Console 受办公网来源限制             |
+| Component                    |          Port | Public access                            |
+| ---------------------------- | ------------: | ---------------------------------------- |
+| Data Domain Service          |        `9011` | 不映射到 ECS host                        |
+| Miniapp Backend Service      |        `9012` | 开发联调按需开放                         |
+| Admin Portal Backend Service |        `9013` | 仅 Compose 内网，不映射到 ECS host       |
+| Admin Portal Frontend        |        `9014` | Admin 浏览器唯一入口，开发联调按需开放   |
+| MinIO S3/Console             | `9000`/`9001` | S3 仅 loopback；Console 受办公网来源限制 |
 
 IP/HTTP 方式只适用于开发者工具联调。体验版、真机验收或上线前必须配置备案域名、HTTPS 与微信服务器域名白名单。
 
