@@ -25,6 +25,10 @@ if (appConfig.window?.navigationStyle !== 'custom') {
 }
 
 if (platform === 'weapp') {
+  if (appConfig.lazyCodeLoading !== 'requiredComponents') {
+    throw new Error('微信构建必须启用组件按需注入 lazyCodeLoading=requiredComponents');
+  }
+
   const projectConfig = JSON.parse(
     await readFile(resolve(outputRoot, 'project.config.json'), 'utf8')
   );
@@ -37,6 +41,8 @@ if (platform === 'weapp') {
   if (typeof projectConfig.appid !== 'string' || projectConfig.appid.length === 0) {
     throw new Error('微信项目必须声明 appid');
   }
+} else if ('lazyCodeLoading' in appConfig) {
+  throw new Error('抖音构建不得包含微信专用的 lazyCodeLoading 配置');
 }
 
 const stylesheetSize = (await stat(stylesheet)).size;
