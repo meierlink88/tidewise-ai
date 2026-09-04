@@ -72,6 +72,13 @@ func TestPostgresEvidencePublicationNaturalIdentityAndPersistence(t *testing.T) 
 	if created.ID != postgresRawEvidenceID(raw) || replayed != created {
 		t.Fatalf("Raw Evidence results created=%#v replayed=%#v", created, replayed)
 	}
+	var storedRawText string
+	if err := db.QueryRowContext(ctx, `SELECT raw_text FROM raw_evidences WHERE id = $1`, rawID).Scan(&storedRawText); err != nil {
+		t.Fatal(err)
+	}
+	if storedRawText != raw.RawText {
+		t.Fatalf("stored raw_text = %q, want unchanged object path %q", storedRawText, raw.RawText)
+	}
 
 	items := []evidencebiz.Evidence{
 		postgresEvidence(0),
@@ -599,7 +606,7 @@ func postgresEvidenceRaw(publicationKey string) evidencebiz.RawEvidence {
 	return evidencebiz.RawEvidence{
 		PublicationKey: publicationKey, SourceID: "SRC_postgres_0000000000000000000", SourceName: "Example Wire",
 		SourceLevel: "L2_WIRE", SourceURL: "https://example.test/evidence", IsOriginal: true,
-		RawText: "Complete PostgreSQL Evidence Publication article.", PublishedAt: &publishedAt,
+		RawText: "/raw-evidence/documents/2026/08/11/1111111111111111111111111111111111111111111111111111111111111111.md", PublishedAt: &publishedAt,
 		CollectedAt: time.Date(2026, 8, 11, 1, 5, 0, 987654321, time.UTC),
 	}
 }

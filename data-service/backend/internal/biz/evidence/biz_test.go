@@ -76,7 +76,7 @@ func TestPublishRawEvidenceReturnsFormalIdentityAcrossRetry(t *testing.T) {
 	if !strings.HasPrefix(created.ID, "RAW") {
 		t.Fatalf("Raw Evidence ID = %q", created.ID)
 	}
-	if store.raw[created.ID].ContentHash != "1b46f625a140463536b92ffb1718d101bbcdfe09a76ef63089af6a0d99b8aa33" {
+	if store.raw[created.ID].ContentHash != "dbd6efaac73ee85f4a3b70592924ce50f2f3ab5a9beee17d435560a8346d654d" {
 		t.Fatalf("content hash = %q", store.raw[created.ID].ContentHash)
 	}
 	if len(store.links) != 1 || store.links[0].ID != "RCLa0c8d966-dbde-56e0-ab89-d0b67b1b7794" {
@@ -99,7 +99,7 @@ func TestPublishRawEvidenceRejectsIdentityDriftAndInvalidOrigin(t *testing.T) {
 		t.Fatal(err)
 	}
 	drift := raw
-	drift.RawText = "different full article"
+	drift.RawText = "/raw-evidence/documents/2026/08/11/3333333333333333333333333333333333333333333333333333333333333333.md"
 	_, err := service.PublishRawEvidence(context.Background(), drift)
 	var conflict *ConflictError
 	if !errors.As(err, &conflict) || !hasIssueCode(conflict.Issues, IssueRawEvidenceConflict) {
@@ -341,7 +341,7 @@ func validRawEvidence() RawEvidence {
 		SourceURL:      "https://example.test/article/1",
 		IsOriginal:     true,
 		Title:          stringPointer("Example title"),
-		RawText:        "Complete original article.",
+		RawText:        "/raw-evidence/documents/2026/08/11/1111111111111111111111111111111111111111111111111111111111111111.md",
 		PublishedAt:    &publishedAt,
 		CollectedAt:    time.Date(2026, 8, 11, 1, 5, 0, 0, time.UTC),
 	}

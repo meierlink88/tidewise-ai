@@ -50,6 +50,9 @@ AgentOS 运行时快照见 `docs/adr/0031-data-owns-source-management.md`。
 Company 投影只能通过 Data 版本化快照 API，不得直连 PostgreSQL；该边界见
 `docs/adr/0050-expose-company-projection-snapshot.md`。
 
-UAT ECS 只保留四个应用服务与独立 `tidewise-infra-uat` MinIO/raw-evidence 存储。
+UAT ECS 只保留四个应用服务与历史 `tidewise-infra-uat` MinIO/raw-evidence 存储；历史链接
+继续沿用既有访问方式。新 Raw Evidence 文档由 DGX AgentOS 自有 MinIO 归档，Data Service
+只保存不含 origin 的相对路径，不访问该 MinIO；是否提供浏览器可达 origin 不属于 Data 或
+Admin Portal 合同。
 AgentOS、Reason/OpenSPG、KAG、MySQL、Neo4j 与 Qdrant 已迁出或退役，不属于当前 ECS、RDS
 或本仓库 UAT 生命周期；详见 `docs/adr/0055-retire-uat-reasoning-runtime.md`。

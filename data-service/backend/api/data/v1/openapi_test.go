@@ -110,6 +110,25 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 	}
 }
 
+func TestOpenAPIContractDocumentsRawEvidenceArchivePathBoundary(t *testing.T) {
+	document := loadContract(t)
+	paths := object(t, document["paths"], "paths")
+	publish := object(t, object(t, paths[namespace+"/raw-evidence-publications"], "Raw Evidence publication path")["post"], "Raw Evidence publication operation")
+	publishDescription := stringValue(t, publish["description"], "Raw Evidence publication description")
+	if !strings.Contains(publishDescription, "归档文档相对路径") {
+		t.Fatalf("Raw Evidence publication description = %q, want archived document relative-path boundary", publishDescription)
+	}
+
+	for _, schemaName := range []string{"RawEvidence", "RawEvidenceRead"} {
+		properties := object(t, schema(t, document, schemaName)["properties"], schemaName+" properties")
+		rawText := object(t, properties["raw_text"], schemaName+" raw_text")
+		description := stringValue(t, rawText["description"], schemaName+" raw_text description")
+		if !strings.Contains(description, "/{bucket}/{object_key}") || !strings.Contains(description, "原样") || !strings.Contains(description, "不访问") {
+			t.Errorf("%s raw_text description = %q, want path, passthrough and no-storage-access semantics", schemaName, description)
+		}
+	}
+}
+
 func TestOpenAPIContractFreezesImmutableReportPublicationAndReadModels(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
