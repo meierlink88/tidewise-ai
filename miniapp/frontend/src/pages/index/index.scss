@@ -234,14 +234,14 @@ $home-hero-static-height: 168rpx;
 
 .home-report-publish-row__label {
   color: $color-report-slate-500;
-  font-size: 17rpx;
+  font-size: $font-report-caption;
   font-weight: 650;
   line-height: 1.2;
 }
 
 .home-report-publish-row__time {
   color: $color-report-slate-800;
-  font-size: 20rpx;
+  font-size: $font-report-meta;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
@@ -253,7 +253,7 @@ $home-hero-static-height: 168rpx;
   border-radius: 999rpx;
   background: $color-report-blue-50;
   color: $color-report-blue-800;
-  font-size: 17rpx;
+  font-size: $font-report-caption;
   font-weight: 600;
 }
 
@@ -305,7 +305,7 @@ $home-hero-static-height: 168rpx;
 
 .home-report-section__title {
   color: $color-report-ink;
-  font-size: 30rpx;
+  font-size: $font-report-title;
   font-weight: 800;
   line-height: 1.25;
 }
@@ -313,7 +313,7 @@ $home-hero-static-height: 168rpx;
 .home-report-section__subtitle {
   margin-top: 4rpx;
   color: $color-text-muted;
-  font-size: 17rpx;
+  font-size: $font-report-caption;
   line-height: 1.35;
 }
 
@@ -340,7 +340,7 @@ $home-hero-static-height: 168rpx;
   display: block;
   margin-bottom: 24rpx;
   color: $color-report-ink-strong;
-  font-size: 27rpx;
+  font-size: $font-report-lead;
   font-weight: 760;
   line-height: 1.58;
 }
@@ -368,7 +368,7 @@ $home-hero-static-height: 168rpx;
   border-radius: 8rpx;
   background: $color-report-chain-tag;
   color: $color-report-chain-accent;
-  font-size: 16rpx;
+  font-size: $font-report-caption;
   font-weight: 750;
   line-height: 1.35;
 }
@@ -376,7 +376,7 @@ $home-hero-static-height: 168rpx;
 .home-industry-identity__name {
   min-width: 0;
   color: $color-report-ink;
-  font-size: 22rpx;
+  font-size: $font-report-label;
   font-weight: 750;
   line-height: 1.35;
 }
@@ -402,7 +402,7 @@ $home-hero-static-height: 168rpx;
 .home-impact-item__name {
   min-width: 0;
   color: $color-report-ink;
-  font-size: 21rpx;
+  font-size: $font-report-label;
   font-weight: 700;
   line-height: 1.35;
 }
@@ -423,7 +423,7 @@ $home-hero-static-height: 168rpx;
   align-items: center;
   gap: 6rpx;
   color: $color-report-slate-500;
-  font-size: 16rpx;
+  font-size: $font-report-caption;
   line-height: 1;
   white-space: nowrap;
 }
@@ -446,7 +446,7 @@ $home-hero-static-height: 168rpx;
   gap: 8rpx;
   padding: 0 12rpx;
   border-radius: 999rpx;
-  font-size: 16.5rpx;
+  font-size: $font-report-caption;
 }
 
 .home-impact-signal--result .home-impact-signal__value {
@@ -567,13 +567,13 @@ $home-hero-static-height: 168rpx;
 .home-company-boundary__copy > text {
   display: block;
   color: $color-report-slate-600;
-  font-size: 19rpx;
+  font-size: $font-report-meta;
   line-height: 1.5;
 }
 
 .home-company-boundary__copy > text:first-child {
   color: $color-report-slate-700;
-  font-size: 22rpx;
+  font-size: $font-report-label;
   font-weight: 700;
 }
 
@@ -583,7 +583,7 @@ $home-hero-static-height: 168rpx;
   border-radius: 12rpx;
   background: $color-report-diverging-surface;
   color: $color-report-warning-text;
-  font-size: 22rpx;
+  font-size: $font-report-label;
   line-height: 1.5;
 }
 

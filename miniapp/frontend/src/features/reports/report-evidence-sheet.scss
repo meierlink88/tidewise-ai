@@ -82,7 +82,7 @@
 
 .report-evidence-sheet__time {
   color: $color-blue-700;
-  font-size: 21rpx;
+  font-size: $font-report-meta;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   line-height: 1.5;
@@ -92,7 +92,7 @@
   display: block;
   margin-top: 14rpx;
   color: $color-text-primary;
-  font-size: 24rpx;
+  font-size: $font-report-body;
   font-weight: 650;
   line-height: 1.45;
 }
@@ -113,7 +113,7 @@
   border-radius: $radius-pill;
   background: $color-page-background;
   color: $color-blue-700;
-  font-size: 20rpx;
+  font-size: $font-report-meta;
   font-weight: 700;
   line-height: 36rpx;
 }
