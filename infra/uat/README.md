@@ -332,22 +332,24 @@ Runner 不需要也不获得通用 `sudo`。Workflow 在 GitHub-hosted runner �
 `uat-root-retirement` binary，与 RDS audit binary 一起校验 SHA-256。ECS 以当前 Data
 容器的本地不可变 image ID 启动一次性 privileged container；host root 只读，仅
 `/etc/systemd/system` 和 `/opt/tidewise` 为可写子挂载。Binary 不接收 unit、路径或
-shell command，只能对 ADR 0055 固化的两个 unit 和五个目录执行 `preflight`/`apply`。
-项目自管的 Reason runner unit 会被删除；系统包提供的
+shell command，只能对 ADR 0055 固化的三个 unit 和五个目录执行 `preflight`/`apply`。
+项目自管的 AgentOS ECS 与 Reason runner unit 会被删除；系统包提供的
 `/usr/lib/systemd/system/neo4j.service` 只允许被停止并禁用，apply 后必须保持 disabled
 且 inactive，不会为删除包元数据而扩大 host 可写挂载。
 
 主机退役成功后，在 GitHub 上进行两类分离的 control-plane 收尾：
 
-1. 先以 `gh api repos/meierlink88/tidewise-reason/actions/runners` 查询名为
-   `tidewise-reason-uat-ecs` 的精确 runner ID，再对该 ID 调用
-   `gh api -X DELETE repos/meierlink88/tidewise-reason/actions/runners/<reviewed-id>`；不得按位置或模糊名称删除。
+1. 分别以 `gh api repos/meierlink88/tidewise-agent-os/actions/runners` 和
+   `gh api repos/meierlink88/tidewise-reason/actions/runners` 查询名为
+   `tidewise-agentos-uat-ecs` 与 `tidewise-reason-uat-ecs` 的精确 runner ID，再对该 ID
+   调用对应仓库的 `gh api -X DELETE repos/<owner>/<repo>/actions/runners/<reviewed-id>`；
+   不得按位置或模糊名称删除，且不得删除 AgentOS DGX runner。
 2. 从 `uat` Environment 删除已退役的 `DATA_NEO4J_HEALTH_URI`、
    `DATA_NEO4J_HEALTH_USERNAME`、`NEO4J_DATABASE`、`NEO4J_URI`、`NEO4J_USERNAME`
    Variables，以及 `DATA_NEO4J_HEALTH_PASSWORD`、`NEO4J_PASSWORD`、
    `OPENSPG_MYSQL_ROOT_PASSWORD` Secrets。删除后只校验名称缺席，不读取或输出 Secret 值。
 
-Reason runner 注册和 GitHub Environment 配置不由 ECS 脚本管理；两项收尾都要保留命令结果，
+AgentOS/Reason runner 注册和 GitHub Environment 配置不由 ECS 脚本管理；两项收尾都要保留命令结果，
 并与 `Audit UAT Runtime`、公网冒烟和退役 receipt 共同构成最终验收证据。
 
 部署事务内的主机端口检查使用 ECS loopback 地址访问 `9012` 和 `9014`，并通过 `9014`

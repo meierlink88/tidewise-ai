@@ -213,6 +213,17 @@ else
   done <<<"$units"
 fi
 
+retired_unit_failure=false
+for unit in "${UAT_RETIRED_PROJECT_UNITS[@]}"; do
+  load_state="$(systemctl show --property=LoadState --value "$unit" 2>/dev/null || true)"
+  if [ "$load_state" = loaded ]; then
+    echo "FAIL retired-systemd-unit: ${unit} is still loaded" >&2
+    retired_unit_failure=true
+  else
+    echo "ABSENT retired project unit ${unit}"
+  fi
+done
+
 echo
 echo "## Deployment state"
 if [ -s "${deployment_root}/state/current.sha" ]; then
@@ -290,6 +301,10 @@ echo "PASS miniapp-report-read"
 
 if [ "$retained_failure" = true ]; then
   echo "FAIL retained-runtime: one or more required containers are absent or unhealthy" >&2
+  exit 1
+fi
+if [ "$retired_unit_failure" = true ]; then
+  echo "FAIL retired-runtime: one or more retired project units remain loaded" >&2
   exit 1
 fi
 echo "PASS retained-runtime"

@@ -14,6 +14,10 @@ and RDS. The four Tidewise applications now consume only the Data PostgreSQL fac
 AgentOS, Reason/OpenSPG, KAG, MySQL, Neo4j or Qdrant. A sanitized live audit on 2026-09-03 still
 found those retired containers and persistent volumes running on the old ECS.
 
+The post-retirement audit then found the separate `tidewise-agentos-uat-ecs` Actions runner still
+active and enabled on that ECS. It is also part of the migrated AgentOS runtime; the AgentOS DGX
+runner and the Tidewise AI UAT deployment runner remain separate retained control-plane resources.
+
 MinIO is different: Admin raw-evidence links still resolve through
 `https://tideai.tripwise.cn/raw-evidence/`, backed by the UAT MinIO volume. Removing it would break
 retained evidence-document reads, so it remains a separate storage lifecycle.
@@ -26,13 +30,15 @@ retained evidence-document reads, so it remains a separate storage lifecycle.
   containers from the old ECS.
 - Delete only their exact audited volumes and bounded host paths after a main-only, CI-gated,
   confirmation-protected preflight proves that retained services have no legacy dependency keys.
-- Stop, disable and remove the obsolete project-owned Tidewise Reason Actions runner service. Stop
+- Stop, disable and remove the obsolete project-owned Tidewise AgentOS ECS and Tidewise Reason
+  Actions runner services. Preserve the separate Tidewise AI deployment runner and the AgentOS DGX
+  runner. Stop
   and disable the host Neo4j service, while retaining its package-owned
   `/usr/lib/systemd/system/neo4j.service` metadata outside the writable retirement boundary.
 - The daily deployment runner remains non-sudo. A checksum-verified static retirement binary runs as
   root only inside a one-shot privileged container based on the already-running immutable Data image.
   The host root is mounted read-only; only `/etc/systemd/system` and `/opt/tidewise` are writable. The
-  binary accepts only `preflight` or `apply` and compiles in the two approved units and five approved
+  binary accepts only `preflight` or `apply` and compiles in the three approved units and five approved
   directories rather than accepting paths or commands from workflow input.
 - The retired RDS database `tidewise_ai_server` is already absent. Preserve `tidewise_uat`, its role,
   schema and facts. A residual `agentrun_uat` role is not a database and may be removed only through
@@ -51,7 +57,7 @@ unchanged.
 
 The privileged retirement binary performs its own systemd fragment and no-symlink path preflight before
 the shell removes any legacy container. It stops only the compiled units, reloads systemd, removes only
-the project-owned unit and compiled paths, and verifies the vendor Neo4j unit remains disabled and
+the project-owned units and compiled paths, and verifies the vendor Neo4j unit remains disabled and
 inactive. This uses the root-equivalent Docker capability already required by the runner instead of
 granting persistent sudo or changing host sudoers.
 

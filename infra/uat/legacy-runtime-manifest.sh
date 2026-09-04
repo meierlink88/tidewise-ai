@@ -39,3 +39,8 @@ readonly -a UAT_RETIRED_PATHS=(
 )
 
 readonly -a UAT_RETIRED_PORTS=(3306 6333 6334 7474 7687 8887 9081)
+
+readonly -a UAT_RETIRED_PROJECT_UNITS=(
+  actions.runner.meierlink88-tidewise-agent-os.tidewise-agentos-uat-ecs.service
+  actions.runner.meierlink88-tidewise-reason.tidewise-reason-uat-ecs.service
+)
