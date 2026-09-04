@@ -17,7 +17,7 @@
   padding: 0 10rpx;
   border: 1rpx solid transparent;
   border-radius: 8rpx;
-  font-size: 20rpx;
+  font-size: $font-report-meta;
   font-weight: 700;
   line-height: 34rpx;
   white-space: nowrap;
@@ -79,7 +79,7 @@
   display: inline-flex;
   align-items: center;
   color: #718096;
-  font-size: 20rpx;
+  font-size: $font-report-meta;
   line-height: 1.5;
   white-space: nowrap;
 }
@@ -138,14 +138,14 @@
 
 .report-state-panel__title {
   color: $color-text-primary;
-  font-size: 29rpx;
+  font-size: $font-report-title;
   font-weight: 700;
 }
 
 .report-state-panel__description {
   margin-top: 12rpx;
   color: $color-text-muted;
-  font-size: 24rpx;
+  font-size: $font-report-body;
   line-height: 1.6;
 }
 
