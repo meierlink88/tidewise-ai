@@ -6,6 +6,7 @@ deployment_root="${DEPLOY_ROOT:?DEPLOY_ROOT is required}"
 expected_runner="${UAT_RUNNER_NAME:?UAT_RUNNER_NAME is required}"
 swr_registry="${SWR_REGISTRY:?SWR_REGISTRY is required}"
 public_base_url="${UAT_PUBLIC_BASE_URL:?UAT_PUBLIC_BASE_URL is required}"
+data_service_public_base_url="${DATA_SERVICE_PUBLIC_BASE_URL:?DATA_SERVICE_PUBLIC_BASE_URL is required}"
 export TIDEWISE_DB_HOST="${TIDEWISE_DB_HOST:?TIDEWISE_DB_HOST is required}"
 
 pass() {
@@ -94,11 +95,18 @@ if public_endpoint.scheme != "http" or not public_endpoint.hostname:
     raise SystemExit("FAIL public-base-url: an http URL with hostname is required")
 if public_endpoint.port or public_endpoint.path not in ("", "/") or public_endpoint.query or public_endpoint.fragment:
     raise SystemExit("FAIL public-base-url: port, path, query, and fragment are not allowed")
+
+data_public_endpoint = urlparse(os.environ["DATA_SERVICE_PUBLIC_BASE_URL"])
+if data_public_endpoint.scheme != "https" or not data_public_endpoint.hostname:
+    raise SystemExit("FAIL data-public-base-url: an https URL with hostname is required")
+if data_public_endpoint.port or data_public_endpoint.path not in ("", "/") or data_public_endpoint.query or data_public_endpoint.fragment:
+    raise SystemExit("FAIL data-public-base-url: port, path, query, and fragment are not allowed")
 PY
 pass data-rds-private-tcp-and-config
 pass public-base-url
+pass data-public-base-url
 
-for port in 9012 9014; do
+for port in 9011 9012 9014; do
   container_ids="$(docker ps --filter "publish=$port" --format '{{.ID}}')"
   while read -r container_id; do
     [ -z "$container_id" ] && continue
@@ -110,3 +118,16 @@ for port in 9012 9014; do
   fi
   pass port-$port
 done
+
+data_public_hostname="$(python3 -c 'from urllib.parse import urlparse; import sys; print(urlparse(sys.argv[1]).hostname)' "$data_service_public_base_url")"
+data_proxy_headers="$(mktemp)"
+trap 'rm -f "$data_proxy_headers"' EXIT
+curl --silent --show-error --connect-timeout 5 --max-time 15 \
+  --resolve "${data_public_hostname}:443:127.0.0.1" \
+  --dump-header "$data_proxy_headers" --output /dev/null \
+  "${data_service_public_base_url%/}/api/data/v1/_preflight/not-present" || true
+grep -Eiq '^X-Tidewise-Upstream:[[:space:]]*data-uat' "$data_proxy_headers" \
+  || fail data-api-nginx-route "repository-managed Data API proxy is not installed"
+rm -f "$data_proxy_headers"
+trap - EXIT
+pass data-api-nginx-route

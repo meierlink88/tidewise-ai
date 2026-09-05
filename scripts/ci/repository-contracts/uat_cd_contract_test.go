@@ -555,8 +555,16 @@ func TestUATComposeEnforcesRuntimeSecurityAndPorts(t *testing.T) {
 		}
 	}
 	data := composeServiceSection(t, compose, "data")
-	if strings.Contains(data, "ports:") {
-		t.Fatal("Data Service must not publish port 9011 to the ECS host")
+	if !strings.Contains(data, `- "127.0.0.1:9011:9011"`) {
+		t.Fatal("Data Service must publish port 9011 only on the ECS loopback interface")
+	}
+	if strings.Count(data, "9011:9011") != 1 {
+		t.Fatal("Data Service must have exactly one short-form 9011 host binding")
+	}
+	for _, forbidden := range []string{`- "9011:9011"`, `- "0.0.0.0:9011:9011"`, "host_ip:", "published:", "target:"} {
+		if strings.Contains(data, forbidden) {
+			t.Fatalf("Data Service has an unsafe host port binding %q", forbidden)
+		}
 	}
 	if !strings.Contains(data, "host.docker.internal:host-gateway") {
 		t.Fatal("Data Service one-shot jobs must resolve the UAT Neo4j host through Docker host-gateway")
@@ -584,6 +592,108 @@ func TestUATComposeEnforcesRuntimeSecurityAndPorts(t *testing.T) {
 	for _, forbidden := range []string{"\n  qdrant:", "QDRANT_IMAGE", "qdrant-data:/qdrant/storage", "tidewise-uat-qdrant-data"} {
 		if strings.Contains(compose, forbidden) {
 			t.Fatalf("application Compose must not own Qdrant runtime value %q", forbidden)
+		}
+	}
+}
+
+func TestUATDataServicePublicProxyIsVersionedAndVerified(t *testing.T) {
+	root := repositoryRoot()
+	nginx := readContractFile(t, filepath.Join(root, "infra", "uat", "nginx-data-api-location.conf"))
+	configure := readContractFile(t, filepath.Join(root, "infra", "uat", "configure-data-api-proxy.sh"))
+	preflight := readContractFile(t, filepath.Join(root, "infra", "uat", "preflight.sh"))
+	deploy := readContractFile(t, filepath.Join(root, "infra", "uat", "deploy.sh"))
+	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "deploy-uat.yml"))
+
+	for _, required := range []string{
+		"location ^~ /api/data/v1/",
+		"proxy_pass http://127.0.0.1:9011",
+		"proxy_set_header Authorization $http_authorization",
+		"proxy_connect_timeout 5s",
+		"proxy_read_timeout 45s",
+		"client_max_body_size 2m",
+		"add_header X-Tidewise-Upstream data-uat always",
+	} {
+		if !strings.Contains(nginx, required) {
+			t.Fatalf("UAT Data Nginx location missing %q", required)
+		}
+	}
+	for _, forbidden := range []string{
+		"proxy_pass http://127.0.0.1:9011/",
+		"proxy_set_header Authorization \"\"",
+	} {
+		if strings.Contains(nginx, forbidden) {
+			t.Fatalf("UAT Data Nginx location contains unsafe path/auth behavior %q", forbidden)
+		}
+	}
+
+	for _, required := range []string{
+		"/etc/nginx/snippets/tidewise-data-api-uat.conf",
+		"nginx-data-api-location.conf",
+		"include ${snippet_target};",
+		"configure-data-api-proxy.sh [install|remove]",
+		"cp -p \"$backup\" \"$nginx_server_config\"",
+		"rm -f \"$snippet_target\"",
+		"nginx -t",
+		"systemctl reload nginx",
+	} {
+		if !strings.Contains(configure, required) {
+			t.Fatalf("UAT Data proxy configurator missing %q", required)
+		}
+	}
+
+	for _, required := range []string{
+		"DATA_SERVICE_PUBLIC_BASE_URL",
+		"X-Tidewise-Upstream",
+		"data-uat",
+		"port in 9011 9012 9014",
+	} {
+		if !strings.Contains(preflight, required) {
+			t.Fatalf("UAT preflight does not enforce Data proxy prerequisite %q", required)
+		}
+	}
+
+	for _, required := range []string{
+		"DATA_SERVICE_PUBLIC_BASE_URL",
+		"Authorization: Bearer ${verification_data_token}",
+		"http://127.0.0.1:9011/healthz",
+		"PASS host-data-loopback-health",
+		"/api/data/v1/source-snapshot",
+		"PASS public-data-api",
+	} {
+		if !strings.Contains(deploy, required) {
+			t.Fatalf("UAT deploy does not verify the authenticated public Data path %q", required)
+		}
+	}
+	if !strings.Contains(workflow, "DATA_SERVICE_PUBLIC_BASE_URL: ${{ vars.DATA_SERVICE_PUBLIC_BASE_URL }}") {
+		t.Fatal("UAT workflow does not inject the canonical public Data API origin")
+	}
+	ci := readContractFile(t, filepath.Join(root, ".github", "workflows", "ci.yml"))
+	if !strings.Contains(ci, "config --format json | python3 scripts/ci/verify-uat-data-port.py") {
+		t.Fatal("CI does not validate the rendered Data Service host port binding")
+	}
+}
+
+func TestRenderedUATDataPortVerifierRejectsNonLoopbackBindings(t *testing.T) {
+	root := repositoryRoot()
+	verifier := filepath.Join(root, "scripts", "ci", "verify-uat-data-port.py")
+	valid := `{"services":{"data":{"ports":[{"host_ip":"127.0.0.1","target":9011,"published":"9011","protocol":"tcp"}]}}}`
+	command := exec.Command("python3", verifier)
+	command.Stdin = strings.NewReader(valid)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("valid loopback binding rejected: %v: %s", err, output)
+	}
+
+	invalid := []string{
+		`{"services":{"data":{"ports":[{"host_ip":"0.0.0.0","target":9011,"published":"9011","protocol":"tcp"}]}}}`,
+		`{"services":{"data":{"ports":[{"host_ip":"192.168.0.53","target":9011,"published":"9011","protocol":"tcp"}]}}}`,
+		`{"services":{"data":{"ports":[{"host_ip":"::","target":9011,"published":"9011","protocol":"tcp"}]}}}`,
+		`{"services":{"data":{"ports":[{"host_ip":"127.0.0.1","target":9011,"published":"9011","protocol":"tcp"},{"host_ip":"127.0.0.1","target":9012,"published":"9012","protocol":"tcp"}]}}}`,
+	}
+	for _, fixture := range invalid {
+		command := exec.Command("python3", verifier)
+		command.Stdin = strings.NewReader(fixture)
+		if output, err := command.CombinedOutput(); err == nil {
+			t.Fatalf("unsafe rendered binding accepted: %s output=%s", fixture, output)
 		}
 	}
 }

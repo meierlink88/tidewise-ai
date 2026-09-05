@@ -16,6 +16,8 @@ services:
       TIDEWISE_DB_HOST: ${TIDEWISE_DB_HOST:?TIDEWISE_DB_HOST is required}
       TIDEWISW_DB_PASSWORD: ${TIDEWISW_DB_PASSWORD:?TIDEWISW_DB_PASSWORD is required}
       DATA_SERVICE_TOKEN: ${DATA_SERVICE_TOKEN:?DATA_SERVICE_TOKEN is required}
+    ports:
+      - "127.0.0.1:9011:9011"
     expose:
       - "9011"
     extra_hosts:

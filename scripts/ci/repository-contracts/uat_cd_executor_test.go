@@ -336,6 +336,25 @@ func TestUATDeployExecutorRestoresCurrentReleaseAfterHostEntryFailure(t *testing
 	}
 }
 
+func TestUATDeployExecutorRestoresCurrentReleaseAfterPublicDataAPIFailure(t *testing.T) {
+	result := runDeployFixture(t, deployFixtureOptions{currentRelease: true, failPublicDataCurl: true})
+	if result.err == nil {
+		curlLog, _ := os.ReadFile(result.curlLog)
+		t.Fatalf("public Data API failure fixture unexpectedly succeeded: %s", curlLog)
+	}
+	if !strings.Contains(result.output, "PASS rollback: previous complete release restored") {
+		t.Fatalf("rollback output missing success evidence: %s", result.output)
+	}
+	assertFileContent(t, filepath.Join(result.root, "state", "current.sha"), previousFixtureSHA)
+	curlLog, err := os.ReadFile(result.curlLog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(curlLog), "/api/data/v1/source-snapshot") {
+		t.Fatalf("deployment did not probe the authenticated public Data API: %s", curlLog)
+	}
+}
+
 func TestUATDeployExecutorBlocksUnconfirmedHighRiskMigration(t *testing.T) {
 	report := `{"current_version":"23","pending":[{"Version":"24","Name":"add research imports"}],"applied":[],"remaining":[]}`
 	result := runDeployFixture(t, deployFixtureOptions{migrationReport: report})
@@ -1425,6 +1444,7 @@ type deployFixtureOptions struct {
 	failEveryUp                     bool
 	failFirstCurl                   bool
 	failEveryCurl                   bool
+	failPublicDataCurl              bool
 	migrationReport                 string
 	migrationApplyReport            string
 	migrationRisk                   string
@@ -1480,7 +1500,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	if options.orphanedRestartingCutoverWriter {
 		writeFixture(t, restartingWriter, "restarting\n")
 	}
-	writeFixture(t, runtimeEnv, "ADMIN_SERVICE_TOKEN=fixture-admin-secret\n")
+	writeFixture(t, runtimeEnv, "ADMIN_SERVICE_TOKEN=fixture-admin-secret\nDATA_SERVICE_TOKEN=fixture-data-secret\n")
 	writeFixture(t, imagesEnv, "DATA_IMAGE=fixture/data:"+fixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+fixtureSHA+"\n")
 	composeContent := "name: tidewise-uat\nservices:\n  data: {}\n  miniapp: {}\n  adminportal: {}\n  admin: {}\n"
 	writeFixture(t, compose, composeContent)
@@ -1630,6 +1650,11 @@ count=$((count + 1))
 echo "$count" > "$FAKE_CURL_COUNT"
 if [ "${FAKE_FAIL_EVERY_CURL:-false}" = true ]; then exit 1; fi
 if [ "${FAKE_FAIL_FIRST_CURL:-false}" = true ] && [ "$count" -eq 1 ]; then exit 1; fi
+if [ "${FAKE_FAIL_PUBLIC_DATA_CURL:-false}" = true ]; then
+  case "$*" in
+    *source-snapshot*) exit 1 ;;
+  esac
+fi
 exit 0
 `)
 	writeExecutable(t, filepath.Join(bin, "flock"), "#!/bin/sh\nexit 0\n")
@@ -1745,6 +1770,7 @@ exit 0
 		"EXPECTED_CURRENT_ADMINPORTAL_IMAGE="+expectedAdminportalImage,
 		"EXPECTED_CURRENT_ADMIN_IMAGE="+expectedAdminImage,
 		"UAT_PUBLIC_BASE_URL=http://uat.example.test",
+		"DATA_SERVICE_PUBLIC_BASE_URL=https://data.example.test",
 		"TIDEWISW_DB_PASSWORD=fixture-db-secret",
 		"COMPOSE_FILE="+compose,
 		"MIGRATION_RISK_MANIFEST="+manifest,
@@ -1766,6 +1792,7 @@ exit 0
 		"FAKE_CURL_LOG="+curlLog,
 		"FAKE_FAIL_FIRST_CURL="+boolText(options.failFirstCurl),
 		"FAKE_FAIL_EVERY_CURL="+boolText(options.failEveryCurl),
+		"FAKE_FAIL_PUBLIC_DATA_CURL="+boolText(options.failPublicDataCurl),
 		"FAKE_FAIL_RUNNING_SERVICE_PROBE="+boolText(options.failRunningServiceProbe),
 		"FAKE_FAIL_CUTOVER_MARKER_SYNC="+boolText(options.failCutoverMarkerSync),
 		"FAKE_ORPHANED_WRITER="+orphanedWriter,
