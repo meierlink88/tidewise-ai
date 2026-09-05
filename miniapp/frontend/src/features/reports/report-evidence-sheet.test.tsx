@@ -1,11 +1,11 @@
 import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import type { ReportEvidenceList, ReportPort } from '../../../features/reports/contract';
-import { ReportError } from '../../../features/reports/contract';
-import type { ReportEvidenceRoute } from '../../../features/reports/navigation';
-import { mockReportPort } from '../../../mocks/reports/mock-port';
-import { HomeReportEvidenceSheetView, loadHomeReportEvidences } from './report-evidence-sheet';
+import { mockReportPort } from '../../mocks/reports/mock-port';
+import type { ReportEvidenceList, ReportPort } from './contract';
+import { ReportError } from './contract';
+import type { ReportEvidenceRoute } from './navigation';
+import { loadReportEvidences, ReportEvidenceSheetView } from './report-evidence-sheet';
 
 vi.mock('@tarojs/components', () => ({
   Button: (props: Record<string, unknown>) =>
@@ -24,7 +24,7 @@ const reportId = 'RPT11111111-1111-4111-8111-111111111111';
 const scopeToken = 'RPE11111111-1111-4111-8111-111111111111';
 const route: ReportEvidenceRoute = { reportId, scopeToken, title: '地缘政治证据' };
 
-describe('HomeReportEvidenceSheet', () => {
+describe('ReportEvidenceSheet', () => {
   it('loads only the server-issued scope token', async () => {
     const result: ReportEvidenceList = { reportId, scopeToken, items: [] };
     const getEvidences = vi.fn().mockResolvedValue(result);
@@ -36,7 +36,7 @@ describe('HomeReportEvidenceSheet', () => {
       getEvidences
     } as ReportPort;
 
-    await expect(loadHomeReportEvidences(port, route)).resolves.toBe(result);
+    await expect(loadReportEvidences(port, route)).resolves.toBe(result);
     expect(getEvidences).toHaveBeenCalledWith(reportId, scopeToken);
   });
 
@@ -44,7 +44,7 @@ describe('HomeReportEvidenceSheet', () => {
     const home = await mockReportPort.getHome();
     const token = home.reports[0]?.cards[0]?.evidenceScopeToken;
     if (!token) throw new Error('expected a summary evidence token');
-    const result = await loadHomeReportEvidences(mockReportPort, {
+    const result = await loadReportEvidences(mockReportPort, {
       reportId,
       scopeToken: token,
       title: '地缘政治证据'
@@ -54,7 +54,7 @@ describe('HomeReportEvidenceSheet', () => {
 
   it('renders evidence summaries and keyword rows without technical identifiers', () => {
     const html = renderToStaticMarkup(
-      createElement(HomeReportEvidenceSheetView, {
+      createElement(ReportEvidenceSheetView, {
         title: route.title,
         state: {
           status: 'ready',
@@ -85,9 +85,9 @@ describe('HomeReportEvidenceSheet', () => {
   });
 
   it('renders loading, empty and retryable error states', () => {
-    const render = (state: Parameters<typeof HomeReportEvidenceSheetView>[0]['state']) =>
+    const render = (state: Parameters<typeof ReportEvidenceSheetView>[0]['state']) =>
       renderToStaticMarkup(
-        createElement(HomeReportEvidenceSheetView, {
+        createElement(ReportEvidenceSheetView, {
           title: route.title,
           state,
           onRetry: vi.fn(),

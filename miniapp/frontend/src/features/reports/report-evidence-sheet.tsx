@@ -1,4 +1,5 @@
 import { Image, ScrollView, Text, View } from '@tarojs/components';
+import { useSyncExternalStore } from 'react';
 import reportClockIcon from '../../assets/icons/report-clock.svg';
 import type { ReportEvidenceList, ReportPort } from './contract';
 import type { ReportEvidenceRoute } from './navigation';
@@ -9,6 +10,54 @@ import { useReportResource } from './use-report-resource';
 import './report-evidence-sheet.scss';
 
 const isEvidenceEmpty = (value: ReportEvidenceList) => value.items.length === 0;
+
+type ReportEvidenceSheetHostListener = () => void;
+
+interface ReportEvidenceSheetHostProps {
+  readonly controller: ReportEvidenceSheetHostController;
+  readonly port: ReportPort;
+}
+
+// Page triggers only publish commands here; the Host is the sole React subscriber.
+export class ReportEvidenceSheetHostController {
+  private route: ReportEvidenceRoute | null = null;
+  private readonly listeners = new Set<ReportEvidenceSheetHostListener>();
+
+  readonly open = (route: ReportEvidenceRoute): void => {
+    this.route = route;
+    this.notify();
+  };
+
+  readonly close = (): void => {
+    this.route = null;
+    this.notify();
+  };
+
+  readonly subscribe = (listener: ReportEvidenceSheetHostListener): (() => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+
+  readonly snapshot = (): ReportEvidenceRoute | null => this.route;
+
+  private notify(): void {
+    this.listeners.forEach((listener) => listener());
+  }
+}
+
+export function ReportEvidenceSheetHost({ controller, port }: ReportEvidenceSheetHostProps) {
+  const route = useSyncExternalStore(
+    controller.subscribe,
+    controller.snapshot,
+    controller.snapshot
+  );
+
+  return route ? (
+    <ReportEvidenceSheet route={route} port={port} onClose={controller.close} />
+  ) : null;
+}
 
 export function ReportEvidenceSheet({
   route,
