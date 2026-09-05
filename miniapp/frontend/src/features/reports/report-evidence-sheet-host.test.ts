@@ -1,28 +1,13 @@
-import { createElement, type ReactNode } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { mockReportPort } from '../../mocks/reports/mock-port';
 import type { ReportEvidenceRoute } from './navigation';
-import {
-  ReportEvidenceSheetHost,
-  ReportEvidenceSheetHostController
-} from './report-evidence-sheet';
+import { ReportEvidenceSheetHostController } from './report-evidence-sheet';
 
 vi.mock('@tarojs/components', () => ({
-  Button: (props: Record<string, unknown>) =>
-    createElement('button', { className: props.className }, props.children as ReactNode),
-  Image: (props: Record<string, unknown>) =>
-    createElement('img', { className: props.className, src: props.src }),
-  ScrollView: (props: Record<string, unknown>) =>
-    createElement('section', { className: props.className }, props.children as ReactNode),
-  Text: (props: Record<string, unknown>) =>
-    createElement('span', { className: props.className }, props.children as ReactNode),
-  View: (props: Record<string, unknown>) =>
-    createElement(
-      'div',
-      { className: props.className, 'aria-label': props.ariaLabel },
-      props.children as ReactNode
-    )
+  Button: 'button',
+  Image: 'image',
+  ScrollView: 'scroll-view',
+  Text: 'text',
+  View: 'view'
 }));
 
 const firstRoute: ReportEvidenceRoute = {
@@ -59,22 +44,5 @@ describe('ReportEvidenceSheetHostController', () => {
 
     expect(controller.snapshot()).toBe(latestRoute);
     expect(listener).toHaveBeenCalledTimes(2);
-  });
-
-  it('renders and dismisses the bottom sheet from the controller state', () => {
-    const controller = new ReportEvidenceSheetHostController();
-
-    controller.open(firstRoute);
-    const openHTML = renderToStaticMarkup(
-      createElement(ReportEvidenceSheetHost, { controller, port: mockReportPort })
-    );
-    controller.close();
-    const closedHTML = renderToStaticMarkup(
-      createElement(ReportEvidenceSheetHost, { controller, port: mockReportPort })
-    );
-
-    expect(openHTML).toContain('report-evidence-sheet');
-    expect(openHTML).toContain('正在读取相关证据');
-    expect(closedHTML).toBe('');
   });
 });

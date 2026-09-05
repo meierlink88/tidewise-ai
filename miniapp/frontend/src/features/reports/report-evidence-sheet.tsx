@@ -13,6 +13,11 @@ const isEvidenceEmpty = (value: ReportEvidenceList) => value.items.length === 0;
 
 type ReportEvidenceSheetHostListener = () => void;
 
+interface ReportEvidenceSheetHostProps {
+  readonly controller: ReportEvidenceSheetHostController;
+  readonly port: ReportPort;
+}
+
 // Page triggers only publish commands here; the Host is the sole React subscriber.
 export class ReportEvidenceSheetHostController {
   private route: ReportEvidenceRoute | null = null;
@@ -42,13 +47,7 @@ export class ReportEvidenceSheetHostController {
   }
 }
 
-export function ReportEvidenceSheetHost({
-  controller,
-  port
-}: {
-  controller: ReportEvidenceSheetHostController;
-  port: ReportPort;
-}) {
+export function ReportEvidenceSheetHost({ controller, port }: ReportEvidenceSheetHostProps) {
   const route = useSyncExternalStore(
     controller.subscribe,
     controller.snapshot,
