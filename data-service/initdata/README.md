@@ -133,28 +133,35 @@ required operational backup and stop Region/Country-Region writes before
 running it. UAT publication remains a manual operation separate from the UAT
 deployment workflow.
 
-## StorylineDomain catalog
+## Geopolitical domain and storyline catalog
 
-`storyline-domains-v1.json` is the reviewed 35-row StorylineDomain catalog:
-7 GEOPOLITICAL, 12 MACRO, 8 INDUSTRY, and 8 CORPORATE definitions. The
-package contains natural `code` keys and descriptive/category facts but no
-primary IDs, `scope_definition`, `applicable_sub_types`, or `order_*` fields.
-Publication derives deterministic `SLD` identities from `code`, copies
-`description` to `scope_definition`, and activates every packaged definition.
+`geopolitical-storylines-v1.json` is the reviewed complete package for the
+current geopolitical research foundation. It contains 14 GeopoliticDomain
+rows, exactly eight Chinese-name/description tactics per domain, and 44
+GeopoliticRivalry storyline rows. Every storyline has one free-text category,
+one primary domain code, one core proposition, core-actor text, and one main
+transmission statement. The package does not contain primary IDs or Event,
+Actor, graph, asset, API, or UI facts.
 
-Publish the package with the Data image's offline command:
+Publish the package with the same Data image that supplied migration 82:
 
 ```text
-/usr/local/bin/storyline-domain-catalog-publish -file /app/initdata/storyline-domains-v1.json
+/usr/local/bin/geopolitical-catalog-publish -file /app/initdata/geopolitical-storylines-v1.json
 ```
 
-For UAT, first take the approved PostgreSQL recovery point, stop direct
-StorylineDomain writers, confirm the table is empty, and apply migration 68.
-Then run the command from the released Data image with `APP_ENV=uat` and the
-approved database secret. Verify 35 active rows, unique codes, category counts
-of 7/12/8/8, and `scope_definition = description`. Publication is atomic,
-idempotent, reconciles packaged facts, and fails closed if an existing code has
-a different formal identity. It never runs automatically during deployment.
+Publication derives deterministic `GPD` identities from domain codes and
+deterministic `GPR` identities from the reviewed unique Chinese storyline
+names. It validates the exact 14/8/44 package shape, runs atomically and
+idempotently, and fails closed if either table contains an identity outside the
+package. It never runs automatically during deployment.
+
+Before UAT publication, stop legacy Storyline and GeopoliticRivalry writers,
+take the approved PostgreSQL recovery point, apply migration 82, and use the
+released image's database-operation configuration. Verify exactly 14 domains,
+112 tactics, 44 storylines, zero orphan domain references, and the presence of
+the reviewed Russia–Ukraine, Taiwan Strait, and US–Iran storylines. Rollback
+requires the pre-migration database snapshot and the previous application
+release; do not run the forward-only down migration.
 
 ## Organization facts
 

@@ -3,6 +3,7 @@ status: accepted
 date: 2026-08-19
 issue: 302
 amended_by: 0038-initialize-storyline-domain-catalog.md
+superseded_by: 0057-rebuild-geopolitical-storyline-facts.md
 extends: 0019-database-independent-domain-object-identities.md
 ---
 

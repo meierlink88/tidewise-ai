@@ -3,6 +3,7 @@ status: accepted
 date: 2026-08-20
 issue: 304
 amended_by: 0037-independent-company-persistence
+superseded_by: 0057-rebuild-geopolitical-storyline-facts.md
 extends: 0019-database-independent-domain-object-identities.md, 0028-rebuild-event-domain-around-atomic-evidence.md, 0034-independent-narrative-blueprint-objects.md, 0035-independent-storyline-domain-catalogs.md
 ---
 
