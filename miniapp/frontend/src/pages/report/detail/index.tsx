@@ -32,7 +32,10 @@ import {
 } from '../../../features/reports/navigation';
 import { getReportPort } from '../../../features/reports/port';
 import { reportErrorCopy } from '../../../features/reports/presentation';
-import { ReportEvidenceSheet } from '../../../features/reports/report-evidence-sheet';
+import {
+  ReportEvidenceSheetHost,
+  ReportEvidenceSheetHostController
+} from '../../../features/reports/report-evidence-sheet';
 import {
   ReportEvidenceButton,
   ReportImpactSignals,
@@ -50,7 +53,7 @@ export default function ReportDetailPage() {
   const instance = useMemo(() => Taro.getCurrentInstance(), []);
   const route = useMemo(() => safeDetailRoute(instance.router?.params), [instance]);
   const port = useMemo(() => getReportPort(), []);
-  const [evidenceRoute, setEvidenceRoute] = useState<ReportEvidenceRoute | null>(null);
+  const evidenceSheet = useMemo(() => new ReportEvidenceSheetHostController(), []);
   const resource = useReportResource(
     `report-detail:${route?.reportId ?? 'invalid'}:${route?.targetType ?? 'invalid'}:${route?.targetKey ?? 'invalid'}`,
     () => loadReportDetail(port, route)
@@ -79,15 +82,9 @@ export default function ReportDetailPage() {
         state={resource.state}
         onRetry={() => void resource.retry()}
         onOpenDetail={(targetRoute) => navigateToReportDetail(Taro, targetRoute)}
-        onOpenEvidence={setEvidenceRoute}
+        onOpenEvidence={evidenceSheet.open}
       />
-      {evidenceRoute ? (
-        <ReportEvidenceSheet
-          route={evidenceRoute}
-          port={port}
-          onClose={() => setEvidenceRoute(null)}
-        />
-      ) : null}
+      <ReportEvidenceSheetHost controller={evidenceSheet} port={port} />
     </>
   );
 }

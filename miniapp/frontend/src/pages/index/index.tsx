@@ -29,11 +29,14 @@ import {
 import { getReportPort } from '../../features/reports/port';
 import { formatShanghaiTimestamp, reportErrorCopy } from '../../features/reports/presentation';
 import { ReportStatePanel } from '../../features/reports/report-components';
+import {
+  ReportEvidenceSheetHost,
+  ReportEvidenceSheetHostController
+} from '../../features/reports/report-evidence-sheet';
 import type { ReportResourceState } from '../../features/reports/session';
 import { useReportResource } from '../../features/reports/use-report-resource';
 import { getHomeChromeMetrics, type HomeChromeMetrics } from '../../platform/system-ui';
 import { HomeHeader } from './components/home-header';
-import { HomeReportEvidenceSheet } from './components/report-evidence-sheet';
 import './index.scss';
 
 interface HomeRefreshAPI {
@@ -45,12 +48,12 @@ const isHomeEmpty = (home: ReportHome) => home.reports.length === 0;
 
 export default function IndexPage() {
   const [query, setQuery] = useState('');
-  const [evidenceRoute, setEvidenceRoute] = useState<ReportEvidenceRoute | null>(null);
   const [chainPages, setChainPages] = useState<Record<string, ChainPageState>>({});
   const loadGeneration = useRef(0);
   const loadingReports = useRef(new Map<string, number>());
   const chrome = useMemo(() => getHomeChromeMetrics(Taro), []);
   const port = useMemo(() => getReportPort(), []);
+  const evidenceSheet = useMemo(() => new ReportEvidenceSheetHostController(), []);
   const resource = useReportResource('report-home', () => port.getHome(), isHomeEmpty);
 
   const refreshHome = async () => {
@@ -126,17 +129,11 @@ export default function IndexPage() {
         onRetry={() => void resource.retry()}
         onRefresh={() => void refreshHome()}
         onOpenDetail={(route) => navigateToReportDetail(Taro, route)}
-        onOpenEvidence={setEvidenceRoute}
+        onOpenEvidence={evidenceSheet.open}
         chainPages={chainPages}
         onLoadMoreChains={(reportId, cursor) => void loadMoreChains(reportId, cursor)}
       />
-      {evidenceRoute ? (
-        <HomeReportEvidenceSheet
-          route={evidenceRoute}
-          port={port}
-          onClose={() => setEvidenceRoute(null)}
-        />
-      ) : null}
+      <ReportEvidenceSheetHost controller={evidenceSheet} port={port} />
     </>
   );
 }
