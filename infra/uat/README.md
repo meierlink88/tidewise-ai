@@ -67,6 +67,20 @@ ACTIONS_RUNNER_ARCHIVE_SHA256=<official-sha256> \
 ./infra/uat/bootstrap-ecs.sh
 ```
 
+Data Service 对外仍只经过现有 HTTPS Nginx。首次启用或修复 `/api/data/v1/*` 路由时，把
+`infra/uat/nginx-data-api-location.conf` include 到既有 `tideai.tripwise.cn` HTTPS server
+block，并以 root 运行：
+
+```bash
+sudo bash infra/uat/configure-data-api-proxy.sh
+```
+
+该脚本只安装受版本管理的 location、执行 `nginx -t` 并 reload；它不修改安全组，也不创建
+容器或凭据。Data 容器的 `9011` 仅绑定 ECS `127.0.0.1`，公网不能直接访问该端口。
+如需回退公网入口，先回退应用 Compose release，再运行
+`sudo bash infra/uat/configure-data-api-proxy.sh remove`；脚本只删除自己的精确 include，
+校验失败时恢复原 Nginx server 配置。
+
 如需迁移现有 runner，优先传入准确的 `OLD_RUNNER_ROOT` 让旧 runner 的 `svc.sh` 卸载原 systemd unit；无法取得旧目录时才使用 `OLD_RUNNER_SERVICE` 停用准确 unit。脚本安装并启用 Docker/Compose，创建 `tidewise-deploy`，配置固定目录、runner 标签与开机自启；安全组、RDS 白名单和 root 密码轮换仍由用户在华为云控制台完成。
 
 Workflow 在成功后持久保存：
@@ -148,7 +162,7 @@ RDS 恢复点回滚，再按旧 release 恢复应用。
 
 | Component                    |          Port | Public access                                             |
 | ---------------------------- | ------------: | --------------------------------------------------------- |
-| Data Domain Service          |        `9011` | 不映射到 ECS host                                         |
+| Data Domain Service          |        `9011` | 仅 ECS loopback，公网经 `/api/data/v1/*` HTTPS 反向代理    |
 | Miniapp Backend Service      |        `9012` | 开发联调按需开放                                          |
 | Admin Portal Backend Service |        `9013` | 仅 Compose 内网，不映射到 ECS host                        |
 | Admin Portal Frontend        |        `9014` | Admin 浏览器唯一入口，开发联调按需开放                    |

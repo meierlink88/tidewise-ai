@@ -534,6 +534,7 @@ jobs:
       SWR_REGISTRY: ${{ vars.SWR_REGISTRY }}
       UAT_RUNNER_NAME: ${{ vars.UAT_RUNNER_NAME }}
       UAT_PUBLIC_BASE_URL: ${{ vars.UAT_PUBLIC_BASE_URL }}
+      DATA_SERVICE_PUBLIC_BASE_URL: ${{ vars.DATA_SERVICE_PUBLIC_BASE_URL }}
       TIDEWISE_DB_HOST: ${{ vars.UAT_DB_HOST }}
       RAW_EVIDENCE_PUBLIC_BASE_URL: ${{ vars.RAW_EVIDENCE_PUBLIC_BASE_URL }}
       COMMIT_SHA: ${{ needs.resolve-release.outputs.commit_sha }}

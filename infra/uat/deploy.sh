@@ -3,6 +3,7 @@
 set -euo pipefail
 
 deployment_root="${DEPLOY_ROOT:?DEPLOY_ROOT is required}"
+data_service_public_base_url="${DATA_SERVICE_PUBLIC_BASE_URL:?DATA_SERVICE_PUBLIC_BASE_URL is required}"
 runtime_env="${RUNTIME_ENV:?RUNTIME_ENV is required}"
 candidate_images="${CANDIDATE_IMAGES:?CANDIDATE_IMAGES is required}"
 release_sha="${COMMIT_SHA:?COMMIT_SHA is required}"
@@ -523,6 +524,9 @@ verify_services() {
   "${compose_command[@]}" exec -T admin wget -qO- http://127.0.0.1:9014/healthz >/dev/null || return 1
   echo "PASS container-health"
 
+  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 http://127.0.0.1:9011/healthz >/dev/null || return 1
+  echo "PASS host-data-loopback-health"
+
   curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${host_base_url}:9012/healthz" >/dev/null || return 1
   curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${host_base_url}:9014/healthz" >/dev/null || return 1
   echo "PASS host-entry-health"
@@ -530,6 +534,17 @@ verify_services() {
   curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 "${host_base_url}:9012${miniapp_read_path}" >/dev/null || return 1
   curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 --header "Authorization: Bearer ${verification_admin_token}" "${host_base_url}:9014/api/admin/v1/events?page=1&page_size=1" >/dev/null || return 1
   echo "PASS bff-to-service-read-paths"
+}
+
+verify_public_data_api() {
+  local verification_runtime="$1"
+  local verification_data_token
+  verification_data_token="$(runtime_value "$verification_runtime" DATA_SERVICE_TOKEN)"
+
+  curl --fail --silent --show-error --connect-timeout 5 --max-time 15 --retry 2 \
+    --header "Authorization: Bearer ${verification_data_token}" \
+    "${data_service_public_base_url%/}/api/data/v1/source-snapshot" >/dev/null || return 1
+  echo "PASS public-data-api"
 }
 
 rollback_current_release() {
@@ -772,6 +787,13 @@ if [ "$committed_cutover_recovery" = true ]; then
     echo "FAIL ${cutover_gate_name}-cutover-committed-recovery: committed candidate is not healthy; cutover marker retained" >&2
     exit 1
   fi
+  if ! verify_public_data_api "$runtime_env"; then
+    if ! "${candidate_compose[@]}" stop; then
+      echo "FAIL ${cutover_gate_name}-cutover-committed-recovery: candidate application services could not be stopped" >&2
+    fi
+    echo "FAIL ${cutover_gate_name}-cutover-committed-recovery: public Data API is unavailable; cutover marker retained" >&2
+    exit 1
+  fi
   rm -f "$data2_cutover_marker"
   sync -f "$state_dir"
   echo "PASS ${cutover_gate_name}-cutover-committed-recovery"
@@ -871,6 +893,12 @@ if ! "${candidate_compose[@]}" up -d --remove-orphans --wait --wait-timeout 120;
   exit 1
 fi
 if ! verify_services "$runtime_env" "${candidate_compose[@]}"; then
+  if [ "$bounded_data_cutover" != true ] && [ "$candidate_services_started" != true ]; then
+    rollback_current_release
+  fi
+  exit 1
+fi
+if ! verify_public_data_api "$runtime_env"; then
   if [ "$bounded_data_cutover" != true ] && [ "$candidate_services_started" != true ]; then
     rollback_current_release
   fi
