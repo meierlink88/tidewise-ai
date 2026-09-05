@@ -1,6 +1,8 @@
-import { Image, ScrollView, Text, View } from '@tarojs/components';
+import { Button, Image, ScrollView, Text, View } from '@tarojs/components';
+import type { ITouchEvent } from '@tarojs/components';
 import { useSyncExternalStore } from 'react';
 import reportClockIcon from '../../assets/icons/report-clock.svg';
+import { ReportOverlayHost } from '../../platform/report-overlay-host';
 import type { ReportEvidenceList, ReportPort } from './contract';
 import type { ReportEvidenceRoute } from './navigation';
 import { evidenceStableKey, formatShanghaiTimestamp, reportErrorCopy } from './presentation';
@@ -54,9 +56,11 @@ export function ReportEvidenceSheetHost({ controller, port }: ReportEvidenceShee
     controller.snapshot
   );
 
-  return route ? (
-    <ReportEvidenceSheet route={route} port={port} onClose={controller.close} />
-  ) : null;
+  return (
+    <ReportOverlayHost>
+      {route ? <ReportEvidenceSheet route={route} port={port} onClose={controller.close} /> : null}
+    </ReportOverlayHost>
+  );
 }
 
 export function ReportEvidenceSheet({
@@ -102,6 +106,11 @@ export function ReportEvidenceSheetView({
   onRetry: () => void;
   onClose: () => void;
 }) {
+  const dismiss = (event: ITouchEvent): void => {
+    event.stopPropagation();
+    onClose();
+  };
+
   return (
     <View className='report-evidence-sheet' catchMove>
       <View
@@ -109,7 +118,7 @@ export function ReportEvidenceSheetView({
         role='button'
         ariaLabel='关闭相关证据'
         catchMove
-        onClick={onClose}
+        onClick={dismiss}
       />
       <View
         className='report-evidence-sheet__panel'
@@ -121,6 +130,15 @@ export function ReportEvidenceSheetView({
         <View className='report-evidence-sheet__handle-zone'>
           <View className='report-evidence-sheet__handle' />
         </View>
+        <Button
+          className='tidewise-button report-evidence-sheet__close'
+          hoverClass='report-evidence-sheet__close--pressed'
+          ariaLabel='关闭相关证据'
+          onClick={dismiss}
+        >
+          <View className='report-evidence-sheet__close-icon' />
+          <Text className='report-evidence-sheet__close-label'>关闭相关证据</Text>
+        </Button>
         <ScrollView className='report-evidence-sheet__scroll' scrollY>
           <View className='report-evidence-sheet__content'>
             <ReportEvidenceSheetContent state={state} onRetry={onRetry} />

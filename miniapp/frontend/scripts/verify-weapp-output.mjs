@@ -41,6 +41,20 @@ if (platform === 'weapp') {
   if (typeof projectConfig.appid !== 'string' || projectConfig.appid.length === 0) {
     throw new Error('微信项目必须声明 appid');
   }
+
+  const baseTemplate = await readFile(resolve(outputRoot, 'base.wxml'), 'utf8');
+  if (!baseTemplate.includes('<root-portal')) {
+    throw new Error('微信 Evidence 抽屉必须通过 root-portal 与页面根树隔离');
+  }
+
+  const commonRuntime = await readFile(resolve(outputRoot, 'common.js'), 'utf8');
+  const closeLabel = '\\u5173\\u95ed\\u76f8\\u5173\\u8bc1\\u636e';
+  if (
+    !commonRuntime.includes('report-evidence-sheet__close-label') ||
+    (!commonRuntime.includes('关闭相关证据') && !commonRuntime.includes(closeLabel))
+  ) {
+    throw new Error('微信 Evidence 关闭图标必须包含可读的中文关闭名称');
+  }
 } else if ('lazyCodeLoading' in appConfig) {
   throw new Error('抖音构建不得包含微信专用的 lazyCodeLoading 配置');
 }

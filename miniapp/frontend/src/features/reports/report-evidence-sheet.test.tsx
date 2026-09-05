@@ -9,9 +9,15 @@ import { loadReportEvidences, ReportEvidenceSheetView } from './report-evidence-
 
 vi.mock('@tarojs/components', () => ({
   Button: (props: Record<string, unknown>) =>
-    createElement('button', { className: props.className }, props.children as ReactNode),
+    createElement(
+      'button',
+      { className: props.className, 'aria-label': props.ariaLabel },
+      props.children as ReactNode
+    ),
   Image: (props: Record<string, unknown>) =>
     createElement('img', { className: props.className, src: props.src }),
+  RootPortal: (props: Record<string, unknown>) =>
+    createElement('aside', {}, props.children as ReactNode),
   ScrollView: (props: Record<string, unknown>) =>
     createElement('section', { className: props.className }, props.children as ReactNode),
   Text: (props: Record<string, unknown>) =>
@@ -80,6 +86,9 @@ describe('ReportEvidenceSheet', () => {
     expect(html).toContain('第一条证据摘要');
     expect(html).toContain('运输');
     expect(html).toContain('时间待确认');
+    expect(html).toContain('report-evidence-sheet__close');
+    expect(html).toContain('report-evidence-sheet__close-label');
+    expect(html).toContain('关闭相关证据');
     expect(html).not.toContain(scopeToken);
     expect(html).not.toContain(reportId);
   });
