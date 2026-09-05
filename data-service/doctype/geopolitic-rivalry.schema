@@ -1,39 +1,29 @@
 namespace Tidewise
 
-GeopoliticRivalry(地缘政治对抗蓝图): EntityType
-    desc: 独立静态地缘政治对抗叙事蓝图
+GeopoliticRivalry(地缘政治故事线): EntityType
+    desc: 影响中国经济与投研的单一核心地缘政治命题
     properties:
-        name(蓝图中文名称): Text
-            desc: 地缘政治对抗蓝图的中文正式名称
+        name(故事线中文名称): Text
+            desc: 故事线的中文正式名称
             constraint: NotNull
-        nameEn(蓝图英文名称): Text
-            desc: 地缘政治对抗蓝图的英文正式名称
+        category(故事线分类): Text
+            desc: 非枚举的故事线分类文案
             constraint: NotNull
-        rivalryType(对抗类型): Text
-            # GEOPOLITICAL：地缘政治竞争或对抗。
-            # MILITARY_WAR：军事战争。
-            desc: 地缘政治对抗蓝图的受控类型
-            constraint: NotNull, Enum="GEOPOLITICAL,MILITARY_WAR"
-        description(蓝图说明): Text
-            desc: 地缘政治对抗蓝图的非空自然语言说明
+        geopoliticDomainId(领域标识): Text
+            desc: 故事线唯一主地缘政治领域的 GeopoliticDomain 标识
+            constraint: NotNull
+        coreProposition(核心命题): Text
+            desc: 该故事线唯一需要跟踪和判断的核心内容
             constraint: NotNull
         coreActors(核心参与方): Text
-            desc: 不解析为正式对象的非空核心参与方文本
+            desc: 不解析为正式对象的核心参与方文本
             constraint: NotNull
-        peripheralActors(外围参与方): Text
-            desc: 不解析为正式对象的可空外围参与方文本
-        influencedRegions(影响区域): Text
-            desc: 可空人工影响区域文本集合，不证明 Region 存在
-            constraint: MultiValue
-        status(生命周期状态): Text
-            # ACTIVE：蓝图持续活跃。
-            # DORMANT：蓝图暂时休眠。
-            # RESOLVED：对抗已经解决。
-            desc: 地缘政治对抗蓝图的受控生命周期状态
-            constraint: NotNull, Enum="ACTIVE,DORMANT,RESOLVED"
+        mainTransmission(主要传导): Text
+            desc: 地缘政治变化对中国经济和可投研对象的主要传导链
+            constraint: NotNull
         createdAt(创建时间): Text
-            desc: PostgreSQL 生成的蓝图创建时间
+            desc: PostgreSQL 生成的故事线创建时间
             constraint: NotNull
         updatedAt(更新时间): Text
-            desc: PostgreSQL 生成的蓝图最近变更时间
+            desc: PostgreSQL 生成的故事线最近变更时间
             constraint: NotNull

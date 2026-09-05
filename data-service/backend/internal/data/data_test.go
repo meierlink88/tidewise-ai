@@ -99,46 +99,71 @@ func TestPublishedObjectSchemasAndPersistenceStayAligned(t *testing.T) {
 			},
 		},
 		{
+			name:       "GeopoliticDomain",
+			schemaFile: "geopolitic-domain.schema",
+			table:      "geopolitic_domains",
+			schemaMembers: []string{
+				"GeopoliticDomain(地缘政治领域): EntityType",
+				"code(领域代码): Text",
+				"name(领域中文名称): Text",
+				"description(领域描述): Text",
+				"tactics(手段数组): Text",
+				"createdAt(创建时间): Text",
+				"updatedAt(更新时间): Text",
+			},
+			columns: []schemaColumn{
+				{name: "id", nullable: "NO", dataType: "varchar", maxLength: 39},
+				{name: "code", nullable: "NO", dataType: "varchar", maxLength: 50},
+				{name: "name", nullable: "NO", dataType: "varchar", maxLength: 50},
+				{name: "description", nullable: "NO", dataType: "text"},
+				{name: "tactics", nullable: "NO", dataType: "jsonb"},
+				{name: "created_at", nullable: "NO", dataType: "timestamptz", defaultContains: "now()"},
+				{name: "updated_at", nullable: "NO", dataType: "timestamptz", defaultContains: "now()"},
+			},
+			constraints: []schemaConstraint{
+				{name: "chk_geopolitic_domains_identity", requiredTokens: []string{"^GPD[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"}},
+				{name: "chk_geopolitic_domains_code", requiredTokens: []string{"^[A-Z][A-Z0-9_]{0,49}$"}},
+				{name: "chk_geopolitic_domains_required_text", requiredTokens: []string{"btrim(name::text) <> ''::text", "btrim(description) <> ''::text"}},
+				{name: "chk_geopolitic_domains_tactics", requiredTokens: []string{"validate_geopolitic_domain_tactics(tactics)"}},
+				{name: "chk_geopolitic_domains_timestamp_order", requiredTokens: []string{"updated_at >= created_at"}},
+				{name: "geopolitic_domains_pkey", requiredTokens: []string{"PRIMARY KEY (id)"}},
+				{name: "geopolitic_domains_code_key", requiredTokens: []string{"UNIQUE (code)"}},
+				{name: "geopolitic_domains_name_key", requiredTokens: []string{"UNIQUE (name)"}},
+			},
+		},
+		{
 			name:       "GeopoliticRivalry",
 			schemaFile: "geopolitic-rivalry.schema",
 			table:      "geopolitic_rivalries",
 			schemaMembers: []string{
-				"GeopoliticRivalry(地缘政治对抗蓝图): EntityType",
-				"name(蓝图中文名称): Text",
-				"nameEn(蓝图英文名称): Text",
-				"rivalryType(对抗类型): Text",
-				"description(蓝图说明): Text",
+				"GeopoliticRivalry(地缘政治故事线): EntityType",
+				"name(故事线中文名称): Text",
+				"category(故事线分类): Text",
+				"geopoliticDomainId(领域标识): Text",
+				"coreProposition(核心命题): Text",
 				"coreActors(核心参与方): Text",
-				"peripheralActors(外围参与方): Text",
-				"influencedRegions(影响区域): Text",
-				"status(生命周期状态): Text",
+				"mainTransmission(主要传导): Text",
 				"createdAt(创建时间): Text",
 				"updatedAt(更新时间): Text",
-				`Enum="GEOPOLITICAL,MILITARY_WAR"`,
-				`Enum="ACTIVE,DORMANT,RESOLVED"`,
-				"constraint: MultiValue",
 			},
 			columns: []schemaColumn{
 				{name: "id", nullable: "NO", dataType: "varchar", maxLength: 39},
 				{name: "name", nullable: "NO", dataType: "varchar", maxLength: 100},
-				{name: "name_en", nullable: "NO", dataType: "varchar", maxLength: 100},
-				{name: "rivalry_type", nullable: "NO", dataType: "geopolitic_rivalry_type"},
-				{name: "description", nullable: "NO", dataType: "text"},
+				{name: "category", nullable: "NO", dataType: "varchar", maxLength: 100},
+				{name: "geopolitic_domain_id", nullable: "NO", dataType: "varchar", maxLength: 39},
+				{name: "core_proposition", nullable: "NO", dataType: "text"},
 				{name: "core_actors", nullable: "NO", dataType: "text"},
-				{name: "peripheral_actors", nullable: "YES", dataType: "text"},
-				{name: "influenced_regions", nullable: "YES", dataType: "_text"},
-				{name: "status", nullable: "NO", dataType: "geopolitic_rivalry_status", defaultContains: "ACTIVE"},
+				{name: "main_transmission", nullable: "NO", dataType: "text"},
 				{name: "created_at", nullable: "NO", dataType: "timestamptz", defaultContains: "now()"},
 				{name: "updated_at", nullable: "NO", dataType: "timestamptz", defaultContains: "now()"},
 			},
-			enums: []schemaEnum{
-				{name: "geopolitic_rivalry_type", values: []string{"GEOPOLITICAL", "MILITARY_WAR"}},
-				{name: "geopolitic_rivalry_status", values: []string{"ACTIVE", "DORMANT", "RESOLVED"}},
-			},
 			constraints: []schemaConstraint{
 				{name: "chk_geopolitic_rivalries_identity", requiredTokens: []string{"^GPR[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"}},
-				{name: "chk_geopolitic_rivalries_required_text", requiredTokens: []string{"btrim(name::text) <> ''::text", "btrim(name_en::text) <> ''::text", "btrim(description) <> ''::text", "btrim(core_actors) <> ''::text"}},
+				{name: "chk_geopolitic_rivalries_required_text", requiredTokens: []string{"btrim(name::text) <> ''::text", "btrim(category::text) <> ''::text", "btrim(core_proposition) <> ''::text", "btrim(core_actors) <> ''::text", "btrim(main_transmission) <> ''::text"}},
+				{name: "chk_geopolitic_rivalries_timestamp_order", requiredTokens: []string{"updated_at >= created_at"}},
 				{name: "geopolitic_rivalries_pkey", requiredTokens: []string{"PRIMARY KEY (id)"}},
+				{name: "geopolitic_rivalries_name_key", requiredTokens: []string{"UNIQUE (name)"}},
+				{name: "geopolitic_rivalries_geopolitic_domain_id_fkey", requiredTokens: []string{"FOREIGN KEY (geopolitic_domain_id)", "REFERENCES geopolitic_domains(id)", "ON DELETE RESTRICT"}},
 			},
 		},
 		{
@@ -224,6 +249,53 @@ SELECT EXISTS (
 		}
 		if exists != want {
 			t.Fatalf("%s.keywords exists = %t, want %t", table, exists, want)
+		}
+	}
+}
+
+func TestCurrentGeopoliticalSchemaRetiresLegacyStorylineObjects(t *testing.T) {
+	migrationDir, err := filepath.Abs(filepath.Join("..", "..", "migrations"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := postgresfixture.OpenIsolated(t, "tw_geopolitical_retirement", migrationDir, 0)
+
+	for _, table := range []string{
+		"storyline_domain_tactics",
+		"storyline_domains",
+		"storyline_event_links",
+		"storylines",
+	} {
+		var exists bool
+		if err := db.QueryRowContext(context.Background(), `
+SELECT to_regclass(current_schema() || '.' || $1) IS NOT NULL`, table).Scan(&exists); err != nil {
+			t.Fatal(err)
+		}
+		if exists {
+			t.Errorf("retired table %q still exists", table)
+		}
+	}
+
+	for _, typeName := range []string{
+		"storyline_data_alignment_status",
+		"storyline_status",
+		"storyline_type",
+		"storyline_domain_category",
+		"geopolitic_rivalry_status",
+		"geopolitic_rivalry_type",
+	} {
+		var exists bool
+		if err := db.QueryRowContext(context.Background(), `
+SELECT EXISTS (
+    SELECT 1
+    FROM pg_type
+    JOIN pg_namespace ON pg_namespace.oid = pg_type.typnamespace
+    WHERE pg_namespace.nspname = current_schema() AND pg_type.typname = $1
+)`, typeName).Scan(&exists); err != nil {
+			t.Fatal(err)
+		}
+		if exists {
+			t.Errorf("retired type %q still exists", typeName)
 		}
 	}
 }

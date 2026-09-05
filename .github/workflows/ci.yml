@@ -184,6 +184,8 @@ jobs:
             ./data-service/backend/internal/data/entity/subdivision \
             ./data-service/backend/internal/data/entity/ministry \
             ./data-service/backend/internal/data/entity/institution \
+            ./data-service/backend/internal/data/entity/geopoliticdomain \
+            ./data-service/backend/internal/data/entity/geopoliticrivalry \
             ./data-service/backend/internal/data/event \
             ./data-service/backend/internal/data/evidence \
             ./data-service/backend/internal/data/report \

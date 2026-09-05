@@ -10,7 +10,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
   Index 等正式事实。
 - Raw Evidence 元数据与归档文档引用、原子 Evidence、Evidence 阅读辅助 Keywords 及其确定性正式身份。
 - 正式 Event、Event 与 Atomic Evidence 的证据关联，以及 Event-owned Actor/Asset 关系快照。
-- 独立 Storyline 事实、三类蓝图锚点，以及 Storyline 与 Event 的当前关联事实。
+- 地缘政治领域目录、领域内手段数组，以及影响中国经济的地缘政治故事线事实。
 - 不可变 Report，以及 Report 到 Atomic Evidence 的直接关联。
 - PostgreSQL schema、migration 和 repository。
 - 采集/清洗执行方使用的 Raw Evidence 与 Evidence Publication API、自然身份收敛、
@@ -110,21 +110,6 @@ Event-owned 的预留关系快照。`EAC` 记录 Actor 的 opaque ID、可选类
 强度与置信度；`EAS` 记录 Asset 的 opaque ID、可选类型/名称、影响方向与幅度。它们只外键到
 Event，不证明 Actor/Asset 存在，也不定义其归属或生命周期。
 _Avoid_: Actor/Asset entity、target 外键、lookup API、将快照当作主数据
-
-**Storyline**:
-持续演进的叙事主记录，以 `STL + canonical lowercase UUID` 为稳定身份，保存摘要、当前阶段、
-生命周期、置信度与最新一次数据对账快照。三类蓝图 Storyline 严格决定唯一锚点：
-`GEOPOLITICAL` 引用 GeopoliticRivalry，`MACRO` 引用 MacroEconomic，`INDUSTRY` 引用
-IndustryChain；`CORPORATE` 当前不拥有蓝图锚点，也不引用 Company。Storyline 不属于
-StorylineDomain，也不引用 StorylineDomainTactic；对账历史不由 Storyline 主记录保存。
-_Avoid_: StorylineDomain 外键、Concept/Company 锚点、蓝图类型多个或缺失锚点、对账历史表
-
-**Storyline Event Link**:
-Storyline 与 Event 的唯一当前多对多关系，以 `SLE + canonical lowercase UUID` 为稳定身份。
-同一 Storyline/Event 端点对只能出现一次，端点均使用 restrictive reference。Storyline 的首个
-和最新 Event 时间不是独立事实，只能从已关联 Event 的非空 `occurred_at` 计算；不得用
-`announced_at` 补值。
-_Avoid_: `first_event_at`/`last_event_at` 副本、用 announced time 代替 occurred time、重复端点
 
 **Organization**:
 以 `ORG + canonical lowercase UUID` 为稳定身份的独立多边组织事实，覆盖联盟、协会、国际机制、贸易集团和
@@ -532,13 +517,17 @@ LEI、受控系统重要性、可选说明和数据库生成时间；系统重�
 Subdivision 或 Region 建立关系。
 _Avoid_: FinancialInstitution、Institution Profile、Institution shadow Entity、regulatory_authority_id、region_id、Ministry 关系、调用方 ID
 
-**GeopoliticRivalry（地缘政治对抗蓝图）**:
-以 `GPR + canonical lowercase UUID` 为稳定身份的独立静态叙事蓝图，保存中英文名称、
-受控对抗类型、自然语言描述、核心参与方文本、可空外围参与方文本、可空影响区域文本集合、
-受控生命周期和数据库生成时间。参与方与影响区域只是人工整理内容，不证明正式 Actor 或
-Region 存在，也不建立任何外键。GeopoliticRivalry 不拥有 Storyline；未来 Storyline 如需
-使用该蓝图，由 Storyline 侧另行建立关系。
-_Avoid_: Storyline 外键、Country/Region/Institution/Ministry 关系、Actor 解析、Tags、调用方 ID、名称去重
+**GeopoliticDomain（地缘政治领域）**:
+以 `GPD + canonical lowercase UUID` 为稳定身份，以唯一大写 ASCII `code` 作为可移植
+机器自然键，保存中文名称、语义描述与 tactics JSON 数组。每个 tactic 仅包含非空中文
+`name` 和 `description`，同领域手段名不得重复。当前完整目录由 Data-owned 版本化包发布。
+_Avoid_: 独立 Tactic 表、手段英文字段、调用方主键、从名称推断其他关系
+
+**GeopoliticRivalry（地缘政治故事线）**:
+以 `GPR + canonical lowercase UUID` 为稳定身份，保存唯一中文名称、非枚举故事线分类、
+核心命题、核心参与方和主要传导。每条故事线必须且只能通过 restrictive foreign key
+引用一个 GeopoliticDomain；一条故事线只表达一个核心内容。参与方是文本，不证明 Actor 关系。
+_Avoid_: 通用 Storyline 包装层、Event 关联表、多领域、范围字段、枚举分类、Actor 解析
 
 **MacroEconomic（宏观经济叙事蓝图）**:
 以 `MEC + canonical lowercase UUID` 为稳定身份的独立静态叙事蓝图，保存中英文名称、
@@ -546,23 +535,6 @@ _Avoid_: Storyline 外键、Country/Region/Institution/Ministry 关系、Actor �
 Country、Region、Institution 或其他外部归属，也不拥有 Storyline；未来 Storyline 如需使用
 该蓝图，由 Storyline 侧另行建立关系。
 _Avoid_: Economy Entity、Storyline 外键、Country/Region/Institution 关系、业务 code、调用方 ID、名称去重
-
-**StorylineDomain（叙事线领域）**:
-以 `SLD + canonical lowercase UUID` 为稳定身份的独立静态叙事领域目录项，以全局唯一、不可变且
-只含大写 ASCII 字母、数字和下划线的 `code` 作为机器自然键，并保存中英文名称、自然语言描述、
-内容边界、`GEOPOLITICAL | MACRO | INDUSTRY | CORPORATE` 受控分类、启用状态和数据库生成时间。
-名称不是自然键，允许重复。当前 35 条受控目录由 Data-owned 版本化初始化包通过独立发布命令
-按 code 确定性生成正式身份；初始化包不携带正式 ID、内容边界、subtype 或展示顺序，发布时
-由描述生成内容边界并默认启用。StorylineDomain 当前不拥有 Storyline，也不与
-StorylineDomainTactic、GeopoliticRivalry、MacroEconomic 或其他对象建立关系。
-_Avoid_: Storyline 外键、Tactic 外键、名称去重、调用方 ID、subtype、展示顺序、从分类推断蓝图关系
-
-**StorylineDomainTactic（叙事线领域手段）**:
-以 `SDT + canonical lowercase UUID` 为稳定身份的独立静态手段目录项，以全局唯一、不可变且
-只含大写 ASCII 字母、数字和下划线的 `key` 作为机器自然键，并保存中英文名称、自然语言描述
-和数据库生成时间。虽然名称表达叙事领域手段，本期不保存 `domain_id`，也不证明或推断其
-属于任何 StorylineDomain；未来关系必须另行定义方向、基数与迁移。
-_Avoid_: Domain 外键、Storyline Thread Template、复合 Domain key、调用方 ID、隐式领域归属
 
 Industry Chain 的可选主要国家范围使用 `primary_country_id` 引用独立 Country；不得把国家
 写回 `geography` 自由文本或旧 Economy UUID。已退役的 Sector 持久化表不因 Country 切换而恢复。
