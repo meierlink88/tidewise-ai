@@ -55,6 +55,7 @@ vi.mock('@tarojs/components', () => ({
   Button: element('button'),
   Image: element('img'),
   Input: element('input'),
+  RootPortal: element('aside'),
   ScrollView: element('section'),
   Text: element('span'),
   View: element('div')
@@ -107,7 +108,7 @@ afterEach(() => {
 });
 
 describe('page-local Report Evidence hosts', () => {
-  it('opens and closes homepage Evidence without rerendering or replacing the report scroller', async () => {
+  it('keeps the homepage overlay host and report resource stable when closing by icon', async () => {
     const home = await mockReportPort.getHome();
     harness.states.set('report-home', {
       status: 'ready',
@@ -118,6 +119,7 @@ describe('page-local Report Evidence hosts', () => {
     mount(createElement(IndexPage));
     const pageBefore = requiredElement('.home-page');
     const scrollBefore = requiredElement('.home-report-scroll');
+    const hostBefore = requiredElement('.report-overlay-host');
     scrollBefore.scrollTop = 780;
 
     click(requiredElement('[aria-label="查看地缘政治依据"]'));
@@ -128,16 +130,17 @@ describe('page-local Report Evidence hosts', () => {
     expect(requiredElement('.home-report-scroll')).toBe(scrollBefore);
     expect(scrollBefore.scrollTop).toBe(780);
 
-    click(requiredElement('.report-evidence-sheet__overlay'));
+    click(requiredElement('.report-evidence-sheet__close'));
 
     expect(container?.querySelector('.report-evidence-sheet')).toBeNull();
+    expect(requiredElement('.report-overlay-host')).toBe(hostBefore);
     expect(harness.reads.get('report-home')).toBe(1);
     expect(requiredElement('.home-page')).toBe(pageBefore);
     expect(requiredElement('.home-report-scroll')).toBe(scrollBefore);
     expect(scrollBefore.scrollTop).toBe(780);
   });
 
-  it('opens and closes detail Evidence without rerendering or replacing the detail content', async () => {
+  it('stops mask clicks at the persistent detail overlay host', async () => {
     const detail = await mockReportPort.getIndustryChain(
       'RPT11111111-1111-4111-8111-111111111111',
       'chn-01'
@@ -152,6 +155,7 @@ describe('page-local Report Evidence hosts', () => {
     });
     mount(createElement(ReportDetailPage));
     const pageBefore = requiredElement('.report-detail-page');
+    const hostBefore = requiredElement('.report-overlay-host');
     const evidenceAction = requiredElement('[aria-label$="证据：依据"]');
     const initialPageScrollCalls = harness.pageScrollTo.mock.calls.length;
 
@@ -162,9 +166,14 @@ describe('page-local Report Evidence hosts', () => {
     expect(requiredElement('.report-detail-page')).toBe(pageBefore);
     expect(harness.pageScrollTo).toHaveBeenCalledTimes(initialPageScrollCalls);
 
+    const bubbledClick = vi.fn();
+    document.body.addEventListener('click', bubbledClick);
     click(requiredElement('.report-evidence-sheet__overlay'));
+    document.body.removeEventListener('click', bubbledClick);
 
     expect(container?.querySelector('.report-evidence-sheet')).toBeNull();
+    expect(requiredElement('.report-overlay-host')).toBe(hostBefore);
+    expect(bubbledClick).not.toHaveBeenCalled();
     expect(harness.reads.get(resourceKey)).toBe(1);
     expect(requiredElement('.report-detail-page')).toBe(pageBefore);
     expect(harness.pageScrollTo).toHaveBeenCalledTimes(initialPageScrollCalls);

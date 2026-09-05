@@ -44,6 +44,61 @@
   background: $color-border;
 }
 
+.report-evidence-sheet__close {
+  position: absolute;
+  z-index: 1;
+  top: 10rpx;
+  right: 22rpx;
+  display: flex;
+  width: 64rpx;
+  height: 64rpx;
+  align-items: center;
+  justify-content: center;
+  border: 1rpx solid $color-border;
+  border-radius: 50%;
+  background: $color-card;
+  color: $color-blue-700;
+}
+
+.report-evidence-sheet__close--pressed {
+  background: $color-page-background;
+}
+
+.report-evidence-sheet__close-icon {
+  position: relative;
+  width: 28rpx;
+  height: 28rpx;
+}
+
+.report-evidence-sheet__close-icon::before,
+.report-evidence-sheet__close-icon::after {
+  position: absolute;
+  top: 13rpx;
+  left: 1rpx;
+  width: 26rpx;
+  height: 2rpx;
+  border-radius: 2rpx;
+  background: currentcolor;
+  content: '';
+}
+
+.report-evidence-sheet__close-icon::before {
+  transform: rotate(45deg);
+}
+
+.report-evidence-sheet__close-icon::after {
+  transform: rotate(-45deg);
+}
+
+.report-evidence-sheet__close-label {
+  position: absolute;
+  width: 1rpx;
+  height: 1rpx;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .report-evidence-sheet__scroll {
   min-height: 0;
   max-height: calc(76vh - 60rpx);

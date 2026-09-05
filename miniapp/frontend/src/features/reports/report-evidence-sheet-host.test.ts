@@ -5,6 +5,7 @@ import { ReportEvidenceSheetHostController } from './report-evidence-sheet';
 vi.mock('@tarojs/components', () => ({
   Button: 'button',
   Image: 'image',
+  RootPortal: 'root-portal',
   ScrollView: 'scroll-view',
   Text: 'text',
   View: 'view'

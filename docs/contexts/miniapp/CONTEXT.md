@@ -119,6 +119,8 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
   query 输入不可信，缺失、重复或非法参数必须在请求前进入明确参数错误状态。
 - 首页与详情页的 Evidence 入口打开当前页面管理的底部抽屉，不切换路由；抽屉使用
   `ReportPort.getEvidences` 按当前 opaque scope token 延迟加载。
+- 微信端的 Evidence 抽屉由页面会话内常驻的 `RootPortal` Host 承载；打开和关闭只更新
+  Portal 子树，不改变首页或详情页的原生根结构，不使用手工滚动位置恢复。
 - 首页、详情和 Evidence 抽屉分别拥有 `loading | ready | empty/not-found | error` 状态与重试；
   route 参数变化或重新进入时，较早请求不得覆盖新状态。
 - 已成功读取的不可变详情可以在当前页面会话内按 Report/scope 缓存；重新进入页面重新读取。
