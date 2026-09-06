@@ -135,18 +135,21 @@ deployment workflow.
 
 ## Geopolitical domain and storyline catalog
 
-`geopolitical-storylines-v1.json` is the reviewed complete package for the
+`geopolitical-storylines-v2.json` is the reviewed complete package for the
 current geopolitical research foundation. It contains 14 GeopoliticDomain
 rows, exactly eight Chinese-name/description tactics per domain, and 44
 GeopoliticRivalry storyline rows. Every storyline has one free-text category,
 one primary domain code, one core proposition, core-actor text, and one main
-transmission statement. The package does not contain primary IDs or Event,
-Actor, graph, asset, API, or UI facts.
+transmission statement plus a non-empty, ordered, duplicate-free candidate-asset
+array. Candidate assets are a post-match research universe, not Event-to-storyline
+matching semantics, investment direction, confidence or conclusion. The package
+does not contain primary IDs or Event, Actor, graph, API, or UI facts. Version 1
+is retained only as the historical package published before migration 83.
 
 Publish the package with the same Data image that supplied migration 82:
 
 ```text
-/usr/local/bin/geopolitical-catalog-publish -file /app/initdata/geopolitical-storylines-v1.json
+/usr/local/bin/geopolitical-catalog-publish -file /app/initdata/geopolitical-storylines-v2.json
 ```
 
 Publication derives deterministic `GPD` identities from domain codes and
@@ -155,13 +158,14 @@ names. It validates the exact 14/8/44 package shape, runs atomically and
 idempotently, and fails closed if either table contains an identity outside the
 package. It never runs automatically during deployment.
 
-Before UAT publication, stop legacy Storyline and GeopoliticRivalry writers,
-take the approved PostgreSQL recovery point, apply migration 82, and use the
-released image's database-operation configuration. Verify exactly 14 domains,
-112 tactics, 44 storylines, zero orphan domain references, and the presence of
-the reviewed Russia–Ukraine, Taiwan Strait, and US–Iran storylines. Rollback
-requires the pre-migration database snapshot and the previous application
-release; do not run the forward-only down migration.
+Before the migration 83 publication, stop GeopoliticRivalry writers, take the
+approved PostgreSQL recovery point, verify the current rows are the replaceable
+v1 catalog, and explicitly remove those storyline rows. Apply migration 83 and
+use the released image's database-operation configuration to publish v2. Verify
+the exact domain, tactic and storyline catalog, zero orphan domain references,
+and valid candidate assets for every storyline. Rollback requires the
+pre-migration database snapshot and the previous application release; do not
+run the forward-only down migration.
 
 ## Organization facts
 

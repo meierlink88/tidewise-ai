@@ -2,10 +2,13 @@
 package geopoliticrivalry
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -28,6 +31,7 @@ type CreateInput struct {
 	CoreProposition    string
 	CoreActors         string
 	MainTransmission   string
+	CandidateAssets    []string
 }
 
 type UpdateInput struct {
@@ -38,6 +42,7 @@ type UpdateInput struct {
 	CoreProposition    string
 	CoreActors         string
 	MainTransmission   string
+	CandidateAssets    []string
 }
 
 type GeopoliticRivalry struct {
@@ -48,6 +53,7 @@ type GeopoliticRivalry struct {
 	CoreProposition    string
 	CoreActors         string
 	MainTransmission   string
+	CandidateAssets    []string
 	CreatedAt          time.Time
 	UpdatedAt          time.Time
 }
@@ -74,14 +80,18 @@ func (s *Store) Create(ctx context.Context, input CreateInput) (GeopoliticRivalr
 	if err != nil {
 		return GeopoliticRivalry{}, ErrPersistence
 	}
+	candidateAssets, err := json.Marshal(input.CandidateAssets)
+	if err != nil {
+		return GeopoliticRivalry{}, ErrInvalidGeopoliticRivalry
+	}
 	row := s.db.QueryRowContext(ctx, `
 INSERT INTO geopolitic_rivalries (
     id, name, category, geopolitic_domain_id,
-    core_proposition, core_actors, main_transmission
-) VALUES ($1, $2, $3, $4, $5, $6, $7)
+    core_proposition, core_actors, main_transmission, candidate_assets
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
 RETURNING `+geopoliticRivalryColumns,
 		id, input.Name, input.Category, input.GeopoliticDomainID,
-		input.CoreProposition, input.CoreActors, input.MainTransmission,
+		input.CoreProposition, input.CoreActors, input.MainTransmission, candidateAssets,
 	)
 	created, err := scanGeopoliticRivalry(row)
 	if err != nil {
@@ -134,19 +144,24 @@ func (s *Store) Update(ctx context.Context, input UpdateInput) (GeopoliticRivalr
 	if !coreid.Is(input.ID, coreid.GeopoliticRivalry) || validateInput(CreateInput{
 		Name: input.Name, Category: input.Category, GeopoliticDomainID: input.GeopoliticDomainID,
 		CoreProposition: input.CoreProposition, CoreActors: input.CoreActors,
-		MainTransmission: input.MainTransmission,
+		MainTransmission: input.MainTransmission, CandidateAssets: input.CandidateAssets,
 	}) != nil {
+		return GeopoliticRivalry{}, ErrInvalidGeopoliticRivalry
+	}
+	candidateAssets, err := json.Marshal(input.CandidateAssets)
+	if err != nil {
 		return GeopoliticRivalry{}, ErrInvalidGeopoliticRivalry
 	}
 	row := s.db.QueryRowContext(ctx, `
 UPDATE geopolitic_rivalries
 SET name = $2, category = $3, geopolitic_domain_id = $4,
     core_proposition = $5, core_actors = $6, main_transmission = $7,
+    candidate_assets = $8::jsonb,
     updated_at = now()
 WHERE id = $1
 RETURNING `+geopoliticRivalryColumns,
 		input.ID, input.Name, input.Category, input.GeopoliticDomainID,
-		input.CoreProposition, input.CoreActors, input.MainTransmission,
+		input.CoreProposition, input.CoreActors, input.MainTransmission, candidateAssets,
 	)
 	updated, err := scanGeopoliticRivalry(row)
 	if err != nil {
@@ -157,19 +172,26 @@ RETURNING `+geopoliticRivalryColumns,
 
 const geopoliticRivalryColumns = `
 id, name, category, geopolitic_domain_id, core_proposition,
-core_actors, main_transmission, created_at, updated_at`
+core_actors, main_transmission, candidate_assets, created_at, updated_at`
 
 type rowScanner interface{ Scan(...any) error }
 
 func scanGeopoliticRivalry(row rowScanner) (GeopoliticRivalry, error) {
 	var result GeopoliticRivalry
+	var candidateAssetsJSON []byte
 	if err := row.Scan(
 		&result.ID, &result.Name, &result.Category, &result.GeopoliticDomainID,
 		&result.CoreProposition, &result.CoreActors, &result.MainTransmission,
+		&candidateAssetsJSON,
 		&result.CreatedAt, &result.UpdatedAt,
 	); err != nil {
 		return GeopoliticRivalry{}, err
 	}
+	candidateAssets, err := decodeCandidateAssets(candidateAssetsJSON)
+	if err != nil {
+		return GeopoliticRivalry{}, err
+	}
+	result.CandidateAssets = candidateAssets
 	if err := validateStored(result); err != nil {
 		return GeopoliticRivalry{}, err
 	}
@@ -180,7 +202,7 @@ func validateInput(input CreateInput) error {
 	if !validRequiredText(input.Name, 100) || !validRequiredText(input.Category, 100) ||
 		!coreid.Is(input.GeopoliticDomainID, coreid.GeopoliticDomain) ||
 		strings.TrimSpace(input.CoreProposition) == "" || strings.TrimSpace(input.CoreActors) == "" ||
-		strings.TrimSpace(input.MainTransmission) == "" {
+		strings.TrimSpace(input.MainTransmission) == "" || !validCandidateAssets(input.CandidateAssets) {
 		return ErrInvalidGeopoliticRivalry
 	}
 	return nil
@@ -200,11 +222,44 @@ func validateStored(input GeopoliticRivalry) error {
 	if !coreid.Is(input.ID, coreid.GeopoliticRivalry) || validateInput(CreateInput{
 		Name: input.Name, Category: input.Category, GeopoliticDomainID: input.GeopoliticDomainID,
 		CoreProposition: input.CoreProposition, CoreActors: input.CoreActors,
-		MainTransmission: input.MainTransmission,
+		MainTransmission: input.MainTransmission, CandidateAssets: input.CandidateAssets,
 	}) != nil || input.CreatedAt.IsZero() || input.UpdatedAt.IsZero() || input.UpdatedAt.Before(input.CreatedAt) {
 		return ErrInvalidGeopoliticRivalry
 	}
 	return nil
+}
+
+func decodeCandidateAssets(payload []byte) ([]string, error) {
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	var candidateAssets []string
+	if err := decoder.Decode(&candidateAssets); err != nil {
+		return nil, ErrInvalidGeopoliticRivalry
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		return nil, ErrInvalidGeopoliticRivalry
+	}
+	if !validCandidateAssets(candidateAssets) {
+		return nil, ErrInvalidGeopoliticRivalry
+	}
+	return candidateAssets, nil
+}
+
+func validCandidateAssets(candidateAssets []string) bool {
+	if len(candidateAssets) == 0 {
+		return false
+	}
+	seen := make(map[string]struct{}, len(candidateAssets))
+	for _, asset := range candidateAssets {
+		if !validRequiredText(asset, 100) || asset != strings.TrimSpace(asset) {
+			return false
+		}
+		if _, duplicate := seen[asset]; duplicate {
+			return false
+		}
+		seen[asset] = struct{}{}
+	}
+	return true
 }
 
 func validRequiredText(value string, maxRunes int) bool {

@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	catalogPath := flag.String("file", "/app/initdata/geopolitical-storylines-v1.json", "path to the geopolitical domain and storyline initialization package")
+	catalogPath := flag.String("file", "/app/initdata/geopolitical-storylines-v2.json", "path to the geopolitical domain and storyline initialization package")
 	flag.Parse()
 
 	config, err := conf.LoadDatabaseOperation()

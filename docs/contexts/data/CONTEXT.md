@@ -525,9 +525,11 @@ _Avoid_: 独立 Tactic 表、手段英文字段、调用方主键、从名称推
 
 **GeopoliticRivalry（地缘政治故事线）**:
 以 `GPR + canonical lowercase UUID` 为稳定身份，保存唯一中文名称、非枚举故事线分类、
-核心命题、核心参与方和主要传导。每条故事线必须且只能通过 restrictive foreign key
-引用一个 GeopoliticDomain；一条故事线只表达一个核心内容。参与方是文本，不证明 Actor 关系。
-_Avoid_: 通用 Storyline 包装层、Event 关联表、多领域、范围字段、枚举分类、Actor 解析
+核心命题、核心参与方、主要传导和有序候选资产数组。候选资产是故事线匹配后扩展到可交易
+资产、板块或产业链节点的研究范围，不表达方向、置信度或投研结论，也不参与 Event 到故事线的语义
+匹配。每条故事线必须且只能通过 restrictive foreign key 引用一个 GeopoliticDomain；一条故事线只表达
+一个核心内容。参与方是文本，不证明 Actor 关系。
+_Avoid_: 通用 Storyline 包装层、Event 关联表、多领域、范围字段、枚举分类、Actor 解析、用候选资产反向扩大 Event 匹配
 
 **MacroEconomic（宏观经济叙事蓝图）**:
 以 `MEC + canonical lowercase UUID` 为稳定身份的独立静态叙事蓝图，保存中英文名称、

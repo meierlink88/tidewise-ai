@@ -2,6 +2,7 @@
 status: accepted
 date: 2026-09-06
 issue: 413
+amended_by: 0058-add-geopolitical-storyline-candidate-assets.md
 amends: 0019-database-independent-domain-object-identities.md, 0034-independent-narrative-blueprint-objects.md
 supersedes: 0035-independent-storyline-domain-catalogs.md, 0036-independent-storyline-persistence.md, 0038-initialize-storyline-domain-catalog.md
 ---

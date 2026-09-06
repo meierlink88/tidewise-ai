@@ -84,6 +84,8 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000082_rebuild_geopolitical_storyline_facts.sql`：零兼容退役四张通用 Storyline 系列表，
   将 `geopolitic_rivalries` 重建为地缘政治故事线主表，新建 `geopolitic_domains`，
   并以严格 JSONB 数组将每个领域的多个手段纳入完整领域对象。
+- `000083_add_geopolitical_candidate_assets.sql`：要求地缘政治故事线表为空后，增加严格的非空
+  `candidate_assets` JSONB 字符串数组；候选资产由当前 v2 目录重建，不在 migration 中猜测。
 - `000069_move_industry_chain_mappings_to_typed_links.sql`：删除已确认隔离的模拟晶圆测试夹具，
   将正式 IndustryChain–Industry 与 IndustryChain–Concept 映射完整迁移到两张 typed Link 表，
   保留 ERL 身份/端点/创建时间，并禁止通用 `entity_edges` 再写入两种保留关系类型。
@@ -391,3 +393,10 @@ check-only。迁移会删除 `storyline_domain_tactics`、`storyline_domains`、
 `geopolitical-catalog-publish -file /app/initdata/geopolitical-storylines-v1.json`，并验证 ledger 为
 `82`、14 个 GeopoliticDomain、112 个 tactics、44 条 GeopoliticRivalry 故事线、零孤立领域
 引用。回滚必须同时恢复 migration 82 前快照和上一版应用，不运行 down migration。
+
+`000083` 是 Issue #415 授权的高风险、前向目录切换。操作员必须停止 GeopoliticRivalry 写入、
+保留已审阅恢复点，确认当前行均来自可重建的 v1 目录后，显式删除 `geopolitic_rivalries` 中的
+目录行。如果表仍非空，migration 以 SQLSTATE `55000` fail closed。迁移后使用同一镜像运行
+`geopolitical-catalog-publish -file /app/initdata/geopolitical-storylines-v2.json`，验证每条故事线的
+`candidate_assets` 均为非空、有序、无重复字符串数组。回滚必须同时恢复 migration 83 前快照和上一版
+应用，不运行 down migration。
