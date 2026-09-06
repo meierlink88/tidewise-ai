@@ -21,7 +21,7 @@ func TestLoadCurrentGeopoliticalCatalogPackage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("LoadCatalog() error = %v", err)
 	}
-	if publication.SchemaVersion != 1 || publication.PublicationMode != CatalogPublicationModeReconcile ||
+	if publication.SchemaVersion != 2 || publication.PublicationMode != CatalogPublicationModeReconcile ||
 		len(publication.Domains) != expectedDomainCount || len(publication.Storylines) != expectedStorylineCount {
 		t.Fatalf("catalog metadata = schema %d mode %q domains %d storylines %d",
 			publication.SchemaVersion, publication.PublicationMode, len(publication.Domains), len(publication.Storylines))
@@ -45,6 +45,9 @@ func TestLoadCurrentGeopoliticalCatalogPackage(t *testing.T) {
 		found := false
 		for _, storyline := range publication.Storylines {
 			if storyline.Name == requiredStoryline {
+				if len(storyline.CandidateAssets) == 0 {
+					t.Fatalf("required storyline %q has no candidate assets", requiredStoryline)
+				}
 				found = true
 				break
 			}
@@ -64,7 +67,7 @@ func TestValidateGeopoliticalCatalogRejectsInvalidPackages(t *testing.T) {
 		name   string
 		mutate func(*CatalogPublication)
 	}{
-		{"unknown schema", func(value *CatalogPublication) { value.SchemaVersion = 2 }},
+		{"unknown schema", func(value *CatalogPublication) { value.SchemaVersion = 3 }},
 		{"unknown mode", func(value *CatalogPublication) { value.PublicationMode = "replace" }},
 		{"missing domain", func(value *CatalogPublication) { value.Domains = value.Domains[1:] }},
 		{"missing tactic", func(value *CatalogPublication) { value.Domains[0].Tactics = value.Domains[0].Tactics[1:] }},
@@ -73,6 +76,10 @@ func TestValidateGeopoliticalCatalogRejectsInvalidPackages(t *testing.T) {
 		{"duplicate storyline", func(value *CatalogPublication) { value.Storylines[1].Name = value.Storylines[0].Name }},
 		{"unknown domain reference", func(value *CatalogPublication) { value.Storylines[0].DomainCode = "UNKNOWN" }},
 		{"empty core proposition", func(value *CatalogPublication) { value.Storylines[0].CoreProposition = " " }},
+		{"empty candidate assets", func(value *CatalogPublication) { value.Storylines[0].CandidateAssets = nil }},
+		{"duplicate candidate asset", func(value *CatalogPublication) {
+			value.Storylines[0].CandidateAssets = []string{"黄金", "黄金"}
+		}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -90,7 +97,7 @@ func TestLoadGeopoliticalCatalogRejectsUnknownFieldsAndTrailingData(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	withUnknown := strings.Replace(string(payload), `"schema_version": 1`, `"unknown": true, "schema_version": 1`, 1)
+	withUnknown := strings.Replace(string(payload), `"schema_version": 2`, `"unknown": true, "schema_version": 2`, 1)
 	if _, err := LoadCatalog(context.Background(), writeGeopoliticalCatalog(t, []byte(withUnknown))); err == nil {
 		t.Fatal("LoadCatalog() accepted an unknown field")
 	}
@@ -248,7 +255,7 @@ WHERE domain.id IS NULL`).Scan(&orphanCount); err != nil {
 	for _, storyline := range publication.Storylines {
 		wantStorylines[storyline.Name] = storyline
 	}
-	rows, err = db.Query(`SELECT name, category, geopolitic_domain_id, core_proposition, core_actors, main_transmission
+	rows, err = db.Query(`SELECT name, category, geopolitic_domain_id, core_proposition, core_actors, main_transmission, candidate_assets
 FROM geopolitic_rivalries ORDER BY name`)
 	if err != nil {
 		t.Fatal(err)
@@ -256,7 +263,12 @@ FROM geopolitic_rivalries ORDER BY name`)
 	for rows.Next() {
 		var got StorylineCatalogItem
 		var domainID string
-		if err := rows.Scan(&got.Name, &got.Category, &domainID, &got.CoreProposition, &got.CoreActors, &got.MainTransmission); err != nil {
+		var candidateAssetsJSON []byte
+		if err := rows.Scan(&got.Name, &got.Category, &domainID, &got.CoreProposition, &got.CoreActors, &got.MainTransmission, &candidateAssetsJSON); err != nil {
+			_ = rows.Close()
+			t.Fatal(err)
+		}
+		if err := json.Unmarshal(candidateAssetsJSON, &got.CandidateAssets); err != nil {
 			_ = rows.Close()
 			t.Fatal(err)
 		}
@@ -291,7 +303,7 @@ func cloneCatalog(t *testing.T, input CatalogPublication) CatalogPublication {
 
 func geopoliticalCatalogPath(t *testing.T) string {
 	t.Helper()
-	path, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "..", "initdata", "geopolitical-storylines-v1.json"))
+	path, err := filepath.Abs(filepath.Join("..", "..", "..", "..", "..", "initdata", "geopolitical-storylines-v2.json"))
 	if err != nil {
 		t.Fatal(err)
 	}

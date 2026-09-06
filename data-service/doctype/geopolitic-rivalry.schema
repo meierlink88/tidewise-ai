@@ -21,6 +21,9 @@ GeopoliticRivalry(地缘政治故事线): EntityType
         mainTransmission(主要传导): Text
             desc: 地缘政治变化对中国经济和可投研对象的主要传导链
             constraint: NotNull
+        candidateAssets(候选资产): Text
+            desc: 故事线匹配后供后续投研扩展的有序候选资产、板块或产业链节点，不作为 Event 匹配语义
+            constraint: NotNull, MultiValue
         createdAt(创建时间): Text
             desc: PostgreSQL 生成的故事线创建时间
             constraint: NotNull

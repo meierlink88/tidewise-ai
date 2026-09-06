@@ -492,6 +492,7 @@ def verify_geopolitic_rivalry(parser):
         "coreProposition",
         "coreActors",
         "mainTransmission",
+        "candidateAssets",
         "createdAt",
         "updatedAt",
     }
@@ -500,6 +501,7 @@ def verify_geopolitic_rivalry(parser):
         rivalry,
         expected_properties,
         expected_properties,
+        {"candidateAssets"},
     )
 
 

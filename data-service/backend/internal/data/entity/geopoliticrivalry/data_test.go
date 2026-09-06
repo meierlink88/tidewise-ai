@@ -6,6 +6,7 @@ import (
 	"errors"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,6 +27,7 @@ func TestStorePersistsGeopoliticalStorylineWithOneDomain(t *testing.T) {
 		CoreProposition:  "俄罗斯与乌克兰之间的战场进程、领土控制和停火安排发生变化",
 		CoreActors:       "俄罗斯、乌克兰及直接军援方",
 		MainTransmission: "战争进程→风险偏好、军工需求及地区基础设施风险变化",
+		CandidateAssets:  []string{"黄金", "原油", "国防军工板块"},
 	}
 	created, err := store.Create(context.Background(), input)
 	if err != nil {
@@ -41,6 +43,21 @@ func TestStorePersistsGeopoliticalStorylineWithOneDomain(t *testing.T) {
 	got, err := store.Get(context.Background(), created.ID)
 	if err != nil || !reflect.DeepEqual(got, created) {
 		t.Fatalf("Get() = %#v, %v; want %#v", got, err, created)
+	}
+	updated, err := store.Update(context.Background(), UpdateInput{
+		ID: created.ID, Name: input.Name, Category: input.Category, GeopoliticDomainID: input.GeopoliticDomainID,
+		CoreProposition: input.CoreProposition, CoreActors: input.CoreActors,
+		MainTransmission: input.MainTransmission, CandidateAssets: []string{"原油", "黄金", "VIX指数"},
+	})
+	if err != nil {
+		t.Fatalf("Update() error = %v", err)
+	}
+	if !reflect.DeepEqual(updated.CandidateAssets, []string{"原油", "黄金", "VIX指数"}) {
+		t.Fatalf("Update() candidate assets = %#v", updated.CandidateAssets)
+	}
+	listed, err := store.List(context.Background(), Filter{})
+	if err != nil || len(listed) != 1 || !reflect.DeepEqual(listed[0], updated) {
+		t.Fatalf("List() = %#v, %v; want %#v", listed, err, updated)
 	}
 }
 
@@ -84,12 +101,46 @@ func TestStoreFiltersGeopoliticalStorylinesAndEnforcesDomainReference(t *testing
 	}
 }
 
+func TestStoreRejectsInvalidCandidateAssets(t *testing.T) {
+	db := openGeopoliticRivalryTestDatabase(t)
+	domainID := createDomain(t, db, "MILITARY", "军事/防务线")
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	for _, candidateAssets := range [][]string{
+		nil,
+		{},
+		{" "},
+		{"黄金", "黄金"},
+		{strings.Repeat("资", 101)},
+	} {
+		input := validInput("无效候选资产故事线", "测试", domainID)
+		input.CandidateAssets = candidateAssets
+		if _, err := store.Create(ctx, input); !errors.Is(err, ErrInvalidGeopoliticRivalry) {
+			t.Fatalf("Create(candidate assets %#v) error = %v, want ErrInvalidGeopoliticRivalry", candidateAssets, err)
+		}
+	}
+
+	created, err := store.Create(ctx, validInput("数据库候选资产约束", "测试", domainID))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, payload := range []string{`null`, `[]`, `[1]`, `[""]`, `["黄金","黄金"]`} {
+		if _, err := db.ExecContext(ctx, `UPDATE geopolitic_rivalries SET candidate_assets = $2::jsonb WHERE id = $1`, created.ID, payload); err == nil {
+			t.Fatalf("database accepted invalid candidate_assets %s", payload)
+		}
+	}
+}
+
 func validInput(name, category, domainID string) CreateInput {
 	return CreateInput{
 		Name: name, Category: category, GeopoliticDomainID: domainID,
 		CoreProposition:  "每条故事线只表达一个核心命题",
 		CoreActors:       "核心参与方",
 		MainTransmission: "直接影响→对中国经济的主要传导",
+		CandidateAssets:  []string{"黄金", "VIX指数"},
 	}
 }
 

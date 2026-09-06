@@ -38,12 +38,13 @@ type DomainCatalogItem struct {
 }
 
 type StorylineCatalogItem struct {
-	Name             string `json:"name"`
-	Category         string `json:"category"`
-	DomainCode       string `json:"domain_code"`
-	CoreProposition  string `json:"core_proposition"`
-	CoreActors       string `json:"core_actors"`
-	MainTransmission string `json:"main_transmission"`
+	Name             string   `json:"name"`
+	Category         string   `json:"category"`
+	DomainCode       string   `json:"domain_code"`
+	CoreProposition  string   `json:"core_proposition"`
+	CoreActors       string   `json:"core_actors"`
+	MainTransmission string   `json:"main_transmission"`
+	CandidateAssets  []string `json:"candidate_assets"`
 }
 
 type CatalogPublication struct {
@@ -161,32 +162,37 @@ RETURNING id`, id, item.Code, item.Name, item.Description, tactics).Scan(&publis
 
 	for _, item := range publication.Storylines {
 		id := storylineIDs[item.Name]
+		candidateAssets, err := json.Marshal(item.CandidateAssets)
+		if err != nil {
+			return ErrInvalidGeopoliticCatalog
+		}
 		var publishedID string
-		err := tx.QueryRowContext(ctx, `
+		err = tx.QueryRowContext(ctx, `
 INSERT INTO geopolitic_rivalries (
     id, name, category, geopolitic_domain_id,
-    core_proposition, core_actors, main_transmission
-) VALUES ($1, $2, $3, $4, $5, $6, $7)
+    core_proposition, core_actors, main_transmission, candidate_assets
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
 ON CONFLICT (name) DO UPDATE SET
     category = excluded.category,
     geopolitic_domain_id = excluded.geopolitic_domain_id,
     core_proposition = excluded.core_proposition,
     core_actors = excluded.core_actors,
     main_transmission = excluded.main_transmission,
+    candidate_assets = excluded.candidate_assets,
     updated_at = CASE
         WHEN (geopolitic_rivalries.category, geopolitic_rivalries.geopolitic_domain_id,
               geopolitic_rivalries.core_proposition, geopolitic_rivalries.core_actors,
-              geopolitic_rivalries.main_transmission)
+              geopolitic_rivalries.main_transmission, geopolitic_rivalries.candidate_assets)
           IS DISTINCT FROM
              (excluded.category, excluded.geopolitic_domain_id,
               excluded.core_proposition, excluded.core_actors,
-              excluded.main_transmission)
+              excluded.main_transmission, excluded.candidate_assets)
         THEN now()
         ELSE geopolitic_rivalries.updated_at
     END
 WHERE geopolitic_rivalries.id = excluded.id
 RETURNING id`, id, item.Name, item.Category, domainIDByCode[item.DomainCode],
-			item.CoreProposition, item.CoreActors, item.MainTransmission).Scan(&publishedID)
+			item.CoreProposition, item.CoreActors, item.MainTransmission, candidateAssets).Scan(&publishedID)
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrGeopoliticCatalogConflict
 		}
@@ -207,7 +213,7 @@ RETURNING id`, id, item.Name, item.Category, domainIDByCode[item.DomainCode],
 }
 
 func validateCatalog(publication CatalogPublication) error {
-	if publication.SchemaVersion != 1 || publication.PublicationMode != CatalogPublicationModeReconcile ||
+	if publication.SchemaVersion != 2 || publication.PublicationMode != CatalogPublicationModeReconcile ||
 		len(publication.Domains) != expectedDomainCount || len(publication.Storylines) != expectedStorylineCount {
 		return ErrInvalidGeopoliticCatalog
 	}
@@ -244,7 +250,7 @@ func validateCatalog(publication CatalogPublication) error {
 	for _, item := range publication.Storylines {
 		if strings.TrimSpace(item.Name) == "" || strings.TrimSpace(item.Category) == "" ||
 			strings.TrimSpace(item.CoreProposition) == "" || strings.TrimSpace(item.CoreActors) == "" ||
-			strings.TrimSpace(item.MainTransmission) == "" {
+			strings.TrimSpace(item.MainTransmission) == "" || !validCandidateAssets(item.CandidateAssets) {
 			return ErrInvalidGeopoliticCatalog
 		}
 		if _, exists := seenDomains[item.DomainCode]; !exists {
