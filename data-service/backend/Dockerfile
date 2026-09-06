@@ -6,6 +6,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/macroeconomic-catalog-publish ./data-service/backend/cmd/macroeconomic-catalog-publish
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/data-service ./data-service/backend/cmd/server
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/dbmigrate ./data-service/backend/cmd/dbmigrate
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/pre-v74-evidence-recovery ./data-service/backend/cmd/pre-v74-evidence-recovery
@@ -25,6 +26,7 @@ RUN apk add --no-cache ca-certificates wget
 WORKDIR /app
 
 COPY --from=builder /out/data-service /usr/local/bin/data-service
+COPY --from=builder /out/macroeconomic-catalog-publish /usr/local/bin/macroeconomic-catalog-publish
 COPY --from=builder /out/dbmigrate /usr/local/bin/dbmigrate
 COPY --from=builder /out/pre-v74-evidence-recovery /usr/local/bin/pre-v74-evidence-recovery
 COPY --from=builder /out/organization-catalog-publish /usr/local/bin/organization-catalog-publish

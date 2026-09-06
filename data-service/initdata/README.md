@@ -167,6 +167,45 @@ and valid candidate assets for every storyline. Rollback requires the
 pre-migration database snapshot and the previous application release; do not
 run the forward-only down migration.
 
+## Macroeconomic domain and storyline catalog
+
+`macroeconomic-storylines-v1.json` contains 10 MacroEconomicDomain rows, the
+78 reference tactics transcribed from the reviewed attachments (six for
+GROWTH_CYCLE and eight for each other domain), and the 34 approved storylines.
+Each storyline has one domain code, its verbatim one-sentence China-impact
+proposition, and an ordered nonempty candidate-asset array. Domain tactics are
+`[{name, description}]`, never an object keyed by tactic code. Reference tactics
+are not an Event admission whitelist. Candidate assets are research scopes, not
+security identities, observed macro indicators, or investment conclusions.
+
+After human merge, preserve a PostgreSQL recovery point, stop old MacroEconomic
+writers and apply migration 84 using the matching Data image. The migration
+requires an empty old macroeconomic table and never clears existing facts.
+Publish separately using the image's database-operation configuration:
+
+```text
+/usr/local/bin/macroeconomic-catalog-publish -file /app/initdata/macroeconomic-storylines-v1.json
+```
+
+The operator can use the existing local Compose environment:
+
+```bash
+docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --no-deps --entrypoint /usr/local/bin/macroeconomic-catalog-publish data
+```
+
+The command strictly validates the package, derives MCD IDs from domain codes
+and MEC IDs from storyline names, and atomically reconciles both tables.
+Unknown persisted identities cause a conflict, not deletion. Replaying an
+unchanged package preserves IDs and timestamps. Do not rename catalog stories
+without a separately reviewed identity migration.
+
+Acceptance: compare every stored field against the package, verify the exact
+10-domain/78-tactic/34-storyline contents, zero orphan references, and unchanged
+IDs and timestamps on replay. Confirm existing geopolitical facts are unchanged.
+Rollback requires the pre-cutover backup with the old application, not down SQL.
+Development tests run in an isolated PostgreSQL instance; they do not initialize
+the shared local business database.
+
 ## Organization facts
 
 `organizations-v1.json` is the reviewed initialization publication from the

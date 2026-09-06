@@ -82,3 +82,4 @@
 000081	high	mixed	require an empty Report store and finalize the immutable Report JSONB plus scoped Evidence-link publication contract
 000082	high	mixed	retire legacy Storyline persistence and rebuild geopolitical domains and storyline facts in a snapshot-protected zero-compatibility cutover
 000083	high	mixed	require an empty geopolitical storyline catalog before adding candidate assets and republishing the reviewed v2 catalog
+000084	high	schema	require an empty macroeconomic table before rebuilding storyline and domain schemas; publish the reviewed catalog separately

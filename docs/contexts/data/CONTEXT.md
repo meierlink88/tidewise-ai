@@ -11,6 +11,7 @@ Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实
 - Raw Evidence 元数据与归档文档引用、原子 Evidence、Evidence 阅读辅助 Keywords 及其确定性正式身份。
 - 正式 Event、Event 与 Atomic Evidence 的证据关联，以及 Event-owned Actor/Asset 关系快照。
 - 地缘政治领域目录、领域内手段数组，以及影响中国经济的地缘政治故事线事实。
+- 宏观经济领域目录、参考手段数组，以及影响中国经济市场的宏观经济故事线事实。
 - 不可变 Report，以及 Report 到 Atomic Evidence 的直接关联。
 - PostgreSQL schema、migration 和 repository。
 - 采集/清洗执行方使用的 Raw Evidence 与 Evidence Publication API、自然身份收敛、
@@ -531,12 +532,19 @@ _Avoid_: 独立 Tactic 表、手段英文字段、调用方主键、从名称推
 一个核心内容。参与方是文本，不证明 Actor 关系。
 _Avoid_: 通用 Storyline 包装层、Event 关联表、多领域、范围字段、枚举分类、Actor 解析、用候选资产反向扩大 Event 匹配
 
-**MacroEconomic（宏观经济叙事蓝图）**:
-以 `MEC + canonical lowercase UUID` 为稳定身份的独立静态叙事蓝图，保存中英文名称、
-受控宏观类型、自然语言描述、受控生命周期和数据库生成时间。MacroEconomic 当前不表达
-Country、Region、Institution 或其他外部归属，也不拥有 Storyline；未来 Storyline 如需使用
-该蓝图，由 Storyline 侧另行建立关系。
-_Avoid_: Economy Entity、Storyline 外键、Country/Region/Institution 关系、业务 code、调用方 ID、名称去重
+**MacroEconomicDomain（宏观经济领域）**:
+以 `MCD + canonical lowercase UUID` 为稳定身份，以唯一且不可变的大写 ASCII code 为自然键，
+保存唯一中文名称、描述和非空 tactics JSON 数组；每项只含中文 name、description，同领域手段名唯一。
+参考手段沿用审阅目录，包含政策动作及部分预警或事件类型；不是经济数据 Event 的准入白名单。
+_Avoid_: 独立 Tactic 表、以手段覆盖率代替 Event 关联质量、观察指标作为候选资产
+
+**MacroEconomic（宏观经济故事线）**:
+以 `MEC + canonical lowercase UUID` 为稳定身份，保存唯一中文名称、一句话核心命题和
+有序非空候选资产数组。核心命题表达关键因素通过哪些渠道影响中国经济市场，不预设方向、
+置信度或投资结论。每条故事线只讲一个核心话题，必须且只能 restrictive 引用一个
+MacroEconomicDomain。候选资产是匹配后的资产、板块或产业链节点研究范围，不反向扩大 Event
+匹配。不存在额外故事线分类、英文名、状态、参与方或主要传导字段。
+_Avoid_: 静态叙事蓝图、通用 Storyline 包装、多领域、Country/Region/Institution 外键、调用方 ID
 
 Industry Chain 的可选主要国家范围使用 `primary_country_id` 引用独立 Country；不得把国家
 写回 `geography` 自由文本或旧 Economy UUID。已退役的 Sector 持久化表不因 Country 切换而恢复。

@@ -172,9 +172,10 @@ func TestMinistryAndInstitutionKindsUseReviewedPrefixes(t *testing.T) {
 
 func TestNarrativeBlueprintKindsUseReviewedPrefixes(t *testing.T) {
 	for kind, expectedPrefix := range map[Kind]string{
-		GeopoliticDomain:  "GPD",
-		GeopoliticRivalry: "GPR",
-		MacroEconomic:     "MEC",
+		GeopoliticDomain:    "GPD",
+		GeopoliticRivalry:   "GPR",
+		MacroEconomic:       "MEC",
+		MacroEconomicDomain: "MCD",
 	} {
 		value, err := New(kind)
 		if err != nil {

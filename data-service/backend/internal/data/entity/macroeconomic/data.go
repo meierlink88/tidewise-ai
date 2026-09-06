@@ -1,11 +1,14 @@
-// Package macroeconomic persists independent macroeconomic narrative blueprints.
+// Package macroeconomic persists macroeconomic storylines and their primary domain.
 package macroeconomic
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -14,61 +17,40 @@ import (
 	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
 
-type MacroType string
-
-const (
-	MacroTypeMonetary     MacroType = "MONETARY"
-	MacroTypeFiscal       MacroType = "FISCAL"
-	MacroTypeTradePolicy  MacroType = "TRADE_POLICY"
-	MacroTypeRegulatory   MacroType = "REGULATORY"
-	MacroTypeDataEconomic MacroType = "DATA_ECONOMIC"
-)
-
-type Status string
-
-const (
-	StatusActive   Status = "ACTIVE"
-	StatusDormant  Status = "DORMANT"
-	StatusArchived Status = "ARCHIVED"
-)
-
 var (
 	ErrInvalidMacroEconomic = errors.New("invalid MacroEconomic")
+	ErrConflict             = errors.New("MacroEconomic conflict")
 	ErrNotFound             = errors.New("MacroEconomic not found")
 	ErrPersistence          = errors.New("MacroEconomic persistence failed")
 )
 
 type CreateInput struct {
-	Name        string
-	NameEn      string
-	MacroType   MacroType
-	Description string
-	Status      Status
+	Name                  string
+	MacroEconomicDomainID string
+	CoreProposition       string
+	CandidateAssets       []string
 }
 
 type UpdateInput struct {
-	ID          string
-	Name        string
-	NameEn      string
-	MacroType   MacroType
-	Description string
-	Status      Status
+	ID                    string
+	Name                  string
+	MacroEconomicDomainID string
+	CoreProposition       string
+	CandidateAssets       []string
 }
 
 type MacroEconomic struct {
-	ID          string
-	Name        string
-	NameEn      string
-	MacroType   MacroType
-	Description string
-	Status      Status
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID                    string
+	Name                  string
+	MacroEconomicDomainID string
+	CoreProposition       string
+	CandidateAssets       []string
+	CreatedAt             time.Time
+	UpdatedAt             time.Time
 }
 
 type Filter struct {
-	MacroType *MacroType
-	Status    *Status
+	MacroEconomicDomainID *string
 }
 
 type Store struct{ db *sql.DB }
@@ -81,21 +63,24 @@ func NewStore(db *sql.DB) (*Store, error) {
 }
 
 func (s *Store) Create(ctx context.Context, input CreateInput) (MacroEconomic, error) {
-	if input.Status == "" {
-		input.Status = StatusActive
-	}
-	if err := validateCreate(input); err != nil {
+	if err := validateInput(input); err != nil {
 		return MacroEconomic{}, err
 	}
 	id, err := coreid.New(coreid.MacroEconomic)
 	if err != nil {
 		return MacroEconomic{}, ErrPersistence
 	}
+	candidateAssets, err := json.Marshal(input.CandidateAssets)
+	if err != nil {
+		return MacroEconomic{}, ErrInvalidMacroEconomic
+	}
 	row := s.db.QueryRowContext(ctx, `
-INSERT INTO macro_economics (id, name, name_en, macro_type, description, status)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO macro_economics (
+    id, name, macro_economics_domain_id, core_proposition, candidate_assets
+) VALUES ($1, $2, $3, $4, $5::jsonb)
 RETURNING `+macroEconomicColumns,
-		id, input.Name, input.NameEn, string(input.MacroType), input.Description, string(input.Status),
+		id, input.Name, input.MacroEconomicDomainID,
+		input.CoreProposition, candidateAssets,
 	)
 	created, err := scanMacroEconomic(row)
 	if err != nil {
@@ -123,9 +108,8 @@ func (s *Store) List(ctx context.Context, filter Filter) ([]MacroEconomic, error
 	rows, err := s.db.QueryContext(ctx, `
 SELECT `+macroEconomicColumns+`
 FROM macro_economics
-WHERE ($1::macro_economic_type IS NULL OR macro_type = $1::macro_economic_type)
-  AND ($2::macro_economic_status IS NULL OR status = $2::macro_economic_status)
-ORDER BY name_en ASC, name ASC, id ASC`, nullableMacroType(filter.MacroType), nullableStatus(filter.Status))
+WHERE ($1::text IS NULL OR macro_economics_domain_id = $1)
+ORDER BY name ASC, id ASC`, nullableString(filter.MacroEconomicDomainID))
 	if err != nil {
 		return nil, classifyReadError(err)
 	}
@@ -145,20 +129,26 @@ ORDER BY name_en ASC, name ASC, id ASC`, nullableMacroType(filter.MacroType), nu
 }
 
 func (s *Store) Update(ctx context.Context, input UpdateInput) (MacroEconomic, error) {
-	if err := validateUpdate(input); err != nil {
-		return MacroEconomic{}, err
+	if !coreid.Is(input.ID, coreid.MacroEconomic) || validateInput(CreateInput{
+		Name: input.Name, MacroEconomicDomainID: input.MacroEconomicDomainID,
+		CoreProposition: input.CoreProposition,
+		CandidateAssets: input.CandidateAssets,
+	}) != nil {
+		return MacroEconomic{}, ErrInvalidMacroEconomic
+	}
+	candidateAssets, err := json.Marshal(input.CandidateAssets)
+	if err != nil {
+		return MacroEconomic{}, ErrInvalidMacroEconomic
 	}
 	row := s.db.QueryRowContext(ctx, `
 UPDATE macro_economics
-SET name = $2,
-    name_en = $3,
-    macro_type = $4,
-    description = $5,
-    status = $6,
+SET name = $2, macro_economics_domain_id = $3,
+    core_proposition = $4, candidate_assets = $5::jsonb,
     updated_at = now()
 WHERE id = $1
 RETURNING `+macroEconomicColumns,
-		input.ID, input.Name, input.NameEn, string(input.MacroType), input.Description, string(input.Status),
+		input.ID, input.Name, input.MacroEconomicDomainID,
+		input.CoreProposition, candidateAssets,
 	)
 	updated, err := scanMacroEconomic(row)
 	if err != nil {
@@ -168,102 +158,101 @@ RETURNING `+macroEconomicColumns,
 }
 
 const macroEconomicColumns = `
-id, name, name_en, macro_type::text, description, status::text,
-created_at, updated_at`
+id, name, macro_economics_domain_id, core_proposition, candidate_assets, created_at, updated_at`
 
 type rowScanner interface{ Scan(...any) error }
 
 func scanMacroEconomic(row rowScanner) (MacroEconomic, error) {
 	var result MacroEconomic
-	var macroType, status string
+	var candidateAssetsJSON []byte
 	if err := row.Scan(
-		&result.ID, &result.Name, &result.NameEn, &macroType,
-		&result.Description, &status, &result.CreatedAt, &result.UpdatedAt,
+		&result.ID, &result.Name, &result.MacroEconomicDomainID,
+		&result.CoreProposition,
+		&candidateAssetsJSON,
+		&result.CreatedAt, &result.UpdatedAt,
 	); err != nil {
 		return MacroEconomic{}, err
 	}
-	result.MacroType = MacroType(macroType)
-	result.Status = Status(status)
+	candidateAssets, err := decodeCandidateAssets(candidateAssetsJSON)
+	if err != nil {
+		return MacroEconomic{}, err
+	}
+	result.CandidateAssets = candidateAssets
 	if err := validateStored(result); err != nil {
 		return MacroEconomic{}, err
 	}
 	return result, nil
 }
 
-func validateCreate(input CreateInput) error {
-	if !validRequiredText(input.Name, 100) || !validRequiredText(input.NameEn, 100) ||
-		strings.TrimSpace(input.Description) == "" ||
-		!validMacroType(input.MacroType) || !validStatus(input.Status) {
-		return ErrInvalidMacroEconomic
-	}
-	return nil
-}
-
-func validateUpdate(input UpdateInput) error {
-	if !coreid.Is(input.ID, coreid.MacroEconomic) ||
-		!validRequiredText(input.Name, 100) || !validRequiredText(input.NameEn, 100) ||
-		strings.TrimSpace(input.Description) == "" ||
-		!validMacroType(input.MacroType) || !validStatus(input.Status) {
+func validateInput(input CreateInput) error {
+	if !validRequiredText(input.Name, 100) ||
+		!coreid.Is(input.MacroEconomicDomainID, coreid.MacroEconomicDomain) ||
+		strings.TrimSpace(input.CoreProposition) == "" || !validCandidateAssets(input.CandidateAssets) {
 		return ErrInvalidMacroEconomic
 	}
 	return nil
 }
 
 func validateFilter(filter Filter) error {
-	if filter.MacroType != nil && !validMacroType(*filter.MacroType) {
-		return ErrInvalidMacroEconomic
-	}
-	if filter.Status != nil && !validStatus(*filter.Status) {
+	if filter.MacroEconomicDomainID != nil && !coreid.Is(*filter.MacroEconomicDomainID, coreid.MacroEconomicDomain) {
 		return ErrInvalidMacroEconomic
 	}
 	return nil
 }
 
 func validateStored(input MacroEconomic) error {
-	if !coreid.Is(input.ID, coreid.MacroEconomic) ||
-		!validRequiredText(input.Name, 100) || !validRequiredText(input.NameEn, 100) ||
-		strings.TrimSpace(input.Description) == "" ||
-		!validMacroType(input.MacroType) || !validStatus(input.Status) ||
-		input.CreatedAt.IsZero() || input.UpdatedAt.IsZero() || input.UpdatedAt.Before(input.CreatedAt) {
+	if !coreid.Is(input.ID, coreid.MacroEconomic) || validateInput(CreateInput{
+		Name: input.Name, MacroEconomicDomainID: input.MacroEconomicDomainID,
+		CoreProposition: input.CoreProposition,
+		CandidateAssets: input.CandidateAssets,
+	}) != nil || input.CreatedAt.IsZero() || input.UpdatedAt.IsZero() || input.UpdatedAt.Before(input.CreatedAt) {
 		return ErrInvalidMacroEconomic
 	}
 	return nil
+}
+
+func decodeCandidateAssets(payload []byte) ([]string, error) {
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	var candidateAssets []string
+	if err := decoder.Decode(&candidateAssets); err != nil {
+		return nil, ErrInvalidMacroEconomic
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		return nil, ErrInvalidMacroEconomic
+	}
+	if !validCandidateAssets(candidateAssets) {
+		return nil, ErrInvalidMacroEconomic
+	}
+	return candidateAssets, nil
+}
+
+func validCandidateAssets(candidateAssets []string) bool {
+	if len(candidateAssets) == 0 {
+		return false
+	}
+	seen := make(map[string]struct{}, len(candidateAssets))
+	for _, asset := range candidateAssets {
+		if !validRequiredText(asset, 100) || asset != strings.TrimSpace(asset) {
+			return false
+		}
+		if _, duplicate := seen[asset]; duplicate {
+			return false
+		}
+		seen[asset] = struct{}{}
+	}
+	return true
 }
 
 func validRequiredText(value string, maxRunes int) bool {
 	return strings.TrimSpace(value) != "" && utf8.RuneCountInString(value) <= maxRunes
 }
 
-func validMacroType(value MacroType) bool {
-	switch value {
-	case MacroTypeMonetary, MacroTypeFiscal, MacroTypeTradePolicy, MacroTypeRegulatory, MacroTypeDataEconomic:
-		return true
-	default:
-		return false
-	}
-}
-
-func validStatus(value Status) bool {
-	switch value {
-	case StatusActive, StatusDormant, StatusArchived:
-		return true
-	default:
-		return false
-	}
-}
-
-func nullableMacroType(value *MacroType) any {
+func nullableString(value *string) any {
 	if value == nil {
 		return nil
 	}
-	return string(*value)
-}
-
-func nullableStatus(value *Status) any {
-	if value == nil {
-		return nil
-	}
-	return string(*value)
+	return *value
 }
 
 func classifyWriteError(err error) error {
@@ -278,7 +267,9 @@ func classifyWriteError(err error) error {
 		return ErrPersistence
 	}
 	switch postgresError.Code {
-	case "22001", "22P02", "23502", "23514":
+	case "23505":
+		return ErrConflict
+	case "22001", "23502", "23503", "23514":
 		return ErrInvalidMacroEconomic
 	default:
 		return ErrPersistence

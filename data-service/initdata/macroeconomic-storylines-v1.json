@@ -1,0 +1,594 @@
+{
+  "schema_version": 1,
+  "publication_mode": "reconcile",
+  "domains": [
+    {
+      "code": "MONETARY",
+      "name": "货币政策线",
+      "description": "利率决议、QE/QT、存款准备金率、央行资产负债表",
+      "tactics": [
+        {
+          "name": "加息",
+          "description": "上调政策利率（基准利率、再融资利率等）"
+        },
+        {
+          "name": "降息",
+          "description": "下调政策利率，降低融资成本"
+        },
+        {
+          "name": "提准",
+          "description": "上调存款准备金率，收紧流动性"
+        },
+        {
+          "name": "降准",
+          "description": "下调存款准备金率，释放流动性"
+        },
+        {
+          "name": "启动量化宽松",
+          "description": "启动资产购买计划（国债/抵押支持证券）"
+        },
+        {
+          "name": "缩减购债",
+          "description": "缩减资产购买规模"
+        },
+        {
+          "name": "启动量化紧缩",
+          "description": "停止再投资、主动缩表"
+        },
+        {
+          "name": "前瞻指引",
+          "description": "央行对利率路径或政策意图的表态引导"
+        }
+      ]
+    },
+    {
+      "code": "FISCAL",
+      "name": "财政政策线",
+      "description": "财政支出、税收政策、政府债务管理、财政赤字",
+      "tactics": [
+        {
+          "name": "财政刺激",
+          "description": "大规模财政支出或减税刺激经济"
+        },
+        {
+          "name": "减税",
+          "description": "降低企业/个人所得税税率"
+        },
+        {
+          "name": "加税",
+          "description": "提高税率或取消税收优惠"
+        },
+        {
+          "name": "基建支出",
+          "description": "增加基础设施投资支出"
+        },
+        {
+          "name": "补贴启动",
+          "description": "启动或扩大对特定行业的补贴政策"
+        },
+        {
+          "name": "补贴退出",
+          "description": "逐步取消或缩减补贴"
+        },
+        {
+          "name": "预算扩张",
+          "description": "扩大财政预算赤字，增加政府支出"
+        },
+        {
+          "name": "财政整固",
+          "description": "削减赤字、压缩支出、增收节支"
+        }
+      ]
+    },
+    {
+      "code": "INDUSTRIAL_POLICY",
+      "name": "产业政策线",
+      "description": "产业规划、五年规划、补贴政策、产业准入",
+      "tactics": [
+        {
+          "name": "五年规划发布",
+          "description": "国家层面产业发展规划和战略部署"
+        },
+        {
+          "name": "产业规划",
+          "description": "特定行业的长期发展规划（如新能源汽车、集成电路）"
+        },
+        {
+          "name": "产业基金设立",
+          "description": "设立政府引导基金或产业投资基金"
+        },
+        {
+          "name": "战略新兴产业扶持",
+          "description": "对战略性新兴产业的专项支持政策"
+        },
+        {
+          "name": "去产能",
+          "description": "淘汰落后产能、结构性改革"
+        },
+        {
+          "name": "扩产引导",
+          "description": "引导行业扩大产能的政策措施"
+        },
+        {
+          "name": "准入限制",
+          "description": "行业准入条件调整、负面清单更新"
+        },
+        {
+          "name": "国产替代推动",
+          "description": "鼓励国产化替代的政策措施"
+        }
+      ]
+    },
+    {
+      "code": "GROWTH_CYCLE",
+      "name": "增长/周期线",
+      "description": "GDP增速、经济周期、PMI、景气度",
+      "tactics": [
+        {
+          "name": "增长目标设定",
+          "description": "设定或调整年度/中期GDP增长目标"
+        },
+        {
+          "name": "逆周期调节",
+          "description": "逆周期财政等政策工具的启动或强化（含储备政策）"
+        },
+        {
+          "name": "顺周期调节",
+          "description": "顺周期财政等政策工具的启动或强化（含收紧政策）"
+        },
+        {
+          "name": "衰退预警",
+          "description": "官方或权威机构对经济衰退的警告信号"
+        },
+        {
+          "name": "增长预期修正",
+          "description": "官方或权威机构上调/下调经济增长预测"
+        },
+        {
+          "name": "信心提振措施",
+          "description": "旨在提振市场信心的非常规政策信号或行动"
+        }
+      ]
+    },
+    {
+      "code": "INFLATION_PRICES",
+      "name": "通胀/价格线",
+      "description": "CPI、PPI、核心通胀、通胀预期",
+      "tactics": [
+        {
+          "name": "价格管制",
+          "description": "对商品或服务价格实施行政性管控"
+        },
+        {
+          "name": "价格放开",
+          "description": "取消或放松价格管制"
+        },
+        {
+          "name": "通胀目标调整",
+          "description": "调整通胀目标区间或政策容忍度"
+        },
+        {
+          "name": "通胀预警",
+          "description": "官方或权威机构对通胀风险的正式警告"
+        },
+        {
+          "name": "工资指导",
+          "description": "发布工资增长指导线或建议"
+        },
+        {
+          "name": "补贴加码",
+          "description": "增加对特定商品的补贴以平抑价格（如食品、能源）"
+        },
+        {
+          "name": "出口限制",
+          "description": "为稳定国内价格而限制出口（如粮食、化肥）"
+        },
+        {
+          "name": "战略储备投放",
+          "description": "投放战略储备物资以平抑价格"
+        }
+      ]
+    },
+    {
+      "code": "EMPLOYMENT_LABOR",
+      "name": "就业/劳动力线",
+      "description": "非农就业、失业率、薪资增速",
+      "tactics": [
+        {
+          "name": "最低工资上调",
+          "description": "提高最低工资标准"
+        },
+        {
+          "name": "就业促进计划",
+          "description": "政府主导的就业创造项目或补贴"
+        },
+        {
+          "name": "失业救济调整",
+          "description": "调整失业救济金标准或领取条件"
+        },
+        {
+          "name": "劳动法规调整",
+          "description": "劳动合同法、劳动保护等法规修订"
+        },
+        {
+          "name": "职业技能培训",
+          "description": "启动或扩大职业技能培训计划"
+        },
+        {
+          "name": "公共部门扩招",
+          "description": "扩大公务员/事业单位招聘规模"
+        },
+        {
+          "name": "提前退休政策",
+          "description": "允许特定行业人员提前退休以缓解就业压力"
+        },
+        {
+          "name": "工时制度改革",
+          "description": "弹性工作制、四天工作制等工时调整"
+        }
+      ]
+    },
+    {
+      "code": "FINANCIAL_STABILITY",
+      "name": "金融稳定线",
+      "description": "系统性金融风险、银行体系、流动性、信用风险",
+      "tactics": [
+        {
+          "name": "资本要求调整",
+          "description": "调整银行资本充足率要求"
+        },
+        {
+          "name": "流动性注入",
+          "description": "向金融体系注入流动性（逆回购、中期借贷便利等）"
+        },
+        {
+          "name": "压力测试",
+          "description": "开展或公布银行体系压力测试结果"
+        },
+        {
+          "name": "处置行动",
+          "description": "对问题金融机构的处置或救助"
+        },
+        {
+          "name": "做空禁令",
+          "description": "临时禁止或限制做空特定股票或市场"
+        },
+        {
+          "name": "稳定基金启动",
+          "description": "启动市场稳定基金或平准基金"
+        },
+        {
+          "name": "系统性风险警告",
+          "description": "监管机构对系统性风险的正式警告"
+        },
+        {
+          "name": "资本管制",
+          "description": "限制跨境资本流动或外汇交易"
+        }
+      ]
+    },
+    {
+      "code": "EXTERNAL_SECTOR",
+      "name": "国际收支线",
+      "description": "贸易差额、经常账户、资本流动、外汇储备",
+      "tactics": [
+        {
+          "name": "汇率干预",
+          "description": "央行干预外汇市场（升值/贬值）"
+        },
+        {
+          "name": "贸易协定签署",
+          "description": "签署双边或多边贸易协定"
+        },
+        {
+          "name": "关税调整",
+          "description": "调整进出口关税税率（加征/减免）"
+        },
+        {
+          "name": "出口补贴",
+          "description": "对出口企业提供财政补贴或退税支持"
+        },
+        {
+          "name": "进口禁令",
+          "description": "禁止特定商品进口（如农产品、肉类）"
+        },
+        {
+          "name": "储备管理",
+          "description": "外汇储备的增减操作或结构优化"
+        },
+        {
+          "name": "汇率安排调整",
+          "description": "调整汇率制度（如固定/浮动汇率切换）"
+        },
+        {
+          "name": "资本账户开放",
+          "description": "放宽或收紧跨境资本流动限制"
+        }
+      ]
+    },
+    {
+      "code": "DEBT_LEVERAGE",
+      "name": "债务/杠杆线",
+      "description": "企业杠杆、居民债务、政府债务、去杠杆进程",
+      "tactics": [
+        {
+          "name": "债务减免",
+          "description": "债务减记、减免或延期"
+        },
+        {
+          "name": "债务重组",
+          "description": "债务展期、降息、债转股等重组措施"
+        },
+        {
+          "name": "债务上限调整",
+          "description": "提高或调整法定债务上限"
+        },
+        {
+          "name": "地方债务化解",
+          "description": "地方隐性债务置换或化解方案"
+        },
+        {
+          "name": "企业去杠杆",
+          "description": "降低企业部门杠杆率的政策措施"
+        },
+        {
+          "name": "居民债务管控",
+          "description": "居民杠杆率控制（如房贷限制）"
+        },
+        {
+          "name": "债券违约事件",
+          "description": "信用债或地方政府债违约/展期事件"
+        },
+        {
+          "name": "债务置换",
+          "description": "以低息债置换高息债（含化债）"
+        }
+      ]
+    },
+    {
+      "code": "REAL_ESTATE",
+      "name": "房地产/土地线",
+      "description": "房价、房地产投资、土地出让、地产政策",
+      "tactics": [
+        {
+          "name": "限购政策",
+          "description": "购房资格/套数限制（放松或收紧）"
+        },
+        {
+          "name": "房贷政策调整",
+          "description": "首付比例、房贷利率、贷款额度等调整"
+        },
+        {
+          "name": "土地供应调整",
+          "description": "住宅用地供应量或节奏调整"
+        },
+        {
+          "name": "房产税改革",
+          "description": "房产税试点、税率调整或免征政策"
+        },
+        {
+          "name": "限价政策",
+          "description": "新建商品房或二手房价格指导/限价"
+        },
+        {
+          "name": "预售资金监管",
+          "description": "商品房预售资金监管政策调整"
+        },
+        {
+          "name": "住房补贴",
+          "description": "购房补贴、人才房、保障房等补贴政策"
+        },
+        {
+          "name": "房企融资政策",
+          "description": "对房地产企业融资条件的调整（白名单、三道红线）"
+        }
+      ]
+    }
+  ],
+  "storylines": [
+    {
+      "name": "中国政策利率调整",
+      "domain_code": "MONETARY",
+      "core_proposition": "政策利率变化通过贷款利率和市场贴现率，影响企业融资成本、居民借贷需求及中国资产估值。",
+      "candidate_assets": ["国债期货", "国债ETF", "银行板块", "沪深300ETF"]
+    },
+    {
+      "name": "中国存款准备金政策调整",
+      "domain_code": "MONETARY",
+      "core_proposition": "存款准备金政策变化通过改变银行可用资金，影响信贷供给、市场流动性及实体融资条件。",
+      "candidate_assets": ["国债期货", "银行板块", "证券板块", "沪深300ETF"]
+    },
+    {
+      "name": "美联储政策利率路径",
+      "domain_code": "MONETARY",
+      "core_proposition": "美联储利率变化通过中美利差和跨境资金流动，影响人民币汇率、中国企业美元融资成本及中国资产估值。",
+      "candidate_assets": ["黄金ETF", "国债期货", "沪深300ETF", "恒生科技ETF"]
+    },
+    {
+      "name": "日本政策利率调整",
+      "domain_code": "MONETARY",
+      "core_proposition": "日本利率变化通过日元融资成本和国际资金配置，影响人民币相对汇率及中国市场资金波动。",
+      "candidate_assets": ["黄金ETF", "沪深300ETF", "恒生科技ETF"]
+    },
+    {
+      "name": "欧洲央行政策利率路径",
+      "domain_code": "MONETARY",
+      "core_proposition": "欧洲央行利率变化通过欧洲融资条件和欧元汇率，影响中国对欧出口需求及出口企业收益。",
+      "candidate_assets": ["汽车板块", "家电板块", "机械设备板块", "黄金ETF"]
+    },
+    {
+      "name": "中国消费品以旧换新补贴",
+      "domain_code": "FISCAL",
+      "core_proposition": "补贴力度变化通过改变居民购置成本，影响耐用品消费需求及相关企业订单。",
+      "candidate_assets": ["家电板块", "汽车板块", "消费电子板块"]
+    },
+    {
+      "name": "中国财政基建支出落地",
+      "domain_code": "FISCAL",
+      "core_proposition": "财政基建支出的执行进度通过项目开工和资金支付，影响设备、原材料需求及施工企业回款。",
+      "candidate_assets": ["工程机械板块", "建筑板块", "建材板块", "螺纹钢期货"]
+    },
+    {
+      "name": "中国社会保障财政支持",
+      "domain_code": "FISCAL",
+      "core_proposition": "社会保障财政支持通过改变居民收入保障和预防性储蓄倾向，影响消费意愿及国内需求。",
+      "candidate_assets": ["消费ETF", "零售板块", "食品饮料板块"]
+    },
+    {
+      "name": "中国低效产能治理",
+      "domain_code": "INDUSTRIAL_POLICY",
+      "core_proposition": "低效产能治理通过改变产能扩张和退出约束，影响行业供需关系、产品价格及企业盈利。",
+      "candidate_assets": ["钢铁板块", "建材板块", "光伏板块", "基础化工板块"]
+    },
+    {
+      "name": "中国人工智能应用支持政策",
+      "domain_code": "INDUSTRIAL_POLICY",
+      "core_proposition": "人工智能应用支持政策通过降低应用门槛和推动技术采购，影响企业数字化投资及相关设备、软件和服务需求。",
+      "candidate_assets": ["软件板块", "AI服务器板块", "半导体板块"]
+    },
+    {
+      "name": "中国关键技术国产替代政策",
+      "domain_code": "INDUSTRIAL_POLICY",
+      "core_proposition": "国产替代政策通过研发支持和采购引导，影响国内技术供给能力、供应链自主性及国产企业市场份额。",
+      "candidate_assets": ["半导体设备板块", "半导体材料板块", "工业软件板块", "高端机床板块"]
+    },
+    {
+      "name": "中国居民消费周期",
+      "domain_code": "GROWTH_CYCLE",
+      "core_proposition": "居民消费变化通过终端销售和企业订单，影响国内企业收入、库存及扩产意愿。",
+      "candidate_assets": ["消费ETF", "食品饮料板块", "家电板块", "零售板块"]
+    },
+    {
+      "name": "中国民间投资周期",
+      "domain_code": "GROWTH_CYCLE",
+      "core_proposition": "民间投资意愿变化通过企业资本开支，影响设备需求、就业及国内经济增长动力。",
+      "candidate_assets": ["机械设备板块", "工业自动化板块", "电力设备板块"]
+    },
+    {
+      "name": "美国终端需求周期",
+      "domain_code": "GROWTH_CYCLE",
+      "core_proposition": "美国终端需求变化通过直接进口和第三国供应链采购，影响中国出口订单、产能利用率及企业盈利。",
+      "candidate_assets": ["消费电子板块", "家电板块", "纺织服装板块", "航运板块"]
+    },
+    {
+      "name": "欧洲终端需求周期",
+      "domain_code": "GROWTH_CYCLE",
+      "core_proposition": "欧洲终端需求变化通过进口采购，影响中国对欧出口规模及相关企业订单和盈利。",
+      "candidate_assets": ["汽车板块", "家电板块", "机械设备板块", "航运板块"]
+    },
+    {
+      "name": "中国工业品价格周期",
+      "domain_code": "INFLATION_PRICES",
+      "core_proposition": "工业品价格变化通过改变企业收入和投入成本，影响上下游利润分配、偿债能力及投资意愿。",
+      "candidate_assets": ["有色金属板块", "钢铁板块", "基础化工板块", "国债期货"]
+    },
+    {
+      "name": "中国核心消费价格趋势",
+      "domain_code": "INFLATION_PRICES",
+      "core_proposition": "核心消费价格变化通过居民实际购买力和企业定价能力，影响消费需求、企业利润及货币政策空间。",
+      "candidate_assets": ["消费ETF", "食品饮料板块", "零售板块", "国债ETF"]
+    },
+    {
+      "name": "中国输入性能源价格压力",
+      "domain_code": "INFLATION_PRICES",
+      "core_proposition": "国际能源价格变化通过进口账单和生产运输成本，影响中国物价、贸易收支及行业利润分配。",
+      "candidate_assets": ["原油期货", "油气开采板块", "航空板块", "基础化工板块"]
+    },
+    {
+      "name": "美国通胀持续性",
+      "domain_code": "INFLATION_PRICES",
+      "core_proposition": "美国通胀持续性通过美联储利率预期和美元定价，影响人民币汇率、中国外部融资环境及资产估值。",
+      "candidate_assets": ["黄金ETF", "国债期货", "沪深300ETF", "恒生科技ETF"]
+    },
+    {
+      "name": "中国青年就业促进",
+      "domain_code": "EMPLOYMENT_LABOR",
+      "core_proposition": "青年就业支持措施通过改变就业机会和收入预期，影响青年群体消费能力及国内需求。",
+      "candidate_assets": ["人力资源服务板块", "职业教育板块", "消费ETF"]
+    },
+    {
+      "name": "中国延迟退休实施",
+      "domain_code": "EMPLOYMENT_LABOR",
+      "core_proposition": "延迟退休通过改变劳动参与年限和劳动力供给，影响居民收入安排、养老支出压力及潜在经济增长。",
+      "candidate_assets": ["保险板块", "养老服务板块", "人力资源服务板块"]
+    },
+    {
+      "name": "美国劳动力市场松紧",
+      "domain_code": "EMPLOYMENT_LABOR",
+      "core_proposition": "美国劳动力供需变化通过工资、消费和利率预期，影响中国出口需求及外部金融环境。",
+      "candidate_assets": ["黄金ETF", "国债期货", "家电板块", "纺织服装板块"]
+    },
+    {
+      "name": "中国中小银行风险处置",
+      "domain_code": "FINANCIAL_STABILITY",
+      "core_proposition": "中小银行风险处置通过改变银行资本、流动性和储户信心，影响区域信贷供给及中小企业融资。",
+      "candidate_assets": ["银行板块", "国债ETF", "沪深300ETF"]
+    },
+    {
+      "name": "中国银行房地产风险敞口",
+      "domain_code": "FINANCIAL_STABILITY",
+      "core_proposition": "银行房地产风险敞口变化通过资产损失和资本占用，影响银行盈利、信贷投放及金融市场风险偏好。",
+      "candidate_assets": ["银行板块", "房地产板块", "保险板块", "国债ETF"]
+    },
+    {
+      "name": "中国出口市场结构调整",
+      "domain_code": "EXTERNAL_SECTOR",
+      "core_proposition": "出口目的地结构变化通过市场需求和贸易成本差异，影响中国出口韧性、企业订单及国内产能布局。",
+      "candidate_assets": ["航运板块", "汽车板块", "机械设备板块", "家电板块"]
+    },
+    {
+      "name": "中国跨境证券资金流动",
+      "domain_code": "EXTERNAL_SECTOR",
+      "core_proposition": "跨境证券资金流动通过改变股票和债券市场供求，影响人民币汇率、中国资产流动性及风险溢价。",
+      "candidate_assets": ["沪深300ETF", "上证50ETF", "国债ETF", "恒生科技ETF"]
+    },
+    {
+      "name": "人民币结售汇供求",
+      "domain_code": "EXTERNAL_SECTOR",
+      "core_proposition": "企业和居民结售汇行为通过改变外汇市场供求，影响人民币汇率、进出口收益及外币债务负担。",
+      "candidate_assets": ["航空板块", "纺织服装板块", "家电板块", "黄金ETF"]
+    },
+    {
+      "name": "中国地方政府债务化解",
+      "domain_code": "DEBT_LEVERAGE",
+      "core_proposition": "化债进展通过改变地方偿债压力和可用财力，影响政府支出、企业回款及区域信用风险。",
+      "candidate_assets": ["银行板块", "建筑板块", "环保板块", "国债ETF"]
+    },
+    {
+      "name": "中国居民债务负担调整",
+      "domain_code": "DEBT_LEVERAGE",
+      "core_proposition": "居民债务负担变化通过偿债支出和可用现金流，影响消费、购房需求及新增借贷意愿。",
+      "candidate_assets": ["银行板块", "消费ETF", "房地产板块", "家电板块"]
+    },
+    {
+      "name": "中国房企债务重组",
+      "domain_code": "DEBT_LEVERAGE",
+      "core_proposition": "房企债务重组通过改变偿债安排和现金流压力，影响项目持续经营、供应商回款及债权人损失。",
+      "candidate_assets": ["房地产板块", "银行板块", "建筑板块", "建材板块"]
+    },
+    {
+      "name": "中国住房购买政策调整",
+      "domain_code": "REAL_ESTATE",
+      "core_proposition": "购房政策变化通过改变购房资格和融资成本，影响住房需求、开发商回款及地产相关消费。",
+      "candidate_assets": ["房地产板块", "家电板块", "家居板块", "银行板块"]
+    },
+    {
+      "name": "中国存量住房去库存",
+      "domain_code": "REAL_ESTATE",
+      "core_proposition": "存量住房去库存进展通过改变可售库存和开发商资金占用，影响住房供需、价格预期及新开工意愿。",
+      "candidate_assets": ["房地产板块", "建筑板块", "建材板块", "家居板块"]
+    },
+    {
+      "name": "中国保交房推进",
+      "domain_code": "REAL_ESTATE",
+      "core_proposition": "保交房进展通过项目交付和购房信心，影响预售需求、施工回款及交房后的装修消费。",
+      "candidate_assets": ["建筑板块", "建材板块", "家居板块", "家电板块"]
+    },
+    {
+      "name": "中国住宅用地供应调整",
+      "domain_code": "REAL_ESTATE",
+      "core_proposition": "住宅用地供应变化通过改变开发用地规模、区位和成本，影响房企投资、未来住房供给及地方土地收入。",
+      "candidate_assets": ["房地产板块", "建筑板块", "建材板块", "工程机械板块"]
+    }
+  ]
+}
