@@ -455,56 +455,52 @@ def verify_evidence(parser, schema_file):
     )
 
 
-def verify_geopolitic_rivalry(parser, schema_file):
+def verify_geopolitic_domain(parser):
+    domain = parser.types.get("Tidewise.GeopoliticDomain")
+    assert domain is not None, (
+        "geopolitic-domain.schema must define Tidewise.GeopoliticDomain"
+    )
+    assert domain.spg_type_enum.value == "ENTITY_TYPE"
+    assert domain.name_zh == "地缘政治领域"
+    assert not domain.relations, "GeopoliticDomain must not publish object relations"
+    expected_properties = {
+        "code",
+        "name",
+        "description",
+        "tactics",
+        "createdAt",
+        "updatedAt",
+    }
+    verify_text_property_contract(
+        "GeopoliticDomain", domain, expected_properties, expected_properties
+    )
+
+
+def verify_geopolitic_rivalry(parser):
     rivalry = parser.types.get("Tidewise.GeopoliticRivalry")
     assert rivalry is not None, (
         "geopolitic-rivalry.schema must define Tidewise.GeopoliticRivalry"
     )
     assert rivalry.spg_type_enum.value == "ENTITY_TYPE"
-    assert rivalry.name_zh == "地缘政治对抗蓝图"
+    assert rivalry.name_zh == "地缘政治故事线"
     assert not rivalry.relations, "GeopoliticRivalry must not publish object relations"
 
     expected_properties = {
         "name",
-        "nameEn",
-        "rivalryType",
-        "description",
+        "category",
+        "geopoliticDomainId",
+        "coreProposition",
         "coreActors",
-        "peripheralActors",
-        "influencedRegions",
-        "status",
+        "mainTransmission",
         "createdAt",
         "updatedAt",
     }
-    nullable = {"peripheralActors", "influencedRegions"}
     verify_text_property_contract(
         "GeopoliticRivalry",
         rivalry,
         expected_properties,
-        expected_properties - nullable,
-        {"influencedRegions"},
+        expected_properties,
     )
-    assert constraint_values(rivalry.properties["rivalryType"])["ENUM"] == [
-        "GEOPOLITICAL",
-        "MILITARY_WAR",
-    ]
-    assert constraint_values(rivalry.properties["status"])["ENUM"] == [
-        "ACTIVE",
-        "DORMANT",
-        "RESOLVED",
-    ]
-    for declaration, meanings in {
-        "rivalryType(对抗类型): Text": {
-            "GEOPOLITICAL": "地缘政治竞争",
-            "MILITARY_WAR": "军事战争",
-        },
-        "status(生命周期状态): Text": {
-            "ACTIVE": "持续活跃",
-            "DORMANT": "暂时休眠",
-            "RESOLVED": "已经解决",
-        },
-    }.items():
-        verify_enum_meanings(schema_file, declaration, meanings)
 
 
 def verify_macro_economic(parser, schema_file):
@@ -820,6 +816,9 @@ def main():
     assert "geopolitic-rivalry.schema" in schema_names, (
         "GeopoliticRivalry Object Schema is required"
     )
+    assert "geopolitic-domain.schema" in schema_names, (
+        "GeopoliticDomain Object Schema is required"
+    )
     assert "macro-economic.schema" in schema_names, (
         "MacroEconomic Object Schema is required"
     )
@@ -883,10 +882,8 @@ def main():
     )
     verify_event(parsed)
     verify_evidence(parsed, args.schema_root / "evidence.schema")
-    verify_geopolitic_rivalry(
-        parsed,
-        args.schema_root / "geopolitic-rivalry.schema",
-    )
+    verify_geopolitic_domain(parsed)
+    verify_geopolitic_rivalry(parsed)
     verify_macro_economic(
         parsed,
         args.schema_root / "macro-economic.schema",

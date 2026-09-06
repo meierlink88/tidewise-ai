@@ -37,9 +37,7 @@ Data 各领域曾并存裸 UUID、`PREFIX_ + code`、固定短码和非 UUID 自
 `ENT` Entity、`IND` Industry、`CON` Concept、`CND` ChainNode、`ICH` IndustryChain、
 `ERL` Entity Relation、`COU` Country、`REG` Region、`ORG` Organization、
 `SUB` Subdivision、`MIN` Ministry、`INS` Institution、
-`GPR` GeopoliticRivalry、`MEC` MacroEconomic、
-`SLD` StorylineDomain、`SDT` StorylineDomainTactic、
-`STL` Storyline、`SLE` Storyline Event Link、
+`GPD` GeopoliticDomain、`GPR` GeopoliticRivalry、`MEC` MacroEconomic、
 `COM` Company、`CIL` Company Industry Link、
 `OCA` Organization Category、`OFN` Organization Function、`ODT` Organization Domain Tag、
 `ODL` Organization Domain Tag Link、
@@ -95,6 +93,12 @@ Issue #304 通过 additive forward-only migration `000066` 增加独立 Storylin
 Storyline Event Link 事实及 `STL`、`SLE` 身份。第一阶段同样由公开 Data Adapter 调用共享
 随机生成原语；未来 Biz/API 接入必须将两个身份的生成时机收敛到 owning Biz，不得从类型、
 锚点、Event 端点或名称派生身份，也不得允许调用方提交主键。
+
+Issue #413 通过零兼容 forward-only migration `000082` 退役 StorylineDomain、
+StorylineDomainTactic、Storyline 和 Storyline Event Link，因此从当前注册表删除
+`SLD`、`SDT`、`STL`、`SLE`。新增 `GPD` GeopoliticDomain；受控发布以 domain code
+确定性生成 `GPD`，以审阅后的唯一故事线中文名称确定性生成 `GPR`。普通
+Adapter Create 仍不接收调用方主键。被退役前缀在历史 migration 中的出现不可改写。
 
 Issue #306 通过 stop-write forward-only migration `000067` 将 Company 从共享 `ENT` 身份
 切换到独立 `COM` 身份并保留 canonical UUID 后缀，新增 `CIL` Company Industry Link 身份。

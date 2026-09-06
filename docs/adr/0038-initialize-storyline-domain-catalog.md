@@ -4,6 +4,7 @@ date: 2026-08-20
 issue: 308
 amends: 0035-independent-storyline-domain-catalogs.md
 extends: 0019-database-independent-domain-object-identities.md
+superseded_by: 0057-rebuild-geopolitical-storyline-facts.md
 ---
 
 # 初始化 StorylineDomain 目录

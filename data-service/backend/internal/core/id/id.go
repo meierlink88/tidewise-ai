@@ -28,12 +28,9 @@ const (
 	Subdivision               Kind = "SUB"
 	Ministry                  Kind = "MIN"
 	Institution               Kind = "INS"
+	GeopoliticDomain          Kind = "GPD"
 	GeopoliticRivalry         Kind = "GPR"
 	MacroEconomic             Kind = "MEC"
-	StorylineDomain           Kind = "SLD"
-	StorylineDomainTactic     Kind = "SDT"
-	Storyline                 Kind = "STL"
-	StorylineEventLink        Kind = "SLE"
 	Company                   Kind = "COM"
 	CompanyIndustryLink       Kind = "CIL"
 	Region                    Kind = "REG"
@@ -155,7 +152,7 @@ func prefix(kind Kind) (string, error) {
 
 func registered(kind Kind) bool {
 	switch kind {
-	case Entity, Industry, Concept, ChainNode, IndustryChain, EntityRelation, Country, Subdivision, Ministry, Institution, GeopoliticRivalry, MacroEconomic, StorylineDomain, StorylineDomainTactic, Storyline, StorylineEventLink, Company, CompanyIndustryLink, Region, Organization, OrganizationCategory, OrganizationFunction, OrganizationDomainTag,
+	case Entity, Industry, Concept, ChainNode, IndustryChain, EntityRelation, Country, Subdivision, Ministry, Institution, GeopoliticDomain, GeopoliticRivalry, MacroEconomic, Company, CompanyIndustryLink, Region, Organization, OrganizationCategory, OrganizationFunction, OrganizationDomainTag,
 		OrganizationDomainTagLink, RawEvidence, Evidence, EvidenceCategory, RawEvidenceCategoryLink,
 		CountryRegionLink,
 		EventEvidenceLink, EventActorLink, EventAssetLink, Event, EventPublicationReceipt,

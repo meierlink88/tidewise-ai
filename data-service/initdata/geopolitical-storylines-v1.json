@@ -1,0 +1,262 @@
+{
+  "schema_version": 1,
+  "publication_mode": "reconcile",
+  "domains": [
+    {
+      "code": "MILITARY",
+      "name": "军事/防务线",
+      "description": "军事行动、军备竞赛、军事同盟、武器贸易、军事威慑、防务合作、军事部署",
+      "tactics": [
+        {"name": "热战", "description": "正面战场、直接交火、军事打击"},
+        {"name": "对峙/威慑", "description": "军演、军事部署、舰机对峙、核威慑"},
+        {"name": "军援助", "description": "盟友军援、武器交付、弹药供应"},
+        {"name": "武器贸易", "description": "武器销售、军火贸易、军事技术转让"},
+        {"name": "军事同盟", "description": "同盟条约、共同防御、军事一体化"},
+        {"name": "军事制裁", "description": "武器禁运、军事技术封锁"},
+        {"name": "维和行动", "description": "联合国维和、停火监督、缓冲区巡逻"},
+        {"name": "防务磋商", "description": "军事热线、防务磋商、危机沟通机制"}
+      ]
+    },
+    {
+      "code": "ENERGY_RESOURCES",
+      "name": "能源/资源线",
+      "description": "能源安全、油气供给、关键矿产、资源通道控制、战略储备、能源价格博弈",
+      "tactics": [
+        {"name": "能源禁运", "description": "石油、天然气或煤炭禁运或限运"},
+        {"name": "资源出口管制", "description": "关键矿产出口管制、配额限制"},
+        {"name": "战略储备动用", "description": "释放或增加战略石油储备、关键矿产储备"},
+        {"name": "资源通道封锁", "description": "封锁海峡、航道、管道、港口"},
+        {"name": "价格战", "description": "增产或减产操控价格、价格战"},
+        {"name": "资源投资限制", "description": "禁止投资或收购关键矿产项目"},
+        {"name": "能源合作", "description": "联合勘探开发、能源管道互联互通"},
+        {"name": "能源外交", "description": "能源对话、价格稳定机制、供应协调"}
+      ]
+    },
+    {
+      "code": "INFRASTRUCTURE",
+      "name": "基建/港口线",
+      "description": "港口控制权、跨境铁路、油气管道、运河战略、海外基建投资",
+      "tactics": [
+        {"name": "港口控制", "description": "收购或控制战略港口、获得港口经营权"},
+        {"name": "港口封锁", "description": "军事或经济封锁港口"},
+        {"name": "跨境基建", "description": "跨境铁路、管道、公路、电网建设"},
+        {"name": "基建投资", "description": "海外基建投资、贷款、BOT 项目"},
+        {"name": "债务陷阱", "description": "基建贷款导致的债务控制或主权让渡"},
+        {"name": "运河/海峡控制", "description": "控制关键运河、海峡通行权"},
+        {"name": "基建投资限制", "description": "禁止参与或收购战略基建项目"},
+        {"name": "基建外交", "description": "基建计划协调、多边框架对接、标准互认"}
+      ]
+    },
+    {
+      "code": "FOOD_AGRICULTURE",
+      "name": "粮食/农业线",
+      "description": "粮食安全、耕地控制、农产品贸易、种子种源、食品安全标准",
+      "tactics": [
+        {"name": "粮食禁运", "description": "粮食出口禁运、进口限制"},
+        {"name": "农产品关税", "description": "农产品关税加征、配额限制"},
+        {"name": "种子/种源控制", "description": "种子出口管制、种源控制、转基因限制"},
+        {"name": "海外耕地收购", "description": "海外大规模耕地收购、租用"},
+        {"name": "食品安全禁令", "description": "以食品安全为由限制进口"},
+        {"name": "农业制裁", "description": "农业设备禁运、化肥出口管制"},
+        {"name": "粮食援助", "description": "粮食援助、人道主义粮食发放"},
+        {"name": "粮食外交", "description": "粮食安全对话、应急粮食机制协调"}
+      ]
+    },
+    {
+      "code": "FINANCE_MONETARY",
+      "name": "金融/货币线",
+      "description": "国际支付体系、货币霸权、金融制裁、主权债务、汇率博弈、储备货币竞争",
+      "tactics": [
+        {"name": "金融制裁", "description": "SDN 清单、资产冻结、交易禁令"},
+        {"name": "SWIFT 切断", "description": "切断 SWIFT 系统接入、金融信息阻断"},
+        {"name": "货币战", "description": "汇率干预、竞争性贬值"},
+        {"name": "主权债务操控", "description": "债务重组、债务减免、债务违约"},
+        {"name": "储备货币博弈", "description": "去美元化、本币结算、外汇储备调整"},
+        {"name": "支付体系竞争", "description": "开发或推广替代支付系统（CIPS、BRICS Pay）"},
+        {"name": "金融投资限制", "description": "限制跨境投资、资本流动管制"},
+        {"name": "金融外交", "description": "货币互换协议、金融监管合作、多边开发银行协调"}
+      ]
+    },
+    {
+      "code": "TRADE_SUPPLY_CHAIN",
+      "name": "贸易/供应链线",
+      "description": "关税、贸易协定、进出口管制、供应链安全、产业去风险化、贸易争端",
+      "tactics": [
+        {"name": "关税战", "description": "关税加征、反制关税"},
+        {"name": "贸易禁运", "description": "全面或部分商品禁运"},
+        {"name": "进口配额", "description": "设置进口数量限制、配额分配"},
+        {"name": "原产地规则", "description": "原产地认证、规避关税避税"},
+        {"name": "供应链审查", "description": "供应链安全审查、强迫劳动调查"},
+        {"name": "反倾销", "description": "反倾销调查、反补贴措施、保障措施"},
+        {"name": "贸易出口管制", "description": "两用物项出口管制、战略物资许可证管理"},
+        {"name": "贸易外交", "description": "贸易协定谈判、贸易争端磋商、贸易便利化合作"}
+      ]
+    },
+    {
+      "code": "TECHNOLOGY_STANDARDS",
+      "name": "科技/标准线",
+      "description": "芯片、AI、通信技术、技术标准争夺、技术出口管制、科技人才争夺",
+      "tactics": [
+        {"name": "技术出口管制", "description": "芯片、EDA、AI 等关键技术出口管制"},
+        {"name": "实体清单", "description": "实体清单、SDN 清单纳入"},
+        {"name": "标准争夺", "description": "5G、6G、AI 标准、通信标准竞争"},
+        {"name": "技术脱钩", "description": "技术生态分离、产业去风险化"},
+        {"name": "专利封锁", "description": "专利诉讼、专利费、知识产权制裁"},
+        {"name": "人才封锁", "description": "签证限制、人才流动限制、学术合作禁令"},
+        {"name": "科技投资限制", "description": "禁止投资或收购关键技术企业"},
+        {"name": "科技外交", "description": "科技合作协定、联合研发框架、国际科学合作"}
+      ]
+    },
+    {
+      "code": "SPACE_PLANETARY",
+      "name": "星球/太空线",
+      "description": "卫星对抗、反卫星武器、太空资源争夺、月球竞赛、轨道控制、太空规则制定",
+      "tactics": [
+        {"name": "卫星干扰", "description": "卫星通信干扰、GPS 干扰或欺骗"},
+        {"name": "反卫星武器", "description": "反卫星导弹、激光武器、空间碎片"},
+        {"name": "太空武器化", "description": "部署太空武器、轨道武器平台"},
+        {"name": "轨道抢占", "description": "抢占稀缺轨道位置、频率资源"},
+        {"name": "太空资源主张", "description": "月球或小行星资源主权主张"},
+        {"name": "太空规则制定", "description": "太空交通规则、太空治理国际谈判"},
+        {"name": "太空技术出口管制", "description": "卫星或火箭技术出口许可证管制"},
+        {"name": "太空外交", "description": "太空探索合作、联合任务、数据共享"}
+      ]
+    },
+    {
+      "code": "CYBER_DATA",
+      "name": "网络/数据线",
+      "description": "网络攻击、数据主权、网络战、信息基础设施安全、数据跨境流动、虚假信息",
+      "tactics": [
+        {"name": "网络攻击", "description": "网络入侵、APT 攻击、勒索攻击"},
+        {"name": "数据主权", "description": "数据本地化要求、数据跨境管制"},
+        {"name": "虚假信息", "description": "虚假信息传播、深度伪造、信息污染"},
+        {"name": "海底光缆控制", "description": "海底光缆切断、监听、控制"},
+        {"name": "网络断连", "description": "切断互联网、DNS 劫持、流量定向"},
+        {"name": "网络防御联盟", "description": "网络防御合作、网络北约、情报共享"},
+        {"name": "网络安全出口管制", "description": "加密技术、网络安全产品出口管制"},
+        {"name": "网络外交", "description": "网络空间行为准则谈判、数据流动协议"}
+      ]
+    },
+    {
+      "code": "LEGAL_RULES",
+      "name": "法律/规则线",
+      "description": "长臂管辖、国际仲裁、国际规则制定权、制裁合法性、WTO 争端解决、条约博弈",
+      "tactics": [
+        {"name": "长臂管辖", "description": "国内法域外适用、制裁法律依据"},
+        {"name": "WTO 诉讼", "description": "WTO 争端解决、起诉与应诉"},
+        {"name": "国际仲裁", "description": "国际法庭仲裁、南海仲裁等"},
+        {"name": "规则制定", "description": "国际规则主导权、新规则提案"},
+        {"name": "退约", "description": "退出国际条约、协议、组织"},
+        {"name": "制裁合法性挑战", "description": "对制裁的法律挑战、抗辩"},
+        {"name": "法律外交", "description": "司法合作、引渡协议、判决互认谈判"},
+        {"name": "法律技术援助", "description": "法律体系建设援助、立法咨询"}
+      ]
+    },
+    {
+      "code": "CLIMATE_ENVIRONMENT",
+      "name": "气候/环保线",
+      "description": "碳排放权、碳边境税、气候治理责任、绿色技术竞争、气候援助、气候诉讼",
+      "tactics": [
+        {"name": "碳边境税", "description": "碳关税、CBAM 机制"},
+        {"name": "绿色技术封锁", "description": "光伏、风电、电池技术出口管制"},
+        {"name": "气候诉讼", "description": "气候责任诉讼、减排承诺法律化"},
+        {"name": "化石能源融资禁令", "description": "禁止资助境外化石能源项目"},
+        {"name": "排放权博弈", "description": "排放权分配、碳交易市场规则"},
+        {"name": "气候援助", "description": "气候融资、绿色援助、技术转移"},
+        {"name": "气候外交", "description": "巴黎协定谈判、气候治理国际合作"},
+        {"name": "气候规则制定", "description": "国际气候规则谈判、碳市场规则制定"}
+      ]
+    },
+    {
+      "code": "BIOSECURITY_HEALTH",
+      "name": "生物/卫生线",
+      "description": "生物安全、疫苗外交、药品供应链、大流行病防控、公共卫生治理、基因技术监管",
+      "tactics": [
+        {"name": "疫苗外交", "description": "疫苗捐赠、技术转让、联合生产"},
+        {"name": "生物安全管制", "description": "实验室监管、病原体出口管制"},
+        {"name": "药品出口管制", "description": "关键药品出口限制、原料药管制"},
+        {"name": "疫病防控合作", "description": "信息共享、联合研发、溯源合作"},
+        {"name": "生物安全立法", "description": "生物安全法、基因编辑监管"},
+        {"name": "卫生外交", "description": "WHO 博弈、国际卫生规则制定"},
+        {"name": "公共卫生对话", "description": "卫生政策协调、全球健康治理合作"},
+        {"name": "生物技术出口管制", "description": "基因编辑、生物制剂等关键技术出口管制"}
+      ]
+    },
+    {
+      "code": "CULTURE_INSTITUTION",
+      "name": "文化/制度线",
+      "description": "价值观输出、媒体战、叙事控制、制度竞争力、文化产品流通、意识形态博弈",
+      "tactics": [
+        {"name": "文化抵制", "description": "文化产品抵制、电影节禁映"},
+        {"name": "媒体控制", "description": "媒体收购、内容审查、平台制裁"},
+        {"name": "叙事争夺", "description": "发展模式叙事、制度竞争力叙事"},
+        {"name": "制度输出", "description": "治理模式输出、标准输出"},
+        {"name": "体育外交", "description": "体育赛事抵制、运动员禁赛"},
+        {"name": "文化禁令", "description": "文化内容禁令、出版物限制"},
+        {"name": "文化交流", "description": "文化展演、艺术交流、电影节互办"},
+        {"name": "文化外交", "description": "文化中心互设、文化年互办、媒体合作"}
+      ]
+    },
+    {
+      "code": "TALENT_EDUCATION",
+      "name": "人才/教育线",
+      "description": "留学生流动、学术合作、人才争夺、教育输出、科技人才竞争",
+      "tactics": [
+        {"name": "签证限制", "description": "留学生签证限制、学者签证审查"},
+        {"name": "学术制裁", "description": "学术合作中止、机构合作禁令"},
+        {"name": "人才争夺", "description": "人才引进政策、人才回流计划"},
+        {"name": "学者交流限制", "description": "访问学者限制、学术交流封锁"},
+        {"name": "教育禁运", "description": "禁止赴某国留学、教育合作中断"},
+        {"name": "校友外交", "description": "利用海外校友资源、留学网络"},
+        {"name": "学生交流", "description": "交换生项目、联合培养"},
+        {"name": "教育外交", "description": "学历互认协议、教育合作谅解备忘录"}
+      ]
+    }
+  ],
+  "storylines": [
+    {"name":"中美先进半导体出口管制","category":"中美战略竞争","domain_code":"TECHNOLOGY_STANDARDS","core_proposition":"美国及盟友限制中国获取先进半导体、制造设备和关键软件","core_actors":"中国、美国及相关盟友","main_transmission":"关键设备和芯片可得性变化→国产替代、资本开支和研发进度变化"},
+    {"name":"中国获取美国 AI 算力限制","category":"中美战略竞争","domain_code":"TECHNOLOGY_STANDARDS","core_proposition":"美国限制中国主体获取高性能 AI 芯片和境外云算力","core_actors":"中国、美国","main_transmission":"境外算力可得性变化→国内算力建设、租赁价格和推理成本变化"},
+    {"name":"中国获取美国基础模型限制","category":"中美战略竞争","domain_code":"TECHNOLOGY_STANDARDS","core_proposition":"美国限制中国主体获取基础模型权重、API 或相关模型能力","core_actors":"中国、美国","main_transmission":"海外模型能力可得性变化→国产模型研发、应用成本和生态选择变化"},
+    {"name":"中美关税对抗","category":"中美战略竞争","domain_code":"TRADE_SUPPLY_CHAIN","core_proposition":"中美双方通过关税和反制关税改变双边商品贸易成本","core_actors":"中国、美国","main_transmission":"出口价格和订单变化→企业利润、外需和国内价格变化"},
+    {"name":"中美供应链迁移","category":"中美战略竞争","domain_code":"TRADE_SUPPLY_CHAIN","core_proposition":"企业和政府推动关键产业产能从中国向其他制造基地重新布局","core_actors":"中国、美国及相关制造基地","main_transmission":"订单与产能地域变化→中国出口、制造业投资和海外建厂变化"},
+    {"name":"美国对华科技投资限制","category":"中美战略竞争","domain_code":"TECHNOLOGY_STANDARDS","core_proposition":"美国限制资本和专业能力流向中国敏感科技领域","core_actors":"美国投资者、中国科技企业","main_transmission":"科技企业融资来源变化→估值、研发投入和并购能力变化"},
+    {"name":"美国对华资本市场限制","category":"中美战略竞争","domain_code":"FINANCE_MONETARY","core_proposition":"中国企业或证券进入美国资本市场及投资组合受到限制","core_actors":"中国企业、美国监管机构和投资者","main_transmission":"海外流动性和风险溢价变化→中概股、港股及跨境融资变化"},
+    {"name":"中美关键矿产供应链博弈","category":"中美战略竞争","domain_code":"ENERGY_RESOURCES","core_proposition":"中美围绕关键矿产出口、加工能力和替代供应体系展开竞争","core_actors":"中国、美国及主要资源生产国","main_transmission":"供应和加工约束→资源价格、加工利润及海外资源投资变化"},
+    {"name":"中美西太平洋军事态势竞争","category":"中美战略竞争","domain_code":"MILITARY","core_proposition":"中美在西太平洋的军事部署、基地体系和联盟态势竞争","core_actors":"中国、美国及相关盟友","main_transmission":"地区风险溢价和军费变化→市场风险偏好、海运安全和军工需求变化"},
+    {"name":"中美网络安全对抗","category":"中美战略竞争","domain_code":"CYBER_DATA","core_proposition":"中美围绕国家级网络攻击、防御和关键数字基础设施安全展开对抗","core_actors":"中国、美国","main_transmission":"网络威胁和安全要求变化→安全预算、国产安全产品和基础设施改造变化"},
+    {"name":"中美跨境数据规则竞争","category":"中美战略竞争","domain_code":"CYBER_DATA","core_proposition":"中美围绕数据出境、数据本地化和数据主权形成规则竞争","core_actors":"中国、美国","main_transmission":"数据流动和合规成本变化→跨境业务、数据服务和企业 IT 架构变化"},
+    {"name":"美国对华云服务限制","category":"中美战略竞争","domain_code":"CYBER_DATA","core_proposition":"美国限制中国主体购买或使用美国云平台服务","core_actors":"中国、美国","main_transmission":"海外云服务可得性变化→国内云迁移、IT 成本和国产云需求变化"},
+    {"name":"中美科技人才流动限制","category":"中美战略竞争","domain_code":"TALENT_EDUCATION","core_proposition":"中美科技和工程人才的签证、就业、招聘与流动受到限制","core_actors":"中国、美国","main_transmission":"高端人才供给变化→研发效率、招聘成本和人才回流变化"},
+    {"name":"中美科研合作安全审查","category":"中美战略竞争","domain_code":"TALENT_EDUCATION","core_proposition":"中美高校、实验室和科研项目因国家安全受到审查或限制","core_actors":"中国、美国","main_transmission":"科研合作和知识扩散变化→基础研发、技术转化和科研设备需求变化"},
+    {"name":"中美卫星通信体系竞争","category":"中美战略竞争","domain_code":"SPACE_PLANETARY","core_proposition":"中美围绕低轨卫星通信网络、频谱轨道和全球服务覆盖展开竞争","core_actors":"中国、美国","main_transmission":"组网和安全需求变化→卫星制造、终端、通信设备及发射需求变化"},
+    {"name":"中美卫星导航体系竞争","category":"中美战略竞争","domain_code":"SPACE_PLANETARY","core_proposition":"北斗与 GPS 等卫星导航体系在覆盖、标准和关键应用中展开竞争","core_actors":"中国、美国","main_transmission":"导航体系采用变化→终端、芯片、高精度定位及军工应用需求变化"},
+    {"name":"台海军事安全态势","category":"台海局势","domain_code":"MILITARY","core_proposition":"台海周边军事部署、演训、军售和封锁风险发生变化","core_actors":"中国大陆、台湾地区相关当局、美国","main_transmission":"军事风险→半导体供应、海运保险、风险偏好和军工需求变化"},
+    {"name":"两岸经贸关系变化","category":"台海局势","domain_code":"TRADE_SUPPLY_CHAIN","core_proposition":"两岸贸易、投资、人员和产业合作政策发生变化","core_actors":"中国大陆、台湾地区","main_transmission":"两岸经贸政策→电子产业、食品贸易、投资及供应链合作变化"},
+    {"name":"南海海洋权益争端","category":"南海局势","domain_code":"LEGAL_RULES","core_proposition":"南海主权主张、海洋划界和资源开发权存在争议","core_actors":"中国及相关声索方","main_transmission":"权益主张变化→资源开发、海上工程及企业经营预期变化"},
+    {"name":"南海海上军事安全对峙","category":"南海局势","domain_code":"MILITARY","core_proposition":"南海海军、海警及域外军事力量发生安全对峙","core_actors":"中国、相关声索方及域外军事力量","main_transmission":"军事风险→航行安全、保险费率、区域风险偏好和军工需求变化"},
+    {"name":"俄乌战争","category":"俄乌及欧洲安全","domain_code":"MILITARY","core_proposition":"俄罗斯与乌克兰之间的战场进程、领土控制和停火安排发生变化","core_actors":"俄罗斯、乌克兰及直接军援方","main_transmission":"战争进程→风险偏好、军工需求及地区基础设施风险变化"},
+    {"name":"俄西方经济金融制裁","category":"俄乌及欧洲安全","domain_code":"FINANCE_MONETARY","core_proposition":"美国、欧盟等对俄罗斯实施及俄罗斯反制经济金融措施","core_actors":"俄罗斯、美国、欧盟及制裁参与方","main_transmission":"制裁与结算变化→贸易流向、跨境支付和中国企业合规风险变化"},
+    {"name":"欧洲对俄能源脱钩","category":"俄乌及欧洲安全","domain_code":"ENERGY_RESOURCES","core_proposition":"欧洲降低俄罗斯油气依赖，俄罗斯调整能源出口方向","core_actors":"俄罗斯、欧盟及替代能源供应国","main_transmission":"全球油气流向变化→中国进口价格、能源贸易和设备需求变化"},
+    {"name":"黑海粮食出口通道安全","category":"俄乌及欧洲安全","domain_code":"FOOD_AGRICULTURE","core_proposition":"黑海港口和航道能否维持粮食与农业品出口","core_actors":"俄罗斯、乌克兰、土耳其及相关机构","main_transmission":"粮食出口能力变化→国际粮价、饲料和中国进口成本变化"},
+    {"name":"美伊军事冲突","category":"中东安全","domain_code":"MILITARY","core_proposition":"美国与伊朗之间直接军事打击及军事行动发生升级或缓和","core_actors":"美国、伊朗及直接参战力量","main_transmission":"军事冲突→能源设施和航道风险、避险情绪及油价变化"},
+    {"name":"伊朗核问题","category":"中东安全","domain_code":"LEGAL_RULES","core_proposition":"伊朗核能力、国际核查及核协议状态发生变化","core_actors":"伊朗、美国、欧洲国家、国际原子能机构","main_transmission":"核风险和协议前景→制裁预期、伊朗石油供给预期和风险溢价变化"},
+    {"name":"美国对伊经济制裁","category":"中东安全","domain_code":"FINANCE_MONETARY","core_proposition":"美国针对伊朗金融、石油和贸易活动实施制裁","core_actors":"美国、伊朗及与伊朗交易的第三方主体","main_transmission":"伊朗出口和第三方交易变化→油价、油运和中国企业合规风险变化"},
+    {"name":"伊朗—以色列军事冲突","category":"中东安全","domain_code":"MILITARY","core_proposition":"伊朗与以色列直接或通过明确军事代理力量实施军事对抗","core_actors":"伊朗、以色列及直接相关代理力量","main_transmission":"冲突外溢→能源设施、航线、避险和地区风险溢价变化"},
+    {"name":"霍尔木兹海峡能源通道安全","category":"中东安全","domain_code":"INFRASTRUCTURE","core_proposition":"霍尔木兹海峡油气运输能力和通航安全发生变化","core_actors":"伊朗、海湾国家、美国及航运主体","main_transmission":"通航能力变化→中国油气进口、油运、保险和输入性通胀变化"},
+    {"name":"加沙战争","category":"巴以冲突","domain_code":"MILITARY","core_proposition":"加沙地带战场行动、停火和人质安排发生变化","core_actors":"以色列、哈马斯及相关调停方","main_transmission":"战争及外溢风险→中东风险溢价、外交关系和市场情绪变化"},
+    {"name":"红海航运安全冲突","category":"中东安全","domain_code":"INFRASTRUCTURE","core_proposition":"红海—曼德海峡商船安全、军事护航和航线绕行发生变化","core_actors":"胡塞武装、多国海军及航运企业","main_transmission":"航线受阻→运距、运价、船舶供给和中国出口交付周期变化"},
+    {"name":"朝鲜核计划","category":"朝鲜半岛安全","domain_code":"MILITARY","core_proposition":"朝鲜核材料、核设施、核试验和核政策发生变化","core_actors":"朝鲜、韩国、美国、日本、中国","main_transmission":"核风险→东北亚风险偏好、制裁预期和核安全需求变化"},
+    {"name":"朝鲜弹道导弹活动","category":"朝鲜半岛安全","domain_code":"MILITARY","core_proposition":"朝鲜弹道导弹试射、部署和技术能力发生变化","core_actors":"朝鲜、韩国、美国、日本","main_transmission":"导弹活动→地区军事戒备、导弹防御和军工电子需求变化"},
+    {"name":"美日韩军事安全合作","category":"朝鲜半岛安全","domain_code":"MILITARY","core_proposition":"美国、韩国和日本之间联合军事协作与地区部署发生变化","core_actors":"美国、韩国、日本","main_transmission":"联盟态势变化→东北亚安全风险、军费和供应链风险预期变化"},
+    {"name":"中欧电动汽车贸易摩擦","category":"中欧经济安全","domain_code":"TRADE_SUPPLY_CHAIN","core_proposition":"欧盟针对中国电动汽车采取补贴调查、关税和市场准入措施","core_actors":"中国、欧盟","main_transmission":"出口成本和海外建厂变化→整车利润、销量和欧洲产能配置变化"},
+    {"name":"中欧光伏贸易摩擦","category":"中欧经济安全","domain_code":"TRADE_SUPPLY_CHAIN","core_proposition":"欧盟针对中国光伏产品采取贸易救济、采购和产业保护措施","core_actors":"中国、欧盟","main_transmission":"欧洲市场准入和价格变化→组件出口、产能利用和海外建厂变化"},
+    {"name":"欧盟电池供应链规则对华影响","category":"中欧经济安全","domain_code":"LEGAL_RULES","core_proposition":"欧盟电池原产地、碳足迹、尽职调查和本地化规则影响中国产业链","core_actors":"中国、欧盟","main_transmission":"合规和本地化要求→电池出口成本、材料选择及欧洲投资变化"},
+    {"name":"美国对华生物技术安全限制","category":"中美战略竞争","domain_code":"BIOSECURITY_HEALTH","core_proposition":"美国以国家安全为由限制中国生物技术企业、基因数据和研发服务","core_actors":"中国、美国","main_transmission":"研发合作和美国订单变化→生物技术、检测及研发外包业务变化"},
+    {"name":"中国与西方医药供应链重构","category":"中国与西方经济安全","domain_code":"TRADE_SUPPLY_CHAIN","core_proposition":"西方降低对中国原料药、药品制造和医药服务依赖","core_actors":"中国、美国、欧洲、印度","main_transmission":"订单和产能迁移→原料药、制剂及医药外包企业收入变化"},
+    {"name":"美国对华投资安全审查","category":"中美战略竞争","domain_code":"FINANCE_MONETARY","core_proposition":"美国以国家安全为由审查中国企业在美国的投资和并购","core_actors":"中国、美国","main_transmission":"美国并购和建厂受限→中国企业出海、技术获取和资本配置变化"},
+    {"name":"欧盟对华投资安全审查","category":"中欧经济安全","domain_code":"FINANCE_MONETARY","core_proposition":"欧盟及成员国以安全和公共秩序为由审查中国企业投资和并购","core_actors":"中国、欧盟及成员国","main_transmission":"欧洲并购和投资受限→中国企业欧洲布局、技术获取和建厂策略变化"},
+    {"name":"美国涉华二级制裁","category":"中国与西方经济安全","domain_code":"FINANCE_MONETARY","core_proposition":"美国因中国主体与受制裁国家或机构交易而实施二级制裁","core_actors":"中国、美国及受制裁国家相关交易主体","main_transmission":"交易和结算风险上升→银行合规、能源贸易及跨境业务变化"},
+    {"name":"美国对华出口管制执法","category":"中国与西方经济安全","domain_code":"TECHNOLOGY_STANDARDS","core_proposition":"美国针对向中国转移受控产品、技术和软件实施许可与执法","core_actors":"中国、美国及第三方供应商和经销商","main_transmission":"供应商和转口渠道变化→技术获取、合规成本和交付周期变化"},
+    {"name":"刚果（金）东部关键矿产供应安全","category":"非洲资源安全","domain_code":"ENERGY_RESOURCES","core_proposition":"刚果（金）东部安全局势影响钴、钽等关键矿产生产和运输","core_actors":"刚果（金）、M23、卢旺达及地区力量","main_transmission":"矿产生产和运输风险→中国原料保障、价格及海外矿业运营变化"}
+  ]
+}

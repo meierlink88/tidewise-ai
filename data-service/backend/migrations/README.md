@@ -81,6 +81,9 @@ docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.y
 - `000068_add_storyline_domain_codes.sql`：为确认为空的 `storyline_domains` 增加全局唯一、
   非空且格式受控的机器 `code`；目录事实不在 migration 中 seed，需随后运行
   `storyline-domain-catalog-publish -file /app/initdata/storyline-domains-v1.json`。
+- `000082_rebuild_geopolitical_storyline_facts.sql`：零兼容退役四张通用 Storyline 系列表，
+  将 `geopolitic_rivalries` 重建为地缘政治故事线主表，新建 `geopolitic_domains`，
+  并以严格 JSONB 数组将每个领域的多个手段纳入完整领域对象。
 - `000069_move_industry_chain_mappings_to_typed_links.sql`：删除已确认隔离的模拟晶圆测试夹具，
   将正式 IndustryChain–Industry 与 IndustryChain–Concept 映射完整迁移到两张 typed Link 表，
   保留 ERL 身份/端点/创建时间，并禁止通用 `entity_edges` 再写入两种保留关系类型。
@@ -378,3 +381,13 @@ down migration。
 覆盖已发布报告；最终 JSONB 是 AgentOS 定稿 fixture 定义的扁平 Report 快照，不是过渡期
 summary/detail 形状。发现任何历史行就 fail closed。完整回滚必须恢复 migration 81 前
 已确认的 RDS 恢复点，并同步回退 Data、Miniapp 与 AgentOS publisher，不运行 down migration。
+
+`000082` 是 Issue #413 授权的高风险、零兼容、前向切换，并取代 `000064`–`000068`
+中已退役的地缘政治蓝图和 Storyline 系列当前合同。操作员必须停止旧 Storyline 与
+GeopoliticRivalry 写入，保留经审阅的 PostgreSQL 恢复点，并用候选镜像执行全账本
+check-only。迁移会删除 `storyline_domain_tactics`、`storyline_domains`、
+`storyline_event_links`、`storylines` 及旧 `geopolitic_rivalries`，不猜测保留旧行。
+迁移后使用同一镜像运行
+`geopolitical-catalog-publish -file /app/initdata/geopolitical-storylines-v1.json`，并验证 ledger 为
+`82`、14 个 GeopoliticDomain、112 个 tactics、44 条 GeopoliticRivalry 故事线、零孤立领域
+引用。回滚必须同时恢复 migration 82 前快照和上一版应用，不运行 down migration。

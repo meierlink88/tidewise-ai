@@ -80,3 +80,4 @@
 000079	normal	schema	add immutable Report and Report Evidence Link storage after the coordinated legacy-domain retirement
 000080	high	mixed	require an empty Report store and replace the unpublished v1 page-shaped contract with report-publication.v2 optional analysis sections
 000081	high	mixed	require an empty Report store and finalize the immutable Report JSONB plus scoped Evidence-link publication contract
+000082	high	mixed	retire legacy Storyline persistence and rebuild geopolitical domains and storyline facts in a snapshot-protected zero-compatibility cutover

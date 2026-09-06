@@ -3,6 +3,7 @@ status: accepted
 date: 2026-08-19
 issue: 300
 extends: 0019-database-independent-domain-object-identities.md
+amended_by: 0057-rebuild-geopolitical-storyline-facts.md
 ---
 
 # 独立地缘政治对抗与宏观经济叙事蓝图

@@ -1,0 +1,23 @@
+namespace Tidewise
+
+GeopoliticDomain(地缘政治领域): EntityType
+    desc: 地缘政治故事线的主领域分类和可识别手段目录
+    properties:
+        code(领域代码): Text
+            desc: 全局唯一的稳定英文大写机器代码
+            constraint: NotNull
+        name(领域中文名称): Text
+            desc: 领域的中文正式名称
+            constraint: NotNull
+        description(领域描述): Text
+            desc: 用于识别该领域地缘政治事件的语义定义
+            constraint: NotNull
+        tactics(手段数组): Text
+            desc: 严格 JSON 数组，每项仅包含手段中文名称 name 和手段描述 description
+            constraint: NotNull
+        createdAt(创建时间): Text
+            desc: PostgreSQL 生成的领域创建时间
+            constraint: NotNull
+        updatedAt(更新时间): Text
+            desc: PostgreSQL 生成的领域最近变更时间
+            constraint: NotNull
