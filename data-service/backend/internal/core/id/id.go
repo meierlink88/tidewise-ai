@@ -31,6 +31,7 @@ const (
 	GeopoliticDomain          Kind = "GPD"
 	GeopoliticRivalry         Kind = "GPR"
 	MacroEconomic             Kind = "MEC"
+	MacroEconomicDomain       Kind = "MCD"
 	Company                   Kind = "COM"
 	CompanyIndustryLink       Kind = "CIL"
 	Region                    Kind = "REG"
@@ -152,7 +153,7 @@ func prefix(kind Kind) (string, error) {
 
 func registered(kind Kind) bool {
 	switch kind {
-	case Entity, Industry, Concept, ChainNode, IndustryChain, EntityRelation, Country, Subdivision, Ministry, Institution, GeopoliticDomain, GeopoliticRivalry, MacroEconomic, Company, CompanyIndustryLink, Region, Organization, OrganizationCategory, OrganizationFunction, OrganizationDomainTag,
+	case Entity, Industry, Concept, ChainNode, IndustryChain, EntityRelation, Country, Subdivision, Ministry, Institution, GeopoliticDomain, GeopoliticRivalry, MacroEconomic, MacroEconomicDomain, Company, CompanyIndustryLink, Region, Organization, OrganizationCategory, OrganizationFunction, OrganizationDomainTag,
 		OrganizationDomainTagLink, RawEvidence, Evidence, EvidenceCategory, RawEvidenceCategoryLink,
 		CountryRegionLink,
 		EventEvidenceLink, EventActorLink, EventAssetLink, Event, EventPublicationReceipt,

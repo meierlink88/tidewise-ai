@@ -1,34 +1,23 @@
 namespace Tidewise
 
-MacroEconomic(宏观经济叙事蓝图): EntityType
-    desc: 独立静态宏观经济叙事蓝图
+MacroEconomic(宏观经济故事线): EntityType
+    desc: 以单一宏观话题及其对中国经济市场的影响机制组织的故事线
     properties:
-        name(蓝图中文名称): Text
-            desc: 宏观经济叙事蓝图的中文正式名称
+        name(故事线中文名称): Text
+            desc: 唯一的故事线中文正式名称
             constraint: NotNull
-        nameEn(蓝图英文名称): Text
-            desc: 宏观经济叙事蓝图的英文正式名称
+        macroEconomicsDomainId(领域标识): Text
+            desc: 故事线唯一主领域的 MacroEconomicDomain 标识
             constraint: NotNull
-        macroType(宏观类型): Text
-            # MONETARY：货币政策。
-            # FISCAL：财政政策。
-            # TRADE_POLICY：贸易政策。
-            # REGULATORY：监管政策。
-            # DATA_ECONOMIC：数据经济。
-            desc: 宏观经济叙事蓝图的受控类型
-            constraint: NotNull, Enum="MONETARY,FISCAL,TRADE_POLICY,REGULATORY,DATA_ECONOMIC"
-        description(蓝图说明): Text
-            desc: 宏观经济叙事蓝图的非空自然语言说明
+        coreProposition(核心命题): Text
+            desc: 一句话描述关键因素通过传导渠道影响中国经济市场的哪些方面，不预设预测方向
             constraint: NotNull
-        status(生命周期状态): Text
-            # ACTIVE：蓝图持续活跃。
-            # DORMANT：蓝图暂时休眠。
-            # ARCHIVED：蓝图已经归档。
-            desc: 宏观经济叙事蓝图的受控生命周期状态
-            constraint: NotNull, Enum="ACTIVE,DORMANT,ARCHIVED"
+        candidateAssets(候选资产): Text
+            desc: 故事线匹配后的有序资产、板块或产业链节点研究范围，不表达投研结论或作为 Event 匹配依据
+            constraint: NotNull, MultiValue
         createdAt(创建时间): Text
-            desc: PostgreSQL 生成的蓝图创建时间
+            desc: PostgreSQL 生成的故事线创建时间
             constraint: NotNull
         updatedAt(更新时间): Text
-            desc: PostgreSQL 生成的蓝图最近变更时间
+            desc: PostgreSQL 生成的故事线最近变更时间
             constraint: NotNull

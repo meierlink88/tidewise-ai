@@ -37,7 +37,7 @@ Data 各领域曾并存裸 UUID、`PREFIX_ + code`、固定短码和非 UUID 自
 `ENT` Entity、`IND` Industry、`CON` Concept、`CND` ChainNode、`ICH` IndustryChain、
 `ERL` Entity Relation、`COU` Country、`REG` Region、`ORG` Organization、
 `SUB` Subdivision、`MIN` Ministry、`INS` Institution、
-`GPD` GeopoliticDomain、`GPR` GeopoliticRivalry、`MEC` MacroEconomic、
+`GPD` GeopoliticDomain、`GPR` GeopoliticRivalry、`MEC` MacroEconomic、`MCD` MacroEconomicDomain、
 `COM` Company、`CIL` Company Industry Link、
 `OCA` Organization Category、`OFN` Organization Function、`ODT` Organization Domain Tag、
 `ODL` Organization Domain Tag Link、

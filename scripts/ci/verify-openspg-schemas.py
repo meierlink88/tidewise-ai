@@ -509,49 +509,22 @@ def verify_macro_economic(parser, schema_file):
     macro = parser.types.get("Tidewise.MacroEconomic")
     assert macro is not None, "macro-economic.schema must define Tidewise.MacroEconomic"
     assert macro.spg_type_enum.value == "ENTITY_TYPE"
-    assert macro.name_zh == "宏观经济叙事蓝图"
-    assert not macro.relations, "MacroEconomic must not publish object relations"
-
+    assert macro.name_zh == "宏观经济故事线"
+    assert not macro.relations
     expected_properties = {
-        "name",
-        "nameEn",
-        "macroType",
-        "description",
-        "status",
-        "createdAt",
-        "updatedAt",
+        "name", "macroEconomicsDomainId", "coreProposition",
+        "candidateAssets", "createdAt", "updatedAt",
     }
     verify_text_property_contract(
-        "MacroEconomic", macro, expected_properties, expected_properties
+        "MacroEconomic", macro, expected_properties, expected_properties, {"candidateAssets"}
     )
-
-    assert constraint_values(macro.properties["macroType"])["ENUM"] == [
-        "MONETARY",
-        "FISCAL",
-        "TRADE_POLICY",
-        "REGULATORY",
-        "DATA_ECONOMIC",
-    ]
-    assert constraint_values(macro.properties["status"])["ENUM"] == [
-        "ACTIVE",
-        "DORMANT",
-        "ARCHIVED",
-    ]
-    for declaration, meanings in {
-        "macroType(宏观类型): Text": {
-            "MONETARY": "货币政策",
-            "FISCAL": "财政政策",
-            "TRADE_POLICY": "贸易政策",
-            "REGULATORY": "监管政策",
-            "DATA_ECONOMIC": "数据经济",
-        },
-        "status(生命周期状态): Text": {
-            "ACTIVE": "持续活跃",
-            "DORMANT": "暂时休眠",
-            "ARCHIVED": "已经归档",
-        },
-    }.items():
-        verify_enum_meanings(schema_file, declaration, meanings)
+    domain = parser.types.get("Tidewise.MacroEconomicDomain")
+    assert domain is not None, "macro-economic-domain.schema must define Tidewise.MacroEconomicDomain"
+    assert domain.spg_type_enum.value == "ENTITY_TYPE"
+    assert domain.name_zh == "宏观经济领域"
+    assert not domain.relations
+    properties = {"code", "name", "description", "tactics", "createdAt", "updatedAt"}
+    verify_text_property_contract("MacroEconomicDomain", domain, properties, properties)
 
 
 def verify_ministry(parser, schema_file, migration_file):
