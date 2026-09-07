@@ -82,16 +82,20 @@
 }
 .normalized-conclusion {
   padding: 28px;
-  border: 1px solid #bfd0ea;
-  background: linear-gradient(135deg, #173f78, #102c56);
-  border-radius: 14px;
-  color: #fff;
+  border: 1px solid $color-champagne-300;
+  border-top: 5px solid $color-champagne-300;
+  background: linear-gradient(150deg, $color-card, $color-ivory-100);
+  border-radius: 18px;
+  color: $color-report-ink;
+  box-shadow: 0 6px 20px rgba($color-navy-900, 0.04);
   margin-bottom: 24px;
 }
 .normalized-section-label {
   display: block;
   font-size: 23px;
-  color: #ecd093;
+  color: $color-report-diverging;
+  font-weight: 600;
+  letter-spacing: 2px;
 }
 .normalized-conclusion-text {
   display: block;
@@ -119,9 +123,9 @@
   overflow-wrap: anywhere;
 }
 .normalized-signal-chip {
-  color: #e5edf9;
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.2);
+  color: $color-text-secondary;
+  background: $color-card;
+  border-color: $color-border;
 }
 .normalized-direction {
   padding: 2px 9px;
@@ -145,8 +149,10 @@
   display: block;
   font-size: 22px;
   line-height: 1.7;
-  color: #c5d4ea;
-  margin-top: 18px;
+  color: $color-text-secondary;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid $color-champagne-300;
 }
 .normalized-evidence {
   font-size: 22px !important;
@@ -159,7 +165,7 @@
 }
 .normalized-conclusion .normalized-evidence {
   margin: 16px 0 0 auto !important;
-  color: #e5cf9e !important;
+  color: $color-report-diverging !important;
 }
 .normalized-title {
   display: block;
