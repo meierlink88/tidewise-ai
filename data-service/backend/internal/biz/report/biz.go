@@ -701,6 +701,7 @@ var (
 		TransmissionCrossLayer: "跨层推理", TransmissionSameSource: "同源信号",
 	}
 	transmissionStatusLabels = map[string]string{"established": "已形成传导"}
+	impactLevelLabels        = map[string]string{ImpactLevelHigh: "高影响", ImpactLevelMedium: "中影响", ImpactLevelLow: "低影响", ImpactLevelPending: "待评估"}
 	targetTypeLabels         = map[string]string{
 		"macro_anchor": "宏观经济锚点", "industry_chain": "产业链", "industry_chain_node": "产业链节点",
 	}
@@ -1165,6 +1166,9 @@ func buildEvidenceLinks(reportID string, report Report) ([]EvidenceLink, error) 
 				scope = ScopeConceptSummary
 			}
 			values = append(values, scopedRefs{scope, prefix + "/summary/evidence_refs", unit.Summary.EvidenceRefs})
+			if impact := unit.Summary.ImpactAssessment; impact != nil {
+				values = append(values, scopedRefs{scope, prefix + "/summary/impact_assessment/evidence_refs", impact.EvidenceRefs})
+			}
 			for _, a := range unit.Detail.AffectedAnchors {
 				values = append(values, scopedRefs{ScopeAnchor, prefix + "/detail/affected_anchors/" + a.LocalKey + "/evidence_refs", a.EvidenceRefs})
 			}
@@ -1246,7 +1250,28 @@ type AnalysisWindow struct {
 	End   string `json:"end"`
 }
 
+const (
+	ImpactLevelHigh    = "high"
+	ImpactLevelMedium  = "medium"
+	ImpactLevelLow     = "low"
+	ImpactLevelPending = "pending"
+)
+
+// ImpactAssessment describes conditional consequence magnitude, independently of direction and confidence.
+type ImpactAssessment struct {
+	Level        CodedLabel          `json:"level"`
+	Rationale    string              `json:"rationale"`
+	EvidenceRefs []EvidenceReference `json:"evidence_refs"`
+}
+
+type ImpactAssessmentProjection struct {
+	Level              CodedLabel `json:"level"`
+	Rationale          string     `json:"rationale"`
+	EvidenceScopeToken *string    `json:"evidence_scope_token"`
+}
+
 type AnalysisSummary struct {
+	ImpactAssessment  *ImpactAssessment   `json:"impact_assessment,omitempty"`
 	Conclusion        string              `json:"conclusion"`
 	TransmissionLogic string              `json:"transmission_logic"`
 	AnchorKeys        []string            `json:"anchor_keys"`
@@ -1330,15 +1355,16 @@ type AnalysisImpactProjection struct {
 }
 
 type AnalysisUnitSummary struct {
-	LocalKey           string                     `json:"local_key"`
-	SourceID           string                     `json:"source_id"`
-	Title              string                     `json:"title"`
-	Conclusion         string                     `json:"conclusion"`
-	TransmissionLogic  string                     `json:"transmission_logic"`
-	AffectedAnchors    []AnalysisImpactProjection `json:"affected_anchors"`
-	ChainCount         int                        `json:"chain_count"`
-	EvidenceScopeToken *string                    `json:"evidence_scope_token"`
-	Ordinal            int                        `json:"-"`
+	ImpactAssessment   *ImpactAssessmentProjection `json:"impact_assessment,omitempty"`
+	LocalKey           string                      `json:"local_key"`
+	SourceID           string                      `json:"source_id"`
+	Title              string                      `json:"title"`
+	Conclusion         string                      `json:"conclusion"`
+	TransmissionLogic  string                      `json:"transmission_logic"`
+	AffectedAnchors    []AnalysisImpactProjection  `json:"affected_anchors"`
+	ChainCount         int                         `json:"chain_count"`
+	EvidenceScopeToken *string                     `json:"evidence_scope_token"`
+	Ordinal            int                         `json:"-"`
 }
 type ChainAnalysisSummary struct {
 	LocalKey   string `json:"local_key"`
@@ -1436,6 +1462,20 @@ func validateAnalysisUnit(kind string, u AnalysisUnit, index *reportIndex) error
 	}
 	if err := validateAnalysisEvidenceRefs(p+"/summary/evidence_refs", u.Summary.EvidenceRefs, "summary_support"); err != nil {
 		return err
+	}
+	if a := u.Summary.ImpactAssessment; a != nil {
+		if err := validateMappedLabel(p+"/summary/impact_assessment/level", a.Level, impactLevelLabels); err != nil {
+			return err
+		}
+		if err := requiredText(p+"/summary/impact_assessment/rationale", a.Rationale, 10000); err != nil {
+			return err
+		}
+		if a.Level.Code != ImpactLevelPending && len(a.EvidenceRefs) == 0 {
+			return invalid(p+"/summary/impact_assessment/evidence_refs", "rated impact requires supporting Evidence")
+		}
+		if err := validateAnalysisEvidenceRefs(p+"/summary/impact_assessment/evidence_refs", a.EvidenceRefs, "summary_support"); err != nil {
+			return err
+		}
 	}
 	if err := validateAnalysisSteps(p+"/detail", u.Detail.ReasoningSteps, index); err != nil {
 		return err

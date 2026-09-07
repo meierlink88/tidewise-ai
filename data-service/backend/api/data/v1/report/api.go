@@ -401,7 +401,21 @@ type AnalysisWindow struct {
 	End   string `json:"end"`
 }
 
+// ImpactAssessment describes conditional consequence magnitude, independently of direction and confidence.
+type ImpactAssessment struct {
+	Level        CodedLabel          `json:"level"`
+	Rationale    string              `json:"rationale"`
+	EvidenceRefs []EvidenceReference `json:"evidence_refs"`
+}
+
+type ImpactAssessmentProjection struct {
+	Level              CodedLabel `json:"level"`
+	Rationale          string     `json:"rationale"`
+	EvidenceScopeToken *string    `json:"evidence_scope_token"`
+}
+
 type AnalysisSummary struct {
+	ImpactAssessment  *ImpactAssessment   `json:"impact_assessment,omitempty"`
 	Conclusion        string              `json:"conclusion"`
 	TransmissionLogic string              `json:"transmission_logic"`
 	AnchorKeys        []string            `json:"anchor_keys"`
@@ -485,15 +499,16 @@ type AnalysisImpactProjection struct {
 }
 
 type AnalysisUnitSummary struct {
-	LocalKey           string                     `json:"local_key"`
-	SourceID           string                     `json:"source_id"`
-	Title              string                     `json:"title"`
-	Conclusion         string                     `json:"conclusion"`
-	TransmissionLogic  string                     `json:"transmission_logic"`
-	AffectedAnchors    []AnalysisImpactProjection `json:"affected_anchors"`
-	ChainCount         int                        `json:"chain_count"`
-	EvidenceScopeToken *string                    `json:"evidence_scope_token"`
-	Ordinal            int                        `json:"-"`
+	ImpactAssessment   *ImpactAssessmentProjection `json:"impact_assessment,omitempty"`
+	LocalKey           string                      `json:"local_key"`
+	SourceID           string                      `json:"source_id"`
+	Title              string                      `json:"title"`
+	Conclusion         string                      `json:"conclusion"`
+	TransmissionLogic  string                      `json:"transmission_logic"`
+	AffectedAnchors    []AnalysisImpactProjection  `json:"affected_anchors"`
+	ChainCount         int                         `json:"chain_count"`
+	EvidenceScopeToken *string                     `json:"evidence_scope_token"`
+	Ordinal            int                         `json:"-"`
 }
 type ChainAnalysisSummary struct {
 	LocalKey   string `json:"local_key"`

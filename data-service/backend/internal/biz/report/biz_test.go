@@ -405,3 +405,71 @@ func TestStoryChainPublicationValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestImpactAssessmentValidation(t *testing.T) {
+	payload, err := os.ReadFile("../../../api/data/v1/report/testdata/story-chain-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func() reportbiz.Report {
+		var r struct {
+			Report reportbiz.Report `json:"report"`
+		}
+		if err := json.Unmarshal(payload, &r); err != nil {
+			t.Fatal(err)
+		}
+		return r.Report
+	}
+	for _, kind := range []string{"geo", "macro", "concept"} {
+		for code, label := range map[string]string{"high": "高影响", "medium": "中影响", "low": "低影响", "pending": "待评估"} {
+			r := read()
+			a := r.GeopoliticalStories[0].Summary.ImpactAssessment
+			if kind == "macro" {
+				a = r.MacroeconomicStories[0].Summary.ImpactAssessment
+			}
+			if kind == "concept" {
+				a = r.ConceptAnalyses[0].Summary.ImpactAssessment
+			}
+			a.Level = reportbiz.CodedLabel{Code: code, Label: label}
+			if code == "pending" {
+				a.EvidenceRefs = []reportbiz.EvidenceReference{}
+			}
+			if err := reportbiz.ValidateReport(r); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	for name, mutate := range map[string]func(*reportbiz.ImpactAssessment){
+		"unknown level":          func(a *reportbiz.ImpactAssessment) { a.Level.Code = "severe" },
+		"wrong label":            func(a *reportbiz.ImpactAssessment) { a.Level.Label = "低影响" },
+		"blank rationale":        func(a *reportbiz.ImpactAssessment) { a.Rationale = " " },
+		"long rationale":         func(a *reportbiz.ImpactAssessment) { a.Rationale = strings.Repeat("a", 10001) },
+		"missing rated Evidence": func(a *reportbiz.ImpactAssessment) { a.EvidenceRefs = []reportbiz.EvidenceReference{} },
+		"null pending Evidence": func(a *reportbiz.ImpactAssessment) {
+			a.Level = reportbiz.CodedLabel{Code: "pending", Label: "待评估"}
+			a.EvidenceRefs = nil
+		},
+		"wrong role": func(a *reportbiz.ImpactAssessment) {
+			a.EvidenceRefs[0].Role = reportbiz.CodedLabel{Code: "direct_support", Label: "直接依据"}
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := read()
+			mutate(r.GeopoliticalStories[0].Summary.ImpactAssessment)
+			if reportbiz.ValidateReport(r) == nil {
+				t.Fatal("invalid assessment accepted")
+			}
+		})
+	}
+	r := read()
+	r.GeopoliticalStories[0].Summary.ImpactAssessment = nil
+	r.MacroeconomicStories[0].Summary.ImpactAssessment = nil
+	r.ConceptAnalyses[0].Summary.ImpactAssessment = nil
+	wire, err := json.Marshal(r)
+	if err != nil || strings.Contains(string(wire), "impact_assessment") {
+		t.Fatalf("legacy wire changed: %v", err)
+	}
+	if err := reportbiz.ValidateReport(r); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -107,7 +107,7 @@ func TestPublicationFixturesMatchOpenAPI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"investment-report-publication-request.json", "story-concept-publication-request.json"} {
+	for _, name := range []string{"investment-report-publication-request.json", "story-concept-publication-request.json", "story-chain-publication-request.json"} {
 		payload, err := os.ReadFile("testdata/" + name)
 		if err != nil {
 			t.Fatal(err)
@@ -118,6 +118,32 @@ func TestPublicationFixturesMatchOpenAPI(t *testing.T) {
 		}
 		if err := document.Components.Schemas["ReportPublicationRequest"].Value.VisitJSON(value); err != nil {
 			t.Fatalf("%s: %v", name, err)
+		}
+	}
+}
+
+func TestImpactAssessmentStrictPublication(t *testing.T) {
+	payload, err := os.ReadFile("testdata/story-chain-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var request PublicationRequest
+	if err := v1.DecodeStrictJSON(payload, analysisPublicationShape(), &request); err != nil {
+		t.Fatal(err)
+	}
+	for _, change := range []func(map[string]any){
+		func(s map[string]any) { s["impact_assessment"] = nil },
+		func(s map[string]any) { delete(s["impact_assessment"].(map[string]any), "level") },
+		func(s map[string]any) { s["impact_assessment"].(map[string]any)["rationale"] = 5 },
+		func(s map[string]any) { s["impact_assessment"].(map[string]any)["event_ids"] = []any{} },
+	} {
+		var root map[string]any
+		_ = json.Unmarshal(payload, &root)
+		summary := root["report"].(map[string]any)["geopolitical_stories"].([]any)[0].(map[string]any)["summary"].(map[string]any)
+		change(summary)
+		wire, _ := json.Marshal(root)
+		if err := v1.DecodeStrictJSON(wire, analysisPublicationShape(), &request); err == nil {
+			t.Fatal("invalid assessment wire accepted")
 		}
 	}
 }
