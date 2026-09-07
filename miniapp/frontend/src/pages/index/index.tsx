@@ -168,20 +168,18 @@ export function IndexView({
       <View className='home-page'>
         <HomeHeader chrome={chrome} query={query} onQueryChange={onQueryChange} />
         <View className='home-content'>
-          <ScrollView scrollY className='home-report-scroll'>
-            {state.refreshFailed ? (
-              <View className='home-refresh-warning' onClick={onRefresh}>
-                刷新失败，点击重试；当前展示上次成功读取的内容
-              </View>
-            ) : null}
-            <NormalizedHome
-              key={state.data.reports[0].report.id}
-              group={state.data.reports[0]}
-              query={query}
-              onDetail={onOpenDetail}
-              onEvidence={onOpenEvidence}
-            />
-          </ScrollView>
+          {state.refreshFailed ? (
+            <View className='home-refresh-warning' onClick={onRefresh}>
+              刷新失败，点击重试；当前展示上次成功读取的内容
+            </View>
+          ) : null}
+          <NormalizedHome
+            key={state.data.reports[0].report.id}
+            group={state.data.reports[0]}
+            query={query}
+            onDetail={onOpenDetail}
+            onEvidence={onOpenEvidence}
+          />
         </View>
       </View>
     );
