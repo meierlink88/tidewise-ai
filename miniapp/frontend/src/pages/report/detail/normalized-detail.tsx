@@ -297,24 +297,13 @@ function NodeMetadata({ assessment: a }: { assessment: Assessment }) {
     <View className='normalized-node-metadata'>
       <View className='normalized-node-badges'>
         <Text className={`normalized-direction ${a.direction}`}>{directions[a.direction]}</Text>
-        <Text className='normalized-node-method'>
-          {a.conclusion_basis === 'observation_only' ? '仅观察' : '推理'}
-        </Text>
-      </View>
-      <View className='normalized-node-facts'>
         {a.confidence ? (
-          <View className='normalized-node-fact'>
-            <Text className='normalized-node-fact-label'>置信度</Text>
-            <Text className='normalized-node-fact-value'>{confidences[a.confidence]}</Text>
-          </View>
-        ) : null}
-        {a.forecast_window.kind !== 'not_applicable' ? (
-          <View className='normalized-node-fact'>
-            <Text className='normalized-node-fact-label'>周期</Text>
-            <Text className='normalized-node-fact-value'>{a.forecast_window.description}</Text>
-          </View>
+          <Text className='normalized-node-confidence'>置信度 {confidences[a.confidence]}</Text>
         ) : null}
       </View>
+      {a.forecast_window.kind !== 'not_applicable' ? (
+        <Text className='normalized-node-period'>{a.forecast_window.description}</Text>
+      ) : null}
     </View>
   );
 }
@@ -395,7 +384,14 @@ function HorizontalGraph({
               onClick={() => onSelect(n.local_key)}
               ariaLabel={`查看${n.name}节点详情`}
             >
-              <Text className='normalized-graph-name'>{n.name}</Text>
+              <View className='normalized-graph-heading'>
+                <Text className='normalized-graph-name'>{n.name}</Text>
+                {hit ? (
+                  <Text className='normalized-node-method'>
+                    {hit.assessment.conclusion_basis === 'observation_only' ? '仅观察' : '推理'}
+                  </Text>
+                ) : null}
+              </View>
               <View className='normalized-graph-signal-space' />
               {hit ? (
                 <NodeMetadata assessment={hit.assessment} />

@@ -334,8 +334,21 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.normalized-graph-name {
+.normalized-graph-heading {
+  display: flex;
   flex: 0 0 auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+}
+.normalized-graph-heading .normalized-graph-name {
+  flex: 1;
+  min-width: 0;
+}
+.normalized-graph-heading .normalized-node-method {
+  flex: 0 0 auto;
+  line-height: 1.5;
 }
 // Reserved for a future variable-signal field; no invented signal or placeholder copy.
 .normalized-graph-signal-space {
@@ -348,6 +361,7 @@
 }
 .normalized-node-badges {
   display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 12px;
   font-size: 21px;
@@ -363,29 +377,18 @@
   color: $color-text-secondary;
   font-size: 19px;
 }
-.normalized-node-facts {
+.normalized-node-confidence {
+  color: $color-text-secondary;
+  font-size: 20px;
+  white-space: nowrap;
+}
+.normalized-node-period {
+  display: block;
   margin-top: 14px;
   padding-top: 14px;
   border-top: 1px solid $color-report-divider;
-}
-.normalized-node-fact {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
+  color: $color-text-secondary;
   font-size: 20px;
   line-height: 1.6;
-}
-.normalized-node-fact + .normalized-node-fact {
-  margin-top: 8px;
-}
-.normalized-node-fact-label {
-  flex: 0 0 62px;
-  color: $color-text-muted;
-}
-.normalized-node-fact-value {
-  flex: 1;
-  min-width: 0;
-  color: $color-report-ink;
-  font-weight: 500;
   overflow-wrap: anywhere;
 }
