@@ -917,13 +917,23 @@ func (r *Repository) GetAnalysis(ctx context.Context, q biz.AnalysisQuery) (biz.
 	if p.Summary.LocalKey != q.Key || !validNormalizedSummary(p.Summary) {
 		return p, biz.ErrDataUnavailable
 	}
+	if (p.Summary.SchemaVersion == "report-publication/v5" && p.Companies == nil) || !validNormalizedProvenance(p.JudgmentOrigin, p.ReasoningSources, p.VariableSignals, p.Summary.SchemaVersion == "report-publication/v5") {
+		return p, biz.ErrDataUnavailable
+	}
+	if p.Companies != nil {
+		for _, m := range *p.Companies {
+			if !validNormalizedMacro(m) || !validJudgmentOrigin(m.JudgmentOrigin, p.Summary.SchemaVersion == "report-publication/v5") {
+				return p, biz.ErrDataUnavailable
+			}
+		}
+	}
 	for _, m := range p.MacroImpacts {
-		if !validNormalizedAssessment(m.Assessment) || !validNormalizedObjections(m.Objections) {
+		if !validNormalizedMacro(m) || !validJudgmentOrigin(m.JudgmentOrigin, p.Summary.SchemaVersion == "report-publication/v5") {
 			return p, biz.ErrDataUnavailable
 		}
 	}
 	for _, c := range p.IndustryChains {
-		if !validNormalizedAssessment(c.Assessment) {
+		if !validNormalizedAssessment(c.Assessment) || !validJudgmentOrigin(c.JudgmentOrigin, p.Summary.SchemaVersion == "report-publication/v5") {
 			return p, biz.ErrDataUnavailable
 		}
 	}
@@ -969,17 +979,29 @@ func validNormalizedObjections(o biz.NormalizedObjections) bool {
 	return true
 }
 func validNormalizedSummary(u biz.NormalizedSummaryProjection) bool {
-	if u.SchemaVersion != "report-publication/v4" || !validLocalKey(u.LocalKey) || !validText(u.Title, 10000) || u.ChainCount < 0 || !validNormalizedScope(u.Summary.EvidenceScopeToken, u.Summary.EvidenceCount) || !validNormalizedScope(u.Summary.ImpactAssessment.EvidenceScopeToken, u.Summary.ImpactAssessment.EvidenceCount) {
+	if (u.SchemaVersion != "report-publication/v4" && u.SchemaVersion != "report-publication/v5") || !validLocalKey(u.LocalKey) || !validText(u.Title, 10000) || u.ChainCount < 0 || !validNormalizedScope(u.Summary.EvidenceScopeToken, u.Summary.EvidenceCount) || !validNormalizedScope(u.Summary.ImpactAssessment.EvidenceScopeToken, u.Summary.ImpactAssessment.EvidenceCount) {
+		return false
+	}
+	if !validJudgmentOrigin(u.JudgmentOrigin, u.SchemaVersion == "report-publication/v5") {
 		return false
 	}
 	for _, a := range u.AffectedAnchors {
-		if !validNormalizedAssessment(a.Assessment) {
+		if !validNormalizedAssessment(a.Assessment) || !validJudgmentOrigin(a.JudgmentOrigin, u.SchemaVersion == "report-publication/v5") {
 			return false
 		}
 	}
 	return true
 }
 func validNormalizedChain(c biz.NormalizedChain) bool {
+	if !validNormalizedProvenance(c.JudgmentOrigin, c.ReasoningSources, c.VariableSignals, c.Graph.Scope != "") {
+		return false
+	}
+	if c.JudgmentOrigin != "" && c.Graph.Scope != "assessed_nodes_only" {
+		return false
+	}
+	if c.Graph.Scope != "" && (c.Graph.Scope != "assessed_nodes_only" || len(c.Graph.Nodes) != len(c.AffectedNodes) || c.EmptyState != nil) {
+		return false
+	}
 	if !validNormalizedAssessment(c.Assessment) || !validNormalizedScope(c.ReasoningSummary.Support.EvidenceScopeToken, c.ReasoningSummary.Support.EvidenceCount) || !validNormalizedObjections(c.ReasoningSummary.Objections) {
 		return false
 	}
@@ -997,10 +1019,67 @@ func validNormalizedChain(c biz.NormalizedChain) bool {
 	}
 	assessed := map[string]bool{}
 	for _, n := range c.AffectedNodes {
-		if !nodes[n.NodeLocalKey] || assessed[n.NodeLocalKey] || !validNormalizedAssessment(n.Assessment) || !validNormalizedObjections(n.Objections) {
+		if !validNormalizedProvenance(n.JudgmentOrigin, n.ReasoningSources, n.VariableSignals, c.JudgmentOrigin != "") || !nodes[n.NodeLocalKey] || assessed[n.NodeLocalKey] || !validNormalizedAssessment(n.Assessment) || !validNormalizedObjections(n.Objections) {
 			return false
 		}
 		assessed[n.NodeLocalKey] = true
 	}
 	return (c.EmptyState != nil) == (c.Assessment.ConclusionBasis == "observation_only") && (c.EmptyState == nil || len(c.AffectedNodes) == 0)
+}
+
+func validJudgmentOrigin(origin string, required bool) bool {
+	return origin == "direct" || origin == "inferred" || (!required && origin == "")
+}
+func validNormalizedMacro(m biz.NormalizedMacro) bool {
+	return validNormalizedAssessment(m.Assessment) && validNormalizedObjections(m.Objections) && validNormalizedProvenance(m.JudgmentOrigin, m.ReasoningSources, m.VariableSignals, false)
+}
+
+// Validate the scoped published provenance without reconstructing it from live facts.
+func validNormalizedProvenance(origin string, sources *biz.NormalizedReasoningSources, signals *[]biz.NormalizedSignal, required bool) bool {
+	if origin == "" {
+		return !required && sources == nil && signals == nil
+	}
+	if !validJudgmentOrigin(origin, true) || sources == nil || signals == nil || *signals == nil || sources.SignalIDs == nil || sources.EventIDs == nil || sources.UpstreamRefs == nil {
+		return false
+	}
+	if (origin == "direct") != (len(*signals) > 0) || len(sources.SignalIDs) != len(*signals) || len(sources.EventIDs)+len(sources.UpstreamRefs) == 0 {
+		return false
+	}
+	events := map[string]bool{}
+	for _, id := range sources.EventIDs {
+		if !validText(id, 128) || events[id] {
+			return false
+		}
+		events[id] = true
+	}
+	seen := map[string]bool{}
+	for i, s := range *signals {
+		if !validText(s.SignalID, 128) || seen[s.SignalID] || s.SignalID != sources.SignalIDs[i] || !validText(s.VariableID, 128) || !validText(s.VariableName, 16000) || !validText(s.Signal, 16000) || !validText(s.Qualification, 16000) || !validNormalizedScope(s.EvidenceScopeToken, s.EvidenceCount) || s.EvidenceCount == 0 || len(s.EventIDs) == 0 {
+			return false
+		}
+		seen[s.SignalID] = true
+		switch s.SourceDirection {
+		case "UP", "DOWN", "STABLE", "MIXED", "UNKNOWN":
+		default:
+			return false
+		}
+		if s.Adoption != "adopted" && s.Adoption != "qualified" {
+			return false
+		}
+		signalEvents := map[string]bool{}
+		for _, id := range s.EventIDs {
+			if !events[id] || signalEvents[id] {
+				return false
+			}
+			signalEvents[id] = true
+		}
+	}
+	refs := map[string]bool{}
+	for _, r := range sources.UpstreamRefs {
+		if !validLocalKey(r.LocalKey) || refs[r.LocalKey] || !validNullableText(r.Mechanism, 16000) || !validNullableText(r.Condition, 16000) {
+			return false
+		}
+		refs[r.LocalKey] = true
+	}
+	return true
 }

@@ -254,3 +254,13 @@ func TestNormalizedHomeUsesSelectedReportAndIndependentGroupPages(t *testing.T) 
 		t.Fatal("silently fell back to legacy home")
 	}
 }
+
+func TestV5HomeUsesNormalizedGroups(t *testing.T) {
+	s := validSummary()
+	s.SchemaVersion = "report-publication/v5"
+	r := &fakeRepository{listPage: Page{Items: []Summary{s}}, analysisPage: AnalysisPage{Items: []NormalizedSummaryProjection{}}}
+	home, err := NewUseCase(r).Home(context.Background())
+	if err != nil || len(home.Reports) != 1 || len(home.Reports[0].AnalysisGroups) != 3 || r.homeCalls != 0 {
+		t.Fatalf("v5 home failed: %+v %v", home, err)
+	}
+}

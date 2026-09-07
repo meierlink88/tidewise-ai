@@ -15,6 +15,27 @@ export interface EvidenceScope {
   evidence_scope_token: string | null;
   evidence_count: number;
 }
+export type JudgmentOrigin = 'direct' | 'inferred';
+export interface ReasoningSources {
+  signal_ids: string[];
+  event_ids: string[];
+  upstream_refs: { entity_id: string; local_key: string; mechanism?: string; condition?: string }[];
+}
+export interface VariableSignal extends EvidenceScope {
+  variable_id: string;
+  variable_name: string;
+  signal_id: string;
+  signal: string;
+  source_direction: 'UP' | 'DOWN' | 'STABLE' | 'MIXED' | 'UNKNOWN';
+  adoption: 'adopted' | 'qualified';
+  qualification: string;
+  event_ids: string[];
+}
+export interface Provenance {
+  judgment_origin?: JudgmentOrigin;
+  reasoning_sources?: ReasoningSources;
+  variable_signals?: VariableSignal[];
+}
 export interface Assessment extends EvidenceScope {
   conclusion: string;
   direction: 'warming' | 'cooling' | 'diverging' | 'pending';
@@ -44,7 +65,7 @@ export interface Objections {
   scope_limits: string[];
   counterevidence_status: string;
 }
-export interface MacroImpact {
+export interface MacroImpact extends Provenance {
   local_key: string;
   source_id: string;
   name: string;
@@ -60,15 +81,17 @@ export interface EmptyState {
   follow_up: string[];
 }
 export interface ChainHeader {
+  judgment_origin?: JudgmentOrigin;
   local_key: string;
   source_id: string;
   name: string;
   assessment: Assessment;
   empty_state: EmptyState | null;
 }
-export interface AnalysisChain extends ChainHeader {
+export interface AnalysisChain extends ChainHeader, Provenance {
   reasoning_summary: { logic: string; support: Claim; objections: Objections };
   graph: {
+    scope?: 'assessed_nodes_only';
     nodes: { local_key: string; source_id: string; name: string }[];
     edges: { from_node_local_key: string; to_node_local_key: string; relation_label: string }[];
   };
@@ -80,7 +103,8 @@ export interface AnchorRef {
   chain_local_key: string | null;
 }
 export interface AnalysisSummary {
-  schema_version: 'report-publication/v4';
+  schema_version: 'report-publication/v4' | 'report-publication/v5';
+  judgment_origin?: JudgmentOrigin;
   local_key: string;
   source_id: string;
   title: string;
@@ -91,6 +115,7 @@ export interface AnalysisSummary {
     affected_refs: AnchorRef[];
   };
   affected_anchors: {
+    judgment_origin?: JudgmentOrigin;
     reference: AnchorRef;
     source_id: string;
     name: string;
@@ -105,7 +130,8 @@ export interface AnalysisPage {
 export interface AnalysisGroup extends AnalysisPage {
   kind: AnalysisKind;
 }
-export interface AnalysisDetail {
+export interface AnalysisDetail extends Provenance {
+  companies?: MacroImpact[];
   summary: AnalysisSummary;
   macro_impacts: MacroImpact[];
   industry_chains: ChainHeader[];
@@ -189,6 +215,7 @@ function objections(value: unknown): Objections {
 function macro(value: unknown): MacroImpact {
   const v = obj(value);
   return {
+    ...provenance(v),
     local_key: key(v.local_key),
     source_id: str(v.source_id),
     name: str(v.name),
@@ -207,6 +234,7 @@ function empty(value: unknown): EmptyState {
 function header(value: unknown): ChainHeader {
   const v = obj(value);
   return {
+    ...origin(v),
     local_key: key(v.local_key),
     source_id: str(v.source_id),
     name: str(v.name),
@@ -230,8 +258,15 @@ export function parseAnalysisSummary(value: unknown): AnalysisSummary {
   const v = obj(value),
     s = obj(v.summary),
     impact = obj(s.impact_assessment);
+  if (
+    v.schema_version === 'report-publication/v5' &&
+    (!origin(v).judgment_origin ||
+      list(v.affected_anchors, (a) => origin(obj(a))).some((a) => !a.judgment_origin))
+  )
+    fail();
   return {
-    schema_version: choice(v.schema_version, ['report-publication/v4']),
+    schema_version: choice(v.schema_version, ['report-publication/v4', 'report-publication/v5']),
+    ...origin(v),
     local_key: key(v.local_key),
     source_id: str(v.source_id),
     title: str(v.title),
@@ -252,6 +287,7 @@ export function parseAnalysisSummary(value: unknown): AnalysisSummary {
         reference: anchorRef(a.reference),
         source_id: str(a.source_id),
         name: str(a.name),
+        ...origin(a),
         assessment: assessment(a.assessment)
       };
     }),
@@ -277,12 +313,21 @@ export function parseAnalysisGroups(value: unknown): AnalysisGroup[] {
 }
 export function parseAnalysisDetail(value: unknown, expectedKey: string): AnalysisDetail {
   const v = obj(value);
-  const d = {
+  const d: AnalysisDetail = {
+    ...provenance(v),
+    ...(v.companies !== undefined ? { companies: list(v.companies, macro) } : {}),
     summary: parseAnalysisSummary(v.summary),
     macro_impacts: list(v.macro_impacts, macro),
     industry_chains: list(v.industry_chains, header)
   };
   if (d.summary.local_key !== expectedKey) fail();
+  if (
+    d.summary.schema_version === 'report-publication/v5' &&
+    (!d.judgment_origin ||
+      !d.companies ||
+      [...d.macro_impacts, ...d.industry_chains, ...d.companies].some((x) => !x.judgment_origin))
+  )
+    fail();
   unique([...d.macro_impacts, ...d.industry_chains].map((x) => x.local_key));
   return d;
 }
@@ -292,12 +337,16 @@ export function parseAnalysisChain(value: unknown, expectedKey: string): Analysi
     g = obj(v.graph);
   const c: AnalysisChain = {
     ...header(v),
+    ...provenance(v),
     reasoning_summary: {
       logic: str(r.logic),
       support: claim(r.support),
       objections: objections(r.objections)
     },
     graph: {
+      ...(g.scope !== undefined
+        ? { scope: choice(g.scope, ['assessed_nodes_only'] as const) }
+        : {}),
       nodes: list(g.nodes, (x) => {
         const n = obj(x);
         return { local_key: key(n.local_key), source_id: str(n.source_id), name: str(n.name) };
@@ -317,6 +366,14 @@ export function parseAnalysisChain(value: unknown, expectedKey: string): Analysi
     }))
   };
   if (c.local_key !== expectedKey) fail();
+  if (
+    c.judgment_origin &&
+    (c.graph.scope !== 'assessed_nodes_only' ||
+      c.graph.nodes.length !== c.affected_nodes.length ||
+      c.empty_state ||
+      c.affected_nodes.some((x) => !x.judgment_origin))
+  )
+    fail();
   unique(c.graph.nodes.map((x) => x.local_key));
   unique(c.affected_nodes.map((x) => x.local_key));
   for (const n of c.affected_nodes) {
@@ -337,4 +394,65 @@ export function parseAnalysisChain(value: unknown, expectedKey: string): Analysi
   )
     fail();
   return c;
+}
+
+function origin(v: Record<string, unknown>): Pick<Provenance, 'judgment_origin'> {
+  return v.judgment_origin === undefined
+    ? {}
+    : { judgment_origin: choice(v.judgment_origin, ['direct', 'inferred'] as const) };
+}
+function provenance(v: Record<string, unknown>): Provenance {
+  const o = origin(v);
+  if (!o.judgment_origin) {
+    if (v.reasoning_sources !== undefined || v.variable_signals !== undefined) fail();
+    return {};
+  }
+  const r = obj(v.reasoning_sources);
+  const sources: ReasoningSources = {
+    signal_ids: list(r.signal_ids, key),
+    event_ids: list(r.event_ids, key),
+    upstream_refs: list(r.upstream_refs, (x) => {
+      const ref = obj(x);
+      return {
+        entity_id: str(ref.entity_id),
+        local_key: key(ref.local_key),
+        ...(ref.mechanism !== undefined ? { mechanism: str(ref.mechanism) } : {}),
+        ...(ref.condition !== undefined ? { condition: str(ref.condition) } : {})
+      };
+    })
+  };
+  const signals: VariableSignal[] = list(v.variable_signals, (x) => {
+    const row = obj(x);
+    return {
+      ...scope(row),
+      variable_id: key(row.variable_id),
+      variable_name: str(row.variable_name),
+      signal_id: key(row.signal_id),
+      signal: str(row.signal),
+      source_direction: choice(row.source_direction, ['UP', 'DOWN', 'STABLE', 'MIXED', 'UNKNOWN']),
+      adoption: choice(row.adoption, ['adopted', 'qualified']),
+      qualification: str(row.qualification),
+      event_ids: list(row.event_ids, key)
+    };
+  });
+  unique(sources.signal_ids);
+  unique(sources.event_ids);
+  unique(sources.upstream_refs.map((x) => x.local_key));
+  if (
+    (o.judgment_origin === 'direct') !== signals.length > 0 ||
+    sources.signal_ids.length !== signals.length ||
+    (!sources.event_ids.length && !sources.upstream_refs.length)
+  )
+    fail();
+  signals.forEach((row, i) => {
+    unique(row.event_ids);
+    if (
+      row.signal_id !== sources.signal_ids[i] ||
+      !row.event_ids.length ||
+      row.event_ids.some((id) => !sources.event_ids.includes(id)) ||
+      row.evidence_count === 0
+    )
+      fail();
+  });
+  return { ...o, reasoning_sources: sources, variable_signals: signals };
 }

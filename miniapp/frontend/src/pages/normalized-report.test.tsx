@@ -3,6 +3,7 @@ import { act, createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import fixture from '../mocks/reports/normalized.json';
+import v5 from '../mocks/reports/normalized-v5.json';
 import { normalizedMockReportPort } from '../mocks/reports/mock-port';
 import { parseAnalysisChain, parseAnalysisDetail } from '../features/reports/normalized-contract';
 import { NormalizedHome } from './index/normalized-home';
@@ -51,6 +52,13 @@ const click = (el: Element | null) => {
   act(() => el?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
 };
 describe('normalized report interaction', () => {
+  it('uses v5 judgment origin for direct and inferred node labels', () => {
+    const c = parseAnalysisChain(v5.chains['geopolitical_stories/g1/g1-2-chain'], 'g1-2-chain');
+    act(() => root.render(<ChainContent c={c} reportId={reportId} onEvidence={vi.fn()} />));
+    expect(host.querySelector('.normalized-node-basis')?.textContent).toBe('直接');
+    click(host.querySelectorAll('.normalized-graph-node')[1]);
+    expect(host.querySelector('.normalized-node-basis')?.textContent).toBe('推理');
+  });
   it('keeps independent mechanism paths and conditional text intact', () => {
     const detail = parseAnalysisDetail(fixture.details['geopolitical_stories/g1'], 'g1');
     const paths = [

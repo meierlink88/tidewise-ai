@@ -161,3 +161,42 @@ func TestNormalizedPublicationStrictShape(t *testing.T) {
 		t.Fatal("version dispatch lost report")
 	}
 }
+
+// Provider schema and Miniapp consumer use the same synthetic v5 read fixture.
+func TestSignalReadFixtureMatchesProviderContract(t *testing.T) {
+	document, err := openapi3.NewLoader().LoadFromFile("../openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := os.ReadFile("../../../../../../miniapp/frontend/src/mocks/reports/normalized-v5.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		Groups []struct {
+			Items []any `json:"items"`
+		} `json:"groups"`
+		Details map[string]any `json:"details"`
+		Chains  map[string]any `json:"chains"`
+	}
+	if err = json.Unmarshal(payload, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	check := func(name string, value any) {
+		t.Helper()
+		if err := document.Components.Schemas[name].Value.VisitJSON(value); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+	}
+	for _, g := range fixture.Groups {
+		for _, item := range g.Items {
+			check("SignalSummaryProjection", item)
+		}
+	}
+	for _, d := range fixture.Details {
+		check("SignalDetailProjection", d)
+	}
+	for _, c := range fixture.Chains {
+		check("SignalChainRead", c)
+	}
+}

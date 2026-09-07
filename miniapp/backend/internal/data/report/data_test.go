@@ -156,7 +156,12 @@ func writeDataResult(t *testing.T, writer http.ResponseWriter, result any) {
 }
 
 func TestNormalizedProviderContractAndScopeCounts(t *testing.T) {
-	raw, err := os.ReadFile("../../../../frontend/src/mocks/reports/normalized.json")
+	for _, file := range []string{"normalized.json", "normalized-v5.json"} {
+		t.Run(file, func(t *testing.T) { testNormalizedProvider(t, file) })
+	}
+}
+func testNormalizedProvider(t *testing.T, file string) {
+	raw, err := os.ReadFile("../../../../frontend/src/mocks/reports/" + file)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -250,5 +255,46 @@ func TestNormalizedReadsRejectInvalidScopeCountsAndPreserveCursorErrors(t *testi
 	_, err = repository.ListAnalyses(context.Background(), biz.AnalysisQuery{ReportID: testReportID, Kind: "macroeconomic_stories", Cursor: "other-group-cursor", Limit: 20})
 	if !errors.Is(err, biz.ErrInvalidRequest) {
 		t.Fatalf("cursor error=%v", err)
+	}
+}
+
+func TestV5ReadsRejectInvalidProvenance(t *testing.T) {
+	raw, err := os.ReadFile("../../../../frontend/src/mocks/reports/normalized-v5.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		Chains map[string]json.RawMessage `json:"chains"`
+	}
+	if err = json.Unmarshal(raw, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"unknown", "missing sources", "null signals", "invalid origin", "signal identity", "empty evidence", "missing graph scope"} {
+		t.Run(name, func(t *testing.T) {
+			var c map[string]any
+			_ = json.Unmarshal(fixture.Chains["geopolitical_stories/g1/g1-2-chain"], &c)
+			switch name {
+			case "unknown":
+				c["future_field"] = true
+			case "missing sources":
+				delete(c, "reasoning_sources")
+			case "null signals":
+				c["variable_signals"] = nil
+			case "invalid origin":
+				c["judgment_origin"] = "observation_only"
+			case "signal identity":
+				c["variable_signals"].([]any)[0].(map[string]any)["signal_id"] = "mismatch"
+			case "empty evidence":
+				c["variable_signals"].([]any)[0].(map[string]any)["evidence_count"] = 0
+			case "missing graph scope":
+				delete(c["graph"].(map[string]any), "scope")
+			}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { writeDataResult(t, w, c) }))
+			defer server.Close()
+			_, err := newTestRepository(t, server).GetAnalysisChain(context.Background(), biz.AnalysisQuery{ReportID: testReportID, Kind: "geopolitical_stories", Key: "g1", ChainKey: "g1-2-chain"})
+			if !errors.Is(err, biz.ErrDataUnavailable) {
+				t.Fatalf("malformed provenance accepted: %v", err)
+			}
+		})
 	}
 }

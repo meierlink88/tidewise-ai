@@ -6,6 +6,7 @@ import type {
   AnalysisDetail,
   AnalysisChain,
   Assessment,
+  JudgmentOrigin,
   EvidenceScope,
   Objections
 } from '../../../features/reports/normalized-contract';
@@ -82,7 +83,12 @@ export function NormalizedDetailView({
           <ReportStatePanel title='暂无因果链详情' description='' />
         ) : current.type === 'macro' ? (
           <View key={current.local_key}>
-            <Conclusion a={current.assessment} reportId={reportId} onEvidence={onEvidence} />
+            <Conclusion
+              origin={current.judgment_origin}
+              a={current.assessment}
+              reportId={reportId}
+              onEvidence={onEvidence}
+            />
             <Mechanism text={current.assessment.transmission_logic} />
             <AssessmentColumns
               support={current.assessment.conditions}
@@ -158,7 +164,7 @@ export function EvidenceCountButton({
     </Button>
   );
 }
-function Signals({ a }: { a: Assessment }) {
+function Signals({ a, origin }: { a: Assessment; origin?: JudgmentOrigin }) {
   return (
     <View className='normalized-signals'>
       <Text className={`normalized-direction ${a.direction}`}>{directions[a.direction]}</Text>
@@ -168,18 +174,18 @@ function Signals({ a }: { a: Assessment }) {
       {a.forecast_window.kind !== 'not_applicable' ? (
         <Text className='normalized-signal-chip'>{a.forecast_window.description}</Text>
       ) : null}
-      <Text className='normalized-signal-chip'>
-        {a.conclusion_basis === 'observation_only' ? '仅观察' : '推理'}
-      </Text>
+      <Text className='normalized-signal-chip'>{judgmentLabel(a, origin)}</Text>
     </View>
   );
 }
 function Conclusion({
   a,
+  origin,
   reportId,
   onEvidence
 }: {
   a: Assessment;
+  origin?: JudgmentOrigin;
   reportId: string;
   onEvidence: (r: ReportEvidenceRoute) => void;
 }) {
@@ -187,7 +193,7 @@ function Conclusion({
     <View className='normalized-conclusion'>
       <Text className='normalized-section-label'>本链结论</Text>
       <Text className='normalized-conclusion-text'>{a.conclusion}</Text>
-      <Signals a={a} />
+      <Signals a={a} origin={origin} />
       {a.scope ? <Text className='normalized-scope'>{a.scope}</Text> : null}
       <EvidenceCountButton scope={a} reportId={reportId} title='本链证据' onEvidence={onEvidence} />
     </View>
@@ -274,7 +280,12 @@ export function ChainContent({
     top = c.graph.nodes.find((n) => n.local_key === nodeKey);
   return (
     <View>
-      <Conclusion a={c.assessment} reportId={reportId} onEvidence={onEvidence} />
+      <Conclusion
+        origin={c.judgment_origin}
+        a={c.assessment}
+        reportId={reportId}
+        onEvidence={onEvidence}
+      />
       <Mechanism text={c.reasoning_summary.logic} />
       <AssessmentColumns
         support={[c.reasoning_summary.support.text]}
@@ -293,7 +304,7 @@ export function ChainContent({
                 <Text>{top?.name}</Text>
                 {node ? (
                   <Text className='normalized-node-basis'>
-                    {node.assessment.conclusion_basis === 'observation_only' ? '仅观察' : '推理'}
+                    {judgmentLabel(node.assessment, node.judgment_origin)}
                   </Text>
                 ) : null}
               </View>
@@ -420,7 +431,7 @@ function HorizontalGraph({
                 <Text className='normalized-graph-name'>{n.name}</Text>
                 {hit ? (
                   <Text className='normalized-node-method'>
-                    {hit.assessment.conclusion_basis === 'observation_only' ? '仅观察' : '推理'}
+                    {judgmentLabel(hit.assessment, hit.judgment_origin)}
                   </Text>
                 ) : null}
               </View>
@@ -436,4 +447,9 @@ function HorizontalGraph({
       </View>
     </ScrollView>
   );
+}
+
+function judgmentLabel(a: Assessment, origin?: JudgmentOrigin): string {
+  if (origin) return origin === 'direct' ? '直接' : '推理';
+  return a.conclusion_basis === 'observation_only' ? '仅观察' : '推理';
 }
