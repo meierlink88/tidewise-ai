@@ -36,6 +36,9 @@ describe('ReportEvidenceSheet', () => {
     const getEvidences = vi.fn().mockResolvedValue(result);
     const port = {
       getHome: vi.fn(),
+      getAnalyses: vi.fn(),
+      getAnalysis: vi.fn(),
+      getAnalysisChain: vi.fn(),
       getIndustryChains: vi.fn(),
       getLayer: vi.fn(),
       getIndustryChain: vi.fn(),

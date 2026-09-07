@@ -2,6 +2,7 @@ package report
 
 import (
 	"context"
+	"strconv"
 	"time"
 
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
@@ -16,6 +17,9 @@ func RegisterHTTPServer(server *kratoshttp.Server, application Service) {
 		return
 	}
 	router := server.Route(v1.APIPrefix)
+	router.GET("/reports/{report_id}/analyses/{kind}", analysisHandler(application, "list"))
+	router.GET("/reports/{report_id}/analyses/{kind}/{analysis_key}", analysisHandler(application, "unit"))
+	router.GET("/reports/{report_id}/analyses/{kind}/{analysis_key}/industry-chains/{chain_key}", analysisHandler(application, "chain"))
 	router.GET("/reports/home", homeHandler(application))
 	router.GET("/reports/{report_id}/layers/{layer_key}", layerHandler(application))
 	router.GET("/reports/{report_id}/industry-chains", industryChainListHandler(application))
@@ -118,4 +122,36 @@ func hasUnknownQuery(query map[string][]string, allowed ...string) bool {
 		}
 	}
 	return false
+}
+
+func analysisHandler(app Service, mode string) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		q := &AnalysisQuery{ReportID: ctx.Vars().Get("report_id"), Kind: ctx.Vars().Get("kind"), Key: ctx.Vars().Get("analysis_key"), ChainKey: ctx.Vars().Get("chain_key")}
+		values := ctx.Request().URL.Query()
+		if mode == "list" {
+			if hasUnknownQuery(values, "limit", "cursor") || len(values["limit"]) > 1 || len(values["cursor"]) > 1 {
+				return v1.ErrInvalidRequest
+			}
+			q.Cursor = values.Get("cursor")
+			if values.Has("limit") {
+				n, err := strconv.Atoi(values.Get("limit"))
+				if err != nil {
+					return v1.ErrInvalidRequest
+				}
+				q.Limit = n
+			}
+		} else if len(values) != 0 {
+			return v1.ErrInvalidRequest
+		}
+		return callWithBudget(ctx, "miniapp.v1.reportAnalysis."+mode, q, func(c context.Context) (any, error) {
+			switch mode {
+			case "list":
+				return app.ListAnalyses(c, q)
+			case "unit":
+				return app.GetAnalysis(c, q)
+			default:
+				return app.GetAnalysisChain(c, q)
+			}
+		})
+	}
 }

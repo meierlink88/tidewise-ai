@@ -1,6 +1,8 @@
 import Taro, { usePullDownRefresh } from '@tarojs/taro';
 import { Button, Image, ScrollView, Text, View } from '@tarojs/components';
 import { type ReactNode, useMemo, useRef, useState } from 'react';
+import { NormalizedHome } from './normalized-home';
+
 import fileTextIcon from '../../assets/icons/file-text.svg';
 import reportArrowRightIcon from '../../assets/icons/report-arrow-right-light.svg';
 import reportActivityCoolingIcon from '../../assets/icons/report-activity-cooling.svg';
@@ -161,6 +163,29 @@ export function IndexView({
   chainPages?: Record<string, ChainPageState>;
   onLoadMoreChains?: (reportId: string, cursor: string) => void;
 }) {
+  if (state.status === 'ready' && state.data.reports[0]?.analysisGroups) {
+    return (
+      <View className='home-page'>
+        <HomeHeader chrome={chrome} query={query} onQueryChange={onQueryChange} />
+        <View className='home-content'>
+          <ScrollView scrollY className='home-report-scroll'>
+            {state.refreshFailed ? (
+              <View className='home-refresh-warning' onClick={onRefresh}>
+                刷新失败，点击重试；当前展示上次成功读取的内容
+              </View>
+            ) : null}
+            <NormalizedHome
+              key={state.data.reports[0].report.id}
+              group={state.data.reports[0]}
+              query={query}
+              onDetail={onOpenDetail}
+              onEvidence={onOpenEvidence}
+            />
+          </ScrollView>
+        </View>
+      </View>
+    );
+  }
   return (
     <View className='home-page'>
       <HomeHeader chrome={chrome} query={query} onQueryChange={onQueryChange} />

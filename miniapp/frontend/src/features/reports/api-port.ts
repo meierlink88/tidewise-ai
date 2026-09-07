@@ -1,4 +1,10 @@
 import Taro from '@tarojs/taro';
+import {
+  type AnalysisKind,
+  parseAnalysisPage,
+  parseAnalysisDetail,
+  parseAnalysisChain
+} from './normalized-contract';
 import { unwrapMiniappAPIEnvelope } from '../../platform/miniapp-api';
 import type { ReportErrorKind, ReportLayerKey, ReportPort } from './contract';
 import { ReportError } from './contract';
@@ -15,6 +21,27 @@ const requestTimeoutMs = 10_000;
 export class APIReportPort implements ReportPort {
   constructor(private readonly baseURL: string) {}
 
+  async getAnalyses(reportId: string, kind: AnalysisKind, cursor?: string) {
+    const value = await this.get(
+      `/api/miniapp/v1/reports/${encodeURIComponent(reportId)}/analyses/${kind}?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
+      'reportUnavailable'
+    );
+    return parseResponse(value, parseAnalysisPage);
+  }
+  async getAnalysis(reportId: string, kind: AnalysisKind, key: string) {
+    const value = await this.get(
+      `/api/miniapp/v1/reports/${encodeURIComponent(reportId)}/analyses/${kind}/${encodeURIComponent(key)}`,
+      'layerUnavailable'
+    );
+    return parseResponse(value, (v) => parseAnalysisDetail(v, key));
+  }
+  async getAnalysisChain(reportId: string, kind: AnalysisKind, key: string, chainKey: string) {
+    const value = await this.get(
+      `/api/miniapp/v1/reports/${encodeURIComponent(reportId)}/analyses/${kind}/${encodeURIComponent(key)}/industry-chains/${encodeURIComponent(chainKey)}`,
+      'chainUnavailable'
+    );
+    return parseResponse(value, (v) => parseAnalysisChain(v, chainKey));
+  }
   async getHome() {
     const result = await this.get('/api/miniapp/v1/reports/home', 'reportUnavailable');
     return parseResponse(result, parseReportHomeWire);

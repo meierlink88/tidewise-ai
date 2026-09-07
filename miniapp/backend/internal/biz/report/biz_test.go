@@ -153,17 +153,21 @@ func validChainSummary() IndustryChainSummary {
 func stringPointer(value string) *string { return &value }
 
 type fakeRepository struct {
-	listPage     Page
-	listPages    []Page
-	listQueries  []ListQuery
-	home         HomeSnapshot
-	homes        map[string]HomeSnapshot
-	layer        LayerDetail
-	chainPage    IndustryChainPage
-	chainPages   map[string]IndustryChainPage
-	chain        IndustryChainDetail
-	evidence     EvidenceCollection
-	chainQueries []ChainListQuery
+	analysisQueries []AnalysisQuery
+	analysisPage    AnalysisPage
+	analysisErr     error
+	homeCalls       int
+	listPage        Page
+	listPages       []Page
+	listQueries     []ListQuery
+	home            HomeSnapshot
+	homes           map[string]HomeSnapshot
+	layer           LayerDetail
+	chainPage       IndustryChainPage
+	chainPages      map[string]IndustryChainPage
+	chain           IndustryChainDetail
+	evidence        EvidenceCollection
+	chainQueries    []ChainListQuery
 }
 
 func (f *fakeRepository) ListReports(_ context.Context, query ListQuery) (Page, error) {
@@ -178,6 +182,7 @@ func (f *fakeRepository) ListReports(_ context.Context, query ListQuery) (Page, 
 	return page, nil
 }
 func (f *fakeRepository) GetHome(_ context.Context, reportID string) (HomeSnapshot, error) {
+	f.homeCalls++
 	if f.homes != nil {
 		return f.homes[reportID], nil
 	}
@@ -201,3 +206,51 @@ func (f *fakeRepository) ListEvidences(context.Context, string, string) (Evidenc
 }
 
 var _ Repository = (*fakeRepository)(nil)
+
+func (f *fakeRepository) ListAnalyses(_ context.Context, q AnalysisQuery) (AnalysisPage, error) {
+	f.analysisQueries = append(f.analysisQueries, q)
+	return f.analysisPage, f.analysisErr
+}
+
+func (*fakeRepository) GetAnalysis(context.Context, AnalysisQuery) (NormalizedDetailProjection, error) {
+	return NormalizedDetailProjection{}, ErrDataUnavailable
+}
+
+func (*fakeRepository) GetAnalysisChain(context.Context, AnalysisQuery) (NormalizedChain, error) {
+	return NormalizedChain{}, ErrDataUnavailable
+}
+
+func TestNormalizedHomeUsesSelectedReportAndIndependentGroupPages(t *testing.T) {
+	s := validSummary()
+	s.SchemaVersion = "report-publication/v4"
+	s.IndustryChainCount = 0
+	cursor := "opaque-first-page"
+	r := &fakeRepository{listPage: Page{Items: []Summary{s}}, analysisPage: AnalysisPage{Items: []NormalizedSummaryProjection{}, NextCursor: &cursor}}
+	home, err := NewUseCase(r).Home(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(home.Reports) != 1 || len(home.Reports[0].AnalysisGroups) != 3 || len(home.Reports[0].Cards) != 0 || r.homeCalls != 0 || len(r.chainQueries) != 0 {
+		t.Fatalf("home=%+v", home)
+	}
+	for i, k := range []string{"geopolitical_stories", "macroeconomic_stories", "concept_analyses"} {
+		q := r.analysisQueries[i]
+		if q.Kind != k || q.ReportID != s.ID || q.Limit != 20 || q.Cursor != "" || *home.Reports[0].AnalysisGroups[i].NextCursor != cursor {
+			t.Fatalf("query=%+v", q)
+		}
+	}
+	_, err = NewUseCase(r).Analyses(context.Background(), AnalysisQuery{ReportID: s.ID, Kind: "concept_analyses", Limit: 13, Cursor: cursor})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if q := r.analysisQueries[3]; q.Cursor != cursor || q.Limit != 13 {
+		t.Fatalf("query=%+v", q)
+	}
+	r.analysisErr = ErrDataUnavailable
+	if _, err = NewUseCase(r).Home(context.Background()); err != ErrDataUnavailable {
+		t.Fatalf("expected latest report error: %v", err)
+	}
+	if r.homeCalls != 0 {
+		t.Fatal("silently fell back to legacy home")
+	}
+}

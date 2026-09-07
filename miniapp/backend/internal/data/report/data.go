@@ -305,6 +305,7 @@ type readOperation int
 
 const (
 	readList readOperation = iota
+	readAnalysisPage
 	readHome
 	readChainPage
 	readLayer
@@ -321,6 +322,10 @@ func mapReadError(err error, operation readOperation) error {
 		return biz.ErrDataUnavailable
 	}
 	switch clientError.Code {
+	case "INVALID_REQUEST":
+		if operation == readAnalysisPage {
+			return biz.ErrInvalidRequest
+		}
 	case "REPORT_NOT_FOUND":
 		return biz.ErrReportNotFound
 	case "REPORT_LAYER_NOT_FOUND":
@@ -354,6 +359,11 @@ type wireUncertainty struct {
 	ReversalCondition *string `json:"reversal_condition"`
 }
 type wireSummary struct {
+	SchemaVersion  string `json:"schema_version,omitempty"`
+	AnalysisWindow *struct {
+		Start string `json:"start"`
+		End   string `json:"end"`
+	} `json:"analysis_window,omitempty"`
 	ID                 string `json:"id"`
 	PublisherReportID  string `json:"publisher_report_id"`
 	GeneratedAt        string `json:"generated_at"`
@@ -527,10 +537,10 @@ func mapSummary(wire wireSummary) (biz.Summary, error) {
 	if err != nil {
 		return biz.Summary{}, biz.ErrDataUnavailable
 	}
-	if !reportIDPattern.MatchString(wire.ID) || !validText(wire.PublisherReportID, 200) || wire.IndustryChainCount < 1 {
+	if !reportIDPattern.MatchString(wire.ID) || !validText(wire.PublisherReportID, 200) || (wire.IndustryChainCount < 0 || (wire.SchemaVersion == "" && wire.IndustryChainCount < 1)) {
 		return biz.Summary{}, biz.ErrDataUnavailable
 	}
-	return biz.Summary{ID: wire.ID, PublisherReportID: wire.PublisherReportID, GeneratedAt: generated, PublishedAt: published, IndustryChainCount: wire.IndustryChainCount}, nil
+	return biz.Summary{SchemaVersion: wire.SchemaVersion, ID: wire.ID, PublisherReportID: wire.PublisherReportID, GeneratedAt: generated, PublishedAt: published, IndustryChainCount: wire.IndustryChainCount}, nil
 }
 
 func mapLayerSnapshot(wire wireLayerSnapshot) (biz.LayerSnapshot, error) {
@@ -874,3 +884,123 @@ func parseTimestamp(value string) (time.Time, error) {
 }
 
 var _ biz.Repository = (*Repository)(nil)
+
+func analysisPath(q biz.AnalysisQuery) string {
+	return reportsPath + "/" + url.PathEscape(q.ReportID) + "/analyses/" + url.PathEscape(q.Kind)
+}
+func (r *Repository) ListAnalyses(ctx context.Context, q biz.AnalysisQuery) (biz.AnalysisPage, error) {
+	var p biz.AnalysisPage
+	values := url.Values{"limit": {strconv.Itoa(q.Limit)}}
+	if q.Cursor != "" {
+		values.Set("cursor", q.Cursor)
+	}
+	if err := r.get(ctx, analysisPath(q)+"?"+values.Encode(), &p); err != nil {
+		return p, mapReadError(err, readAnalysisPage)
+	}
+	seen := map[string]bool{}
+	for _, u := range p.Items {
+		if !validNormalizedSummary(u) || seen[u.LocalKey] {
+			return p, biz.ErrDataUnavailable
+		}
+		seen[u.LocalKey] = true
+	}
+	if len(p.Items) > q.Limit || p.NextCursor != nil && (!validText(*p.NextCursor, 2048) || len(p.Items) == 0) {
+		return p, biz.ErrDataUnavailable
+	}
+	return p, nil
+}
+func (r *Repository) GetAnalysis(ctx context.Context, q biz.AnalysisQuery) (biz.NormalizedDetailProjection, error) {
+	var p biz.NormalizedDetailProjection
+	if err := r.get(ctx, analysisPath(q)+"/"+url.PathEscape(q.Key), &p); err != nil {
+		return p, mapReadError(err, readLayer)
+	}
+	if p.Summary.LocalKey != q.Key || !validNormalizedSummary(p.Summary) {
+		return p, biz.ErrDataUnavailable
+	}
+	for _, m := range p.MacroImpacts {
+		if !validNormalizedAssessment(m.Assessment) || !validNormalizedObjections(m.Objections) {
+			return p, biz.ErrDataUnavailable
+		}
+	}
+	for _, c := range p.IndustryChains {
+		if !validNormalizedAssessment(c.Assessment) {
+			return p, biz.ErrDataUnavailable
+		}
+	}
+	return p, nil
+}
+func (r *Repository) GetAnalysisChain(ctx context.Context, q biz.AnalysisQuery) (biz.NormalizedChain, error) {
+	var p biz.NormalizedChain
+	if err := r.get(ctx, analysisPath(q)+"/"+url.PathEscape(q.Key)+"/industry-chains/"+url.PathEscape(q.ChainKey), &p); err != nil {
+		return p, mapReadError(err, readChain)
+	}
+	if p.LocalKey != q.ChainKey || !validNormalizedChain(p) {
+		return p, biz.ErrDataUnavailable
+	}
+	return p, nil
+}
+
+// Evidence counts describe exactly the token's readable list, including the empty scope.
+func validNormalizedScope(token *string, count int) bool {
+	return count >= 0 && validToken(token) && ((count == 0) == (token == nil))
+}
+func validNormalizedAssessment(a biz.NormalizedAssessment) bool {
+	if !validNormalizedScope(a.EvidenceScopeToken, a.EvidenceCount) {
+		return false
+	}
+	switch a.Direction {
+	case "warming", "cooling", "diverging", "pending":
+	default:
+		return false
+	}
+	if a.ConclusionBasis == "observation_only" {
+		return a.Confidence == nil && a.Direction == "pending"
+	}
+	return a.ConclusionBasis == "reasoning_hypothesis" && a.Confidence != nil && (*a.Confidence == "low" || *a.Confidence == "medium" || *a.Confidence == "high")
+}
+func validNormalizedObjections(o biz.NormalizedObjections) bool {
+	for _, claims := range [][]biz.NormalizedClaim{o.Counterevidence, o.Buffers} {
+		for _, c := range claims {
+			if !validNormalizedScope(c.EvidenceScopeToken, c.EvidenceCount) {
+				return false
+			}
+		}
+	}
+	return true
+}
+func validNormalizedSummary(u biz.NormalizedSummaryProjection) bool {
+	if u.SchemaVersion != "report-publication/v4" || !validLocalKey(u.LocalKey) || !validText(u.Title, 10000) || u.ChainCount < 0 || !validNormalizedScope(u.Summary.EvidenceScopeToken, u.Summary.EvidenceCount) || !validNormalizedScope(u.Summary.ImpactAssessment.EvidenceScopeToken, u.Summary.ImpactAssessment.EvidenceCount) {
+		return false
+	}
+	for _, a := range u.AffectedAnchors {
+		if !validNormalizedAssessment(a.Assessment) {
+			return false
+		}
+	}
+	return true
+}
+func validNormalizedChain(c biz.NormalizedChain) bool {
+	if !validNormalizedAssessment(c.Assessment) || !validNormalizedScope(c.ReasoningSummary.Support.EvidenceScopeToken, c.ReasoningSummary.Support.EvidenceCount) || !validNormalizedObjections(c.ReasoningSummary.Objections) {
+		return false
+	}
+	nodes := map[string]bool{}
+	for _, n := range c.Graph.Nodes {
+		if !validLocalKey(n.LocalKey) || nodes[n.LocalKey] {
+			return false
+		}
+		nodes[n.LocalKey] = true
+	}
+	for _, e := range c.Graph.Edges {
+		if !nodes[e.FromNodeLocalKey] || !nodes[e.ToNodeLocalKey] {
+			return false
+		}
+	}
+	assessed := map[string]bool{}
+	for _, n := range c.AffectedNodes {
+		if !nodes[n.NodeLocalKey] || assessed[n.NodeLocalKey] || !validNormalizedAssessment(n.Assessment) || !validNormalizedObjections(n.Objections) {
+			return false
+		}
+		assessed[n.NodeLocalKey] = true
+	}
+	return (c.EmptyState != nil) == (c.Assessment.ConclusionBasis == "observation_only") && (c.EmptyState == nil || len(c.AffectedNodes) == 0)
+}

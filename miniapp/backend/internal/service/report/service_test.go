@@ -79,3 +79,15 @@ func (r *repositoryStub) ListEvidences(context.Context, string, string) (biz.Evi
 }
 
 var _ biz.Repository = (*repositoryStub)(nil)
+
+func (*repositoryStub) ListAnalyses(context.Context, biz.AnalysisQuery) (biz.AnalysisPage, error) {
+	return biz.AnalysisPage{}, biz.ErrDataUnavailable
+}
+
+func (*repositoryStub) GetAnalysis(context.Context, biz.AnalysisQuery) (biz.NormalizedDetailProjection, error) {
+	return biz.NormalizedDetailProjection{}, biz.ErrDataUnavailable
+}
+
+func (*repositoryStub) GetAnalysisChain(context.Context, biz.AnalysisQuery) (biz.NormalizedChain, error) {
+	return biz.NormalizedChain{}, biz.ErrDataUnavailable
+}

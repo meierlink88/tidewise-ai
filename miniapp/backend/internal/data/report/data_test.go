@@ -6,6 +6,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -150,5 +152,103 @@ func writeDataResult(t *testing.T, writer http.ResponseWriter, result any) {
 	writer.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(writer).Encode(map[string]any{"request_id": "data-request", "result": result}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestNormalizedProviderContractAndScopeCounts(t *testing.T) {
+	raw, err := os.ReadFile("../../../../frontend/src/mocks/reports/normalized.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		Groups  []biz.AnalysisGroup                       `json:"groups"`
+		Details map[string]biz.NormalizedDetailProjection `json:"details"`
+		Chains  map[string]biz.NormalizedChain            `json:"chains"`
+	}
+	if err = json.Unmarshal(raw, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	const rid = "RPT11111111-1111-4111-8111-111111111111"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tail := strings.TrimPrefix(r.URL.Path, "/api/data/v1/reports/"+rid+"/analyses/")
+		for _, g := range fixture.Groups {
+			if tail == g.Kind {
+				json.NewEncoder(w).Encode(map[string]any{"request_id": "contract-read", "result": biz.AnalysisPage{Items: g.Items, NextCursor: g.NextCursor}})
+				return
+			}
+		}
+		if d, ok := fixture.Details[tail]; ok {
+			json.NewEncoder(w).Encode(map[string]any{"request_id": "contract-read", "result": d})
+			return
+		}
+		tail = strings.Replace(tail, "/industry-chains/", "/", 1)
+		if c, ok := fixture.Chains[tail]; ok {
+			json.NewEncoder(w).Encode(map[string]any{"request_id": "contract-read", "result": c})
+			return
+		}
+		t.Errorf("unexpected path %s", r.URL.Path)
+		w.WriteHeader(404)
+	}))
+	defer server.Close()
+	repo := newTestRepository(t, server)
+	for _, g := range fixture.Groups {
+		q := biz.AnalysisQuery{ReportID: rid, Kind: g.Kind, Limit: 20}
+		page, err := repo.ListAnalyses(context.Background(), q)
+		if err != nil || len(page.Items) != len(g.Items) {
+			t.Fatalf("page %+v %v", page, err)
+		}
+		for _, u := range page.Items {
+			if u.Summary.EvidenceCount != 1 {
+				t.Fatalf("summary evidence count %d", u.Summary.EvidenceCount)
+			}
+			q.Key = u.LocalKey
+			detail, err := repo.GetAnalysis(context.Background(), q)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, h := range detail.IndustryChains {
+				q.ChainKey = h.LocalKey
+				c, err := repo.GetAnalysisChain(context.Background(), q)
+				if err != nil || c.Assessment.Conclusion != h.Assessment.Conclusion {
+					t.Fatalf("chain %v", err)
+				}
+				if c.Assessment.EvidenceCount != 1 {
+					t.Fatalf("chain count %d", c.Assessment.EvidenceCount)
+				}
+			}
+		}
+	}
+}
+
+func TestNormalizedReadsRejectInvalidScopeCountsAndPreserveCursorErrors(t *testing.T) {
+	raw, err := os.ReadFile("../../../../frontend/src/mocks/reports/normalized.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		Chains map[string]biz.NormalizedChain `json:"chains"`
+	}
+	if err = json.Unmarshal(raw, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	c := fixture.Chains["geopolitical_stories/g1/g1-2-chain"]
+	c.Assessment.EvidenceCount = 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("cursor") != "" {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error":{"code":"INVALID_REQUEST","message":"cursor scope mismatch","details":{}},"request_id":"test"}`))
+			return
+		}
+		writeDataResult(t, w, c)
+	}))
+	defer server.Close()
+	repository := newTestRepository(t, server)
+	_, err = repository.GetAnalysisChain(context.Background(), biz.AnalysisQuery{ReportID: testReportID, Kind: "geopolitical_stories", Key: "g1", ChainKey: c.LocalKey})
+	if !errors.Is(err, biz.ErrDataUnavailable) {
+		t.Fatalf("invalid count error=%v", err)
+	}
+	_, err = repository.ListAnalyses(context.Background(), biz.AnalysisQuery{ReportID: testReportID, Kind: "macroeconomic_stories", Cursor: "other-group-cursor", Limit: 20})
+	if !errors.Is(err, biz.ErrInvalidRequest) {
+		t.Fatalf("cursor error=%v", err)
 	}
 }

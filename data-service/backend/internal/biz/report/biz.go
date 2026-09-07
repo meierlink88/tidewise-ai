@@ -1,6 +1,7 @@
 package report
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -174,6 +175,7 @@ type IndustryChain struct {
 }
 
 type Report struct {
+	V4                   *V4Report       `json:"-"`
 	SchemaVersion        string          `json:"schema_version,omitempty"`
 	AnalysisWindow       *AnalysisWindow `json:"analysis_window,omitempty"`
 	GeopoliticalStories  []AnalysisUnit  `json:"geopolitical_stories,omitempty"`
@@ -189,6 +191,7 @@ type Report struct {
 }
 
 type Record struct {
+	EvidenceCounts    map[string]int
 	ID                string
 	PublisherReportID string
 	ContentHash       string
@@ -240,6 +243,7 @@ type LayerSnapshot struct {
 }
 
 type Home struct {
+	V4             *V4HomeProjection `json:"-"`
 	Report         Summary
 	Geopolitics    *LayerSnapshot
 	Macroeconomics *LayerSnapshot
@@ -397,7 +401,7 @@ type PublicationResult struct {
 type Store interface {
 	ListAnalyses(context.Context, AnalysisListFilter) (AnalysisStorePage, error)
 	GetAnalysis(context.Context, string, string, string) (AnalysisUnitDetail, error)
-	GetAnalysisChain(context.Context, string, string, string) (ChainAnalysisDetail, error)
+	GetAnalysisChain(context.Context, string, string, string, string) (ChainAnalysisDetail, error)
 	PublicationStore
 	ListReports(context.Context, ListFilter) (StorePage, error)
 	GetReport(context.Context, string) (Record, error)
@@ -457,9 +461,6 @@ func (s *UseCase) Publish(ctx context.Context, publisherReportID string, report 
 	if err := requiredText("publisher_report_id", publisherReportID, 200); err != nil {
 		return PublicationResult{}, err
 	}
-	if err := ValidateReport(report); err != nil {
-		return PublicationResult{}, err
-	}
 	payloadHash, err := ContentHash(report)
 	if err != nil {
 		return PublicationResult{}, fmt.Errorf("canonicalize Report publication: %w", err)
@@ -480,6 +481,10 @@ func (s *UseCase) Publish(ctx context.Context, publisherReportID string, report 
 			result = PublicationResult{Record: *existing, Replayed: true}
 			return nil
 		}
+		// An immutable snapshot can be replayed even when later publication rules tighten.
+		if err := ValidateReport(report); err != nil {
+			return err
+		}
 		reportID, err := coreid.New(coreid.Report)
 		if err != nil {
 			return fmt.Errorf("generate Report ID: %w", err)
@@ -496,7 +501,7 @@ func (s *UseCase) Publish(ctx context.Context, publisherReportID string, report 
 		if missing := firstMissingEvidence(ids, existingIDs); missing != "" {
 			return &ReferenceError{Path: "report.evidence_refs", Reference: missing, Message: "does not identify an existing Atomic Evidence"}
 		}
-		record := Record{ID: reportID, PublisherReportID: publisherReportID, ContentHash: payloadHash, Report: report, PublishedAt: s.now().UTC()}
+		record := Record{EvidenceCounts: countEvidenceScopes(links), ID: reportID, PublisherReportID: publisherReportID, ContentHash: payloadHash, Report: report, PublishedAt: s.now().UTC()}
 		if err := tx.InsertReport(ctx, record); err != nil {
 			return err
 		}
@@ -507,6 +512,22 @@ func (s *UseCase) Publish(ctx context.Context, publisherReportID string, report 
 		return nil
 	})
 	return result, err
+}
+
+// Counts are server-owned metadata, excluded from the publisher payload and replay hash.
+func countEvidenceScopes(links []EvidenceLink) map[string]int {
+	scopes := map[string]map[string]struct{}{}
+	for _, link := range links {
+		if scopes[link.ScopePath] == nil {
+			scopes[link.ScopePath] = map[string]struct{}{}
+		}
+		scopes[link.ScopePath][link.EvidenceID] = struct{}{}
+	}
+	counts := map[string]int{}
+	for path, ids := range scopes {
+		counts[path] = len(ids)
+	}
+	return counts
 }
 
 func ContentHash(report Report) (string, error) { return canonicalPayloadHash(report) }
@@ -521,13 +542,17 @@ func (s *UseCase) List(ctx context.Context, request ListRequest) (Page, error) {
 	if request.PublishedFrom != nil && request.PublishedTo != nil && !request.PublishedFrom.Before(*request.PublishedTo) {
 		return Page{}, invalid("published_from", "must be before published_to")
 	}
-	if request.SchemaVersion != "" && request.SchemaVersion != AnalysisSchemaVersion {
+	if request.SchemaVersion != "" && request.SchemaVersion != "legacy" && request.SchemaVersion != AnalysisSchemaVersion && request.SchemaVersion != NormalizedSchemaVersion {
 		return Page{}, invalid("schema_version", "unsupported version")
 	}
-	filter := ListFilter{SchemaVersion: request.SchemaVersion, PublishedFrom: cloneTime(request.PublishedFrom), PublishedTo: cloneTime(request.PublishedTo), Limit: request.Limit}
+	selection := request.SchemaVersion
+	if selection == "" {
+		selection = "all"
+	}
+	filter := ListFilter{SchemaVersion: selection, PublishedFrom: cloneTime(request.PublishedFrom), PublishedTo: cloneTime(request.PublishedTo), Limit: request.Limit}
 	if strings.TrimSpace(request.Cursor) != "" {
 		cursor, err := decodeReportCursor(request.Cursor)
-		if err != nil || cursor.Version != 1 || cursor.SchemaVersion != request.SchemaVersion || !coreid.Is(cursor.ID, coreid.Report) || !sameOptionalTime(cursor.PublishedFrom, request.PublishedFrom) || !sameOptionalTime(cursor.PublishedTo, request.PublishedTo) {
+		if err != nil || cursor.Version != 1 || cursor.SchemaVersion != selection || !coreid.Is(cursor.ID, coreid.Report) || !sameOptionalTime(cursor.PublishedFrom, request.PublishedFrom) || !sameOptionalTime(cursor.PublishedTo, request.PublishedTo) {
 			return Page{}, invalid("cursor", "is invalid for this Report query")
 		}
 		filter.CursorPublishedAt, filter.CursorID = cloneTime(&cursor.PublishedAt), cursor.ID
@@ -539,7 +564,7 @@ func (s *UseCase) List(ctx context.Context, request ListRequest) (Page, error) {
 	result := Page{Items: page.Items}
 	if page.HasMore && len(page.Items) > 0 {
 		last := page.Items[len(page.Items)-1]
-		encoded, err := encodeCursor(reportCursor{SchemaVersion: request.SchemaVersion, Version: 1, PublishedFrom: cloneTime(request.PublishedFrom), PublishedTo: cloneTime(request.PublishedTo), PublishedAt: last.PublishedAt.UTC(), ID: last.ID})
+		encoded, err := encodeCursor(reportCursor{SchemaVersion: selection, Version: 1, PublishedFrom: cloneTime(request.PublishedFrom), PublishedTo: cloneTime(request.PublishedTo), PublishedAt: last.PublishedAt.UTC(), ID: last.ID})
 		if err != nil {
 			return Page{}, fmt.Errorf("encode Report cursor: %w", err)
 		}
@@ -700,12 +725,16 @@ var (
 		TransmissionCrossLayer: "跨层推理", TransmissionSameSource: "同源信号",
 	}
 	transmissionStatusLabels = map[string]string{"established": "已形成传导"}
+	impactLevelLabels        = map[string]string{ImpactLevelHigh: "高影响", ImpactLevelMedium: "中影响", ImpactLevelLow: "低影响", ImpactLevelPending: "待评估"}
 	targetTypeLabels         = map[string]string{
 		"macro_anchor": "宏观经济锚点", "industry_chain": "产业链", "industry_chain_node": "产业链节点",
 	}
 )
 
 func ValidateReport(report Report) error {
+	if report.V4 != nil {
+		return validateNormalizedReport(*report.V4)
+	}
 	if err := validateMappedLabel("report.report_type", report.ReportType, map[string]string{"investment_reasoning": "投研推理报告"}); err != nil {
 		return err
 	}
@@ -1124,6 +1153,9 @@ func optionalText(path string, value *string, max int) error {
 }
 
 func buildEvidenceLinks(reportID string, report Report) ([]EvidenceLink, error) {
+	if report.V4 != nil {
+		return normalizedEvidenceLinks(reportID, *report.V4)
+	}
 	type scopedRefs struct {
 		typeName ScopeType
 		path     string
@@ -1164,6 +1196,9 @@ func buildEvidenceLinks(reportID string, report Report) ([]EvidenceLink, error) 
 				scope = ScopeConceptSummary
 			}
 			values = append(values, scopedRefs{scope, prefix + "/summary/evidence_refs", unit.Summary.EvidenceRefs})
+			if impact := unit.Summary.ImpactAssessment; impact != nil {
+				values = append(values, scopedRefs{scope, prefix + "/summary/impact_assessment/evidence_refs", impact.EvidenceRefs})
+			}
 			for _, a := range unit.Detail.AffectedAnchors {
 				values = append(values, scopedRefs{ScopeAnchor, prefix + "/detail/affected_anchors/" + a.LocalKey + "/evidence_refs", a.EvidenceRefs})
 			}
@@ -1245,7 +1280,28 @@ type AnalysisWindow struct {
 	End   string `json:"end"`
 }
 
+const (
+	ImpactLevelHigh    = "high"
+	ImpactLevelMedium  = "medium"
+	ImpactLevelLow     = "low"
+	ImpactLevelPending = "pending"
+)
+
+// ImpactAssessment describes conditional consequence magnitude, independently of direction and confidence.
+type ImpactAssessment struct {
+	Level        CodedLabel          `json:"level"`
+	Rationale    string              `json:"rationale"`
+	EvidenceRefs []EvidenceReference `json:"evidence_refs"`
+}
+
+type ImpactAssessmentProjection struct {
+	Level              CodedLabel `json:"level"`
+	Rationale          string     `json:"rationale"`
+	EvidenceScopeToken *string    `json:"evidence_scope_token"`
+}
+
 type AnalysisSummary struct {
+	ImpactAssessment  *ImpactAssessment   `json:"impact_assessment,omitempty"`
 	Conclusion        string              `json:"conclusion"`
 	TransmissionLogic string              `json:"transmission_logic"`
 	AnchorKeys        []string            `json:"anchor_keys"`
@@ -1329,15 +1385,17 @@ type AnalysisImpactProjection struct {
 }
 
 type AnalysisUnitSummary struct {
-	LocalKey           string                     `json:"local_key"`
-	SourceID           string                     `json:"source_id"`
-	Title              string                     `json:"title"`
-	Conclusion         string                     `json:"conclusion"`
-	TransmissionLogic  string                     `json:"transmission_logic"`
-	AffectedAnchors    []AnalysisImpactProjection `json:"affected_anchors"`
-	ChainCount         int                        `json:"chain_count"`
-	EvidenceScopeToken *string                    `json:"evidence_scope_token"`
-	Ordinal            int                        `json:"-"`
+	V4                 *V4SummaryProjection        `json:"-"`
+	ImpactAssessment   *ImpactAssessmentProjection `json:"impact_assessment,omitempty"`
+	LocalKey           string                      `json:"local_key"`
+	SourceID           string                      `json:"source_id"`
+	Title              string                      `json:"title"`
+	Conclusion         string                      `json:"conclusion"`
+	TransmissionLogic  string                      `json:"transmission_logic"`
+	AffectedAnchors    []AnalysisImpactProjection  `json:"affected_anchors"`
+	ChainCount         int                         `json:"chain_count"`
+	EvidenceScopeToken *string                     `json:"evidence_scope_token"`
+	Ordinal            int                         `json:"-"`
 }
 type ChainAnalysisSummary struct {
 	LocalKey   string `json:"local_key"`
@@ -1346,6 +1404,7 @@ type ChainAnalysisSummary struct {
 	Conclusion string `json:"conclusion"`
 }
 type AnalysisUnitDetail struct {
+	V4              *V4DetailProjection        `json:"-"`
 	Summary         AnalysisUnitSummary        `json:"summary"`
 	ReasoningSteps  []ReasoningStepProjection  `json:"reasoning_steps"`
 	AffectedAnchors []AnalysisImpactProjection `json:"affected_anchors"`
@@ -1353,6 +1412,7 @@ type AnalysisUnitDetail struct {
 	IndustryChains  []ChainAnalysisSummary     `json:"industry_chains"`
 }
 type ChainAnalysisDetail struct {
+	V4                 *V4ReadChain               `json:"-"`
 	LocalKey           string                     `json:"local_key"`
 	SourceID           string                     `json:"source_id"`
 	Name               string                     `json:"name"`
@@ -1368,6 +1428,9 @@ type ChainAnalysisDetail struct {
 const AnalysisSchemaVersion = "report-publication/v3"
 
 func (r Report) MarshalJSON() ([]byte, error) {
+	if r.V4 != nil {
+		return json.Marshal(r.V4)
+	}
 	type plain Report
 	if r.SchemaVersion == "" {
 		return json.Marshal(plain(r))
@@ -1436,6 +1499,20 @@ func validateAnalysisUnit(kind string, u AnalysisUnit, index *reportIndex) error
 	if err := validateAnalysisEvidenceRefs(p+"/summary/evidence_refs", u.Summary.EvidenceRefs, "summary_support"); err != nil {
 		return err
 	}
+	if a := u.Summary.ImpactAssessment; a != nil {
+		if err := validateMappedLabel(p+"/summary/impact_assessment/level", a.Level, impactLevelLabels); err != nil {
+			return err
+		}
+		if err := requiredText(p+"/summary/impact_assessment/rationale", a.Rationale, 10000); err != nil {
+			return err
+		}
+		if a.Level.Code != ImpactLevelPending && len(a.EvidenceRefs) == 0 {
+			return invalid(p+"/summary/impact_assessment/evidence_refs", "rated impact requires supporting Evidence")
+		}
+		if err := validateAnalysisEvidenceRefs(p+"/summary/impact_assessment/evidence_refs", a.EvidenceRefs, "summary_support"); err != nil {
+			return err
+		}
+	}
 	if err := validateAnalysisSteps(p+"/detail", u.Detail.ReasoningSteps, index); err != nil {
 		return err
 	}
@@ -1446,9 +1523,16 @@ func validateAnalysisUnit(kind string, u AnalysisUnit, index *reportIndex) error
 		return invalid(p, "arrays must not be null")
 	}
 	impacts := map[string]bool{}
+	storyChains := map[[2]string]bool{}
 	for _, a := range u.Detail.AffectedAnchors {
 		if err := validateAnalysisImpact(p, a, index, false); err != nil {
 			return err
+		}
+		if kind == "geopolitical_stories" && a.TargetType.Code != "macro_anchor" && a.TargetType.Code != "industry_chain" || kind == "macroeconomic_stories" && a.TargetType.Code != "industry_chain" {
+			return invalid(p, "story anchors must target the permitted downstream layer")
+		}
+		if a.TargetType.Code == "industry_chain" {
+			storyChains[[2]string{a.SourceID, a.Name}] = true
 		}
 		impacts[a.LocalKey] = true
 	}
@@ -1456,22 +1540,26 @@ func validateAnalysisUnit(kind string, u AnalysisUnit, index *reportIndex) error
 		if len(u.Detail.IndustryChains) == 0 || len(u.Detail.AffectedAnchors) != 0 {
 			return invalid(p, "Concept requires chains; impacts belong to chain nodes")
 		}
-	} else if len(u.Detail.IndustryChains) != 0 {
-		return invalid(p, "story details cannot contain Concept chain analyses")
 	}
 	chainSources := map[string]bool{}
 	for _, c := range u.Detail.IndustryChains {
 		if chainSources[c.SourceID] {
-			return invalid(p, "duplicate chain source within Concept")
+			return invalid(p, "duplicate chain source within analysis")
 		}
 		chainSources[c.SourceID] = true
+		if kind != "concept_analyses" && !storyChains[[2]string{c.SourceID, c.Name}] {
+			return invalid(p, "story chain must match an affected industry-chain anchor source and name")
+		}
 		if err := validateChainAnalysis(p, c, index); err != nil {
 			return err
 		}
-		for _, a := range c.AffectedNodes {
-			impacts[a.LocalKey] = true
+		if kind == "concept_analyses" {
+			for _, a := range c.AffectedNodes {
+				impacts[a.LocalKey] = true
+			}
 		}
 	}
+
 	seen := map[string]bool{}
 	for _, k := range u.Summary.AnchorKeys {
 		if !impacts[k] || seen[k] {
@@ -1720,14 +1808,17 @@ func (s *UseCase) GetAnalysis(ctx context.Context, reportID, kind, key string) (
 	}
 	return s.store.GetAnalysis(ctx, reportID, kind, key)
 }
-func (s *UseCase) GetAnalysisChain(ctx context.Context, reportID, conceptKey, chainKey string) (ChainAnalysisDetail, error) {
+func (s *UseCase) GetAnalysisChain(ctx context.Context, reportID, kind, analysisKey, chainKey string) (ChainAnalysisDetail, error) {
 	if err := validateReportID(reportID); err != nil {
 		return ChainAnalysisDetail{}, err
 	}
-	if !localKeyPattern.MatchString(conceptKey) || !localKeyPattern.MatchString(chainKey) {
-		return ChainAnalysisDetail{}, invalid("local_key", "invalid Concept or chain key")
+	if err := validateAnalysisKind(kind); err != nil {
+		return ChainAnalysisDetail{}, err
 	}
-	return s.store.GetAnalysisChain(ctx, reportID, conceptKey, chainKey)
+	if !localKeyPattern.MatchString(analysisKey) || !localKeyPattern.MatchString(chainKey) {
+		return ChainAnalysisDetail{}, invalid("local_key", "invalid analysis or chain key")
+	}
+	return s.store.GetAnalysisChain(ctx, reportID, kind, analysisKey, chainKey)
 }
 
 func validateAnalysisEvidenceRefs(path string, refs []EvidenceReference, role string) error {
@@ -1735,4 +1826,1260 @@ func validateAnalysisEvidenceRefs(path string, refs []EvidenceReference, role st
 		return invalid(path, "evidence_refs must be an array")
 	}
 	return validateEvidenceRefs(path, refs, role)
+}
+
+// V4 contracts implement the approved normalized report, independently of legacy snapshots.
+const NormalizedSchemaVersion = "report-publication/v4"
+
+type V4CodedLabel struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+}
+type V4Claim struct {
+	Text        string   `json:"text"`
+	Basis       string   `json:"basis"`
+	EvidenceIDs []string `json:"evidence_ids"`
+}
+type V4Objections struct {
+	Summary               string    `json:"summary"`
+	Counterevidence       []V4Claim `json:"counterevidence"`
+	Buffers               []V4Claim `json:"buffers"`
+	CounterevidenceStatus string    `json:"counterevidence_status"`
+	EvidenceGaps          []string  `json:"evidence_gaps"`
+	ScopeLimits           []string  `json:"scope_limits"`
+}
+type V4Window struct {
+	Kind        string  `json:"kind"`
+	Description string  `json:"description"`
+	StartAt     *string `json:"start_at"`
+	EndAt       *string `json:"end_at"`
+}
+type V4Assessment struct {
+	Conclusion        string   `json:"conclusion"`
+	Direction         string   `json:"direction"`
+	ConclusionBasis   string   `json:"conclusion_basis"`
+	ValidationStatus  string   `json:"validation_status"`
+	Confidence        *string  `json:"confidence"`
+	ForecastWindow    V4Window `json:"forecast_window"`
+	Scope             string   `json:"scope"`
+	Conditions        []string `json:"conditions"`
+	FollowUp          []string `json:"follow_up"`
+	TransmissionLogic string   `json:"transmission_logic"`
+	EvidenceIDs       []string `json:"evidence_ids"`
+}
+type V4Node struct {
+	LocalKey     string       `json:"local_key"`
+	SourceID     string       `json:"source_id"`
+	NodeLocalKey string       `json:"node_local_key"`
+	Name         string       `json:"name"`
+	Assessment   V4Assessment `json:"assessment"`
+	Objections   V4Objections `json:"objections"`
+}
+type V4Graph struct {
+	Nodes []V4GraphNodesItem `json:"nodes"`
+	Edges []V4GraphEdgesItem `json:"edges"`
+}
+type V4Chain struct {
+	LocalKey         string                  `json:"local_key"`
+	SourceID         string                  `json:"source_id"`
+	Name             string                  `json:"name"`
+	Assessment       V4Assessment            `json:"assessment"`
+	ReasoningSummary V4ChainReasoningSummary `json:"reasoning_summary"`
+	Graph            V4Graph                 `json:"graph"`
+	AffectedNodes    []V4Node                `json:"affected_nodes"`
+	EmptyState       *V4ChainEmptyState      `json:"empty_state"`
+}
+type V4Macro struct {
+	LocalKey   string       `json:"local_key"`
+	SourceID   string       `json:"source_id"`
+	Name       string       `json:"name"`
+	Assessment V4Assessment `json:"assessment"`
+	Objections V4Objections `json:"objections"`
+}
+type V4AnchorRef struct {
+	TargetType    string  `json:"target_type"`
+	LocalKey      string  `json:"local_key"`
+	ChainLocalKey *string `json:"chain_local_key"`
+}
+type V4Unit struct {
+	LocalKey string        `json:"local_key"`
+	SourceID string        `json:"source_id"`
+	Title    string        `json:"title"`
+	Summary  V4UnitSummary `json:"summary"`
+	Detail   V4UnitDetail  `json:"detail"`
+}
+type V4Report struct {
+	SchemaVersion        string                     `json:"schema_version"`
+	ReportType           V4CodedLabel               `json:"report_type"`
+	GeneratedAt          string                     `json:"generated_at"`
+	Timezone             string                     `json:"timezone"`
+	AnalysisWindow       V4ReportAnalysisWindow     `json:"analysis_window"`
+	GeopoliticalStories  []V4Unit                   `json:"geopolitical_stories"`
+	MacroeconomicStories []V4Unit                   `json:"macroeconomic_stories"`
+	ConceptAnalyses      []V4Unit                   `json:"concept_analyses"`
+	Observations         []V4ReportObservationsItem `json:"observations"`
+	Limitations          []string                   `json:"limitations"`
+}
+type V4GraphNodesItem struct {
+	LocalKey string `json:"local_key"`
+	SourceID string `json:"source_id"`
+	Name     string `json:"name"`
+}
+type V4GraphEdgesItem struct {
+	FromNodeLocalKey string `json:"from_node_local_key"`
+	ToNodeLocalKey   string `json:"to_node_local_key"`
+	RelationLabel    string `json:"relation_label"`
+}
+type V4ChainReasoningSummary struct {
+	Logic      string       `json:"logic"`
+	Support    V4Claim      `json:"support"`
+	Objections V4Objections `json:"objections"`
+}
+type V4ChainEmptyState struct {
+	Code     string   `json:"code"`
+	Reason   string   `json:"reason"`
+	FollowUp []string `json:"follow_up"`
+}
+type V4UnitSummary struct {
+	Conclusion        string                        `json:"conclusion"`
+	TransmissionLogic string                        `json:"transmission_logic"`
+	ImpactAssessment  V4UnitSummaryImpactAssessment `json:"impact_assessment"`
+	AffectedRefs      []V4AnchorRef                 `json:"affected_refs"`
+	EvidenceIDs       []string                      `json:"evidence_ids"`
+}
+type V4UnitDetail struct {
+	MacroImpacts   []V4Macro `json:"macro_impacts"`
+	IndustryChains []V4Chain `json:"industry_chains"`
+}
+type V4ReportAnalysisWindow struct {
+	Start string `json:"start"`
+	End   string `json:"end"`
+}
+type V4ReportObservationsItem struct {
+	LocalKey    string   `json:"local_key"`
+	Title       string   `json:"title"`
+	Text        string   `json:"text"`
+	EvidenceIDs []string `json:"evidence_ids"`
+}
+type V4UnitSummaryImpactAssessment struct {
+	Level       string   `json:"level"`
+	Rationale   string   `json:"rationale"`
+	EvidenceIDs []string `json:"evidence_ids"`
+}
+
+func (r *Report) UnmarshalJSON(payload []byte) error {
+	var probe struct {
+		SchemaVersion string `json:"schema_version"`
+	}
+	if err := json.Unmarshal(payload, &probe); err != nil {
+		return err
+	}
+	if probe.SchemaVersion == NormalizedSchemaVersion {
+		var parsed V4Report
+		decoder := json.NewDecoder(bytes.NewReader(payload))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&parsed); err != nil {
+			return err
+		}
+		stamp, err := time.Parse(time.RFC3339Nano, parsed.GeneratedAt)
+		if err != nil {
+			return err
+		}
+		*r = Report{V4: &parsed, SchemaVersion: parsed.SchemaVersion, ReportType: CodedLabel{Code: parsed.ReportType.Code, Label: parsed.ReportType.Label}, GeneratedAt: stamp, Timezone: parsed.Timezone}
+		return nil
+	}
+	type plain Report
+	var v plain
+	d := json.NewDecoder(bytes.NewReader(payload))
+	d.DisallowUnknownFields()
+	if err := d.Decode(&v); err != nil {
+		return err
+	}
+	*r = Report(v)
+	return nil
+}
+
+func validateV4CodedLabel(p string, v V4CodedLabel) error {
+	if err := requiredText(p+"/code", v.Code, 16000); err != nil {
+		return err
+	}
+	if err := requiredText(p+"/label", v.Label, 16000); err != nil {
+		return err
+	}
+	return nil
+}
+func validateV4Claim(p string, v V4Claim) error {
+	if err := requiredText(p+"/text", v.Text, 16000); err != nil {
+		return err
+	}
+	if err := requiredText(p+"/basis", v.Basis, 16000); err != nil {
+		return err
+	}
+	if !v4OneOf(v.Basis, "source_fact", "inference", "hypothetical_buffer") {
+		return invalid(p+"/basis", "unsupported value")
+	}
+	if v.EvidenceIDs == nil {
+		return invalid(p+"/evidence_ids", "must be an array")
+	}
+	for i, value := range v.EvidenceIDs {
+		if err := requiredText(p+"/evidence_ids"+fmt.Sprintf("/%d", i), value, 16000); err != nil {
+			return err
+		}
+		if !regexp.MustCompile("^EVD[0-9a-f-]{36}$").MatchString(value) {
+			return invalid(p+"/evidence_ids"+fmt.Sprintf("/%d", i), "invalid object ID")
+		}
+	}
+	if !v4Unique(v.EvidenceIDs) {
+		return invalid(p+"/evidence_ids", "duplicate values")
+	}
+	return nil
+}
+func validateV4Objections(p string, v V4Objections) error {
+	if err := requiredText(p+"/summary", v.Summary, 16000); err != nil {
+		return err
+	}
+	if v.Counterevidence == nil {
+		return invalid(p+"/counterevidence", "must be an array")
+	}
+	for i, value := range v.Counterevidence {
+		if err := validateV4Claim(p+"/counterevidence"+fmt.Sprintf("/%d", i), value); err != nil {
+			return err
+		}
+	}
+	if v.Buffers == nil {
+		return invalid(p+"/buffers", "must be an array")
+	}
+	for i, value := range v.Buffers {
+		if err := validateV4Claim(p+"/buffers"+fmt.Sprintf("/%d", i), value); err != nil {
+			return err
+		}
+	}
+	if err := requiredText(p+"/counterevidence_status", v.CounterevidenceStatus, 16000); err != nil {
+		return err
+	}
+	if !v4OneOf(v.CounterevidenceStatus, "identified", "none_identified") {
+		return invalid(p+"/counterevidence_status", "unsupported value")
+	}
+	if v.EvidenceGaps == nil {
+		return invalid(p+"/evidence_gaps", "must be an array")
+	}
+	for i, value := range v.EvidenceGaps {
+		if err := requiredText(p+"/evidence_gaps"+fmt.Sprintf("/%d", i), value, 16000); err != nil {
+			return err
+		}
+	}
+	if v.ScopeLimits == nil {
+		return invalid(p+"/scope_limits", "must be an array")
+	}
+	for i, value := range v.ScopeLimits {
+		if err := requiredText(p+"/scope_limits"+fmt.Sprintf("/%d", i), value, 16000); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func validateV4Window(p string, v V4Window) error {
+	if err := requiredText(p+"/kind", v.Kind, 16000); err != nil {
+		return err
+	}
+	if !v4OneOf(v.Kind, "relative", "calendar", "stage", "mixed", "not_applicable") {
+		return invalid(p+"/kind", "unsupported value")
+	}
+	if err := requiredText(p+"/description", v.Description, 16000); err != nil {
+		return err
+	}
+	if v.StartAt != nil {
+		if err := requiredText(p+"/start_at", (*v.StartAt), 16000); err != nil {
+			return err
+		}
+		if _, err := time.Parse(time.RFC3339Nano, (*v.StartAt)); err != nil {
+			return invalid(p+"/start_at", "must be RFC3339")
+		}
+	}
+	if v.EndAt != nil {
+		if err := requiredText(p+"/end_at", (*v.EndAt), 16000); err != nil {
+			return err
+		}
+		if _, err := time.Parse(time.RFC3339Nano, (*v.EndAt)); err != nil {
+			return invalid(p+"/end_at", "must be RFC3339")
+		}
+	}
+	return nil
+}
+func validateV4Assessment(p string, v V4Assessment) error {
+	if err := requiredText(p+"/conclusion", v.Conclusion, 16000); err != nil {
+		return err
+	}
+	if err := requiredText(p+"/direction", v.Direction, 16000); err != nil {
+		return err
+	}
+	if !v4OneOf(v.Direction, "warming", "cooling", "diverging", "pending") {
+		return invalid(p+"/direction", "unsupported value")
+	}
+	if err := requiredText(p+"/conclusion_basis", v.ConclusionBasis, 16000); err != nil {
+		return err
+	}
+	if !v4OneOf(v.ConclusionBasis, "reasoning_hypothesis", "observation_only") {
+		return invalid(p+"/conclusion_basis", "unsupported value")
+	}
+	if err := requiredText(p+"/validation_status", v.ValidationStatus, 16000); err != nil {
+		return err
+	}
+	if !v4OneOf(v.ValidationStatus, "pending_validation", "insufficient_evidence") {
+		return invalid(p+"/validation_status", "unsupported value")
+	}
+	if v.Confidence != nil {
+		if err := requiredText(p+"/confidence", (*v.Confidence), 16000); err != nil {
+			return err
+		}
+		if !v4OneOf((*v.Confidence), "low", "medium", "high") {
+			return invalid(p+"/confidence", "unsupported value")
+		}
+	}
+	if err := validateV4Window(p+"/forecast_window", v.ForecastWindow); err != nil {
+		return err
+	}
+	if err := requiredText(p+"/scope", v.Scope, 16000); err != nil {
+		return err
+	}
+	if v.Conditions == nil {
+		return invalid(p+"/conditions", "must be an array")
+	}
+	for i, value := range v.Conditions {
+		if err := requiredText(p+"/conditions"+fmt.Sprintf("/%d", i), value, 16000); err != nil {
+			return err
+		}
+	}
+	if v.FollowUp == nil {
+		return invalid(p+"/follow_up", "must be an array")
+	}
+	for i, value := range v.FollowUp {
+		if err := requiredText(p+"/follow_up"+fmt.Sprintf("/%d", i), value, 16000); err != nil {
+			return err
+		}
+	}
+	if err := requiredText(p+"/transmission_logic", v.TransmissionLogic, 16000); err != nil {
+		return err
+	}
+	if v.EvidenceIDs == nil {
+		return invalid(p+"/evidence_ids", "must be an array")
+	}
+	for i, value := range v.EvidenceIDs {
+		if err := requiredText(p+"/evidence_ids"+fmt.Sprintf("/%d", i), value, 16000); err != nil {
+			return err
+		}
+		if !regexp.MustCompile("^EVD[0-9a-f-]{36}$").MatchString(value) {
+			return invalid(p+"/evidence_ids"+fmt.Sprintf("/%d", i), "invalid object ID")
+		}
+	}
+	if !v4Unique(v.EvidenceIDs) {
+		return invalid(p+"/evidence_ids", "duplicate values")
+	}
+	return nil
+}
+func validateV4Node(p string, v V4Node) error {
+	if err := requiredText(p+"/local_key", v.LocalKey, 16000); err != nil {
+		return err
+	}
+	if err := requiredText(p+"/source_id", v.SourceID, 16000); err != nil {
+		return err
+	}
+	if !regexp.MustCompile("^CND[0-9a-f-]{36}$").MatchString(v.SourceID) {
+		return invalid(p+"/source_id", "invalid object ID")
+	}
+	if err := requiredText(p+"/node_local_key", v.NodeLocalKey, 16000); err != nil {
+		return err
+	}
+	if err := requiredText(p+"/name", v.Name, 16000); err != nil {
+		return err
+	}
+	if err := validateV4Assessment(p+"/assessment", v.Assessment); err != nil {
+		return err
+	}
+	if err := validateV4Objections(p+"/objections", v.Objections); err != nil {
+		return err
+	}
+	return nil
+}
+func validateV4Graph(p string, v V4Graph) error {
+	if v.Nodes == nil {
+		return invalid(p+"/nodes", "must be an array")
+	}
+	for i, value := range v.Nodes {
+		if err := validateV4GraphNodesItem(p+"/nodes"+fmt.Sprintf("/%d", i), value); err != nil {
+			return err
+		}
+	}
+	if v.Edges == nil {
+		return invalid(p+"/edges", "must be an array")
+	}
+	for i, value := range v.Edges {
+		if err := validateV4GraphEdgesItem(p+"/edges"+fmt.Sprintf("/%d", i), value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func validateV4Chain(p string, v V4Chain) error {
+	if err := requiredText(p+"/local_key", v.LocalKey, 16000); err != nil {
+		return err
+	}
+	if err := requiredText(p+"/source_id", v.SourceID, 16000); err != nil {
+		return err
+	}
+	if !regexp.MustCompile("^ICH[0-9a-f-]{36}$").MatchString(v.SourceID) {
+		return invalid(p+"/source_id", "invalid object ID")
+	}
+	if err := requiredText(p+"/name", v.Name, 16000); err != nil {
+		return err
+	}
+	if err := validateV4Assessment(p+"/assessment", v.Assessment); err != nil {
+		return err
+	}
+	if err := validateV4ChainReasoningSummary(p+"/reasoning_summary", v.ReasoningSummary); err != nil {
+		return err
+	}
+	if err := validateV4Graph(p+"/graph", v.Graph); err != nil {
+		return err
+	}
+	if v.AffectedNodes == nil {
+		return invalid(p+"/affected_nodes", "must be an array")
+	}
+	for i, value := range v.AffectedNodes {
+		if err := validateV4Node(p+"/affected_nodes"+fmt.Sprintf("/%d", i), value); err != nil {
+			return err
+		}
+	}
+	if v.EmptyState != nil {
+		if err := validateV4ChainEmptyState(p+"/empty_state", (*v.EmptyState)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func validateV4Macro(p string, v V4Macro) error {
+	if err := requiredText(p+"/local_key", v.LocalKey, 16000); err != nil {
+		return err
+	}
+	if err := requiredText(p+"/source_id", v.SourceID, 16000); err != nil {
+		return err
+	}
+	if !regexp.MustCompile("^MEC[0-9a-f-]{36}$").MatchString(v.SourceID) {
+		return invalid(p+"/source_id", "invalid object ID")
+	}
+	if err := requiredText(p+"/name", v.Name, 16000); err != nil {
+		return err
+	}
+	if err := validateV4Assessment(p+"/assessment", v.Assessment); err != nil {
+		return err
+	}
+	if err := validateV4Objections(p+"/objections", v.Objections); err != nil {
+		return err
+	}
+	return nil
+}
+func validateV4AnchorRef(p string, v V4AnchorRef) error {
+	if err := requiredText(p+"/target_type", v.TargetType, 16000); err != nil {
+		return err
+	}
+	if !v4OneOf(v.TargetType, "macroeconomic_story", "industry_chain", "industry_chain_node") {
+		return invalid(p+"/target_type", "unsupported value")
+	}
+	if err := requiredText(p+"/local_key", v.LocalKey, 16000); err != nil {
+		return err
+	}
+	if v.ChainLocalKey != nil {
+		if err := requiredText(p+"/chain_local_key", (*v.ChainLocalKey), 16000); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func validateV4Unit(p string, v V4Unit) error {
+	if err := requiredText(p+"/local_key", v.LocalKey, 16000); err != nil {
+		return err
+	}
+	if err := requiredText(p+"/source_id", v.SourceID, 16000); err != nil {
+		return err
+	}
+	if err := requiredText(p+"/title", v.Title, 16000); err != nil {
+		return err
+	}
+	if err := validateV4UnitSummary(p+"/summary", v.Summary); err != nil {
+		return err
+	}
+	if err := validateV4UnitDetail(p+"/detail", v.Detail); err != nil {
+		return err
+	}
+	return nil
+}
+func validateV4Report(p string, v V4Report) error {
+	if err := requiredText(p+"/schema_version", v.SchemaVersion, 16000); err != nil {
+		return err
+	}
+	if !v4OneOf(v.SchemaVersion, "report-publication/v4") {
+		return invalid(p+"/schema_version", "unsupported value")
+	}
+	if err := validateV4CodedLabel(p+"/report_type", v.ReportType); err != nil {
+		return err
+	}
+	if err := requiredText(p+"/generated_at", v.GeneratedAt, 16000); err != nil {
+		return err
+	}
+	if _, err := time.Parse(time.RFC3339Nano, v.GeneratedAt); err != nil {
+		return invalid(p+"/generated_at", "must be RFC3339")
+	}
+	if err := requiredText(p+"/timezone", v.Timezone, 16000); err != nil {
+		return err
+	}
+	if !v4OneOf(v.Timezone, "Asia/Shanghai") {
+		return invalid(p+"/timezone", "unsupported value")
+	}
+	if err := validateV4ReportAnalysisWindow(p+"/analysis_window", v.AnalysisWindow); err != nil {
+		return err
+	}
+	if v.GeopoliticalStories == nil {
+		return invalid(p+"/geopolitical_stories", "must be an array")
+	}
+	for i, value := range v.GeopoliticalStories {
+		if err := validateV4Unit(p+"/geopolitical_stories"+fmt.Sprintf("/%d", i), value); err != nil {
+			return err
+		}
+	}
+	if v.MacroeconomicStories == nil {
+		return invalid(p+"/macroeconomic_stories", "must be an array")
+	}
+	for i, value := range v.MacroeconomicStories {
+		if err := validateV4Unit(p+"/macroeconomic_stories"+fmt.Sprintf("/%d", i), value); err != nil {
+			return err
+		}
+	}
+	if v.ConceptAnalyses == nil {
+		return invalid(p+"/concept_analyses", "must be an array")
+	}
+	for i, value := range v.ConceptAnalyses {
+		if err := validateV4Unit(p+"/concept_analyses"+fmt.Sprintf("/%d", i), value); err != nil {
+			return err
+		}
+	}
+	if v.Observations == nil {
+		return invalid(p+"/observations", "must be an array")
+	}
+	for i, value := range v.Observations {
+		if err := validateV4ReportObservationsItem(p+"/observations"+fmt.Sprintf("/%d", i), value); err != nil {
+			return err
+		}
+	}
+	if v.Limitations == nil {
+		return invalid(p+"/limitations", "must be an array")
+	}
+	for i, value := range v.Limitations {
+		if err := requiredText(p+"/limitations"+fmt.Sprintf("/%d", i), value, 16000); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func validateV4GraphNodesItem(p string, v V4GraphNodesItem) error {
+	if err := requiredText(p+"/local_key", v.LocalKey, 16000); err != nil {
+		return err
+	}
+	if err := requiredText(p+"/source_id", v.SourceID, 16000); err != nil {
+		return err
+	}
+	if !regexp.MustCompile("^CND[0-9a-f-]{36}$").MatchString(v.SourceID) {
+		return invalid(p+"/source_id", "invalid object ID")
+	}
+	if err := requiredText(p+"/name", v.Name, 16000); err != nil {
+		return err
+	}
+	return nil
+}
+func validateV4GraphEdgesItem(p string, v V4GraphEdgesItem) error {
+	if err := requiredText(p+"/from_node_local_key", v.FromNodeLocalKey, 16000); err != nil {
+		return err
+	}
+	if err := requiredText(p+"/to_node_local_key", v.ToNodeLocalKey, 16000); err != nil {
+		return err
+	}
+	if err := requiredText(p+"/relation_label", v.RelationLabel, 16000); err != nil {
+		return err
+	}
+	return nil
+}
+func validateV4ChainReasoningSummary(p string, v V4ChainReasoningSummary) error {
+	if err := requiredText(p+"/logic", v.Logic, 16000); err != nil {
+		return err
+	}
+	if err := validateV4Claim(p+"/support", v.Support); err != nil {
+		return err
+	}
+	if err := validateV4Objections(p+"/objections", v.Objections); err != nil {
+		return err
+	}
+	return nil
+}
+func validateV4ChainEmptyState(p string, v V4ChainEmptyState) error {
+	if err := requiredText(p+"/code", v.Code, 16000); err != nil {
+		return err
+	}
+	if !v4OneOf(v.Code, "observation_only") {
+		return invalid(p+"/code", "unsupported value")
+	}
+	if err := requiredText(p+"/reason", v.Reason, 16000); err != nil {
+		return err
+	}
+	if v.FollowUp == nil {
+		return invalid(p+"/follow_up", "must be an array")
+	}
+	for i, value := range v.FollowUp {
+		if err := requiredText(p+"/follow_up"+fmt.Sprintf("/%d", i), value, 16000); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func validateV4UnitSummary(p string, v V4UnitSummary) error {
+	if err := requiredText(p+"/conclusion", v.Conclusion, 16000); err != nil {
+		return err
+	}
+	if err := requiredText(p+"/transmission_logic", v.TransmissionLogic, 16000); err != nil {
+		return err
+	}
+	if err := validateV4UnitSummaryImpactAssessment(p+"/impact_assessment", v.ImpactAssessment); err != nil {
+		return err
+	}
+	if v.AffectedRefs == nil {
+		return invalid(p+"/affected_refs", "must be an array")
+	}
+	for i, value := range v.AffectedRefs {
+		if err := validateV4AnchorRef(p+"/affected_refs"+fmt.Sprintf("/%d", i), value); err != nil {
+			return err
+		}
+	}
+	if v.EvidenceIDs == nil {
+		return invalid(p+"/evidence_ids", "must be an array")
+	}
+	for i, value := range v.EvidenceIDs {
+		if err := requiredText(p+"/evidence_ids"+fmt.Sprintf("/%d", i), value, 16000); err != nil {
+			return err
+		}
+		if !regexp.MustCompile("^EVD[0-9a-f-]{36}$").MatchString(value) {
+			return invalid(p+"/evidence_ids"+fmt.Sprintf("/%d", i), "invalid object ID")
+		}
+	}
+	if !v4Unique(v.EvidenceIDs) {
+		return invalid(p+"/evidence_ids", "duplicate values")
+	}
+	return nil
+}
+func validateV4UnitDetail(p string, v V4UnitDetail) error {
+	if v.MacroImpacts == nil {
+		return invalid(p+"/macro_impacts", "must be an array")
+	}
+	for i, value := range v.MacroImpacts {
+		if err := validateV4Macro(p+"/macro_impacts"+fmt.Sprintf("/%d", i), value); err != nil {
+			return err
+		}
+	}
+	if v.IndustryChains == nil {
+		return invalid(p+"/industry_chains", "must be an array")
+	}
+	for i, value := range v.IndustryChains {
+		if err := validateV4Chain(p+"/industry_chains"+fmt.Sprintf("/%d", i), value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func validateV4ReportAnalysisWindow(p string, v V4ReportAnalysisWindow) error {
+	if err := requiredText(p+"/start", v.Start, 16000); err != nil {
+		return err
+	}
+	if _, err := time.Parse(time.RFC3339Nano, v.Start); err != nil {
+		return invalid(p+"/start", "must be RFC3339")
+	}
+	if err := requiredText(p+"/end", v.End, 16000); err != nil {
+		return err
+	}
+	if _, err := time.Parse(time.RFC3339Nano, v.End); err != nil {
+		return invalid(p+"/end", "must be RFC3339")
+	}
+	return nil
+}
+func validateV4ReportObservationsItem(p string, v V4ReportObservationsItem) error {
+	if err := requiredText(p+"/local_key", v.LocalKey, 16000); err != nil {
+		return err
+	}
+	if err := requiredText(p+"/title", v.Title, 16000); err != nil {
+		return err
+	}
+	if err := requiredText(p+"/text", v.Text, 16000); err != nil {
+		return err
+	}
+	if v.EvidenceIDs == nil {
+		return invalid(p+"/evidence_ids", "must be an array")
+	}
+	for i, value := range v.EvidenceIDs {
+		if err := requiredText(p+"/evidence_ids"+fmt.Sprintf("/%d", i), value, 16000); err != nil {
+			return err
+		}
+		if !regexp.MustCompile("^EVD[0-9a-f-]{36}$").MatchString(value) {
+			return invalid(p+"/evidence_ids"+fmt.Sprintf("/%d", i), "invalid object ID")
+		}
+	}
+	if !v4Unique(v.EvidenceIDs) {
+		return invalid(p+"/evidence_ids", "duplicate values")
+	}
+	return nil
+}
+func validateV4UnitSummaryImpactAssessment(p string, v V4UnitSummaryImpactAssessment) error {
+	if err := requiredText(p+"/level", v.Level, 16000); err != nil {
+		return err
+	}
+	if !v4OneOf(v.Level, "high", "medium", "low", "pending") {
+		return invalid(p+"/level", "unsupported value")
+	}
+	if err := requiredText(p+"/rationale", v.Rationale, 16000); err != nil {
+		return err
+	}
+	if v.EvidenceIDs == nil {
+		return invalid(p+"/evidence_ids", "must be an array")
+	}
+	for i, value := range v.EvidenceIDs {
+		if err := requiredText(p+"/evidence_ids"+fmt.Sprintf("/%d", i), value, 16000); err != nil {
+			return err
+		}
+		if !regexp.MustCompile("^EVD[0-9a-f-]{36}$").MatchString(value) {
+			return invalid(p+"/evidence_ids"+fmt.Sprintf("/%d", i), "invalid object ID")
+		}
+	}
+	if !v4Unique(v.EvidenceIDs) {
+		return invalid(p+"/evidence_ids", "duplicate values")
+	}
+	return nil
+}
+func v4OneOf(s string, options ...string) bool {
+	for _, v := range options {
+		if s == v {
+			return true
+		}
+	}
+	return false
+}
+func v4Unique(values []string) bool {
+	seen := map[string]bool{}
+	for _, v := range values {
+		if seen[v] {
+			return false
+		}
+		seen[v] = true
+	}
+	return true
+}
+
+func validateNormalizedReport(r V4Report) error {
+	if err := validateV4Report("report", r); err != nil {
+		return err
+	}
+	if r.ReportType.Code != "investment_reasoning" || r.ReportType.Label != "投研推理报告" {
+		return invalid("report_type", "invalid report type")
+	}
+	start, _ := time.Parse(time.RFC3339Nano, r.AnalysisWindow.Start)
+	end, _ := time.Parse(time.RFC3339Nano, r.AnalysisWindow.End)
+	if !start.Before(end) {
+		return invalid("analysis_window", "start must precede end")
+	}
+	seen := map[string]bool{}
+	total := 0
+	for _, g := range []struct {
+		kind  string
+		units []V4Unit
+	}{{"geopolitical_stories", r.GeopoliticalStories}, {"macroeconomic_stories", r.MacroeconomicStories}, {"concept_analyses", r.ConceptAnalyses}} {
+		sources := map[string]bool{}
+		unitKeys := map[string]bool{}
+		for _, u := range g.units {
+			total++
+			if sources[u.SourceID] {
+				return invalid(g.kind, "duplicate source")
+			}
+			sources[u.SourceID] = true
+			if err := validateNormalizedUnit(g.kind, u, unitKeys); err != nil {
+				return err
+			}
+		}
+	}
+	if total == 0 {
+		return invalid("report", "at least one unit required")
+	}
+	for _, o := range r.Observations {
+		if err := normalizedKey(o.LocalKey, seen); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+func normalizedKey(key string, seen map[string]bool) error {
+	if !localKeyPattern.MatchString(key) || seen[key] {
+		return invalid("local_key", "invalid or duplicate local key")
+	}
+	seen[key] = true
+	return nil
+}
+func validateNormalizedAssessment(a V4Assessment) error {
+	w := a.ForecastWindow
+	if w.StartAt != nil && w.EndAt != nil {
+		start, _ := time.Parse(time.RFC3339Nano, *w.StartAt)
+		end, _ := time.Parse(time.RFC3339Nano, *w.EndAt)
+		if !start.Before(end) {
+			return invalid("forecast_window", "invalid interval")
+		}
+	}
+	if a.ConclusionBasis == "observation_only" {
+		if a.Direction != "pending" || a.ValidationStatus != "insufficient_evidence" || a.Confidence != nil || w.Kind != "not_applicable" || w.StartAt != nil || w.EndAt != nil {
+			return invalid("assessment", "inconsistent observation state")
+		}
+	} else if a.Direction == "pending" || a.ValidationStatus != "pending_validation" || a.Confidence == nil || w.Kind == "not_applicable" || len(a.Conditions) == 0 || len(a.FollowUp) == 0 || len(a.EvidenceIDs) == 0 {
+		return invalid("assessment", "directional inference requires conditions, follow-up, confidence and Evidence")
+	}
+	return nil
+}
+func validateNormalizedObjections(o V4Objections) error {
+	if (len(o.Counterevidence) > 0) != (o.CounterevidenceStatus == "identified") {
+		return invalid("counterevidence_status", "does not match counterevidence")
+	}
+	for _, c := range o.Counterevidence {
+		if c.Basis != "source_fact" || len(c.EvidenceIDs) == 0 {
+			return invalid("counterevidence", "requires sourced counterfact")
+		}
+	}
+	for _, c := range o.Buffers {
+		if c.Basis == "source_fact" && len(c.EvidenceIDs) == 0 {
+			return invalid("buffers", "source fact requires Evidence")
+		}
+	}
+	return nil
+}
+func validateNormalizedUnit(kind string, u V4Unit, seen map[string]bool) error {
+	if err := normalizedKey(u.LocalKey, seen); err != nil {
+		return err
+	}
+	if u.Summary.ImpactAssessment.Level != "pending" && len(u.Summary.ImpactAssessment.EvidenceIDs) == 0 {
+		return invalid("impact_assessment", "rated impact requires Evidence")
+	}
+	if kind != "geopolitical_stories" && len(u.Detail.MacroImpacts) > 0 {
+		return invalid("macro_impacts", "only geopolitical stories may target macro objects")
+	}
+	seen = map[string]bool{}
+	macros := map[string]bool{}
+	chains := map[string]map[string]bool{}
+	sources := map[string]bool{}
+	for _, m := range u.Detail.MacroImpacts {
+		if err := normalizedKey(m.LocalKey, seen); err != nil {
+			return err
+		}
+		macros[m.LocalKey] = true
+		if err := validateNormalizedAssessment(m.Assessment); err != nil {
+			return err
+		}
+		if err := validateNormalizedObjections(m.Objections); err != nil {
+			return err
+		}
+	}
+	seen = map[string]bool{}
+	for _, c := range u.Detail.IndustryChains {
+		if sources[c.SourceID] {
+			return invalid("industry_chains", "duplicate source")
+		}
+		sources[c.SourceID] = true
+		nodes, err := validateNormalizedChain(c, seen)
+		if err != nil {
+			return err
+		}
+		chains[c.LocalKey] = nodes
+	}
+	refs := map[string]bool{}
+	for _, a := range u.Summary.AffectedRefs {
+		key := a.TargetType + "/" + a.LocalKey
+		if a.ChainLocalKey != nil {
+			key += "/" + *a.ChainLocalKey
+		}
+		if refs[key] {
+			return invalid("affected_refs", "duplicate reference")
+		}
+		refs[key] = true
+		valid := false
+		switch a.TargetType {
+		case "macroeconomic_story":
+			valid = kind == "geopolitical_stories" && a.ChainLocalKey == nil && macros[a.LocalKey]
+		case "industry_chain":
+			_, ok := chains[a.LocalKey]
+			valid = kind != "concept_analyses" && a.ChainLocalKey == nil && ok
+		case "industry_chain_node":
+			if a.ChainLocalKey != nil {
+				valid = kind == "concept_analyses" && chains[*a.ChainLocalKey][a.LocalKey]
+			}
+		}
+		if !valid {
+			return invalid("affected_refs", "reference does not close in its unit")
+		}
+	}
+	return nil
+}
+
+// V4 scopes use the exact typed snapshot traversal, shared with token projection.
+type NormalizedEvidenceScope struct {
+	Path string
+	IDs  []string
+}
+
+func NormalizedEvidenceScopes(r V4Report) []NormalizedEvidenceScope {
+	scopes := []NormalizedEvidenceScope{}
+	add := func(p string, ids []string) {
+		scopes = append(scopes, NormalizedEvidenceScope{p + "/evidence_ids", ids})
+	}
+	objections := func(p string, o V4Objections) {
+		for i, c := range o.Counterevidence {
+			add(fmt.Sprintf("%s/counterevidence/%d", p, i), c.EvidenceIDs)
+		}
+		for i, c := range o.Buffers {
+			add(fmt.Sprintf("%s/buffers/%d", p, i), c.EvidenceIDs)
+		}
+	}
+	for _, g := range []struct {
+		kind  string
+		units []V4Unit
+	}{{"geopolitical_stories", r.GeopoliticalStories}, {"macroeconomic_stories", r.MacroeconomicStories}, {"concept_analyses", r.ConceptAnalyses}} {
+		for _, u := range g.units {
+			p := g.kind + "/" + u.LocalKey
+			add(p+"/summary", u.Summary.EvidenceIDs)
+			add(p+"/summary/impact_assessment", u.Summary.ImpactAssessment.EvidenceIDs)
+			for _, m := range u.Detail.MacroImpacts {
+				mp := p + "/detail/macro_impacts/" + m.LocalKey
+				add(mp+"/assessment", m.Assessment.EvidenceIDs)
+				objections(mp+"/objections", m.Objections)
+			}
+			for _, c := range u.Detail.IndustryChains {
+				cp := p + "/detail/industry_chains/" + c.LocalKey
+				add(cp+"/assessment", c.Assessment.EvidenceIDs)
+				add(cp+"/reasoning_summary/support", c.ReasoningSummary.Support.EvidenceIDs)
+				objections(cp+"/reasoning_summary/objections", c.ReasoningSummary.Objections)
+				for _, n := range c.AffectedNodes {
+					np := cp + "/affected_nodes/" + n.LocalKey
+					add(np+"/assessment", n.Assessment.EvidenceIDs)
+					objections(np+"/objections", n.Objections)
+				}
+			}
+		}
+	}
+	for _, o := range r.Observations {
+		add("observations/"+o.LocalKey, o.EvidenceIDs)
+	}
+	return scopes
+}
+func normalizedEvidenceLinks(id string, r V4Report) ([]EvidenceLink, error) {
+	links := []EvidenceLink{}
+	for _, scope := range NormalizedEvidenceScopes(r) {
+		for i, ev := range scope.IDs {
+			key, err := coreid.New(coreid.ReportEvidenceLink)
+			if err != nil {
+				return nil, err
+			}
+			links = append(links, EvidenceLink{ID: key, ReportID: id, EvidenceID: ev, ScopeType: ScopeType("normalized_report_evidence"), ScopePath: scope.Path, Position: i + 1})
+		}
+	}
+	return links, nil
+}
+
+type V4ReadCodedLabel struct {
+	Code  string `json:"code"`
+	Label string `json:"label"`
+}
+type V4ReadClaim struct {
+	Text               string  `json:"text"`
+	Basis              string  `json:"basis"`
+	EvidenceScopeToken *string `json:"evidence_scope_token"`
+	EvidenceCount      int     `json:"evidence_count"`
+}
+type V4ReadObjections struct {
+	Summary               string        `json:"summary"`
+	Counterevidence       []V4ReadClaim `json:"counterevidence"`
+	Buffers               []V4ReadClaim `json:"buffers"`
+	CounterevidenceStatus string        `json:"counterevidence_status"`
+	EvidenceGaps          []string      `json:"evidence_gaps"`
+	ScopeLimits           []string      `json:"scope_limits"`
+}
+type V4ReadWindow struct {
+	Kind        string  `json:"kind"`
+	Description string  `json:"description"`
+	StartAt     *string `json:"start_at"`
+	EndAt       *string `json:"end_at"`
+}
+type V4ReadAssessment struct {
+	Conclusion         string       `json:"conclusion"`
+	Direction          string       `json:"direction"`
+	ConclusionBasis    string       `json:"conclusion_basis"`
+	ValidationStatus   string       `json:"validation_status"`
+	Confidence         *string      `json:"confidence"`
+	ForecastWindow     V4ReadWindow `json:"forecast_window"`
+	Scope              string       `json:"scope"`
+	Conditions         []string     `json:"conditions"`
+	FollowUp           []string     `json:"follow_up"`
+	TransmissionLogic  string       `json:"transmission_logic"`
+	EvidenceScopeToken *string      `json:"evidence_scope_token"`
+	EvidenceCount      int          `json:"evidence_count"`
+}
+type V4ReadNode struct {
+	LocalKey     string           `json:"local_key"`
+	SourceID     string           `json:"source_id"`
+	NodeLocalKey string           `json:"node_local_key"`
+	Name         string           `json:"name"`
+	Assessment   V4ReadAssessment `json:"assessment"`
+	Objections   V4ReadObjections `json:"objections"`
+}
+type V4ReadGraph struct {
+	Nodes []V4ReadGraphNodesItem `json:"nodes"`
+	Edges []V4ReadGraphEdgesItem `json:"edges"`
+}
+type V4ReadChain struct {
+	LocalKey         string                      `json:"local_key"`
+	SourceID         string                      `json:"source_id"`
+	Name             string                      `json:"name"`
+	Assessment       V4ReadAssessment            `json:"assessment"`
+	ReasoningSummary V4ReadChainReasoningSummary `json:"reasoning_summary"`
+	Graph            V4ReadGraph                 `json:"graph"`
+	AffectedNodes    []V4ReadNode                `json:"affected_nodes"`
+	EmptyState       *V4ReadChainEmptyState      `json:"empty_state"`
+}
+type V4ReadMacro struct {
+	LocalKey   string           `json:"local_key"`
+	SourceID   string           `json:"source_id"`
+	Name       string           `json:"name"`
+	Assessment V4ReadAssessment `json:"assessment"`
+	Objections V4ReadObjections `json:"objections"`
+}
+type V4ReadAnchorRef struct {
+	TargetType    string  `json:"target_type"`
+	LocalKey      string  `json:"local_key"`
+	ChainLocalKey *string `json:"chain_local_key"`
+}
+type V4ReadUnit struct {
+	LocalKey string            `json:"local_key"`
+	SourceID string            `json:"source_id"`
+	Title    string            `json:"title"`
+	Summary  V4ReadUnitSummary `json:"summary"`
+	Detail   V4ReadUnitDetail  `json:"detail"`
+}
+type V4ReadReport struct {
+	SchemaVersion        string                         `json:"schema_version"`
+	ReportType           V4ReadCodedLabel               `json:"report_type"`
+	GeneratedAt          string                         `json:"generated_at"`
+	Timezone             string                         `json:"timezone"`
+	AnalysisWindow       V4ReadReportAnalysisWindow     `json:"analysis_window"`
+	GeopoliticalStories  []V4ReadUnit                   `json:"geopolitical_stories"`
+	MacroeconomicStories []V4ReadUnit                   `json:"macroeconomic_stories"`
+	ConceptAnalyses      []V4ReadUnit                   `json:"concept_analyses"`
+	Observations         []V4ReadReportObservationsItem `json:"observations"`
+	Limitations          []string                       `json:"limitations"`
+}
+type V4ReadGraphNodesItem struct {
+	LocalKey string `json:"local_key"`
+	SourceID string `json:"source_id"`
+	Name     string `json:"name"`
+}
+type V4ReadGraphEdgesItem struct {
+	FromNodeLocalKey string `json:"from_node_local_key"`
+	ToNodeLocalKey   string `json:"to_node_local_key"`
+	RelationLabel    string `json:"relation_label"`
+}
+type V4ReadChainReasoningSummary struct {
+	Logic      string           `json:"logic"`
+	Support    V4ReadClaim      `json:"support"`
+	Objections V4ReadObjections `json:"objections"`
+}
+type V4ReadChainEmptyState struct {
+	Code     string   `json:"code"`
+	Reason   string   `json:"reason"`
+	FollowUp []string `json:"follow_up"`
+}
+type V4ReadUnitSummary struct {
+	Conclusion         string                            `json:"conclusion"`
+	TransmissionLogic  string                            `json:"transmission_logic"`
+	ImpactAssessment   V4ReadUnitSummaryImpactAssessment `json:"impact_assessment"`
+	AffectedRefs       []V4ReadAnchorRef                 `json:"affected_refs"`
+	EvidenceScopeToken *string                           `json:"evidence_scope_token"`
+	EvidenceCount      int                               `json:"evidence_count"`
+}
+type V4ReadUnitDetail struct {
+	MacroImpacts   []V4ReadMacro `json:"macro_impacts"`
+	IndustryChains []V4ReadChain `json:"industry_chains"`
+}
+type V4ReadReportAnalysisWindow struct {
+	Start string `json:"start"`
+	End   string `json:"end"`
+}
+type V4ReadReportObservationsItem struct {
+	LocalKey           string  `json:"local_key"`
+	Title              string  `json:"title"`
+	Text               string  `json:"text"`
+	EvidenceScopeToken *string `json:"evidence_scope_token"`
+	EvidenceCount      int     `json:"evidence_count"`
+}
+type V4ReadUnitSummaryImpactAssessment struct {
+	Level              string  `json:"level"`
+	Rationale          string  `json:"rationale"`
+	EvidenceScopeToken *string `json:"evidence_scope_token"`
+	EvidenceCount      int     `json:"evidence_count"`
+}
+
+type V4ResolvedAnchor struct {
+	Reference  V4AnchorRef      `json:"reference"`
+	SourceID   string           `json:"source_id"`
+	Name       string           `json:"name"`
+	Assessment V4ReadAssessment `json:"assessment"`
+}
+type V4SummaryProjection struct {
+	SchemaVersion   string             `json:"schema_version"`
+	LocalKey        string             `json:"local_key"`
+	SourceID        string             `json:"source_id"`
+	Title           string             `json:"title"`
+	Summary         V4ReadUnitSummary  `json:"summary"`
+	AffectedAnchors []V4ResolvedAnchor `json:"affected_anchors"`
+	ChainCount      int                `json:"chain_count"`
+}
+type V4ChainHeader struct {
+	LocalKey   string                 `json:"local_key"`
+	SourceID   string                 `json:"source_id"`
+	Name       string                 `json:"name"`
+	Assessment V4ReadAssessment       `json:"assessment"`
+	EmptyState *V4ReadChainEmptyState `json:"empty_state"`
+}
+type V4DetailProjection struct {
+	Summary        V4SummaryProjection `json:"summary"`
+	MacroImpacts   []V4ReadMacro       `json:"macro_impacts"`
+	IndustryChains []V4ChainHeader     `json:"industry_chains"`
+}
+type V4HomeProjection struct {
+	ReportType     V4ReadCodedLabel               `json:"report_type"`
+	SchemaVersion  string                         `json:"schema_version"`
+	GeneratedAt    string                         `json:"generated_at"`
+	Timezone       string                         `json:"timezone"`
+	AnalysisWindow V4ReadReportAnalysisWindow     `json:"analysis_window"`
+	Observations   []V4ReadReportObservationsItem `json:"observations"`
+	Limitations    []string                       `json:"limitations"`
+}
+
+func (v AnalysisUnitSummary) MarshalJSON() ([]byte, error) {
+	if v.V4 != nil {
+		return json.Marshal(v.V4)
+	}
+	type plain AnalysisUnitSummary
+	return json.Marshal(plain(v))
+}
+func (v AnalysisUnitDetail) MarshalJSON() ([]byte, error) {
+	if v.V4 != nil {
+		return json.Marshal(v.V4)
+	}
+	type plain AnalysisUnitDetail
+	return json.Marshal(plain(v))
+}
+func (v ChainAnalysisDetail) MarshalJSON() ([]byte, error) {
+	if v.V4 != nil {
+		return json.Marshal(v.V4)
+	}
+	type plain ChainAnalysisDetail
+	return json.Marshal(plain(v))
+}
+func (v Home) MarshalJSON() ([]byte, error) {
+	if v.V4 != nil {
+		return json.Marshal(v.V4)
+	}
+	type plain Home
+	return json.Marshal(plain(v))
+}
+
+// ValidateNormalizedUnit guards selected immutable JSONB units at the read boundary.
+func ValidateNormalizedUnit(kind string, u V4Unit) error {
+	if err := validateV4Unit("unit", u); err != nil {
+		return err
+	}
+	return validateNormalizedUnit(kind, u, map[string]bool{})
+}
+
+func validateNormalizedChain(c V4Chain, seen map[string]bool) (map[string]bool, error) {
+	if err := normalizedKey(c.LocalKey, seen); err != nil {
+		return nil, err
+	}
+	if err := validateNormalizedAssessment(c.Assessment); err != nil {
+		return nil, err
+	}
+	if err := validateNormalizedObjections(c.ReasoningSummary.Objections); err != nil {
+		return nil, err
+	}
+	if c.ReasoningSummary.Logic != c.Assessment.TransmissionLogic {
+		return nil, invalid("reasoning_summary.logic", "must match chain assessment")
+	}
+	if c.ReasoningSummary.Support.Basis == "source_fact" && len(c.ReasoningSummary.Support.EvidenceIDs) == 0 {
+		return nil, invalid("support", "source fact requires Evidence")
+	}
+	if (c.EmptyState != nil) != (len(c.AffectedNodes) == 0) || (c.EmptyState != nil) != (c.Assessment.ConclusionBasis == "observation_only") {
+		return nil, invalid("empty_state", "does not match node results")
+	}
+	if c.EmptyState != nil && len(c.EmptyState.FollowUp) == 0 {
+		return nil, invalid("empty_state", "requires follow-up")
+	}
+	graphKeys := map[string]bool{}
+	nodeKeys := map[string]bool{}
+	graph := map[string]V4GraphNodesItem{}
+	graphIDs := map[string]bool{}
+	for _, n := range c.Graph.Nodes {
+		if err := normalizedKey(n.LocalKey, graphKeys); err != nil {
+			return nil, err
+		}
+		if graphIDs[n.SourceID] {
+			return nil, invalid("graph", "duplicate source node")
+		}
+		graphIDs[n.SourceID] = true
+		graph[n.LocalKey] = n
+	}
+	edges := map[string]bool{}
+	for _, e := range c.Graph.Edges {
+		_, a := graph[e.FromNodeLocalKey]
+		_, b := graph[e.ToNodeLocalKey]
+		key := e.FromNodeLocalKey + "/" + e.ToNodeLocalKey + "/" + e.RelationLabel
+		if !a || !b || e.FromNodeLocalKey == e.ToNodeLocalKey || edges[key] {
+			return nil, invalid("graph.edges", "invalid or duplicate edge")
+		}
+		edges[key] = true
+	}
+	nodes := map[string]bool{}
+	targets := map[string]bool{}
+	for _, n := range c.AffectedNodes {
+		if err := normalizedKey(n.LocalKey, nodeKeys); err != nil {
+			return nil, err
+		}
+		g, ok := graph[n.NodeLocalKey]
+		if !ok || g.SourceID != n.SourceID || g.Name != n.Name || targets[n.NodeLocalKey] {
+			return nil, invalid("affected_nodes", "node identity mismatch or duplicate")
+		}
+		targets[n.NodeLocalKey] = true
+		nodes[n.LocalKey] = true
+		if err := validateNormalizedAssessment(n.Assessment); err != nil {
+			return nil, err
+		}
+		if err := validateNormalizedObjections(n.Objections); err != nil {
+			return nil, err
+		}
+		if n.Assessment.ConclusionBasis != "reasoning_hypothesis" {
+			return nil, invalid("affected_nodes", "observation belongs in empty_state")
+		}
+	}
+	return nodes, nil
+}
+func ValidateNormalizedChain(c V4Chain) error {
+	if err := validateV4Chain("chain", c); err != nil {
+		return err
+	}
+	_, err := validateNormalizedChain(c, map[string]bool{})
+	return err
 }

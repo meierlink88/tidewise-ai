@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -143,5 +145,121 @@ func writeDownstreamResult(t *testing.T, writer http.ResponseWriter, result any)
 	writer.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(writer).Encode(map[string]any{"request_id": "data-request", "result": result}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func (*reportAPIStub) ListAnalyses(context.Context, *api.AnalysisQuery) (*api.AnalysisPage, error) {
+	return nil, nil
+}
+
+func (*reportAPIStub) GetAnalysis(context.Context, *api.AnalysisQuery) (*api.NormalizedDetailProjection, error) {
+	return nil, nil
+}
+
+func (*reportAPIStub) GetAnalysisChain(context.Context, *api.AnalysisQuery) (*api.NormalizedChain, error) {
+	return nil, nil
+}
+
+// The same synthetic wire fixture is consumed by the frontend parser and all BFF layers.
+func TestNormalizedReportHTTPTraversesDataAndPreservesProjection(t *testing.T) {
+	raw, err := os.ReadFile("../../../frontend/src/mocks/reports/normalized.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		Groups  []map[string]any `json:"groups"`
+		Details map[string]any   `json:"details"`
+		Chains  map[string]any   `json:"chains"`
+	}
+	if err = json.Unmarshal(raw, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	downstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		prefix := dataapi.DataAPIPrefix + "/reports"
+		if r.URL.Path == prefix {
+			s := dataSummary()
+			s["schema_version"] = "report-publication/v4"
+			s["analysis_window"] = map[string]string{"start": "2026-09-01T00:00:00Z", "end": "2026-09-02T00:00:00Z"}
+			writeDownstreamResult(t, w, map[string]any{"items": []any{s}, "next_cursor": nil})
+			return
+		}
+		key := strings.TrimPrefix(r.URL.Path, prefix+"/"+reportTestID+"/analyses/")
+		for _, g := range fixture.Groups {
+			if key == g["kind"] {
+				writeDownstreamResult(t, w, map[string]any{"items": g["items"], "next_cursor": g["next_cursor"]})
+				return
+			}
+		}
+		if v, ok := fixture.Details[key]; ok {
+			writeDownstreamResult(t, w, v)
+			return
+		}
+		key = strings.Replace(key, "/industry-chains/", "/", 1)
+		if v, ok := fixture.Chains[key]; ok {
+			writeDownstreamResult(t, w, v)
+			return
+		}
+		t.Errorf("unexpected request %s", r.URL.RequestURI())
+		http.NotFound(w, r)
+	}))
+	defer downstream.Close()
+	client, err := dataapi.NewHTTPClient(dataapi.HTTPConfig{BaseURL: downstream.URL, ServiceToken: "test-token", Timeout: time.Second, MaxReadAttempts: 1, HTTPClient: downstream.Client()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	repository, err := reportdata.NewRepository(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	app, err := reportservice.NewService(biz.NewUseCase(repository))
+	if err != nil {
+		t.Fatal(err)
+	}
+	router := NewHTTPServer(testRuntimeConfig(), testLogger(), app)
+	read := func(path string) any {
+		t.Helper()
+		r := httptest.NewRecorder()
+		router.ServeHTTP(r, httptest.NewRequest(http.MethodGet, path, nil))
+		if r.Code != 200 {
+			t.Fatalf("%s: %d %s", path, r.Code, r.Body.String())
+		}
+		var envelope map[string]any
+		if err := json.Unmarshal(r.Body.Bytes(), &envelope); err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(r.Body.String(), "evidence_ids") {
+			t.Fatal("Evidence IDs leaked")
+		}
+		return envelope["result"]
+	}
+	home := read("/api/miniapp/v1/reports/home").(map[string]any)
+	reports := home["reports"].([]any)
+	groups := reports[0].(map[string]any)["analysis_groups"]
+	wantGroups := make([]any, len(fixture.Groups))
+	for i, g := range fixture.Groups {
+		wantGroups[i] = g
+	}
+	if !reflect.DeepEqual(groups, wantGroups) {
+		t.Fatal("home did not preserve group projections and counts")
+	}
+	for key, want := range fixture.Details {
+		if got := read("/api/miniapp/v1/reports/" + reportTestID + "/analyses/" + key); !reflect.DeepEqual(got, want) {
+			t.Fatalf("detail mismatch %s", key)
+		}
+	}
+	for key, want := range fixture.Chains {
+		parts := strings.Split(key, "/")
+		path := strings.Join(parts[:2], "/") + "/industry-chains/" + parts[2]
+		if got := read("/api/miniapp/v1/reports/" + reportTestID + "/analyses/" + path); !reflect.DeepEqual(got, want) {
+			t.Fatalf("chain mismatch %s", key)
+		}
+	}
+	for _, suffix := range []string{"?limit=2&limit=3", "?limit=101", "?unknown=1"} {
+		r := httptest.NewRecorder()
+		router.ServeHTTP(r, httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/reports/"+reportTestID+"/analyses/geopolitical_stories"+suffix, nil))
+		if r.Code != 400 {
+			t.Fatalf("%s: %d", suffix, r.Code)
+		}
 	}
 }

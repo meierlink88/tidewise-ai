@@ -27,11 +27,11 @@ func NewStore(db *sql.DB) (Store, error) {
 
 const summaryColumns = `id, publisher_report_id, report ->> 'generated_at',
        (report ? 'geopolitics' OR jsonb_array_length(COALESCE(report->'geopolitical_stories','[]'::jsonb))>0), (report ? 'macroeconomics' OR jsonb_array_length(COALESCE(report->'macroeconomic_stories','[]'::jsonb))>0),
-       CASE WHEN report->>'schema_version'='report-publication/v3' THEN (SELECT COALESCE(sum(jsonb_array_length(u#>'{detail,industry_chains}')),0) FROM jsonb_array_elements(report->'concept_analyses') u) ELSE jsonb_array_length(report -> 'industry_chains') END, published_at, COALESCE(report->>'schema_version',''), COALESCE(report#>>'{analysis_window,start}',''), COALESCE(report#>>'{analysis_window,end}','')`
+       CASE WHEN report->>'schema_version' IN ('report-publication/v3','report-publication/v4') THEN (SELECT COALESCE(sum(jsonb_array_length(u#>'{detail,industry_chains}')),0) FROM jsonb_array_elements(report->'concept_analyses') u) ELSE jsonb_array_length(report -> 'industry_chains') END, published_at, COALESCE(report->>'schema_version',''), COALESCE(report#>>'{analysis_window,start}',''), COALESCE(report#>>'{analysis_window,end}','')`
 
 func (s Store) ListReports(ctx context.Context, filter reportbiz.ListFilter) (reportbiz.StorePage, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+summaryColumns+` FROM reports
-WHERE COALESCE(report->>'schema_version','')=$6 AND ($1::timestamptz IS NULL OR published_at >= $1)
+WHERE (($6='all' AND COALESCE(report->>'schema_version','') IN ('','report-publication/v3','report-publication/v4')) OR ($6='legacy' AND COALESCE(report->>'schema_version','')='') OR ($6 NOT IN ('all','legacy') AND COALESCE(report->>'schema_version','')=$6)) AND ($1::timestamptz IS NULL OR published_at >= $1)
   AND ($2::timestamptz IS NULL OR published_at < $2)
   AND ($3::timestamptz IS NULL OR published_at < $3 OR (published_at = $3 AND id > $4))
 ORDER BY published_at DESC, id ASC
@@ -64,6 +64,14 @@ func (s Store) GetReport(ctx context.Context, reportID string) (reportbiz.Record
 }
 
 func (s Store) GetHome(ctx context.Context, reportID string) (reportbiz.Home, error) {
+	normalized, err := s.isNormalizedReport(ctx, reportID)
+	if err != nil {
+		return reportbiz.Home{}, err
+	}
+	if normalized {
+		return s.getNormalizedHome(ctx, reportID)
+	}
+
 	row := s.db.QueryRowContext(ctx, `SELECT `+summaryColumns+`, report -> 'geopolitics', report -> 'macroeconomics' FROM reports WHERE id = $1`, reportID)
 	var summary reportbiz.Summary
 	var generatedAt string
@@ -417,7 +425,7 @@ func finishSummary(result *reportbiz.Summary, generatedAt string) error {
 	if result.SchemaVersion != "" {
 		start, e1 := time.Parse(time.RFC3339Nano, result.AnalysisWindowStart)
 		end, e2 := time.Parse(time.RFC3339Nano, result.AnalysisWindowEnd)
-		if result.SchemaVersion != reportbiz.AnalysisSchemaVersion || e1 != nil || e2 != nil || !start.Before(end) {
+		if (result.SchemaVersion != reportbiz.AnalysisSchemaVersion && result.SchemaVersion != reportbiz.NormalizedSchemaVersion) || e1 != nil || e2 != nil || !start.Before(end) {
 			return persistedInvariant("Report summary", "version/window", "invalid analysis metadata")
 		}
 	} else if result.IndustryChainCount < 1 {
@@ -481,6 +489,14 @@ var _ reportbiz.Store = Store{}
 // Analysis collections stay in the immutable JSONB snapshot. SQL slices the requested
 // collection before Go decoding; chain details are fetched independently.
 func (s Store) ListAnalyses(ctx context.Context, f reportbiz.AnalysisListFilter) (reportbiz.AnalysisStorePage, error) {
+	normalized, err := s.isNormalizedReport(ctx, f.ReportID)
+	if err != nil {
+		return reportbiz.AnalysisStorePage{}, err
+	}
+	if normalized {
+		return s.listNormalizedAnalyses(ctx, f)
+	}
+
 	if err := s.requireAnalysisReport(ctx, f.ReportID); err != nil {
 		return reportbiz.AnalysisStorePage{}, err
 	}
@@ -541,11 +557,19 @@ func (s Store) requireAnalysisReport(ctx context.Context, id string) error {
 	return nil
 }
 func (s Store) GetAnalysis(ctx context.Context, id, kind, key string) (reportbiz.AnalysisUnitDetail, error) {
+	normalized, err := s.isNormalizedReport(ctx, id)
+	if err != nil {
+		return reportbiz.AnalysisUnitDetail{}, err
+	}
+	if normalized {
+		return s.getNormalizedAnalysis(ctx, id, kind, key)
+	}
+
 	if err := s.requireAnalysisReport(ctx, id); err != nil {
 		return reportbiz.AnalysisUnitDetail{}, err
 	}
 	var raw []byte
-	err := s.db.QueryRowContext(ctx, `SELECT `+analysisUnitReadJSON+`
+	err = s.db.QueryRowContext(ctx, `SELECT `+analysisUnitReadJSON+`
  FROM reports r CROSS JOIN LATERAL jsonb_array_elements(r.report->$2) WITH ORDINALITY unit(value,ordinality)
  WHERE r.id=$1 AND unit.value->>'local_key'=$3`, id, kind, key).Scan(&raw)
 	if err != nil {
@@ -575,13 +599,21 @@ func (s Store) GetAnalysis(ctx context.Context, id, kind, key string) (reportbiz
 	}
 	return result, nil
 }
-func (s Store) GetAnalysisChain(ctx context.Context, id, concept, chain string) (reportbiz.ChainAnalysisDetail, error) {
+func (s Store) GetAnalysisChain(ctx context.Context, id, kind, analysis, chain string) (reportbiz.ChainAnalysisDetail, error) {
+	normalized, err := s.isNormalizedReport(ctx, id)
+	if err != nil {
+		return reportbiz.ChainAnalysisDetail{}, err
+	}
+	if normalized {
+		return s.getNormalizedChain(ctx, id, kind, analysis, chain)
+	}
+
 	if err := s.requireAnalysisReport(ctx, id); err != nil {
 		return reportbiz.ChainAnalysisDetail{}, err
 	}
 	var raw []byte
-	err := s.db.QueryRowContext(ctx, `SELECT c FROM reports r CROSS JOIN LATERAL jsonb_array_elements(r.report->'concept_analyses') u
- CROSS JOIN LATERAL jsonb_array_elements(u#>'{detail,industry_chains}') c WHERE r.id=$1 AND u->>'local_key'=$2 AND c->>'local_key'=$3`, id, concept, chain).Scan(&raw)
+	err = s.db.QueryRowContext(ctx, `SELECT c FROM reports r CROSS JOIN LATERAL jsonb_array_elements(r.report->$2) u
+ CROSS JOIN LATERAL jsonb_array_elements(u#>'{detail,industry_chains}') c WHERE r.id=$1 AND u->>'local_key'=$3 AND c->>'local_key'=$4`, id, kind, analysis, chain).Scan(&raw)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return reportbiz.ChainAnalysisDetail{}, reportbiz.ErrChainNotFound
@@ -596,7 +628,7 @@ func (s Store) GetAnalysisChain(ctx context.Context, id, concept, chain string) 
 	if err != nil {
 		return reportbiz.ChainAnalysisDetail{}, err
 	}
-	p := "concept_analyses/" + concept + "/detail/industry_chains/" + chain
+	p := kind + "/" + analysis + "/detail/industry_chains/" + chain
 	result := reportbiz.ChainAnalysisDetail{LocalKey: c.LocalKey, SourceID: c.SourceID, Name: c.Name, Conclusion: c.Conclusion, TransmissionLogic: c.TransmissionLogic, ReasoningSteps: projectAnalysisSteps(p, c.ReasoningSteps, tokens), Graph: c.Graph, AffectedNodes: []reportbiz.AnalysisImpactProjection{}, Uncertainty: c.Uncertainty, EvidenceScopeToken: tokens[p+"/evidence_refs"]}
 	for _, a := range c.AffectedNodes {
 		result.AffectedNodes = append(result.AffectedNodes, projectAnalysisImpact(p+"/affected_nodes", a, tokens))
@@ -616,6 +648,9 @@ func projectAnalysisImpact(p string, a reportbiz.AnalysisImpact, tokens map[stri
 func projectAnalysisSummary(kind string, u reportbiz.AnalysisUnit, ordinal int, tokens map[string]*string) (reportbiz.AnalysisUnitSummary, error) {
 	p := kind + "/" + u.LocalKey
 	result := reportbiz.AnalysisUnitSummary{LocalKey: u.LocalKey, SourceID: u.SourceID, Title: u.Title, Conclusion: u.Summary.Conclusion, TransmissionLogic: u.Summary.TransmissionLogic, AffectedAnchors: []reportbiz.AnalysisImpactProjection{}, ChainCount: len(u.Detail.IndustryChains), Ordinal: ordinal, EvidenceScopeToken: tokens[p+"/summary/evidence_refs"]}
+	if impact := u.Summary.ImpactAssessment; impact != nil {
+		result.ImpactAssessment = &reportbiz.ImpactAssessmentProjection{Level: impact.Level, Rationale: impact.Rationale, EvidenceScopeToken: tokens[p+"/summary/impact_assessment/evidence_refs"]}
+	}
 	impacts := map[string]reportbiz.AnalysisImpactProjection{}
 	for _, a := range u.Detail.AffectedAnchors {
 		impacts[a.LocalKey] = projectAnalysisImpact(p+"/detail/affected_anchors", a, tokens)
@@ -643,3 +678,299 @@ const analysisUnitReadJSON = `jsonb_set(unit.value,'{detail,industry_chains}',
  'affected_nodes',COALESCE((SELECT jsonb_agg(a ORDER BY pos) FROM jsonb_array_elements(c->'affected_nodes') WITH ORDINALITY impacts(a,pos)
  WHERE a->>'local_key' IN (SELECT jsonb_array_elements_text(unit.value#>'{summary,anchor_keys}'))),'[]'::jsonb)) ORDER BY ord)
  FROM jsonb_array_elements(unit.value#>'{detail,industry_chains}') WITH ORDINALITY chains(c,ord)),'[]'::jsonb))`
+
+func (s Store) isNormalizedReport(ctx context.Context, id string) (bool, error) {
+	var v string
+	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(report->>'schema_version','') FROM reports WHERE id=$1`, id).Scan(&v)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, reportbiz.ErrReportNotFound
+	}
+	return v == reportbiz.NormalizedSchemaVersion, err
+}
+
+// The JSON walk is a projection of an already typed and validated snapshot, not
+// an accepted arbitrary payload. It only substitutes Evidence IDs with scope tokens.
+func projectNormalizedEvidence(value any, prefix string, tokens map[string]*string, counts map[string]int, target any) error {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	var tree any
+	if err = json.Unmarshal(raw, &tree); err != nil {
+		return err
+	}
+	var walk func(any, string) error
+	walk = func(v any, p string) error {
+		switch x := v.(type) {
+		case map[string]any:
+			if ids, ok := x["evidence_ids"]; ok {
+				values, ok := ids.([]any)
+				if !ok {
+					return errors.New("invalid normalized Evidence array")
+				}
+				token := tokens[p+"/evidence_ids"]
+				if len(values) > 0 && (token == nil || *token == "") {
+					return errors.New("normalized Evidence scope is missing")
+				}
+				delete(x, "evidence_ids")
+				x["evidence_scope_token"] = token
+				// NULL metadata identifies a historical publication; its frozen IDs remain authoritative.
+				count := len(values)
+				if counts != nil {
+					count = counts[strings.TrimPrefix(p+"/evidence_ids", "/")]
+					if count != len(values) {
+						return errors.New("normalized Evidence count does not match frozen scope")
+					}
+				}
+				x["evidence_count"] = count
+			}
+			for k, z := range x {
+				if err := walk(z, p+"/"+k); err != nil {
+					return err
+				}
+			}
+		case []any:
+			for i, z := range x {
+				key := fmt.Sprint(i)
+				if o, ok := z.(map[string]any); ok {
+					if k, ok := o["local_key"].(string); ok {
+						key = k
+					}
+				}
+				if err := walk(z, p+"/"+key); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	if err = walk(tree, prefix); err != nil {
+		return err
+	}
+	raw, err = json.Marshal(tree)
+	if err != nil {
+		return err
+	}
+	return decodeStoredJSON(raw, target)
+}
+func normalizedSummary(u reportbiz.V4ReadUnit, ordinal int) (reportbiz.AnalysisUnitSummary, error) {
+	p := reportbiz.V4SummaryProjection{SchemaVersion: reportbiz.NormalizedSchemaVersion, LocalKey: u.LocalKey, SourceID: u.SourceID, Title: u.Title, Summary: u.Summary, ChainCount: len(u.Detail.IndustryChains), AffectedAnchors: []reportbiz.V4ResolvedAnchor{}}
+	for _, ref := range u.Summary.AffectedRefs {
+		a := reportbiz.V4ResolvedAnchor{Reference: reportbiz.V4AnchorRef{TargetType: ref.TargetType, LocalKey: ref.LocalKey, ChainLocalKey: ref.ChainLocalKey}}
+		found := false
+		for _, m := range u.Detail.MacroImpacts {
+			if ref.TargetType == "macroeconomic_story" && ref.LocalKey == m.LocalKey {
+				a.SourceID = m.SourceID
+				a.Name = m.Name
+				a.Assessment = m.Assessment
+				found = true
+			}
+		}
+		for _, c := range u.Detail.IndustryChains {
+			if ref.TargetType == "industry_chain" && ref.LocalKey == c.LocalKey {
+				a.SourceID = c.SourceID
+				a.Name = c.Name
+				a.Assessment = c.Assessment
+				found = true
+			}
+			if ref.TargetType == "industry_chain_node" && ref.ChainLocalKey != nil && *ref.ChainLocalKey == c.LocalKey {
+				for _, n := range c.AffectedNodes {
+					if ref.LocalKey == n.LocalKey {
+						a.SourceID = n.SourceID
+						a.Name = n.Name
+						a.Assessment = n.Assessment
+						found = true
+					}
+				}
+			}
+		}
+		if !found {
+			return reportbiz.AnalysisUnitSummary{}, errors.New("invalid normalized summary reference")
+		}
+		p.AffectedAnchors = append(p.AffectedAnchors, a)
+	}
+	return reportbiz.AnalysisUnitSummary{V4: &p, LocalKey: u.LocalKey, Ordinal: ordinal}, nil
+}
+func (s Store) listNormalizedAnalyses(ctx context.Context, f reportbiz.AnalysisListFilter) (reportbiz.AnalysisStorePage, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT u.ordinality,u.value FROM reports r CROSS JOIN LATERAL jsonb_array_elements(r.report->$2) WITH ORDINALITY u(value,ordinality) WHERE r.id=$1 AND u.ordinality>$3 ORDER BY u.ordinality LIMIT $4`, f.ReportID, f.Kind, f.AfterOrdinal, f.Limit+1)
+	if err != nil {
+		return reportbiz.AnalysisStorePage{}, err
+	}
+	defer rows.Close()
+	type entry struct {
+		ordinal int
+		unit    reportbiz.V4Unit
+	}
+	entries := []entry{}
+	for rows.Next() {
+		var e entry
+		var raw []byte
+		if err := rows.Scan(&e.ordinal, &raw); err != nil {
+			return reportbiz.AnalysisStorePage{}, err
+		}
+		if err := decodeStoredJSON(raw, &e.unit); err != nil {
+			return reportbiz.AnalysisStorePage{}, err
+		}
+		if err := reportbiz.ValidateNormalizedUnit(f.Kind, e.unit); err != nil {
+			return reportbiz.AnalysisStorePage{}, err
+		}
+		entries = append(entries, e)
+	}
+	if err := rows.Err(); err != nil {
+		return reportbiz.AnalysisStorePage{}, err
+	}
+	// Release rows before the scope query, including single-connection pools.
+	if err := rows.Close(); err != nil {
+		return reportbiz.AnalysisStorePage{}, err
+	}
+	counts, err := s.evidenceCounts(ctx, f.ReportID)
+	if err != nil {
+		return reportbiz.AnalysisStorePage{}, err
+	}
+	tokens, err := s.scopeTokens(ctx, f.ReportID)
+	if err != nil {
+		return reportbiz.AnalysisStorePage{}, err
+	}
+	page := reportbiz.AnalysisStorePage{Items: []reportbiz.AnalysisUnitSummary{}, HasMore: len(entries) > f.Limit}
+	if page.HasMore {
+		entries = entries[:f.Limit]
+	}
+	for _, e := range entries {
+		var u reportbiz.V4ReadUnit
+		if err := projectNormalizedEvidence(e.unit, f.Kind+"/"+e.unit.LocalKey, tokens, counts, &u); err != nil {
+			return page, err
+		}
+		item, err := normalizedSummary(u, e.ordinal)
+		if err != nil {
+			return page, err
+		}
+		page.Items = append(page.Items, item)
+	}
+	return page, nil
+}
+func (s Store) normalizedUnit(ctx context.Context, id, kind, key string) (reportbiz.V4ReadUnit, error) {
+	var raw []byte
+	err := s.db.QueryRowContext(ctx, `SELECT u FROM reports r CROSS JOIN LATERAL jsonb_array_elements(r.report->$2) u WHERE r.id=$1 AND u->>'local_key'=$3`, id, kind, key).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return reportbiz.V4ReadUnit{}, reportbiz.ErrLayerNotFound
+	}
+	if err != nil {
+		return reportbiz.V4ReadUnit{}, err
+	}
+	var unit reportbiz.V4Unit
+	if err := decodeStoredJSON(raw, &unit); err != nil {
+		return reportbiz.V4ReadUnit{}, err
+	}
+	if err := reportbiz.ValidateNormalizedUnit(kind, unit); err != nil {
+		return reportbiz.V4ReadUnit{}, err
+	}
+	counts, err := s.evidenceCounts(ctx, id)
+	if err != nil {
+		return reportbiz.V4ReadUnit{}, err
+	}
+	tokens, err := s.scopeTokens(ctx, id)
+	if err != nil {
+		return reportbiz.V4ReadUnit{}, err
+	}
+	var projected reportbiz.V4ReadUnit
+	err = projectNormalizedEvidence(unit, kind+"/"+key, tokens, counts, &projected)
+	return projected, err
+}
+func (s Store) getNormalizedAnalysis(ctx context.Context, id, kind, key string) (reportbiz.AnalysisUnitDetail, error) {
+	u, err := s.normalizedUnit(ctx, id, kind, key)
+	if err != nil {
+		return reportbiz.AnalysisUnitDetail{}, err
+	}
+	summary, err := normalizedSummary(u, 0)
+	if err != nil {
+		return reportbiz.AnalysisUnitDetail{}, err
+	}
+	d := reportbiz.V4DetailProjection{Summary: *summary.V4, MacroImpacts: u.Detail.MacroImpacts, IndustryChains: []reportbiz.V4ChainHeader{}}
+	for _, c := range u.Detail.IndustryChains {
+		d.IndustryChains = append(d.IndustryChains, reportbiz.V4ChainHeader{LocalKey: c.LocalKey, SourceID: c.SourceID, Name: c.Name, Assessment: c.Assessment, EmptyState: c.EmptyState})
+	}
+	return reportbiz.AnalysisUnitDetail{V4: &d}, nil
+}
+func (s Store) getNormalizedChain(ctx context.Context, id, kind, key, chain string) (reportbiz.ChainAnalysisDetail, error) {
+	var raw []byte
+	err := s.db.QueryRowContext(ctx, `SELECT c FROM reports r CROSS JOIN LATERAL jsonb_array_elements(r.report->$2) u CROSS JOIN LATERAL jsonb_array_elements(u#>'{detail,industry_chains}') c WHERE r.id=$1 AND u->>'local_key'=$3 AND c->>'local_key'=$4`, id, kind, key, chain).Scan(&raw)
+	if errors.Is(err, sql.ErrNoRows) {
+		return reportbiz.ChainAnalysisDetail{}, reportbiz.ErrChainNotFound
+	}
+	if err != nil {
+		return reportbiz.ChainAnalysisDetail{}, err
+	}
+	var c reportbiz.V4Chain
+	if err := decodeStoredJSON(raw, &c); err != nil {
+		return reportbiz.ChainAnalysisDetail{}, err
+	}
+	if err := reportbiz.ValidateNormalizedChain(c); err != nil {
+		return reportbiz.ChainAnalysisDetail{}, err
+	}
+	counts, err := s.evidenceCounts(ctx, id)
+	if err != nil {
+		return reportbiz.ChainAnalysisDetail{}, err
+	}
+	tokens, err := s.scopeTokens(ctx, id)
+	if err != nil {
+		return reportbiz.ChainAnalysisDetail{}, err
+	}
+	var projected reportbiz.V4ReadChain
+	if err := projectNormalizedEvidence(c, kind+"/"+key+"/detail/industry_chains/"+chain, tokens, counts, &projected); err != nil {
+		return reportbiz.ChainAnalysisDetail{}, err
+	}
+	return reportbiz.ChainAnalysisDetail{V4: &projected}, nil
+}
+
+func (s Store) getNormalizedHome(ctx context.Context, id string) (reportbiz.Home, error) {
+	var raw []byte
+	err := s.db.QueryRowContext(ctx, `SELECT jsonb_build_object('report_type',report->'report_type','schema_version',report->'schema_version','generated_at',report->'generated_at','timezone',report->'timezone','analysis_window',report->'analysis_window','observations',report->'observations','limitations',report->'limitations') FROM reports WHERE id=$1`, id).Scan(&raw)
+	if err != nil {
+		return reportbiz.Home{}, err
+	}
+	var value struct {
+		ReportType     reportbiz.V4CodedLabel               `json:"report_type"`
+		SchemaVersion  string                               `json:"schema_version"`
+		GeneratedAt    string                               `json:"generated_at"`
+		Timezone       string                               `json:"timezone"`
+		AnalysisWindow reportbiz.V4ReportAnalysisWindow     `json:"analysis_window"`
+		Observations   []reportbiz.V4ReportObservationsItem `json:"observations"`
+		Limitations    []string                             `json:"limitations"`
+	}
+	if err := decodeStoredJSON(raw, &value); err != nil {
+		return reportbiz.Home{}, err
+	}
+	counts, err := s.evidenceCounts(ctx, id)
+	if err != nil {
+		return reportbiz.Home{}, err
+	}
+	tokens, err := s.scopeTokens(ctx, id)
+	if err != nil {
+		return reportbiz.Home{}, err
+	}
+	var projected reportbiz.V4HomeProjection
+	// Root prefix is empty; scope paths have no leading slash.
+	rootTokens := map[string]*string{}
+	for k, v := range tokens {
+		rootTokens["/"+k] = v
+	}
+	if err := projectNormalizedEvidence(value, "", rootTokens, counts, &projected); err != nil {
+		return reportbiz.Home{}, err
+	}
+	return reportbiz.Home{V4: &projected}, nil
+}
+
+func (s Store) evidenceCounts(ctx context.Context, id string) (map[string]int, error) {
+	var raw []byte
+	if err := s.db.QueryRowContext(ctx, `SELECT evidence_counts FROM reports WHERE id=$1`, id).Scan(&raw); err != nil {
+		return nil, fmt.Errorf("read Report Evidence counts: %w", err)
+	}
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	var counts map[string]int
+	if err := json.Unmarshal(raw, &counts); err != nil {
+		return nil, fmt.Errorf("decode Report Evidence counts: %w", err)
+	}
+	return counts, nil
+}

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { APIReportPort } from './api-port';
+import normalized from '../../mocks/reports/normalized.json';
 
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 
@@ -80,6 +81,34 @@ describe('APIReportPort', () => {
     });
     await expect(port.getHome()).rejects.toMatchObject({ kind: 'invalidResponse' });
     expect(request).toHaveBeenCalledTimes(2);
+  });
+
+  it('reads normalized card, directory and chain projections within the same v1 report scope', async () => {
+    const port = new APIReportPort('https://miniapp.example.com');
+    const id = 'RPT11111111-1111-4111-8111-111111111111';
+    const responses = [
+      { items: normalized.groups[0].items, next_cursor: null },
+      normalized.details['geopolitical_stories/g1'],
+      normalized.chains['geopolitical_stories/g1/g1-2-chain']
+    ];
+    responses.forEach((result) =>
+      request.mockResolvedValueOnce({ statusCode: 200, data: { request_id: 'test', result } })
+    );
+    await expect(port.getAnalyses(id, 'geopolitical_stories', 'opaque cursor')).resolves.toEqual(
+      responses[0]
+    );
+    await expect(port.getAnalysis(id, 'geopolitical_stories', 'g1')).resolves.toEqual(responses[1]);
+    await expect(
+      port.getAnalysisChain(id, 'geopolitical_stories', 'g1', 'g1-2-chain')
+    ).resolves.toEqual(responses[2]);
+    expect(request.mock.calls[0][0].url).toContain(
+      '/api/miniapp/v1/reports/' +
+        id +
+        '/analyses/geopolitical_stories?limit=20&cursor=opaque%20cursor'
+    );
+    expect(request.mock.calls[2][0].url).toContain(
+      '/analyses/geopolitical_stories/g1/industry-chains/g1-2-chain'
+    );
   });
 
   it('maps transport failure without retrying against mock data', async () => {

@@ -1456,8 +1456,8 @@ paths:
         - $ref: '#/components/parameters/Cursor'
         - name: schema_version
           in: query
-          description: Omit for legacy reports; explicitly select v3 for story and Concept consumers. Cursor binds this selection.
-          schema: {type: string, enum: [report-publication/v3]}
+          description: Omit to list all supported versions. Use legacy, report-publication/v3 or report-publication/v4 to filter. Cursor binds the selection.
+          schema: {type: string, enum: [legacy, report-publication/v3, report-publication/v4]}
       responses:
         '200': {description: Report 摘要页, content: {application/json: {schema: {$ref: '#/components/schemas/ReportCollectionEnvelope'}}}}
         '400': {$ref: '#/components/responses/BadRequest'}
@@ -1654,6 +1654,39 @@ paths:
         - $ref: '#/components/parameters/RequestID'
         - $ref: '#/components/parameters/ReportID'
         - name: concept_key
+          in: path
+          required: true
+          schema: {$ref: '#/components/schemas/ReportLocalKey'}
+        - name: chain_key
+          in: path
+          required: true
+          schema: {$ref: '#/components/schemas/ReportLocalKey'}
+      responses:
+        '200': {description: Ordered report analysis projection, content: {application/json: {schema: {$ref: '#/components/schemas/ReportChainAnalysisDetailEnvelope'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /api/data/v1/reports/{report_id}/analyses/{kind}/{analysis_key}/industry-chains/{chain_key}:
+    get:
+      tags: [Report]
+      operationId: getReportAnalysisUnitChain
+      x-client-drift-anchor: data.v1.getReportAnalysisUnitChain
+      x-required-service-scope: data.reports.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      x-error-codes: [INVALID_REQUEST, REPORT_NOT_FOUND, REPORT_LAYER_NOT_FOUND, REPORT_INDUSTRY_CHAIN_NOT_FOUND, REPORT_REPOSITORY_FAILURE]
+      summary: Read versioned story or Concept analysis snapshots
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/ReportID'
+        - name: kind
+          in: path
+          required: true
+          schema: {type: string, enum: [geopolitical_stories, macroeconomic_stories, concept_analyses]}
+        - name: analysis_key
           in: path
           required: true
           schema: {$ref: '#/components/schemas/ReportLocalKey'}
@@ -4039,6 +4072,7 @@ components:
           oneOf:
             - $ref: '#/components/schemas/Report'
             - $ref: '#/components/schemas/ReportAnalysisSnapshot'
+            - $ref: '#/components/schemas/NormalizedReport'
 
     ReportPublicationResult:
       type: object
@@ -4062,7 +4096,7 @@ components:
       additionalProperties: false
       required: [id, publisher_report_id, generated_at, has_geopolitics, has_macroeconomics, industry_chain_count, published_at]
       properties:
-        schema_version: {type: string, enum: [report-publication/v3]}
+        schema_version: {type: string, enum: [report-publication/v3, report-publication/v4]}
         analysis_window: {$ref: '#/components/schemas/ReportAnalysisWindow'}
         id: {$ref: '#/components/schemas/ReportID'}
         publisher_report_id: {type: string, minLength: 1, maxLength: 200}
@@ -4111,6 +4145,11 @@ components:
         summary: {$ref: '#/components/schemas/ReportLayerSummaryProjection'}
 
     ReportHome:
+      oneOf:
+        - $ref: '#/components/schemas/ReportHomeV3'
+        - $ref: '#/components/schemas/NormalizedHomeProjection'
+
+    ReportHomeV3:
       type: object
       additionalProperties: false
       required: [report, geopolitics, macroeconomics]
@@ -4311,11 +4350,59 @@ components:
         start: {type: string, format: date-time}
         end: {type: string, format: date-time}
 
+    ReportImpactLevel:
+      type: object
+      additionalProperties: false
+      required: [code, label]
+      properties:
+        code: {type: string, enum: [high, medium, low, pending]}
+        label: {type: string, enum: [高影响, 中影响, 低影响, 待评估]}
+      oneOf:
+        - properties: {code: {enum: [high]}, label: {enum: [高影响]}}
+        - properties: {code: {enum: [medium]}, label: {enum: [中影响]}}
+        - properties: {code: {enum: [low]}, label: {enum: [低影响]}}
+        - properties: {code: {enum: [pending]}, label: {enum: [待评估]}}
+
+    ReportImpactAssessment:
+      type: object
+      additionalProperties: false
+      required: [level, rationale, evidence_refs]
+      description: Publisher assessment of conditional consequence magnitude, independent of direction and confidence. Rated levels require summary_support Evidence; pending may use an empty array. Omit the whole object for older reports; null is not accepted.
+      properties:
+        level: {$ref: '#/components/schemas/ReportImpactLevel'}
+        rationale: {type: string, minLength: 1, maxLength: 10000, pattern: '\S'}
+        evidence_refs:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/ReportEvidenceReference'
+              - properties:
+                  role:
+                    properties:
+                      code: {enum: [summary_support]}
+                      label: {enum: [核心依据]}
+      oneOf:
+        - properties:
+            level: {properties: {code: {enum: [high, medium, low]}}}
+            evidence_refs: {minItems: 1}
+        - properties:
+            level: {properties: {code: {enum: [pending]}}}
+
+    ReportImpactAssessmentProjection:
+      type: object
+      additionalProperties: false
+      required: [level, rationale, evidence_scope_token]
+      properties:
+        level: {$ref: '#/components/schemas/ReportImpactLevel'}
+        rationale: {type: string, minLength: 1, maxLength: 10000}
+        evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
+
     ReportAnalysisSummary:
       type: object
       additionalProperties: false
       required: [conclusion, transmission_logic, anchor_keys, evidence_refs]
       properties:
+        impact_assessment: {$ref: '#/components/schemas/ReportImpactAssessment'}
         conclusion: {type: string, minLength: 1}
         transmission_logic: {type: string, minLength: 1}
         anchor_keys: {type: array, items: {type: string, minLength: 1}}
@@ -4377,6 +4464,7 @@ components:
         evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
 
     ReportAnalysisDetail:
+      description: Story chains optionally provide topology and node impacts for matching industry_chain anchors. Concept units require chains and no top-level affected_anchors.
       type: object
       additionalProperties: false
       required: [reasoning_steps, affected_anchors, uncertainty, industry_chains]
@@ -4420,10 +4508,16 @@ components:
         evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
 
     ReportAnalysisUnitSummary:
+      oneOf:
+        - $ref: '#/components/schemas/ReportAnalysisUnitSummaryV3'
+        - $ref: '#/components/schemas/NormalizedSummaryProjection'
+
+    ReportAnalysisUnitSummaryV3:
       type: object
       additionalProperties: false
       required: [local_key, source_id, title, conclusion, transmission_logic, affected_anchors, chain_count, evidence_scope_token]
       properties:
+        impact_assessment: {$ref: '#/components/schemas/ReportImpactAssessmentProjection'}
         local_key: {$ref: '#/components/schemas/ReportLocalKey'}
         source_id: {type: string, minLength: 1, maxLength: 200, description: Publisher source identity snapshot; no cross-domain lookup or foreign key.}
         title: {type: string, minLength: 1}
@@ -4444,6 +4538,11 @@ components:
         conclusion: {type: string, minLength: 1}
 
     ReportAnalysisUnitDetail:
+      oneOf:
+        - $ref: '#/components/schemas/ReportAnalysisUnitDetailV3'
+        - $ref: '#/components/schemas/NormalizedDetailProjection'
+
+    ReportAnalysisUnitDetailV3:
       type: object
       additionalProperties: false
       required: [summary, reasoning_steps, affected_anchors, uncertainty, industry_chains]
@@ -4455,6 +4554,11 @@ components:
         industry_chains: {type: array, items: {$ref: '#/components/schemas/ReportChainAnalysisSummary'}}
 
     ReportChainAnalysisDetail:
+      oneOf:
+        - $ref: '#/components/schemas/ReportChainAnalysisDetailV3'
+        - $ref: '#/components/schemas/NormalizedReadChain'
+
+    ReportChainAnalysisDetailV3:
       type: object
       additionalProperties: false
       required: [local_key, source_id, name, conclusion, transmission_logic, reasoning_steps, graph, affected_nodes, uncertainty, evidence_scope_token]
@@ -4481,7 +4585,7 @@ components:
     ReportAnalysisSnapshot:
       type: object
       additionalProperties: false
-      description: Ordered story and Concept snapshots. At least one analysis across the three arrays. Concept units require chains and use chain-node impact keys; story units have no chains. Local keys are globally unique within the Report; anchor_keys close within their unit. Source IDs are snapshots only. No inference or graph lookup occurs in Data.
+      description: Ordered story and Concept snapshots. At least one analysis across the three arrays. Concept units require chains and use chain-node impact keys; story units may include chains matching their industry_chain anchors by source_id and name. Story summary keys reference only top-level impacts; geopolitical anchors target macro_anchor or industry_chain, and macroeconomic anchors target industry_chain. Local keys are globally unique within the Report; anchor_keys close within their unit. Source IDs are snapshots only. No inference or graph lookup occurs in Data.
       required: [schema_version, report_type, generated_at, timezone, analysis_window, geopolitical_stories, macroeconomic_stories, concept_analyses]
       properties:
         schema_version: {type: string, enum: [report-publication/v3]}
@@ -4522,3 +4626,1009 @@ components:
       properties:
         request_id: {type: string}
         result: {$ref: '#/components/schemas/ReportChainAnalysisDetail'}
+
+    NormalizedCodedLabel:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'code': { 'type': 'string', 'minLength': 1 },
+            'label': { 'type': 'string', 'minLength': 1 }
+          },
+        'required': ['code', 'label'],
+        'additionalProperties': false
+      }
+
+    NormalizedClaim:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'text': { 'type': 'string', 'minLength': 1 },
+            'basis':
+              { 'type': 'string', 'enum': ['source_fact', 'inference', 'hypothetical_buffer'] },
+            'evidence_ids':
+              {
+                'type': 'array',
+                'uniqueItems': true,
+                'items': { 'type': 'string', 'pattern': '^EVD[0-9a-f-]{36}$' }
+              }
+          },
+        'required': ['text', 'basis', 'evidence_ids'],
+        'additionalProperties': false
+      }
+
+    NormalizedObjections:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'summary': { 'type': 'string', 'minLength': 1 },
+            'counterevidence':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/NormalizedClaim' } },
+            'buffers':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/NormalizedClaim' } },
+            'counterevidence_status':
+              { 'type': 'string', 'enum': ['identified', 'none_identified'] },
+            'evidence_gaps': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'scope_limits': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } }
+          },
+        'required':
+          [
+            'summary',
+            'counterevidence',
+            'buffers',
+            'counterevidence_status',
+            'evidence_gaps',
+            'scope_limits'
+          ],
+        'additionalProperties': false
+      }
+
+    NormalizedWindow:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'kind':
+              {
+                'type': 'string',
+                'enum': ['relative', 'calendar', 'stage', 'mixed', 'not_applicable']
+              },
+            'description': { 'type': 'string', 'minLength': 1 },
+            'start_at': { 'type': 'string', 'format': 'date-time', 'nullable': true },
+            'end_at': { 'type': 'string', 'format': 'date-time', 'nullable': true }
+          },
+        'required': ['kind', 'description', 'start_at', 'end_at'],
+        'additionalProperties': false
+      }
+
+    NormalizedAssessment:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'conclusion': { 'type': 'string', 'minLength': 1 },
+            'direction':
+              { 'type': 'string', 'enum': ['warming', 'cooling', 'diverging', 'pending'] },
+            'conclusion_basis':
+              { 'type': 'string', 'enum': ['reasoning_hypothesis', 'observation_only'] },
+            'validation_status':
+              { 'type': 'string', 'enum': ['pending_validation', 'insufficient_evidence'] },
+            'confidence': { 'type': 'string', 'enum': ['low', 'medium', 'high'], 'nullable': true },
+            'forecast_window': { '$ref': '#/components/schemas/NormalizedWindow' },
+            'scope': { 'type': 'string', 'minLength': 1 },
+            'conditions': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'follow_up': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'transmission_logic': { 'type': 'string', 'minLength': 1 },
+            'evidence_ids':
+              {
+                'type': 'array',
+                'uniqueItems': true,
+                'items': { 'type': 'string', 'pattern': '^EVD[0-9a-f-]{36}$' }
+              }
+          },
+        'required':
+          [
+            'conclusion',
+            'direction',
+            'conclusion_basis',
+            'validation_status',
+            'confidence',
+            'forecast_window',
+            'scope',
+            'conditions',
+            'follow_up',
+            'transmission_logic',
+            'evidence_ids'
+          ],
+        'additionalProperties': false
+      }
+
+    NormalizedNode:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string', 'pattern': '^CND[0-9a-f-]{36}$' },
+            'node_local_key': { 'type': 'string', 'minLength': 1 },
+            'name': { 'type': 'string', 'minLength': 1 },
+            'assessment': { '$ref': '#/components/schemas/NormalizedAssessment' },
+            'objections': { '$ref': '#/components/schemas/NormalizedObjections' }
+          },
+        'required':
+          ['local_key', 'source_id', 'node_local_key', 'name', 'assessment', 'objections'],
+        'additionalProperties': false
+      }
+
+    NormalizedGraph:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'nodes':
+              {
+                'type': 'array',
+                'items':
+                  {
+                    'type': 'object',
+                    'properties':
+                      {
+                        'local_key': { 'type': 'string', 'minLength': 1 },
+                        'source_id': { 'type': 'string', 'pattern': '^CND[0-9a-f-]{36}$' },
+                        'name': { 'type': 'string', 'minLength': 1 }
+                      },
+                    'required': ['local_key', 'source_id', 'name'],
+                    'additionalProperties': false
+                  }
+              },
+            'edges':
+              {
+                'type': 'array',
+                'items':
+                  {
+                    'type': 'object',
+                    'properties':
+                      {
+                        'from_node_local_key': { 'type': 'string', 'minLength': 1 },
+                        'to_node_local_key': { 'type': 'string', 'minLength': 1 },
+                        'relation_label': { 'type': 'string', 'minLength': 1 }
+                      },
+                    'required': ['from_node_local_key', 'to_node_local_key', 'relation_label'],
+                    'additionalProperties': false
+                  }
+              }
+          },
+        'required': ['nodes', 'edges'],
+        'additionalProperties': false
+      }
+
+    NormalizedChain:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string', 'pattern': '^ICH[0-9a-f-]{36}$' },
+            'name': { 'type': 'string', 'minLength': 1 },
+            'assessment': { '$ref': '#/components/schemas/NormalizedAssessment' },
+            'reasoning_summary':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'logic': { 'type': 'string', 'minLength': 1 },
+                    'support': { '$ref': '#/components/schemas/NormalizedClaim' },
+                    'objections': { '$ref': '#/components/schemas/NormalizedObjections' }
+                  },
+                'required': ['logic', 'support', 'objections'],
+                'additionalProperties': false
+              },
+            'graph': { '$ref': '#/components/schemas/NormalizedGraph' },
+            'affected_nodes':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/NormalizedNode' } },
+            'empty_state':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'code': { 'type': 'string', 'enum': ['observation_only'] },
+                    'reason': { 'type': 'string', 'minLength': 1 },
+                    'follow_up': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } }
+                  },
+                'required': ['code', 'reason', 'follow_up'],
+                'additionalProperties': false,
+                'nullable': true
+              }
+          },
+        'required':
+          [
+            'local_key',
+            'source_id',
+            'name',
+            'assessment',
+            'reasoning_summary',
+            'graph',
+            'affected_nodes',
+            'empty_state'
+          ],
+        'additionalProperties': false
+      }
+
+    NormalizedMacro:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string', 'pattern': '^MEC[0-9a-f-]{36}$' },
+            'name': { 'type': 'string', 'minLength': 1 },
+            'assessment': { '$ref': '#/components/schemas/NormalizedAssessment' },
+            'objections': { '$ref': '#/components/schemas/NormalizedObjections' }
+          },
+        'required': ['local_key', 'source_id', 'name', 'assessment', 'objections'],
+        'additionalProperties': false
+      }
+
+    NormalizedAnchorRef:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'target_type':
+              {
+                'type': 'string',
+                'enum': ['macroeconomic_story', 'industry_chain', 'industry_chain_node']
+              },
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'chain_local_key': { 'type': 'string', 'minLength': 1, 'nullable': true }
+          },
+        'required': ['target_type', 'local_key', 'chain_local_key'],
+        'additionalProperties': false
+      }
+
+    NormalizedUnit:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string', 'minLength': 1 },
+            'title': { 'type': 'string', 'minLength': 1 },
+            'summary':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'conclusion': { 'type': 'string', 'minLength': 1 },
+                    'transmission_logic': { 'type': 'string', 'minLength': 1 },
+                    'impact_assessment':
+                      {
+                        'type': 'object',
+                        'properties':
+                          {
+                            'level':
+                              { 'type': 'string', 'enum': ['high', 'medium', 'low', 'pending'] },
+                            'rationale': { 'type': 'string', 'minLength': 1 },
+                            'evidence_ids':
+                              {
+                                'type': 'array',
+                                'uniqueItems': true,
+                                'items': { 'type': 'string', 'pattern': '^EVD[0-9a-f-]{36}$' }
+                              }
+                          },
+                        'required': ['level', 'rationale', 'evidence_ids'],
+                        'additionalProperties': false
+                      },
+                    'affected_refs':
+                      {
+                        'type': 'array',
+                        'items': { '$ref': '#/components/schemas/NormalizedAnchorRef' }
+                      },
+                    'evidence_ids':
+                      {
+                        'type': 'array',
+                        'uniqueItems': true,
+                        'items': { 'type': 'string', 'pattern': '^EVD[0-9a-f-]{36}$' }
+                      }
+                  },
+                'required':
+                  [
+                    'conclusion',
+                    'transmission_logic',
+                    'impact_assessment',
+                    'affected_refs',
+                    'evidence_ids'
+                  ],
+                'additionalProperties': false
+              },
+            'detail':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'macro_impacts':
+                      {
+                        'type': 'array',
+                        'items': { '$ref': '#/components/schemas/NormalizedMacro' }
+                      },
+                    'industry_chains':
+                      {
+                        'type': 'array',
+                        'items': { '$ref': '#/components/schemas/NormalizedChain' }
+                      }
+                  },
+                'required': ['macro_impacts', 'industry_chains'],
+                'additionalProperties': false
+              }
+          },
+        'required': ['local_key', 'source_id', 'title', 'summary', 'detail'],
+        'additionalProperties': false
+      }
+
+    NormalizedReadCodedLabel:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'code': { 'type': 'string', 'minLength': 1 },
+            'label': { 'type': 'string', 'minLength': 1 }
+          },
+        'required': ['code', 'label'],
+        'additionalProperties': false
+      }
+
+    NormalizedReadClaim:
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 1
+        basis:
+          type: string
+          enum:
+          - source_fact
+          - inference
+          - hypothetical_buffer
+        evidence_count:
+          type: integer
+          minimum: 0
+          description: Server-computed distinct Evidence count in this scope.
+        evidence_scope_token:
+          type: string
+          nullable: true
+          pattern: ^RPE[0-9a-f-]{36}$
+      required:
+      - text
+      - basis
+      - evidence_count
+      - evidence_scope_token
+      additionalProperties: false
+    NormalizedReadObjections:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'summary': { 'type': 'string', 'minLength': 1 },
+            'counterevidence':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/NormalizedReadClaim' } },
+            'buffers':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/NormalizedReadClaim' } },
+            'counterevidence_status':
+              { 'type': 'string', 'enum': ['identified', 'none_identified'] },
+            'evidence_gaps': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'scope_limits': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } }
+          },
+        'required':
+          [
+            'summary',
+            'counterevidence',
+            'buffers',
+            'counterevidence_status',
+            'evidence_gaps',
+            'scope_limits'
+          ],
+        'additionalProperties': false
+      }
+
+    NormalizedReadWindow:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'kind':
+              {
+                'type': 'string',
+                'enum': ['relative', 'calendar', 'stage', 'mixed', 'not_applicable']
+              },
+            'description': { 'type': 'string', 'minLength': 1 },
+            'start_at': { 'type': 'string', 'format': 'date-time', 'nullable': true },
+            'end_at': { 'type': 'string', 'format': 'date-time', 'nullable': true }
+          },
+        'required': ['kind', 'description', 'start_at', 'end_at'],
+        'additionalProperties': false
+      }
+
+    NormalizedReadAssessment:
+      type: object
+      properties:
+        conclusion:
+          type: string
+          minLength: 1
+        direction:
+          type: string
+          enum:
+          - warming
+          - cooling
+          - diverging
+          - pending
+        conclusion_basis:
+          type: string
+          enum:
+          - reasoning_hypothesis
+          - observation_only
+        validation_status:
+          type: string
+          enum:
+          - pending_validation
+          - insufficient_evidence
+        confidence:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+          nullable: true
+        forecast_window:
+          $ref: '#/components/schemas/NormalizedReadWindow'
+        scope:
+          type: string
+          minLength: 1
+        conditions:
+          type: array
+          items:
+            type: string
+            minLength: 1
+        follow_up:
+          type: array
+          items:
+            type: string
+            minLength: 1
+        transmission_logic:
+          type: string
+          minLength: 1
+        evidence_count:
+          type: integer
+          minimum: 0
+          description: Server-computed distinct Evidence count in this scope.
+        evidence_scope_token:
+          type: string
+          nullable: true
+          pattern: ^RPE[0-9a-f-]{36}$
+      required:
+      - conclusion
+      - direction
+      - conclusion_basis
+      - validation_status
+      - confidence
+      - forecast_window
+      - scope
+      - conditions
+      - follow_up
+      - transmission_logic
+      - evidence_count
+      - evidence_scope_token
+      additionalProperties: false
+    NormalizedReadNode:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string', 'pattern': '^CND[0-9a-f-]{36}$' },
+            'node_local_key': { 'type': 'string', 'minLength': 1 },
+            'name': { 'type': 'string', 'minLength': 1 },
+            'assessment': { '$ref': '#/components/schemas/NormalizedReadAssessment' },
+            'objections': { '$ref': '#/components/schemas/NormalizedReadObjections' }
+          },
+        'required':
+          ['local_key', 'source_id', 'node_local_key', 'name', 'assessment', 'objections'],
+        'additionalProperties': false
+      }
+
+    NormalizedReadGraph:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'nodes':
+              {
+                'type': 'array',
+                'items':
+                  {
+                    'type': 'object',
+                    'properties':
+                      {
+                        'local_key': { 'type': 'string', 'minLength': 1 },
+                        'source_id': { 'type': 'string', 'pattern': '^CND[0-9a-f-]{36}$' },
+                        'name': { 'type': 'string', 'minLength': 1 }
+                      },
+                    'required': ['local_key', 'source_id', 'name'],
+                    'additionalProperties': false
+                  }
+              },
+            'edges':
+              {
+                'type': 'array',
+                'items':
+                  {
+                    'type': 'object',
+                    'properties':
+                      {
+                        'from_node_local_key': { 'type': 'string', 'minLength': 1 },
+                        'to_node_local_key': { 'type': 'string', 'minLength': 1 },
+                        'relation_label': { 'type': 'string', 'minLength': 1 }
+                      },
+                    'required': ['from_node_local_key', 'to_node_local_key', 'relation_label'],
+                    'additionalProperties': false
+                  }
+              }
+          },
+        'required': ['nodes', 'edges'],
+        'additionalProperties': false
+      }
+
+    NormalizedReadChain:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string', 'pattern': '^ICH[0-9a-f-]{36}$' },
+            'name': { 'type': 'string', 'minLength': 1 },
+            'assessment': { '$ref': '#/components/schemas/NormalizedReadAssessment' },
+            'reasoning_summary':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'logic': { 'type': 'string', 'minLength': 1 },
+                    'support': { '$ref': '#/components/schemas/NormalizedReadClaim' },
+                    'objections': { '$ref': '#/components/schemas/NormalizedReadObjections' }
+                  },
+                'required': ['logic', 'support', 'objections'],
+                'additionalProperties': false
+              },
+            'graph': { '$ref': '#/components/schemas/NormalizedReadGraph' },
+            'affected_nodes':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/NormalizedReadNode' } },
+            'empty_state':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'code': { 'type': 'string', 'enum': ['observation_only'] },
+                    'reason': { 'type': 'string', 'minLength': 1 },
+                    'follow_up': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } }
+                  },
+                'required': ['code', 'reason', 'follow_up'],
+                'additionalProperties': false,
+                'nullable': true
+              }
+          },
+        'required':
+          [
+            'local_key',
+            'source_id',
+            'name',
+            'assessment',
+            'reasoning_summary',
+            'graph',
+            'affected_nodes',
+            'empty_state'
+          ],
+        'additionalProperties': false
+      }
+
+    NormalizedReadMacro:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string', 'pattern': '^MEC[0-9a-f-]{36}$' },
+            'name': { 'type': 'string', 'minLength': 1 },
+            'assessment': { '$ref': '#/components/schemas/NormalizedReadAssessment' },
+            'objections': { '$ref': '#/components/schemas/NormalizedReadObjections' }
+          },
+        'required': ['local_key', 'source_id', 'name', 'assessment', 'objections'],
+        'additionalProperties': false
+      }
+
+    NormalizedReadAnchorRef:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'target_type':
+              {
+                'type': 'string',
+                'enum': ['macroeconomic_story', 'industry_chain', 'industry_chain_node']
+              },
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'chain_local_key': { 'type': 'string', 'minLength': 1, 'nullable': true }
+          },
+        'required': ['target_type', 'local_key', 'chain_local_key'],
+        'additionalProperties': false
+      }
+
+    NormalizedReadUnit:
+      type: object
+      properties:
+        local_key:
+          type: string
+          minLength: 1
+        source_id:
+          type: string
+          minLength: 1
+        title:
+          type: string
+          minLength: 1
+        summary:
+          type: object
+          properties:
+            conclusion:
+              type: string
+              minLength: 1
+            transmission_logic:
+              type: string
+              minLength: 1
+            impact_assessment:
+              type: object
+              properties:
+                level:
+                  type: string
+                  enum:
+                  - high
+                  - medium
+                  - low
+                  - pending
+                rationale:
+                  type: string
+                  minLength: 1
+                evidence_count:
+                  type: integer
+                  minimum: 0
+                  description: Server-computed distinct Evidence count in this scope.
+                evidence_scope_token:
+                  type: string
+                  nullable: true
+                  pattern: ^RPE[0-9a-f-]{36}$
+              required:
+              - level
+              - rationale
+              - evidence_count
+              - evidence_scope_token
+              additionalProperties: false
+            affected_refs:
+              type: array
+              items:
+                $ref: '#/components/schemas/NormalizedReadAnchorRef'
+            evidence_count:
+              type: integer
+              minimum: 0
+              description: Server-computed distinct Evidence count in this scope.
+            evidence_scope_token:
+              type: string
+              nullable: true
+              pattern: ^RPE[0-9a-f-]{36}$
+          required:
+          - conclusion
+          - transmission_logic
+          - impact_assessment
+          - affected_refs
+          - evidence_count
+          - evidence_scope_token
+          additionalProperties: false
+        detail:
+          type: object
+          properties:
+            macro_impacts:
+              type: array
+              items:
+                $ref: '#/components/schemas/NormalizedReadMacro'
+            industry_chains:
+              type: array
+              items:
+                $ref: '#/components/schemas/NormalizedReadChain'
+          required:
+          - macro_impacts
+          - industry_chains
+          additionalProperties: false
+      required:
+      - local_key
+      - source_id
+      - title
+      - summary
+      - detail
+      additionalProperties: false
+    NormalizedReport:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'schema_version': { 'type': 'string', 'enum': ['report-publication/v4'] },
+            'report_type': { '$ref': '#/components/schemas/NormalizedCodedLabel' },
+            'generated_at': { 'type': 'string', 'format': 'date-time' },
+            'timezone': { 'type': 'string', 'enum': ['Asia/Shanghai'] },
+            'analysis_window':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'start': { 'type': 'string', 'format': 'date-time' },
+                    'end': { 'type': 'string', 'format': 'date-time' }
+                  },
+                'required': ['start', 'end'],
+                'additionalProperties': false
+              },
+            'geopolitical_stories':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/NormalizedUnit' } },
+            'macroeconomic_stories':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/NormalizedUnit' } },
+            'concept_analyses':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/NormalizedUnit' } },
+            'observations':
+              {
+                'type': 'array',
+                'items':
+                  {
+                    'type': 'object',
+                    'properties':
+                      {
+                        'local_key': { 'type': 'string', 'minLength': 1 },
+                        'title': { 'type': 'string', 'minLength': 1 },
+                        'text': { 'type': 'string', 'minLength': 1 },
+                        'evidence_ids':
+                          {
+                            'type': 'array',
+                            'uniqueItems': true,
+                            'items': { 'type': 'string', 'pattern': '^EVD[0-9a-f-]{36}$' }
+                          }
+                      },
+                    'required': ['local_key', 'title', 'text', 'evidence_ids'],
+                    'additionalProperties': false
+                  }
+              },
+            'limitations': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } }
+          },
+        'required':
+          [
+            'schema_version',
+            'report_type',
+            'generated_at',
+            'timezone',
+            'analysis_window',
+            'geopolitical_stories',
+            'macroeconomic_stories',
+            'concept_analyses',
+            'observations',
+            'limitations'
+          ],
+        'additionalProperties': false
+      }
+
+    NormalizedResolvedAnchor:
+      {
+        'type': 'object',
+        'additionalProperties': false,
+        'required': ['reference', 'source_id', 'name', 'assessment'],
+        'properties':
+          {
+            'reference': { '$ref': '#/components/schemas/NormalizedAnchorRef' },
+            'source_id': { 'type': 'string' },
+            'name': { 'type': 'string' },
+            'assessment': { '$ref': '#/components/schemas/NormalizedReadAssessment' }
+          }
+      }
+
+    NormalizedSummaryProjection:
+      type: object
+      additionalProperties: false
+      required:
+      - schema_version
+      - local_key
+      - source_id
+      - title
+      - summary
+      - affected_anchors
+      - chain_count
+      properties:
+        schema_version:
+          type: string
+          enum:
+          - report-publication/v4
+        local_key:
+          type: string
+        source_id:
+          type: string
+        title:
+          type: string
+        summary:
+          type: object
+          properties:
+            conclusion:
+              type: string
+              minLength: 1
+            transmission_logic:
+              type: string
+              minLength: 1
+            impact_assessment:
+              type: object
+              properties:
+                level:
+                  type: string
+                  enum:
+                  - high
+                  - medium
+                  - low
+                  - pending
+                rationale:
+                  type: string
+                  minLength: 1
+                evidence_count:
+                  type: integer
+                  minimum: 0
+                  description: Server-computed distinct Evidence count in this scope.
+                evidence_scope_token:
+                  type: string
+                  nullable: true
+                  pattern: ^RPE[0-9a-f-]{36}$
+              required:
+              - level
+              - rationale
+              - evidence_count
+              - evidence_scope_token
+              additionalProperties: false
+            affected_refs:
+              type: array
+              items:
+                $ref: '#/components/schemas/NormalizedReadAnchorRef'
+            evidence_count:
+              type: integer
+              minimum: 0
+              description: Server-computed distinct Evidence count in this scope.
+            evidence_scope_token:
+              type: string
+              nullable: true
+              pattern: ^RPE[0-9a-f-]{36}$
+          required:
+          - conclusion
+          - transmission_logic
+          - impact_assessment
+          - affected_refs
+          - evidence_count
+          - evidence_scope_token
+          additionalProperties: false
+        affected_anchors:
+          type: array
+          items:
+            $ref: '#/components/schemas/NormalizedResolvedAnchor'
+        chain_count:
+          type: integer
+          minimum: 0
+    NormalizedChainHeader:
+      {
+        'type': 'object',
+        'additionalProperties': false,
+        'required': ['local_key', 'source_id', 'name', 'assessment', 'empty_state'],
+        'properties':
+          {
+            'local_key': { 'type': 'string' },
+            'source_id': { 'type': 'string' },
+            'name': { 'type': 'string' },
+            'assessment': { '$ref': '#/components/schemas/NormalizedReadAssessment' },
+            'empty_state':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'code': { 'type': 'string', 'enum': ['observation_only'] },
+                    'reason': { 'type': 'string', 'minLength': 1 },
+                    'follow_up': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } }
+                  },
+                'required': ['code', 'reason', 'follow_up'],
+                'additionalProperties': false,
+                'nullable': true
+              }
+          }
+      }
+
+    NormalizedDetailProjection:
+      {
+        'type': 'object',
+        'additionalProperties': false,
+        'required': ['summary', 'macro_impacts', 'industry_chains'],
+        'properties':
+          {
+            'summary': { '$ref': '#/components/schemas/NormalizedSummaryProjection' },
+            'macro_impacts':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/NormalizedReadMacro' } },
+            'industry_chains':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/NormalizedChainHeader' } }
+          }
+      }
+
+    NormalizedHomeProjection:
+      type: object
+      additionalProperties: false
+      required:
+      - schema_version
+      - generated_at
+      - timezone
+      - analysis_window
+      - observations
+      - limitations
+      - report_type
+      properties:
+        schema_version:
+          type: string
+          enum:
+          - report-publication/v4
+        generated_at:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+          enum:
+          - Asia/Shanghai
+        analysis_window:
+          type: object
+          properties:
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
+          required:
+          - start
+          - end
+          additionalProperties: false
+        observations:
+          type: array
+          items:
+            type: object
+            properties:
+              local_key:
+                type: string
+                minLength: 1
+              title:
+                type: string
+                minLength: 1
+              text:
+                type: string
+                minLength: 1
+              evidence_count:
+                type: integer
+                minimum: 0
+                description: Server-computed distinct Evidence count in this scope.
+              evidence_scope_token:
+                type: string
+                nullable: true
+                pattern: ^RPE[0-9a-f-]{36}$
+            required:
+            - local_key
+            - title
+            - text
+            - evidence_count
+            - evidence_scope_token
+            additionalProperties: false
+        limitations:
+          type: array
+          items:
+            type: string
+            minLength: 1
+        report_type:
+          $ref: '#/components/schemas/NormalizedReadCodedLabel'

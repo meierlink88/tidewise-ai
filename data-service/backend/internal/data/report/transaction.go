@@ -103,10 +103,17 @@ func (t *publicationTransaction) InsertReport(ctx context.Context, record report
 	if err != nil {
 		return fmt.Errorf("encode Report: %w", err)
 	}
+	var counts []byte
+	if record.EvidenceCounts != nil {
+		counts, err = json.Marshal(record.EvidenceCounts)
+		if err != nil {
+			return fmt.Errorf("encode Report Evidence counts: %w", err)
+		}
+	}
 	_, err = t.tx.ExecContext(ctx, `INSERT INTO reports
-    (id, publisher_report_id, content_hash, report, published_at)
-VALUES ($1,$2,$3,$4,$5)`, record.ID, record.PublisherReportID,
-		record.ContentHash, report, record.PublishedAt)
+    (id, publisher_report_id, content_hash, report, published_at, evidence_counts)
+VALUES ($1,$2,$3,$4,$5,$6)`, record.ID, record.PublisherReportID,
+		record.ContentHash, report, record.PublishedAt, counts)
 	if err != nil {
 		return fmt.Errorf("insert Report %q: %w", record.ID, err)
 	}
