@@ -95,6 +95,13 @@ func (s *Service) GetReportHome(ctx context.Context, request *reportapi.ReportRe
 	if err != nil {
 		return nil, readError(err)
 	}
+	if home.V4 != nil {
+		var result reportapi.Home
+		if err := mapContract(home, &result); err != nil {
+			return nil, repositoryMappingError()
+		}
+		return &v1.Response[reportapi.Home]{Status: v1.StatusOK, Result: result}, nil
+	}
 	result := reportapi.Home{Report: apiSummary(home.Report)}
 	if home.Geopolitics != nil {
 		result.Geopolitics = new(reportapi.LayerSnapshot)

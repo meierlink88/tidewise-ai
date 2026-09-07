@@ -1,3 +1,5 @@
+> v3 内容合同保留。默认列表选择已由 ADR-0061 更新为全部支持版本；旧版可显式选择 `legacy`，v4 见 [独立合同](report-publication-v4.md)。
+
 # Report 故事线与 Concept 发布合同
 
 ## 所有权与版本
@@ -109,7 +111,7 @@ Migration 000085 仅扩展 scope_type CHECK：story_summary、concept_summary、
 ## 读取 API
 
 - `GET /reports?schema_version=report-publication/v3`：显式列出新版本报告；摘要包含版本和观察窗口。
-  省略参数只列旧合同报告，避免当前 Miniapp 在未升级时选中无法读取的新报告。
+  省略参数覆盖所有支持版本；仅列旧合同使用 `schema_version=legacy`（见 ADR-0061）。
   报告列表 cursor 同时绑定 schema_version 和时间筛选。
 - `GET /reports/{report_id}/analyses/{kind}?limit=&cursor=`：按地缘故事线、宏观故事线或 Concept
   分页，kind 使用根集合名；默认 20、最大 100。返回总结、显式锚点和链数量，不返回链全文。

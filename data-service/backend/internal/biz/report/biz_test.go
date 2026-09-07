@@ -473,3 +473,83 @@ func TestImpactAssessmentValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func normalizedFixture(t *testing.T) reportbiz.Report {
+	t.Helper()
+	payload, err := os.ReadFile("../../../api/data/v1/report/testdata/normalized-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var req struct {
+		Report reportbiz.Report `json:"report"`
+	}
+	if err := json.Unmarshal(payload, &req); err != nil {
+		t.Fatal(err)
+	}
+	return req.Report
+}
+func TestNormalizedReportContractAndReferenceRules(t *testing.T) {
+	r := normalizedFixture(t)
+	if err := reportbiz.ValidateReport(r); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name   string
+		mutate func(*reportbiz.V4Report)
+	}{
+		{"cross unit reference", func(r *reportbiz.V4Report) { r.GeopoliticalStories[0].Summary.AffectedRefs[0].LocalKey = "missing" }},
+		{"rated impact without evidence", func(r *reportbiz.V4Report) {
+			r.GeopoliticalStories[0].Summary.ImpactAssessment.EvidenceIDs = []string{}
+		}},
+		{"unknown enum", func(r *reportbiz.V4Report) {
+			r.ConceptAnalyses[0].Detail.IndustryChains[0].Assessment.Direction = "invented"
+		}},
+		{"false counterfact status", func(r *reportbiz.V4Report) {
+			r.GeopoliticalStories[0].Detail.IndustryChains[0].ReasoningSummary.Objections.CounterevidenceStatus = "identified"
+		}},
+		{"node identity mismatch", func(r *reportbiz.V4Report) {
+			r.GeopoliticalStories[0].Detail.IndustryChains[0].AffectedNodes[0].Name = "wrong"
+		}},
+		{"empty state mismatch", func(r *reportbiz.V4Report) { r.ConceptAnalyses[0].Detail.IndustryChains[2].EmptyState = nil }},
+		{"missing conditions", func(r *reportbiz.V4Report) {
+			r.GeopoliticalStories[0].Detail.IndustryChains[0].AffectedNodes[0].Assessment.Conditions = []string{}
+		}},
+		{"macro targets under macro", func(r *reportbiz.V4Report) {
+			r.MacroeconomicStories[0].Detail.MacroImpacts = r.GeopoliticalStories[0].Detail.MacroImpacts
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := normalizedFixture(t)
+			tc.mutate(r.V4)
+			if err := reportbiz.ValidateReport(r); err == nil {
+				t.Fatal("invalid report accepted")
+			}
+		})
+	}
+	payload, _ := json.Marshal(r)
+	var decoded reportbiz.Report
+	if err := json.Unmarshal(payload, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	a, _ := reportbiz.ContentHash(r)
+	b, _ := reportbiz.ContentHash(decoded)
+	if a != b {
+		t.Fatal("normalized canonical round trip changed")
+	}
+}
+
+func TestNormalizedLocalKeysAreScopedToContainers(t *testing.T) {
+	r := normalizedFixture(t)
+	// A second story may reuse every detail key; references stay within that story.
+	clone := normalizedFixture(t).V4.GeopoliticalStories[0]
+	clone.LocalKey = "second-story"
+	clone.SourceID = "GPR22222222-2222-4222-8222-222222222222"
+	r.V4.GeopoliticalStories = append(r.V4.GeopoliticalStories, clone)
+	if err := reportbiz.ValidateReport(r); err != nil {
+		t.Fatal(err)
+	}
+	r.V4.GeopoliticalStories[1].LocalKey = r.V4.GeopoliticalStories[0].LocalKey
+	if err := reportbiz.ValidateReport(r); err == nil {
+		t.Fatal("duplicate sibling key accepted")
+	}
+}
