@@ -397,7 +397,7 @@ type PublicationResult struct {
 type Store interface {
 	ListAnalyses(context.Context, AnalysisListFilter) (AnalysisStorePage, error)
 	GetAnalysis(context.Context, string, string, string) (AnalysisUnitDetail, error)
-	GetAnalysisChain(context.Context, string, string, string) (ChainAnalysisDetail, error)
+	GetAnalysisChain(context.Context, string, string, string, string) (ChainAnalysisDetail, error)
 	PublicationStore
 	ListReports(context.Context, ListFilter) (StorePage, error)
 	GetReport(context.Context, string) (Record, error)
@@ -457,9 +457,6 @@ func (s *UseCase) Publish(ctx context.Context, publisherReportID string, report 
 	if err := requiredText("publisher_report_id", publisherReportID, 200); err != nil {
 		return PublicationResult{}, err
 	}
-	if err := ValidateReport(report); err != nil {
-		return PublicationResult{}, err
-	}
 	payloadHash, err := ContentHash(report)
 	if err != nil {
 		return PublicationResult{}, fmt.Errorf("canonicalize Report publication: %w", err)
@@ -479,6 +476,10 @@ func (s *UseCase) Publish(ctx context.Context, publisherReportID string, report 
 			}
 			result = PublicationResult{Record: *existing, Replayed: true}
 			return nil
+		}
+		// An immutable snapshot can be replayed even when later publication rules tighten.
+		if err := ValidateReport(report); err != nil {
+			return err
 		}
 		reportID, err := coreid.New(coreid.Report)
 		if err != nil {
@@ -700,6 +701,7 @@ var (
 		TransmissionCrossLayer: "跨层推理", TransmissionSameSource: "同源信号",
 	}
 	transmissionStatusLabels = map[string]string{"established": "已形成传导"}
+	impactLevelLabels        = map[string]string{ImpactLevelHigh: "高影响", ImpactLevelMedium: "中影响", ImpactLevelLow: "低影响", ImpactLevelPending: "待评估"}
 	targetTypeLabels         = map[string]string{
 		"macro_anchor": "宏观经济锚点", "industry_chain": "产业链", "industry_chain_node": "产业链节点",
 	}
@@ -1164,6 +1166,9 @@ func buildEvidenceLinks(reportID string, report Report) ([]EvidenceLink, error) 
 				scope = ScopeConceptSummary
 			}
 			values = append(values, scopedRefs{scope, prefix + "/summary/evidence_refs", unit.Summary.EvidenceRefs})
+			if impact := unit.Summary.ImpactAssessment; impact != nil {
+				values = append(values, scopedRefs{scope, prefix + "/summary/impact_assessment/evidence_refs", impact.EvidenceRefs})
+			}
 			for _, a := range unit.Detail.AffectedAnchors {
 				values = append(values, scopedRefs{ScopeAnchor, prefix + "/detail/affected_anchors/" + a.LocalKey + "/evidence_refs", a.EvidenceRefs})
 			}
@@ -1245,7 +1250,28 @@ type AnalysisWindow struct {
 	End   string `json:"end"`
 }
 
+const (
+	ImpactLevelHigh    = "high"
+	ImpactLevelMedium  = "medium"
+	ImpactLevelLow     = "low"
+	ImpactLevelPending = "pending"
+)
+
+// ImpactAssessment describes conditional consequence magnitude, independently of direction and confidence.
+type ImpactAssessment struct {
+	Level        CodedLabel          `json:"level"`
+	Rationale    string              `json:"rationale"`
+	EvidenceRefs []EvidenceReference `json:"evidence_refs"`
+}
+
+type ImpactAssessmentProjection struct {
+	Level              CodedLabel `json:"level"`
+	Rationale          string     `json:"rationale"`
+	EvidenceScopeToken *string    `json:"evidence_scope_token"`
+}
+
 type AnalysisSummary struct {
+	ImpactAssessment  *ImpactAssessment   `json:"impact_assessment,omitempty"`
 	Conclusion        string              `json:"conclusion"`
 	TransmissionLogic string              `json:"transmission_logic"`
 	AnchorKeys        []string            `json:"anchor_keys"`
@@ -1329,15 +1355,16 @@ type AnalysisImpactProjection struct {
 }
 
 type AnalysisUnitSummary struct {
-	LocalKey           string                     `json:"local_key"`
-	SourceID           string                     `json:"source_id"`
-	Title              string                     `json:"title"`
-	Conclusion         string                     `json:"conclusion"`
-	TransmissionLogic  string                     `json:"transmission_logic"`
-	AffectedAnchors    []AnalysisImpactProjection `json:"affected_anchors"`
-	ChainCount         int                        `json:"chain_count"`
-	EvidenceScopeToken *string                    `json:"evidence_scope_token"`
-	Ordinal            int                        `json:"-"`
+	ImpactAssessment   *ImpactAssessmentProjection `json:"impact_assessment,omitempty"`
+	LocalKey           string                      `json:"local_key"`
+	SourceID           string                      `json:"source_id"`
+	Title              string                      `json:"title"`
+	Conclusion         string                      `json:"conclusion"`
+	TransmissionLogic  string                      `json:"transmission_logic"`
+	AffectedAnchors    []AnalysisImpactProjection  `json:"affected_anchors"`
+	ChainCount         int                         `json:"chain_count"`
+	EvidenceScopeToken *string                     `json:"evidence_scope_token"`
+	Ordinal            int                         `json:"-"`
 }
 type ChainAnalysisSummary struct {
 	LocalKey   string `json:"local_key"`
@@ -1436,6 +1463,20 @@ func validateAnalysisUnit(kind string, u AnalysisUnit, index *reportIndex) error
 	if err := validateAnalysisEvidenceRefs(p+"/summary/evidence_refs", u.Summary.EvidenceRefs, "summary_support"); err != nil {
 		return err
 	}
+	if a := u.Summary.ImpactAssessment; a != nil {
+		if err := validateMappedLabel(p+"/summary/impact_assessment/level", a.Level, impactLevelLabels); err != nil {
+			return err
+		}
+		if err := requiredText(p+"/summary/impact_assessment/rationale", a.Rationale, 10000); err != nil {
+			return err
+		}
+		if a.Level.Code != ImpactLevelPending && len(a.EvidenceRefs) == 0 {
+			return invalid(p+"/summary/impact_assessment/evidence_refs", "rated impact requires supporting Evidence")
+		}
+		if err := validateAnalysisEvidenceRefs(p+"/summary/impact_assessment/evidence_refs", a.EvidenceRefs, "summary_support"); err != nil {
+			return err
+		}
+	}
 	if err := validateAnalysisSteps(p+"/detail", u.Detail.ReasoningSteps, index); err != nil {
 		return err
 	}
@@ -1446,9 +1487,16 @@ func validateAnalysisUnit(kind string, u AnalysisUnit, index *reportIndex) error
 		return invalid(p, "arrays must not be null")
 	}
 	impacts := map[string]bool{}
+	storyChains := map[[2]string]bool{}
 	for _, a := range u.Detail.AffectedAnchors {
 		if err := validateAnalysisImpact(p, a, index, false); err != nil {
 			return err
+		}
+		if kind == "geopolitical_stories" && a.TargetType.Code != "macro_anchor" && a.TargetType.Code != "industry_chain" || kind == "macroeconomic_stories" && a.TargetType.Code != "industry_chain" {
+			return invalid(p, "story anchors must target the permitted downstream layer")
+		}
+		if a.TargetType.Code == "industry_chain" {
+			storyChains[[2]string{a.SourceID, a.Name}] = true
 		}
 		impacts[a.LocalKey] = true
 	}
@@ -1456,22 +1504,26 @@ func validateAnalysisUnit(kind string, u AnalysisUnit, index *reportIndex) error
 		if len(u.Detail.IndustryChains) == 0 || len(u.Detail.AffectedAnchors) != 0 {
 			return invalid(p, "Concept requires chains; impacts belong to chain nodes")
 		}
-	} else if len(u.Detail.IndustryChains) != 0 {
-		return invalid(p, "story details cannot contain Concept chain analyses")
 	}
 	chainSources := map[string]bool{}
 	for _, c := range u.Detail.IndustryChains {
 		if chainSources[c.SourceID] {
-			return invalid(p, "duplicate chain source within Concept")
+			return invalid(p, "duplicate chain source within analysis")
 		}
 		chainSources[c.SourceID] = true
+		if kind != "concept_analyses" && !storyChains[[2]string{c.SourceID, c.Name}] {
+			return invalid(p, "story chain must match an affected industry-chain anchor source and name")
+		}
 		if err := validateChainAnalysis(p, c, index); err != nil {
 			return err
 		}
-		for _, a := range c.AffectedNodes {
-			impacts[a.LocalKey] = true
+		if kind == "concept_analyses" {
+			for _, a := range c.AffectedNodes {
+				impacts[a.LocalKey] = true
+			}
 		}
 	}
+
 	seen := map[string]bool{}
 	for _, k := range u.Summary.AnchorKeys {
 		if !impacts[k] || seen[k] {
@@ -1720,14 +1772,17 @@ func (s *UseCase) GetAnalysis(ctx context.Context, reportID, kind, key string) (
 	}
 	return s.store.GetAnalysis(ctx, reportID, kind, key)
 }
-func (s *UseCase) GetAnalysisChain(ctx context.Context, reportID, conceptKey, chainKey string) (ChainAnalysisDetail, error) {
+func (s *UseCase) GetAnalysisChain(ctx context.Context, reportID, kind, analysisKey, chainKey string) (ChainAnalysisDetail, error) {
 	if err := validateReportID(reportID); err != nil {
 		return ChainAnalysisDetail{}, err
 	}
-	if !localKeyPattern.MatchString(conceptKey) || !localKeyPattern.MatchString(chainKey) {
-		return ChainAnalysisDetail{}, invalid("local_key", "invalid Concept or chain key")
+	if err := validateAnalysisKind(kind); err != nil {
+		return ChainAnalysisDetail{}, err
 	}
-	return s.store.GetAnalysisChain(ctx, reportID, conceptKey, chainKey)
+	if !localKeyPattern.MatchString(analysisKey) || !localKeyPattern.MatchString(chainKey) {
+		return ChainAnalysisDetail{}, invalid("local_key", "invalid analysis or chain key")
+	}
+	return s.store.GetAnalysisChain(ctx, reportID, kind, analysisKey, chainKey)
 }
 
 func validateAnalysisEvidenceRefs(path string, refs []EvidenceReference, role string) error {

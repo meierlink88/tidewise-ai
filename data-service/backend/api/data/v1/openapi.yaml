@@ -1669,6 +1669,39 @@ paths:
         '404': {$ref: '#/components/responses/NotFound'}
         '500': {$ref: '#/components/responses/InternalError'}
 
+  /api/data/v1/reports/{report_id}/analyses/{kind}/{analysis_key}/industry-chains/{chain_key}:
+    get:
+      tags: [Report]
+      operationId: getReportAnalysisUnitChain
+      x-client-drift-anchor: data.v1.getReportAnalysisUnitChain
+      x-required-service-scope: data.reports.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      x-error-codes: [INVALID_REQUEST, REPORT_NOT_FOUND, REPORT_LAYER_NOT_FOUND, REPORT_INDUSTRY_CHAIN_NOT_FOUND, REPORT_REPOSITORY_FAILURE]
+      summary: Read versioned story or Concept analysis snapshots
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/ReportID'
+        - name: kind
+          in: path
+          required: true
+          schema: {type: string, enum: [geopolitical_stories, macroeconomic_stories, concept_analyses]}
+        - name: analysis_key
+          in: path
+          required: true
+          schema: {$ref: '#/components/schemas/ReportLocalKey'}
+        - name: chain_key
+          in: path
+          required: true
+          schema: {$ref: '#/components/schemas/ReportLocalKey'}
+      responses:
+        '200': {description: Ordered report analysis projection, content: {application/json: {schema: {$ref: '#/components/schemas/ReportChainAnalysisDetailEnvelope'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
 components:
   securitySchemes:
     ServiceBearer:
@@ -4311,11 +4344,59 @@ components:
         start: {type: string, format: date-time}
         end: {type: string, format: date-time}
 
+    ReportImpactLevel:
+      type: object
+      additionalProperties: false
+      required: [code, label]
+      properties:
+        code: {type: string, enum: [high, medium, low, pending]}
+        label: {type: string, enum: [高影响, 中影响, 低影响, 待评估]}
+      oneOf:
+        - properties: {code: {enum: [high]}, label: {enum: [高影响]}}
+        - properties: {code: {enum: [medium]}, label: {enum: [中影响]}}
+        - properties: {code: {enum: [low]}, label: {enum: [低影响]}}
+        - properties: {code: {enum: [pending]}, label: {enum: [待评估]}}
+
+    ReportImpactAssessment:
+      type: object
+      additionalProperties: false
+      required: [level, rationale, evidence_refs]
+      description: Publisher assessment of conditional consequence magnitude, independent of direction and confidence. Rated levels require summary_support Evidence; pending may use an empty array. Omit the whole object for older reports; null is not accepted.
+      properties:
+        level: {$ref: '#/components/schemas/ReportImpactLevel'}
+        rationale: {type: string, minLength: 1, maxLength: 10000, pattern: '\S'}
+        evidence_refs:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/ReportEvidenceReference'
+              - properties:
+                  role:
+                    properties:
+                      code: {enum: [summary_support]}
+                      label: {enum: [核心依据]}
+      oneOf:
+        - properties:
+            level: {properties: {code: {enum: [high, medium, low]}}}
+            evidence_refs: {minItems: 1}
+        - properties:
+            level: {properties: {code: {enum: [pending]}}}
+
+    ReportImpactAssessmentProjection:
+      type: object
+      additionalProperties: false
+      required: [level, rationale, evidence_scope_token]
+      properties:
+        level: {$ref: '#/components/schemas/ReportImpactLevel'}
+        rationale: {type: string, minLength: 1, maxLength: 10000}
+        evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
+
     ReportAnalysisSummary:
       type: object
       additionalProperties: false
       required: [conclusion, transmission_logic, anchor_keys, evidence_refs]
       properties:
+        impact_assessment: {$ref: '#/components/schemas/ReportImpactAssessment'}
         conclusion: {type: string, minLength: 1}
         transmission_logic: {type: string, minLength: 1}
         anchor_keys: {type: array, items: {type: string, minLength: 1}}
@@ -4377,6 +4458,7 @@ components:
         evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
 
     ReportAnalysisDetail:
+      description: Story chains optionally provide topology and node impacts for matching industry_chain anchors. Concept units require chains and no top-level affected_anchors.
       type: object
       additionalProperties: false
       required: [reasoning_steps, affected_anchors, uncertainty, industry_chains]
@@ -4424,6 +4506,7 @@ components:
       additionalProperties: false
       required: [local_key, source_id, title, conclusion, transmission_logic, affected_anchors, chain_count, evidence_scope_token]
       properties:
+        impact_assessment: {$ref: '#/components/schemas/ReportImpactAssessmentProjection'}
         local_key: {$ref: '#/components/schemas/ReportLocalKey'}
         source_id: {type: string, minLength: 1, maxLength: 200, description: Publisher source identity snapshot; no cross-domain lookup or foreign key.}
         title: {type: string, minLength: 1}
@@ -4481,7 +4564,7 @@ components:
     ReportAnalysisSnapshot:
       type: object
       additionalProperties: false
-      description: Ordered story and Concept snapshots. At least one analysis across the three arrays. Concept units require chains and use chain-node impact keys; story units have no chains. Local keys are globally unique within the Report; anchor_keys close within their unit. Source IDs are snapshots only. No inference or graph lookup occurs in Data.
+      description: Ordered story and Concept snapshots. At least one analysis across the three arrays. Concept units require chains and use chain-node impact keys; story units may include chains matching their industry_chain anchors by source_id and name. Story summary keys reference only top-level impacts; geopolitical anchors target macro_anchor or industry_chain, and macroeconomic anchors target industry_chain. Local keys are globally unique within the Report; anchor_keys close within their unit. Source IDs are snapshots only. No inference or graph lookup occurs in Data.
       required: [schema_version, report_type, generated_at, timezone, analysis_window, geopolitical_stories, macroeconomic_stories, concept_analyses]
       properties:
         schema_version: {type: string, enum: [report-publication/v3]}

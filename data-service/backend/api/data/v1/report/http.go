@@ -20,6 +20,7 @@ func RegisterHTTPServer(server *kratoshttp.Server, application Service) {
 	router := server.Route(v1.APIPrefix)
 	router.GET("/reports/{report_id}/analyses/{kind}", analysisListHandler(application))
 	router.GET("/reports/{report_id}/analyses/{kind}/{analysis_key}", analysisHandler(application))
+	router.GET("/reports/{report_id}/analyses/{kind}/{analysis_key}/industry-chains/{chain_key}", analysisChainHandler(application))
 	router.GET("/reports/{report_id}/concept-analyses/{concept_key}/industry-chains/{chain_key}", analysisChainHandler(application))
 	router.POST("/report-publications", publishHandler(application))
 	router.GET("/reports", listHandler(application))
@@ -280,8 +281,14 @@ func analysisChainHandler(application Service) kratoshttp.HandlerFunc {
 		if len(ctx.Request().URL.Query()) != 0 {
 			return v1.NewPublicError(v1.StatusBadRequest, ErrorInvalidRequest, "chain detail accepts no query parameters", nil)
 		}
-		r := &AnalysisRequest{ReportID: ctx.Vars().Get("report_id"), AnalysisKey: ctx.Vars().Get("concept_key"), ChainKey: ctx.Vars().Get("chain_key")}
-		return callWithBudget(ctx, OperationGetReportAnalysisChain, readBudget, r, func(c context.Context) (*v1.Response[ChainAnalysisDetail], error) {
+		operation := OperationGetReportAnalysisUnitChain
+		kind, key := ctx.Vars().Get("kind"), ctx.Vars().Get("analysis_key")
+		if kind == "" {
+			operation = OperationGetReportAnalysisChain
+			kind, key = "concept_analyses", ctx.Vars().Get("concept_key")
+		}
+		r := &AnalysisRequest{ReportID: ctx.Vars().Get("report_id"), Kind: kind, AnalysisKey: key, ChainKey: ctx.Vars().Get("chain_key")}
+		return callWithBudget(ctx, operation, readBudget, r, func(c context.Context) (*v1.Response[ChainAnalysisDetail], error) {
 			return application.GetReportAnalysisChain(c, r)
 		})
 	}
@@ -291,7 +298,8 @@ func analysisPublicationShape() *v1.StrictJSONShape {
 	codedLabel := requiredShape(map[string]*v1.StrictJSONShape{"code": v1.StrictJSONString(), "label": v1.StrictJSONString()})
 	analysisWindow := requiredShape(map[string]*v1.StrictJSONShape{"start": v1.StrictJSONString(), "end": v1.StrictJSONString()})
 	evidenceReference := requiredShape(map[string]*v1.StrictJSONShape{"evidence_id": v1.StrictJSONString(), "role": codedLabel})
-	analysisSummary := requiredShape(map[string]*v1.StrictJSONShape{"conclusion": v1.StrictJSONString(), "transmission_logic": v1.StrictJSONString(), "anchor_keys": v1.StrictJSONArray(v1.StrictJSONString()), "evidence_refs": v1.StrictJSONArray(evidenceReference)})
+	impactAssessment := requiredShape(map[string]*v1.StrictJSONShape{"level": codedLabel, "rationale": v1.StrictJSONString(), "evidence_refs": v1.StrictJSONArray(evidenceReference)})
+	analysisSummary := v1.StrictJSONRequiredObject([]string{"conclusion", "transmission_logic", "anchor_keys", "evidence_refs"}, map[string]*v1.StrictJSONShape{"impact_assessment": impactAssessment, "conclusion": v1.StrictJSONString(), "transmission_logic": v1.StrictJSONString(), "anchor_keys": v1.StrictJSONArray(v1.StrictJSONString()), "evidence_refs": v1.StrictJSONArray(evidenceReference)})
 	reasoningStep := requiredShape(map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "input": v1.StrictJSONString(), "mechanism": v1.StrictJSONString(), "output": v1.StrictJSONString(), "confidence": codedLabel, "evidence_refs": v1.StrictJSONArray(evidenceReference)})
 	analysisImpact := requiredShape(map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "target_type": codedLabel, "source_id": v1.StrictJSONString(), "node_local_key": v1.StrictJSONNullableString(), "name": v1.StrictJSONString(), "impact": v1.StrictJSONString(), "result": codedLabel, "conclusion_basis": codedLabel, "validation_status": codedLabel, "reasoning": v1.StrictJSONString(), "transmission_signal": v1.StrictJSONNullableString(), "conditions": v1.StrictJSONArray(v1.StrictJSONString()), "follow_up": v1.StrictJSONArray(v1.StrictJSONString()), "time_window": codedLabel, "confidence": codedLabel, "evidence_refs": v1.StrictJSONArray(evidenceReference)})
 	layerUncertainty := requiredShape(map[string]*v1.StrictJSONShape{"counterevidence": v1.StrictJSONNullableString(), "evidence_gap": v1.StrictJSONNullableString(), "boundary": v1.StrictJSONNullableString(), "reversal_condition": v1.StrictJSONNullableString()})

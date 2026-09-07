@@ -394,6 +394,13 @@ _Avoid_: Research Theme、Reason Tree、长期主题身份、原地修订、只�
 
 **Report Publication Package**:
 
+总结可携带发布者给出的影响度等级、依据与 Evidence 引用，与方向及置信度分开；
+Data 校验并保存，在列表与单元详情读取中返回，旧报告缺省时不推导默认等级。
+
+故事线详情允许发布与受影响产业链锚点匹配的结构图和节点影响；总结保持跨层锚点语义，
+节点落点留在链详情。按报告、分析类型、单元、链读取详情，保留旧 Concept 读取路径。
+各推理引用的 Evidence 随报告发布，Event/Signal 与覆盖审计由 AgentOS 保留。
+
 Data 同时支持未带版本的旧合同与显式 `report-publication/v3`。新合同按多条地缘故事线、
 宏观故事线和 Concept 分析组织 summary/detail；Concept 下包含多条产业链，拓扑与影响分离。
 新合同允许任一板块为空，但整份报告至少一个单元。字段与读取边界见

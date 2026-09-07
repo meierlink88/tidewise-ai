@@ -138,6 +138,6 @@ func (*fakeUseCase) ListAnalyses(context.Context, reportbiz.AnalysisListRequest)
 func (*fakeUseCase) GetAnalysis(context.Context, string, string, string) (reportbiz.AnalysisUnitDetail, error) {
 	return reportbiz.AnalysisUnitDetail{}, nil
 }
-func (*fakeUseCase) GetAnalysisChain(context.Context, string, string, string) (reportbiz.ChainAnalysisDetail, error) {
+func (*fakeUseCase) GetAnalysisChain(context.Context, string, string, string, string) (reportbiz.ChainAnalysisDetail, error) {
 	return reportbiz.ChainAnalysisDetail{}, nil
 }

@@ -21,3 +21,18 @@ schema_version 参数选择新版，防止未升级的 Miniapp 意外选中新�
 只扩展 Evidence scope CHECK，不新增业务表或正式图对象外键，不迁移历史报告。
 推理假设允许引用推导依据，但保留待验证性质。完整字段、查询和 rollout 见
 [Report 发布合同](../contexts/data/report-publication-v3.md)。
+
+## 故事线产业链详情扩展（Issue #426）
+
+用户确认地缘、宏观详情也需要“受影响产业链 → 真实结构图 → 节点落点”。复用 v3 的
+`detail.industry_chains`，链 source_id/name 与当前故事线产业链锚点匹配；总结不得引用嵌套
+节点。地缘总结下挂宏观故事线/产业链，宏观下挂产业链，Concept 下挂链节点。
+新增按 kind/analysis_key 读取单链的路径，旧 Concept 路径保留。沿用 JSONB、Evidence scopes、
+不可变和幂等规则，不新增迁移；Event/Signal 与覆盖审计不属于发布内容。
+
+## 总结影响度扩展（Issue #429）
+
+在 v3 summary 中增加可选 impact_assessment，承载发布者推导的后果幅度等级、依据及核心
+Evidence。旧对象省略字段以保留 canonical hash，新评级进入不可变内容身份；未知等级、
+错 label、空依据及无支持证据的已评级结果拒绝。沿用故事线/Concept 总结 Evidence scope，
+不新增迁移；列表与单元详情投影返回独立的 Evidence scope token，不由 Data 自动评级。

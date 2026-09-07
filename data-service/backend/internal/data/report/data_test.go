@@ -431,7 +431,7 @@ func TestPostgresStoryConceptPublicationAndScopedReads(t *testing.T) {
 	if err != nil || len(concept.IndustryChains) != 2 || len(concept.Summary.AffectedAnchors) != 2 {
 		t.Fatalf("concept=%+v err=%v", concept, err)
 	}
-	chain, err := uc.GetAnalysisChain(ctx, first.Record.ID, "concept-a", "chain-a")
+	chain, err := uc.GetAnalysisChain(ctx, first.Record.ID, "concept_analyses", "concept-a", "chain-a")
 	if err != nil || len(chain.AffectedNodes) != 1 || chain.AffectedNodes[0].EvidenceScopeToken == nil {
 		t.Fatalf("chain=%+v err=%v", chain, err)
 	}
@@ -443,7 +443,7 @@ func TestPostgresStoryConceptPublicationAndScopedReads(t *testing.T) {
 	if strings.Contains(string(encoded), "EVD") || strings.Contains(string(encoded), "evidence_refs") || strings.Contains(string(encoded), "node_local_key") == false {
 		t.Fatalf("unsafe/incomplete projection: %s", encoded)
 	}
-	_, err = uc.GetAnalysisChain(ctx, first.Record.ID, "wrong-concept", "chain-a")
+	_, err = uc.GetAnalysisChain(ctx, first.Record.ID, "concept_analyses", "wrong-concept", "chain-a")
 	if !errors.Is(err, reportbiz.ErrChainNotFound) {
 		t.Fatalf("cross Concept chain: %v", err)
 	}
@@ -488,5 +488,147 @@ func TestPostgresStoryConceptPublicationAndScopedReads(t *testing.T) {
 	empty, err := uc.ListAnalyses(ctx, reportbiz.AnalysisListRequest{ReportID: onlyStory.Record.ID, Kind: "concept_analyses"})
 	if err != nil || len(empty.Items) != 0 {
 		t.Fatalf("empty group %v", err)
+	}
+}
+
+func TestPostgresStoryChainHTTPPublicationAndRead(t *testing.T) {
+	db := openReportTestDatabase(t, 0)
+	ids := publishReportEvidence(t, db)
+	payload, err := os.ReadFile("../../../api/data/v1/report/testdata/story-chain-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload = bytes.ReplaceAll(payload, []byte("EVD11111111-1111-4111-8111-111111111111"), []byte(ids[0]))
+	store, _ := NewStore(db)
+	uc, _ := reportbiz.NewUseCase(store, time.Now)
+	app, _ := reportservice.NewService(uc)
+	server := kratoshttp.NewServer()
+	reportapi.RegisterHTTPServer(server, app)
+	call := func(method, path string, body []byte) *httptest.ResponseRecorder {
+		t.Helper()
+		r := httptest.NewRequest(method, path, bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		server.ServeHTTP(w, r)
+		return w
+	}
+	for i := 0; i < 2; i++ {
+		w := call(http.MethodPost, "/api/data/v1/report-publications", payload)
+		want := http.StatusCreated
+		if i == 1 {
+			want = http.StatusOK
+		}
+		if w.Code != want {
+			t.Fatalf("publish/replay: %d %s", w.Code, w.Body.String())
+		}
+	}
+	var id string
+	if err := db.QueryRow(`SELECT id FROM reports WHERE publisher_report_id='story-chain-example'`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	prefix := "/api/data/v1/reports/" + id
+	for _, x := range []struct{ kind, key string }{{"geopolitical_stories", "geo"}, {"macroeconomic_stories", "macro"}} {
+		path := prefix + "/analyses/" + x.kind + "/" + x.key + "-story"
+		w := call(http.MethodGet, path, nil)
+		if w.Code != 200 {
+			t.Fatalf("unit: %d %s", w.Code, w.Body.String())
+		}
+		var unit reportapi.AnalysisUnitDetail
+		if err := json.Unmarshal(w.Body.Bytes(), &unit); err != nil {
+			t.Fatal(err)
+		}
+		if len(unit.IndustryChains) != 1 || len(unit.Summary.AffectedAnchors) != 1 || unit.Summary.AffectedAnchors[0].TargetType.Code != "industry_chain" || strings.Contains(w.Body.String(), `"graph"`) {
+			t.Fatalf("unit projection: %s", w.Body.String())
+		}
+		w = call(http.MethodGet, path+"/industry-chains/"+x.key+"-chain-a", nil)
+		if w.Code != 200 {
+			t.Fatalf("chain: %d %s", w.Code, w.Body.String())
+		}
+		var chain reportapi.ChainAnalysisDetail
+		if err := json.Unmarshal(w.Body.Bytes(), &chain); err != nil {
+			t.Fatal(err)
+		}
+		c := chain
+		if len(c.Graph.Nodes) != 2 || len(c.Graph.Edges) != 1 || len(c.AffectedNodes) != 1 || len(c.ReasoningSteps) != 1 || c.TransmissionLogic != "供给变化 → 服务成本变化" {
+			t.Fatalf("incomplete chain: %s", w.Body.String())
+		}
+		for _, token := range []*string{c.EvidenceScopeToken, c.AffectedNodes[0].EvidenceScopeToken, c.ReasoningSteps[0].EvidenceScopeToken} {
+			if token == nil {
+				t.Fatal("missing Evidence scope")
+			}
+			evidence, err := uc.ListEvidence(context.Background(), id, *token)
+			if err != nil || len(evidence) != 1 || evidence[0].Summary == "" {
+				t.Fatalf("evidence=%+v err=%v", evidence, err)
+			}
+		}
+		// Same chain identity in another story is a separate scoped snapshot.
+		_, err := uc.GetAnalysisChain(context.Background(), id, x.kind, x.key+"-story", "chain-a")
+		if !errors.Is(err, reportbiz.ErrChainNotFound) {
+			t.Fatalf("cross-unit lookup: %v", err)
+		}
+	}
+	for _, path := range []string{prefix + "/concept-analyses/concept-a/industry-chains/chain-a", prefix + "/analyses/concept_analyses/concept-a/industry-chains/chain-a"} {
+		w := call(http.MethodGet, path, nil)
+		if w.Code != 200 {
+			t.Fatalf("Concept compatibility: %d %s", w.Code, w.Body.String())
+		}
+	}
+	_, err = uc.GetAnalysisChain(context.Background(), id, "invalid", "geo-story", "geo-chain-a")
+	var validation *reportbiz.ValidationError
+	if !errors.As(err, &validation) {
+		t.Fatalf("invalid kind: %v", err)
+	}
+	for _, x := range []struct{ kind, key, level string }{{"geopolitical_stories", "geo-story", "high"}, {"macroeconomic_stories", "macro-story", "medium"}, {"concept_analyses", "concept-a", "low"}} {
+		detail, err := uc.GetAnalysis(context.Background(), id, x.kind, x.key)
+		if err != nil {
+			t.Fatal(err)
+		}
+		a := detail.Summary.ImpactAssessment
+		if a == nil || a.Level.Code != x.level || a.Rationale == "" || a.EvidenceScopeToken == nil {
+			t.Fatalf("impact missing: %+v", a)
+		}
+		ev, err := uc.ListEvidence(context.Background(), id, *a.EvidenceScopeToken)
+		if err != nil || len(ev) != 1 {
+			t.Fatalf("impact evidence: %+v %v", ev, err)
+		}
+		page, err := uc.ListAnalyses(context.Background(), reportbiz.AnalysisListRequest{ReportID: id, Kind: x.kind})
+		if err != nil || len(page.Items) != 1 || !reflect.DeepEqual(page.Items[0].ImpactAssessment, a) {
+			t.Fatalf("list impact: %+v %v", page, err)
+		}
+		w := call(http.MethodGet, prefix+"/analyses/"+x.kind+"/"+x.key, nil)
+		var wire reportapi.AnalysisUnitDetail
+		if err := json.Unmarshal(w.Body.Bytes(), &wire); err != nil {
+			t.Fatal(err)
+		}
+		if w.Code != 200 || wire.Summary.ImpactAssessment == nil || wire.Summary.ImpactAssessment.Level.Code != x.level || strings.Contains(w.Body.String(), "EVD") || strings.Contains(w.Body.String(), "evidence_refs") {
+			t.Fatalf("impact wire: %d %s", w.Code, w.Body.String())
+		}
+	}
+
+	var request struct {
+		PublisherReportID string           `json:"publisher_report_id"`
+		Report            reportbiz.Report `json:"report"`
+	}
+	if err := json.Unmarshal(payload, &request); err != nil {
+		t.Fatal(err)
+	}
+	request.PublisherReportID = "missing-story-node-evidence"
+	request.Report.MacroeconomicStories[0].Detail.IndustryChains[0].AffectedNodes[0].EvidenceRefs[0].EvidenceID = "EVD33333333-3333-4333-8333-333333333333"
+	_, err = uc.Publish(context.Background(), request.PublisherReportID, request.Report)
+	var reference *reportbiz.ReferenceError
+	if !errors.As(err, &reference) {
+		t.Fatalf("missing nested Evidence: %v", err)
+	}
+
+	request.Report.MacroeconomicStories[0].Detail.IndustryChains[0].AffectedNodes[0].EvidenceRefs[0].EvidenceID = ids[0]
+	request.PublisherReportID = "missing-impact-evidence"
+	request.Report.MacroeconomicStories[0].Summary.ImpactAssessment.EvidenceRefs[0].EvidenceID = "EVD33333333-3333-4333-8333-333333333333"
+	_, err = uc.Publish(context.Background(), request.PublisherReportID, request.Report)
+	if !errors.As(err, &reference) {
+		t.Fatalf("missing impact Evidence accepted: %v", err)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT count(*) FROM reports`).Scan(&count); err != nil || count != 1 {
+		t.Fatalf("atomic report count=%d err=%v", count, err)
 	}
 }

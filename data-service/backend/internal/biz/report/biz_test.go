@@ -317,6 +317,159 @@ func (*fakeStore) ListAnalyses(context.Context, reportbiz.AnalysisListFilter) (r
 func (*fakeStore) GetAnalysis(context.Context, string, string, string) (reportbiz.AnalysisUnitDetail, error) {
 	return reportbiz.AnalysisUnitDetail{}, nil
 }
-func (*fakeStore) GetAnalysisChain(context.Context, string, string, string) (reportbiz.ChainAnalysisDetail, error) {
+func (*fakeStore) GetAnalysisChain(context.Context, string, string, string, string) (reportbiz.ChainAnalysisDetail, error) {
 	return reportbiz.ChainAnalysisDetail{}, nil
+}
+
+func TestStoryChainPublicationValidation(t *testing.T) {
+	payload, err := os.ReadFile("../../../api/data/v1/report/testdata/story-chain-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func() reportbiz.Report {
+		var r struct {
+			Report reportbiz.Report `json:"report"`
+		}
+		if err := json.Unmarshal(payload, &r); err != nil {
+			t.Fatal(err)
+		}
+		return r.Report
+	}
+	if err := reportbiz.ValidateReport(read()); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("anchor order", func(t *testing.T) {
+		for _, reverse := range []bool{false, true} {
+			r := read()
+			u := &r.GeopoliticalStories[0]
+			a := u.Detail.AffectedAnchors[0]
+			a.LocalKey = "alternate-anchor"
+			a.Name = "alternate snapshot name"
+			u.Detail.AffectedAnchors = append(u.Detail.AffectedAnchors, a)
+			if reverse {
+				u.Detail.AffectedAnchors[0], u.Detail.AffectedAnchors[1] = u.Detail.AffectedAnchors[1], u.Detail.AffectedAnchors[0]
+			}
+			if err := reportbiz.ValidateReport(r); err != nil {
+				t.Fatal(err)
+			}
+		}
+	})
+	t.Run("historical exact replay", func(t *testing.T) {
+		r := read()
+		u := &r.GeopoliticalStories[0]
+		u.Detail.IndustryChains = []reportbiz.ChainAnalysis{}
+		u.Detail.AffectedAnchors[0].TargetType = reportbiz.CodedLabel{Code: "industry_chain_node", Label: "产业链节点"}
+		hash, err := reportbiz.ContentHash(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		store := newFakeStore()
+		store.byPublisher["historical"] = reportbiz.Record{PublisherReportID: "historical", ContentHash: hash, Report: r}
+		uc, _ := reportbiz.NewUseCase(store, time.Now)
+		result, err := uc.Publish(context.Background(), "historical", r)
+		if err != nil || !result.Replayed {
+			t.Fatalf("historical replay=%+v err=%v", result, err)
+		}
+		if _, err := uc.Publish(context.Background(), "new-invalid", r); err == nil {
+			t.Fatal("new invalid hierarchy accepted")
+		}
+		r.GeopoliticalStories[0].Summary.Conclusion = "changed"
+		if _, err := uc.Publish(context.Background(), "historical", r); !errors.Is(err, reportbiz.ErrPublicationConflict) {
+			t.Fatalf("historical conflict=%v", err)
+		}
+	})
+	for name, mutate := range map[string]func(*reportbiz.Report){
+		"story summary node": func(r *reportbiz.Report) {
+			r.GeopoliticalStories[0].Summary.AnchorKeys = []string{r.GeopoliticalStories[0].Detail.IndustryChains[0].AffectedNodes[0].LocalKey}
+		},
+		"unanchored chain":    func(r *reportbiz.Report) { r.GeopoliticalStories[0].Detail.IndustryChains[0].SourceID = "other" },
+		"chain name mismatch": func(r *reportbiz.Report) { r.GeopoliticalStories[0].Detail.IndustryChains[0].Name = "other" },
+		"macro targets macro": func(r *reportbiz.Report) {
+			r.MacroeconomicStories[0].Detail.AffectedAnchors[0].TargetType = reportbiz.CodedLabel{Code: "macro_anchor", Label: "宏观经济锚点"}
+		},
+		"geo targets node": func(r *reportbiz.Report) {
+			r.GeopoliticalStories[0].Detail.AffectedAnchors[0].TargetType = reportbiz.CodedLabel{Code: "industry_chain_node", Label: "产业链节点"}
+		},
+		"cross story node": func(r *reportbiz.Report) {
+			k := r.MacroeconomicStories[0].Detail.IndustryChains[0].Graph.Nodes[0].LocalKey
+			r.GeopoliticalStories[0].Detail.IndustryChains[0].AffectedNodes[0].NodeLocalKey = &k
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := read()
+			mutate(&r)
+			if reportbiz.ValidateReport(r) == nil {
+				t.Fatal("invalid story chain accepted")
+			}
+		})
+	}
+}
+
+func TestImpactAssessmentValidation(t *testing.T) {
+	payload, err := os.ReadFile("../../../api/data/v1/report/testdata/story-chain-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func() reportbiz.Report {
+		var r struct {
+			Report reportbiz.Report `json:"report"`
+		}
+		if err := json.Unmarshal(payload, &r); err != nil {
+			t.Fatal(err)
+		}
+		return r.Report
+	}
+	for _, kind := range []string{"geo", "macro", "concept"} {
+		for code, label := range map[string]string{"high": "高影响", "medium": "中影响", "low": "低影响", "pending": "待评估"} {
+			r := read()
+			a := r.GeopoliticalStories[0].Summary.ImpactAssessment
+			if kind == "macro" {
+				a = r.MacroeconomicStories[0].Summary.ImpactAssessment
+			}
+			if kind == "concept" {
+				a = r.ConceptAnalyses[0].Summary.ImpactAssessment
+			}
+			a.Level = reportbiz.CodedLabel{Code: code, Label: label}
+			if code == "pending" {
+				a.EvidenceRefs = []reportbiz.EvidenceReference{}
+			}
+			if err := reportbiz.ValidateReport(r); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	for name, mutate := range map[string]func(*reportbiz.ImpactAssessment){
+		"unknown level":          func(a *reportbiz.ImpactAssessment) { a.Level.Code = "severe" },
+		"wrong label":            func(a *reportbiz.ImpactAssessment) { a.Level.Label = "低影响" },
+		"blank rationale":        func(a *reportbiz.ImpactAssessment) { a.Rationale = " " },
+		"long rationale":         func(a *reportbiz.ImpactAssessment) { a.Rationale = strings.Repeat("a", 10001) },
+		"missing rated Evidence": func(a *reportbiz.ImpactAssessment) { a.EvidenceRefs = []reportbiz.EvidenceReference{} },
+		"null pending Evidence": func(a *reportbiz.ImpactAssessment) {
+			a.Level = reportbiz.CodedLabel{Code: "pending", Label: "待评估"}
+			a.EvidenceRefs = nil
+		},
+		"wrong role": func(a *reportbiz.ImpactAssessment) {
+			a.EvidenceRefs[0].Role = reportbiz.CodedLabel{Code: "direct_support", Label: "直接依据"}
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := read()
+			mutate(r.GeopoliticalStories[0].Summary.ImpactAssessment)
+			if reportbiz.ValidateReport(r) == nil {
+				t.Fatal("invalid assessment accepted")
+			}
+		})
+	}
+	r := read()
+	r.GeopoliticalStories[0].Summary.ImpactAssessment = nil
+	r.MacroeconomicStories[0].Summary.ImpactAssessment = nil
+	r.ConceptAnalyses[0].Summary.ImpactAssessment = nil
+	wire, err := json.Marshal(r)
+	if err != nil || strings.Contains(string(wire), "impact_assessment") {
+		t.Fatalf("legacy wire changed: %v", err)
+	}
+	if err := reportbiz.ValidateReport(r); err != nil {
+		t.Fatal(err)
+	}
 }
