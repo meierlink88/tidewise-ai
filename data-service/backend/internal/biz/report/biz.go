@@ -191,6 +191,7 @@ type Report struct {
 }
 
 type Record struct {
+	EvidenceCounts    map[string]int
 	ID                string
 	PublisherReportID string
 	ContentHash       string
@@ -500,7 +501,7 @@ func (s *UseCase) Publish(ctx context.Context, publisherReportID string, report 
 		if missing := firstMissingEvidence(ids, existingIDs); missing != "" {
 			return &ReferenceError{Path: "report.evidence_refs", Reference: missing, Message: "does not identify an existing Atomic Evidence"}
 		}
-		record := Record{ID: reportID, PublisherReportID: publisherReportID, ContentHash: payloadHash, Report: report, PublishedAt: s.now().UTC()}
+		record := Record{EvidenceCounts: countEvidenceScopes(links), ID: reportID, PublisherReportID: publisherReportID, ContentHash: payloadHash, Report: report, PublishedAt: s.now().UTC()}
 		if err := tx.InsertReport(ctx, record); err != nil {
 			return err
 		}
@@ -511,6 +512,22 @@ func (s *UseCase) Publish(ctx context.Context, publisherReportID string, report 
 		return nil
 	})
 	return result, err
+}
+
+// Counts are server-owned metadata, excluded from the publisher payload and replay hash.
+func countEvidenceScopes(links []EvidenceLink) map[string]int {
+	scopes := map[string]map[string]struct{}{}
+	for _, link := range links {
+		if scopes[link.ScopePath] == nil {
+			scopes[link.ScopePath] = map[string]struct{}{}
+		}
+		scopes[link.ScopePath][link.EvidenceID] = struct{}{}
+	}
+	counts := map[string]int{}
+	for path, ids := range scopes {
+		counts[path] = len(ids)
+	}
+	return counts
 }
 
 func ContentHash(report Report) (string, error) { return canonicalPayloadHash(report) }
@@ -2782,6 +2799,7 @@ type V4ReadClaim struct {
 	Text               string  `json:"text"`
 	Basis              string  `json:"basis"`
 	EvidenceScopeToken *string `json:"evidence_scope_token"`
+	EvidenceCount      int     `json:"evidence_count"`
 }
 type V4ReadObjections struct {
 	Summary               string        `json:"summary"`
@@ -2809,6 +2827,7 @@ type V4ReadAssessment struct {
 	FollowUp           []string     `json:"follow_up"`
 	TransmissionLogic  string       `json:"transmission_logic"`
 	EvidenceScopeToken *string      `json:"evidence_scope_token"`
+	EvidenceCount      int          `json:"evidence_count"`
 }
 type V4ReadNode struct {
 	LocalKey     string           `json:"local_key"`
@@ -2889,6 +2908,7 @@ type V4ReadUnitSummary struct {
 	ImpactAssessment   V4ReadUnitSummaryImpactAssessment `json:"impact_assessment"`
 	AffectedRefs       []V4ReadAnchorRef                 `json:"affected_refs"`
 	EvidenceScopeToken *string                           `json:"evidence_scope_token"`
+	EvidenceCount      int                               `json:"evidence_count"`
 }
 type V4ReadUnitDetail struct {
 	MacroImpacts   []V4ReadMacro `json:"macro_impacts"`
@@ -2903,11 +2923,13 @@ type V4ReadReportObservationsItem struct {
 	Title              string  `json:"title"`
 	Text               string  `json:"text"`
 	EvidenceScopeToken *string `json:"evidence_scope_token"`
+	EvidenceCount      int     `json:"evidence_count"`
 }
 type V4ReadUnitSummaryImpactAssessment struct {
 	Level              string  `json:"level"`
 	Rationale          string  `json:"rationale"`
 	EvidenceScopeToken *string `json:"evidence_scope_token"`
+	EvidenceCount      int     `json:"evidence_count"`
 }
 
 type V4ResolvedAnchor struct {

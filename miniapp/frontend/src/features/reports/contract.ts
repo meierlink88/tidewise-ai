@@ -1,5 +1,13 @@
+import type {
+  AnalysisKind,
+  AnalysisPage,
+  AnalysisDetail,
+  AnalysisChain,
+  AnalysisGroup
+} from './normalized-contract';
+
 export type ReportLayerKey = 'geopolitics' | 'macroeconomics';
-export type ReportDetailTargetType = 'layer' | 'industry_chain';
+export type ReportDetailTargetType = 'layer' | 'industry_chain' | AnalysisKind;
 export type ReportCardKind = ReportLayerKey | 'industry_chain';
 
 export interface ReportReference<T extends string = string> {
@@ -23,6 +31,7 @@ export interface ReportConfidence extends ReportCodedLabel {}
 export interface ReportTimeWindow extends ReportCodedLabel {}
 
 export interface ReportSummary {
+  schemaVersion?: string;
   id: string;
   generatedAt: string;
   publishedAt: string;
@@ -68,6 +77,7 @@ export interface ReportCardPage {
 }
 
 export interface ReportHomeGroup {
+  analysisGroups?: AnalysisGroup[];
   report: ReportSummary;
   cards: ReportCard[];
   nextCursor: string | null;
@@ -208,6 +218,14 @@ export interface ReportEvidenceList {
 }
 
 export interface ReportPort {
+  getAnalyses(reportId: string, kind: AnalysisKind, cursor?: string): Promise<AnalysisPage>;
+  getAnalysis(reportId: string, kind: AnalysisKind, key: string): Promise<AnalysisDetail>;
+  getAnalysisChain(
+    reportId: string,
+    kind: AnalysisKind,
+    key: string,
+    chainKey: string
+  ): Promise<AnalysisChain>;
   getHome(): Promise<ReportHome>;
   getIndustryChains(reportId: string, cursor?: string, limit?: number): Promise<ReportCardPage>;
   getLayer(reportId: string, layerKey: ReportLayerKey): Promise<ReportLayerDetail>;

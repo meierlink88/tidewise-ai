@@ -674,12 +674,53 @@ func TestPostgresNormalizedReportHTTPRoundTrip(t *testing.T) {
 	if err := db.QueryRow(`SELECT id FROM reports WHERE publisher_report_id='normalized-contract-example'`).Scan(&id); err != nil {
 		t.Fatal(err)
 	}
+	var storedCounts []byte
+	if err := db.QueryRow(`SELECT evidence_counts FROM reports WHERE id=$1`, id).Scan(&storedCounts); err != nil {
+		t.Fatal(err)
+	}
+	var counts map[string]int
+	if err := json.Unmarshal(storedCounts, &counts); err != nil || len(counts) == 0 {
+		t.Fatalf("missing publication counts: %s %v", storedCounts, err)
+	}
+	for _, count := range counts {
+		if count != 1 {
+			t.Fatalf("scope must not aggregate shared evidence across objects: %d", count)
+		}
+	}
+
 	var req struct {
 		Report reportbiz.Report `json:"report"`
 	}
 	if err := json.Unmarshal(payload, &req); err != nil {
 		t.Fatal(err)
 	}
+	var checkCounts func(any)
+	checkCounts = func(v any) {
+		switch x := v.(type) {
+		case map[string]any:
+			if token, exists := x["evidence_scope_token"]; exists {
+				want := 0
+				if token != nil {
+					items, err := uc.ListEvidence(context.Background(), id, token.(string))
+					if err != nil {
+						t.Fatal(err)
+					}
+					want = len(items)
+				}
+				if x["evidence_count"] != float64(want) {
+					t.Fatalf("count/list mismatch: %+v want %d", x, want)
+				}
+			}
+			for _, v := range x {
+				checkCounts(v)
+			}
+		case []any:
+			for _, v := range x {
+				checkCounts(v)
+			}
+		}
+	}
+
 	root := "/api/data/v1/reports/" + id
 	for _, g := range []struct {
 		kind  string
@@ -726,6 +767,7 @@ func TestPostgresNormalizedReportHTTPRoundTrip(t *testing.T) {
 				var expected, actual any
 				json.Unmarshal(expectedBytes, &expected)
 				json.Unmarshal(w.Body.Bytes(), &actual)
+				checkCounts(actual)
 				if !reflect.DeepEqual(withoutEvidenceFields(expected), withoutEvidenceFields(actual)) {
 					t.Fatal("chain round trip lost or changed fields")
 				}
@@ -815,6 +857,21 @@ func TestPostgresNormalizedReportHTTPRoundTrip(t *testing.T) {
 			t.Fatalf("version %s: %+v %v", version, result, err)
 		}
 	}
+	// Simulate a pre-metadata immutable publication without modifying the original row.
+	historicalID := "RPTaaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	if _, err := db.Exec(`INSERT INTO reports(id,publisher_report_id,content_hash,report,published_at)
+ SELECT $2,'historical-count-fallback',content_hash,report,published_at - interval '1 day' FROM reports WHERE id=$1`, id, historicalID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.Exec(`INSERT INTO report_evidence_links(id,report_id,evidence_id,scope_type,scope_path,position)
+ SELECT 'RPE'||gen_random_uuid()::text,$2,evidence_id,scope_type,scope_path,position FROM report_evidence_links WHERE report_id=$1`, id, historicalID); err != nil {
+		t.Fatal(err)
+	}
+	historical, err := uc.ListAnalyses(context.Background(), reportbiz.AnalysisListRequest{ReportID: historicalID, Kind: "geopolitical_stories"})
+	if err != nil || historical.Items[0].V4.Summary.EvidenceCount != 1 {
+		t.Fatalf("historical count fallback: %+v %v", historical, err)
+	}
+
 }
 
 func withoutEvidenceFields(v any) any {
@@ -822,6 +879,7 @@ func withoutEvidenceFields(v any) any {
 	case map[string]any:
 		delete(x, "evidence_ids")
 		delete(x, "evidence_scope_token")
+		delete(x, "evidence_count")
 		for k, child := range x {
 			x[k] = withoutEvidenceFields(child)
 		}

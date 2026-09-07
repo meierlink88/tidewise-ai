@@ -1,6 +1,7 @@
 package report_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -551,5 +552,33 @@ func TestNormalizedLocalKeysAreScopedToContainers(t *testing.T) {
 	r.V4.GeopoliticalStories[1].LocalKey = r.V4.GeopoliticalStories[0].LocalKey
 	if err := reportbiz.ValidateReport(r); err == nil {
 		t.Fatal("duplicate sibling key accepted")
+	}
+}
+
+func TestPublicationComputesScopeCountsAndKeepsReplayHash(t *testing.T) {
+	r := normalizedFixture(t)
+	store := newFakeStore(reportfixture.EvidenceOne)
+	uc, _ := reportbiz.NewUseCase(store, time.Now)
+	first, err := uc.Publish(context.Background(), "scope-counts", r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first.Record.EvidenceCounts) == 0 {
+		t.Fatal("missing counts")
+	}
+	for _, n := range first.Record.EvidenceCounts {
+		if n != 1 {
+			t.Fatalf("scope count %d", n)
+		}
+	}
+	replay, err := uc.Publish(context.Background(), "scope-counts", r)
+	if err != nil || !replay.Replayed || replay.Record.ContentHash != first.Record.ContentHash {
+		t.Fatalf("replay %v %v", replay, err)
+	}
+	raw, _ := json.Marshal(r)
+	raw = bytes.Replace(raw, []byte(`"summary":{`), []byte(`"summary":{"evidence_count":999,`), 1)
+	var supplied reportbiz.Report
+	if err := json.Unmarshal(raw, &supplied); err == nil {
+		t.Fatal("publisher supplied derived count accepted")
 	}
 }

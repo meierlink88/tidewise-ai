@@ -160,3 +160,11 @@ Evidence ID 在发布模型中保留；公开读取接口可换成不透明 scop
 审核基线覆盖 14 个总结、23 个链详情、43 个节点、1 个宏观预测及观察空态。仓库提交的合成 fixture 覆盖三类推理单元、6 个链详情、宏观预测、节点、反证、缓冲和无方向空态，不包含真实报告内容。
 
 Data Service 负责结构、引用和 Evidence 完整性校验，不生成推理结论，不从知识图谱补写报告。Miniapp 映射和 UAT 部署是独立交付；需先部署具备 v4 读取能力的服务并适配消费者，再发布 v4 业务报告。
+
+## Evidence 数量（Issue #434）
+
+所有 v4 读取对象在 evidence_scope_token 旁返回必需的非负整数 evidence_count，数量与该作用域证据清单一致，空作用域为 0。不同作用域不相加，不用全报告数量替代当前按钮清单。
+
+发布事务根据校验后的 Evidence 引用按 scope_path 去重计数，写入 reports.evidence_counts JSONB。该元数据不属于发布者 Report JSON，也不参与原 payload hash；发布者不得传 evidence_count。历史行保持 NULL，读取时从当前冻结对象的 evidence_ids 计算兼容值，不回填、不覆盖历史报告。legacy/v3 读取形状不变。
+
+Migration 87 先于应用发布；旧应用省略新列时保存 NULL，新应用可读取。应用回退保留新列；不运行 destructive down。无需重新发布历史报告即可读取数量。

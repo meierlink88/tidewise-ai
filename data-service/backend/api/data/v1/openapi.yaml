@@ -4980,20 +4980,31 @@ components:
       }
 
     NormalizedReadClaim:
-      {
-        'type': 'object',
-        'properties':
-          {
-            'text': { 'type': 'string', 'minLength': 1 },
-            'basis':
-              { 'type': 'string', 'enum': ['source_fact', 'inference', 'hypothetical_buffer'] },
-            'evidence_scope_token':
-              { 'type': 'string', 'nullable': true, 'pattern': '^RPE[0-9a-f-]{36}$' }
-          },
-        'required': ['text', 'basis', 'evidence_scope_token'],
-        'additionalProperties': false
-      }
-
+      type: object
+      properties:
+        text:
+          type: string
+          minLength: 1
+        basis:
+          type: string
+          enum:
+          - source_fact
+          - inference
+          - hypothetical_buffer
+        evidence_count:
+          type: integer
+          minimum: 0
+          description: Server-computed distinct Evidence count in this scope.
+        evidence_scope_token:
+          type: string
+          nullable: true
+          pattern: ^RPE[0-9a-f-]{36}$
+      required:
+      - text
+      - basis
+      - evidence_count
+      - evidence_scope_token
+      additionalProperties: false
     NormalizedReadObjections:
       {
         'type': 'object',
@@ -5040,43 +5051,75 @@ components:
       }
 
     NormalizedReadAssessment:
-      {
-        'type': 'object',
-        'properties':
-          {
-            'conclusion': { 'type': 'string', 'minLength': 1 },
-            'direction':
-              { 'type': 'string', 'enum': ['warming', 'cooling', 'diverging', 'pending'] },
-            'conclusion_basis':
-              { 'type': 'string', 'enum': ['reasoning_hypothesis', 'observation_only'] },
-            'validation_status':
-              { 'type': 'string', 'enum': ['pending_validation', 'insufficient_evidence'] },
-            'confidence': { 'type': 'string', 'enum': ['low', 'medium', 'high'], 'nullable': true },
-            'forecast_window': { '$ref': '#/components/schemas/NormalizedReadWindow' },
-            'scope': { 'type': 'string', 'minLength': 1 },
-            'conditions': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
-            'follow_up': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
-            'transmission_logic': { 'type': 'string', 'minLength': 1 },
-            'evidence_scope_token':
-              { 'type': 'string', 'nullable': true, 'pattern': '^RPE[0-9a-f-]{36}$' }
-          },
-        'required':
-          [
-            'conclusion',
-            'direction',
-            'conclusion_basis',
-            'validation_status',
-            'confidence',
-            'forecast_window',
-            'scope',
-            'conditions',
-            'follow_up',
-            'transmission_logic',
-            'evidence_scope_token'
-          ],
-        'additionalProperties': false
-      }
-
+      type: object
+      properties:
+        conclusion:
+          type: string
+          minLength: 1
+        direction:
+          type: string
+          enum:
+          - warming
+          - cooling
+          - diverging
+          - pending
+        conclusion_basis:
+          type: string
+          enum:
+          - reasoning_hypothesis
+          - observation_only
+        validation_status:
+          type: string
+          enum:
+          - pending_validation
+          - insufficient_evidence
+        confidence:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+          nullable: true
+        forecast_window:
+          $ref: '#/components/schemas/NormalizedReadWindow'
+        scope:
+          type: string
+          minLength: 1
+        conditions:
+          type: array
+          items:
+            type: string
+            minLength: 1
+        follow_up:
+          type: array
+          items:
+            type: string
+            minLength: 1
+        transmission_logic:
+          type: string
+          minLength: 1
+        evidence_count:
+          type: integer
+          minimum: 0
+          description: Server-computed distinct Evidence count in this scope.
+        evidence_scope_token:
+          type: string
+          nullable: true
+          pattern: ^RPE[0-9a-f-]{36}$
+      required:
+      - conclusion
+      - direction
+      - conclusion_basis
+      - validation_status
+      - confidence
+      - forecast_window
+      - scope
+      - conditions
+      - follow_up
+      - transmission_logic
+      - evidence_count
+      - evidence_scope_token
+      additionalProperties: false
     NormalizedReadNode:
       {
         'type': 'object',
@@ -5221,80 +5264,95 @@ components:
       }
 
     NormalizedReadUnit:
-      {
-        'type': 'object',
-        'properties':
-          {
-            'local_key': { 'type': 'string', 'minLength': 1 },
-            'source_id': { 'type': 'string', 'minLength': 1 },
-            'title': { 'type': 'string', 'minLength': 1 },
-            'summary':
-              {
-                'type': 'object',
-                'properties':
-                  {
-                    'conclusion': { 'type': 'string', 'minLength': 1 },
-                    'transmission_logic': { 'type': 'string', 'minLength': 1 },
-                    'impact_assessment':
-                      {
-                        'type': 'object',
-                        'properties':
-                          {
-                            'level':
-                              { 'type': 'string', 'enum': ['high', 'medium', 'low', 'pending'] },
-                            'rationale': { 'type': 'string', 'minLength': 1 },
-                            'evidence_scope_token':
-                              {
-                                'type': 'string',
-                                'nullable': true,
-                                'pattern': '^RPE[0-9a-f-]{36}$'
-                              }
-                          },
-                        'required': ['level', 'rationale', 'evidence_scope_token'],
-                        'additionalProperties': false
-                      },
-                    'affected_refs':
-                      {
-                        'type': 'array',
-                        'items': { '$ref': '#/components/schemas/NormalizedReadAnchorRef' }
-                      },
-                    'evidence_scope_token':
-                      { 'type': 'string', 'nullable': true, 'pattern': '^RPE[0-9a-f-]{36}$' }
-                  },
-                'required':
-                  [
-                    'conclusion',
-                    'transmission_logic',
-                    'impact_assessment',
-                    'affected_refs',
-                    'evidence_scope_token'
-                  ],
-                'additionalProperties': false
-              },
-            'detail':
-              {
-                'type': 'object',
-                'properties':
-                  {
-                    'macro_impacts':
-                      {
-                        'type': 'array',
-                        'items': { '$ref': '#/components/schemas/NormalizedReadMacro' }
-                      },
-                    'industry_chains':
-                      {
-                        'type': 'array',
-                        'items': { '$ref': '#/components/schemas/NormalizedReadChain' }
-                      }
-                  },
-                'required': ['macro_impacts', 'industry_chains'],
-                'additionalProperties': false
-              }
-          },
-        'required': ['local_key', 'source_id', 'title', 'summary', 'detail'],
-        'additionalProperties': false
-      }
-
+      type: object
+      properties:
+        local_key:
+          type: string
+          minLength: 1
+        source_id:
+          type: string
+          minLength: 1
+        title:
+          type: string
+          minLength: 1
+        summary:
+          type: object
+          properties:
+            conclusion:
+              type: string
+              minLength: 1
+            transmission_logic:
+              type: string
+              minLength: 1
+            impact_assessment:
+              type: object
+              properties:
+                level:
+                  type: string
+                  enum:
+                  - high
+                  - medium
+                  - low
+                  - pending
+                rationale:
+                  type: string
+                  minLength: 1
+                evidence_count:
+                  type: integer
+                  minimum: 0
+                  description: Server-computed distinct Evidence count in this scope.
+                evidence_scope_token:
+                  type: string
+                  nullable: true
+                  pattern: ^RPE[0-9a-f-]{36}$
+              required:
+              - level
+              - rationale
+              - evidence_count
+              - evidence_scope_token
+              additionalProperties: false
+            affected_refs:
+              type: array
+              items:
+                $ref: '#/components/schemas/NormalizedReadAnchorRef'
+            evidence_count:
+              type: integer
+              minimum: 0
+              description: Server-computed distinct Evidence count in this scope.
+            evidence_scope_token:
+              type: string
+              nullable: true
+              pattern: ^RPE[0-9a-f-]{36}$
+          required:
+          - conclusion
+          - transmission_logic
+          - impact_assessment
+          - affected_refs
+          - evidence_count
+          - evidence_scope_token
+          additionalProperties: false
+        detail:
+          type: object
+          properties:
+            macro_impacts:
+              type: array
+              items:
+                $ref: '#/components/schemas/NormalizedReadMacro'
+            industry_chains:
+              type: array
+              items:
+                $ref: '#/components/schemas/NormalizedReadChain'
+          required:
+          - macro_impacts
+          - industry_chains
+          additionalProperties: false
+      required:
+      - local_key
+      - source_id
+      - title
+      - summary
+      - detail
+      additionalProperties: false
     NormalizedReport:
       {
         'type': 'object',
@@ -5376,77 +5434,90 @@ components:
       }
 
     NormalizedSummaryProjection:
-      {
-        'type': 'object',
-        'additionalProperties': false,
-        'required':
-          [
-            'schema_version',
-            'local_key',
-            'source_id',
-            'title',
-            'summary',
-            'affected_anchors',
-            'chain_count'
-          ],
-        'properties':
-          {
-            'schema_version': { 'type': 'string', 'enum': ['report-publication/v4'] },
-            'local_key': { 'type': 'string' },
-            'source_id': { 'type': 'string' },
-            'title': { 'type': 'string' },
-            'summary':
-              {
-                'type': 'object',
-                'properties':
-                  {
-                    'conclusion': { 'type': 'string', 'minLength': 1 },
-                    'transmission_logic': { 'type': 'string', 'minLength': 1 },
-                    'impact_assessment':
-                      {
-                        'type': 'object',
-                        'properties':
-                          {
-                            'level':
-                              { 'type': 'string', 'enum': ['high', 'medium', 'low', 'pending'] },
-                            'rationale': { 'type': 'string', 'minLength': 1 },
-                            'evidence_scope_token':
-                              {
-                                'type': 'string',
-                                'nullable': true,
-                                'pattern': '^RPE[0-9a-f-]{36}$'
-                              }
-                          },
-                        'required': ['level', 'rationale', 'evidence_scope_token'],
-                        'additionalProperties': false
-                      },
-                    'affected_refs':
-                      {
-                        'type': 'array',
-                        'items': { '$ref': '#/components/schemas/NormalizedReadAnchorRef' }
-                      },
-                    'evidence_scope_token':
-                      { 'type': 'string', 'nullable': true, 'pattern': '^RPE[0-9a-f-]{36}$' }
-                  },
-                'required':
-                  [
-                    'conclusion',
-                    'transmission_logic',
-                    'impact_assessment',
-                    'affected_refs',
-                    'evidence_scope_token'
-                  ],
-                'additionalProperties': false
-              },
-            'affected_anchors':
-              {
-                'type': 'array',
-                'items': { '$ref': '#/components/schemas/NormalizedResolvedAnchor' }
-              },
-            'chain_count': { 'type': 'integer', 'minimum': 0 }
-          }
-      }
-
+      type: object
+      additionalProperties: false
+      required:
+      - schema_version
+      - local_key
+      - source_id
+      - title
+      - summary
+      - affected_anchors
+      - chain_count
+      properties:
+        schema_version:
+          type: string
+          enum:
+          - report-publication/v4
+        local_key:
+          type: string
+        source_id:
+          type: string
+        title:
+          type: string
+        summary:
+          type: object
+          properties:
+            conclusion:
+              type: string
+              minLength: 1
+            transmission_logic:
+              type: string
+              minLength: 1
+            impact_assessment:
+              type: object
+              properties:
+                level:
+                  type: string
+                  enum:
+                  - high
+                  - medium
+                  - low
+                  - pending
+                rationale:
+                  type: string
+                  minLength: 1
+                evidence_count:
+                  type: integer
+                  minimum: 0
+                  description: Server-computed distinct Evidence count in this scope.
+                evidence_scope_token:
+                  type: string
+                  nullable: true
+                  pattern: ^RPE[0-9a-f-]{36}$
+              required:
+              - level
+              - rationale
+              - evidence_count
+              - evidence_scope_token
+              additionalProperties: false
+            affected_refs:
+              type: array
+              items:
+                $ref: '#/components/schemas/NormalizedReadAnchorRef'
+            evidence_count:
+              type: integer
+              minimum: 0
+              description: Server-computed distinct Evidence count in this scope.
+            evidence_scope_token:
+              type: string
+              nullable: true
+              pattern: ^RPE[0-9a-f-]{36}$
+          required:
+          - conclusion
+          - transmission_logic
+          - impact_assessment
+          - affected_refs
+          - evidence_count
+          - evidence_scope_token
+          additionalProperties: false
+        affected_anchors:
+          type: array
+          items:
+            $ref: '#/components/schemas/NormalizedResolvedAnchor'
+        chain_count:
+          type: integer
+          minimum: 0
     NormalizedChainHeader:
       {
         'type': 'object',
@@ -5490,54 +5561,74 @@ components:
       }
 
     NormalizedHomeProjection:
-      {
-        'type': 'object',
-        'additionalProperties': false,
-        'required':
-          [
-            'schema_version',
-            'generated_at',
-            'timezone',
-            'analysis_window',
-            'observations',
-            'limitations',
-            'report_type'
-          ],
-        'properties':
-          {
-            'schema_version': { 'type': 'string', 'enum': ['report-publication/v4'] },
-            'generated_at': { 'type': 'string', 'format': 'date-time' },
-            'timezone': { 'type': 'string', 'enum': ['Asia/Shanghai'] },
-            'analysis_window':
-              {
-                'type': 'object',
-                'properties':
-                  {
-                    'start': { 'type': 'string', 'format': 'date-time' },
-                    'end': { 'type': 'string', 'format': 'date-time' }
-                  },
-                'required': ['start', 'end'],
-                'additionalProperties': false
-              },
-            'observations':
-              {
-                'type': 'array',
-                'items':
-                  {
-                    'type': 'object',
-                    'properties':
-                      {
-                        'local_key': { 'type': 'string', 'minLength': 1 },
-                        'title': { 'type': 'string', 'minLength': 1 },
-                        'text': { 'type': 'string', 'minLength': 1 },
-                        'evidence_scope_token':
-                          { 'type': 'string', 'nullable': true, 'pattern': '^RPE[0-9a-f-]{36}$' }
-                      },
-                    'required': ['local_key', 'title', 'text', 'evidence_scope_token'],
-                    'additionalProperties': false
-                  }
-              },
-            'limitations': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
-            'report_type': { '$ref': '#/components/schemas/NormalizedReadCodedLabel' }
-          }
-      }
+      type: object
+      additionalProperties: false
+      required:
+      - schema_version
+      - generated_at
+      - timezone
+      - analysis_window
+      - observations
+      - limitations
+      - report_type
+      properties:
+        schema_version:
+          type: string
+          enum:
+          - report-publication/v4
+        generated_at:
+          type: string
+          format: date-time
+        timezone:
+          type: string
+          enum:
+          - Asia/Shanghai
+        analysis_window:
+          type: object
+          properties:
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
+          required:
+          - start
+          - end
+          additionalProperties: false
+        observations:
+          type: array
+          items:
+            type: object
+            properties:
+              local_key:
+                type: string
+                minLength: 1
+              title:
+                type: string
+                minLength: 1
+              text:
+                type: string
+                minLength: 1
+              evidence_count:
+                type: integer
+                minimum: 0
+                description: Server-computed distinct Evidence count in this scope.
+              evidence_scope_token:
+                type: string
+                nullable: true
+                pattern: ^RPE[0-9a-f-]{36}$
+            required:
+            - local_key
+            - title
+            - text
+            - evidence_count
+            - evidence_scope_token
+            additionalProperties: false
+        limitations:
+          type: array
+          items:
+            type: string
+            minLength: 1
+        report_type:
+          $ref: '#/components/schemas/NormalizedReadCodedLabel'

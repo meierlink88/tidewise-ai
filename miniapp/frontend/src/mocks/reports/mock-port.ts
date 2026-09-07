@@ -1,3 +1,11 @@
+import normalized from './normalized.json';
+import {
+  type AnalysisKind,
+  parseAnalysisGroups,
+  parseAnalysisPage,
+  parseAnalysisDetail,
+  parseAnalysisChain
+} from '../../features/reports/normalized-contract';
 import type {
   ReportAnchor,
   ReportCard,
@@ -136,8 +144,39 @@ const home: ReportHome = {
 };
 
 export class MockReportPort implements ReportPort {
+  constructor(private readonly normalizedHome = false) {}
+  async getAnalyses(reportId: string, kind: AnalysisKind, cursor?: string) {
+    assertReport(reportId);
+    if (cursor) throw new ReportError('invalidRequest');
+    return parseAnalysisPage(normalized.groups.find((g) => g.kind === kind));
+  }
+  async getAnalysis(reportId: string, kind: AnalysisKind, key: string) {
+    assertReport(reportId);
+    const value: unknown = (normalized.details as Record<string, unknown>)[`${kind}/${key}`];
+    if (!value) throw new ReportError('layerUnavailable');
+    return parseAnalysisDetail(value, key);
+  }
+  async getAnalysisChain(reportId: string, kind: AnalysisKind, key: string, chainKey: string) {
+    assertReport(reportId);
+    const value: unknown = (normalized.chains as Record<string, unknown>)[
+      `${kind}/${key}/${chainKey}`
+    ];
+    if (!value) throw new ReportError('chainUnavailable');
+    return parseAnalysisChain(value, chainKey);
+  }
   async getHome(): Promise<ReportHome> {
-    return home;
+    if (!this.normalizedHome) return home;
+    return {
+      ...home,
+      reports: [
+        {
+          report: { ...report, schemaVersion: 'report-publication/v4' },
+          cards: [],
+          nextCursor: null,
+          analysisGroups: parseAnalysisGroups(normalized.groups)
+        }
+      ]
+    };
   }
 
   async getIndustryChains(reportId: string, cursor = '', limit = 20): Promise<ReportCardPage> {
@@ -166,13 +205,25 @@ export class MockReportPort implements ReportPort {
 
   async getEvidences(reportId: string, scopeToken: string) {
     assertReport(reportId);
-    const items = evidenceByToken.get(scopeToken);
+    const normalizedItems = (
+      normalized.evidences as Record<
+        string,
+        { published_at: string; summary: string; keywords: string[] }[]
+      >
+    )[scopeToken];
+    const items =
+      normalizedItems?.map((x) => ({
+        publishedAt: x.published_at,
+        summary: x.summary,
+        keywords: x.keywords
+      })) ?? evidenceByToken.get(scopeToken);
     if (!items) throw new ReportError('evidenceScopeUnavailable');
     return { reportId, scopeToken, items };
   }
 }
 
 export const mockReportPort = new MockReportPort();
+export const normalizedMockReportPort = new MockReportPort(true);
 
 function layerDetail(
   key: ReportLayerKey,

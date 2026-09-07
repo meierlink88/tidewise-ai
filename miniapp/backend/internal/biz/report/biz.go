@@ -42,6 +42,7 @@ type ChainListQuery struct {
 }
 
 type Summary struct {
+	SchemaVersion            string
 	ID, PublisherReportID    string
 	GeneratedAt, PublishedAt time.Time
 	IndustryChainCount       int
@@ -210,9 +211,10 @@ type CardPage struct {
 	NextCursor *string
 }
 type Home struct {
-	Report     Summary
-	Cards      []Card
-	NextCursor *string
+	AnalysisGroups []AnalysisGroup
+	Report         Summary
+	Cards          []Card
+	NextCursor     *string
 }
 type HomeSelection struct{ Mode, Date, Timezone string }
 type HomeCollection struct {
@@ -221,6 +223,9 @@ type HomeCollection struct {
 }
 
 type Repository interface {
+	ListAnalyses(context.Context, AnalysisQuery) (AnalysisPage, error)
+	GetAnalysis(context.Context, AnalysisQuery) (NormalizedDetailProjection, error)
+	GetAnalysisChain(context.Context, AnalysisQuery) (NormalizedChain, error)
 	ListReports(context.Context, ListQuery) (Page, error)
 	GetHome(context.Context, string) (HomeSnapshot, error)
 	ListIndustryChains(context.Context, ChainListQuery) (IndustryChainPage, error)
@@ -286,6 +291,21 @@ func (u *UseCase) latestSummary(ctx context.Context, query ListQuery) (*Summary,
 }
 
 func (u *UseCase) readHome(ctx context.Context, summary Summary) (Home, error) {
+	if summary.SchemaVersion == "report-publication/v4" {
+		home := Home{Report: summary, Cards: []Card{}, AnalysisGroups: []AnalysisGroup{}}
+		for _, kind := range []string{"geopolitical_stories", "macroeconomic_stories", "concept_analyses"} {
+			page, err := u.Analyses(ctx, AnalysisQuery{ReportID: summary.ID, Kind: kind, Limit: 20})
+			if err != nil {
+				return Home{}, err
+			}
+			home.AnalysisGroups = append(home.AnalysisGroups, AnalysisGroup{Kind: kind, Items: page.Items, NextCursor: page.NextCursor})
+		}
+		return home, nil
+	}
+	if summary.SchemaVersion != "" {
+		return Home{}, ErrDataUnavailable
+	}
+
 	snapshot, err := u.repository.GetHome(ctx, summary.ID)
 	if err != nil || !sameSummary(snapshot.Report, summary) {
 		return Home{}, ErrDataUnavailable
@@ -507,7 +527,7 @@ func validLocalKey(value string) bool {
 func validateSummaryOrder(items []Summary) error {
 	seen := map[string]struct{}{}
 	for index, item := range items {
-		if !validReportID(item.ID) || strings.TrimSpace(item.PublisherReportID) == "" || item.GeneratedAt.IsZero() || item.PublishedAt.IsZero() || item.IndustryChainCount < 1 {
+		if !validReportID(item.ID) || strings.TrimSpace(item.PublisherReportID) == "" || item.GeneratedAt.IsZero() || item.PublishedAt.IsZero() || (item.IndustryChainCount < 0 || item.SchemaVersion == "" && item.IndustryChainCount < 1) {
 			return ErrDataUnavailable
 		}
 		if _, duplicate := seen[item.ID]; duplicate {
@@ -528,6 +548,9 @@ func sameSummary(left, right Summary) bool {
 		left.PublishedAt.Equal(right.PublishedAt) && left.IndustryChainCount == right.IndustryChainCount
 }
 func normalizeRepositoryError(err error) error {
+	if err == nil {
+		return nil
+	}
 	switch {
 	case errors.Is(err, ErrInvalidRequest):
 		return ErrInvalidRequest
@@ -542,4 +565,177 @@ func normalizeRepositoryError(err error) error {
 	default:
 		return ErrDataUnavailable
 	}
+}
+
+type NormalizedClaim struct {
+	Text               string  `json:"text"`
+	Basis              string  `json:"basis"`
+	EvidenceScopeToken *string `json:"evidence_scope_token"`
+	EvidenceCount      int     `json:"evidence_count"`
+}
+type NormalizedObjections struct {
+	Summary               string            `json:"summary"`
+	Counterevidence       []NormalizedClaim `json:"counterevidence"`
+	Buffers               []NormalizedClaim `json:"buffers"`
+	CounterevidenceStatus string            `json:"counterevidence_status"`
+	EvidenceGaps          []string          `json:"evidence_gaps"`
+	ScopeLimits           []string          `json:"scope_limits"`
+}
+type NormalizedWindow struct {
+	Kind        string  `json:"kind"`
+	Description string  `json:"description"`
+	StartAt     *string `json:"start_at"`
+	EndAt       *string `json:"end_at"`
+}
+type NormalizedAssessment struct {
+	Conclusion         string           `json:"conclusion"`
+	Direction          string           `json:"direction"`
+	ConclusionBasis    string           `json:"conclusion_basis"`
+	ValidationStatus   string           `json:"validation_status"`
+	Confidence         *string          `json:"confidence"`
+	ForecastWindow     NormalizedWindow `json:"forecast_window"`
+	Scope              string           `json:"scope"`
+	Conditions         []string         `json:"conditions"`
+	FollowUp           []string         `json:"follow_up"`
+	TransmissionLogic  string           `json:"transmission_logic"`
+	EvidenceScopeToken *string          `json:"evidence_scope_token"`
+	EvidenceCount      int              `json:"evidence_count"`
+}
+type NormalizedNode struct {
+	LocalKey     string               `json:"local_key"`
+	SourceID     string               `json:"source_id"`
+	NodeLocalKey string               `json:"node_local_key"`
+	Name         string               `json:"name"`
+	Assessment   NormalizedAssessment `json:"assessment"`
+	Objections   NormalizedObjections `json:"objections"`
+}
+type NormalizedGraph struct {
+	Nodes []NormalizedGraphNodesItem `json:"nodes"`
+	Edges []NormalizedGraphEdgesItem `json:"edges"`
+}
+type NormalizedChain struct {
+	LocalKey         string                          `json:"local_key"`
+	SourceID         string                          `json:"source_id"`
+	Name             string                          `json:"name"`
+	Assessment       NormalizedAssessment            `json:"assessment"`
+	ReasoningSummary NormalizedChainReasoningSummary `json:"reasoning_summary"`
+	Graph            NormalizedGraph                 `json:"graph"`
+	AffectedNodes    []NormalizedNode                `json:"affected_nodes"`
+	EmptyState       *NormalizedChainEmptyState      `json:"empty_state"`
+}
+type NormalizedMacro struct {
+	LocalKey   string               `json:"local_key"`
+	SourceID   string               `json:"source_id"`
+	Name       string               `json:"name"`
+	Assessment NormalizedAssessment `json:"assessment"`
+	Objections NormalizedObjections `json:"objections"`
+}
+type NormalizedAnchorRef struct {
+	TargetType    string  `json:"target_type"`
+	LocalKey      string  `json:"local_key"`
+	ChainLocalKey *string `json:"chain_local_key"`
+}
+type NormalizedGraphNodesItem struct {
+	LocalKey string `json:"local_key"`
+	SourceID string `json:"source_id"`
+	Name     string `json:"name"`
+}
+type NormalizedGraphEdgesItem struct {
+	FromNodeLocalKey string `json:"from_node_local_key"`
+	ToNodeLocalKey   string `json:"to_node_local_key"`
+	RelationLabel    string `json:"relation_label"`
+}
+type NormalizedChainReasoningSummary struct {
+	Logic      string               `json:"logic"`
+	Support    NormalizedClaim      `json:"support"`
+	Objections NormalizedObjections `json:"objections"`
+}
+type NormalizedChainEmptyState struct {
+	Code     string   `json:"code"`
+	Reason   string   `json:"reason"`
+	FollowUp []string `json:"follow_up"`
+}
+type NormalizedUnitSummary struct {
+	Conclusion         string                                `json:"conclusion"`
+	TransmissionLogic  string                                `json:"transmission_logic"`
+	ImpactAssessment   NormalizedUnitSummaryImpactAssessment `json:"impact_assessment"`
+	AffectedRefs       []NormalizedAnchorRef                 `json:"affected_refs"`
+	EvidenceScopeToken *string                               `json:"evidence_scope_token"`
+	EvidenceCount      int                                   `json:"evidence_count"`
+}
+type NormalizedUnitSummaryImpactAssessment struct {
+	Level              string  `json:"level"`
+	Rationale          string  `json:"rationale"`
+	EvidenceScopeToken *string `json:"evidence_scope_token"`
+	EvidenceCount      int     `json:"evidence_count"`
+}
+
+type NormalizedResolvedAnchor struct {
+	Reference  NormalizedAnchorRef  `json:"reference"`
+	SourceID   string               `json:"source_id"`
+	Name       string               `json:"name"`
+	Assessment NormalizedAssessment `json:"assessment"`
+}
+type NormalizedSummaryProjection struct {
+	SchemaVersion   string                     `json:"schema_version"`
+	LocalKey        string                     `json:"local_key"`
+	SourceID        string                     `json:"source_id"`
+	Title           string                     `json:"title"`
+	Summary         NormalizedUnitSummary      `json:"summary"`
+	AffectedAnchors []NormalizedResolvedAnchor `json:"affected_anchors"`
+	ChainCount      int                        `json:"chain_count"`
+}
+type NormalizedChainHeader struct {
+	LocalKey   string                     `json:"local_key"`
+	SourceID   string                     `json:"source_id"`
+	Name       string                     `json:"name"`
+	Assessment NormalizedAssessment       `json:"assessment"`
+	EmptyState *NormalizedChainEmptyState `json:"empty_state"`
+}
+type NormalizedDetailProjection struct {
+	Summary        NormalizedSummaryProjection `json:"summary"`
+	MacroImpacts   []NormalizedMacro           `json:"macro_impacts"`
+	IndustryChains []NormalizedChainHeader     `json:"industry_chains"`
+}
+
+type AnalysisPage struct {
+	Items      []NormalizedSummaryProjection `json:"items"`
+	NextCursor *string                       `json:"next_cursor"`
+}
+type AnalysisGroup struct {
+	Kind       string                        `json:"kind"`
+	Items      []NormalizedSummaryProjection `json:"items"`
+	NextCursor *string                       `json:"next_cursor"`
+}
+type AnalysisQuery struct {
+	ReportID, Kind, Key, ChainKey, Cursor string
+	Limit                                 int
+}
+
+func validAnalysisQuery(q AnalysisQuery) bool {
+	return validReportID(q.ReportID) && (q.Kind == "geopolitical_stories" || q.Kind == "macroeconomic_stories" || q.Kind == "concept_analyses") && q.Limit >= 0 && q.Limit <= 100 && len(q.Cursor) <= 2048
+}
+func (u *UseCase) Analyses(ctx context.Context, q AnalysisQuery) (AnalysisPage, error) {
+	if u == nil || u.repository == nil || !validAnalysisQuery(q) {
+		return AnalysisPage{}, ErrInvalidRequest
+	}
+	if q.Limit == 0 {
+		q.Limit = 20
+	}
+	p, err := u.repository.ListAnalyses(ctx, q)
+	return p, normalizeRepositoryError(err)
+}
+func (u *UseCase) Analysis(ctx context.Context, q AnalysisQuery) (NormalizedDetailProjection, error) {
+	if u == nil || u.repository == nil || !validAnalysisQuery(q) || !localKeyPattern.MatchString(q.Key) {
+		return NormalizedDetailProjection{}, ErrInvalidRequest
+	}
+	p, err := u.repository.GetAnalysis(ctx, q)
+	return p, normalizeRepositoryError(err)
+}
+func (u *UseCase) AnalysisChain(ctx context.Context, q AnalysisQuery) (NormalizedChain, error) {
+	if u == nil || u.repository == nil || !validAnalysisQuery(q) || !localKeyPattern.MatchString(q.Key) || !localKeyPattern.MatchString(q.ChainKey) {
+		return NormalizedChain{}, ErrInvalidRequest
+	}
+	p, err := u.repository.GetAnalysisChain(ctx, q)
+	return p, normalizeRepositoryError(err)
 }

@@ -1,3 +1,4 @@
+import { parseAnalysisGroups } from './normalized-contract';
 import type {
   ReportAnchor,
   ReportCard,
@@ -110,15 +111,37 @@ export function parseReportEvidenceListWire(
 }
 
 function parseHomeGroup(value: unknown): ReportHomeGroup {
-  const root = exact(value, ['report', 'cards', 'next_cursor']);
+  const extra = value != null && Object.prototype.hasOwnProperty.call(value, 'analysis_groups');
+  const root = exact(value, [
+    'report',
+    'cards',
+    'next_cursor',
+    ...(extra ? ['analysis_groups'] : [])
+  ]);
+  const report = parseSummary(root.report);
+  if (extra !== (report.schemaVersion === 'report-publication/v4')) invalid();
   const cards = list(root.cards).map(parseCard);
+  if (extra && (cards.length > 0 || root.next_cursor !== null)) invalid();
   unique(cards.map((item) => item.key));
-  return { report: parseSummary(root.report), cards, nextCursor: nullableCursor(root.next_cursor) };
+  return {
+    report,
+    cards,
+    nextCursor: nullableCursor(root.next_cursor),
+    ...(extra ? { analysisGroups: parseAnalysisGroups(root.analysis_groups) } : {})
+  };
 }
 
 function parseSummary(value: unknown): ReportSummary {
-  const root = exact(value, ['id', 'generated_at', 'published_at', 'industry_chain_count']);
+  const extra = value != null && Object.prototype.hasOwnProperty.call(value, 'schema_version');
+  const root = exact(value, [
+    'id',
+    'generated_at',
+    'published_at',
+    'industry_chain_count',
+    ...(extra ? ['schema_version'] : [])
+  ]);
   return {
+    ...(extra ? { schemaVersion: text(root.schema_version) } : {}),
     id: reportID(root.id),
     generatedAt: timestamp(root.generated_at),
     publishedAt: timestamp(root.published_at),
