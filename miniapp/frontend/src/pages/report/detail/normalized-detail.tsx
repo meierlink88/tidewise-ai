@@ -1,5 +1,5 @@
 import Taro from '@tarojs/taro';
-import { Button, Text, View, ScrollView } from '@tarojs/components';
+import { Button, Text, View, ScrollView, Image } from '@tarojs/components';
 import { useMemo, useState } from 'react';
 import type {
   AnalysisKind,
@@ -14,6 +14,9 @@ import type { ReportEvidenceRoute } from '../../../features/reports/navigation';
 import { getReportPort } from '../../../features/reports/port';
 import { useReportResource } from '../../../features/reports/use-report-resource';
 import { ReportStatePanel } from '../../../features/reports/report-components';
+import supportIcon from '../../../assets/icons/report-shield-check.svg';
+import counterIcon from '../../../assets/icons/report-scale.svg';
+import followUpIcon from '../../../assets/icons/report-eye.svg';
 import './normalized-detail.scss';
 
 const directions = { warming: '升温', cooling: '降温', diverging: '分化', pending: '仅观察' };
@@ -193,8 +196,22 @@ function Conclusion({
 function Mechanism({ text }: { text: string }) {
   return (
     <View className='normalized-mechanism'>
-      <Text className='normalized-title'>关键机制</Text>
-      <Text className='normalized-prose'>{text}</Text>
+      <Text className='normalized-section-label'>关键机制</Text>
+      {text
+        .split(/\r?\n/)
+        .filter((path) => path.trim())
+        .map((path, pathIndex) => (
+          <View className='normalized-mechanism-path' key={pathIndex}>
+            {path.split('→').map((step, i, steps) => (
+              <View
+                className={`normalized-mechanism-step ${i === steps.length - 1 ? 'terminal' : ''}`}
+                key={i}
+              >
+                <Text className='normalized-prose'>{step.trim()}</Text>
+              </View>
+            ))}
+          </View>
+        ))}
     </View>
   );
 }
@@ -202,7 +219,10 @@ function AssessmentColumns({ support, objections }: { support: string[]; objecti
   return (
     <View className='normalized-columns'>
       <View className='normalized-support'>
-        <Text className='normalized-title'>支持</Text>
+        <View className='normalized-insight-heading'>
+          <Image src={supportIcon} className='normalized-insight-icon' />
+          <Text>支持</Text>
+        </View>
         {support.length ? (
           support.map((s, i) => (
             <Text className='normalized-prose' key={i}>
@@ -214,7 +234,10 @@ function AssessmentColumns({ support, objections }: { support: string[]; objecti
         )}
       </View>
       <View className='normalized-counter'>
-        <Text className='normalized-title'>反证</Text>
+        <View className='normalized-insight-heading'>
+          <Image src={counterIcon} className='normalized-insight-icon' />
+          <Text>反证</Text>
+        </View>
         <Text className='normalized-prose'>{objections.summary}</Text>
       </View>
     </View>
@@ -223,7 +246,10 @@ function AssessmentColumns({ support, objections }: { support: string[]; objecti
 function FollowUp({ paragraphs }: { paragraphs: string[] }) {
   return (
     <View className='normalized-followup'>
-      <Text className='normalized-title'>后续验证</Text>
+      <View className='normalized-insight-heading'>
+        <Image src={followUpIcon} className='normalized-insight-icon' />
+        <Text>后续验证</Text>
+      </View>
       {paragraphs.map((p, i) => (
         <Text className='normalized-prose' key={i}>
           {p}
@@ -275,7 +301,9 @@ export function ChainContent({
                 <View>
                   <View className='normalized-node-impact'>
                     <Text className='normalized-prose'>{node.assessment.conclusion}</Text>
-                    <Text className='normalized-prose'>{node.assessment.transmission_logic}</Text>
+                    <Text className='normalized-prose normalized-node-transmission'>
+                      {node.assessment.transmission_logic}
+                    </Text>
                   </View>
                   <View className='normalized-node-body'>
                     <AssessmentColumns

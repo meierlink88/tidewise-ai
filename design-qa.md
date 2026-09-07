@@ -1,3 +1,46 @@
+# Report detail visual QA
+
+final result: passed
+
+## Visual evidence
+
+- Approved source: `/Users/meierlink/.codex/generated_images/01a079fa-544d-7383-a775-471a36f999d1/exec-e87e9b08-a241-4693-8726-646e53977213.png` (814 × 1932).
+- Browser viewport: 390 × 844 CSS px. Visible-viewport captures are 390 × 844 pixels; source interpreted as approximately 407 CSS px at 2x density. Compare content regions and proportions, not full-page height.
+- Frontend G1 refinery state: `/tmp/detail-design-qa/frontend-top.png`, `/tmp/detail-design-qa/frontend-node.png`.
+- Current HTML prototype: `/tmp/detail-design-qa/prototype-top.png`, `/tmp/detail-design-qa/prototype-node.png`, `/tmp/detail-design-qa/prototype-macro.png`, `/tmp/detail-design-qa/prototype-concept.png`.
+- Source and frontend captures were opened together for composition and focused conclusion / paired reasoning / node-panel comparison. Hidden-tab/full-page capture was discarded because it did not preserve viewport scale.
+
+## Findings
+
+No actionable P0/P1/P2 visual findings in the inspected states.
+
+- Typography: existing system Chinese font retained; conclusion emphasized, mechanism final step emphasized, paragraphs fully wrapped without line clamps.
+- Rhythm: open conclusion, separate vertical mechanism paths, shared paired reasoning columns, one contained node panel and quiet follow-up footer replace repeated cards.
+- Colors: navy brand retained; ivory reading surface, bronze mechanism/follow-up accents, teal support/node accents. Metadata stays individually tagged.
+- Assets: Tabler shield-check, scale and eye icons supplied as SVG assets with MIT license; no raster placeholder imagery.
+- Content: original API/report prose retained. Arrow-delimited steps preserve conditional text; independent newline paths do not connect. Support and counter stay adjacent. Follow-up stays paragraphs.
+
+## Intentional boundaries
+
+The existing story hero and industry graph container, geometry, node sizing and interactions are preserved as requested, even where the generated image differs. The HTML prototype retains its existing v5 report content; frontend review uses previously captured real API responses. Differences in those report revisions are not replaced with invented text to imitate the image.
+
+## Verification and limits
+
+- Inspected prototype geopolitical, macroeconomic and concept/industry detail states; causal-tab navigation and node selection work.
+- Inspected frontend geopolitical macro and refinery tabs; switching refinery nodes updates conclusion and transmission text.
+- 56 frontend tests pass, including independent mechanism-path text preservation; typecheck and lint pass.
+- WeChat and Douyin builds and output verification pass. Native WeChat WXSS compiler passes.
+- UAT and local Miniapp report home endpoints returned REPORT_SERVICE_UNAVAILABLE during review. Frontend visual QA used local replay of saved real responses (`report-node-audit.json` and `report-node-chain-audit.json`); this does not claim live API integration or live event-list validation. No API configuration or backend code changed.
+- WeChat device rendering and live backend recovery remain outside this visual QA. Existing Douyin RootPortal build warning remains.
+
+## Comparison history
+
+First valid visible-viewport comparison passed. A content-level review additionally separated multiple newline mechanisms before the final build; regression test covers that boundary. No visual P0/P1/P2 iteration remained.
+
+---
+
+# Earlier homepage QA (historical scope)
+
 # Report Miniapp Homepage Design QA
 
 ## QA scope
