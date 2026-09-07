@@ -50,6 +50,9 @@ export function NormalizedDetailView({
         </View>
         <Text className='normalized-story'>{detail.summary.title}</Text>
         <Text className='normalized-headline'>{detail.summary.summary.conclusion}</Text>
+        <View className='normalized-hero-logic'>
+          <Text>{detail.summary.summary.transmission_logic}</Text>
+        </View>
       </View>
       <View className='normalized-main'>
         <ScrollView scrollX className='normalized-tabs'>
@@ -289,6 +292,32 @@ export function ChainContent({
     </View>
   );
 }
+function NodeMetadata({ assessment: a }: { assessment: Assessment }) {
+  return (
+    <View className='normalized-node-metadata'>
+      <View className='normalized-node-badges'>
+        <Text className={`normalized-direction ${a.direction}`}>{directions[a.direction]}</Text>
+        <Text className='normalized-node-method'>
+          {a.conclusion_basis === 'observation_only' ? '仅观察' : '推理'}
+        </Text>
+      </View>
+      <View className='normalized-node-facts'>
+        {a.confidence ? (
+          <View className='normalized-node-fact'>
+            <Text className='normalized-node-fact-label'>置信度</Text>
+            <Text className='normalized-node-fact-value'>{confidences[a.confidence]}</Text>
+          </View>
+        ) : null}
+        {a.forecast_window.kind !== 'not_applicable' ? (
+          <View className='normalized-node-fact'>
+            <Text className='normalized-node-fact-label'>周期</Text>
+            <Text className='normalized-node-fact-value'>{a.forecast_window.description}</Text>
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
 function HorizontalGraph({
   c,
   selected,
@@ -301,7 +330,7 @@ function HorizontalGraph({
   const nodes = c.graph.nodes,
     edges = c.graph.edges,
     indexes = new Map(nodes.map((n, i) => [n.local_key, i]));
-  const width = 270,
+  const width = 300,
     gap = 52,
     step = width + gap,
     pad = 20;
@@ -320,7 +349,7 @@ function HorizontalGraph({
     <ScrollView scrollX className='normalized-graph-scroll'>
       <View
         className='normalized-graph-canvas'
-        style={style({ width: pad * 2 + nodes.length * step - gap, height: top + 320 })}
+        style={style({ width: pad * 2 + nodes.length * step - gap, height: top + 370 })}
       >
         {edges.map((e, i) => {
           const from = indexes.get(e.from_node_local_key)!,
@@ -367,8 +396,9 @@ function HorizontalGraph({
               ariaLabel={`查看${n.name}节点详情`}
             >
               <Text className='normalized-graph-name'>{n.name}</Text>
+              <View className='normalized-graph-signal-space' />
               {hit ? (
-                <Signals a={hit.assessment} />
+                <NodeMetadata assessment={hit.assessment} />
               ) : (
                 <Text className='normalized-unassessed'>暂无本期评估</Text>
               )}

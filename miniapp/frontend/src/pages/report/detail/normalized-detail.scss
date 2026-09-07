@@ -1,3 +1,5 @@
+@use '../../../styles/tokens.scss' as *;
+
 .normalized-detail {
   color: #16325d;
   background: #f3f6fa;
@@ -215,10 +217,10 @@
 }
 .normalized-graph-node {
   position: absolute;
-  height: 290px !important;
+  height: 340px !important;
   display: flex !important;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   text-align: left !important;
   padding: 22px !important;
   border: 1px solid #cbd6e5 !important;
@@ -235,10 +237,6 @@
   font-size: 25px;
   font-weight: 600;
   line-height: 1.6;
-}
-.normalized-graph-node .normalized-signals {
-  font-size: 18px;
-  gap: 6px 8px;
 }
 .normalized-unassessed {
   font-size: 21px;
@@ -321,4 +319,73 @@
   padding: 20px 0 0;
   margin-top: 20px;
   border-radius: 0;
+}
+
+.normalized-hero-logic {
+  margin-top: 28px;
+  padding: 22px 24px;
+  border: 1px solid rgba($color-card, 0.13);
+  border-left: 4px solid $color-champagne-300;
+  border-radius: 0 12px 12px 0;
+  background: rgba($color-card, 0.06);
+  color: $color-report-slate-200;
+  font-size: 25px;
+  line-height: 1.9;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.normalized-graph-name {
+  flex: 0 0 auto;
+}
+// Reserved for a future variable-signal field; no invented signal or placeholder copy.
+.normalized-graph-signal-space {
+  flex: 1 1 auto;
+  min-height: 24px;
+}
+.normalized-node-metadata {
+  flex: 0 0 auto;
+  width: 100%;
+}
+.normalized-node-badges {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 21px;
+  line-height: 1.5;
+}
+.normalized-node-badges .normalized-direction {
+  padding: 4px 12px;
+}
+.normalized-node-method {
+  padding: 3px 10px;
+  border: 1px solid $color-report-group-border;
+  border-radius: 6px;
+  color: $color-text-secondary;
+  font-size: 19px;
+}
+.normalized-node-facts {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid $color-report-divider;
+}
+.normalized-node-fact {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 20px;
+  line-height: 1.6;
+}
+.normalized-node-fact + .normalized-node-fact {
+  margin-top: 8px;
+}
+.normalized-node-fact-label {
+  flex: 0 0 62px;
+  color: $color-text-muted;
+}
+.normalized-node-fact-value {
+  flex: 1;
+  min-width: 0;
+  color: $color-report-ink;
+  font-weight: 500;
+  overflow-wrap: anywhere;
 }
