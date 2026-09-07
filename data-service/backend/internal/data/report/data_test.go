@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	"github.com/jackc/pgx/v5/pgconn"
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
@@ -634,10 +635,18 @@ func TestPostgresStoryChainHTTPPublicationAndRead(t *testing.T) {
 	}
 }
 
-func TestPostgresNormalizedReportHTTPRoundTrip(t *testing.T) {
+func TestPostgresNormalizedReportHTTPRoundTrip(t *testing.T) { testNormalizedHTTPRoundTrip(t, false) }
+func TestPostgresSignalReportHTTPRoundTrip(t *testing.T)     { testNormalizedHTTPRoundTrip(t, true) }
+func testNormalizedHTTPRoundTrip(t *testing.T, signals bool) {
 	db := openReportTestDatabase(t, 0)
 	ids := publishReportEvidence(t, db)
-	payload, err := os.ReadFile("../../../api/data/v1/report/testdata/normalized-publication-request.json")
+	fixture := "normalized-publication-request.json"
+	publisher := "normalized-contract-example"
+	if signals {
+		fixture = "signal-publication-request.json"
+		publisher = "synthetic-signal-report-v5"
+	}
+	payload, err := os.ReadFile("../../../api/data/v1/report/testdata/" + fixture)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -656,12 +665,44 @@ func TestPostgresNormalizedReportHTTPRoundTrip(t *testing.T) {
 		w.WriteHeader(500)
 	}))
 	reportapi.RegisterHTTPServer(server, app)
+	document, err := openapi3.NewLoader().LoadFromFile("../../../api/data/v1/openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
 	call := func(method, path string, body []byte) *httptest.ResponseRecorder {
 		t.Helper()
 		q := httptest.NewRequest(method, path, bytes.NewReader(body))
 		q.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
 		server.ServeHTTP(w, q)
+		if signals && method == "GET" && w.Code == 200 {
+			var value map[string]any
+			if err := json.Unmarshal(w.Body.Bytes(), &value); err != nil {
+				t.Fatal(err)
+			}
+			schema := "SignalDetailProjection"
+			switch {
+			case strings.Contains(path, "/home"):
+				schema = "SignalHomeProjection"
+			case strings.Contains(path, "/industry-chains/"):
+				schema = "SignalChainRead"
+			case strings.Contains(path, "/company_analyses/"):
+				schema = "SignalCompanyProjection"
+			}
+			if items, ok := value["items"].([]any); ok {
+				for _, item := range items {
+					n := "SignalSummaryProjection"
+					if strings.Contains(path, "company_analyses") {
+						n = "SignalCompanySummary"
+					}
+					if err := document.Components.Schemas[n].Value.VisitJSON(item); err != nil {
+						t.Fatalf("%s: %v", path, err)
+					}
+				}
+			} else if err := document.Components.Schemas[schema].Value.VisitJSON(value); err != nil {
+				t.Fatalf("%s: %v", path, err)
+			}
+		}
 		return w
 	}
 	for _, want := range []int{201, 200} {
@@ -671,7 +712,7 @@ func TestPostgresNormalizedReportHTTPRoundTrip(t *testing.T) {
 		}
 	}
 	var id string
-	if err := db.QueryRow(`SELECT id FROM reports WHERE publisher_report_id='normalized-contract-example'`).Scan(&id); err != nil {
+	if err := db.QueryRow(`SELECT id FROM reports WHERE publisher_report_id=$1`, publisher).Scan(&id); err != nil {
 		t.Fatal(err)
 	}
 	var storedCounts []byte
@@ -722,10 +763,17 @@ func TestPostgresNormalizedReportHTTPRoundTrip(t *testing.T) {
 	}
 
 	root := "/api/data/v1/reports/" + id
-	for _, g := range []struct {
+	groups := []struct {
 		kind  string
 		units []reportbiz.V4Unit
-	}{{"geopolitical_stories", req.Report.V4.GeopoliticalStories}, {"macroeconomic_stories", req.Report.V4.MacroeconomicStories}, {"concept_analyses", req.Report.V4.ConceptAnalyses}} {
+	}{{"geopolitical_stories", req.Report.V4.GeopoliticalStories}, {"macroeconomic_stories", req.Report.V4.MacroeconomicStories}, {"concept_analyses", req.Report.V4.ConceptAnalyses}}
+	if signals {
+		groups = append(groups, struct {
+			kind  string
+			units []reportbiz.V4Unit
+		}{"industry_chain_analyses", *req.Report.V4.IndustryChainAnalyses})
+	}
+	for _, g := range groups {
 		w := call("GET", root+"/analyses/"+g.kind+"?limit=1", nil)
 		if w.Code != 200 || strings.Contains(w.Body.String(), `"evidence_ids"`) {
 			t.Fatalf("list %d %s", w.Code, w.Body.String())
@@ -733,6 +781,9 @@ func TestPostgresNormalizedReportHTTPRoundTrip(t *testing.T) {
 		var page reportapi.AnalysisCollection
 		if err := json.Unmarshal(w.Body.Bytes(), &page); err != nil {
 			t.Fatal(err)
+		}
+		if strings.Contains(w.Body.String(), "variable_signals") {
+			t.Fatal("signals leaked into summary")
 		}
 		if len(page.Items) != 1 || page.Items[0].V4 == nil {
 			t.Fatal("missing normalized summary")
@@ -749,6 +800,20 @@ func TestPostgresNormalizedReportHTTPRoundTrip(t *testing.T) {
 			}
 			if detail.V4 == nil || detail.V4.Summary.Summary.Conclusion != u.Summary.Conclusion || strings.Contains(w.Body.String(), `"graph"`) {
 				t.Fatal("invalid unit header projection")
+			}
+			if signals {
+				expected := map[string]any{"variable_signals": u.Detail.VariableSignals, "companies": u.Detail.Companies, "macro_impacts": u.Detail.MacroImpacts, "reasoning_sources": u.ReasoningSources, "judgment_origin": u.JudgmentOrigin}
+				var actual map[string]any
+				json.Unmarshal(w.Body.Bytes(), &actual)
+				checkCounts(actual)
+				for k, v := range expected {
+					raw, _ := json.Marshal(v)
+					var want any
+					json.Unmarshal(raw, &want)
+					if !reflect.DeepEqual(withoutEvidenceFields(want), withoutEvidenceFields(actual[k])) {
+						t.Fatalf("unit lost %s", k)
+					}
+				}
 			}
 			for _, c := range u.Detail.IndustryChains {
 				w := call("GET", prefix+"/industry-chains/"+c.LocalKey, nil)
@@ -790,6 +855,27 @@ func TestPostgresNormalizedReportHTTPRoundTrip(t *testing.T) {
 			}
 		}
 	}
+	if signals {
+		for _, co := range *req.Report.V4.CompanyAnalyses {
+			w := call("GET", root+"/analyses/company_analyses/"+co.LocalKey, nil)
+			if w.Code != 200 {
+				t.Fatalf("company: %d %s", w.Code, w.Body.String())
+			}
+			var actual map[string]any
+			json.Unmarshal(w.Body.Bytes(), &actual)
+			checkCounts(actual)
+			raw, _ := json.Marshal(co)
+			var want any
+			json.Unmarshal(raw, &want)
+			if !reflect.DeepEqual(withoutEvidenceFields(want), withoutEvidenceFields(actual["company"])) {
+				t.Fatal("company fields changed")
+			}
+		}
+		w := call("GET", root+"/analyses/company_analyses?limit=1", nil)
+		if w.Code != 200 || strings.Contains(w.Body.String(), "variable_signals") {
+			t.Fatalf("company summary %d %s", w.Code, w.Body.String())
+		}
+	}
 	w := call("GET", root+"/home", nil)
 	if w.Code != 200 || !strings.Contains(w.Body.String(), `"observations"`) || strings.Contains(w.Body.String(), "evidence_ids") {
 		t.Fatal("missing normalized metadata")
@@ -814,7 +900,7 @@ func TestPostgresNormalizedReportHTTPRoundTrip(t *testing.T) {
 		}
 	}
 	missing := bytes.ReplaceAll(payload, []byte(ids[0]), []byte("EVD33333333-3333-4333-8333-333333333333"))
-	missing = bytes.ReplaceAll(missing, []byte("normalized-contract-example"), []byte("normalized-missing"))
+	missing = bytes.ReplaceAll(missing, []byte(publisher), []byte("normalized-missing"))
 	if w := call("POST", "/api/data/v1/report-publications", missing); w.Code != 422 {
 		t.Fatalf("missing Evidence: %d %s", w.Code, w.Body.String())
 	}
@@ -851,7 +937,7 @@ func TestPostgresNormalizedReportHTTPRoundTrip(t *testing.T) {
 	if _, err := uc.List(context.Background(), reportbiz.ListRequest{SchemaVersion: "legacy", Cursor: *page.NextCursor}); err == nil {
 		t.Fatal("accepted cursor with changed version filter")
 	}
-	for version, want := range map[string]string{"legacy": old.Record.ID, reportbiz.AnalysisSchemaVersion: third.Record.ID, reportbiz.NormalizedSchemaVersion: id} {
+	for version, want := range map[string]string{"legacy": old.Record.ID, reportbiz.AnalysisSchemaVersion: third.Record.ID, req.Report.SchemaVersion: id} {
 		result, err := uc.List(context.Background(), reportbiz.ListRequest{SchemaVersion: version})
 		if err != nil || len(result.Items) != 1 || result.Items[0].ID != want {
 			t.Fatalf("version %s: %+v %v", version, result, err)

@@ -107,7 +107,7 @@ func TestPublicationFixturesMatchOpenAPI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"investment-report-publication-request.json", "story-concept-publication-request.json", "story-chain-publication-request.json", "normalized-publication-request.json"} {
+	for _, name := range []string{"investment-report-publication-request.json", "story-concept-publication-request.json", "story-chain-publication-request.json", "normalized-publication-request.json", "signal-publication-request.json"} {
 		payload, err := os.ReadFile("testdata/" + name)
 		if err != nil {
 			t.Fatal(err)

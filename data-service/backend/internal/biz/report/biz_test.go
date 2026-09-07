@@ -582,3 +582,113 @@ func TestPublicationComputesScopeCountsAndKeepsReplayHash(t *testing.T) {
 		t.Fatal("publisher supplied derived count accepted")
 	}
 }
+
+func signalFixture(t *testing.T) reportbiz.Report {
+	t.Helper()
+	p, err := os.ReadFile("../../../api/data/v1/report/testdata/signal-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var r struct {
+		Report reportbiz.Report `json:"report"`
+	}
+	if err := json.Unmarshal(p, &r); err != nil {
+		t.Fatal(err)
+	}
+	return r.Report
+}
+func TestSignalReportApprovedStructure(t *testing.T) {
+	r := signalFixture(t)
+	if err := reportbiz.ValidateReport(r); err != nil {
+		t.Fatal(err)
+	}
+	scopes := reportbiz.NormalizedEvidenceScopes(*r.V4)
+	hasSignal, hasCompany := false, false
+	for _, s := range scopes {
+		hasSignal = hasSignal || strings.Contains(s.Path, "/variable_signals/")
+		hasCompany = hasCompany || strings.HasPrefix(s.Path, "company_analyses/")
+	}
+	if !hasSignal || !hasCompany {
+		t.Fatal("new Evidence scopes lost")
+	}
+}
+func TestSignalReportRejectsInconsistentJudgments(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		change func(*reportbiz.V4Report)
+	}{
+		{"wrong origin", func(r *reportbiz.V4Report) { r.GeopoliticalStories[0].JudgmentOrigin = "inferred" }},
+		{"missing signals", func(r *reportbiz.V4Report) { r.GeopoliticalStories[0].Detail.VariableSignals = nil }},
+		{"invalid direction", func(r *reportbiz.V4Report) {
+			(*r.GeopoliticalStories[0].Detail.VariableSignals)[0].SourceDirection = "FLAT"
+		}},
+		{"blank dangling upstream", func(r *reportbiz.V4Report) {
+			r.GeopoliticalStories[0].ReasoningSources.UpstreamRefs = append(r.GeopoliticalStories[0].ReasoningSources.UpstreamRefs, reportbiz.V5UpstreamRef{LocalKey: "missing"})
+		}},
+		{"dangling upstream", func(r *reportbiz.V4Report) {
+			r.GeopoliticalStories[0].ReasoningSources.UpstreamRefs = append(r.GeopoliticalStories[0].ReasoningSources.UpstreamRefs, reportbiz.V5UpstreamRef{EntityID: "missing", LocalKey: "missing"})
+		}},
+		{"unassessed graph", func(r *reportbiz.V4Report) {
+			c := &r.GeopoliticalStories[0].Detail.IndustryChains[0]
+			c.Graph.Nodes = append(c.Graph.Nodes, reportbiz.V4GraphNodesItem{LocalKey: "extra", SourceID: "CND11111111-1111-4111-8111-111111111111", Name: "extra"})
+		}},
+		{"v4 must reject v5 fields", func(r *reportbiz.V4Report) { r.SchemaVersion = reportbiz.NormalizedSchemaVersion }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := signalFixture(t)
+			tc.change(r.V4)
+			if err := reportbiz.ValidateReport(r); err == nil {
+				t.Fatal("accepted invalid report")
+			}
+		})
+	}
+}
+
+func TestSignalReportCompanyOnlyAndProvenanceBoundaries(t *testing.T) {
+	r := signalFixture(t)
+	r.V4.GeopoliticalStories = []reportbiz.V4Unit{}
+	r.V4.MacroeconomicStories = []reportbiz.V4Unit{}
+	r.V4.ConceptAnalyses = []reportbiz.V4Unit{}
+	chains := []reportbiz.V4Unit{}
+	r.V4.IndustryChainAnalyses = &chains
+	if err := reportbiz.ValidateReport(r); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name   string
+		change func(*reportbiz.V4Report)
+	}{
+		{"duplicate company", func(r *reportbiz.V4Report) { *r.CompanyAnalyses = append(*r.CompanyAnalyses, (*r.CompanyAnalyses)[0]) }},
+		{"signal Event omitted from provenance", func(r *reportbiz.V4Report) { (*r.CompanyAnalyses)[0].ReasoningSources.EventIDs = []string{} }},
+		{"no signal Evidence", func(r *reportbiz.V4Report) { (*(*r.CompanyAnalyses)[0].VariableSignals)[0].EvidenceIDs = []string{} }},
+		{"invalid company ID", func(r *reportbiz.V4Report) { (*r.CompanyAnalyses)[0].SourceID = "not-a-company" }},
+		{"unsupported observation", func(r *reportbiz.V4Report) { (*r.CompanyAnalyses)[0].Assessment.ConclusionBasis = "observation_only" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := signalFixture(t)
+			tc.change(r.V4)
+			if err := reportbiz.ValidateReport(r); err == nil {
+				t.Fatal("accepted invalid company")
+			}
+		})
+	}
+}
+
+func TestSignalDirectionsAreIndependentOfJudgmentDirection(t *testing.T) {
+	for _, direction := range []string{"UP", "DOWN", "STABLE", "MIXED", "UNKNOWN"} {
+		r := signalFixture(t)
+		(*r.V4.GeopoliticalStories[0].Detail.VariableSignals)[0].SourceDirection = direction
+		if err := reportbiz.ValidateReport(r); err != nil {
+			t.Fatalf("%s: %v", direction, err)
+		}
+	}
+	r := signalFixture(t)
+	row := (*r.V4.GeopoliticalStories[0].Detail.VariableSignals)[0]
+	co := &(*r.V4.CompanyAnalyses)[0]
+	rows := []reportbiz.V5Signal{row}
+	co.VariableSignals = &rows
+	co.ReasoningSources = &reportbiz.V5ReasoningSources{SignalIDs: []string{row.SignalID}, EventIDs: row.EventIDs, UpstreamRefs: []reportbiz.V5UpstreamRef{}}
+	if err := reportbiz.ValidateReport(r); err == nil {
+		t.Fatal("accepted a story signal copied to a company")
+	}
+}

@@ -399,9 +399,9 @@ Data 校验并保存，在列表与单元详情读取中返回，旧报告缺省
 
 故事线详情允许发布与受影响产业链锚点匹配的结构图和节点影响；总结保持跨层锚点语义，
 节点落点留在链详情。按报告、分析类型、单元、链读取详情，保留旧 Concept 读取路径。
-各推理引用的 Evidence 随报告发布，Event/Signal 与覆盖审计由 AgentOS 保留。
+各推理引用的 Evidence 随报告发布。v5 将实体自身的变量信号文本、方向、采用限定、Event/Signal ID 与推理来源纳入不可变快照；覆盖审计仍由 AgentOS 保留，Data 不查询实时 Event/Signal 进行推导。
 
-Data 支持未带版本的旧合同、`report-publication/v3` 及经审核的 `report-publication/v4`。v4 的统一 Assessment、总结引用、反证和预测窗口见 [v4 合同](report-publication-v4.md) 与 ADR-0061。新合同按多条地缘故事线、
+Data 支持未带版本的旧合同、`report-publication/v3` 、`report-publication/v4` 及基于 v8 定稿的 `report-publication/v5`（见 [v5 合同](report-publication-v5.md)）。v4 的统一 Assessment、总结引用、反证和预测窗口见 [v4 合同](report-publication-v4.md) 与 ADR-0061。新合同按多条地缘故事线、
 宏观故事线和 Concept 分析组织 summary/detail；Concept 下包含多条产业链，拓扑与影响分离。
 新合同允许任一板块为空，但整份报告至少一个单元。字段与读取边界见
 [Report v3 合同](report-publication-v3.md) 和 ADR-0060。以下扁平 Section、节点 Evidence
@@ -464,7 +464,7 @@ _Avoid_: 独立 publication key、Receipt、请求 ID 作为幂等键、失败�
 
 **Report Read Projection**:
 Data 按 `published_at DESC, id ASC` 稳定列出所选版本的 Report（默认全部受支持版本，显式
-`schema_version=legacy`、`report-publication/v3` 或 `report-publication/v4` 可筛选），并按 Report-local Section、chain 和
+`schema_version=legacy`、`report-publication/v3` 、`report-publication/v4` 或 `report-publication/v5` 可筛选），并按 Report-local Section、chain 和
 Evidence scope 返回固定投影；产业链 summary 使用绑定 Report 与最后 JSON array ordinality 的稳定 cursor
 分页，详情按 chain key 延迟读取。首页投影直接计算不可变数组的产业链总数。Evidence 投影可级联
 `report_evidence_links → evidences → raw_evidences`，项目顺序严格使用 link `position`，每项只返回
