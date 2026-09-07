@@ -10,7 +10,7 @@ UAT 由 GitHub Actions 手工发布到华为云 ECS，运行时数据库使用�
 - 同一时间只允许一个 UAT 发布；Actions concurrency、本机 `flock` 和 PostgreSQL advisory lock 形成三层互斥。
 - Workflow 比较 ECS 上次成功 release SHA 与目标 SHA；变更只位于四个应用目录时，
   GitHub-hosted runner 只构建受影响的 `linux/amd64` 业务镜像，任一目录外变更或状态异常
-	则构建全部四个。新镜像和 deployment bundle 推送到 SWR，tag 固定为 Git commit SHA。
+  则构建全部四个。新镜像和 deployment bundle 推送到 SWR，tag 固定为 Git commit SHA。
 - Deployment bundle 包含 release Compose/UAT 配置和受信 control-plane
   脚本/风险清单；ECS 使用 build job 返回的 image digest 拉取，并在 migration 前
   校验 release SHA、control-plane SHA 和逐文件 SHA-256。Bundle tag 使用
@@ -106,17 +106,17 @@ Workflow 在成功后持久保存：
 
 Variables：
 
-| Name                         | Purpose                                                  |
-| ---------------------------- | -------------------------------------------------------- |
-| `SWR_REGISTRY`               | `swr.<region>.myhuaweicloud.com`                         |
-| `SWR_NAMESPACE`              | SWR 组织名                                               |
-| `SWR_DATA_REPOSITORY`        | Data Service 镜像仓库名                                  |
-| `SWR_MINIAPP_REPOSITORY`     | Miniapp Backend 镜像仓库名                               |
-| `SWR_ADMINPORTAL_REPOSITORY` | Admin Portal Backend 镜像仓库名                          |
-| `SWR_ADMIN_REPOSITORY`       | Admin Portal Frontend 镜像仓库名                         |
-| `SWR_DEPLOY_REPOSITORY`      | UAT deployment bundle 镜像仓库名                         |
-| `UAT_RUNNER_NAME`            | ECS runner 的准确名称                                    |
-| `UAT_PUBLIC_BASE_URL`        | 不带端口和路径的 UAT HTTP 地址，如 `http://203.0.113.10` |
+| Name                           | Purpose                                                  |
+| ------------------------------ | -------------------------------------------------------- |
+| `SWR_REGISTRY`                 | `swr.<region>.myhuaweicloud.com`                         |
+| `SWR_NAMESPACE`                | SWR 组织名                                               |
+| `SWR_DATA_REPOSITORY`          | Data Service 镜像仓库名                                  |
+| `SWR_MINIAPP_REPOSITORY`       | Miniapp Backend 镜像仓库名                               |
+| `SWR_ADMINPORTAL_REPOSITORY`   | Admin Portal Backend 镜像仓库名                          |
+| `SWR_ADMIN_REPOSITORY`         | Admin Portal Frontend 镜像仓库名                         |
+| `SWR_DEPLOY_REPOSITORY`        | UAT deployment bundle 镜像仓库名                         |
+| `UAT_RUNNER_NAME`              | ECS runner 的准确名称                                    |
+| `UAT_PUBLIC_BASE_URL`          | 不带端口和路径的 UAT HTTP 地址，如 `http://203.0.113.10` |
 | `RAW_EVIDENCE_PUBLIC_BASE_URL` | 采集文档公开读取 origin，不带路径                        |
 
 Secrets：
@@ -140,33 +140,37 @@ RDS 不开放公网，只允许 ECS 私网来源访问 5432。Miniapp Backend、
 
 ## 一次性本地快照替换
 
-`Replace UAT Public Schema` 只用于 Issue #389 已批准的本地 v81 快照。工作流把快照明文
+`Replace UAT Public Schema` 只用于 Issue #422 已批准的本地 v84 快照。工作流把快照明文
 SHA-256、migration 与核心计数写死在受信脚本中，输入不能把它扩展成通用数据库导入入口。
 快照在本地使用 AES-256-CBC + PBKDF2 加密后，作为 draft Release asset 暂存；GitHub-hosted
 runner 校验密文 SHA-256，并把密文封装进不可变 SWR 镜像。解密密钥只作为临时 `uat`
 Environment Secret 存在，明文只写入 ECS 恢复容器的 tmpfs。
 
 恢复工作流在任何 DDL 前验证：目标为 PostgreSQL 16+、database/user 都是
-`tidewise_uat`、当前 migration 为 `80`、连接使用 `sslmode=require`，并取得与普通发布共用的
+`tidewise_uat`、当前 migration 为 `81`、连接使用 `sslmode=require`，并取得与普通发布共用的
 `/opt/tidewise/uat/deploy.lock`。之后停止且确认 `data`、`miniapp`、`adminportal`、`admin`
 四个服务，唯一允许的结构替换是 `tidewise_uat.public`。恢复按 pre-data、data、post-data
-三阶段执行；恢复结果必须是 migration `81`、51 张 public 表、2 份报告、27 个 source、
-93 条 raw evidence。
+三阶段执行；恢复结果必须是 migration `84`、49 张 public 表、2 份报告、27 个 source、
+334 条 raw evidence，并通过全部表的行数、行内容指纹和序列状态校验。
+本次固定源快照 SHA-256 为 `7d009dabc51effbbe10c78b65d8189932caa4e3db8b638c0b80a5de6f513dabb`；
+任何新快照均需重新冻结并评审，不通过输入绕过白名单。
+恢复前检查 `btree_gist 1.7`、`pgcrypto 1.3` 可用；归档负责创建 `public`，随后恢复扩展，
+避免重复建 schema 及遗漏 GiST 操作符导致恢复失败。
 
 恢复成功后旧应用仍保持停止，必须立即对当前 `main` 运行普通 `Deploy UAT`。只有四个当前
 应用全部健康且 Miniapp/Admin 读取验证通过后，才删除 draft Release 和临时
-`UAT_DATA_REFRESH_KEY`。若 schema 写入后失败，不得启动旧 v80 应用；使用操作前确认的华为云
+`UAT_DATA_REFRESH_KEY`。若 schema 写入后失败，不得启动旧 v81 应用；使用操作前确认的华为云
 RDS 恢复点回滚，再按旧 release 恢复应用。
 
 ## 端口
 
-| Component                    |          Port | Public access                                             |
-| ---------------------------- | ------------: | --------------------------------------------------------- |
-| Data Domain Service          |        `9011` | 仅 ECS loopback，公网经 `/api/data/v1/*` HTTPS 反向代理    |
-| Miniapp Backend Service      |        `9012` | 开发联调按需开放                                          |
-| Admin Portal Backend Service |        `9013` | 仅 Compose 内网，不映射到 ECS host                        |
-| Admin Portal Frontend        |        `9014` | Admin 浏览器唯一入口，开发联调按需开放                    |
-| MinIO S3/Console             | `9000`/`9001` | S3 仅 loopback；Console 受办公网来源限制             |
+| Component                    |          Port | Public access                                           |
+| ---------------------------- | ------------: | ------------------------------------------------------- |
+| Data Domain Service          |        `9011` | 仅 ECS loopback，公网经 `/api/data/v1/*` HTTPS 反向代理 |
+| Miniapp Backend Service      |        `9012` | 开发联调按需开放                                        |
+| Admin Portal Backend Service |        `9013` | 仅 Compose 内网，不映射到 ECS host                      |
+| Admin Portal Frontend        |        `9014` | Admin 浏览器唯一入口，开发联调按需开放                  |
+| MinIO S3/Console             | `9000`/`9001` | S3 仅 loopback；Console 受办公网来源限制                |
 
 IP/HTTP 方式只适用于开发者工具联调。体验版、真机验收或上线前必须配置备案域名、HTTPS 与微信服务器域名白名单。
 

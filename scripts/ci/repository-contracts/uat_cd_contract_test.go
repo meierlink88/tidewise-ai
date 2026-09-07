@@ -294,23 +294,29 @@ func TestUATPublicSchemaReplacementIsEncryptedBoundedAndLeavesAppsStopped(t *tes
 	}
 
 	for _, required := range []string{
-		"cb178f849357d71c2490638ad69b56d8dbb268082370903e3b652a7fbdd142ef",
+		"7d009dabc51effbbe10c78b65d8189932caa4e3db8b638c0b80a5de6f513dabb",
 		"tidewise_uat",
 		"PGSSLMODE",
 		"target PostgreSQL must be version 16 or newer",
 		"other tidewise_uat client connection count",
 		"openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000",
 		"DROP SCHEMA public CASCADE",
-		"CREATE SCHEMA public AUTHORIZATION pg_database_owner",
+		"ALTER SCHEMA public OWNER TO pg_database_owner",
 		"--section=pre-data",
 		"--section=data",
 		"--section=post-data",
 		"SET search_path TO public, pg_catalog",
 		"RESET search_path",
-		"expected_table_count=\"51\"",
+		"expected_table_count=\"49\"",
 		"expected_report_count=\"2\"",
+		"expected_current_migration=\"81\"",
+		"expected_restored_migration=\"84\"",
+		"--file /usr/local/share/verify-public-snapshot.sql",
 		"expected_source_count=\"27\"",
-		"expected_raw_evidence_count=\"93\"",
+		"expected_raw_evidence_count=\"334\"",
+		"required extension versions",
+		"CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public VERSION '1.7'",
+		"CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public VERSION '1.3'",
 	} {
 		if !strings.Contains(restore, required) {
 			t.Fatalf("UAT public-schema restore script missing %q", required)
