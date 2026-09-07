@@ -133,8 +133,11 @@ Secrets：
 `Replace UAT Public Schema` 工作流前临时创建，用于解密已经锁定 SHA-256 的本地快照；
 刷新成功并完成 `Deploy UAT` 后必须删除该 Secret 与对应的 GitHub draft Release。
 
-RDS 的 host、port、database、user 与 `sslmode=require` 固定保存在 Data
-`config.uat.yaml`；GitHub Environment 只保存数据库密码，不得通过完整数据库 URL 覆盖。
+Data 的 RDS host 由 `uat` Environment 的 `UAT_DB_HOST` 注入 `TIDEWISE_DB_HOST`；
+port、database、user 与 `sslmode=require` 仍由 `config.uat.yaml` 管理，不得通过完整数据库 URL 覆盖。
+本次一次性恢复精确锁定已核实的当前实例
+`2331e94c06e34781a000885dae88575fin03.internal.cn-east-3.postgresql.rds.myhuaweicloud.com`，
+不会跟随任意 host 输入。
 
 RDS 不开放公网，只允许 ECS 私网来源访问 5432。Miniapp Backend、Admin Portal Backend 和 Frontend 容器中没有数据库连接信息。`sslmode=require` 会加密链路，但不使用 CA 校验服务器身份；这是本期明确接受的 UAT 安全取舍，不得降级为 `prefer` 或 `disable`。
 

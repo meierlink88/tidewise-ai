@@ -126,6 +126,7 @@ jobs:
       - name: Audit retired and retained runtime
         env:
           APP_ENV: uat
+          TIDEWISE_DB_HOST: ${{ vars.UAT_DB_HOST }}
           TIDEWISE_CONFIG_DIR: ${{ github.workspace }}/data-service/backend/configs
           TIDEWISW_DB_PASSWORD: ${{ secrets.TIDEWISW_DB_PASSWORD }}
         shell: bash

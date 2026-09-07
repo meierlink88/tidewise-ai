@@ -73,6 +73,7 @@ func TestUATRuntimeAuditIsMainOnlyReadOnlyAndSecretSafe(t *testing.T) {
 		"runs-on: [self-hosted, linux, x64, tidewise-uat-ecs]",
 		"environment: uat",
 		"TIDEWISW_DB_PASSWORD: ${{ secrets.TIDEWISW_DB_PASSWORD }}",
+		"TIDEWISE_DB_HOST: ${{ vars.UAT_DB_HOST }}",
 		"./data-service/backend/cmd/uat-retired-runtime-audit",
 		"actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
 		"actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
@@ -257,6 +258,13 @@ func TestUATPublicSchemaReplacementIsEncryptedBoundedAndLeavesAppsStopped(t *tes
 	workflow := readContractFile(t, filepath.Join(root, ".github", "workflows", "replace-uat-public-schema.yml"))
 	restore := readContractFile(t, filepath.Join(root, "infra", "uat", "restore-public-schema.sh"))
 	dockerfile := readContractFile(t, filepath.Join(root, "infra", "uat", "uat-public-refresh.Dockerfile"))
+
+	const activeRDS = "2331e94c06e34781a000885dae88575fin03.internal.cn-east-3.postgresql.rds.myhuaweicloud.com"
+	for name, content := range map[string]string{"workflow": workflow, "restore": restore} {
+		if !strings.Contains(content, activeRDS) || strings.Contains(content, "775b3ecf9c934ae185c0b8eda157c50din03") {
+			t.Fatalf("%s must lock the refresh to the active UAT RDS instance", name)
+		}
+	}
 
 	for _, required := range []string{
 		"workflow_dispatch:",
