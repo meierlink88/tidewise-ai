@@ -106,7 +106,7 @@ export function NormalizedHome({
                 <View className='normalized-home-tab-icon'>
                   <Image
                     src={categoryIcons[k]}
-                    mode='aspectFit'
+                    mode='scaleToFill'
                     className='normalized-home-tab-image'
                   />
                 </View>
