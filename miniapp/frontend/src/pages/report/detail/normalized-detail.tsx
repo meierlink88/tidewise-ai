@@ -151,7 +151,7 @@ export function EvidenceCountButton({
           onEvidence({ reportId, scopeToken: scope.evidence_scope_token, title });
       }}
     >
-      {scope.evidence_count} 条证据 ↗
+      {scope.evidence_count} 条事件 ↗
     </Button>
   );
 }
