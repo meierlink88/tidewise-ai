@@ -1,3 +1,36 @@
+# 首页定稿实施验收 — 2026-09-08
+
+final result: passed
+
+## Visual target and scope
+
+- User-selected image: `/Users/meierlink/.codex/generated_images/01a079fa-544d-7383-a775-471a36f999d1/exec-179f7d76-2d2a-4ea5-9449-b8ad4b00a36b.png`.
+- Existing prototype updated in place: `prototype/miniapp-prototype-2.0.html`.
+- Frontend: `http://localhost:10086/#/pages/index/index`, real local BFF report.
+- Reference 853 × 1844 pixels represents 390 × 844 logical viewport; browser captures are 390 × 844. Compared at logical screen scale. Prototype retains existing status bar/capsule, therefore compare body regions rather than treating its extra chrome height as a layout defect.
+- Source image and implementation images were opened together for comparison. Warm paper, navy icon pills, gold story marker, open transmission paths, anchor count/rows and circular arrow match the selected hierarchy. Full text is preserved; real Chinese font wrapping and platform navigation heights differ slightly from the generated target.
+
+## Evidence and iterations
+
+- `/tmp/home-ideate/prototype-390.png`: original prototype body comparison and fixed header layout.
+- `/tmp/home-ideate/frontend-390.png`: final frontend after correcting H5 image scaling and disabled presentation.
+- `/tmp/home-ideate/frontend-chain-scroll.png`: eight-anchor card while header remains fixed.
+- Initial P2: H5 aspectFit rendered action icons clipped. Fixed by the existing scaleToFill image pattern; recapture shows complete icons.
+- Initial P2: attribute selector dimmed the enabled event action in H5. Replaced with an explicit disabled class; final capture shows enabled navy action.
+- Prototype icon recoloring follows the same repository SVG geometry. Subsequent inactive-tab screenshot returned a tiny crop and is not treated as visual evidence; the earlier valid prototype layout capture is retained.
+- No remaining P0/P1/P2 findings. P3: small differences in type weight and line breaks relative to raster concept; no text truncation.
+
+## Interaction and engineering verification
+
+- Frontend three categories, one-result search, no-result state, independent vertical scrolling, real eight-event sheet and story detail navigation checked in browser.
+- Prototype category switch verified. Existing detail and report data preserved.
+- Typecheck, lint and 59 frontend tests passed.
+- Final weapp/tt builds and native output verifiers passed. Existing tt RootPortal export warning remains; actual WeChat/Douyin developer-tool device verification was not performed.
+- Reference-first fast path: existing Taro 4.2.0 / React 18 ScrollView, Button and Image; local Radix SVG variants with original license attribution, no added runtime dependency.
+- Standards and Issue #446 review performed in current task as required by repository no-delegation workflow. No API, data, navigation or pagination changes.
+
+---
+
 # Report detail visual QA
 
 final result: passed

@@ -10,10 +10,21 @@ import {
 import type { ReportHomeGroup } from '../../features/reports/contract';
 import type { ReportDetailRoute, ReportEvidenceRoute } from '../../features/reports/navigation';
 import { getReportPort } from '../../features/reports/port';
-import globeIcon from '../../assets/icons/report-globe.svg';
-import macroIcon from '../../assets/icons/report-bar-chart.svg';
-import chainIcon from '../../assets/icons/report-link.svg';
+import globeIcon from '../../assets/icons/report-globe-ink.svg';
+import macroIcon from '../../assets/icons/report-bar-chart-ink.svg';
+import chainIcon from '../../assets/icons/report-link-ink.svg';
+import globeGoldIcon from '../../assets/icons/report-globe-gold.svg';
+import macroGoldIcon from '../../assets/icons/report-bar-chart-gold.svg';
+import chainGoldIcon from '../../assets/icons/report-link-gold.svg';
+import evidenceIcon from '../../assets/icons/file-text-ink.svg';
+import arrowIcon from '../../assets/icons/report-arrow-right-light-gold.svg';
 import './normalized-home.scss';
+
+const selectedCategoryIcons: Record<AnalysisKind, string> = {
+  geopolitical_stories: globeGoldIcon,
+  macroeconomic_stories: macroGoldIcon,
+  concept_analyses: chainGoldIcon
+};
 
 const categoryIcons: Record<AnalysisKind, string> = {
   geopolitical_stories: globeIcon,
@@ -105,7 +116,7 @@ export function NormalizedHome({
               >
                 <View className='normalized-home-tab-icon'>
                   <Image
-                    src={categoryIcons[k]}
+                    src={kind === k ? selectedCategoryIcons[k] : categoryIcons[k]}
                     mode='scaleToFill'
                     className='normalized-home-tab-image'
                   />
@@ -184,11 +195,20 @@ function HomeCard({
         <Text className='normalized-card-time'>{time} 发布</Text>
       </View>
       <Text className='normalized-card-conclusion'>{u.summary.conclusion}</Text>
-      <Text className='normalized-card-logic'>{u.summary.transmission_logic}</Text>
+      <View className='normalized-card-logic'>
+        {u.summary.transmission_logic
+          .split(/\r?\n/)
+          .filter((path) => path.trim())
+          .map((path, index) => (
+            <View className='normalized-card-logic-path' key={`${index}:${path}`}>
+              <Text>{path}</Text>
+            </View>
+          ))}
+      </View>
       <View className='normalized-anchor-area'>
         <View className='normalized-anchor-count'>
-          <Text>{u.affected_anchors.length}</Text>
-          <Text>个受影响锚点</Text>
+          <Text className='normalized-anchor-number'>{u.affected_anchors.length}</Text>
+          <Text className='normalized-anchor-caption'>个受影响锚点</Text>
         </View>
         <View className='normalized-anchor-chips'>
           {u.affected_anchors.map((a) => (
@@ -196,7 +216,7 @@ function HomeCard({
               className='normalized-anchor-chip'
               key={`${a.reference.chain_local_key ?? ''}:${a.reference.local_key}`}
             >
-              <Text>{a.name}</Text>
+              <Text className='normalized-anchor-name'>{a.name}</Text>
               <Text className={`normalized-anchor-direction ${a.assessment.direction}`}>
                 {directionLabels[a.assessment.direction]}
               </Text>
@@ -206,15 +226,19 @@ function HomeCard({
       </View>
       <View className='normalized-card-footer'>
         <Button
-          className='tidewise-button normalized-card-evidence'
+          className={`tidewise-button normalized-card-evidence ${!u.summary.evidence_scope_token ? 'is-disabled' : ''}`}
           ariaLabel={`查看${u.title}证据`}
           disabled={!u.summary.evidence_scope_token}
           onClick={onEvidence}
         >
-          {u.summary.evidence_count} 条事件
+          <Image src={evidenceIcon} className='normalized-evidence-icon' mode='scaleToFill' />
+          <Text>{u.summary.evidence_count} 条事件</Text>
         </Button>
         <Button className='tidewise-button normalized-card-path' onClick={onDetail}>
-          查看影响路径　→
+          <Text>查看影响路径</Text>
+          <View className='normalized-path-circle'>
+            <Image src={arrowIcon} className='normalized-path-icon' mode='scaleToFill' />
+          </View>
         </Button>
       </View>
     </View>
