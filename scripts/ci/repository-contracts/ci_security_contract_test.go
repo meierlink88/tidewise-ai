@@ -131,6 +131,11 @@ func TestGitSecretAllowlistUsesExactFindingFingerprints(t *testing.T) {
 		"d89ba1e5d08890918b24e5a1dfc983b60fafeb37:agent-run/backend/internal/data/postgres/store_test.go:generic-api-key:873": false,
 	}
 
+	// Exact reviewed findings from the original synthetic Report projection; no path-wide exemption.
+	for _, line := range []string{"17", "37", "65", "93", "121", "145", "155", "183", "207", "232", "260", "288", "316", "344", "368", "388", "416", "444", "472", "500", "509", "541", "566", "585", "595", "623", "652", "671", "696", "724", "752", "780", "808", "837", "862", "887", "920", "928", "937", "1030", "1039", "1070", "1079", "1112", "1120", "1129", "1202", "1211", "1244", "1252", "1344", "1384", "1426", "1434", "1442", "1526", "1534", "1566", "1601", "1609", "1694", "1727", "1762", "1770"} {
+		expected["6c48ffc382c313b879b3460c0d2f883ec2a884dd:miniapp/frontend/src/mocks/reports/normalized.json:generic-api-key:"+line] = false
+	}
+
 	for _, line := range strings.Split(allowlist, "\n") {
 		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, "#") {

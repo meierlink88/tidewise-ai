@@ -14,7 +14,7 @@
             "impact_assessment": {
               "level": "high",
               "rationale": "Synthetic text a2032f4e96",
-              "evidence_scope_token": "RPEa0234e45-69e8-539e-979c-31afcf5d6dd6",
+              "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000023",
               "evidence_count": 1
             },
             "affected_refs": [
@@ -34,7 +34,7 @@
                 "chain_local_key": null
               }
             ],
-            "evidence_scope_token": "RPE6336886b-a762-550e-9231-965423b9c0eb",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000013",
             "evidence_count": 1
           },
           "affected_anchors": [
@@ -62,7 +62,7 @@
                 "conditions": ["Synthetic text 0bff29688b"],
                 "follow_up": ["Synthetic text 6c77704c3b"],
                 "transmission_logic": "Synthetic text 005bc513f6",
-                "evidence_scope_token": "RPEb6921f06-da35-5103-988d-191e1dcd3a2b",
+                "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000026",
                 "evidence_count": 1
               }
             },
@@ -90,7 +90,7 @@
                 "conditions": ["Synthetic text 503b86d3cd"],
                 "follow_up": ["Synthetic text ad80281795"],
                 "transmission_logic": "Synthetic text 18478a8603",
-                "evidence_scope_token": "RPEa2aa337b-0c4c-5fdb-bac1-adabe3ba2acf",
+                "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000024",
                 "evidence_count": 1
               }
             },
@@ -118,7 +118,7 @@
                 "conditions": ["Synthetic text 0ff5c99b6e"],
                 "follow_up": ["Synthetic text 4f699f5409"],
                 "transmission_logic": "Synthetic text 996fff58fa",
-                "evidence_scope_token": "RPE20e9f3be-f17a-54bf-af2e-a0e89eb1a296",
+                "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000006",
                 "evidence_count": 1
               }
             }
@@ -142,7 +142,7 @@
             "impact_assessment": {
               "level": "medium",
               "rationale": "Synthetic text 09619e95ef",
-              "evidence_scope_token": "RPE77274e28-2da7-5fc9-b726-6c2e49b8c036",
+              "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000016",
               "evidence_count": 1
             },
             "affected_refs": [
@@ -152,7 +152,7 @@
                 "chain_local_key": null
               }
             ],
-            "evidence_scope_token": "RPE8e3c887b-0abd-5cef-b2d2-382d4ff08ddc",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000020",
             "evidence_count": 1
           },
           "affected_anchors": [
@@ -180,7 +180,7 @@
                 "conditions": ["Synthetic text fbc82abd04"],
                 "follow_up": ["Synthetic text 6fce6ed354"],
                 "transmission_logic": "Synthetic text d07b2d8db3",
-                "evidence_scope_token": "RPEf1ea7881-3fce-55c7-be26-cbe4fa4d9cf1",
+                "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000030",
                 "evidence_count": 1
               }
             }
@@ -204,7 +204,7 @@
             "impact_assessment": {
               "level": "medium",
               "rationale": "Synthetic text 4e986d087e",
-              "evidence_scope_token": "RPE02d34fbe-001a-5cb9-8e67-7707871fc196",
+              "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000001",
               "evidence_count": 1
             },
             "affected_refs": [
@@ -229,7 +229,7 @@
                 "chain_local_key": "c1-a2"
               }
             ],
-            "evidence_scope_token": "RPE68f71b68-e95f-53a6-9104-581a21f41c8e",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000015",
             "evidence_count": 1
           },
           "affected_anchors": [
@@ -257,7 +257,7 @@
                 "conditions": ["Synthetic text 100067da4d"],
                 "follow_up": ["Synthetic text 62329fce40"],
                 "transmission_logic": "Synthetic text 30272af224",
-                "evidence_scope_token": "RPE8920cb4f-a00d-54f4-9bb6-9d1f6fd5ad56",
+                "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000019",
                 "evidence_count": 1
               }
             },
@@ -285,7 +285,7 @@
                 "conditions": ["Synthetic text 0861213866"],
                 "follow_up": ["Synthetic text f71185e3b3"],
                 "transmission_logic": "Synthetic text 89a5f6b56c",
-                "evidence_scope_token": "RPEfcf16a5b-a44c-56b9-a6d3-1c83d09cac85",
+                "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000036",
                 "evidence_count": 1
               }
             },
@@ -313,7 +313,7 @@
                 "conditions": ["Synthetic text a62ca6d1f3"],
                 "follow_up": ["Synthetic text 850c73247d"],
                 "transmission_logic": "Synthetic text d431b6c394",
-                "evidence_scope_token": "RPE4e25b37b-b4d8-54bd-82ba-5473233691e4",
+                "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000011",
                 "evidence_count": 1
               }
             },
@@ -341,7 +341,7 @@
                 "conditions": ["Synthetic text a62ca6d1f3"],
                 "follow_up": ["Synthetic text 850c73247d"],
                 "transmission_logic": "Synthetic text d431b6c394",
-                "evidence_scope_token": "RPE197e5adc-0bae-51c6-84df-f1f8a30dd43b",
+                "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000004",
                 "evidence_count": 1
               }
             }
@@ -365,7 +365,7 @@
           "impact_assessment": {
             "level": "high",
             "rationale": "Synthetic text a2032f4e96",
-            "evidence_scope_token": "RPEa0234e45-69e8-539e-979c-31afcf5d6dd6",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000023",
             "evidence_count": 1
           },
           "affected_refs": [
@@ -385,7 +385,7 @@
               "chain_local_key": null
             }
           ],
-          "evidence_scope_token": "RPE6336886b-a762-550e-9231-965423b9c0eb",
+          "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000013",
           "evidence_count": 1
         },
         "affected_anchors": [
@@ -413,7 +413,7 @@
               "conditions": ["Synthetic text 0bff29688b"],
               "follow_up": ["Synthetic text 6c77704c3b"],
               "transmission_logic": "Synthetic text 005bc513f6",
-              "evidence_scope_token": "RPEb6921f06-da35-5103-988d-191e1dcd3a2b",
+              "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000026",
               "evidence_count": 1
             }
           },
@@ -441,7 +441,7 @@
               "conditions": ["Synthetic text 503b86d3cd"],
               "follow_up": ["Synthetic text ad80281795"],
               "transmission_logic": "Synthetic text 18478a8603",
-              "evidence_scope_token": "RPEa2aa337b-0c4c-5fdb-bac1-adabe3ba2acf",
+              "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000024",
               "evidence_count": 1
             }
           },
@@ -469,7 +469,7 @@
               "conditions": ["Synthetic text 0ff5c99b6e"],
               "follow_up": ["Synthetic text 4f699f5409"],
               "transmission_logic": "Synthetic text 996fff58fa",
-              "evidence_scope_token": "RPE20e9f3be-f17a-54bf-af2e-a0e89eb1a296",
+              "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000006",
               "evidence_count": 1
             }
           }
@@ -497,7 +497,7 @@
             "conditions": ["Synthetic text 0bff29688b"],
             "follow_up": ["Synthetic text 6c77704c3b"],
             "transmission_logic": "Synthetic text 005bc513f6",
-            "evidence_scope_token": "RPEb6921f06-da35-5103-988d-191e1dcd3a2b",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000026",
             "evidence_count": 1
           },
           "objections": {
@@ -506,7 +506,7 @@
               {
                 "text": "Synthetic text 34a88a454a",
                 "basis": "inference",
-                "evidence_scope_token": "RPEf4876eed-759f-51ce-a5b4-2c97f814977c",
+                "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000032",
                 "evidence_count": 1
               }
             ],
@@ -538,7 +538,7 @@
             "conditions": ["Synthetic text 503b86d3cd"],
             "follow_up": ["Synthetic text ad80281795"],
             "transmission_logic": "Synthetic text 18478a8603",
-            "evidence_scope_token": "RPEa2aa337b-0c4c-5fdb-bac1-adabe3ba2acf",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000024",
             "evidence_count": 1
           },
           "empty_state": null
@@ -563,7 +563,7 @@
             "conditions": ["Synthetic text 0ff5c99b6e"],
             "follow_up": ["Synthetic text 4f699f5409"],
             "transmission_logic": "Synthetic text 996fff58fa",
-            "evidence_scope_token": "RPE20e9f3be-f17a-54bf-af2e-a0e89eb1a296",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000006",
             "evidence_count": 1
           },
           "empty_state": null
@@ -582,7 +582,7 @@
           "impact_assessment": {
             "level": "medium",
             "rationale": "Synthetic text 09619e95ef",
-            "evidence_scope_token": "RPE77274e28-2da7-5fc9-b726-6c2e49b8c036",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000016",
             "evidence_count": 1
           },
           "affected_refs": [
@@ -592,7 +592,7 @@
               "chain_local_key": null
             }
           ],
-          "evidence_scope_token": "RPE8e3c887b-0abd-5cef-b2d2-382d4ff08ddc",
+          "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000020",
           "evidence_count": 1
         },
         "affected_anchors": [
@@ -620,7 +620,7 @@
               "conditions": ["Synthetic text fbc82abd04"],
               "follow_up": ["Synthetic text 6fce6ed354"],
               "transmission_logic": "Synthetic text d07b2d8db3",
-              "evidence_scope_token": "RPEf1ea7881-3fce-55c7-be26-cbe4fa4d9cf1",
+              "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000030",
               "evidence_count": 1
             }
           }
@@ -649,7 +649,7 @@
             "conditions": ["Synthetic text fbc82abd04"],
             "follow_up": ["Synthetic text 6fce6ed354"],
             "transmission_logic": "Synthetic text d07b2d8db3",
-            "evidence_scope_token": "RPEf1ea7881-3fce-55c7-be26-cbe4fa4d9cf1",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000030",
             "evidence_count": 1
           },
           "empty_state": null
@@ -668,7 +668,7 @@
           "impact_assessment": {
             "level": "medium",
             "rationale": "Synthetic text 4e986d087e",
-            "evidence_scope_token": "RPE02d34fbe-001a-5cb9-8e67-7707871fc196",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000001",
             "evidence_count": 1
           },
           "affected_refs": [
@@ -693,7 +693,7 @@
               "chain_local_key": "c1-a2"
             }
           ],
-          "evidence_scope_token": "RPE68f71b68-e95f-53a6-9104-581a21f41c8e",
+          "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000015",
           "evidence_count": 1
         },
         "affected_anchors": [
@@ -721,7 +721,7 @@
               "conditions": ["Synthetic text 100067da4d"],
               "follow_up": ["Synthetic text 62329fce40"],
               "transmission_logic": "Synthetic text 30272af224",
-              "evidence_scope_token": "RPE8920cb4f-a00d-54f4-9bb6-9d1f6fd5ad56",
+              "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000019",
               "evidence_count": 1
             }
           },
@@ -749,7 +749,7 @@
               "conditions": ["Synthetic text 0861213866"],
               "follow_up": ["Synthetic text f71185e3b3"],
               "transmission_logic": "Synthetic text 89a5f6b56c",
-              "evidence_scope_token": "RPEfcf16a5b-a44c-56b9-a6d3-1c83d09cac85",
+              "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000036",
               "evidence_count": 1
             }
           },
@@ -777,7 +777,7 @@
               "conditions": ["Synthetic text a62ca6d1f3"],
               "follow_up": ["Synthetic text 850c73247d"],
               "transmission_logic": "Synthetic text d431b6c394",
-              "evidence_scope_token": "RPE4e25b37b-b4d8-54bd-82ba-5473233691e4",
+              "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000011",
               "evidence_count": 1
             }
           },
@@ -805,7 +805,7 @@
               "conditions": ["Synthetic text a62ca6d1f3"],
               "follow_up": ["Synthetic text 850c73247d"],
               "transmission_logic": "Synthetic text d431b6c394",
-              "evidence_scope_token": "RPE197e5adc-0bae-51c6-84df-f1f8a30dd43b",
+              "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000004",
               "evidence_count": 1
             }
           }
@@ -834,7 +834,7 @@
             "conditions": ["Synthetic text 100067da4d", "Synthetic text 0861213866"],
             "follow_up": ["Synthetic text 62329fce40", "Synthetic text f71185e3b3"],
             "transmission_logic": "Synthetic text 532982cffe",
-            "evidence_scope_token": "RPEfb25f5b4-7bbb-55eb-a182-98d1bfe2f801",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000035",
             "evidence_count": 1
           },
           "empty_state": null
@@ -859,7 +859,7 @@
             "conditions": ["Synthetic text a62ca6d1f3"],
             "follow_up": ["Synthetic text 850c73247d"],
             "transmission_logic": "Synthetic text abfc3ccce6",
-            "evidence_scope_token": "RPE8666982f-83b5-5dd9-95ff-0e99b53e7d18",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000018",
             "evidence_count": 1
           },
           "empty_state": null
@@ -884,7 +884,7 @@
             "conditions": [],
             "follow_up": [],
             "transmission_logic": "Synthetic text 934ecf3374",
-            "evidence_scope_token": "RPE66ea9ccc-52d1-5399-aa4b-4205b461c6eb",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000014",
             "evidence_count": 1
           },
           "empty_state": {
@@ -917,7 +917,7 @@
         "conditions": ["Synthetic text 503b86d3cd"],
         "follow_up": ["Synthetic text ad80281795"],
         "transmission_logic": "Synthetic text 18478a8603",
-        "evidence_scope_token": "RPEa2aa337b-0c4c-5fdb-bac1-adabe3ba2acf",
+        "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000024",
         "evidence_count": 1
       },
       "reasoning_summary": {
@@ -925,7 +925,7 @@
         "support": {
           "text": "Synthetic text 30782163cc",
           "basis": "inference",
-          "evidence_scope_token": "RPEd049b4e6-edcd-59d7-a262-5b2482b00f1a",
+          "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000027",
           "evidence_count": 1
         },
         "objections": {
@@ -934,7 +934,7 @@
             {
               "text": "Synthetic text 08cf84fa35",
               "basis": "source_fact",
-              "evidence_scope_token": "RPEab28225f-9878-56ff-845c-8aefb9602bc3",
+              "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000025",
               "evidence_count": 1
             }
           ],
@@ -1027,7 +1027,7 @@
             "conditions": ["Synthetic text 503b86d3cd"],
             "follow_up": ["Synthetic text ad80281795"],
             "transmission_logic": "Synthetic text daa99bb19b",
-            "evidence_scope_token": "RPE8f472e86-d4a3-502c-ae12-dbb067b10b53",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000021",
             "evidence_count": 1
           },
           "objections": {
@@ -1036,7 +1036,7 @@
               {
                 "text": "Synthetic text 08cf84fa35",
                 "basis": "source_fact",
-                "evidence_scope_token": "RPE96813ee6-83ae-5d39-8442-2ed8574840ff",
+                "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000022",
                 "evidence_count": 1
               }
             ],
@@ -1067,7 +1067,7 @@
             "conditions": ["Synthetic text 503b86d3cd"],
             "follow_up": ["Synthetic text ad80281795"],
             "transmission_logic": "Synthetic text 558f0ea83e",
-            "evidence_scope_token": "RPE2b9d814f-f313-5d46-95ad-894cf32c42d5",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000010",
             "evidence_count": 1
           },
           "objections": {
@@ -1076,7 +1076,7 @@
               {
                 "text": "Synthetic text 08cf84fa35",
                 "basis": "source_fact",
-                "evidence_scope_token": "RPE247577b0-8a4b-58be-bbfb-1c8d912c44aa",
+                "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000007",
                 "evidence_count": 1
               }
             ],
@@ -1109,7 +1109,7 @@
         "conditions": ["Synthetic text 0ff5c99b6e"],
         "follow_up": ["Synthetic text 4f699f5409"],
         "transmission_logic": "Synthetic text 996fff58fa",
-        "evidence_scope_token": "RPE20e9f3be-f17a-54bf-af2e-a0e89eb1a296",
+        "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000006",
         "evidence_count": 1
       },
       "reasoning_summary": {
@@ -1117,7 +1117,7 @@
         "support": {
           "text": "Synthetic text 1dd35a0fb7",
           "basis": "inference",
-          "evidence_scope_token": "RPE0b789ef5-bef1-5dc9-80c2-d8b382a1aa20",
+          "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000002",
           "evidence_count": 1
         },
         "objections": {
@@ -1126,7 +1126,7 @@
             {
               "text": "Synthetic text 3b81de8100",
               "basis": "inference",
-              "evidence_scope_token": "RPE81166df0-f775-50bd-8230-712d9e517fd9",
+              "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000017",
               "evidence_count": 1
             }
           ],
@@ -1199,7 +1199,7 @@
             "conditions": ["Synthetic text 0ff5c99b6e"],
             "follow_up": ["Synthetic text 4f699f5409"],
             "transmission_logic": "Synthetic text 65f0d65f91",
-            "evidence_scope_token": "RPEd094bf89-99ca-5231-8f77-4cb57d11fec5",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000028",
             "evidence_count": 1
           },
           "objections": {
@@ -1208,7 +1208,7 @@
               {
                 "text": "Synthetic text 3b81de8100",
                 "basis": "inference",
-                "evidence_scope_token": "RPE20a4a496-68a5-5e2f-8d24-6e6890d286c7",
+                "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000005",
                 "evidence_count": 1
               }
             ],
@@ -1241,7 +1241,7 @@
         "conditions": ["Synthetic text fbc82abd04"],
         "follow_up": ["Synthetic text 6fce6ed354"],
         "transmission_logic": "Synthetic text d07b2d8db3",
-        "evidence_scope_token": "RPEf1ea7881-3fce-55c7-be26-cbe4fa4d9cf1",
+        "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000030",
         "evidence_count": 1
       },
       "reasoning_summary": {
@@ -1249,7 +1249,7 @@
         "support": {
           "text": "Synthetic text 036257dacb",
           "basis": "inference",
-          "evidence_scope_token": "RPEf8eeb3a4-a0ee-59c6-b933-999281e4c489",
+          "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000034",
           "evidence_count": 1
         },
         "objections": {
@@ -1341,7 +1341,7 @@
             "conditions": ["Synthetic text fbc82abd04"],
             "follow_up": ["Synthetic text 6fce6ed354"],
             "transmission_logic": "Synthetic text 3c9357498b",
-            "evidence_scope_token": "RPEf7ec7677-05a3-5c12-a336-8c7947f997b5",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000033",
             "evidence_count": 1
           },
           "objections": {
@@ -1381,7 +1381,7 @@
             "conditions": ["Synthetic text fbc82abd04"],
             "follow_up": ["Synthetic text 6fce6ed354"],
             "transmission_logic": "Synthetic text 633b85835f",
-            "evidence_scope_token": "RPE2ab9e80e-a6b6-59c2-a900-1a7f32383738",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000009",
             "evidence_count": 1
           },
           "objections": {
@@ -1423,7 +1423,7 @@
         "conditions": ["Synthetic text 100067da4d", "Synthetic text 0861213866"],
         "follow_up": ["Synthetic text 62329fce40", "Synthetic text f71185e3b3"],
         "transmission_logic": "Synthetic text 532982cffe",
-        "evidence_scope_token": "RPEfb25f5b4-7bbb-55eb-a182-98d1bfe2f801",
+        "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000035",
         "evidence_count": 1
       },
       "reasoning_summary": {
@@ -1431,7 +1431,7 @@
         "support": {
           "text": "Synthetic text 4e1f8d51d3",
           "basis": "inference",
-          "evidence_scope_token": "RPE29021e27-72a0-5864-9171-14b751bb1c60",
+          "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000008",
           "evidence_count": 1
         },
         "objections": {
@@ -1439,7 +1439,7 @@
             {
               "text": "Synthetic text 26c8e44aac",
               "basis": "source_fact",
-              "evidence_scope_token": "RPEf400d95d-963e-594a-b49a-f95df3dadccd",
+              "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000031",
               "evidence_count": 1
             }
           ],
@@ -1523,7 +1523,7 @@
             "conditions": ["Synthetic text 100067da4d"],
             "follow_up": ["Synthetic text 62329fce40"],
             "transmission_logic": "Synthetic text 30272af224",
-            "evidence_scope_token": "RPE8920cb4f-a00d-54f4-9bb6-9d1f6fd5ad56",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000019",
             "evidence_count": 1
           },
           "objections": {
@@ -1531,7 +1531,7 @@
               {
                 "text": "Synthetic text 26c8e44aac",
                 "basis": "source_fact",
-                "evidence_scope_token": "RPE166b75e0-db3e-56a6-a647-438e3e9accfb",
+                "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000003",
                 "evidence_count": 1
               }
             ],
@@ -1563,7 +1563,7 @@
             "conditions": ["Synthetic text 0861213866"],
             "follow_up": ["Synthetic text f71185e3b3"],
             "transmission_logic": "Synthetic text 89a5f6b56c",
-            "evidence_scope_token": "RPEfcf16a5b-a44c-56b9-a6d3-1c83d09cac85",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000036",
             "evidence_count": 1
           },
           "objections": {
@@ -1598,7 +1598,7 @@
         "conditions": ["Synthetic text a62ca6d1f3"],
         "follow_up": ["Synthetic text 850c73247d"],
         "transmission_logic": "Synthetic text abfc3ccce6",
-        "evidence_scope_token": "RPE8666982f-83b5-5dd9-95ff-0e99b53e7d18",
+        "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000018",
         "evidence_count": 1
       },
       "reasoning_summary": {
@@ -1606,7 +1606,7 @@
         "support": {
           "text": "Synthetic text 84edf6fca6",
           "basis": "inference",
-          "evidence_scope_token": "RPE5f8c8ed6-a2c0-503a-b331-b905f27c0541",
+          "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000012",
           "evidence_count": 1
         },
         "objections": {
@@ -1691,7 +1691,7 @@
             "conditions": ["Synthetic text a62ca6d1f3"],
             "follow_up": ["Synthetic text 850c73247d"],
             "transmission_logic": "Synthetic text d431b6c394",
-            "evidence_scope_token": "RPE4e25b37b-b4d8-54bd-82ba-5473233691e4",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000011",
             "evidence_count": 1
           },
           "objections": {
@@ -1724,7 +1724,7 @@
             "conditions": ["Synthetic text a62ca6d1f3"],
             "follow_up": ["Synthetic text 850c73247d"],
             "transmission_logic": "Synthetic text d431b6c394",
-            "evidence_scope_token": "RPE197e5adc-0bae-51c6-84df-f1f8a30dd43b",
+            "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000004",
             "evidence_count": 1
           },
           "objections": {
@@ -1759,7 +1759,7 @@
         "conditions": [],
         "follow_up": [],
         "transmission_logic": "Synthetic text 934ecf3374",
-        "evidence_scope_token": "RPE66ea9ccc-52d1-5399-aa4b-4205b461c6eb",
+        "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000014",
         "evidence_count": 1
       },
       "reasoning_summary": {
@@ -1767,7 +1767,7 @@
         "support": {
           "text": "Synthetic text 4704162ca1",
           "basis": "inference",
-          "evidence_scope_token": "RPEe25cc19e-939f-5a24-8df1-b51730a19e14",
+          "evidence_scope_token": "RPE00000000-0000-4000-8000-000000000029",
           "evidence_count": 1
         },
         "objections": {
@@ -1839,252 +1839,252 @@
     }
   },
   "evidences": {
-    "RPE6336886b-a762-550e-9231-965423b9c0eb": [
+    "RPE00000000-0000-4000-8000-000000000013": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPEa0234e45-69e8-539e-979c-31afcf5d6dd6": [
+    "RPE00000000-0000-4000-8000-000000000023": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPEb6921f06-da35-5103-988d-191e1dcd3a2b": [
+    "RPE00000000-0000-4000-8000-000000000026": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPEa2aa337b-0c4c-5fdb-bac1-adabe3ba2acf": [
+    "RPE00000000-0000-4000-8000-000000000024": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE20e9f3be-f17a-54bf-af2e-a0e89eb1a296": [
+    "RPE00000000-0000-4000-8000-000000000006": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE8e3c887b-0abd-5cef-b2d2-382d4ff08ddc": [
+    "RPE00000000-0000-4000-8000-000000000020": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE77274e28-2da7-5fc9-b726-6c2e49b8c036": [
+    "RPE00000000-0000-4000-8000-000000000016": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPEf1ea7881-3fce-55c7-be26-cbe4fa4d9cf1": [
+    "RPE00000000-0000-4000-8000-000000000030": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE68f71b68-e95f-53a6-9104-581a21f41c8e": [
+    "RPE00000000-0000-4000-8000-000000000015": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE02d34fbe-001a-5cb9-8e67-7707871fc196": [
+    "RPE00000000-0000-4000-8000-000000000001": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE8920cb4f-a00d-54f4-9bb6-9d1f6fd5ad56": [
+    "RPE00000000-0000-4000-8000-000000000019": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPEfcf16a5b-a44c-56b9-a6d3-1c83d09cac85": [
+    "RPE00000000-0000-4000-8000-000000000036": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE4e25b37b-b4d8-54bd-82ba-5473233691e4": [
+    "RPE00000000-0000-4000-8000-000000000011": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE197e5adc-0bae-51c6-84df-f1f8a30dd43b": [
+    "RPE00000000-0000-4000-8000-000000000004": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPEf4876eed-759f-51ce-a5b4-2c97f814977c": [
+    "RPE00000000-0000-4000-8000-000000000032": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPEfb25f5b4-7bbb-55eb-a182-98d1bfe2f801": [
+    "RPE00000000-0000-4000-8000-000000000035": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE8666982f-83b5-5dd9-95ff-0e99b53e7d18": [
+    "RPE00000000-0000-4000-8000-000000000018": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE66ea9ccc-52d1-5399-aa4b-4205b461c6eb": [
+    "RPE00000000-0000-4000-8000-000000000014": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPEd049b4e6-edcd-59d7-a262-5b2482b00f1a": [
+    "RPE00000000-0000-4000-8000-000000000027": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPEab28225f-9878-56ff-845c-8aefb9602bc3": [
+    "RPE00000000-0000-4000-8000-000000000025": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE8f472e86-d4a3-502c-ae12-dbb067b10b53": [
+    "RPE00000000-0000-4000-8000-000000000021": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE96813ee6-83ae-5d39-8442-2ed8574840ff": [
+    "RPE00000000-0000-4000-8000-000000000022": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE2b9d814f-f313-5d46-95ad-894cf32c42d5": [
+    "RPE00000000-0000-4000-8000-000000000010": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE247577b0-8a4b-58be-bbfb-1c8d912c44aa": [
+    "RPE00000000-0000-4000-8000-000000000007": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE0b789ef5-bef1-5dc9-80c2-d8b382a1aa20": [
+    "RPE00000000-0000-4000-8000-000000000002": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE81166df0-f775-50bd-8230-712d9e517fd9": [
+    "RPE00000000-0000-4000-8000-000000000017": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPEd094bf89-99ca-5231-8f77-4cb57d11fec5": [
+    "RPE00000000-0000-4000-8000-000000000028": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE20a4a496-68a5-5e2f-8d24-6e6890d286c7": [
+    "RPE00000000-0000-4000-8000-000000000005": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPEf8eeb3a4-a0ee-59c6-b933-999281e4c489": [
+    "RPE00000000-0000-4000-8000-000000000034": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPEf7ec7677-05a3-5c12-a336-8c7947f997b5": [
+    "RPE00000000-0000-4000-8000-000000000033": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE2ab9e80e-a6b6-59c2-a900-1a7f32383738": [
+    "RPE00000000-0000-4000-8000-000000000009": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE29021e27-72a0-5864-9171-14b751bb1c60": [
+    "RPE00000000-0000-4000-8000-000000000008": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPEf400d95d-963e-594a-b49a-f95df3dadccd": [
+    "RPE00000000-0000-4000-8000-000000000031": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE166b75e0-db3e-56a6-a647-438e3e9accfb": [
+    "RPE00000000-0000-4000-8000-000000000003": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPE5f8c8ed6-a2c0-503a-b331-b905f27c0541": [
+    "RPE00000000-0000-4000-8000-000000000012": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
         "keywords": ["合同样例"]
       }
     ],
-    "RPEe25cc19e-939f-5a24-8df1-b51730a19e14": [
+    "RPE00000000-0000-4000-8000-000000000029": [
       {
         "published_at": "2026-09-07T08:00:00Z",
         "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
