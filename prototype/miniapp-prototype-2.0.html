@@ -20,9 +20,9 @@
 .search button{width:36px;height:36px;flex-shrink:0;border-radius:50%;background:var(--navy);border:1px solid #e7d5aa;display:grid;place-items:center}
 .search button img{width:23px;height:23px}
 .content{position:relative;margin-top:-13px;border-radius:24px 24px 0 0;background:var(--canvas);padding:20px 12px 28px;min-height:620px}
-.tabs{display:flex;gap:8px;margin:0 0 22px}
-.tabs button{flex:1;border:1px solid #cfd9e8;border-radius:24px;background:white;font-size:14px;font-weight:600;min-height:39px}
-.tabs button[aria-selected=true]{color:white;background:var(--navy);border-color:#d5aa49;box-shadow:0 3px 8px #0b1f4912}
+.tabs{display:flex;gap:4px;margin:0 0 22px;padding:5px;background:#e8edf5;border:1px solid #dfe6ef;border-radius:14px}
+.tabs button{position:relative;flex:1;border:0;border-radius:10px;background:transparent;color:#6b7c97;font-size:14px;font-weight:600;min-height:42px;transition:background .18s,color .18s,box-shadow .18s}.tabs button::after{content:"";position:absolute;bottom:4px;left:calc(50% - 9px);width:18px;height:2px;border-radius:2px;background:transparent}
+.tabs button[aria-selected=true]{color:var(--navy);background:white;box-shadow:0 2px 6px #10264b12;font-weight:700}.tabs button[aria-selected=true]::after{background:var(--gold)}
 .heading{display:flex;justify-content:space-between;align-items:baseline;margin:0 2px 15px}
 .heading h1{font-size:22px;margin:0;font-weight:750;letter-spacing:.3px}
 .heading span{font-size:12px;color:#8290a6}
@@ -37,6 +37,18 @@
 .conclusion{margin:14px 0 12px;font-size:20px;font-weight:700;line-height:1.55;color:#0b2a5a;letter-spacing:.1px}
 .logic{border:1px solid #dfe4ee;background:#f7f9fc;border-radius:8px;padding:10px 12px;font-size:13px;font-weight:600;line-height:1.8;color:#344a6c}
 .logic b{color:#8ca0bd;font-weight:400;margin:0 4px}
+
+.impact-summary{display:flex;align-items:center;gap:14px;margin-top:18px;margin-bottom:3px}
+.impact-count{flex:0 0 52px;border-right:1px solid #e4e9f0;padding-right:10px;align-self:stretch;display:flex;flex-direction:column;justify-content:center}
+.impact-count strong{font-size:32px;font-weight:650;letter-spacing:-1px;line-height:1.05;font-variant-numeric:tabular-nums;color:#0b2a5a}
+.impact-count span{font-size:10px;color:#7889a3;white-space:nowrap;margin-top:6px}
+.impact-chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;flex:1}
+.impact-chip{display:inline-flex;align-items:center;gap:7px;max-width:100%;border:1px solid #e2d7bc;border-radius:6px;padding:8px;background:#fffdf8;color:#17345d;line-height:1.4}
+.impact-chip-name{font-size:13px;font-weight:600;overflow-wrap:anywhere}
+.impact-chip-result{font-size:11px;font-weight:600;white-space:nowrap;padding-left:7px;border-left:1px solid #e8e0cf}
+.impact-chip-result.cooling{color:#137a4a;background:none}.impact-chip-result.warming{color:#c6283f;background:none}.impact-chip-result.diverging{color:#96530f;background:none}
+@media(prefers-reduced-motion:reduce){.tabs button{transition:none}}
+
 .anchors{display:grid;gap:8px;margin-top:14px}
 .anchor{border:1px solid #e1e7f0;border-radius:7px;background:#fbfcfe;padding:10px 11px;display:flex;flex-direction:column;gap:7px}
 .anchor-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
@@ -103,7 +115,8 @@ let kind='geo',query='',active=null,lastFocus=null;
 const icon=(n)=>`<img src="${assets['icons/'+n+'.svg']}" alt="">`;
 const direction={升温:'warming',降温:'cooling',分化:'diverging'};
 function anchors(items){return items.map(a=>`<div class="anchor"><div class="anchor-top"><span class="anchor-name">${a.name}</span><span class="direction ${direction[a.result]}">${icon('report-activity-'+direction[a.result])}${a.result}</span></div><div class="tags"><span>${icon('report-confidence')}置信 <strong>${a.confidence}</strong></span><span>${icon('report-clock')}<strong>${a.period}</strong></span><span>${a.basis}</span></div></div>`).join('')}
-function render(){const items=reports.filter(r=>r.kind===kind&&(!query||[r.story,r.conclusion,...r.anchors.map(a=>a.name)].join('').includes(query)));document.querySelector('#count').textContent=items.length+' 条结论';document.querySelector('#cards').innerHTML=items.length?items.map(r=>`<article class="card"><div class="card-meta"><div class="story"><span>${r.story}</span><span class="level ${r.level==='中影响'?'medium':''}">${r.level}</span></div><time class="published" datetime="2026-09-06T22:22:52+08:00">${icon('report-clock')}09.06 22:22 发布</time></div><h2 class="conclusion">${r.conclusion}</h2><div class="logic">${r.logic.join('<b>→</b>')}</div><div class="anchors">${anchors(r.anchors)}</div><footer class="footer"><button class="evidence" data-evidence="${r.id}">${icon('file-text')}${r.evidence.length} 条证据</button><button class="path" data-detail="${r.id}">查看影响路径${icon('report-arrow-right-light')}</button></footer></article>`).join(''):`<div class="empty"><h2>${query?'暂无匹配的结论':'本期暂无宏观经济结论'}</h2><p>${query?'试试搜索其他事件或受影响锚点。':'本期报告尚无可发布的宏观经济故事线。<br>可以切换其他板块查看结论。'}</p></div>`;document.querySelector('#end').hidden=!items.length}
+function impactSummary(items){return `<div class="impact-summary"><div class="impact-count"><strong>${items.length}</strong><span>受影响锚点</span></div><div class="impact-chips">${items.map(a=>`<div class="impact-chip"><span class="impact-chip-name">${a.name}</span><span class="impact-chip-result ${direction[a.result]}">${a.result}</span></div>`).join('')}</div></div>`}
+function render(){const items=reports.filter(r=>r.kind===kind&&(!query||[r.story,r.conclusion,...r.anchors.map(a=>a.name)].join('').includes(query)));document.querySelector('#count').textContent=items.length+' 条结论';document.querySelector('#cards').innerHTML=items.length?items.map(r=>`<article class="card"><div class="card-meta"><div class="story"><span>${r.story}</span><span class="level ${r.level==='中影响'?'medium':''}">${r.level}</span></div><time class="published" datetime="2026-09-06T22:22:52+08:00">${icon('report-clock')}09.06 22:22 发布</time></div><h2 class="conclusion">${r.conclusion}</h2><div class="logic">${r.logic.join('<b>→</b>')}</div>${impactSummary(r.anchors)}<footer class="footer"><button class="evidence" data-evidence="${r.id}">${icon('file-text')}${r.evidence.length} 条证据</button><button class="path" data-detail="${r.id}">查看影响路径${icon('report-arrow-right-light')}</button></footer></article>`).join(''):`<div class="empty"><h2>${query?'暂无匹配的结论':'本期暂无宏观经济结论'}</h2><p>${query?'试试搜索其他事件或受影响锚点。':'本期报告尚无可发布的宏观经济故事线。<br>可以切换其他板块查看结论。'}</p></div>`;document.querySelector('#end').hidden=!items.length}
 document.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{kind=b.dataset.kind;document.querySelectorAll('[data-kind]').forEach(x=>x.setAttribute('aria-selected',String(x===b)));render()});
 document.querySelector('#search').onsubmit=e=>{e.preventDefault();query=e.target.querySelector('input').value.trim();render()};
 document.querySelector('#search input').oninput=e=>{if(!e.target.value){query='';render()}};
