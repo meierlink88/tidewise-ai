@@ -2,15 +2,15 @@
 
 set -eu
 
-readonly approved_snapshot_sha256="cb178f849357d71c2490638ad69b56d8dbb268082370903e3b652a7fbdd142ef"
+readonly approved_snapshot_sha256="7d009dabc51effbbe10c78b65d8189932caa4e3db8b638c0b80a5de6f513dabb"
 readonly expected_database="tidewise_uat"
 readonly expected_user="tidewise_uat"
-readonly expected_current_migration="80"
-readonly expected_restored_migration="81"
-readonly expected_table_count="51"
+readonly expected_current_migration="81"
+readonly expected_restored_migration="84"
+readonly expected_table_count="49"
 readonly expected_report_count="2"
 readonly expected_source_count="27"
-readonly expected_raw_evidence_count="93"
+readonly expected_raw_evidence_count="334"
 readonly encrypted_archive="/snapshot/snapshot.dump.enc"
 readonly plaintext_archive="/work/snapshot.dump"
 readonly toc_file="/work/snapshot.toc"
@@ -76,7 +76,7 @@ grep -Fq "Dumped from database version: 16.14" "$toc_file" || fail "snapshot was
 if grep -Eq '(^|[[:space:]])(DATABASE|DATABASE PROPERTIES|ROLE|ACL|DEFAULT ACL)([[:space:]]|$)' "$toc_file"; then
   fail "snapshot contains database-, role-, or ACL-level objects"
 fi
-if grep -E '^[0-9]+;.* SCHEMA ' "$toc_file" | grep -Fv ' SCHEMA public ' >/dev/null; then
+if grep -E '^[0-9]+;.* SCHEMA ' "$toc_file" | grep -Ev ' SCHEMA (- )?public ' >/dev/null; then
   fail "snapshot contains a schema other than public"
 fi
 
@@ -89,13 +89,16 @@ esac
 [ "$server_version_num" -ge 160000 ] || fail "target PostgreSQL must be version 16 or newer"
 require_exact "$(scalar "SELECT COALESCE(MAX(version_id) FILTER (WHERE is_applied), 0) FROM public.goose_db_version")" "$expected_current_migration" "current migration"
 
+# Verify the frozen schema's extension dependencies before any destructive DDL.
+require_exact "$(scalar "SELECT count(*) FROM pg_available_extension_versions WHERE (name, version) IN (('btree_gist', '1.7'), ('pgcrypto', '1.3'))")" "2" "required extension versions"
+
 if [ "$action" = check ]; then
   printf '{"action":"check","database":"%s","server_version_num":%s,"current_migration":%s,"snapshot_migration":%s,"snapshot_sha256":"%s"}\n' \
     "$expected_database" "$server_version_num" "$expected_current_migration" "$expected_restored_migration" "$approved_snapshot_sha256"
   exit 0
 fi
 
-require_exact "${TIDEWISE_UAT_PUBLIC_REPLACEMENT_CONFIRMED:-}" "issue-389-tidewise-uat-public-replacement" "destructive replacement confirmation"
+require_exact "${TIDEWISE_UAT_PUBLIC_REPLACEMENT_CONFIRMED:-}" "issue-422-tidewise-uat-public-replacement" "destructive replacement confirmation"
 require_exact "$(scalar "
 SELECT COUNT(*)
 FROM pg_stat_activity
@@ -106,11 +109,18 @@ WHERE datname = current_database()
 
 psql -X --quiet --set ON_ERROR_STOP=1 <<'SQL'
 DROP SCHEMA public CASCADE;
-CREATE SCHEMA public AUTHORIZATION pg_database_owner;
-GRANT USAGE ON SCHEMA public TO PUBLIC;
 SQL
 
 pg_restore --exit-on-error --no-owner --no-acl --section=pre-data --dbname "$PGDATABASE" "$plaintext_archive"
+
+# The frozen archive creates public; set target ownership after restoring it.
+psql -X --quiet --set ON_ERROR_STOP=1 <<'SQL'
+ALTER SCHEMA public OWNER TO pg_database_owner;
+GRANT USAGE ON SCHEMA public TO PUBLIC;
+-- Schema-only dumps omit extensions; dropping public also removes their objects.
+CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA public VERSION '1.7';
+CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public VERSION '1.3';
+SQL
 
 scalar "
 SELECT format(
@@ -179,6 +189,9 @@ require_exact "$report_count" "$expected_report_count" "restored report count"
 require_exact "$source_count" "$expected_source_count" "restored source count"
 require_exact "$raw_evidence_count" "$expected_raw_evidence_count" "restored raw evidence count"
 require_exact "$configured_function_count" "0" "temporary function search_path count"
+
+# Compare every restored row and sequence against the frozen local snapshot.
+psql -X --quiet --set ON_ERROR_STOP=1 --file /usr/local/share/verify-public-snapshot.sql
 
 printf '{"action":"apply","database":"%s","migration":%s,"public_tables":%s,"reports":%s,"sources":%s,"raw_evidences":%s,"temporary_function_search_paths":%s,"snapshot_sha256":"%s"}\n' \
   "$expected_database" "$restored_migration" "$table_count" "$report_count" "$source_count" "$raw_evidence_count" "$configured_function_count" "$approved_snapshot_sha256"

@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       snapshot_sha256:
-        description: SHA-256 of the approved decrypted tidewise_local v81 snapshot.
+        description: SHA-256 of the approved decrypted tidewise_local v84 snapshot.
         required: true
         type: string
       confirm_high_risk_backup:
@@ -61,7 +61,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          approved_snapshot_sha256=cb178f849357d71c2490638ad69b56d8dbb268082370903e3b652a7fbdd142ef
+          approved_snapshot_sha256=7d009dabc51effbbe10c78b65d8189932caa4e3db8b638c0b80a5de6f513dabb
           if [ "$GITHUB_REF" != refs/heads/main ]; then
             echo "UAT public-schema replacement must be dispatched from main" >&2
             exit 1
@@ -79,7 +79,7 @@ jobs:
             exit 1
           fi
           if [ "$SNAPSHOT_SHA256" != "$approved_snapshot_sha256" ]; then
-            echo "snapshot_sha256 is not the approved tidewise_local v81 snapshot" >&2
+            echo "snapshot_sha256 is not the approved tidewise_local v84 snapshot" >&2
             exit 1
           fi
           git fetch --no-tags origin main
@@ -153,6 +153,7 @@ jobs:
           echo "${EXPECTED_ENCRYPTED_SHA256}  ${build_context}/snapshot.dump.enc" | sha256sum --check
           cp infra/uat/uat-public-refresh.Dockerfile "$build_context/Dockerfile"
           cp infra/uat/restore-public-schema.sh "$build_context/restore-public-schema.sh"
+          cp infra/uat/verify-public-snapshot.sql "$build_context/verify-public-snapshot.sql"
           echo "build_context=$build_context" >> "$GITHUB_OUTPUT"
 
       - name: Resolve refresh image tag
@@ -295,7 +296,7 @@ jobs:
               -e PGSSLMODE=require \
               -e "SNAPSHOT_SHA256=${SNAPSHOT_SHA256}" \
               -e "EXPECTED_ENCRYPTED_SHA256=${EXPECTED_ENCRYPTED_SHA256}" \
-              -e TIDEWISE_UAT_PUBLIC_REPLACEMENT_CONFIRMED=issue-389-tidewise-uat-public-replacement \
+              -e TIDEWISE_UAT_PUBLIC_REPLACEMENT_CONFIRMED=issue-422-tidewise-uat-public-replacement \
               "$REFRESH_IMAGE" "$action"
           }
 

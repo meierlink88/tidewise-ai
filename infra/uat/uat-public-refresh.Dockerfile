@@ -3,6 +3,7 @@ FROM postgres:16.14-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a5
 RUN apk add --no-cache openssl
 
 COPY restore-public-schema.sh /usr/local/bin/restore-public-schema
+COPY verify-public-snapshot.sql /usr/local/share/verify-public-snapshot.sql
 COPY snapshot.dump.enc /snapshot/snapshot.dump.enc
 
 RUN chmod 0555 /usr/local/bin/restore-public-schema \
