@@ -117,7 +117,7 @@ export function NormalizedHome({
         </ScrollView>
         <View className='normalized-home-heading'>
           <Text>今日观潮</Text>
-          <Text>{items.length} 条结论</Text>
+          <Text className='normalized-home-total'>{items.length} 条结论</Text>
         </View>
       </View>
       <ScrollView key={kind} scrollY className='normalized-home-scroll'>
