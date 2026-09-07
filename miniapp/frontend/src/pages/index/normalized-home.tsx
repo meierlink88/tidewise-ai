@@ -187,7 +187,7 @@ function HomeCard({
           disabled={!u.summary.evidence_scope_token}
           onClick={onEvidence}
         >
-          {u.summary.evidence_count} 条证据
+          {u.summary.evidence_count} 条事件
         </Button>
         <Button className='tidewise-button normalized-card-path' onClick={onDetail}>
           查看影响路径　→

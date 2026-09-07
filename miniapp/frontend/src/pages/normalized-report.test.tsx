@@ -93,6 +93,9 @@ describe('normalized report interaction', () => {
         />
       )
     );
+    expect(host.querySelector('.normalized-hero-logic')?.textContent).toBe(
+      detail.summary.summary.transmission_logic
+    );
     expect(host.querySelector('.normalized-mechanism')?.textContent).toContain(
       detail.macro_impacts[0].assessment.transmission_logic
     );
