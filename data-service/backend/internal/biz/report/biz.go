@@ -542,7 +542,7 @@ func (s *UseCase) List(ctx context.Context, request ListRequest) (Page, error) {
 	if request.PublishedFrom != nil && request.PublishedTo != nil && !request.PublishedFrom.Before(*request.PublishedTo) {
 		return Page{}, invalid("published_from", "must be before published_to")
 	}
-	if request.SchemaVersion != "" && request.SchemaVersion != "legacy" && request.SchemaVersion != AnalysisSchemaVersion && request.SchemaVersion != NormalizedSchemaVersion {
+	if request.SchemaVersion != "" && request.SchemaVersion != "legacy" && request.SchemaVersion != AnalysisSchemaVersion && request.SchemaVersion != NormalizedSchemaVersion && request.SchemaVersion != SignalSchemaVersion {
 		return Page{}, invalid("schema_version", "unsupported version")
 	}
 	selection := request.SchemaVersion
@@ -1385,6 +1385,7 @@ type AnalysisImpactProjection struct {
 }
 
 type AnalysisUnitSummary struct {
+	Company            *V5CompanyProjection        `json:"-"`
 	V4                 *V4SummaryProjection        `json:"-"`
 	ImpactAssessment   *ImpactAssessmentProjection `json:"impact_assessment,omitempty"`
 	LocalKey           string                      `json:"local_key"`
@@ -1404,6 +1405,7 @@ type ChainAnalysisSummary struct {
 	Conclusion string `json:"conclusion"`
 }
 type AnalysisUnitDetail struct {
+	Company         *V5CompanyProjection       `json:"-"`
 	V4              *V4DetailProjection        `json:"-"`
 	Summary         AnalysisUnitSummary        `json:"summary"`
 	ReasoningSteps  []ReasoningStepProjection  `json:"reasoning_steps"`
@@ -1755,7 +1757,7 @@ type analysisCursor struct {
 
 func validateAnalysisKind(kind string) error {
 	switch kind {
-	case "geopolitical_stories", "macroeconomic_stories", "concept_analyses":
+	case "geopolitical_stories", "macroeconomic_stories", "concept_analyses", "industry_chain_analyses", "company_analyses":
 		return nil
 	}
 	return invalid("kind", "must identify a story or Concept analysis collection")
@@ -1830,6 +1832,7 @@ func validateAnalysisEvidenceRefs(path string, refs []EvidenceReference, role st
 
 // V4 contracts implement the approved normalized report, independently of legacy snapshots.
 const NormalizedSchemaVersion = "report-publication/v4"
+const SignalSchemaVersion = "report-publication/v5"
 
 type V4CodedLabel struct {
 	Code  string `json:"code"`
@@ -1868,18 +1871,25 @@ type V4Assessment struct {
 	EvidenceIDs       []string `json:"evidence_ids"`
 }
 type V4Node struct {
-	LocalKey     string       `json:"local_key"`
-	SourceID     string       `json:"source_id"`
-	NodeLocalKey string       `json:"node_local_key"`
-	Name         string       `json:"name"`
-	Assessment   V4Assessment `json:"assessment"`
-	Objections   V4Objections `json:"objections"`
+	JudgmentOrigin   string              `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]V5Signal         `json:"variable_signals,omitempty"`
+	LocalKey         string              `json:"local_key"`
+	SourceID         string              `json:"source_id"`
+	NodeLocalKey     string              `json:"node_local_key"`
+	Name             string              `json:"name"`
+	Assessment       V4Assessment        `json:"assessment"`
+	Objections       V4Objections        `json:"objections"`
 }
 type V4Graph struct {
+	Scope string             `json:"scope,omitempty"`
 	Nodes []V4GraphNodesItem `json:"nodes"`
 	Edges []V4GraphEdgesItem `json:"edges"`
 }
 type V4Chain struct {
+	JudgmentOrigin   string                  `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources     `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]V5Signal             `json:"variable_signals,omitempty"`
 	LocalKey         string                  `json:"local_key"`
 	SourceID         string                  `json:"source_id"`
 	Name             string                  `json:"name"`
@@ -1890,11 +1900,14 @@ type V4Chain struct {
 	EmptyState       *V4ChainEmptyState      `json:"empty_state"`
 }
 type V4Macro struct {
-	LocalKey   string       `json:"local_key"`
-	SourceID   string       `json:"source_id"`
-	Name       string       `json:"name"`
-	Assessment V4Assessment `json:"assessment"`
-	Objections V4Objections `json:"objections"`
+	JudgmentOrigin   string              `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]V5Signal         `json:"variable_signals,omitempty"`
+	LocalKey         string              `json:"local_key"`
+	SourceID         string              `json:"source_id"`
+	Name             string              `json:"name"`
+	Assessment       V4Assessment        `json:"assessment"`
+	Objections       V4Objections        `json:"objections"`
 }
 type V4AnchorRef struct {
 	TargetType    string  `json:"target_type"`
@@ -1902,23 +1915,27 @@ type V4AnchorRef struct {
 	ChainLocalKey *string `json:"chain_local_key"`
 }
 type V4Unit struct {
-	LocalKey string        `json:"local_key"`
-	SourceID string        `json:"source_id"`
-	Title    string        `json:"title"`
-	Summary  V4UnitSummary `json:"summary"`
-	Detail   V4UnitDetail  `json:"detail"`
+	JudgmentOrigin   string              `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources `json:"reasoning_sources,omitempty"`
+	LocalKey         string              `json:"local_key"`
+	SourceID         string              `json:"source_id"`
+	Title            string              `json:"title"`
+	Summary          V4UnitSummary       `json:"summary"`
+	Detail           V4UnitDetail        `json:"detail"`
 }
 type V4Report struct {
-	SchemaVersion        string                     `json:"schema_version"`
-	ReportType           V4CodedLabel               `json:"report_type"`
-	GeneratedAt          string                     `json:"generated_at"`
-	Timezone             string                     `json:"timezone"`
-	AnalysisWindow       V4ReportAnalysisWindow     `json:"analysis_window"`
-	GeopoliticalStories  []V4Unit                   `json:"geopolitical_stories"`
-	MacroeconomicStories []V4Unit                   `json:"macroeconomic_stories"`
-	ConceptAnalyses      []V4Unit                   `json:"concept_analyses"`
-	Observations         []V4ReportObservationsItem `json:"observations"`
-	Limitations          []string                   `json:"limitations"`
+	IndustryChainAnalyses *[]V4Unit                  `json:"industry_chain_analyses,omitempty"`
+	CompanyAnalyses       *[]V4Macro                 `json:"company_analyses,omitempty"`
+	SchemaVersion         string                     `json:"schema_version"`
+	ReportType            V4CodedLabel               `json:"report_type"`
+	GeneratedAt           string                     `json:"generated_at"`
+	Timezone              string                     `json:"timezone"`
+	AnalysisWindow        V4ReportAnalysisWindow     `json:"analysis_window"`
+	GeopoliticalStories   []V4Unit                   `json:"geopolitical_stories"`
+	MacroeconomicStories  []V4Unit                   `json:"macroeconomic_stories"`
+	ConceptAnalyses       []V4Unit                   `json:"concept_analyses"`
+	Observations          []V4ReportObservationsItem `json:"observations"`
+	Limitations           []string                   `json:"limitations"`
 }
 type V4GraphNodesItem struct {
 	LocalKey string `json:"local_key"`
@@ -1948,8 +1965,10 @@ type V4UnitSummary struct {
 	EvidenceIDs       []string                      `json:"evidence_ids"`
 }
 type V4UnitDetail struct {
-	MacroImpacts   []V4Macro `json:"macro_impacts"`
-	IndustryChains []V4Chain `json:"industry_chains"`
+	VariableSignals *[]V5Signal `json:"variable_signals,omitempty"`
+	Companies       *[]V4Macro  `json:"companies,omitempty"`
+	MacroImpacts    []V4Macro   `json:"macro_impacts"`
+	IndustryChains  []V4Chain   `json:"industry_chains"`
 }
 type V4ReportAnalysisWindow struct {
 	Start string `json:"start"`
@@ -1974,7 +1993,7 @@ func (r *Report) UnmarshalJSON(payload []byte) error {
 	if err := json.Unmarshal(payload, &probe); err != nil {
 		return err
 	}
-	if probe.SchemaVersion == NormalizedSchemaVersion {
+	if probe.SchemaVersion == NormalizedSchemaVersion || probe.SchemaVersion == SignalSchemaVersion {
 		var parsed V4Report
 		decoder := json.NewDecoder(bytes.NewReader(payload))
 		decoder.DisallowUnknownFields()
@@ -2579,6 +2598,18 @@ func v4Unique(values []string) bool {
 }
 
 func validateNormalizedReport(r V4Report) error {
+	if r.SchemaVersion == SignalSchemaVersion {
+		return validateSignalReport(r)
+	}
+	raw, _ := json.Marshal(r)
+	var tree any
+	_ = json.Unmarshal(raw, &tree)
+	if hasSignalFields(tree) {
+		return invalid("report", "v5 fields require v5 version")
+	}
+	return validateNormalizedBaseReport(r)
+}
+func validateNormalizedBaseReport(r V4Report) error {
 	if err := validateV4Report("report", r); err != nil {
 		return err
 	}
@@ -2626,7 +2657,8 @@ func normalizedKey(key string, seen map[string]bool) error {
 	seen[key] = true
 	return nil
 }
-func validateNormalizedAssessment(a V4Assessment) error {
+func validateNormalizedAssessment(a V4Assessment) error { return validateAssessmentState(a, false) }
+func validateAssessmentState(a V4Assessment, allowPending bool) error {
 	w := a.ForecastWindow
 	if w.StartAt != nil && w.EndAt != nil {
 		start, _ := time.Parse(time.RFC3339Nano, *w.StartAt)
@@ -2639,7 +2671,7 @@ func validateNormalizedAssessment(a V4Assessment) error {
 		if a.Direction != "pending" || a.ValidationStatus != "insufficient_evidence" || a.Confidence != nil || w.Kind != "not_applicable" || w.StartAt != nil || w.EndAt != nil {
 			return invalid("assessment", "inconsistent observation state")
 		}
-	} else if a.Direction == "pending" || a.ValidationStatus != "pending_validation" || a.Confidence == nil || w.Kind == "not_applicable" || len(a.Conditions) == 0 || len(a.FollowUp) == 0 || len(a.EvidenceIDs) == 0 {
+	} else if (a.Direction == "pending" && !allowPending) || a.ValidationStatus != "pending_validation" || a.Confidence == nil || w.Kind == "not_applicable" || len(a.Conditions) == 0 || len(a.FollowUp) == 0 || len(a.EvidenceIDs) == 0 {
 		return invalid("assessment", "directional inference requires conditions, follow-up, confidence and Evidence")
 	}
 	return nil
@@ -2661,6 +2693,9 @@ func validateNormalizedObjections(o V4Objections) error {
 	return nil
 }
 func validateNormalizedUnit(kind string, u V4Unit, seen map[string]bool) error {
+	if kind == "industry_chain_analyses" {
+		kind = "concept_analyses"
+	}
 	if err := normalizedKey(u.LocalKey, seen); err != nil {
 		return err
 	}
@@ -2679,7 +2714,7 @@ func validateNormalizedUnit(kind string, u V4Unit, seen map[string]bool) error {
 			return err
 		}
 		macros[m.LocalKey] = true
-		if err := validateNormalizedAssessment(m.Assessment); err != nil {
+		if err := validateVersionedAssessment(m.Assessment, m.JudgmentOrigin != ""); err != nil {
 			return err
 		}
 		if err := validateNormalizedObjections(m.Objections); err != nil {
@@ -2734,6 +2769,9 @@ type NormalizedEvidenceScope struct {
 }
 
 func NormalizedEvidenceScopes(r V4Report) []NormalizedEvidenceScope {
+	if r.SchemaVersion == SignalSchemaVersion {
+		return signalEvidenceScopes(r)
+	}
 	scopes := []NormalizedEvidenceScope{}
 	add := func(p string, ids []string) {
 		scopes = append(scopes, NormalizedEvidenceScope{p + "/evidence_ids", ids})
@@ -2830,18 +2868,25 @@ type V4ReadAssessment struct {
 	EvidenceCount      int          `json:"evidence_count"`
 }
 type V4ReadNode struct {
-	LocalKey     string           `json:"local_key"`
-	SourceID     string           `json:"source_id"`
-	NodeLocalKey string           `json:"node_local_key"`
-	Name         string           `json:"name"`
-	Assessment   V4ReadAssessment `json:"assessment"`
-	Objections   V4ReadObjections `json:"objections"`
+	JudgmentOrigin   string              `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]V5ReadSignal     `json:"variable_signals,omitempty"`
+	LocalKey         string              `json:"local_key"`
+	SourceID         string              `json:"source_id"`
+	NodeLocalKey     string              `json:"node_local_key"`
+	Name             string              `json:"name"`
+	Assessment       V4ReadAssessment    `json:"assessment"`
+	Objections       V4ReadObjections    `json:"objections"`
 }
 type V4ReadGraph struct {
+	Scope string                 `json:"scope,omitempty"`
 	Nodes []V4ReadGraphNodesItem `json:"nodes"`
 	Edges []V4ReadGraphEdgesItem `json:"edges"`
 }
 type V4ReadChain struct {
+	JudgmentOrigin   string                      `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources         `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]V5ReadSignal             `json:"variable_signals,omitempty"`
 	LocalKey         string                      `json:"local_key"`
 	SourceID         string                      `json:"source_id"`
 	Name             string                      `json:"name"`
@@ -2852,11 +2897,14 @@ type V4ReadChain struct {
 	EmptyState       *V4ReadChainEmptyState      `json:"empty_state"`
 }
 type V4ReadMacro struct {
-	LocalKey   string           `json:"local_key"`
-	SourceID   string           `json:"source_id"`
-	Name       string           `json:"name"`
-	Assessment V4ReadAssessment `json:"assessment"`
-	Objections V4ReadObjections `json:"objections"`
+	JudgmentOrigin   string              `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]V5ReadSignal     `json:"variable_signals,omitempty"`
+	LocalKey         string              `json:"local_key"`
+	SourceID         string              `json:"source_id"`
+	Name             string              `json:"name"`
+	Assessment       V4ReadAssessment    `json:"assessment"`
+	Objections       V4ReadObjections    `json:"objections"`
 }
 type V4ReadAnchorRef struct {
 	TargetType    string  `json:"target_type"`
@@ -2864,23 +2912,27 @@ type V4ReadAnchorRef struct {
 	ChainLocalKey *string `json:"chain_local_key"`
 }
 type V4ReadUnit struct {
-	LocalKey string            `json:"local_key"`
-	SourceID string            `json:"source_id"`
-	Title    string            `json:"title"`
-	Summary  V4ReadUnitSummary `json:"summary"`
-	Detail   V4ReadUnitDetail  `json:"detail"`
+	JudgmentOrigin   string              `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources `json:"reasoning_sources,omitempty"`
+	LocalKey         string              `json:"local_key"`
+	SourceID         string              `json:"source_id"`
+	Title            string              `json:"title"`
+	Summary          V4ReadUnitSummary   `json:"summary"`
+	Detail           V4ReadUnitDetail    `json:"detail"`
 }
 type V4ReadReport struct {
-	SchemaVersion        string                         `json:"schema_version"`
-	ReportType           V4ReadCodedLabel               `json:"report_type"`
-	GeneratedAt          string                         `json:"generated_at"`
-	Timezone             string                         `json:"timezone"`
-	AnalysisWindow       V4ReadReportAnalysisWindow     `json:"analysis_window"`
-	GeopoliticalStories  []V4ReadUnit                   `json:"geopolitical_stories"`
-	MacroeconomicStories []V4ReadUnit                   `json:"macroeconomic_stories"`
-	ConceptAnalyses      []V4ReadUnit                   `json:"concept_analyses"`
-	Observations         []V4ReadReportObservationsItem `json:"observations"`
-	Limitations          []string                       `json:"limitations"`
+	IndustryChainAnalyses *[]V4ReadUnit                  `json:"industry_chain_analyses,omitempty"`
+	CompanyAnalyses       *[]V4ReadMacro                 `json:"company_analyses,omitempty"`
+	SchemaVersion         string                         `json:"schema_version"`
+	ReportType            V4ReadCodedLabel               `json:"report_type"`
+	GeneratedAt           string                         `json:"generated_at"`
+	Timezone              string                         `json:"timezone"`
+	AnalysisWindow        V4ReadReportAnalysisWindow     `json:"analysis_window"`
+	GeopoliticalStories   []V4ReadUnit                   `json:"geopolitical_stories"`
+	MacroeconomicStories  []V4ReadUnit                   `json:"macroeconomic_stories"`
+	ConceptAnalyses       []V4ReadUnit                   `json:"concept_analyses"`
+	Observations          []V4ReadReportObservationsItem `json:"observations"`
+	Limitations           []string                       `json:"limitations"`
 }
 type V4ReadGraphNodesItem struct {
 	LocalKey string `json:"local_key"`
@@ -2911,8 +2963,10 @@ type V4ReadUnitSummary struct {
 	EvidenceCount      int                               `json:"evidence_count"`
 }
 type V4ReadUnitDetail struct {
-	MacroImpacts   []V4ReadMacro `json:"macro_impacts"`
-	IndustryChains []V4ReadChain `json:"industry_chains"`
+	VariableSignals *[]V5ReadSignal `json:"variable_signals,omitempty"`
+	Companies       *[]V4ReadMacro  `json:"companies,omitempty"`
+	MacroImpacts    []V4ReadMacro   `json:"macro_impacts"`
+	IndustryChains  []V4ReadChain   `json:"industry_chains"`
 }
 type V4ReadReportAnalysisWindow struct {
 	Start string `json:"start"`
@@ -2933,12 +2987,14 @@ type V4ReadUnitSummaryImpactAssessment struct {
 }
 
 type V4ResolvedAnchor struct {
-	Reference  V4AnchorRef      `json:"reference"`
-	SourceID   string           `json:"source_id"`
-	Name       string           `json:"name"`
-	Assessment V4ReadAssessment `json:"assessment"`
+	JudgmentOrigin string           `json:"judgment_origin,omitempty"`
+	Reference      V4AnchorRef      `json:"reference"`
+	SourceID       string           `json:"source_id"`
+	Name           string           `json:"name"`
+	Assessment     V4ReadAssessment `json:"assessment"`
 }
 type V4SummaryProjection struct {
+	JudgmentOrigin  string             `json:"judgment_origin,omitempty"`
 	SchemaVersion   string             `json:"schema_version"`
 	LocalKey        string             `json:"local_key"`
 	SourceID        string             `json:"source_id"`
@@ -2948,16 +3004,21 @@ type V4SummaryProjection struct {
 	ChainCount      int                `json:"chain_count"`
 }
 type V4ChainHeader struct {
-	LocalKey   string                 `json:"local_key"`
-	SourceID   string                 `json:"source_id"`
-	Name       string                 `json:"name"`
-	Assessment V4ReadAssessment       `json:"assessment"`
-	EmptyState *V4ReadChainEmptyState `json:"empty_state"`
+	JudgmentOrigin string                 `json:"judgment_origin,omitempty"`
+	LocalKey       string                 `json:"local_key"`
+	SourceID       string                 `json:"source_id"`
+	Name           string                 `json:"name"`
+	Assessment     V4ReadAssessment       `json:"assessment"`
+	EmptyState     *V4ReadChainEmptyState `json:"empty_state"`
 }
 type V4DetailProjection struct {
-	Summary        V4SummaryProjection `json:"summary"`
-	MacroImpacts   []V4ReadMacro       `json:"macro_impacts"`
-	IndustryChains []V4ChainHeader     `json:"industry_chains"`
+	JudgmentOrigin   string              `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]V5ReadSignal     `json:"variable_signals,omitempty"`
+	Companies        *[]V4ReadMacro      `json:"companies,omitempty"`
+	Summary          V4SummaryProjection `json:"summary"`
+	MacroImpacts     []V4ReadMacro       `json:"macro_impacts"`
+	IndustryChains   []V4ChainHeader     `json:"industry_chains"`
 }
 type V4HomeProjection struct {
 	ReportType     V4ReadCodedLabel               `json:"report_type"`
@@ -2970,6 +3031,9 @@ type V4HomeProjection struct {
 }
 
 func (v AnalysisUnitSummary) MarshalJSON() ([]byte, error) {
+	if v.Company != nil {
+		return json.Marshal(v.Company)
+	}
 	if v.V4 != nil {
 		return json.Marshal(v.V4)
 	}
@@ -2977,6 +3041,9 @@ func (v AnalysisUnitSummary) MarshalJSON() ([]byte, error) {
 	return json.Marshal(plain(v))
 }
 func (v AnalysisUnitDetail) MarshalJSON() ([]byte, error) {
+	if v.Company != nil {
+		return json.Marshal(v.Company)
+	}
 	if v.V4 != nil {
 		return json.Marshal(v.V4)
 	}
@@ -3010,7 +3077,7 @@ func validateNormalizedChain(c V4Chain, seen map[string]bool) (map[string]bool, 
 	if err := normalizedKey(c.LocalKey, seen); err != nil {
 		return nil, err
 	}
-	if err := validateNormalizedAssessment(c.Assessment); err != nil {
+	if err := validateVersionedAssessment(c.Assessment, c.JudgmentOrigin != ""); err != nil {
 		return nil, err
 	}
 	if err := validateNormalizedObjections(c.ReasoningSummary.Objections); err != nil {
@@ -3064,7 +3131,7 @@ func validateNormalizedChain(c V4Chain, seen map[string]bool) (map[string]bool, 
 		}
 		targets[n.NodeLocalKey] = true
 		nodes[n.LocalKey] = true
-		if err := validateNormalizedAssessment(n.Assessment); err != nil {
+		if err := validateVersionedAssessment(n.Assessment, n.JudgmentOrigin != ""); err != nil {
 			return nil, err
 		}
 		if err := validateNormalizedObjections(n.Objections); err != nil {
@@ -3082,4 +3149,365 @@ func ValidateNormalizedChain(c V4Chain) error {
 	}
 	_, err := validateNormalizedChain(c, map[string]bool{})
 	return err
+}
+
+// V5 signal provenance is publisher-authored and never joined to live Event or graph facts.
+type V5ReasoningSources struct {
+	SignalIDs    []string        `json:"signal_ids"`
+	EventIDs     []string        `json:"event_ids"`
+	UpstreamRefs []V5UpstreamRef `json:"upstream_refs"`
+}
+type V5UpstreamRef struct {
+	EntityID  string  `json:"entity_id"`
+	LocalKey  string  `json:"local_key"`
+	Mechanism *string `json:"mechanism,omitempty"`
+	Condition *string `json:"condition,omitempty"`
+}
+type V5Signal struct {
+	VariableID      string   `json:"variable_id"`
+	VariableName    string   `json:"variable_name"`
+	SignalID        string   `json:"signal_id"`
+	Signal          string   `json:"signal"`
+	SourceDirection string   `json:"source_direction"`
+	Adoption        string   `json:"adoption"`
+	Qualification   string   `json:"qualification"`
+	EventIDs        []string `json:"event_ids"`
+	EvidenceIDs     []string `json:"evidence_ids"`
+}
+type V5ReadSignal struct {
+	VariableID         string   `json:"variable_id"`
+	VariableName       string   `json:"variable_name"`
+	SignalID           string   `json:"signal_id"`
+	Signal             string   `json:"signal"`
+	SourceDirection    string   `json:"source_direction"`
+	Adoption           string   `json:"adoption"`
+	Qualification      string   `json:"qualification"`
+	EventIDs           []string `json:"event_ids"`
+	EvidenceScopeToken *string  `json:"evidence_scope_token"`
+	EvidenceCount      int      `json:"evidence_count"`
+}
+type V5CompanyProjection struct {
+	SchemaVersion string      `json:"schema_version"`
+	Company       V4ReadMacro `json:"company"`
+}
+
+func hasSignalFields(v any) bool {
+	switch x := v.(type) {
+	case map[string]any:
+		if _, ok := x["nodes"]; ok {
+			if _, has := x["scope"]; has {
+				return true
+			}
+		}
+		for k, z := range x {
+			if v4OneOf(k, "variable_signals", "reasoning_sources", "judgment_origin", "industry_chain_analyses", "company_analyses", "companies") {
+				return true
+			}
+			if hasSignalFields(z) {
+				return true
+			}
+		}
+	case []any:
+		for _, z := range x {
+			if hasSignalFields(z) {
+				return true
+			}
+		}
+	}
+	return false
+}
+func validateVersionedAssessment(a V4Assessment, signalVersion bool) error {
+	if signalVersion && a.ConclusionBasis != "reasoning_hypothesis" {
+		return invalid("assessment", "v5 anchors require a bounded judgment")
+	}
+	// A bounded v5 judgment may explicitly leave direction pending; all other inference requirements remain mandatory.
+	return validateAssessmentState(a, signalVersion)
+}
+
+type signalJudgment struct {
+	key, id, origin string
+	sources         *V5ReasoningSources
+	signals         *[]V5Signal
+}
+
+func validateSignalJudgments(values []signalJudgment) error {
+	objects := map[string]string{}
+	for _, v := range values {
+		if err := normalizedKey(v.key, mapKeys(objects)); err != nil {
+			return err
+		}
+		objects[v.key] = v.id
+	}
+	for _, v := range values {
+		if v.signals == nil || *v.signals == nil || v.sources == nil {
+			return invalid(v.key, "signal arrays and reasoning sources are required")
+		}
+		src := v.sources
+		if src.SignalIDs == nil || src.EventIDs == nil || src.UpstreamRefs == nil || !v4Unique(src.SignalIDs) || !v4Unique(src.EventIDs) {
+			return invalid(v.key, "invalid reasoning source arrays")
+		}
+		if !v4OneOf(v.origin, "direct", "inferred") || (v.origin == "direct") != (len(*v.signals) > 0) {
+			return invalid(v.key, "direct judgment must have own signals; inferred judgment must not")
+		}
+		if len(src.EventIDs) == 0 && len(src.UpstreamRefs) == 0 {
+			return invalid(v.key, "judgment requires Event or upstream provenance")
+		}
+		if len(src.SignalIDs) != len(*v.signals) {
+			return invalid(v.key, "signal provenance does not match owned signals")
+		}
+		for _, id := range src.EventIDs {
+			if !validSignalID(id, "EVT") {
+				return invalid(v.key, "invalid Event ID")
+			}
+		}
+		for i, row := range *v.signals {
+			if row.SignalID != src.SignalIDs[i] || !validSignalID(row.SignalID, "") || !validSignalID(row.VariableID, "") {
+				return invalid(v.key, "invalid variable or signal identity")
+			}
+			if !v4OneOf(row.SourceDirection, "UP", "DOWN", "STABLE", "MIXED", "UNKNOWN") || !v4OneOf(row.Adoption, "adopted", "qualified") {
+				return invalid(v.key, "invalid signal direction or adoption")
+			}
+			for _, t := range []string{row.VariableName, row.Signal, row.Qualification} {
+				if err := requiredText(v.key, t, 16000); err != nil {
+					return err
+				}
+			}
+			if len(row.EventIDs) == 0 || len(row.EvidenceIDs) == 0 || !v4Unique(row.EventIDs) || !v4Unique(row.EvidenceIDs) {
+				return invalid(v.key, "signals require unique Event and Evidence references")
+			}
+			for _, id := range row.EventIDs {
+				if !validSignalID(id, "EVT") || !v4OneOf(id, src.EventIDs...) {
+					return invalid(v.key, "signal Event missing from judgment provenance")
+				}
+			}
+			for _, id := range row.EvidenceIDs {
+				if !validSignalID(id, "EVD") {
+					return invalid(v.key, "invalid Evidence ID")
+				}
+			}
+		}
+		refs := map[string]bool{}
+		for _, ref := range src.UpstreamRefs {
+			if objects[ref.LocalKey] != ref.EntityID || ref.LocalKey == v.key || refs[ref.LocalKey] {
+				return invalid(v.key, "upstream reference does not close in judgment scope")
+			}
+			refs[ref.LocalKey] = true
+			if ref.Mechanism != nil {
+				if err := requiredText(v.key, *ref.Mechanism, 16000); err != nil {
+					return err
+				}
+			}
+			if ref.Condition != nil {
+				if err := requiredText(v.key, *ref.Condition, 16000); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+func mapKeys(m map[string]string) map[string]bool {
+	r := map[string]bool{}
+	for k := range m {
+		r[k] = true
+	}
+	return r
+}
+func validSignalID(id, prefix string) bool {
+	return regexp.MustCompile("^" + prefix + "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$").MatchString(id)
+}
+func ValidateSignalCompany(c V4Macro) error {
+	if !validSignalID(c.SourceID, "COM") {
+		return invalid(c.LocalKey, "invalid Company ID")
+	}
+	if err := requiredText(c.LocalKey, c.Name, 16000); err != nil {
+		return err
+	}
+	if err := validateV4Assessment(c.LocalKey, c.Assessment); err != nil {
+		return err
+	}
+	if err := validateVersionedAssessment(c.Assessment, true); err != nil {
+		return err
+	}
+	if err := validateV4Objections(c.LocalKey, c.Objections); err != nil {
+		return err
+	}
+	return validateNormalizedObjections(c.Objections)
+}
+func ValidateSignalUnit(kind string, u V4Unit) error {
+	if err := ValidateNormalizedUnit(kind, u); err != nil {
+		return err
+	}
+	prefix := map[string]string{"geopolitical_stories": "GPR", "macroeconomic_stories": "MEC", "concept_analyses": "CON", "industry_chain_analyses": "ICH"}[kind]
+	if prefix == "" || !validSignalID(u.SourceID, prefix) {
+		return invalid(u.LocalKey, "unit source ID does not match kind")
+	}
+	if u.Detail.Companies == nil || *u.Detail.Companies == nil {
+		return invalid(u.LocalKey, "companies must be an array")
+	}
+	values := []signalJudgment{{u.LocalKey, u.SourceID, u.JudgmentOrigin, u.ReasoningSources, u.Detail.VariableSignals}}
+	for _, m := range u.Detail.MacroImpacts {
+		values = append(values, signalJudgment{m.LocalKey, m.SourceID, m.JudgmentOrigin, m.ReasoningSources, m.VariableSignals})
+	}
+	for _, c := range *u.Detail.Companies {
+		if err := ValidateSignalCompany(c); err != nil {
+			return err
+		}
+		values = append(values, signalJudgment{c.LocalKey, c.SourceID, c.JudgmentOrigin, c.ReasoningSources, c.VariableSignals})
+	}
+	for _, c := range u.Detail.IndustryChains {
+		if c.Graph.Scope != "assessed_nodes_only" || c.EmptyState != nil || len(c.Graph.Nodes) != len(c.AffectedNodes) {
+			return invalid(c.LocalKey, "v5 graph must contain exactly assessed nodes")
+		}
+		values = append(values, signalJudgment{c.LocalKey, c.SourceID, c.JudgmentOrigin, c.ReasoningSources, c.VariableSignals})
+		for _, n := range c.AffectedNodes {
+			values = append(values, signalJudgment{n.LocalKey, n.SourceID, n.JudgmentOrigin, n.ReasoningSources, n.VariableSignals})
+		}
+	}
+	return validateSignalJudgments(values)
+}
+func validateSignalReport(r V4Report) error {
+	if r.IndustryChainAnalyses == nil || *r.IndustryChainAnalyses == nil || r.CompanyAnalyses == nil || *r.CompanyAnalyses == nil {
+		return invalid("report", "v5 collections must be arrays")
+	}
+	// Reuse normalized structural and assessment rules without rewriting the persisted snapshot.
+	base := r
+	base.SchemaVersion = NormalizedSchemaVersion
+	base.ConceptAnalyses = append(append([]V4Unit{}, r.ConceptAnalyses...), (*r.IndustryChainAnalyses)...)
+	if len(base.GeopoliticalStories)+len(base.MacroeconomicStories)+len(base.ConceptAnalyses) > 0 {
+		if err := validateNormalizedBaseReport(base); err != nil {
+			return err
+		}
+	} else {
+		if err := validateV4Report("report", base); err != nil {
+			return err
+		}
+		if len(*r.CompanyAnalyses) == 0 {
+			return invalid("report", "at least one judgment required")
+		}
+	}
+	if r.ReportType.Code != "investment_reasoning" || r.ReportType.Label != "投研推理报告" {
+		return invalid("report_type", "invalid report type")
+	}
+	start, _ := time.Parse(time.RFC3339Nano, r.AnalysisWindow.Start)
+	end, _ := time.Parse(time.RFC3339Nano, r.AnalysisWindow.End)
+	if !start.Before(end) {
+		return invalid("analysis_window", "start must precede end")
+	}
+	companyKeys := map[string]bool{}
+	companySources := map[string]bool{}
+	for _, c := range *r.CompanyAnalyses {
+		if err := normalizedKey(c.LocalKey, companyKeys); err != nil {
+			return err
+		}
+		if companySources[c.SourceID] {
+			return invalid("company_analyses", "duplicate company source")
+		}
+		companySources[c.SourceID] = true
+	}
+	owners := map[string]string{}
+	for _, g := range []struct {
+		kind  string
+		units []V4Unit
+	}{{"geopolitical_stories", r.GeopoliticalStories}, {"macroeconomic_stories", r.MacroeconomicStories}, {"concept_analyses", r.ConceptAnalyses}, {"industry_chain_analyses", *r.IndustryChainAnalyses}} {
+		for _, u := range g.units {
+			if err := ValidateSignalUnit(g.kind, u); err != nil {
+				return err
+			}
+		}
+	}
+	for _, c := range *r.CompanyAnalyses {
+		if err := ValidateSignalCompany(c); err != nil {
+			return err
+		}
+		if err := validateSignalJudgments([]signalJudgment{{c.LocalKey, c.SourceID, c.JudgmentOrigin, c.ReasoningSources, c.VariableSignals}}); err != nil {
+			return err
+		}
+	}
+	// Signal ownership is stable across repeated entity appearances within the report.
+	var walk func(any) error
+	walk = func(v any) error {
+		switch x := v.(type) {
+		case map[string]any:
+			if rows, ok := x["variable_signals"].([]any); ok {
+				id, _ := x["source_id"].(string)
+				if id != "" {
+					for _, row := range rows {
+						sid := row.(map[string]any)["signal_id"].(string)
+						if prior := owners[sid]; prior != "" && prior != id {
+							return invalid("variable_signals", "signal assigned to multiple entities")
+						}
+						owners[sid] = id
+					}
+				}
+			}
+			// Story signals belong to their containing unit.
+			if detail, ok := x["detail"].(map[string]any); ok {
+				detail["source_id"] = x["source_id"]
+			}
+			for _, z := range x {
+				if err := walk(z); err != nil {
+					return err
+				}
+			}
+		case []any:
+			for _, z := range x {
+				if err := walk(z); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	raw, _ := json.Marshal(r)
+	var tree any
+	_ = json.Unmarshal(raw, &tree)
+	return walk(tree)
+}
+func signalEvidenceScopes(r V4Report) []NormalizedEvidenceScope {
+	// Exact object paths use local keys; signal and claim arrays use their frozen ordinal.
+	raw, _ := json.Marshal(r)
+	var tree any
+	_ = json.Unmarshal(raw, &tree)
+	scopes := []NormalizedEvidenceScope{}
+	var walk func(any, string)
+	walk = func(v any, p string) {
+		switch x := v.(type) {
+		case map[string]any:
+			if raw, ok := x["evidence_ids"].([]any); ok {
+				ids := []string{}
+				for _, id := range raw {
+					ids = append(ids, id.(string))
+				}
+				scopes = append(scopes, NormalizedEvidenceScope{strings.TrimPrefix(p+"/evidence_ids", "/"), ids})
+			}
+			keys := []string{}
+			for k := range x {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			for _, k := range keys {
+				walk(x[k], p+"/"+k)
+			}
+		case []any:
+			for i, z := range x {
+				key := fmt.Sprint(i)
+				if o, ok := z.(map[string]any); ok {
+					if k, ok := o["local_key"].(string); ok {
+						key = k
+					}
+				}
+				walk(z, p+"/"+key)
+			}
+		}
+	}
+	walk(tree, "")
+	return scopes
+}
+
+func ValidateStandaloneSignalCompany(c V4Macro) error {
+	if err := ValidateSignalCompany(c); err != nil {
+		return err
+	}
+	return validateSignalJudgments([]signalJudgment{{c.LocalKey, c.SourceID, c.JudgmentOrigin, c.ReasoningSources, c.VariableSignals}})
 }

@@ -502,6 +502,7 @@ type AnalysisImpactProjection struct {
 }
 
 type AnalysisUnitSummary struct {
+	Company            *V5CompanyProjection        `json:"-"`
 	V4                 *V4SummaryProjection        `json:"-"`
 	ImpactAssessment   *ImpactAssessmentProjection `json:"impact_assessment,omitempty"`
 	LocalKey           string                      `json:"local_key"`
@@ -521,6 +522,7 @@ type ChainAnalysisSummary struct {
 	Conclusion string `json:"conclusion"`
 }
 type AnalysisUnitDetail struct {
+	Company         *V5CompanyProjection       `json:"-"`
 	V4              *V4DetailProjection        `json:"-"`
 	Summary         AnalysisUnitSummary        `json:"summary"`
 	ReasoningSteps  []ReasoningStepProjection  `json:"reasoning_steps"`
@@ -566,6 +568,7 @@ type AnalysisCollection struct {
 
 // V4 contracts implement the approved normalized report, independently of legacy snapshots.
 const NormalizedSchemaVersion = "report-publication/v4"
+const SignalSchemaVersion = "report-publication/v5"
 
 type V4CodedLabel struct {
 	Code  string `json:"code"`
@@ -604,18 +607,25 @@ type V4Assessment struct {
 	EvidenceIDs       []string `json:"evidence_ids"`
 }
 type V4Node struct {
-	LocalKey     string       `json:"local_key"`
-	SourceID     string       `json:"source_id"`
-	NodeLocalKey string       `json:"node_local_key"`
-	Name         string       `json:"name"`
-	Assessment   V4Assessment `json:"assessment"`
-	Objections   V4Objections `json:"objections"`
+	JudgmentOrigin   string              `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]V5Signal         `json:"variable_signals,omitempty"`
+	LocalKey         string              `json:"local_key"`
+	SourceID         string              `json:"source_id"`
+	NodeLocalKey     string              `json:"node_local_key"`
+	Name             string              `json:"name"`
+	Assessment       V4Assessment        `json:"assessment"`
+	Objections       V4Objections        `json:"objections"`
 }
 type V4Graph struct {
+	Scope string             `json:"scope,omitempty"`
 	Nodes []V4GraphNodesItem `json:"nodes"`
 	Edges []V4GraphEdgesItem `json:"edges"`
 }
 type V4Chain struct {
+	JudgmentOrigin   string                  `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources     `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]V5Signal             `json:"variable_signals,omitempty"`
 	LocalKey         string                  `json:"local_key"`
 	SourceID         string                  `json:"source_id"`
 	Name             string                  `json:"name"`
@@ -626,11 +636,14 @@ type V4Chain struct {
 	EmptyState       *V4ChainEmptyState      `json:"empty_state"`
 }
 type V4Macro struct {
-	LocalKey   string       `json:"local_key"`
-	SourceID   string       `json:"source_id"`
-	Name       string       `json:"name"`
-	Assessment V4Assessment `json:"assessment"`
-	Objections V4Objections `json:"objections"`
+	JudgmentOrigin   string              `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]V5Signal         `json:"variable_signals,omitempty"`
+	LocalKey         string              `json:"local_key"`
+	SourceID         string              `json:"source_id"`
+	Name             string              `json:"name"`
+	Assessment       V4Assessment        `json:"assessment"`
+	Objections       V4Objections        `json:"objections"`
 }
 type V4AnchorRef struct {
 	TargetType    string  `json:"target_type"`
@@ -638,23 +651,27 @@ type V4AnchorRef struct {
 	ChainLocalKey *string `json:"chain_local_key"`
 }
 type V4Unit struct {
-	LocalKey string        `json:"local_key"`
-	SourceID string        `json:"source_id"`
-	Title    string        `json:"title"`
-	Summary  V4UnitSummary `json:"summary"`
-	Detail   V4UnitDetail  `json:"detail"`
+	JudgmentOrigin   string              `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources `json:"reasoning_sources,omitempty"`
+	LocalKey         string              `json:"local_key"`
+	SourceID         string              `json:"source_id"`
+	Title            string              `json:"title"`
+	Summary          V4UnitSummary       `json:"summary"`
+	Detail           V4UnitDetail        `json:"detail"`
 }
 type V4Report struct {
-	SchemaVersion        string                     `json:"schema_version"`
-	ReportType           V4CodedLabel               `json:"report_type"`
-	GeneratedAt          string                     `json:"generated_at"`
-	Timezone             string                     `json:"timezone"`
-	AnalysisWindow       V4ReportAnalysisWindow     `json:"analysis_window"`
-	GeopoliticalStories  []V4Unit                   `json:"geopolitical_stories"`
-	MacroeconomicStories []V4Unit                   `json:"macroeconomic_stories"`
-	ConceptAnalyses      []V4Unit                   `json:"concept_analyses"`
-	Observations         []V4ReportObservationsItem `json:"observations"`
-	Limitations          []string                   `json:"limitations"`
+	IndustryChainAnalyses *[]V4Unit                  `json:"industry_chain_analyses,omitempty"`
+	CompanyAnalyses       *[]V4Macro                 `json:"company_analyses,omitempty"`
+	SchemaVersion         string                     `json:"schema_version"`
+	ReportType            V4CodedLabel               `json:"report_type"`
+	GeneratedAt           string                     `json:"generated_at"`
+	Timezone              string                     `json:"timezone"`
+	AnalysisWindow        V4ReportAnalysisWindow     `json:"analysis_window"`
+	GeopoliticalStories   []V4Unit                   `json:"geopolitical_stories"`
+	MacroeconomicStories  []V4Unit                   `json:"macroeconomic_stories"`
+	ConceptAnalyses       []V4Unit                   `json:"concept_analyses"`
+	Observations          []V4ReportObservationsItem `json:"observations"`
+	Limitations           []string                   `json:"limitations"`
 }
 type V4GraphNodesItem struct {
 	LocalKey string `json:"local_key"`
@@ -684,8 +701,10 @@ type V4UnitSummary struct {
 	EvidenceIDs       []string                      `json:"evidence_ids"`
 }
 type V4UnitDetail struct {
-	MacroImpacts   []V4Macro `json:"macro_impacts"`
-	IndustryChains []V4Chain `json:"industry_chains"`
+	VariableSignals *[]V5Signal `json:"variable_signals,omitempty"`
+	Companies       *[]V4Macro  `json:"companies,omitempty"`
+	MacroImpacts    []V4Macro   `json:"macro_impacts"`
+	IndustryChains  []V4Chain   `json:"industry_chains"`
 }
 type V4ReportAnalysisWindow struct {
 	Start string `json:"start"`
@@ -710,7 +729,7 @@ func (r *Report) UnmarshalJSON(payload []byte) error {
 	if err := json.Unmarshal(payload, &probe); err != nil {
 		return err
 	}
-	if probe.SchemaVersion == NormalizedSchemaVersion {
+	if probe.SchemaVersion == NormalizedSchemaVersion || probe.SchemaVersion == SignalSchemaVersion {
 		var parsed V4Report
 		decoder := json.NewDecoder(bytes.NewReader(payload))
 		decoder.DisallowUnknownFields()
@@ -770,18 +789,25 @@ type V4ReadAssessment struct {
 	EvidenceCount      int          `json:"evidence_count"`
 }
 type V4ReadNode struct {
-	LocalKey     string           `json:"local_key"`
-	SourceID     string           `json:"source_id"`
-	NodeLocalKey string           `json:"node_local_key"`
-	Name         string           `json:"name"`
-	Assessment   V4ReadAssessment `json:"assessment"`
-	Objections   V4ReadObjections `json:"objections"`
+	JudgmentOrigin   string              `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]V5ReadSignal     `json:"variable_signals,omitempty"`
+	LocalKey         string              `json:"local_key"`
+	SourceID         string              `json:"source_id"`
+	NodeLocalKey     string              `json:"node_local_key"`
+	Name             string              `json:"name"`
+	Assessment       V4ReadAssessment    `json:"assessment"`
+	Objections       V4ReadObjections    `json:"objections"`
 }
 type V4ReadGraph struct {
+	Scope string                 `json:"scope,omitempty"`
 	Nodes []V4ReadGraphNodesItem `json:"nodes"`
 	Edges []V4ReadGraphEdgesItem `json:"edges"`
 }
 type V4ReadChain struct {
+	JudgmentOrigin   string                      `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources         `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]V5ReadSignal             `json:"variable_signals,omitempty"`
 	LocalKey         string                      `json:"local_key"`
 	SourceID         string                      `json:"source_id"`
 	Name             string                      `json:"name"`
@@ -792,11 +818,14 @@ type V4ReadChain struct {
 	EmptyState       *V4ReadChainEmptyState      `json:"empty_state"`
 }
 type V4ReadMacro struct {
-	LocalKey   string           `json:"local_key"`
-	SourceID   string           `json:"source_id"`
-	Name       string           `json:"name"`
-	Assessment V4ReadAssessment `json:"assessment"`
-	Objections V4ReadObjections `json:"objections"`
+	JudgmentOrigin   string              `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]V5ReadSignal     `json:"variable_signals,omitempty"`
+	LocalKey         string              `json:"local_key"`
+	SourceID         string              `json:"source_id"`
+	Name             string              `json:"name"`
+	Assessment       V4ReadAssessment    `json:"assessment"`
+	Objections       V4ReadObjections    `json:"objections"`
 }
 type V4ReadAnchorRef struct {
 	TargetType    string  `json:"target_type"`
@@ -804,23 +833,27 @@ type V4ReadAnchorRef struct {
 	ChainLocalKey *string `json:"chain_local_key"`
 }
 type V4ReadUnit struct {
-	LocalKey string            `json:"local_key"`
-	SourceID string            `json:"source_id"`
-	Title    string            `json:"title"`
-	Summary  V4ReadUnitSummary `json:"summary"`
-	Detail   V4ReadUnitDetail  `json:"detail"`
+	JudgmentOrigin   string              `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources `json:"reasoning_sources,omitempty"`
+	LocalKey         string              `json:"local_key"`
+	SourceID         string              `json:"source_id"`
+	Title            string              `json:"title"`
+	Summary          V4ReadUnitSummary   `json:"summary"`
+	Detail           V4ReadUnitDetail    `json:"detail"`
 }
 type V4ReadReport struct {
-	SchemaVersion        string                         `json:"schema_version"`
-	ReportType           V4ReadCodedLabel               `json:"report_type"`
-	GeneratedAt          string                         `json:"generated_at"`
-	Timezone             string                         `json:"timezone"`
-	AnalysisWindow       V4ReadReportAnalysisWindow     `json:"analysis_window"`
-	GeopoliticalStories  []V4ReadUnit                   `json:"geopolitical_stories"`
-	MacroeconomicStories []V4ReadUnit                   `json:"macroeconomic_stories"`
-	ConceptAnalyses      []V4ReadUnit                   `json:"concept_analyses"`
-	Observations         []V4ReadReportObservationsItem `json:"observations"`
-	Limitations          []string                       `json:"limitations"`
+	IndustryChainAnalyses *[]V4ReadUnit                  `json:"industry_chain_analyses,omitempty"`
+	CompanyAnalyses       *[]V4ReadMacro                 `json:"company_analyses,omitempty"`
+	SchemaVersion         string                         `json:"schema_version"`
+	ReportType            V4ReadCodedLabel               `json:"report_type"`
+	GeneratedAt           string                         `json:"generated_at"`
+	Timezone              string                         `json:"timezone"`
+	AnalysisWindow        V4ReadReportAnalysisWindow     `json:"analysis_window"`
+	GeopoliticalStories   []V4ReadUnit                   `json:"geopolitical_stories"`
+	MacroeconomicStories  []V4ReadUnit                   `json:"macroeconomic_stories"`
+	ConceptAnalyses       []V4ReadUnit                   `json:"concept_analyses"`
+	Observations          []V4ReadReportObservationsItem `json:"observations"`
+	Limitations           []string                       `json:"limitations"`
 }
 type V4ReadGraphNodesItem struct {
 	LocalKey string `json:"local_key"`
@@ -851,8 +884,10 @@ type V4ReadUnitSummary struct {
 	EvidenceCount      int                               `json:"evidence_count"`
 }
 type V4ReadUnitDetail struct {
-	MacroImpacts   []V4ReadMacro `json:"macro_impacts"`
-	IndustryChains []V4ReadChain `json:"industry_chains"`
+	VariableSignals *[]V5ReadSignal `json:"variable_signals,omitempty"`
+	Companies       *[]V4ReadMacro  `json:"companies,omitempty"`
+	MacroImpacts    []V4ReadMacro   `json:"macro_impacts"`
+	IndustryChains  []V4ReadChain   `json:"industry_chains"`
 }
 type V4ReadReportAnalysisWindow struct {
 	Start string `json:"start"`
@@ -873,12 +908,14 @@ type V4ReadUnitSummaryImpactAssessment struct {
 }
 
 type V4ResolvedAnchor struct {
-	Reference  V4AnchorRef      `json:"reference"`
-	SourceID   string           `json:"source_id"`
-	Name       string           `json:"name"`
-	Assessment V4ReadAssessment `json:"assessment"`
+	JudgmentOrigin string           `json:"judgment_origin,omitempty"`
+	Reference      V4AnchorRef      `json:"reference"`
+	SourceID       string           `json:"source_id"`
+	Name           string           `json:"name"`
+	Assessment     V4ReadAssessment `json:"assessment"`
 }
 type V4SummaryProjection struct {
+	JudgmentOrigin  string             `json:"judgment_origin,omitempty"`
 	SchemaVersion   string             `json:"schema_version"`
 	LocalKey        string             `json:"local_key"`
 	SourceID        string             `json:"source_id"`
@@ -888,16 +925,21 @@ type V4SummaryProjection struct {
 	ChainCount      int                `json:"chain_count"`
 }
 type V4ChainHeader struct {
-	LocalKey   string                 `json:"local_key"`
-	SourceID   string                 `json:"source_id"`
-	Name       string                 `json:"name"`
-	Assessment V4ReadAssessment       `json:"assessment"`
-	EmptyState *V4ReadChainEmptyState `json:"empty_state"`
+	JudgmentOrigin string                 `json:"judgment_origin,omitempty"`
+	LocalKey       string                 `json:"local_key"`
+	SourceID       string                 `json:"source_id"`
+	Name           string                 `json:"name"`
+	Assessment     V4ReadAssessment       `json:"assessment"`
+	EmptyState     *V4ReadChainEmptyState `json:"empty_state"`
 }
 type V4DetailProjection struct {
-	Summary        V4SummaryProjection `json:"summary"`
-	MacroImpacts   []V4ReadMacro       `json:"macro_impacts"`
-	IndustryChains []V4ChainHeader     `json:"industry_chains"`
+	JudgmentOrigin   string              `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]V5ReadSignal     `json:"variable_signals,omitempty"`
+	Companies        *[]V4ReadMacro      `json:"companies,omitempty"`
+	Summary          V4SummaryProjection `json:"summary"`
+	MacroImpacts     []V4ReadMacro       `json:"macro_impacts"`
+	IndustryChains   []V4ChainHeader     `json:"industry_chains"`
 }
 type V4HomeProjection struct {
 	ReportType     V4ReadCodedLabel               `json:"report_type"`
@@ -910,6 +952,9 @@ type V4HomeProjection struct {
 }
 
 func (v AnalysisUnitSummary) MarshalJSON() ([]byte, error) {
+	if v.Company != nil {
+		return json.Marshal(v.Company)
+	}
 	if v.V4 != nil {
 		return json.Marshal(v.V4)
 	}
@@ -917,6 +962,20 @@ func (v AnalysisUnitSummary) MarshalJSON() ([]byte, error) {
 	return json.Marshal(plain(v))
 }
 func (v *AnalysisUnitSummary) UnmarshalJSON(b []byte) error {
+	var companyProbe struct {
+		Company json.RawMessage `json:"company"`
+	}
+	if err := json.Unmarshal(b, &companyProbe); err != nil {
+		return err
+	}
+	if companyProbe.Company != nil {
+		var c V5CompanyProjection
+		if err := json.Unmarshal(b, &c); err != nil {
+			return err
+		}
+		*v = AnalysisUnitSummary{Company: &c}
+		return nil
+	}
 	var probe struct {
 		SchemaVersion string `json:"schema_version"`
 		Summary       struct {
@@ -927,7 +986,7 @@ func (v *AnalysisUnitSummary) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &probe); err != nil {
 		return err
 	}
-	if probe.SchemaVersion == NormalizedSchemaVersion {
+	if probe.SchemaVersion == NormalizedSchemaVersion || probe.SchemaVersion == SignalSchemaVersion {
 		var n V4SummaryProjection
 		if err := json.Unmarshal(b, &n); err != nil {
 			return err
@@ -944,6 +1003,9 @@ func (v *AnalysisUnitSummary) UnmarshalJSON(b []byte) error {
 	return nil
 }
 func (v AnalysisUnitDetail) MarshalJSON() ([]byte, error) {
+	if v.Company != nil {
+		return json.Marshal(v.Company)
+	}
 	if v.V4 != nil {
 		return json.Marshal(v.V4)
 	}
@@ -951,6 +1013,20 @@ func (v AnalysisUnitDetail) MarshalJSON() ([]byte, error) {
 	return json.Marshal(plain(v))
 }
 func (v *AnalysisUnitDetail) UnmarshalJSON(b []byte) error {
+	var companyProbe struct {
+		Company json.RawMessage `json:"company"`
+	}
+	if err := json.Unmarshal(b, &companyProbe); err != nil {
+		return err
+	}
+	if companyProbe.Company != nil {
+		var c V5CompanyProjection
+		if err := json.Unmarshal(b, &c); err != nil {
+			return err
+		}
+		*v = AnalysisUnitDetail{Company: &c}
+		return nil
+	}
 	var probe struct {
 		SchemaVersion string `json:"schema_version"`
 		Summary       struct {
@@ -961,7 +1037,7 @@ func (v *AnalysisUnitDetail) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &probe); err != nil {
 		return err
 	}
-	if probe.Summary.SchemaVersion == NormalizedSchemaVersion {
+	if probe.Summary.SchemaVersion == NormalizedSchemaVersion || probe.Summary.SchemaVersion == SignalSchemaVersion {
 		var n V4DetailProjection
 		if err := json.Unmarshal(b, &n); err != nil {
 			return err
@@ -1029,7 +1105,7 @@ func (v *Home) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &probe); err != nil {
 		return err
 	}
-	if probe.SchemaVersion == NormalizedSchemaVersion {
+	if probe.SchemaVersion == NormalizedSchemaVersion || probe.SchemaVersion == SignalSchemaVersion {
 		var n V4HomeProjection
 		if err := json.Unmarshal(b, &n); err != nil {
 			return err
@@ -1044,4 +1120,44 @@ func (v *Home) UnmarshalJSON(b []byte) error {
 	}
 	*v = Home(n)
 	return nil
+}
+
+// V5 signal provenance is publisher-authored and never joined to live Event or graph facts.
+type V5ReasoningSources struct {
+	SignalIDs    []string        `json:"signal_ids"`
+	EventIDs     []string        `json:"event_ids"`
+	UpstreamRefs []V5UpstreamRef `json:"upstream_refs"`
+}
+type V5UpstreamRef struct {
+	EntityID  string  `json:"entity_id"`
+	LocalKey  string  `json:"local_key"`
+	Mechanism *string `json:"mechanism,omitempty"`
+	Condition *string `json:"condition,omitempty"`
+}
+type V5Signal struct {
+	VariableID      string   `json:"variable_id"`
+	VariableName    string   `json:"variable_name"`
+	SignalID        string   `json:"signal_id"`
+	Signal          string   `json:"signal"`
+	SourceDirection string   `json:"source_direction"`
+	Adoption        string   `json:"adoption"`
+	Qualification   string   `json:"qualification"`
+	EventIDs        []string `json:"event_ids"`
+	EvidenceIDs     []string `json:"evidence_ids"`
+}
+type V5ReadSignal struct {
+	VariableID         string   `json:"variable_id"`
+	VariableName       string   `json:"variable_name"`
+	SignalID           string   `json:"signal_id"`
+	Signal             string   `json:"signal"`
+	SourceDirection    string   `json:"source_direction"`
+	Adoption           string   `json:"adoption"`
+	Qualification      string   `json:"qualification"`
+	EventIDs           []string `json:"event_ids"`
+	EvidenceScopeToken *string  `json:"evidence_scope_token"`
+	EvidenceCount      int      `json:"evidence_count"`
+}
+type V5CompanyProjection struct {
+	SchemaVersion string      `json:"schema_version"`
+	Company       V4ReadMacro `json:"company"`
 }
