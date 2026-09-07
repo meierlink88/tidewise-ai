@@ -54,6 +54,10 @@ func publishHandler(application Service) kratoshttp.HandlerFunc {
 		}
 		if json.Unmarshal(payload, &versionProbe) == nil && versionProbe.Report.SchemaVersion != nil {
 			shape = analysisPublicationShape()
+			var version string
+			if json.Unmarshal(versionProbe.Report.SchemaVersion, &version) == nil && version == NormalizedSchemaVersion {
+				shape = normalizedPublicationShape()
+			}
 		}
 		if err := v1.DecodeStrictJSON(payload, shape, request); err != nil {
 			return v1.NewPublicError(v1.StatusBadRequest, ErrorInvalidRequest,
@@ -311,4 +315,71 @@ func analysisPublicationShape() *v1.StrictJSONShape {
 	analysisUnit := requiredShape(map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "source_id": v1.StrictJSONString(), "title": v1.StrictJSONString(), "summary": analysisSummary, "detail": analysisDetail})
 	report := requiredShape(map[string]*v1.StrictJSONShape{"schema_version": v1.StrictJSONString(), "report_type": codedLabel, "generated_at": v1.StrictJSONString(), "timezone": v1.StrictJSONString(), "analysis_window": analysisWindow, "geopolitical_stories": v1.StrictJSONArray(analysisUnit), "macroeconomic_stories": v1.StrictJSONArray(analysisUnit), "concept_analyses": v1.StrictJSONArray(analysisUnit)})
 	return requiredShape(map[string]*v1.StrictJSONShape{"publisher_report_id": v1.StrictJSONString(), "report": report})
+}
+
+func normalizedPublicationShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"publisher_report_id": v1.StrictJSONString(), "report": v4ReportShape()})
+}
+func v4CodedLabelShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"code": v1.StrictJSONString(), "label": v1.StrictJSONString()})
+}
+func v4ClaimShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"text": v1.StrictJSONString(), "basis": v1.StrictJSONString(), "evidence_ids": v1.StrictJSONArray(v1.StrictJSONString())})
+}
+func v4ObjectionsShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"summary": v1.StrictJSONString(), "counterevidence": v1.StrictJSONArray(v4ClaimShape()), "buffers": v1.StrictJSONArray(v4ClaimShape()), "counterevidence_status": v1.StrictJSONString(), "evidence_gaps": v1.StrictJSONArray(v1.StrictJSONString()), "scope_limits": v1.StrictJSONArray(v1.StrictJSONString())})
+}
+func v4WindowShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"kind": v1.StrictJSONString(), "description": v1.StrictJSONString(), "start_at": v1.StrictJSONNullable(v1.StrictJSONString()), "end_at": v1.StrictJSONNullable(v1.StrictJSONString())})
+}
+func v4AssessmentShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"conclusion": v1.StrictJSONString(), "direction": v1.StrictJSONString(), "conclusion_basis": v1.StrictJSONString(), "validation_status": v1.StrictJSONString(), "confidence": v1.StrictJSONNullable(v1.StrictJSONString()), "forecast_window": v4WindowShape(), "scope": v1.StrictJSONString(), "conditions": v1.StrictJSONArray(v1.StrictJSONString()), "follow_up": v1.StrictJSONArray(v1.StrictJSONString()), "transmission_logic": v1.StrictJSONString(), "evidence_ids": v1.StrictJSONArray(v1.StrictJSONString())})
+}
+func v4NodeShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "source_id": v1.StrictJSONString(), "node_local_key": v1.StrictJSONString(), "name": v1.StrictJSONString(), "assessment": v4AssessmentShape(), "objections": v4ObjectionsShape()})
+}
+func v4GraphShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"nodes": v1.StrictJSONArray(v4GraphNodesItemShape()), "edges": v1.StrictJSONArray(v4GraphEdgesItemShape())})
+}
+func v4ChainShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "source_id": v1.StrictJSONString(), "name": v1.StrictJSONString(), "assessment": v4AssessmentShape(), "reasoning_summary": v4ChainReasoningSummaryShape(), "graph": v4GraphShape(), "affected_nodes": v1.StrictJSONArray(v4NodeShape()), "empty_state": v1.StrictJSONNullable(v4ChainEmptyStateShape())})
+}
+func v4MacroShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "source_id": v1.StrictJSONString(), "name": v1.StrictJSONString(), "assessment": v4AssessmentShape(), "objections": v4ObjectionsShape()})
+}
+func v4AnchorRefShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"target_type": v1.StrictJSONString(), "local_key": v1.StrictJSONString(), "chain_local_key": v1.StrictJSONNullable(v1.StrictJSONString())})
+}
+func v4UnitShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "source_id": v1.StrictJSONString(), "title": v1.StrictJSONString(), "summary": v4UnitSummaryShape(), "detail": v4UnitDetailShape()})
+}
+func v4ReportShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"schema_version": v1.StrictJSONString(), "report_type": v4CodedLabelShape(), "generated_at": v1.StrictJSONString(), "timezone": v1.StrictJSONString(), "analysis_window": v4ReportAnalysisWindowShape(), "geopolitical_stories": v1.StrictJSONArray(v4UnitShape()), "macroeconomic_stories": v1.StrictJSONArray(v4UnitShape()), "concept_analyses": v1.StrictJSONArray(v4UnitShape()), "observations": v1.StrictJSONArray(v4ReportObservationsItemShape()), "limitations": v1.StrictJSONArray(v1.StrictJSONString())})
+}
+func v4GraphNodesItemShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "source_id": v1.StrictJSONString(), "name": v1.StrictJSONString()})
+}
+func v4GraphEdgesItemShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"from_node_local_key": v1.StrictJSONString(), "to_node_local_key": v1.StrictJSONString(), "relation_label": v1.StrictJSONString()})
+}
+func v4ChainReasoningSummaryShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"logic": v1.StrictJSONString(), "support": v4ClaimShape(), "objections": v4ObjectionsShape()})
+}
+func v4ChainEmptyStateShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"code": v1.StrictJSONString(), "reason": v1.StrictJSONString(), "follow_up": v1.StrictJSONArray(v1.StrictJSONString())})
+}
+func v4UnitSummaryShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"conclusion": v1.StrictJSONString(), "transmission_logic": v1.StrictJSONString(), "impact_assessment": v4UnitSummaryImpactAssessmentShape(), "affected_refs": v1.StrictJSONArray(v4AnchorRefShape()), "evidence_ids": v1.StrictJSONArray(v1.StrictJSONString())})
+}
+func v4UnitDetailShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"macro_impacts": v1.StrictJSONArray(v4MacroShape()), "industry_chains": v1.StrictJSONArray(v4ChainShape())})
+}
+func v4ReportAnalysisWindowShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"start": v1.StrictJSONString(), "end": v1.StrictJSONString()})
+}
+func v4ReportObservationsItemShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "title": v1.StrictJSONString(), "text": v1.StrictJSONString(), "evidence_ids": v1.StrictJSONArray(v1.StrictJSONString())})
+}
+func v4UnitSummaryImpactAssessmentShape() *v1.StrictJSONShape {
+	return requiredShape(map[string]*v1.StrictJSONShape{"level": v1.StrictJSONString(), "rationale": v1.StrictJSONString(), "evidence_ids": v1.StrictJSONArray(v1.StrictJSONString())})
 }

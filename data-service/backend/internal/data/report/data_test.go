@@ -7,9 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
-	reportapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/report"
-	reportservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/report"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -19,10 +16,14 @@ import (
 	"testing"
 	"time"
 
+	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	"github.com/jackc/pgx/v5/pgconn"
+	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
+	reportapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/report"
 	evidencebiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/evidence"
 	reportbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/report"
 	evidencedata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/evidence"
+	reportservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/report"
 	postgresfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/postgres"
 	reportfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/report"
 )
@@ -452,7 +453,7 @@ func TestPostgresStoryConceptPublicationAndScopedReads(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	list, err := uc.List(ctx, reportbiz.ListRequest{})
+	list, err := uc.List(ctx, reportbiz.ListRequest{SchemaVersion: "legacy"})
 	if err != nil || len(list.Items) != 1 || list.Items[0].ID != old.Record.ID {
 		t.Fatalf("legacy selection=%+v err=%v", list, err)
 	}
@@ -631,4 +632,203 @@ func TestPostgresStoryChainHTTPPublicationAndRead(t *testing.T) {
 	if err := db.QueryRow(`SELECT count(*) FROM reports`).Scan(&count); err != nil || count != 1 {
 		t.Fatalf("atomic report count=%d err=%v", count, err)
 	}
+}
+
+func TestPostgresNormalizedReportHTTPRoundTrip(t *testing.T) {
+	db := openReportTestDatabase(t, 0)
+	ids := publishReportEvidence(t, db)
+	payload, err := os.ReadFile("../../../api/data/v1/report/testdata/normalized-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload = bytes.ReplaceAll(payload, []byte("EVD11111111-1111-4111-8111-111111111111"), []byte(ids[0]))
+	store, _ := NewStore(db)
+	publicationTime := time.Now()
+	uc, _ := reportbiz.NewUseCase(store, func() time.Time { return publicationTime })
+	app, _ := reportservice.NewService(uc)
+	server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(func(w http.ResponseWriter, r *http.Request, err error) {
+		var p *v1.PublicError
+		if errors.As(err, &p) {
+			w.WriteHeader(p.Status)
+			json.NewEncoder(w).Encode(map[string]any{"error": map[string]any{"code": p.Code, "message": p.Message}})
+			return
+		}
+		w.WriteHeader(500)
+	}))
+	reportapi.RegisterHTTPServer(server, app)
+	call := func(method, path string, body []byte) *httptest.ResponseRecorder {
+		t.Helper()
+		q := httptest.NewRequest(method, path, bytes.NewReader(body))
+		q.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		server.ServeHTTP(w, q)
+		return w
+	}
+	for _, want := range []int{201, 200} {
+		w := call("POST", "/api/data/v1/report-publications", payload)
+		if w.Code != want {
+			t.Fatalf("publish %d %s", w.Code, w.Body.String())
+		}
+	}
+	var id string
+	if err := db.QueryRow(`SELECT id FROM reports WHERE publisher_report_id='normalized-contract-example'`).Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	var req struct {
+		Report reportbiz.Report `json:"report"`
+	}
+	if err := json.Unmarshal(payload, &req); err != nil {
+		t.Fatal(err)
+	}
+	root := "/api/data/v1/reports/" + id
+	for _, g := range []struct {
+		kind  string
+		units []reportbiz.V4Unit
+	}{{"geopolitical_stories", req.Report.V4.GeopoliticalStories}, {"macroeconomic_stories", req.Report.V4.MacroeconomicStories}, {"concept_analyses", req.Report.V4.ConceptAnalyses}} {
+		w := call("GET", root+"/analyses/"+g.kind+"?limit=1", nil)
+		if w.Code != 200 || strings.Contains(w.Body.String(), `"evidence_ids"`) {
+			t.Fatalf("list %d %s", w.Code, w.Body.String())
+		}
+		var page reportapi.AnalysisCollection
+		if err := json.Unmarshal(w.Body.Bytes(), &page); err != nil {
+			t.Fatal(err)
+		}
+		if len(page.Items) != 1 || page.Items[0].V4 == nil {
+			t.Fatal("missing normalized summary")
+		}
+		for _, u := range g.units {
+			prefix := root + "/analyses/" + g.kind + "/" + u.LocalKey
+			w := call("GET", prefix, nil)
+			if w.Code != 200 {
+				t.Fatal(w.Body.String())
+			}
+			var detail reportapi.AnalysisUnitDetail
+			if err := json.Unmarshal(w.Body.Bytes(), &detail); err != nil {
+				t.Fatal(err)
+			}
+			if detail.V4 == nil || detail.V4.Summary.Summary.Conclusion != u.Summary.Conclusion || strings.Contains(w.Body.String(), `"graph"`) {
+				t.Fatal("invalid unit header projection")
+			}
+			for _, c := range u.Detail.IndustryChains {
+				w := call("GET", prefix+"/industry-chains/"+c.LocalKey, nil)
+				if w.Code != 200 {
+					t.Fatalf("chain %d %s", w.Code, w.Body.String())
+				}
+				var chain reportapi.ChainAnalysisDetail
+				if err := json.Unmarshal(w.Body.Bytes(), &chain); err != nil {
+					t.Fatal(err)
+				}
+				if chain.V4 == nil || chain.V4.Assessment.Conclusion != c.Assessment.Conclusion || len(chain.V4.AffectedNodes) != len(c.AffectedNodes) {
+					t.Fatal("chain fields missing")
+				}
+				// Compare every non-Evidence field, not just selected display columns.
+				expectedBytes, _ := json.Marshal(c)
+				var expected, actual any
+				json.Unmarshal(expectedBytes, &expected)
+				json.Unmarshal(w.Body.Bytes(), &actual)
+				if !reflect.DeepEqual(withoutEvidenceFields(expected), withoutEvidenceFields(actual)) {
+					t.Fatal("chain round trip lost or changed fields")
+				}
+				if strings.Contains(w.Body.String(), "EVD") || strings.Contains(w.Body.String(), "evidence_ids") {
+					t.Fatal("raw Evidence leaked")
+				}
+				token := chain.V4.ReasoningSummary.Support.EvidenceScopeToken
+				if token == nil {
+					t.Fatal("missing support token")
+				}
+				ev, err := uc.ListEvidence(context.Background(), id, *token)
+				if err != nil || len(ev) != 1 {
+					t.Fatalf("evidence %v", err)
+				}
+				for i, n := range chain.V4.AffectedNodes {
+					if n.Assessment.Conclusion != c.AffectedNodes[i].Assessment.Conclusion || n.Assessment.ForecastWindow.Description != c.AffectedNodes[i].Assessment.ForecastWindow.Description {
+						t.Fatal("node fields changed")
+					}
+				}
+			}
+		}
+	}
+	w := call("GET", root+"/home", nil)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"observations"`) || strings.Contains(w.Body.String(), "evidence_ids") {
+		t.Fatal("missing normalized metadata")
+	}
+	// A newer normalized report must be visible without selecting a format.
+	page, err := uc.List(context.Background(), reportbiz.ListRequest{})
+	if err != nil || len(page.Items) != 1 || page.Items[0].ID != id {
+		t.Fatalf("all-version selection: %+v %v", page, err)
+	}
+	changed := bytes.ReplaceAll(payload, []byte(req.Report.V4.GeopoliticalStories[0].Summary.Conclusion), []byte("Different conclusion"))
+	if w := call("POST", "/api/data/v1/report-publications", changed); w.Code != 409 {
+		t.Fatalf("changed replay: %d", w.Code)
+	}
+	// Missing/unknown/null fields fail before storage; missing Evidence rolls back.
+	for _, change := range []func(map[string]any){func(v map[string]any) { v["unknown"] = true }, func(v map[string]any) { delete(v["report"].(map[string]any), "observations") }, func(v map[string]any) { v["report"].(map[string]any)["limitations"] = nil }} {
+		var v map[string]any
+		json.Unmarshal(payload, &v)
+		change(v)
+		b, _ := json.Marshal(v)
+		if w := call("POST", "/api/data/v1/report-publications", b); w.Code != 400 {
+			t.Fatalf("invalid shape accepted: %d %s", w.Code, w.Body.String())
+		}
+	}
+	missing := bytes.ReplaceAll(payload, []byte(ids[0]), []byte("EVD33333333-3333-4333-8333-333333333333"))
+	missing = bytes.ReplaceAll(missing, []byte("normalized-contract-example"), []byte("normalized-missing"))
+	if w := call("POST", "/api/data/v1/report-publications", missing); w.Code != 422 {
+		t.Fatalf("missing Evidence: %d %s", w.Code, w.Body.String())
+	}
+	var count int
+	db.QueryRow(`SELECT count(*) FROM reports`).Scan(&count)
+	if count != 1 {
+		t.Fatal("publication was not atomic")
+	}
+	publicationTime = publicationTime.Add(-24 * time.Hour)
+	legacy := reportWithEvidenceIDs(t, agentOSFixtureReport(t), ids[0], ids[1])
+	old, err := uc.Publish(context.Background(), "old-format", legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v3bytes, err := os.ReadFile("../../../api/data/v1/report/testdata/story-concept-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	v3bytes = bytes.ReplaceAll(v3bytes, []byte("EVD11111111-1111-4111-8111-111111111111"), []byte(ids[0]))
+	var v3req struct {
+		Report reportbiz.Report `json:"report"`
+	}
+	if err := json.Unmarshal(v3bytes, &v3req); err != nil {
+		t.Fatal(err)
+	}
+	third, err := uc.Publish(context.Background(), "v3-format", v3req.Report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page, err = uc.List(context.Background(), reportbiz.ListRequest{Limit: 1})
+	if err != nil || len(page.Items) != 1 || page.Items[0].ID != id || page.NextCursor == nil {
+		t.Fatalf("mixed latest selection: %+v %v", page, err)
+	}
+	if _, err := uc.List(context.Background(), reportbiz.ListRequest{SchemaVersion: "legacy", Cursor: *page.NextCursor}); err == nil {
+		t.Fatal("accepted cursor with changed version filter")
+	}
+	for version, want := range map[string]string{"legacy": old.Record.ID, reportbiz.AnalysisSchemaVersion: third.Record.ID, reportbiz.NormalizedSchemaVersion: id} {
+		result, err := uc.List(context.Background(), reportbiz.ListRequest{SchemaVersion: version})
+		if err != nil || len(result.Items) != 1 || result.Items[0].ID != want {
+			t.Fatalf("version %s: %+v %v", version, result, err)
+		}
+	}
+}
+
+func withoutEvidenceFields(v any) any {
+	switch x := v.(type) {
+	case map[string]any:
+		delete(x, "evidence_ids")
+		delete(x, "evidence_scope_token")
+		for k, child := range x {
+			x[k] = withoutEvidenceFields(child)
+		}
+	case []any:
+		for i, child := range x {
+			x[i] = withoutEvidenceFields(child)
+		}
+	}
+	return v
 }

@@ -2,12 +2,12 @@ package report
 
 import (
 	"encoding/json"
-	"github.com/getkin/kin-openapi/openapi3"
 	"net/url"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	reportfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/report"
 )
@@ -107,7 +107,7 @@ func TestPublicationFixturesMatchOpenAPI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"investment-report-publication-request.json", "story-concept-publication-request.json", "story-chain-publication-request.json"} {
+	for _, name := range []string{"investment-report-publication-request.json", "story-concept-publication-request.json", "story-chain-publication-request.json", "normalized-publication-request.json"} {
 		payload, err := os.ReadFile("testdata/" + name)
 		if err != nil {
 			t.Fatal(err)
@@ -145,5 +145,19 @@ func TestImpactAssessmentStrictPublication(t *testing.T) {
 		if err := v1.DecodeStrictJSON(wire, analysisPublicationShape(), &request); err == nil {
 			t.Fatal("invalid assessment wire accepted")
 		}
+	}
+}
+
+func TestNormalizedPublicationStrictShape(t *testing.T) {
+	b, err := os.ReadFile("testdata/normalized-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var r PublicationRequest
+	if err := v1.DecodeStrictJSON(b, normalizedPublicationShape(), &r); err != nil {
+		t.Fatal(err)
+	}
+	if r.Report.V4 == nil {
+		t.Fatal("version dispatch lost report")
 	}
 }
