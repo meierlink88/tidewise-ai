@@ -3288,7 +3288,8 @@ func validateSignalJudgments(values []signalJudgment) error {
 		}
 		refs := map[string]bool{}
 		for _, ref := range src.UpstreamRefs {
-			if objects[ref.LocalKey] != ref.EntityID || ref.LocalKey == v.key || refs[ref.LocalKey] {
+			targetID, exists := objects[ref.LocalKey]
+			if !exists || targetID != ref.EntityID || ref.LocalKey == v.key || refs[ref.LocalKey] {
 				return invalid(v.key, "upstream reference does not close in judgment scope")
 			}
 			refs[ref.LocalKey] = true
@@ -3393,6 +3394,12 @@ func validateSignalReport(r V4Report) error {
 	end, _ := time.Parse(time.RFC3339Nano, r.AnalysisWindow.End)
 	if !start.Before(end) {
 		return invalid("analysis_window", "start must precede end")
+	}
+	observationKeys := map[string]bool{}
+	for _, o := range r.Observations {
+		if err := normalizedKey(o.LocalKey, observationKeys); err != nil {
+			return err
+		}
 	}
 	companyKeys := map[string]bool{}
 	companySources := map[string]bool{}

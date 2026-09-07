@@ -622,6 +622,9 @@ func TestSignalReportRejectsInconsistentJudgments(t *testing.T) {
 		{"invalid direction", func(r *reportbiz.V4Report) {
 			(*r.GeopoliticalStories[0].Detail.VariableSignals)[0].SourceDirection = "FLAT"
 		}},
+		{"blank dangling upstream", func(r *reportbiz.V4Report) {
+			r.GeopoliticalStories[0].ReasoningSources.UpstreamRefs = append(r.GeopoliticalStories[0].ReasoningSources.UpstreamRefs, reportbiz.V5UpstreamRef{LocalKey: "missing"})
+		}},
 		{"dangling upstream", func(r *reportbiz.V4Report) {
 			r.GeopoliticalStories[0].ReasoningSources.UpstreamRefs = append(r.GeopoliticalStories[0].ReasoningSources.UpstreamRefs, reportbiz.V5UpstreamRef{EntityID: "missing", LocalKey: "missing"})
 		}},
