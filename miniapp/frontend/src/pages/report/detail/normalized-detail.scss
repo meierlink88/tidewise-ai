@@ -108,6 +108,21 @@
   line-height: 1.6;
   align-items: center;
 }
+.normalized-signals .normalized-direction,
+.normalized-signal-chip {
+  box-sizing: border-box;
+  padding: 6px 14px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  max-width: 100%;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.normalized-signal-chip {
+  color: #e5edf9;
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.2);
+}
 .normalized-direction {
   padding: 2px 9px;
   border-radius: 6px;

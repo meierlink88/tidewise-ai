@@ -159,11 +159,15 @@ function Signals({ a }: { a: Assessment }) {
   return (
     <View className='normalized-signals'>
       <Text className={`normalized-direction ${a.direction}`}>{directions[a.direction]}</Text>
-      {a.confidence ? <Text>置信度 {confidences[a.confidence]}</Text> : null}
-      {a.forecast_window.kind !== 'not_applicable' ? (
-        <Text>{a.forecast_window.description}</Text>
+      {a.confidence ? (
+        <Text className='normalized-signal-chip'>置信度 {confidences[a.confidence]}</Text>
       ) : null}
-      <Text>{a.conclusion_basis === 'observation_only' ? '仅观察' : '推理'}</Text>
+      {a.forecast_window.kind !== 'not_applicable' ? (
+        <Text className='normalized-signal-chip'>{a.forecast_window.description}</Text>
+      ) : null}
+      <Text className='normalized-signal-chip'>
+        {a.conclusion_basis === 'observation_only' ? '仅观察' : '推理'}
+      </Text>
     </View>
   );
 }
