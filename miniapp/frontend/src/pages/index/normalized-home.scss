@@ -21,29 +21,52 @@
 .normalized-home-list {
   padding-bottom: calc(40px + env(safe-area-inset-bottom));
 }
+.normalized-home-tabs-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
 .normalized-home-tabs {
-  display: flex;
-  gap: 10px;
-  padding: 8px;
-  background: $color-card;
-  border: 1px solid $color-report-group-border;
-  border-radius: 50px;
-  box-shadow: 0 4px 16px rgba($color-navy-900, 0.04);
+  display: inline-flex;
+  gap: 14px;
+  padding: 4px 2px 12px;
+  vertical-align: top;
 }
 .normalized-home-tab {
-  flex: 1;
-  min-width: 0;
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 !important;
   color: $color-text-secondary !important;
   font-size: 27px !important;
   font-weight: 500;
-  padding: 18px 8px !important;
-  background: transparent !important;
-  border: 1px solid transparent !important;
-  border-radius: 40px !important;
+  padding: 14px 24px 14px 16px !important;
+  background: $color-card !important;
+  border: 1px solid $color-report-group-border !important;
+  border-radius: 48px !important;
   line-height: 1.5 !important;
+  white-space: nowrap;
   transition:
     background-color 160ms ease,
     color 160ms ease;
+}
+.normalized-home-tab-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: $color-report-blue-50;
+}
+.normalized-home-tab-image {
+  width: 28px;
+  height: 28px;
+}
+.normalized-home-tab.selected .normalized-home-tab-icon {
+  background: $color-champagne-300;
 }
 .normalized-home-tab.selected {
   color: $color-card !important;
