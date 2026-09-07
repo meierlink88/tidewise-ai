@@ -1,6 +1,13 @@
 import Taro, { usePullDownRefresh } from '@tarojs/taro';
 import { Button, Image, ScrollView, Text, View } from '@tarojs/components';
 import { useEffect, useMemo, useState } from 'react';
+import { NormalizedDetailView } from './normalized-detail';
+import {
+  analysisKinds,
+  type AnalysisKind,
+  type AnalysisDetail
+} from '../../../features/reports/normalized-contract';
+
 import reportActivityCoolingIcon from '../../../assets/icons/report-activity-cooling.svg';
 import reportActivityDivergingIcon from '../../../assets/icons/report-activity-diverging.svg';
 import reportActivityPendingIcon from '../../../assets/icons/report-activity-pending.svg';
@@ -46,6 +53,7 @@ import { useReportResource } from '../../../features/reports/use-report-resource
 import './index.scss';
 
 export type LoadedReportDetail =
+  | { targetType: 'analysis'; detail: AnalysisDetail; reportId: string; kind: AnalysisKind }
   | { targetType: 'layer'; detail: ReportLayerDetail; continuationDetail?: ReportLayerDetail }
   | { targetType: 'industry_chain'; detail: ReportIndustryChainDetail };
 
@@ -94,6 +102,15 @@ export async function loadReportDetail(
   route: ReportDetailRoute | null
 ): Promise<LoadedReportDetail> {
   if (!route) throw new ReportError('invalidRequest');
+  if (analysisKinds.includes(route.targetType as AnalysisKind)) {
+    const kind = route.targetType as AnalysisKind;
+    return {
+      targetType: 'analysis',
+      detail: await port.getAnalysis(route.reportId, kind, route.targetKey),
+      reportId: route.reportId,
+      kind
+    };
+  }
   if (route.targetType === 'layer') {
     if (route.targetKey === 'geopolitics') {
       const [detail, continuationDetail] = await Promise.all([
@@ -163,6 +180,16 @@ export function ReportDetailView({
     );
   }
 
+  if (state.data.targetType === 'analysis')
+    return (
+      <NormalizedDetailView
+        key={`${state.data.reportId}:${state.data.kind}:${state.data.detail.summary.local_key}`}
+        detail={state.data.detail}
+        reportId={state.data.reportId}
+        kind={state.data.kind}
+        onEvidence={onOpenEvidence}
+      />
+    );
   return (
     <View className='report-detail-page'>
       {state.refreshFailed ? (

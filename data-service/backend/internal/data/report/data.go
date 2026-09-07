@@ -690,7 +690,7 @@ func (s Store) isNormalizedReport(ctx context.Context, id string) (bool, error) 
 
 // The JSON walk is a projection of an already typed and validated snapshot, not
 // an accepted arbitrary payload. It only substitutes Evidence IDs with scope tokens.
-func projectNormalizedEvidence(value any, prefix string, tokens map[string]*string, target any) error {
+func projectNormalizedEvidence(value any, prefix string, tokens map[string]*string, counts map[string]int, target any) error {
 	raw, err := json.Marshal(value)
 	if err != nil {
 		return err
@@ -714,6 +714,15 @@ func projectNormalizedEvidence(value any, prefix string, tokens map[string]*stri
 				}
 				delete(x, "evidence_ids")
 				x["evidence_scope_token"] = token
+				// NULL metadata identifies a historical publication; its frozen IDs remain authoritative.
+				count := len(values)
+				if counts != nil {
+					count = counts[strings.TrimPrefix(p+"/evidence_ids", "/")]
+					if count != len(values) {
+						return errors.New("normalized Evidence count does not match frozen scope")
+					}
+				}
+				x["evidence_count"] = count
 			}
 			for k, z := range x {
 				if err := walk(z, p+"/"+k); err != nil {
@@ -814,6 +823,10 @@ func (s Store) listNormalizedAnalyses(ctx context.Context, f reportbiz.AnalysisL
 	if err := rows.Close(); err != nil {
 		return reportbiz.AnalysisStorePage{}, err
 	}
+	counts, err := s.evidenceCounts(ctx, f.ReportID)
+	if err != nil {
+		return reportbiz.AnalysisStorePage{}, err
+	}
 	tokens, err := s.scopeTokens(ctx, f.ReportID)
 	if err != nil {
 		return reportbiz.AnalysisStorePage{}, err
@@ -824,7 +837,7 @@ func (s Store) listNormalizedAnalyses(ctx context.Context, f reportbiz.AnalysisL
 	}
 	for _, e := range entries {
 		var u reportbiz.V4ReadUnit
-		if err := projectNormalizedEvidence(e.unit, f.Kind+"/"+e.unit.LocalKey, tokens, &u); err != nil {
+		if err := projectNormalizedEvidence(e.unit, f.Kind+"/"+e.unit.LocalKey, tokens, counts, &u); err != nil {
 			return page, err
 		}
 		item, err := normalizedSummary(u, e.ordinal)
@@ -851,12 +864,16 @@ func (s Store) normalizedUnit(ctx context.Context, id, kind, key string) (report
 	if err := reportbiz.ValidateNormalizedUnit(kind, unit); err != nil {
 		return reportbiz.V4ReadUnit{}, err
 	}
+	counts, err := s.evidenceCounts(ctx, id)
+	if err != nil {
+		return reportbiz.V4ReadUnit{}, err
+	}
 	tokens, err := s.scopeTokens(ctx, id)
 	if err != nil {
 		return reportbiz.V4ReadUnit{}, err
 	}
 	var projected reportbiz.V4ReadUnit
-	err = projectNormalizedEvidence(unit, kind+"/"+key, tokens, &projected)
+	err = projectNormalizedEvidence(unit, kind+"/"+key, tokens, counts, &projected)
 	return projected, err
 }
 func (s Store) getNormalizedAnalysis(ctx context.Context, id, kind, key string) (reportbiz.AnalysisUnitDetail, error) {
@@ -890,12 +907,16 @@ func (s Store) getNormalizedChain(ctx context.Context, id, kind, key, chain stri
 	if err := reportbiz.ValidateNormalizedChain(c); err != nil {
 		return reportbiz.ChainAnalysisDetail{}, err
 	}
+	counts, err := s.evidenceCounts(ctx, id)
+	if err != nil {
+		return reportbiz.ChainAnalysisDetail{}, err
+	}
 	tokens, err := s.scopeTokens(ctx, id)
 	if err != nil {
 		return reportbiz.ChainAnalysisDetail{}, err
 	}
 	var projected reportbiz.V4ReadChain
-	if err := projectNormalizedEvidence(c, kind+"/"+key+"/detail/industry_chains/"+chain, tokens, &projected); err != nil {
+	if err := projectNormalizedEvidence(c, kind+"/"+key+"/detail/industry_chains/"+chain, tokens, counts, &projected); err != nil {
 		return reportbiz.ChainAnalysisDetail{}, err
 	}
 	return reportbiz.ChainAnalysisDetail{V4: &projected}, nil
@@ -919,6 +940,10 @@ func (s Store) getNormalizedHome(ctx context.Context, id string) (reportbiz.Home
 	if err := decodeStoredJSON(raw, &value); err != nil {
 		return reportbiz.Home{}, err
 	}
+	counts, err := s.evidenceCounts(ctx, id)
+	if err != nil {
+		return reportbiz.Home{}, err
+	}
 	tokens, err := s.scopeTokens(ctx, id)
 	if err != nil {
 		return reportbiz.Home{}, err
@@ -929,8 +954,23 @@ func (s Store) getNormalizedHome(ctx context.Context, id string) (reportbiz.Home
 	for k, v := range tokens {
 		rootTokens["/"+k] = v
 	}
-	if err := projectNormalizedEvidence(value, "", rootTokens, &projected); err != nil {
+	if err := projectNormalizedEvidence(value, "", rootTokens, counts, &projected); err != nil {
 		return reportbiz.Home{}, err
 	}
 	return reportbiz.Home{V4: &projected}, nil
+}
+
+func (s Store) evidenceCounts(ctx context.Context, id string) (map[string]int, error) {
+	var raw []byte
+	if err := s.db.QueryRowContext(ctx, `SELECT evidence_counts FROM reports WHERE id=$1`, id).Scan(&raw); err != nil {
+		return nil, fmt.Errorf("read Report Evidence counts: %w", err)
+	}
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	var counts map[string]int
+	if err := json.Unmarshal(raw, &counts); err != nil {
+		return nil, fmt.Errorf("decode Report Evidence counts: %w", err)
+	}
+	return counts, nil
 }

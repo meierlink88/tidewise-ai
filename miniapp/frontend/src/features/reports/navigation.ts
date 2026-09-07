@@ -1,3 +1,4 @@
+import { analysisKinds } from './normalized-contract';
 import type { ReportDetailTargetType, ReportLayerKey } from './contract';
 
 const reportIDPattern =
@@ -6,7 +7,7 @@ const localKeyPattern = /^[a-z0-9][a-z0-9._-]{0,127}$/;
 const scopeTokenPattern =
   /^RPE[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const layerKeys = ['geopolitics', 'macroeconomics'] as const;
-const targetTypes = ['layer', 'industry_chain'] as const;
+const targetTypes = ['layer', 'industry_chain', ...analysisKinds] as const;
 
 export interface ReportDetailRoute {
   reportId: string;

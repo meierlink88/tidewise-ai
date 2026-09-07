@@ -54,10 +54,10 @@ _Avoid_: 今日 Theme、当日多 Report Tab、前端自行排序或选择、跨
 _Avoid_: 今日主题、今日推理、隐藏回退来源
 
 **Report 分析投影**:
-每份 Report 的实际分析 Section 及产业链分页摘要。产业链必有；地缘政治与宏观经济按本次报告
-是否存在投影，不生成空卡片；公司能力上线前不生成占位层。卡片是 Miniapp Backend 从同一份
-不可变、扁平 AgentOS Report 发布快照构造的产品 DTO，不是 Data 持久化事实，并始终保留所属
-`report_id`。
+Report v4 按地缘政治故事线、宏观经济故事线、产业链所属 Concept 分为三个分页分组；
+一条故事线或一个 Concept 对应一张结论卡片，空分组不生成占位卡片。BFF 只读取 Data 的
+摘要、因果链目录和单链详情投影，不解码完整发布快照。旧扁平报告保留原 Section/产业链投影。
+所有卡片、详情和证据始终绑定所属 `report_id`。
 _Avoid_: 固定四层、空层占位、Data 持久化首页卡片、跨 Report 聚合
 
 **Report 卡片详情目标**:
@@ -90,11 +90,25 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
 - 首页刷新重新执行完整选择流程。刷新失败保留本会话最近一次成功内容，并显示可重试错误；
   旧请求晚到不得覆盖更新后的 Report。
 
+## Report v4 integration
+
+- API 保持 `/api/miniapp/v1` 与 `/api/data/v1`。`schema_version` 表示既有报告内容格式，不新增 URL 版本。
+- 首页选中 v4 时返回 `analysis_groups`，按 `geopolitical_stories`、`macroeconomic_stories`、
+  `concept_analyses` 顺序各取首批 20 项，每组独立保留 Data cursor；不拉取图谱或 Evidence 清单。
+- `GET /reports/{report_id}/analyses/{kind}` 分页读取结论卡片；`/{analysis_key}` 读取目录及宏观锚点；
+  `/{analysis_key}/industry-chains/{chain_key}` 读取该单元的产业链图谱和节点推理。
+- v4 详情统一按宏观经济/产业链类型展示因果链 Tab。内容顺序为结论、关键机制、支持/反证，
+  产业链再展示完整横向图谱、选中节点的支持/反证/后续验证，最后是整链后续验证。
+- 图谱只用报告显式拓扑边；结构节点缺少当期评估时不继承整链结论；仅观察不展示虚构置信度。
+- 所有 `evidence_count` 原样使用 Data 发布时计算的 scope 内去重 Evidence 数量，
+  与 opaque token 打开的清单一致；不以节点或因果链数量替代证据数量。
+- 最新报告读取失败或格式不支持时显式报错，不跳过该报告改选旧报告。旧无版本快照仍走原读取合同。
+
 ## Report API
 
-- `GET /api/miniapp/v1/reports/home` 返回当日最新 Report 的元数据和可选上层摘要；当日为空时返回历史最新一份，
+- `GET /api/miniapp/v1/reports/home` 返回选中 Report 的元数据和相应格式的首页投影；当日为空时返回历史最新一份，
   全部为空时返回明确空集合。
-- `GET /api/miniapp/v1/reports/home` 为选中 Report 返回可选上层卡片和首个产业链 page，同时返回
+- 对旧无版本 Report，`GET /api/miniapp/v1/reports/home` 返回可选上层卡片和首个产业链 page，同时返回
   `next_cursor`；BFF 不完整消费产业链集合，也不解码完整 Report JSON。
 - `GET /api/miniapp/v1/reports/{report_id}/industry-chains?limit=&cursor=` 原样推进 Data 主导的
   report-bound cursor，并返回下一批产业链卡片。

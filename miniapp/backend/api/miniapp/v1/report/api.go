@@ -11,6 +11,9 @@ const (
 )
 
 type Service interface {
+	ListAnalyses(context.Context, *AnalysisQuery) (*AnalysisPage, error)
+	GetAnalysis(context.Context, *AnalysisQuery) (*NormalizedDetailProjection, error)
+	GetAnalysisChain(context.Context, *AnalysisQuery) (*NormalizedChain, error)
 	GetHome(context.Context, *HomeRequest) (*HomeResponse, error)
 	ListIndustryChains(context.Context, *IndustryChainListRequest) (*CardCollection, error)
 	GetLayer(context.Context, *LayerRequest) (*LayerDetail, error)
@@ -37,6 +40,7 @@ type Selection struct {
 }
 
 type Summary struct {
+	SchemaVersion      string `json:"schema_version,omitempty"`
 	ID                 string `json:"id"`
 	GeneratedAt        string `json:"generated_at"`
 	PublishedAt        string `json:"published_at"`
@@ -94,9 +98,10 @@ type CardCollection struct {
 }
 
 type HomeReport struct {
-	Report     Summary `json:"report"`
-	Cards      []Card  `json:"cards"`
-	NextCursor *string `json:"next_cursor"`
+	AnalysisGroups []AnalysisGroup `json:"analysis_groups,omitempty"`
+	Report         Summary         `json:"report"`
+	Cards          []Card          `json:"cards"`
+	NextCursor     *string         `json:"next_cursor"`
 }
 
 type HomeResponse struct {
@@ -231,4 +236,149 @@ type EvidenceCollection struct {
 	ReportID   string         `json:"report_id"`
 	ScopeToken string         `json:"scope_token"`
 	Items      []EvidenceItem `json:"items"`
+}
+
+type NormalizedClaim struct {
+	Text               string  `json:"text"`
+	Basis              string  `json:"basis"`
+	EvidenceScopeToken *string `json:"evidence_scope_token"`
+	EvidenceCount      int     `json:"evidence_count"`
+}
+type NormalizedObjections struct {
+	Summary               string            `json:"summary"`
+	Counterevidence       []NormalizedClaim `json:"counterevidence"`
+	Buffers               []NormalizedClaim `json:"buffers"`
+	CounterevidenceStatus string            `json:"counterevidence_status"`
+	EvidenceGaps          []string          `json:"evidence_gaps"`
+	ScopeLimits           []string          `json:"scope_limits"`
+}
+type NormalizedWindow struct {
+	Kind        string  `json:"kind"`
+	Description string  `json:"description"`
+	StartAt     *string `json:"start_at"`
+	EndAt       *string `json:"end_at"`
+}
+type NormalizedAssessment struct {
+	Conclusion         string           `json:"conclusion"`
+	Direction          string           `json:"direction"`
+	ConclusionBasis    string           `json:"conclusion_basis"`
+	ValidationStatus   string           `json:"validation_status"`
+	Confidence         *string          `json:"confidence"`
+	ForecastWindow     NormalizedWindow `json:"forecast_window"`
+	Scope              string           `json:"scope"`
+	Conditions         []string         `json:"conditions"`
+	FollowUp           []string         `json:"follow_up"`
+	TransmissionLogic  string           `json:"transmission_logic"`
+	EvidenceScopeToken *string          `json:"evidence_scope_token"`
+	EvidenceCount      int              `json:"evidence_count"`
+}
+type NormalizedNode struct {
+	LocalKey     string               `json:"local_key"`
+	SourceID     string               `json:"source_id"`
+	NodeLocalKey string               `json:"node_local_key"`
+	Name         string               `json:"name"`
+	Assessment   NormalizedAssessment `json:"assessment"`
+	Objections   NormalizedObjections `json:"objections"`
+}
+type NormalizedGraph struct {
+	Nodes []NormalizedGraphNodesItem `json:"nodes"`
+	Edges []NormalizedGraphEdgesItem `json:"edges"`
+}
+type NormalizedChain struct {
+	LocalKey         string                          `json:"local_key"`
+	SourceID         string                          `json:"source_id"`
+	Name             string                          `json:"name"`
+	Assessment       NormalizedAssessment            `json:"assessment"`
+	ReasoningSummary NormalizedChainReasoningSummary `json:"reasoning_summary"`
+	Graph            NormalizedGraph                 `json:"graph"`
+	AffectedNodes    []NormalizedNode                `json:"affected_nodes"`
+	EmptyState       *NormalizedChainEmptyState      `json:"empty_state"`
+}
+type NormalizedMacro struct {
+	LocalKey   string               `json:"local_key"`
+	SourceID   string               `json:"source_id"`
+	Name       string               `json:"name"`
+	Assessment NormalizedAssessment `json:"assessment"`
+	Objections NormalizedObjections `json:"objections"`
+}
+type NormalizedAnchorRef struct {
+	TargetType    string  `json:"target_type"`
+	LocalKey      string  `json:"local_key"`
+	ChainLocalKey *string `json:"chain_local_key"`
+}
+type NormalizedGraphNodesItem struct {
+	LocalKey string `json:"local_key"`
+	SourceID string `json:"source_id"`
+	Name     string `json:"name"`
+}
+type NormalizedGraphEdgesItem struct {
+	FromNodeLocalKey string `json:"from_node_local_key"`
+	ToNodeLocalKey   string `json:"to_node_local_key"`
+	RelationLabel    string `json:"relation_label"`
+}
+type NormalizedChainReasoningSummary struct {
+	Logic      string               `json:"logic"`
+	Support    NormalizedClaim      `json:"support"`
+	Objections NormalizedObjections `json:"objections"`
+}
+type NormalizedChainEmptyState struct {
+	Code     string   `json:"code"`
+	Reason   string   `json:"reason"`
+	FollowUp []string `json:"follow_up"`
+}
+type NormalizedUnitSummary struct {
+	Conclusion         string                                `json:"conclusion"`
+	TransmissionLogic  string                                `json:"transmission_logic"`
+	ImpactAssessment   NormalizedUnitSummaryImpactAssessment `json:"impact_assessment"`
+	AffectedRefs       []NormalizedAnchorRef                 `json:"affected_refs"`
+	EvidenceScopeToken *string                               `json:"evidence_scope_token"`
+	EvidenceCount      int                                   `json:"evidence_count"`
+}
+type NormalizedUnitSummaryImpactAssessment struct {
+	Level              string  `json:"level"`
+	Rationale          string  `json:"rationale"`
+	EvidenceScopeToken *string `json:"evidence_scope_token"`
+	EvidenceCount      int     `json:"evidence_count"`
+}
+
+type NormalizedResolvedAnchor struct {
+	Reference  NormalizedAnchorRef  `json:"reference"`
+	SourceID   string               `json:"source_id"`
+	Name       string               `json:"name"`
+	Assessment NormalizedAssessment `json:"assessment"`
+}
+type NormalizedSummaryProjection struct {
+	SchemaVersion   string                     `json:"schema_version"`
+	LocalKey        string                     `json:"local_key"`
+	SourceID        string                     `json:"source_id"`
+	Title           string                     `json:"title"`
+	Summary         NormalizedUnitSummary      `json:"summary"`
+	AffectedAnchors []NormalizedResolvedAnchor `json:"affected_anchors"`
+	ChainCount      int                        `json:"chain_count"`
+}
+type NormalizedChainHeader struct {
+	LocalKey   string                     `json:"local_key"`
+	SourceID   string                     `json:"source_id"`
+	Name       string                     `json:"name"`
+	Assessment NormalizedAssessment       `json:"assessment"`
+	EmptyState *NormalizedChainEmptyState `json:"empty_state"`
+}
+type NormalizedDetailProjection struct {
+	Summary        NormalizedSummaryProjection `json:"summary"`
+	MacroImpacts   []NormalizedMacro           `json:"macro_impacts"`
+	IndustryChains []NormalizedChainHeader     `json:"industry_chains"`
+}
+
+type AnalysisPage struct {
+	Items      []NormalizedSummaryProjection `json:"items"`
+	NextCursor *string                       `json:"next_cursor"`
+}
+type AnalysisGroup struct {
+	Kind       string                        `json:"kind"`
+	Items      []NormalizedSummaryProjection `json:"items"`
+	NextCursor *string                       `json:"next_cursor"`
+}
+type AnalysisQuery struct {
+	ReportID, Kind, Key, ChainKey, Cursor string
+	Limit                                 int
 }

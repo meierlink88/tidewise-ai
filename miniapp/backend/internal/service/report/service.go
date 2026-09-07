@@ -106,7 +106,11 @@ func mapHome(value biz.Home) api.HomeReport {
 	for index, card := range value.Cards {
 		cards[index] = mapCard(card)
 	}
-	return api.HomeReport{Report: mapSummary(value.Report), Cards: cards, NextCursor: value.NextCursor}
+	groups := make([]api.AnalysisGroup, len(value.AnalysisGroups))
+	for i, g := range value.AnalysisGroups {
+		groups[i] = mapAnalysisGroup(g)
+	}
+	return api.HomeReport{AnalysisGroups: groups, Report: mapSummary(value.Report), Cards: cards, NextCursor: value.NextCursor}
 }
 
 func mapCard(value biz.Card) api.Card {
@@ -192,7 +196,7 @@ func publicError(err error) error {
 	}
 }
 func mapSummary(value biz.Summary) api.Summary {
-	return api.Summary{ID: value.ID, GeneratedAt: formatTime(value.GeneratedAt), PublishedAt: formatTime(value.PublishedAt), IndustryChainCount: value.IndustryChainCount}
+	return api.Summary{SchemaVersion: value.SchemaVersion, ID: value.ID, GeneratedAt: formatTime(value.GeneratedAt), PublishedAt: formatTime(value.PublishedAt), IndustryChainCount: value.IndustryChainCount}
 }
 func mapCoded(value biz.CodedLabel) api.CodedLabel {
 	return api.CodedLabel{Code: value.Code, Label: value.Label}
@@ -214,3 +218,281 @@ func cloneStrings(values []string) []string {
 }
 
 var _ api.Service = (*Service)(nil)
+
+func analysisQuery(q *api.AnalysisQuery) biz.AnalysisQuery {
+	return biz.AnalysisQuery{ReportID: q.ReportID, Kind: q.Kind, Key: q.Key, ChainKey: q.ChainKey, Limit: q.Limit, Cursor: q.Cursor}
+}
+
+func (s *Service) ListAnalyses(ctx context.Context, q *api.AnalysisQuery) (*api.AnalysisPage, error) {
+	if s == nil || s.useCase == nil || q == nil {
+		return nil, v1.ErrInvalidRequest
+	}
+	v, err := s.useCase.Analyses(ctx, analysisQuery(q))
+	if err != nil {
+		return nil, publicError(err)
+	}
+	out := mapAnalysisPage(v)
+	return &out, nil
+}
+func (s *Service) GetAnalysis(ctx context.Context, q *api.AnalysisQuery) (*api.NormalizedDetailProjection, error) {
+	if s == nil || s.useCase == nil || q == nil {
+		return nil, v1.ErrInvalidRequest
+	}
+	v, err := s.useCase.Analysis(ctx, analysisQuery(q))
+	if err != nil {
+		return nil, publicError(err)
+	}
+	out := mapNormalizedDetailProjection(v)
+	return &out, nil
+}
+func (s *Service) GetAnalysisChain(ctx context.Context, q *api.AnalysisQuery) (*api.NormalizedChain, error) {
+	if s == nil || s.useCase == nil || q == nil {
+		return nil, v1.ErrInvalidRequest
+	}
+	v, err := s.useCase.AnalysisChain(ctx, analysisQuery(q))
+	if err != nil {
+		return nil, publicError(err)
+	}
+	out := mapNormalizedChain(v)
+	return &out, nil
+}
+
+func mapNormalizedClaim(v biz.NormalizedClaim) api.NormalizedClaim {
+	out := api.NormalizedClaim{}
+	out.Text = v.Text
+	out.Basis = v.Basis
+	out.EvidenceScopeToken = v.EvidenceScopeToken
+	out.EvidenceCount = v.EvidenceCount
+	return out
+}
+
+func mapNormalizedObjections(v biz.NormalizedObjections) api.NormalizedObjections {
+	out := api.NormalizedObjections{}
+	out.Summary = v.Summary
+	out.Counterevidence = make([]api.NormalizedClaim, len(v.Counterevidence))
+	for i, x := range v.Counterevidence {
+		out.Counterevidence[i] = mapNormalizedClaim(x)
+	}
+	out.Buffers = make([]api.NormalizedClaim, len(v.Buffers))
+	for i, x := range v.Buffers {
+		out.Buffers[i] = mapNormalizedClaim(x)
+	}
+	out.CounterevidenceStatus = v.CounterevidenceStatus
+	out.EvidenceGaps = v.EvidenceGaps
+	out.ScopeLimits = v.ScopeLimits
+	return out
+}
+
+func mapNormalizedWindow(v biz.NormalizedWindow) api.NormalizedWindow {
+	out := api.NormalizedWindow{}
+	out.Kind = v.Kind
+	out.Description = v.Description
+	out.StartAt = v.StartAt
+	out.EndAt = v.EndAt
+	return out
+}
+
+func mapNormalizedAssessment(v biz.NormalizedAssessment) api.NormalizedAssessment {
+	out := api.NormalizedAssessment{}
+	out.Conclusion = v.Conclusion
+	out.Direction = v.Direction
+	out.ConclusionBasis = v.ConclusionBasis
+	out.ValidationStatus = v.ValidationStatus
+	out.Confidence = v.Confidence
+	out.ForecastWindow = mapNormalizedWindow(v.ForecastWindow)
+	out.Scope = v.Scope
+	out.Conditions = v.Conditions
+	out.FollowUp = v.FollowUp
+	out.TransmissionLogic = v.TransmissionLogic
+	out.EvidenceScopeToken = v.EvidenceScopeToken
+	out.EvidenceCount = v.EvidenceCount
+	return out
+}
+
+func mapNormalizedNode(v biz.NormalizedNode) api.NormalizedNode {
+	out := api.NormalizedNode{}
+	out.LocalKey = v.LocalKey
+	out.SourceID = v.SourceID
+	out.NodeLocalKey = v.NodeLocalKey
+	out.Name = v.Name
+	out.Assessment = mapNormalizedAssessment(v.Assessment)
+	out.Objections = mapNormalizedObjections(v.Objections)
+	return out
+}
+
+func mapNormalizedGraph(v biz.NormalizedGraph) api.NormalizedGraph {
+	out := api.NormalizedGraph{}
+	out.Nodes = make([]api.NormalizedGraphNodesItem, len(v.Nodes))
+	for i, x := range v.Nodes {
+		out.Nodes[i] = mapNormalizedGraphNodesItem(x)
+	}
+	out.Edges = make([]api.NormalizedGraphEdgesItem, len(v.Edges))
+	for i, x := range v.Edges {
+		out.Edges[i] = mapNormalizedGraphEdgesItem(x)
+	}
+	return out
+}
+
+func mapNormalizedChain(v biz.NormalizedChain) api.NormalizedChain {
+	out := api.NormalizedChain{}
+	out.LocalKey = v.LocalKey
+	out.SourceID = v.SourceID
+	out.Name = v.Name
+	out.Assessment = mapNormalizedAssessment(v.Assessment)
+	out.ReasoningSummary = mapNormalizedChainReasoningSummary(v.ReasoningSummary)
+	out.Graph = mapNormalizedGraph(v.Graph)
+	out.AffectedNodes = make([]api.NormalizedNode, len(v.AffectedNodes))
+	for i, x := range v.AffectedNodes {
+		out.AffectedNodes[i] = mapNormalizedNode(x)
+	}
+	if v.EmptyState != nil {
+		x := mapNormalizedChainEmptyState(*v.EmptyState)
+		out.EmptyState = &x
+	}
+	return out
+}
+
+func mapNormalizedMacro(v biz.NormalizedMacro) api.NormalizedMacro {
+	out := api.NormalizedMacro{}
+	out.LocalKey = v.LocalKey
+	out.SourceID = v.SourceID
+	out.Name = v.Name
+	out.Assessment = mapNormalizedAssessment(v.Assessment)
+	out.Objections = mapNormalizedObjections(v.Objections)
+	return out
+}
+
+func mapNormalizedAnchorRef(v biz.NormalizedAnchorRef) api.NormalizedAnchorRef {
+	out := api.NormalizedAnchorRef{}
+	out.TargetType = v.TargetType
+	out.LocalKey = v.LocalKey
+	out.ChainLocalKey = v.ChainLocalKey
+	return out
+}
+
+func mapNormalizedGraphNodesItem(v biz.NormalizedGraphNodesItem) api.NormalizedGraphNodesItem {
+	out := api.NormalizedGraphNodesItem{}
+	out.LocalKey = v.LocalKey
+	out.SourceID = v.SourceID
+	out.Name = v.Name
+	return out
+}
+
+func mapNormalizedGraphEdgesItem(v biz.NormalizedGraphEdgesItem) api.NormalizedGraphEdgesItem {
+	out := api.NormalizedGraphEdgesItem{}
+	out.FromNodeLocalKey = v.FromNodeLocalKey
+	out.ToNodeLocalKey = v.ToNodeLocalKey
+	out.RelationLabel = v.RelationLabel
+	return out
+}
+
+func mapNormalizedChainReasoningSummary(v biz.NormalizedChainReasoningSummary) api.NormalizedChainReasoningSummary {
+	out := api.NormalizedChainReasoningSummary{}
+	out.Logic = v.Logic
+	out.Support = mapNormalizedClaim(v.Support)
+	out.Objections = mapNormalizedObjections(v.Objections)
+	return out
+}
+
+func mapNormalizedChainEmptyState(v biz.NormalizedChainEmptyState) api.NormalizedChainEmptyState {
+	out := api.NormalizedChainEmptyState{}
+	out.Code = v.Code
+	out.Reason = v.Reason
+	out.FollowUp = v.FollowUp
+	return out
+}
+
+func mapNormalizedUnitSummary(v biz.NormalizedUnitSummary) api.NormalizedUnitSummary {
+	out := api.NormalizedUnitSummary{}
+	out.Conclusion = v.Conclusion
+	out.TransmissionLogic = v.TransmissionLogic
+	out.ImpactAssessment = mapNormalizedUnitSummaryImpactAssessment(v.ImpactAssessment)
+	out.AffectedRefs = make([]api.NormalizedAnchorRef, len(v.AffectedRefs))
+	for i, x := range v.AffectedRefs {
+		out.AffectedRefs[i] = mapNormalizedAnchorRef(x)
+	}
+	out.EvidenceScopeToken = v.EvidenceScopeToken
+	out.EvidenceCount = v.EvidenceCount
+	return out
+}
+
+func mapNormalizedUnitSummaryImpactAssessment(v biz.NormalizedUnitSummaryImpactAssessment) api.NormalizedUnitSummaryImpactAssessment {
+	out := api.NormalizedUnitSummaryImpactAssessment{}
+	out.Level = v.Level
+	out.Rationale = v.Rationale
+	out.EvidenceScopeToken = v.EvidenceScopeToken
+	out.EvidenceCount = v.EvidenceCount
+	return out
+}
+
+func mapNormalizedResolvedAnchor(v biz.NormalizedResolvedAnchor) api.NormalizedResolvedAnchor {
+	out := api.NormalizedResolvedAnchor{}
+	out.Reference = mapNormalizedAnchorRef(v.Reference)
+	out.SourceID = v.SourceID
+	out.Name = v.Name
+	out.Assessment = mapNormalizedAssessment(v.Assessment)
+	return out
+}
+
+func mapNormalizedSummaryProjection(v biz.NormalizedSummaryProjection) api.NormalizedSummaryProjection {
+	out := api.NormalizedSummaryProjection{}
+	out.SchemaVersion = v.SchemaVersion
+	out.LocalKey = v.LocalKey
+	out.SourceID = v.SourceID
+	out.Title = v.Title
+	out.Summary = mapNormalizedUnitSummary(v.Summary)
+	out.AffectedAnchors = make([]api.NormalizedResolvedAnchor, len(v.AffectedAnchors))
+	for i, x := range v.AffectedAnchors {
+		out.AffectedAnchors[i] = mapNormalizedResolvedAnchor(x)
+	}
+	out.ChainCount = v.ChainCount
+	return out
+}
+
+func mapNormalizedChainHeader(v biz.NormalizedChainHeader) api.NormalizedChainHeader {
+	out := api.NormalizedChainHeader{}
+	out.LocalKey = v.LocalKey
+	out.SourceID = v.SourceID
+	out.Name = v.Name
+	out.Assessment = mapNormalizedAssessment(v.Assessment)
+	if v.EmptyState != nil {
+		x := mapNormalizedChainEmptyState(*v.EmptyState)
+		out.EmptyState = &x
+	}
+	return out
+}
+
+func mapNormalizedDetailProjection(v biz.NormalizedDetailProjection) api.NormalizedDetailProjection {
+	out := api.NormalizedDetailProjection{}
+	out.Summary = mapNormalizedSummaryProjection(v.Summary)
+	out.MacroImpacts = make([]api.NormalizedMacro, len(v.MacroImpacts))
+	for i, x := range v.MacroImpacts {
+		out.MacroImpacts[i] = mapNormalizedMacro(x)
+	}
+	out.IndustryChains = make([]api.NormalizedChainHeader, len(v.IndustryChains))
+	for i, x := range v.IndustryChains {
+		out.IndustryChains[i] = mapNormalizedChainHeader(x)
+	}
+	return out
+}
+
+func mapAnalysisPage(v biz.AnalysisPage) api.AnalysisPage {
+	out := api.AnalysisPage{}
+	out.Items = make([]api.NormalizedSummaryProjection, len(v.Items))
+	for i, x := range v.Items {
+		out.Items[i] = mapNormalizedSummaryProjection(x)
+	}
+	out.NextCursor = v.NextCursor
+	return out
+}
+
+func mapAnalysisGroup(v biz.AnalysisGroup) api.AnalysisGroup {
+	out := api.AnalysisGroup{}
+	out.Kind = v.Kind
+	out.Items = make([]api.NormalizedSummaryProjection, len(v.Items))
+	for i, x := range v.Items {
+		out.Items[i] = mapNormalizedSummaryProjection(x)
+	}
+	out.NextCursor = v.NextCursor
+	return out
+}

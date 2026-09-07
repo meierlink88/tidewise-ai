@@ -1,4 +1,4 @@
-import { mockReportPort } from '../../mocks/reports/mock-port';
+import { normalizedMockReportPort as mockReportPort } from '../../mocks/reports/mock-port';
 import type { ReportPort } from './contract';
 import { APIReportPort, normalizeReportAPIBaseURL } from './api-port';
 

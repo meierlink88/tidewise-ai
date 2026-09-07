@@ -23,6 +23,9 @@ func TestOpenAPIContractExposesOperationsAndReportRoutes(t *testing.T) {
 
 	paths := object(t, document["paths"], "paths")
 	want := map[string]string{
+		"/api/miniapp/v1/reports/{report_id}/analyses/{kind}":                                            "listReportAnalyses",
+		"/api/miniapp/v1/reports/{report_id}/analyses/{kind}/{analysis_key}":                             "getReportAnalysis",
+		"/api/miniapp/v1/reports/{report_id}/analyses/{kind}/{analysis_key}/industry-chains/{chain_key}": "getReportAnalysisChain",
 		"/healthz":                     "getMiniappHealth",
 		"/readyz":                      "getMiniappReadiness",
 		"/api/miniapp/v1/reports/home": "getReportHome",
@@ -48,6 +51,9 @@ func TestOpenAPIContractExposesOperationsAndReportRoutes(t *testing.T) {
 		media := object(t, content["application/json"], "application/json")
 		responseSchema := object(t, media["schema"], "response schema")
 		wantSchema := map[string]string{
+			"/api/miniapp/v1/reports/{report_id}/analyses/{kind}":                                            "#/components/schemas/AnalysisPageEnvelope",
+			"/api/miniapp/v1/reports/{report_id}/analyses/{kind}/{analysis_key}":                             "#/components/schemas/AnalysisDetailEnvelope",
+			"/api/miniapp/v1/reports/{report_id}/analyses/{kind}/{analysis_key}/industry-chains/{chain_key}": "#/components/schemas/AnalysisChainEnvelope",
 			"/healthz":                     "#/components/schemas/HealthResponse",
 			"/readyz":                      "#/components/schemas/ReadinessResponse",
 			"/api/miniapp/v1/reports/home": "#/components/schemas/HomeEnvelope",
@@ -72,7 +78,7 @@ func TestOpenAPIContractExposesOperationsAndReportRoutes(t *testing.T) {
 	assertRequired(t, schema(t, document, "HomeReport"), "report", "cards", "next_cursor")
 	assertRequired(t, schema(t, document, "Summary"), "id", "generated_at", "published_at", "industry_chain_count")
 	summaryProperties := object(t, schema(t, document, "Summary")["properties"], "Summary properties")
-	if got, want := sortedKeys(summaryProperties), []string{"generated_at", "id", "industry_chain_count", "published_at"}; strings.Join(got, ",") != strings.Join(want, ",") {
+	if got, want := sortedKeys(summaryProperties), []string{"generated_at", "id", "industry_chain_count", "published_at", "schema_version"}; strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("Summary properties = %v, want %v", got, want)
 	}
 	assertRequired(t, schema(t, document, "Card"), "local_key", "kind", "detail_ref", "impact_items", "evidence_scope_token")

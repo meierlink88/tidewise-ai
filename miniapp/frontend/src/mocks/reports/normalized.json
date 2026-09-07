@@ -1,0 +1,2095 @@
+{
+  "groups": [
+    {
+      "kind": "geopolitical_stories",
+      "items": [
+        {
+          "schema_version": "report-publication/v4",
+          "local_key": "g1",
+          "source_id": "GPR8784c1bb-bc7b-53b8-a183-62bb3666c7d9",
+          "title": "Synthetic text eb6b8db0fe",
+          "summary": {
+            "conclusion": "Synthetic text 19471b9d3d",
+            "transmission_logic": "Synthetic text 9929809873",
+            "impact_assessment": {
+              "level": "high",
+              "rationale": "Synthetic text a2032f4e96",
+              "evidence_scope_token": "RPEa0234e45-69e8-539e-979c-31afcf5d6dd6",
+              "evidence_count": 1
+            },
+            "affected_refs": [
+              {
+                "target_type": "macroeconomic_story",
+                "local_key": "g1-1-anchor",
+                "chain_local_key": null
+              },
+              {
+                "target_type": "industry_chain",
+                "local_key": "g1-2-chain",
+                "chain_local_key": null
+              },
+              {
+                "target_type": "industry_chain",
+                "local_key": "g1-3-chain",
+                "chain_local_key": null
+              }
+            ],
+            "evidence_scope_token": "RPE6336886b-a762-550e-9231-965423b9c0eb",
+            "evidence_count": 1
+          },
+          "affected_anchors": [
+            {
+              "reference": {
+                "target_type": "macroeconomic_story",
+                "local_key": "g1-1-anchor",
+                "chain_local_key": null
+              },
+              "source_id": "MEC11852787-40fb-5a91-aeb4-2b2cff50dc9b",
+              "name": "Synthetic text 596ff26c77",
+              "assessment": {
+                "conclusion": "Synthetic text a0b52acfd0",
+                "direction": "warming",
+                "conclusion_basis": "reasoning_hypothesis",
+                "validation_status": "pending_validation",
+                "confidence": "low",
+                "forecast_window": {
+                  "kind": "relative",
+                  "description": "Synthetic text 3d19fcf11c",
+                  "start_at": null,
+                  "end_at": null
+                },
+                "scope": "Synthetic text 0bff29688b",
+                "conditions": ["Synthetic text 0bff29688b"],
+                "follow_up": ["Synthetic text 6c77704c3b"],
+                "transmission_logic": "Synthetic text 005bc513f6",
+                "evidence_scope_token": "RPEb6921f06-da35-5103-988d-191e1dcd3a2b",
+                "evidence_count": 1
+              }
+            },
+            {
+              "reference": {
+                "target_type": "industry_chain",
+                "local_key": "g1-2-chain",
+                "chain_local_key": null
+              },
+              "source_id": "ICH2f7b4b0b-de77-5eb3-9cdd-7a330aa4e61c",
+              "name": "Synthetic text 243ca1ca1c",
+              "assessment": {
+                "conclusion": "Synthetic text e290e178ff",
+                "direction": "diverging",
+                "conclusion_basis": "reasoning_hypothesis",
+                "validation_status": "pending_validation",
+                "confidence": "low",
+                "forecast_window": {
+                  "kind": "relative",
+                  "description": "Synthetic text 3d19fcf11c",
+                  "start_at": null,
+                  "end_at": null
+                },
+                "scope": "Synthetic text ef67a12e33",
+                "conditions": ["Synthetic text 503b86d3cd"],
+                "follow_up": ["Synthetic text ad80281795"],
+                "transmission_logic": "Synthetic text 18478a8603",
+                "evidence_scope_token": "RPEa2aa337b-0c4c-5fdb-bac1-adabe3ba2acf",
+                "evidence_count": 1
+              }
+            },
+            {
+              "reference": {
+                "target_type": "industry_chain",
+                "local_key": "g1-3-chain",
+                "chain_local_key": null
+              },
+              "source_id": "ICH228d8b7e-93b8-59c6-b5c5-ec1ecdf53e17",
+              "name": "Synthetic text db43849bee",
+              "assessment": {
+                "conclusion": "Synthetic text 5b105a40be",
+                "direction": "diverging",
+                "conclusion_basis": "reasoning_hypothesis",
+                "validation_status": "pending_validation",
+                "confidence": "low",
+                "forecast_window": {
+                  "kind": "relative",
+                  "description": "Synthetic text 3d19fcf11c",
+                  "start_at": null,
+                  "end_at": null
+                },
+                "scope": "Synthetic text 00e8b33520",
+                "conditions": ["Synthetic text 0ff5c99b6e"],
+                "follow_up": ["Synthetic text 4f699f5409"],
+                "transmission_logic": "Synthetic text 996fff58fa",
+                "evidence_scope_token": "RPE20e9f3be-f17a-54bf-af2e-a0e89eb1a296",
+                "evidence_count": 1
+              }
+            }
+          ],
+          "chain_count": 2
+        }
+      ],
+      "next_cursor": null
+    },
+    {
+      "kind": "macroeconomic_stories",
+      "items": [
+        {
+          "schema_version": "report-publication/v4",
+          "local_key": "m1",
+          "source_id": "MEC25a3acea-48be-5257-bb7a-7fb62e59d374",
+          "title": "Synthetic text 7522775cba",
+          "summary": {
+            "conclusion": "Synthetic text e0a2df71f7",
+            "transmission_logic": "Synthetic text e1dd3fef65",
+            "impact_assessment": {
+              "level": "medium",
+              "rationale": "Synthetic text 09619e95ef",
+              "evidence_scope_token": "RPE77274e28-2da7-5fc9-b726-6c2e49b8c036",
+              "evidence_count": 1
+            },
+            "affected_refs": [
+              {
+                "target_type": "industry_chain",
+                "local_key": "m1-1-chain",
+                "chain_local_key": null
+              }
+            ],
+            "evidence_scope_token": "RPE8e3c887b-0abd-5cef-b2d2-382d4ff08ddc",
+            "evidence_count": 1
+          },
+          "affected_anchors": [
+            {
+              "reference": {
+                "target_type": "industry_chain",
+                "local_key": "m1-1-chain",
+                "chain_local_key": null
+              },
+              "source_id": "ICH16b6c452-a790-5c8f-a9b6-78ab22cc1dab",
+              "name": "Synthetic text 1958dd3422",
+              "assessment": {
+                "conclusion": "Synthetic text 511bc420d2",
+                "direction": "diverging",
+                "conclusion_basis": "reasoning_hypothesis",
+                "validation_status": "pending_validation",
+                "confidence": "low",
+                "forecast_window": {
+                  "kind": "relative",
+                  "description": "Synthetic text a394947c23",
+                  "start_at": null,
+                  "end_at": null
+                },
+                "scope": "Synthetic text 10def5a76b",
+                "conditions": ["Synthetic text fbc82abd04"],
+                "follow_up": ["Synthetic text 6fce6ed354"],
+                "transmission_logic": "Synthetic text d07b2d8db3",
+                "evidence_scope_token": "RPEf1ea7881-3fce-55c7-be26-cbe4fa4d9cf1",
+                "evidence_count": 1
+              }
+            }
+          ],
+          "chain_count": 1
+        }
+      ],
+      "next_cursor": null
+    },
+    {
+      "kind": "concept_analyses",
+      "items": [
+        {
+          "schema_version": "report-publication/v4",
+          "local_key": "c1",
+          "source_id": "CONe3d93d1f-fd79-5985-b488-40732e74c8ee",
+          "title": "Synthetic text f5d2a4c68a",
+          "summary": {
+            "conclusion": "Synthetic text deb6ac4669",
+            "transmission_logic": "Synthetic text e591256d9d",
+            "impact_assessment": {
+              "level": "medium",
+              "rationale": "Synthetic text 4e986d087e",
+              "evidence_scope_token": "RPE02d34fbe-001a-5cb9-8e67-7707871fc196",
+              "evidence_count": 1
+            },
+            "affected_refs": [
+              {
+                "target_type": "industry_chain_node",
+                "local_key": "c1-a1-impact-1",
+                "chain_local_key": "c1-a1"
+              },
+              {
+                "target_type": "industry_chain_node",
+                "local_key": "c1-a1-impact-2",
+                "chain_local_key": "c1-a1"
+              },
+              {
+                "target_type": "industry_chain_node",
+                "local_key": "c1-a2-impact-1",
+                "chain_local_key": "c1-a2"
+              },
+              {
+                "target_type": "industry_chain_node",
+                "local_key": "c1-a2-impact-2",
+                "chain_local_key": "c1-a2"
+              }
+            ],
+            "evidence_scope_token": "RPE68f71b68-e95f-53a6-9104-581a21f41c8e",
+            "evidence_count": 1
+          },
+          "affected_anchors": [
+            {
+              "reference": {
+                "target_type": "industry_chain_node",
+                "local_key": "c1-a1-impact-1",
+                "chain_local_key": "c1-a1"
+              },
+              "source_id": "CND770fc9a7-56c4-56d3-a461-791dca875e69",
+              "name": "Synthetic text 9656ae87f9",
+              "assessment": {
+                "conclusion": "Synthetic text deb8c02869",
+                "direction": "diverging",
+                "conclusion_basis": "reasoning_hypothesis",
+                "validation_status": "pending_validation",
+                "confidence": "low",
+                "forecast_window": {
+                  "kind": "relative",
+                  "description": "Synthetic text f725345426",
+                  "start_at": null,
+                  "end_at": null
+                },
+                "scope": "Synthetic text ee17418b2d",
+                "conditions": ["Synthetic text 100067da4d"],
+                "follow_up": ["Synthetic text 62329fce40"],
+                "transmission_logic": "Synthetic text 30272af224",
+                "evidence_scope_token": "RPE8920cb4f-a00d-54f4-9bb6-9d1f6fd5ad56",
+                "evidence_count": 1
+              }
+            },
+            {
+              "reference": {
+                "target_type": "industry_chain_node",
+                "local_key": "c1-a1-impact-2",
+                "chain_local_key": "c1-a1"
+              },
+              "source_id": "CNDe3019c13-ba1b-5856-81b2-fec693e5e492",
+              "name": "Synthetic text 1ff80456f2",
+              "assessment": {
+                "conclusion": "Synthetic text c47cf23634",
+                "direction": "diverging",
+                "conclusion_basis": "reasoning_hypothesis",
+                "validation_status": "pending_validation",
+                "confidence": "low",
+                "forecast_window": {
+                  "kind": "relative",
+                  "description": "Synthetic text f725345426",
+                  "start_at": null,
+                  "end_at": null
+                },
+                "scope": "Synthetic text ee17418b2d",
+                "conditions": ["Synthetic text 0861213866"],
+                "follow_up": ["Synthetic text f71185e3b3"],
+                "transmission_logic": "Synthetic text 89a5f6b56c",
+                "evidence_scope_token": "RPEfcf16a5b-a44c-56b9-a6d3-1c83d09cac85",
+                "evidence_count": 1
+              }
+            },
+            {
+              "reference": {
+                "target_type": "industry_chain_node",
+                "local_key": "c1-a2-impact-1",
+                "chain_local_key": "c1-a2"
+              },
+              "source_id": "CND70548d02-4789-5f5b-8d5b-ab7b0d16b353",
+              "name": "Synthetic text a3f8433691",
+              "assessment": {
+                "conclusion": "Synthetic text 55cf5de4dc",
+                "direction": "diverging",
+                "conclusion_basis": "reasoning_hypothesis",
+                "validation_status": "pending_validation",
+                "confidence": "low",
+                "forecast_window": {
+                  "kind": "relative",
+                  "description": "Synthetic text f725345426",
+                  "start_at": null,
+                  "end_at": null
+                },
+                "scope": "Synthetic text 56257568c1",
+                "conditions": ["Synthetic text a62ca6d1f3"],
+                "follow_up": ["Synthetic text 850c73247d"],
+                "transmission_logic": "Synthetic text d431b6c394",
+                "evidence_scope_token": "RPE4e25b37b-b4d8-54bd-82ba-5473233691e4",
+                "evidence_count": 1
+              }
+            },
+            {
+              "reference": {
+                "target_type": "industry_chain_node",
+                "local_key": "c1-a2-impact-2",
+                "chain_local_key": "c1-a2"
+              },
+              "source_id": "CNDb5260b39-3a13-541d-93bb-9e41fad24050",
+              "name": "Synthetic text 3966ea722e",
+              "assessment": {
+                "conclusion": "Synthetic text c4467d170d",
+                "direction": "diverging",
+                "conclusion_basis": "reasoning_hypothesis",
+                "validation_status": "pending_validation",
+                "confidence": "low",
+                "forecast_window": {
+                  "kind": "relative",
+                  "description": "Synthetic text 2c3d92313c",
+                  "start_at": null,
+                  "end_at": null
+                },
+                "scope": "Synthetic text 56257568c1",
+                "conditions": ["Synthetic text a62ca6d1f3"],
+                "follow_up": ["Synthetic text 850c73247d"],
+                "transmission_logic": "Synthetic text d431b6c394",
+                "evidence_scope_token": "RPE197e5adc-0bae-51c6-84df-f1f8a30dd43b",
+                "evidence_count": 1
+              }
+            }
+          ],
+          "chain_count": 3
+        }
+      ],
+      "next_cursor": null
+    }
+  ],
+  "details": {
+    "geopolitical_stories/g1": {
+      "summary": {
+        "schema_version": "report-publication/v4",
+        "local_key": "g1",
+        "source_id": "GPR8784c1bb-bc7b-53b8-a183-62bb3666c7d9",
+        "title": "Synthetic text eb6b8db0fe",
+        "summary": {
+          "conclusion": "Synthetic text 19471b9d3d",
+          "transmission_logic": "Synthetic text 9929809873",
+          "impact_assessment": {
+            "level": "high",
+            "rationale": "Synthetic text a2032f4e96",
+            "evidence_scope_token": "RPEa0234e45-69e8-539e-979c-31afcf5d6dd6",
+            "evidence_count": 1
+          },
+          "affected_refs": [
+            {
+              "target_type": "macroeconomic_story",
+              "local_key": "g1-1-anchor",
+              "chain_local_key": null
+            },
+            {
+              "target_type": "industry_chain",
+              "local_key": "g1-2-chain",
+              "chain_local_key": null
+            },
+            {
+              "target_type": "industry_chain",
+              "local_key": "g1-3-chain",
+              "chain_local_key": null
+            }
+          ],
+          "evidence_scope_token": "RPE6336886b-a762-550e-9231-965423b9c0eb",
+          "evidence_count": 1
+        },
+        "affected_anchors": [
+          {
+            "reference": {
+              "target_type": "macroeconomic_story",
+              "local_key": "g1-1-anchor",
+              "chain_local_key": null
+            },
+            "source_id": "MEC11852787-40fb-5a91-aeb4-2b2cff50dc9b",
+            "name": "Synthetic text 596ff26c77",
+            "assessment": {
+              "conclusion": "Synthetic text a0b52acfd0",
+              "direction": "warming",
+              "conclusion_basis": "reasoning_hypothesis",
+              "validation_status": "pending_validation",
+              "confidence": "low",
+              "forecast_window": {
+                "kind": "relative",
+                "description": "Synthetic text 3d19fcf11c",
+                "start_at": null,
+                "end_at": null
+              },
+              "scope": "Synthetic text 0bff29688b",
+              "conditions": ["Synthetic text 0bff29688b"],
+              "follow_up": ["Synthetic text 6c77704c3b"],
+              "transmission_logic": "Synthetic text 005bc513f6",
+              "evidence_scope_token": "RPEb6921f06-da35-5103-988d-191e1dcd3a2b",
+              "evidence_count": 1
+            }
+          },
+          {
+            "reference": {
+              "target_type": "industry_chain",
+              "local_key": "g1-2-chain",
+              "chain_local_key": null
+            },
+            "source_id": "ICH2f7b4b0b-de77-5eb3-9cdd-7a330aa4e61c",
+            "name": "Synthetic text 243ca1ca1c",
+            "assessment": {
+              "conclusion": "Synthetic text e290e178ff",
+              "direction": "diverging",
+              "conclusion_basis": "reasoning_hypothesis",
+              "validation_status": "pending_validation",
+              "confidence": "low",
+              "forecast_window": {
+                "kind": "relative",
+                "description": "Synthetic text 3d19fcf11c",
+                "start_at": null,
+                "end_at": null
+              },
+              "scope": "Synthetic text ef67a12e33",
+              "conditions": ["Synthetic text 503b86d3cd"],
+              "follow_up": ["Synthetic text ad80281795"],
+              "transmission_logic": "Synthetic text 18478a8603",
+              "evidence_scope_token": "RPEa2aa337b-0c4c-5fdb-bac1-adabe3ba2acf",
+              "evidence_count": 1
+            }
+          },
+          {
+            "reference": {
+              "target_type": "industry_chain",
+              "local_key": "g1-3-chain",
+              "chain_local_key": null
+            },
+            "source_id": "ICH228d8b7e-93b8-59c6-b5c5-ec1ecdf53e17",
+            "name": "Synthetic text db43849bee",
+            "assessment": {
+              "conclusion": "Synthetic text 5b105a40be",
+              "direction": "diverging",
+              "conclusion_basis": "reasoning_hypothesis",
+              "validation_status": "pending_validation",
+              "confidence": "low",
+              "forecast_window": {
+                "kind": "relative",
+                "description": "Synthetic text 3d19fcf11c",
+                "start_at": null,
+                "end_at": null
+              },
+              "scope": "Synthetic text 00e8b33520",
+              "conditions": ["Synthetic text 0ff5c99b6e"],
+              "follow_up": ["Synthetic text 4f699f5409"],
+              "transmission_logic": "Synthetic text 996fff58fa",
+              "evidence_scope_token": "RPE20e9f3be-f17a-54bf-af2e-a0e89eb1a296",
+              "evidence_count": 1
+            }
+          }
+        ],
+        "chain_count": 2
+      },
+      "macro_impacts": [
+        {
+          "local_key": "g1-1-anchor",
+          "source_id": "MEC11852787-40fb-5a91-aeb4-2b2cff50dc9b",
+          "name": "Synthetic text 596ff26c77",
+          "assessment": {
+            "conclusion": "Synthetic text a0b52acfd0",
+            "direction": "warming",
+            "conclusion_basis": "reasoning_hypothesis",
+            "validation_status": "pending_validation",
+            "confidence": "low",
+            "forecast_window": {
+              "kind": "relative",
+              "description": "Synthetic text 3d19fcf11c",
+              "start_at": null,
+              "end_at": null
+            },
+            "scope": "Synthetic text 0bff29688b",
+            "conditions": ["Synthetic text 0bff29688b"],
+            "follow_up": ["Synthetic text 6c77704c3b"],
+            "transmission_logic": "Synthetic text 005bc513f6",
+            "evidence_scope_token": "RPEb6921f06-da35-5103-988d-191e1dcd3a2b",
+            "evidence_count": 1
+          },
+          "objections": {
+            "counterevidence": [],
+            "buffers": [
+              {
+                "text": "Synthetic text 34a88a454a",
+                "basis": "inference",
+                "evidence_scope_token": "RPEf4876eed-759f-51ce-a5b4-2c97f814977c",
+                "evidence_count": 1
+              }
+            ],
+            "counterevidence_status": "none_identified",
+            "summary": "Synthetic text 944c1c041a",
+            "evidence_gaps": ["Synthetic text 6800966b34"],
+            "scope_limits": ["Synthetic text f3cc7fd337"]
+          }
+        }
+      ],
+      "industry_chains": [
+        {
+          "local_key": "g1-2-chain",
+          "source_id": "ICH2f7b4b0b-de77-5eb3-9cdd-7a330aa4e61c",
+          "name": "Synthetic text 243ca1ca1c",
+          "assessment": {
+            "conclusion": "Synthetic text e290e178ff",
+            "direction": "diverging",
+            "conclusion_basis": "reasoning_hypothesis",
+            "validation_status": "pending_validation",
+            "confidence": "low",
+            "forecast_window": {
+              "kind": "relative",
+              "description": "Synthetic text 3d19fcf11c",
+              "start_at": null,
+              "end_at": null
+            },
+            "scope": "Synthetic text ef67a12e33",
+            "conditions": ["Synthetic text 503b86d3cd"],
+            "follow_up": ["Synthetic text ad80281795"],
+            "transmission_logic": "Synthetic text 18478a8603",
+            "evidence_scope_token": "RPEa2aa337b-0c4c-5fdb-bac1-adabe3ba2acf",
+            "evidence_count": 1
+          },
+          "empty_state": null
+        },
+        {
+          "local_key": "g1-3-chain",
+          "source_id": "ICH228d8b7e-93b8-59c6-b5c5-ec1ecdf53e17",
+          "name": "Synthetic text db43849bee",
+          "assessment": {
+            "conclusion": "Synthetic text 5b105a40be",
+            "direction": "diverging",
+            "conclusion_basis": "reasoning_hypothesis",
+            "validation_status": "pending_validation",
+            "confidence": "low",
+            "forecast_window": {
+              "kind": "relative",
+              "description": "Synthetic text 3d19fcf11c",
+              "start_at": null,
+              "end_at": null
+            },
+            "scope": "Synthetic text 00e8b33520",
+            "conditions": ["Synthetic text 0ff5c99b6e"],
+            "follow_up": ["Synthetic text 4f699f5409"],
+            "transmission_logic": "Synthetic text 996fff58fa",
+            "evidence_scope_token": "RPE20e9f3be-f17a-54bf-af2e-a0e89eb1a296",
+            "evidence_count": 1
+          },
+          "empty_state": null
+        }
+      ]
+    },
+    "macroeconomic_stories/m1": {
+      "summary": {
+        "schema_version": "report-publication/v4",
+        "local_key": "m1",
+        "source_id": "MEC25a3acea-48be-5257-bb7a-7fb62e59d374",
+        "title": "Synthetic text 7522775cba",
+        "summary": {
+          "conclusion": "Synthetic text e0a2df71f7",
+          "transmission_logic": "Synthetic text e1dd3fef65",
+          "impact_assessment": {
+            "level": "medium",
+            "rationale": "Synthetic text 09619e95ef",
+            "evidence_scope_token": "RPE77274e28-2da7-5fc9-b726-6c2e49b8c036",
+            "evidence_count": 1
+          },
+          "affected_refs": [
+            {
+              "target_type": "industry_chain",
+              "local_key": "m1-1-chain",
+              "chain_local_key": null
+            }
+          ],
+          "evidence_scope_token": "RPE8e3c887b-0abd-5cef-b2d2-382d4ff08ddc",
+          "evidence_count": 1
+        },
+        "affected_anchors": [
+          {
+            "reference": {
+              "target_type": "industry_chain",
+              "local_key": "m1-1-chain",
+              "chain_local_key": null
+            },
+            "source_id": "ICH16b6c452-a790-5c8f-a9b6-78ab22cc1dab",
+            "name": "Synthetic text 1958dd3422",
+            "assessment": {
+              "conclusion": "Synthetic text 511bc420d2",
+              "direction": "diverging",
+              "conclusion_basis": "reasoning_hypothesis",
+              "validation_status": "pending_validation",
+              "confidence": "low",
+              "forecast_window": {
+                "kind": "relative",
+                "description": "Synthetic text a394947c23",
+                "start_at": null,
+                "end_at": null
+              },
+              "scope": "Synthetic text 10def5a76b",
+              "conditions": ["Synthetic text fbc82abd04"],
+              "follow_up": ["Synthetic text 6fce6ed354"],
+              "transmission_logic": "Synthetic text d07b2d8db3",
+              "evidence_scope_token": "RPEf1ea7881-3fce-55c7-be26-cbe4fa4d9cf1",
+              "evidence_count": 1
+            }
+          }
+        ],
+        "chain_count": 1
+      },
+      "macro_impacts": [],
+      "industry_chains": [
+        {
+          "local_key": "m1-1-chain",
+          "source_id": "ICH16b6c452-a790-5c8f-a9b6-78ab22cc1dab",
+          "name": "Synthetic text 1958dd3422",
+          "assessment": {
+            "conclusion": "Synthetic text 511bc420d2",
+            "direction": "diverging",
+            "conclusion_basis": "reasoning_hypothesis",
+            "validation_status": "pending_validation",
+            "confidence": "low",
+            "forecast_window": {
+              "kind": "relative",
+              "description": "Synthetic text a394947c23",
+              "start_at": null,
+              "end_at": null
+            },
+            "scope": "Synthetic text 10def5a76b",
+            "conditions": ["Synthetic text fbc82abd04"],
+            "follow_up": ["Synthetic text 6fce6ed354"],
+            "transmission_logic": "Synthetic text d07b2d8db3",
+            "evidence_scope_token": "RPEf1ea7881-3fce-55c7-be26-cbe4fa4d9cf1",
+            "evidence_count": 1
+          },
+          "empty_state": null
+        }
+      ]
+    },
+    "concept_analyses/c1": {
+      "summary": {
+        "schema_version": "report-publication/v4",
+        "local_key": "c1",
+        "source_id": "CONe3d93d1f-fd79-5985-b488-40732e74c8ee",
+        "title": "Synthetic text f5d2a4c68a",
+        "summary": {
+          "conclusion": "Synthetic text deb6ac4669",
+          "transmission_logic": "Synthetic text e591256d9d",
+          "impact_assessment": {
+            "level": "medium",
+            "rationale": "Synthetic text 4e986d087e",
+            "evidence_scope_token": "RPE02d34fbe-001a-5cb9-8e67-7707871fc196",
+            "evidence_count": 1
+          },
+          "affected_refs": [
+            {
+              "target_type": "industry_chain_node",
+              "local_key": "c1-a1-impact-1",
+              "chain_local_key": "c1-a1"
+            },
+            {
+              "target_type": "industry_chain_node",
+              "local_key": "c1-a1-impact-2",
+              "chain_local_key": "c1-a1"
+            },
+            {
+              "target_type": "industry_chain_node",
+              "local_key": "c1-a2-impact-1",
+              "chain_local_key": "c1-a2"
+            },
+            {
+              "target_type": "industry_chain_node",
+              "local_key": "c1-a2-impact-2",
+              "chain_local_key": "c1-a2"
+            }
+          ],
+          "evidence_scope_token": "RPE68f71b68-e95f-53a6-9104-581a21f41c8e",
+          "evidence_count": 1
+        },
+        "affected_anchors": [
+          {
+            "reference": {
+              "target_type": "industry_chain_node",
+              "local_key": "c1-a1-impact-1",
+              "chain_local_key": "c1-a1"
+            },
+            "source_id": "CND770fc9a7-56c4-56d3-a461-791dca875e69",
+            "name": "Synthetic text 9656ae87f9",
+            "assessment": {
+              "conclusion": "Synthetic text deb8c02869",
+              "direction": "diverging",
+              "conclusion_basis": "reasoning_hypothesis",
+              "validation_status": "pending_validation",
+              "confidence": "low",
+              "forecast_window": {
+                "kind": "relative",
+                "description": "Synthetic text f725345426",
+                "start_at": null,
+                "end_at": null
+              },
+              "scope": "Synthetic text ee17418b2d",
+              "conditions": ["Synthetic text 100067da4d"],
+              "follow_up": ["Synthetic text 62329fce40"],
+              "transmission_logic": "Synthetic text 30272af224",
+              "evidence_scope_token": "RPE8920cb4f-a00d-54f4-9bb6-9d1f6fd5ad56",
+              "evidence_count": 1
+            }
+          },
+          {
+            "reference": {
+              "target_type": "industry_chain_node",
+              "local_key": "c1-a1-impact-2",
+              "chain_local_key": "c1-a1"
+            },
+            "source_id": "CNDe3019c13-ba1b-5856-81b2-fec693e5e492",
+            "name": "Synthetic text 1ff80456f2",
+            "assessment": {
+              "conclusion": "Synthetic text c47cf23634",
+              "direction": "diverging",
+              "conclusion_basis": "reasoning_hypothesis",
+              "validation_status": "pending_validation",
+              "confidence": "low",
+              "forecast_window": {
+                "kind": "relative",
+                "description": "Synthetic text f725345426",
+                "start_at": null,
+                "end_at": null
+              },
+              "scope": "Synthetic text ee17418b2d",
+              "conditions": ["Synthetic text 0861213866"],
+              "follow_up": ["Synthetic text f71185e3b3"],
+              "transmission_logic": "Synthetic text 89a5f6b56c",
+              "evidence_scope_token": "RPEfcf16a5b-a44c-56b9-a6d3-1c83d09cac85",
+              "evidence_count": 1
+            }
+          },
+          {
+            "reference": {
+              "target_type": "industry_chain_node",
+              "local_key": "c1-a2-impact-1",
+              "chain_local_key": "c1-a2"
+            },
+            "source_id": "CND70548d02-4789-5f5b-8d5b-ab7b0d16b353",
+            "name": "Synthetic text a3f8433691",
+            "assessment": {
+              "conclusion": "Synthetic text 55cf5de4dc",
+              "direction": "diverging",
+              "conclusion_basis": "reasoning_hypothesis",
+              "validation_status": "pending_validation",
+              "confidence": "low",
+              "forecast_window": {
+                "kind": "relative",
+                "description": "Synthetic text f725345426",
+                "start_at": null,
+                "end_at": null
+              },
+              "scope": "Synthetic text 56257568c1",
+              "conditions": ["Synthetic text a62ca6d1f3"],
+              "follow_up": ["Synthetic text 850c73247d"],
+              "transmission_logic": "Synthetic text d431b6c394",
+              "evidence_scope_token": "RPE4e25b37b-b4d8-54bd-82ba-5473233691e4",
+              "evidence_count": 1
+            }
+          },
+          {
+            "reference": {
+              "target_type": "industry_chain_node",
+              "local_key": "c1-a2-impact-2",
+              "chain_local_key": "c1-a2"
+            },
+            "source_id": "CNDb5260b39-3a13-541d-93bb-9e41fad24050",
+            "name": "Synthetic text 3966ea722e",
+            "assessment": {
+              "conclusion": "Synthetic text c4467d170d",
+              "direction": "diverging",
+              "conclusion_basis": "reasoning_hypothesis",
+              "validation_status": "pending_validation",
+              "confidence": "low",
+              "forecast_window": {
+                "kind": "relative",
+                "description": "Synthetic text 2c3d92313c",
+                "start_at": null,
+                "end_at": null
+              },
+              "scope": "Synthetic text 56257568c1",
+              "conditions": ["Synthetic text a62ca6d1f3"],
+              "follow_up": ["Synthetic text 850c73247d"],
+              "transmission_logic": "Synthetic text d431b6c394",
+              "evidence_scope_token": "RPE197e5adc-0bae-51c6-84df-f1f8a30dd43b",
+              "evidence_count": 1
+            }
+          }
+        ],
+        "chain_count": 3
+      },
+      "macro_impacts": [],
+      "industry_chains": [
+        {
+          "local_key": "c1-a1",
+          "source_id": "ICH9b885588-d01d-5cf6-91a7-00ba5e035162",
+          "name": "Synthetic text 9912a9aa0a",
+          "assessment": {
+            "conclusion": "Synthetic text 1165aa6ea9",
+            "direction": "diverging",
+            "conclusion_basis": "reasoning_hypothesis",
+            "validation_status": "pending_validation",
+            "confidence": "low",
+            "forecast_window": {
+              "kind": "relative",
+              "description": "Synthetic text f725345426",
+              "start_at": null,
+              "end_at": null
+            },
+            "scope": "Synthetic text ee17418b2d",
+            "conditions": ["Synthetic text 100067da4d", "Synthetic text 0861213866"],
+            "follow_up": ["Synthetic text 62329fce40", "Synthetic text f71185e3b3"],
+            "transmission_logic": "Synthetic text 532982cffe",
+            "evidence_scope_token": "RPEfb25f5b4-7bbb-55eb-a182-98d1bfe2f801",
+            "evidence_count": 1
+          },
+          "empty_state": null
+        },
+        {
+          "local_key": "c1-a2",
+          "source_id": "ICHc753be85-ad05-5046-92b4-977d7ad01796",
+          "name": "Synthetic text 957ec0d706",
+          "assessment": {
+            "conclusion": "Synthetic text 2e569c219b",
+            "direction": "diverging",
+            "conclusion_basis": "reasoning_hypothesis",
+            "validation_status": "pending_validation",
+            "confidence": "low",
+            "forecast_window": {
+              "kind": "mixed",
+              "description": "Synthetic text adddb9954c",
+              "start_at": null,
+              "end_at": null
+            },
+            "scope": "Synthetic text 56257568c1",
+            "conditions": ["Synthetic text a62ca6d1f3"],
+            "follow_up": ["Synthetic text 850c73247d"],
+            "transmission_logic": "Synthetic text abfc3ccce6",
+            "evidence_scope_token": "RPE8666982f-83b5-5dd9-95ff-0e99b53e7d18",
+            "evidence_count": 1
+          },
+          "empty_state": null
+        },
+        {
+          "local_key": "c5-ai1",
+          "source_id": "ICH87bd1c10-d0f0-524b-9253-d29296d78c8a",
+          "name": "Synthetic text d661b305c9",
+          "assessment": {
+            "conclusion": "Synthetic text db4804556f",
+            "direction": "pending",
+            "conclusion_basis": "observation_only",
+            "validation_status": "insufficient_evidence",
+            "confidence": null,
+            "forecast_window": {
+              "kind": "not_applicable",
+              "description": "Synthetic text 03d3e7fd88",
+              "start_at": null,
+              "end_at": null
+            },
+            "scope": "Synthetic text ce2f0f9a72",
+            "conditions": [],
+            "follow_up": [],
+            "transmission_logic": "Synthetic text 934ecf3374",
+            "evidence_scope_token": "RPE66ea9ccc-52d1-5399-aa4b-4205b461c6eb",
+            "evidence_count": 1
+          },
+          "empty_state": {
+            "code": "observation_only",
+            "reason": "Synthetic text 468d901dff",
+            "follow_up": ["Synthetic text cf212f22e0"]
+          }
+        }
+      ]
+    }
+  },
+  "chains": {
+    "geopolitical_stories/g1/g1-2-chain": {
+      "local_key": "g1-2-chain",
+      "source_id": "ICH2f7b4b0b-de77-5eb3-9cdd-7a330aa4e61c",
+      "name": "Synthetic text 243ca1ca1c",
+      "assessment": {
+        "conclusion": "Synthetic text e290e178ff",
+        "direction": "diverging",
+        "conclusion_basis": "reasoning_hypothesis",
+        "validation_status": "pending_validation",
+        "confidence": "low",
+        "forecast_window": {
+          "kind": "relative",
+          "description": "Synthetic text 3d19fcf11c",
+          "start_at": null,
+          "end_at": null
+        },
+        "scope": "Synthetic text ef67a12e33",
+        "conditions": ["Synthetic text 503b86d3cd"],
+        "follow_up": ["Synthetic text ad80281795"],
+        "transmission_logic": "Synthetic text 18478a8603",
+        "evidence_scope_token": "RPEa2aa337b-0c4c-5fdb-bac1-adabe3ba2acf",
+        "evidence_count": 1
+      },
+      "reasoning_summary": {
+        "logic": "Synthetic text 18478a8603",
+        "support": {
+          "text": "Synthetic text 30782163cc",
+          "basis": "inference",
+          "evidence_scope_token": "RPEd049b4e6-edcd-59d7-a262-5b2482b00f1a",
+          "evidence_count": 1
+        },
+        "objections": {
+          "counterevidence": [],
+          "buffers": [
+            {
+              "text": "Synthetic text 08cf84fa35",
+              "basis": "source_fact",
+              "evidence_scope_token": "RPEab28225f-9878-56ff-845c-8aefb9602bc3",
+              "evidence_count": 1
+            }
+          ],
+          "counterevidence_status": "none_identified",
+          "summary": "Synthetic text 73c65cce7d",
+          "evidence_gaps": ["Synthetic text c1a42b727a"],
+          "scope_limits": ["Synthetic text ef67a12e33"]
+        }
+      },
+      "graph": {
+        "nodes": [
+          {
+            "local_key": "g1-2-chain-n4",
+            "source_id": "CNDbd2995eb-9342-5a83-88f5-9468db08228a",
+            "name": "Synthetic text eda9c9da2a"
+          },
+          {
+            "local_key": "g1-2-chain-n5",
+            "source_id": "CNDb48aa2c6-354f-5404-8488-f658da7f0ea5",
+            "name": "Synthetic text 36e0f9e8a9"
+          },
+          {
+            "local_key": "g1-2-chain-n6",
+            "source_id": "CND7953ffd5-286d-59f6-b88a-b04bbec20372",
+            "name": "Synthetic text 6427f3ce88"
+          },
+          {
+            "local_key": "g1-2-chain-n1",
+            "source_id": "CND80eef751-049b-564b-83f4-219273de988e",
+            "name": "Synthetic text 1e33b2fd1b"
+          },
+          {
+            "local_key": "g1-2-chain-n2",
+            "source_id": "CND3e8fd6d6-479d-59d6-83a0-f0300feffe0b",
+            "name": "Synthetic text e2e6ebc1d1"
+          },
+          {
+            "local_key": "g1-2-chain-n3",
+            "source_id": "CND9398bdeb-cbcf-55e0-9076-3d26c74e406e",
+            "name": "Synthetic text 5573be0357"
+          }
+        ],
+        "edges": [
+          {
+            "from_node_local_key": "g1-2-chain-n4",
+            "to_node_local_key": "g1-2-chain-n5",
+            "relation_label": "投入"
+          },
+          {
+            "from_node_local_key": "g1-2-chain-n5",
+            "to_node_local_key": "g1-2-chain-n6",
+            "relation_label": "投入"
+          },
+          {
+            "from_node_local_key": "g1-2-chain-n6",
+            "to_node_local_key": "g1-2-chain-n1",
+            "relation_label": "投入"
+          },
+          {
+            "from_node_local_key": "g1-2-chain-n2",
+            "to_node_local_key": "g1-2-chain-n3",
+            "relation_label": "投入"
+          },
+          {
+            "from_node_local_key": "g1-2-chain-n1",
+            "to_node_local_key": "g1-2-chain-n2",
+            "relation_label": "投入"
+          }
+        ]
+      },
+      "affected_nodes": [
+        {
+          "local_key": "g1-2-node-impact-1",
+          "source_id": "CNDbd2995eb-9342-5a83-88f5-9468db08228a",
+          "node_local_key": "g1-2-chain-n4",
+          "name": "Synthetic text eda9c9da2a",
+          "assessment": {
+            "conclusion": "Synthetic text bea78a4244",
+            "direction": "diverging",
+            "conclusion_basis": "reasoning_hypothesis",
+            "validation_status": "pending_validation",
+            "confidence": "low",
+            "forecast_window": {
+              "kind": "relative",
+              "description": "Synthetic text 3d19fcf11c",
+              "start_at": null,
+              "end_at": null
+            },
+            "scope": "Synthetic text ef67a12e33",
+            "conditions": ["Synthetic text 503b86d3cd"],
+            "follow_up": ["Synthetic text ad80281795"],
+            "transmission_logic": "Synthetic text daa99bb19b",
+            "evidence_scope_token": "RPE8f472e86-d4a3-502c-ae12-dbb067b10b53",
+            "evidence_count": 1
+          },
+          "objections": {
+            "counterevidence": [],
+            "buffers": [
+              {
+                "text": "Synthetic text 08cf84fa35",
+                "basis": "source_fact",
+                "evidence_scope_token": "RPE96813ee6-83ae-5d39-8442-2ed8574840ff",
+                "evidence_count": 1
+              }
+            ],
+            "counterevidence_status": "none_identified",
+            "summary": "Synthetic text 73c65cce7d",
+            "evidence_gaps": ["Synthetic text c1a42b727a"],
+            "scope_limits": ["Synthetic text ef67a12e33"]
+          }
+        },
+        {
+          "local_key": "g1-2-node-impact-2",
+          "source_id": "CNDb48aa2c6-354f-5404-8488-f658da7f0ea5",
+          "node_local_key": "g1-2-chain-n5",
+          "name": "Synthetic text 36e0f9e8a9",
+          "assessment": {
+            "conclusion": "Synthetic text 923840fb3d",
+            "direction": "diverging",
+            "conclusion_basis": "reasoning_hypothesis",
+            "validation_status": "pending_validation",
+            "confidence": "low",
+            "forecast_window": {
+              "kind": "relative",
+              "description": "Synthetic text 3d19fcf11c",
+              "start_at": null,
+              "end_at": null
+            },
+            "scope": "Synthetic text ef67a12e33",
+            "conditions": ["Synthetic text 503b86d3cd"],
+            "follow_up": ["Synthetic text ad80281795"],
+            "transmission_logic": "Synthetic text 558f0ea83e",
+            "evidence_scope_token": "RPE2b9d814f-f313-5d46-95ad-894cf32c42d5",
+            "evidence_count": 1
+          },
+          "objections": {
+            "counterevidence": [],
+            "buffers": [
+              {
+                "text": "Synthetic text 08cf84fa35",
+                "basis": "source_fact",
+                "evidence_scope_token": "RPE247577b0-8a4b-58be-bbfb-1c8d912c44aa",
+                "evidence_count": 1
+              }
+            ],
+            "counterevidence_status": "none_identified",
+            "summary": "Synthetic text 73c65cce7d",
+            "evidence_gaps": ["Synthetic text c1a42b727a"],
+            "scope_limits": ["Synthetic text ef67a12e33"]
+          }
+        }
+      ],
+      "empty_state": null
+    },
+    "geopolitical_stories/g1/g1-3-chain": {
+      "local_key": "g1-3-chain",
+      "source_id": "ICH228d8b7e-93b8-59c6-b5c5-ec1ecdf53e17",
+      "name": "Synthetic text db43849bee",
+      "assessment": {
+        "conclusion": "Synthetic text 5b105a40be",
+        "direction": "diverging",
+        "conclusion_basis": "reasoning_hypothesis",
+        "validation_status": "pending_validation",
+        "confidence": "low",
+        "forecast_window": {
+          "kind": "relative",
+          "description": "Synthetic text 3d19fcf11c",
+          "start_at": null,
+          "end_at": null
+        },
+        "scope": "Synthetic text 00e8b33520",
+        "conditions": ["Synthetic text 0ff5c99b6e"],
+        "follow_up": ["Synthetic text 4f699f5409"],
+        "transmission_logic": "Synthetic text 996fff58fa",
+        "evidence_scope_token": "RPE20e9f3be-f17a-54bf-af2e-a0e89eb1a296",
+        "evidence_count": 1
+      },
+      "reasoning_summary": {
+        "logic": "Synthetic text 996fff58fa",
+        "support": {
+          "text": "Synthetic text 1dd35a0fb7",
+          "basis": "inference",
+          "evidence_scope_token": "RPE0b789ef5-bef1-5dc9-80c2-d8b382a1aa20",
+          "evidence_count": 1
+        },
+        "objections": {
+          "counterevidence": [],
+          "buffers": [
+            {
+              "text": "Synthetic text 3b81de8100",
+              "basis": "inference",
+              "evidence_scope_token": "RPE81166df0-f775-50bd-8230-712d9e517fd9",
+              "evidence_count": 1
+            }
+          ],
+          "counterevidence_status": "none_identified",
+          "summary": "Synthetic text d022ed636f",
+          "evidence_gaps": ["Synthetic text ccf5bea4ea"],
+          "scope_limits": ["Synthetic text 00e8b33520"]
+        }
+      },
+      "graph": {
+        "nodes": [
+          {
+            "local_key": "g1-3-chain-n3",
+            "source_id": "CND2cfa7d63-ac28-59e4-b618-c4fbc350d0fa",
+            "name": "Synthetic text 66f04df7c1"
+          },
+          {
+            "local_key": "g1-3-chain-n2",
+            "source_id": "CND4cb088de-0521-5e3e-a6c2-6546f178ad7a",
+            "name": "Synthetic text 7931b7b602"
+          },
+          {
+            "local_key": "g1-3-chain-n4",
+            "source_id": "CND6d05ba3a-a42d-58a1-b5f2-76ced1920caf",
+            "name": "Synthetic text f8a37f70f1"
+          },
+          {
+            "local_key": "g1-3-chain-n1",
+            "source_id": "CND2bea8454-9520-5eab-9418-25dbceabdfaf",
+            "name": "Synthetic text 960331718a"
+          }
+        ],
+        "edges": [
+          {
+            "from_node_local_key": "g1-3-chain-n3",
+            "to_node_local_key": "g1-3-chain-n2",
+            "relation_label": "投入"
+          },
+          {
+            "from_node_local_key": "g1-3-chain-n2",
+            "to_node_local_key": "g1-3-chain-n4",
+            "relation_label": "依赖"
+          },
+          {
+            "from_node_local_key": "g1-3-chain-n2",
+            "to_node_local_key": "g1-3-chain-n1",
+            "relation_label": "投入"
+          }
+        ]
+      },
+      "affected_nodes": [
+        {
+          "local_key": "g1-3-node-impact-1",
+          "source_id": "CND4cb088de-0521-5e3e-a6c2-6546f178ad7a",
+          "node_local_key": "g1-3-chain-n2",
+          "name": "Synthetic text 7931b7b602",
+          "assessment": {
+            "conclusion": "Synthetic text 440d2837f9",
+            "direction": "diverging",
+            "conclusion_basis": "reasoning_hypothesis",
+            "validation_status": "pending_validation",
+            "confidence": "low",
+            "forecast_window": {
+              "kind": "relative",
+              "description": "Synthetic text 3d19fcf11c",
+              "start_at": null,
+              "end_at": null
+            },
+            "scope": "Synthetic text 00e8b33520",
+            "conditions": ["Synthetic text 0ff5c99b6e"],
+            "follow_up": ["Synthetic text 4f699f5409"],
+            "transmission_logic": "Synthetic text 65f0d65f91",
+            "evidence_scope_token": "RPEd094bf89-99ca-5231-8f77-4cb57d11fec5",
+            "evidence_count": 1
+          },
+          "objections": {
+            "counterevidence": [],
+            "buffers": [
+              {
+                "text": "Synthetic text 3b81de8100",
+                "basis": "inference",
+                "evidence_scope_token": "RPE20a4a496-68a5-5e2f-8d24-6e6890d286c7",
+                "evidence_count": 1
+              }
+            ],
+            "counterevidence_status": "none_identified",
+            "summary": "Synthetic text d022ed636f",
+            "evidence_gaps": ["Synthetic text ccf5bea4ea"],
+            "scope_limits": ["Synthetic text 00e8b33520"]
+          }
+        }
+      ],
+      "empty_state": null
+    },
+    "macroeconomic_stories/m1/m1-1-chain": {
+      "local_key": "m1-1-chain",
+      "source_id": "ICH16b6c452-a790-5c8f-a9b6-78ab22cc1dab",
+      "name": "Synthetic text 1958dd3422",
+      "assessment": {
+        "conclusion": "Synthetic text 511bc420d2",
+        "direction": "diverging",
+        "conclusion_basis": "reasoning_hypothesis",
+        "validation_status": "pending_validation",
+        "confidence": "low",
+        "forecast_window": {
+          "kind": "relative",
+          "description": "Synthetic text a394947c23",
+          "start_at": null,
+          "end_at": null
+        },
+        "scope": "Synthetic text 10def5a76b",
+        "conditions": ["Synthetic text fbc82abd04"],
+        "follow_up": ["Synthetic text 6fce6ed354"],
+        "transmission_logic": "Synthetic text d07b2d8db3",
+        "evidence_scope_token": "RPEf1ea7881-3fce-55c7-be26-cbe4fa4d9cf1",
+        "evidence_count": 1
+      },
+      "reasoning_summary": {
+        "logic": "Synthetic text d07b2d8db3",
+        "support": {
+          "text": "Synthetic text 036257dacb",
+          "basis": "inference",
+          "evidence_scope_token": "RPEf8eeb3a4-a0ee-59c6-b933-999281e4c489",
+          "evidence_count": 1
+        },
+        "objections": {
+          "counterevidence": [],
+          "buffers": [
+            {
+              "text": "Synthetic text b5d1f585fc",
+              "basis": "hypothetical_buffer",
+              "evidence_scope_token": null,
+              "evidence_count": 0
+            }
+          ],
+          "counterevidence_status": "none_identified",
+          "summary": "Synthetic text e59dba349e",
+          "evidence_gaps": ["Synthetic text 738e146643"],
+          "scope_limits": ["Synthetic text 10def5a76b"]
+        }
+      },
+      "graph": {
+        "nodes": [
+          {
+            "local_key": "m1-1-chain-n4",
+            "source_id": "CND944a8c5f-a59f-5279-bd8f-541db4444632",
+            "name": "Synthetic text 40e5591175"
+          },
+          {
+            "local_key": "m1-1-chain-n1",
+            "source_id": "CND38b68778-dd6a-500a-8f14-66532c665907",
+            "name": "Synthetic text e815abe03d"
+          },
+          {
+            "local_key": "m1-1-chain-n3",
+            "source_id": "CND902aa426-bfe2-5854-be0f-24bbb8469916",
+            "name": "Synthetic text d76cdb7ee8"
+          },
+          {
+            "local_key": "m1-1-chain-n5",
+            "source_id": "CNDa2cc875a-1e8f-5b89-9376-49a920e24bc1",
+            "name": "Synthetic text 34600090bc"
+          },
+          {
+            "local_key": "m1-1-chain-n2",
+            "source_id": "CNDc298623b-6c0f-5a91-ba96-a236f7658ee3",
+            "name": "Synthetic text 1aed1e221f"
+          }
+        ],
+        "edges": [
+          {
+            "from_node_local_key": "m1-1-chain-n4",
+            "to_node_local_key": "m1-1-chain-n1",
+            "relation_label": "投入"
+          },
+          {
+            "from_node_local_key": "m1-1-chain-n3",
+            "to_node_local_key": "m1-1-chain-n5",
+            "relation_label": "依赖"
+          },
+          {
+            "from_node_local_key": "m1-1-chain-n1",
+            "to_node_local_key": "m1-1-chain-n2",
+            "relation_label": "依赖"
+          },
+          {
+            "from_node_local_key": "m1-1-chain-n1",
+            "to_node_local_key": "m1-1-chain-n5",
+            "relation_label": "依赖"
+          }
+        ]
+      },
+      "affected_nodes": [
+        {
+          "local_key": "m1-1-node-impact-1",
+          "source_id": "CND944a8c5f-a59f-5279-bd8f-541db4444632",
+          "node_local_key": "m1-1-chain-n4",
+          "name": "Synthetic text 40e5591175",
+          "assessment": {
+            "conclusion": "Synthetic text 8c567db9e2",
+            "direction": "diverging",
+            "conclusion_basis": "reasoning_hypothesis",
+            "validation_status": "pending_validation",
+            "confidence": "low",
+            "forecast_window": {
+              "kind": "relative",
+              "description": "Synthetic text a394947c23",
+              "start_at": null,
+              "end_at": null
+            },
+            "scope": "Synthetic text 10def5a76b",
+            "conditions": ["Synthetic text fbc82abd04"],
+            "follow_up": ["Synthetic text 6fce6ed354"],
+            "transmission_logic": "Synthetic text 3c9357498b",
+            "evidence_scope_token": "RPEf7ec7677-05a3-5c12-a336-8c7947f997b5",
+            "evidence_count": 1
+          },
+          "objections": {
+            "counterevidence": [],
+            "buffers": [
+              {
+                "text": "Synthetic text b5d1f585fc",
+                "basis": "hypothetical_buffer",
+                "evidence_scope_token": null,
+                "evidence_count": 0
+              }
+            ],
+            "counterevidence_status": "none_identified",
+            "summary": "Synthetic text e59dba349e",
+            "evidence_gaps": ["Synthetic text 738e146643"],
+            "scope_limits": ["Synthetic text 10def5a76b"]
+          }
+        },
+        {
+          "local_key": "m1-1-node-impact-2",
+          "source_id": "CND38b68778-dd6a-500a-8f14-66532c665907",
+          "node_local_key": "m1-1-chain-n1",
+          "name": "Synthetic text e815abe03d",
+          "assessment": {
+            "conclusion": "Synthetic text 7f9f31d254",
+            "direction": "diverging",
+            "conclusion_basis": "reasoning_hypothesis",
+            "validation_status": "pending_validation",
+            "confidence": "low",
+            "forecast_window": {
+              "kind": "relative",
+              "description": "Synthetic text a394947c23",
+              "start_at": null,
+              "end_at": null
+            },
+            "scope": "Synthetic text 10def5a76b",
+            "conditions": ["Synthetic text fbc82abd04"],
+            "follow_up": ["Synthetic text 6fce6ed354"],
+            "transmission_logic": "Synthetic text 633b85835f",
+            "evidence_scope_token": "RPE2ab9e80e-a6b6-59c2-a900-1a7f32383738",
+            "evidence_count": 1
+          },
+          "objections": {
+            "counterevidence": [],
+            "buffers": [
+              {
+                "text": "Synthetic text b5d1f585fc",
+                "basis": "hypothetical_buffer",
+                "evidence_scope_token": null,
+                "evidence_count": 0
+              }
+            ],
+            "counterevidence_status": "none_identified",
+            "summary": "Synthetic text e59dba349e",
+            "evidence_gaps": ["Synthetic text 738e146643"],
+            "scope_limits": ["Synthetic text 10def5a76b"]
+          }
+        }
+      ],
+      "empty_state": null
+    },
+    "concept_analyses/c1/c1-a1": {
+      "local_key": "c1-a1",
+      "source_id": "ICH9b885588-d01d-5cf6-91a7-00ba5e035162",
+      "name": "Synthetic text 9912a9aa0a",
+      "assessment": {
+        "conclusion": "Synthetic text 1165aa6ea9",
+        "direction": "diverging",
+        "conclusion_basis": "reasoning_hypothesis",
+        "validation_status": "pending_validation",
+        "confidence": "low",
+        "forecast_window": {
+          "kind": "relative",
+          "description": "Synthetic text f725345426",
+          "start_at": null,
+          "end_at": null
+        },
+        "scope": "Synthetic text ee17418b2d",
+        "conditions": ["Synthetic text 100067da4d", "Synthetic text 0861213866"],
+        "follow_up": ["Synthetic text 62329fce40", "Synthetic text f71185e3b3"],
+        "transmission_logic": "Synthetic text 532982cffe",
+        "evidence_scope_token": "RPEfb25f5b4-7bbb-55eb-a182-98d1bfe2f801",
+        "evidence_count": 1
+      },
+      "reasoning_summary": {
+        "logic": "Synthetic text 532982cffe",
+        "support": {
+          "text": "Synthetic text 4e1f8d51d3",
+          "basis": "inference",
+          "evidence_scope_token": "RPE29021e27-72a0-5864-9171-14b751bb1c60",
+          "evidence_count": 1
+        },
+        "objections": {
+          "counterevidence": [
+            {
+              "text": "Synthetic text 26c8e44aac",
+              "basis": "source_fact",
+              "evidence_scope_token": "RPEf400d95d-963e-594a-b49a-f95df3dadccd",
+              "evidence_count": 1
+            }
+          ],
+          "buffers": [],
+          "counterevidence_status": "identified",
+          "summary": "Synthetic text 0ac0bf5e0a",
+          "evidence_gaps": ["Synthetic text 56562a9dd7"],
+          "scope_limits": ["Synthetic text ee17418b2d"]
+        }
+      },
+      "graph": {
+        "nodes": [
+          {
+            "local_key": "c1-a1-n5",
+            "source_id": "CNDe3019c13-ba1b-5856-81b2-fec693e5e492",
+            "name": "Synthetic text 1ff80456f2"
+          },
+          {
+            "local_key": "c1-a1-n3",
+            "source_id": "CND770fc9a7-56c4-56d3-a461-791dca875e69",
+            "name": "Synthetic text 9656ae87f9"
+          },
+          {
+            "local_key": "c1-a1-n2",
+            "source_id": "CND5965c919-2e8e-5d87-be5c-929b3ba8f4cf",
+            "name": "Synthetic text b689f8ed01"
+          },
+          {
+            "local_key": "c1-a1-n1",
+            "source_id": "CND4666ef1c-369a-59da-8ca5-61cafa789b48",
+            "name": "Synthetic text 20ff0a2a34"
+          },
+          {
+            "local_key": "c1-a1-n4",
+            "source_id": "CNDc765024c-c938-5c4c-9ce2-7b9fc1fd2c50",
+            "name": "Synthetic text 124b20b875"
+          }
+        ],
+        "edges": [
+          {
+            "from_node_local_key": "c1-a1-n5",
+            "to_node_local_key": "c1-a1-n3",
+            "relation_label": "投入"
+          },
+          {
+            "from_node_local_key": "c1-a1-n2",
+            "to_node_local_key": "c1-a1-n1",
+            "relation_label": "依赖"
+          },
+          {
+            "from_node_local_key": "c1-a1-n2",
+            "to_node_local_key": "c1-a1-n5",
+            "relation_label": "投入"
+          },
+          {
+            "from_node_local_key": "c1-a1-n4",
+            "to_node_local_key": "c1-a1-n2",
+            "relation_label": "投入"
+          }
+        ]
+      },
+      "affected_nodes": [
+        {
+          "local_key": "c1-a1-impact-1",
+          "source_id": "CND770fc9a7-56c4-56d3-a461-791dca875e69",
+          "node_local_key": "c1-a1-n3",
+          "name": "Synthetic text 9656ae87f9",
+          "assessment": {
+            "conclusion": "Synthetic text deb8c02869",
+            "direction": "diverging",
+            "conclusion_basis": "reasoning_hypothesis",
+            "validation_status": "pending_validation",
+            "confidence": "low",
+            "forecast_window": {
+              "kind": "relative",
+              "description": "Synthetic text f725345426",
+              "start_at": null,
+              "end_at": null
+            },
+            "scope": "Synthetic text ee17418b2d",
+            "conditions": ["Synthetic text 100067da4d"],
+            "follow_up": ["Synthetic text 62329fce40"],
+            "transmission_logic": "Synthetic text 30272af224",
+            "evidence_scope_token": "RPE8920cb4f-a00d-54f4-9bb6-9d1f6fd5ad56",
+            "evidence_count": 1
+          },
+          "objections": {
+            "counterevidence": [
+              {
+                "text": "Synthetic text 26c8e44aac",
+                "basis": "source_fact",
+                "evidence_scope_token": "RPE166b75e0-db3e-56a6-a647-438e3e9accfb",
+                "evidence_count": 1
+              }
+            ],
+            "buffers": [],
+            "counterevidence_status": "identified",
+            "summary": "Synthetic text 35da6e9ba9",
+            "evidence_gaps": ["Synthetic text 56562a9dd7"],
+            "scope_limits": ["Synthetic text ee17418b2d"]
+          }
+        },
+        {
+          "local_key": "c1-a1-impact-2",
+          "source_id": "CNDe3019c13-ba1b-5856-81b2-fec693e5e492",
+          "node_local_key": "c1-a1-n5",
+          "name": "Synthetic text 1ff80456f2",
+          "assessment": {
+            "conclusion": "Synthetic text c47cf23634",
+            "direction": "diverging",
+            "conclusion_basis": "reasoning_hypothesis",
+            "validation_status": "pending_validation",
+            "confidence": "low",
+            "forecast_window": {
+              "kind": "relative",
+              "description": "Synthetic text f725345426",
+              "start_at": null,
+              "end_at": null
+            },
+            "scope": "Synthetic text ee17418b2d",
+            "conditions": ["Synthetic text 0861213866"],
+            "follow_up": ["Synthetic text f71185e3b3"],
+            "transmission_logic": "Synthetic text 89a5f6b56c",
+            "evidence_scope_token": "RPEfcf16a5b-a44c-56b9-a6d3-1c83d09cac85",
+            "evidence_count": 1
+          },
+          "objections": {
+            "counterevidence": [],
+            "buffers": [],
+            "counterevidence_status": "none_identified",
+            "summary": "Synthetic text bebdc0c9b7",
+            "evidence_gaps": ["Synthetic text 56562a9dd7"],
+            "scope_limits": ["Synthetic text ee17418b2d"]
+          }
+        }
+      ],
+      "empty_state": null
+    },
+    "concept_analyses/c1/c1-a2": {
+      "local_key": "c1-a2",
+      "source_id": "ICHc753be85-ad05-5046-92b4-977d7ad01796",
+      "name": "Synthetic text 957ec0d706",
+      "assessment": {
+        "conclusion": "Synthetic text 2e569c219b",
+        "direction": "diverging",
+        "conclusion_basis": "reasoning_hypothesis",
+        "validation_status": "pending_validation",
+        "confidence": "low",
+        "forecast_window": {
+          "kind": "mixed",
+          "description": "Synthetic text adddb9954c",
+          "start_at": null,
+          "end_at": null
+        },
+        "scope": "Synthetic text 56257568c1",
+        "conditions": ["Synthetic text a62ca6d1f3"],
+        "follow_up": ["Synthetic text 850c73247d"],
+        "transmission_logic": "Synthetic text abfc3ccce6",
+        "evidence_scope_token": "RPE8666982f-83b5-5dd9-95ff-0e99b53e7d18",
+        "evidence_count": 1
+      },
+      "reasoning_summary": {
+        "logic": "Synthetic text abfc3ccce6",
+        "support": {
+          "text": "Synthetic text 84edf6fca6",
+          "basis": "inference",
+          "evidence_scope_token": "RPE5f8c8ed6-a2c0-503a-b331-b905f27c0541",
+          "evidence_count": 1
+        },
+        "objections": {
+          "counterevidence": [],
+          "buffers": [],
+          "counterevidence_status": "none_identified",
+          "summary": "Synthetic text 3e6ff20b04",
+          "evidence_gaps": ["Synthetic text 63b91db558"],
+          "scope_limits": ["Synthetic text 56257568c1"]
+        }
+      },
+      "graph": {
+        "nodes": [
+          {
+            "local_key": "c1-a2-n2",
+            "source_id": "CND835020cb-229e-5dce-935b-d7000d01305f",
+            "name": "Synthetic text c0cd3d628b"
+          },
+          {
+            "local_key": "c1-a2-n1",
+            "source_id": "CND4666ef1c-369a-59da-8ca5-61cafa789b48",
+            "name": "Synthetic text 20ff0a2a34"
+          },
+          {
+            "local_key": "c1-a2-n3",
+            "source_id": "CNDb5260b39-3a13-541d-93bb-9e41fad24050",
+            "name": "Synthetic text 3966ea722e"
+          },
+          {
+            "local_key": "c1-a2-n5",
+            "source_id": "CND70548d02-4789-5f5b-8d5b-ab7b0d16b353",
+            "name": "Synthetic text a3f8433691"
+          },
+          {
+            "local_key": "c1-a2-n4",
+            "source_id": "CNDa0a22142-9036-50d0-8626-51572ed3955e",
+            "name": "Synthetic text 73bbdd408c"
+          }
+        ],
+        "edges": [
+          {
+            "from_node_local_key": "c1-a2-n2",
+            "to_node_local_key": "c1-a2-n1",
+            "relation_label": "依赖"
+          },
+          {
+            "from_node_local_key": "c1-a2-n2",
+            "to_node_local_key": "c1-a2-n3",
+            "relation_label": "投入"
+          },
+          {
+            "from_node_local_key": "c1-a2-n3",
+            "to_node_local_key": "c1-a2-n5",
+            "relation_label": "投入"
+          },
+          {
+            "from_node_local_key": "c1-a2-n4",
+            "to_node_local_key": "c1-a2-n2",
+            "relation_label": "投入"
+          }
+        ]
+      },
+      "affected_nodes": [
+        {
+          "local_key": "c1-a2-impact-1",
+          "source_id": "CND70548d02-4789-5f5b-8d5b-ab7b0d16b353",
+          "node_local_key": "c1-a2-n5",
+          "name": "Synthetic text a3f8433691",
+          "assessment": {
+            "conclusion": "Synthetic text 55cf5de4dc",
+            "direction": "diverging",
+            "conclusion_basis": "reasoning_hypothesis",
+            "validation_status": "pending_validation",
+            "confidence": "low",
+            "forecast_window": {
+              "kind": "relative",
+              "description": "Synthetic text f725345426",
+              "start_at": null,
+              "end_at": null
+            },
+            "scope": "Synthetic text 56257568c1",
+            "conditions": ["Synthetic text a62ca6d1f3"],
+            "follow_up": ["Synthetic text 850c73247d"],
+            "transmission_logic": "Synthetic text d431b6c394",
+            "evidence_scope_token": "RPE4e25b37b-b4d8-54bd-82ba-5473233691e4",
+            "evidence_count": 1
+          },
+          "objections": {
+            "counterevidence": [],
+            "buffers": [],
+            "counterevidence_status": "none_identified",
+            "summary": "Synthetic text 69ca4dd4c7",
+            "evidence_gaps": ["Synthetic text 63b91db558"],
+            "scope_limits": ["Synthetic text 56257568c1"]
+          }
+        },
+        {
+          "local_key": "c1-a2-impact-2",
+          "source_id": "CNDb5260b39-3a13-541d-93bb-9e41fad24050",
+          "node_local_key": "c1-a2-n3",
+          "name": "Synthetic text 3966ea722e",
+          "assessment": {
+            "conclusion": "Synthetic text c4467d170d",
+            "direction": "diverging",
+            "conclusion_basis": "reasoning_hypothesis",
+            "validation_status": "pending_validation",
+            "confidence": "low",
+            "forecast_window": {
+              "kind": "relative",
+              "description": "Synthetic text 2c3d92313c",
+              "start_at": null,
+              "end_at": null
+            },
+            "scope": "Synthetic text 56257568c1",
+            "conditions": ["Synthetic text a62ca6d1f3"],
+            "follow_up": ["Synthetic text 850c73247d"],
+            "transmission_logic": "Synthetic text d431b6c394",
+            "evidence_scope_token": "RPE197e5adc-0bae-51c6-84df-f1f8a30dd43b",
+            "evidence_count": 1
+          },
+          "objections": {
+            "counterevidence": [],
+            "buffers": [],
+            "counterevidence_status": "none_identified",
+            "summary": "Synthetic text 69ca4dd4c7",
+            "evidence_gaps": ["Synthetic text 63b91db558"],
+            "scope_limits": ["Synthetic text 56257568c1"]
+          }
+        }
+      ],
+      "empty_state": null
+    },
+    "concept_analyses/c1/c5-ai1": {
+      "local_key": "c5-ai1",
+      "source_id": "ICH87bd1c10-d0f0-524b-9253-d29296d78c8a",
+      "name": "Synthetic text d661b305c9",
+      "assessment": {
+        "conclusion": "Synthetic text db4804556f",
+        "direction": "pending",
+        "conclusion_basis": "observation_only",
+        "validation_status": "insufficient_evidence",
+        "confidence": null,
+        "forecast_window": {
+          "kind": "not_applicable",
+          "description": "Synthetic text 03d3e7fd88",
+          "start_at": null,
+          "end_at": null
+        },
+        "scope": "Synthetic text ce2f0f9a72",
+        "conditions": [],
+        "follow_up": [],
+        "transmission_logic": "Synthetic text 934ecf3374",
+        "evidence_scope_token": "RPE66ea9ccc-52d1-5399-aa4b-4205b461c6eb",
+        "evidence_count": 1
+      },
+      "reasoning_summary": {
+        "logic": "Synthetic text 934ecf3374",
+        "support": {
+          "text": "Synthetic text 4704162ca1",
+          "basis": "inference",
+          "evidence_scope_token": "RPEe25cc19e-939f-5a24-8df1-b51730a19e14",
+          "evidence_count": 1
+        },
+        "objections": {
+          "counterevidence": [],
+          "buffers": [],
+          "counterevidence_status": "none_identified",
+          "summary": "Synthetic text 96da576b86",
+          "evidence_gaps": ["Synthetic text 5a052871b3"],
+          "scope_limits": ["Synthetic text ce2f0f9a72"]
+        }
+      },
+      "graph": {
+        "nodes": [
+          {
+            "local_key": "c5-ai1-n2",
+            "source_id": "CND766655d7-5b85-5817-8438-1bc8c9568340",
+            "name": "Synthetic text 99c80ab151"
+          },
+          {
+            "local_key": "c5-ai1-n5",
+            "source_id": "CNDe38821a0-97fe-566a-b343-a7d04cf1a7a4",
+            "name": "Synthetic text 05e6abf0a9"
+          },
+          {
+            "local_key": "c5-ai1-n1",
+            "source_id": "CNDf67c22c2-b162-5929-b965-586a0b7e6cb6",
+            "name": "Synthetic text ba487616f9"
+          },
+          {
+            "local_key": "c5-ai1-n3",
+            "source_id": "CND58d8e256-53b4-5040-9691-5e002dba7807",
+            "name": "Synthetic text 9c62c01c25"
+          },
+          {
+            "local_key": "c5-ai1-n4",
+            "source_id": "CNDab7a55e1-82ec-522a-bbac-03ba52d190d7",
+            "name": "Synthetic text bc1d0cccd1"
+          }
+        ],
+        "edges": [
+          {
+            "from_node_local_key": "c5-ai1-n2",
+            "to_node_local_key": "c5-ai1-n5",
+            "relation_label": "组成"
+          },
+          {
+            "from_node_local_key": "c5-ai1-n1",
+            "to_node_local_key": "c5-ai1-n5",
+            "relation_label": "组成"
+          },
+          {
+            "from_node_local_key": "c5-ai1-n3",
+            "to_node_local_key": "c5-ai1-n5",
+            "relation_label": "组成"
+          },
+          {
+            "from_node_local_key": "c5-ai1-n4",
+            "to_node_local_key": "c5-ai1-n5",
+            "relation_label": "组成"
+          }
+        ]
+      },
+      "affected_nodes": [],
+      "empty_state": {
+        "code": "observation_only",
+        "reason": "Synthetic text 468d901dff",
+        "follow_up": ["Synthetic text cf212f22e0"]
+      }
+    }
+  },
+  "evidences": {
+    "RPE6336886b-a762-550e-9231-965423b9c0eb": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPEa0234e45-69e8-539e-979c-31afcf5d6dd6": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPEb6921f06-da35-5103-988d-191e1dcd3a2b": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPEa2aa337b-0c4c-5fdb-bac1-adabe3ba2acf": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE20e9f3be-f17a-54bf-af2e-a0e89eb1a296": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE8e3c887b-0abd-5cef-b2d2-382d4ff08ddc": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE77274e28-2da7-5fc9-b726-6c2e49b8c036": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPEf1ea7881-3fce-55c7-be26-cbe4fa4d9cf1": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE68f71b68-e95f-53a6-9104-581a21f41c8e": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE02d34fbe-001a-5cb9-8e67-7707871fc196": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE8920cb4f-a00d-54f4-9bb6-9d1f6fd5ad56": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPEfcf16a5b-a44c-56b9-a6d3-1c83d09cac85": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE4e25b37b-b4d8-54bd-82ba-5473233691e4": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE197e5adc-0bae-51c6-84df-f1f8a30dd43b": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPEf4876eed-759f-51ce-a5b4-2c97f814977c": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPEfb25f5b4-7bbb-55eb-a182-98d1bfe2f801": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE8666982f-83b5-5dd9-95ff-0e99b53e7d18": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE66ea9ccc-52d1-5399-aa4b-4205b461c6eb": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPEd049b4e6-edcd-59d7-a262-5b2482b00f1a": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPEab28225f-9878-56ff-845c-8aefb9602bc3": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE8f472e86-d4a3-502c-ae12-dbb067b10b53": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE96813ee6-83ae-5d39-8442-2ed8574840ff": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE2b9d814f-f313-5d46-95ad-894cf32c42d5": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE247577b0-8a4b-58be-bbfb-1c8d912c44aa": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE0b789ef5-bef1-5dc9-80c2-d8b382a1aa20": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE81166df0-f775-50bd-8230-712d9e517fd9": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPEd094bf89-99ca-5231-8f77-4cb57d11fec5": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE20a4a496-68a5-5e2f-8d24-6e6890d286c7": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPEf8eeb3a4-a0ee-59c6-b933-999281e4c489": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPEf7ec7677-05a3-5c12-a336-8c7947f997b5": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE2ab9e80e-a6b6-59c2-a900-1a7f32383738": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE29021e27-72a0-5864-9171-14b751bb1c60": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPEf400d95d-963e-594a-b49a-f95df3dadccd": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE166b75e0-db3e-56a6-a647-438e3e9accfb": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPE5f8c8ed6-a2c0-503a-b331-b905f27c0541": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ],
+    "RPEe25cc19e-939f-5a24-8df1-b51730a19e14": [
+      {
+        "published_at": "2026-09-07T08:00:00Z",
+        "summary": "合成合同样例：来源披露了该业务条件，推理判断仍需后续验证。",
+        "keywords": ["合同样例"]
+      }
+    ]
+  }
+}

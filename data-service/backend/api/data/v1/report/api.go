@@ -739,6 +739,7 @@ type V4ReadClaim struct {
 	Text               string  `json:"text"`
 	Basis              string  `json:"basis"`
 	EvidenceScopeToken *string `json:"evidence_scope_token"`
+	EvidenceCount      int     `json:"evidence_count"`
 }
 type V4ReadObjections struct {
 	Summary               string        `json:"summary"`
@@ -766,6 +767,7 @@ type V4ReadAssessment struct {
 	FollowUp           []string     `json:"follow_up"`
 	TransmissionLogic  string       `json:"transmission_logic"`
 	EvidenceScopeToken *string      `json:"evidence_scope_token"`
+	EvidenceCount      int          `json:"evidence_count"`
 }
 type V4ReadNode struct {
 	LocalKey     string           `json:"local_key"`
@@ -846,6 +848,7 @@ type V4ReadUnitSummary struct {
 	ImpactAssessment   V4ReadUnitSummaryImpactAssessment `json:"impact_assessment"`
 	AffectedRefs       []V4ReadAnchorRef                 `json:"affected_refs"`
 	EvidenceScopeToken *string                           `json:"evidence_scope_token"`
+	EvidenceCount      int                               `json:"evidence_count"`
 }
 type V4ReadUnitDetail struct {
 	MacroImpacts   []V4ReadMacro `json:"macro_impacts"`
@@ -860,11 +863,13 @@ type V4ReadReportObservationsItem struct {
 	Title              string  `json:"title"`
 	Text               string  `json:"text"`
 	EvidenceScopeToken *string `json:"evidence_scope_token"`
+	EvidenceCount      int     `json:"evidence_count"`
 }
 type V4ReadUnitSummaryImpactAssessment struct {
 	Level              string  `json:"level"`
 	Rationale          string  `json:"rationale"`
 	EvidenceScopeToken *string `json:"evidence_scope_token"`
+	EvidenceCount      int     `json:"evidence_count"`
 }
 
 type V4ResolvedAnchor struct {
