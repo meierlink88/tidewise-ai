@@ -311,6 +311,9 @@ func mapNormalizedAssessment(v biz.NormalizedAssessment) api.NormalizedAssessmen
 
 func mapNormalizedNode(v biz.NormalizedNode) api.NormalizedNode {
 	out := api.NormalizedNode{}
+	out.JudgmentOrigin = v.JudgmentOrigin
+	out.ReasoningSources = mapNormalizedReasoningSources(v.ReasoningSources)
+	out.VariableSignals = mapNormalizedSignals(v.VariableSignals)
 	out.LocalKey = v.LocalKey
 	out.SourceID = v.SourceID
 	out.NodeLocalKey = v.NodeLocalKey
@@ -322,6 +325,7 @@ func mapNormalizedNode(v biz.NormalizedNode) api.NormalizedNode {
 
 func mapNormalizedGraph(v biz.NormalizedGraph) api.NormalizedGraph {
 	out := api.NormalizedGraph{}
+	out.Scope = v.Scope
 	out.Nodes = make([]api.NormalizedGraphNodesItem, len(v.Nodes))
 	for i, x := range v.Nodes {
 		out.Nodes[i] = mapNormalizedGraphNodesItem(x)
@@ -335,6 +339,9 @@ func mapNormalizedGraph(v biz.NormalizedGraph) api.NormalizedGraph {
 
 func mapNormalizedChain(v biz.NormalizedChain) api.NormalizedChain {
 	out := api.NormalizedChain{}
+	out.JudgmentOrigin = v.JudgmentOrigin
+	out.ReasoningSources = mapNormalizedReasoningSources(v.ReasoningSources)
+	out.VariableSignals = mapNormalizedSignals(v.VariableSignals)
 	out.LocalKey = v.LocalKey
 	out.SourceID = v.SourceID
 	out.Name = v.Name
@@ -354,6 +361,9 @@ func mapNormalizedChain(v biz.NormalizedChain) api.NormalizedChain {
 
 func mapNormalizedMacro(v biz.NormalizedMacro) api.NormalizedMacro {
 	out := api.NormalizedMacro{}
+	out.JudgmentOrigin = v.JudgmentOrigin
+	out.ReasoningSources = mapNormalizedReasoningSources(v.ReasoningSources)
+	out.VariableSignals = mapNormalizedSignals(v.VariableSignals)
 	out.LocalKey = v.LocalKey
 	out.SourceID = v.SourceID
 	out.Name = v.Name
@@ -427,6 +437,7 @@ func mapNormalizedUnitSummaryImpactAssessment(v biz.NormalizedUnitSummaryImpactA
 
 func mapNormalizedResolvedAnchor(v biz.NormalizedResolvedAnchor) api.NormalizedResolvedAnchor {
 	out := api.NormalizedResolvedAnchor{}
+	out.JudgmentOrigin = v.JudgmentOrigin
 	out.Reference = mapNormalizedAnchorRef(v.Reference)
 	out.SourceID = v.SourceID
 	out.Name = v.Name
@@ -436,6 +447,7 @@ func mapNormalizedResolvedAnchor(v biz.NormalizedResolvedAnchor) api.NormalizedR
 
 func mapNormalizedSummaryProjection(v biz.NormalizedSummaryProjection) api.NormalizedSummaryProjection {
 	out := api.NormalizedSummaryProjection{}
+	out.JudgmentOrigin = v.JudgmentOrigin
 	out.SchemaVersion = v.SchemaVersion
 	out.LocalKey = v.LocalKey
 	out.SourceID = v.SourceID
@@ -451,6 +463,7 @@ func mapNormalizedSummaryProjection(v biz.NormalizedSummaryProjection) api.Norma
 
 func mapNormalizedChainHeader(v biz.NormalizedChainHeader) api.NormalizedChainHeader {
 	out := api.NormalizedChainHeader{}
+	out.JudgmentOrigin = v.JudgmentOrigin
 	out.LocalKey = v.LocalKey
 	out.SourceID = v.SourceID
 	out.Name = v.Name
@@ -464,6 +477,16 @@ func mapNormalizedChainHeader(v biz.NormalizedChainHeader) api.NormalizedChainHe
 
 func mapNormalizedDetailProjection(v biz.NormalizedDetailProjection) api.NormalizedDetailProjection {
 	out := api.NormalizedDetailProjection{}
+	out.JudgmentOrigin = v.JudgmentOrigin
+	out.ReasoningSources = mapNormalizedReasoningSources(v.ReasoningSources)
+	out.VariableSignals = mapNormalizedSignals(v.VariableSignals)
+	if v.Companies != nil {
+		values := make([]api.NormalizedMacro, len(*v.Companies))
+		for i, value := range *v.Companies {
+			values[i] = mapNormalizedMacro(value)
+		}
+		out.Companies = &values
+	}
 	out.Summary = mapNormalizedSummaryProjection(v.Summary)
 	out.MacroImpacts = make([]api.NormalizedMacro, len(v.MacroImpacts))
 	for i, x := range v.MacroImpacts {
@@ -495,4 +518,25 @@ func mapAnalysisGroup(v biz.AnalysisGroup) api.AnalysisGroup {
 	}
 	out.NextCursor = v.NextCursor
 	return out
+}
+
+func mapNormalizedReasoningSources(v *biz.NormalizedReasoningSources) *api.NormalizedReasoningSources {
+	if v == nil {
+		return nil
+	}
+	refs := make([]api.NormalizedUpstreamRef, len(v.UpstreamRefs))
+	for i, r := range v.UpstreamRefs {
+		refs[i] = api.NormalizedUpstreamRef{EntityID: r.EntityID, LocalKey: r.LocalKey, Mechanism: r.Mechanism, Condition: r.Condition}
+	}
+	return &api.NormalizedReasoningSources{SignalIDs: v.SignalIDs, EventIDs: v.EventIDs, UpstreamRefs: refs}
+}
+func mapNormalizedSignals(v *[]biz.NormalizedSignal) *[]api.NormalizedSignal {
+	if v == nil {
+		return nil
+	}
+	out := make([]api.NormalizedSignal, len(*v))
+	for i, s := range *v {
+		out[i] = api.NormalizedSignal{VariableID: s.VariableID, VariableName: s.VariableName, SignalID: s.SignalID, Signal: s.Signal, SourceDirection: s.SourceDirection, Adoption: s.Adoption, Qualification: s.Qualification, EventIDs: s.EventIDs, EvidenceScopeToken: s.EvidenceScopeToken, EvidenceCount: s.EvidenceCount}
+	}
+	return &out
 }

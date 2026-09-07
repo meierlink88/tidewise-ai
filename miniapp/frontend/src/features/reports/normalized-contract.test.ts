@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import fixture from '../../mocks/reports/normalized.json';
+import v5 from '../../mocks/reports/normalized-v5.json';
 import {
   parseAnalysisChain,
   parseAnalysisDetail,
@@ -33,4 +34,28 @@ describe('normalized report contract', () => {
     expect(chain.affected_nodes).toEqual([]);
     expect(chain.empty_state?.follow_up).toHaveLength(1);
   });
+});
+
+it('preserves all v5 read fields without changing the published judgment', () => {
+  expect(parseAnalysisGroups(v5.groups)).toEqual(v5.groups);
+  Object.values(v5.details).forEach((d) =>
+    expect(parseAnalysisDetail(d, d.summary.local_key)).toEqual(d)
+  );
+  Object.values(v5.chains).forEach((c) => expect(parseAnalysisChain(c, c.local_key)).toEqual(c));
+});
+
+it('rejects malformed v5 provenance and unknown report versions', () => {
+  const chain = structuredClone(v5.chains['geopolitical_stories/g1/g1-2-chain']);
+  chain.variable_signals[0].signal_id = 'mismatch';
+  expect(() => parseAnalysisChain(chain, chain.local_key)).toThrow();
+  const detail = { ...v5.details['geopolitical_stories/g1'], variable_signals: null };
+  expect(() => parseAnalysisDetail(detail, 'g1')).toThrow();
+  expect(() =>
+    parseAnalysisGroups(
+      v5.groups.map((g) => ({
+        ...g,
+        items: g.items.map((i) => ({ ...i, schema_version: 'report-publication/v99' }))
+      }))
+    )
+  ).toThrow();
 });

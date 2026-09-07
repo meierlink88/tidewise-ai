@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/getkin/kin-openapi/openapi3"
+
 	v1 "github.com/meierlink88/tidewise-ai/miniapp/backend/api/miniapp/v1"
 	api "github.com/meierlink88/tidewise-ai/miniapp/backend/api/miniapp/v1/report"
 	biz "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/biz/report"
@@ -162,7 +164,20 @@ func (*reportAPIStub) GetAnalysisChain(context.Context, *api.AnalysisQuery) (*ap
 
 // The same synthetic wire fixture is consumed by the frontend parser and all BFF layers.
 func TestNormalizedReportHTTPTraversesDataAndPreservesProjection(t *testing.T) {
-	raw, err := os.ReadFile("../../../frontend/src/mocks/reports/normalized.json")
+	for _, version := range []string{"v4", "v5"} {
+		t.Run(version, func(t *testing.T) { testNormalizedHTTP(t, version) })
+	}
+}
+func testNormalizedHTTP(t *testing.T, version string) {
+	document, err := openapi3.NewLoader().LoadFromFile("../../api/miniapp/v1/openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	filename := "normalized.json"
+	if version == "v5" {
+		filename = "normalized-v5.json"
+	}
+	raw, err := os.ReadFile("../../../frontend/src/mocks/reports/" + filename)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -178,7 +193,7 @@ func TestNormalizedReportHTTPTraversesDataAndPreservesProjection(t *testing.T) {
 		prefix := dataapi.DataAPIPrefix + "/reports"
 		if r.URL.Path == prefix {
 			s := dataSummary()
-			s["schema_version"] = "report-publication/v4"
+			s["schema_version"] = "report-publication/" + version
 			s["analysis_window"] = map[string]string{"start": "2026-09-01T00:00:00Z", "end": "2026-09-02T00:00:00Z"}
 			writeDownstreamResult(t, w, map[string]any{"items": []any{s}, "next_cursor": nil})
 			return
@@ -231,7 +246,17 @@ func TestNormalizedReportHTTPTraversesDataAndPreservesProjection(t *testing.T) {
 		if strings.Contains(r.Body.String(), "evidence_ids") {
 			t.Fatal("Evidence IDs leaked")
 		}
-		return envelope["result"]
+		result := envelope["result"]
+		schema := "NormalizedDetailProjection"
+		if strings.HasSuffix(path, "/home") {
+			schema = "HomeResponse"
+		} else if strings.Contains(path, "/industry-chains/") {
+			schema = "NormalizedReadChain"
+		}
+		if err := document.Components.Schemas[schema].Value.VisitJSON(result); err != nil {
+			t.Fatalf("%s: %v", schema, err)
+		}
+		return result
 	}
 	home := read("/api/miniapp/v1/reports/home").(map[string]any)
 	reports := home["reports"].([]any)

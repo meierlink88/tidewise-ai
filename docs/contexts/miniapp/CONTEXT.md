@@ -54,7 +54,7 @@ _Avoid_: 今日 Theme、当日多 Report Tab、前端自行排序或选择、跨
 _Avoid_: 今日主题、今日推理、隐藏回退来源
 
 **Report 分析投影**:
-Report v4 按地缘政治故事线、宏观经济故事线、产业链所属 Concept 分为三个分页分组；
+Report v4/v5 按地缘政治故事线、宏观经济故事线、产业链所属 Concept 分为三个分页分组；
 一条故事线或一个 Concept 对应一张结论卡片，空分组不生成占位卡片。BFF 只读取 Data 的
 摘要、因果链目录和单链详情投影，不解码完整发布快照。旧扁平报告保留原 Section/产业链投影。
 所有卡片、详情和证据始终绑定所属 `report_id`。
@@ -90,10 +90,15 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
 - 首页刷新重新执行完整选择流程。刷新失败保留本会话最近一次成功内容，并显示可重试错误；
   旧请求晚到不得覆盖更新后的 Report。
 
-## Report v4 integration
+## Report v4/v5 integration
+
+- v8 报告基线使用 `report-publication/v5`；Miniapp 同时支持 v4/v5，URL 仍为 v1。
+- v5 显式透传 `judgment_origin`、`reasoning_sources`、`variable_signals`、`graph.scope` 和详情中的 `companies`；变量信号保留 Data 签发的 evidence scope token/count，不暴露 Evidence ID。
+- 当前首页仍为三个既有分组；独立 `industry_chain_analyses`、`company_analyses` 的新入口另行设计，本次不合并到已有概念、不伪造故事线。
+- v5 的直接/推理标签来自 `judgment_origin`，不从未来结论方向或 `conclusion_basis` 反推直接事实；变量信号在 typed 数据层保留，展示另行设计。
 
 - API 保持 `/api/miniapp/v1` 与 `/api/data/v1`。`schema_version` 表示既有报告内容格式，不新增 URL 版本。
-- 首页选中 v4 时返回 `analysis_groups`，按 `geopolitical_stories`、`macroeconomic_stories`、
+- 首页选中 v4/v5 时返回 `analysis_groups`，按 `geopolitical_stories`、`macroeconomic_stories`、
   `concept_analyses` 顺序各取首批 20 项，每组独立保留 Data cursor；不拉取图谱或 Evidence 清单。
 - `GET /reports/{report_id}/analyses/{kind}` 分页读取结论卡片；`/{analysis_key}` 读取目录及宏观锚点；
   `/{analysis_key}/industry-chains/{chain_key}` 读取该单元的产业链图谱和节点推理。

@@ -291,7 +291,7 @@ func (u *UseCase) latestSummary(ctx context.Context, query ListQuery) (*Summary,
 }
 
 func (u *UseCase) readHome(ctx context.Context, summary Summary) (Home, error) {
-	if summary.SchemaVersion == "report-publication/v4" {
+	if summary.SchemaVersion == "report-publication/v4" || summary.SchemaVersion == "report-publication/v5" {
 		home := Home{Report: summary, Cards: []Card{}, AnalysisGroups: []AnalysisGroup{}}
 		for _, kind := range []string{"geopolitical_stories", "macroeconomic_stories", "concept_analyses"} {
 			page, err := u.Analyses(ctx, AnalysisQuery{ReportID: summary.ID, Kind: kind, Limit: 20})
@@ -602,18 +602,25 @@ type NormalizedAssessment struct {
 	EvidenceCount      int              `json:"evidence_count"`
 }
 type NormalizedNode struct {
-	LocalKey     string               `json:"local_key"`
-	SourceID     string               `json:"source_id"`
-	NodeLocalKey string               `json:"node_local_key"`
-	Name         string               `json:"name"`
-	Assessment   NormalizedAssessment `json:"assessment"`
-	Objections   NormalizedObjections `json:"objections"`
+	JudgmentOrigin   string                      `json:"judgment_origin,omitempty"`
+	ReasoningSources *NormalizedReasoningSources `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]NormalizedSignal         `json:"variable_signals,omitempty"`
+	LocalKey         string                      `json:"local_key"`
+	SourceID         string                      `json:"source_id"`
+	NodeLocalKey     string                      `json:"node_local_key"`
+	Name             string                      `json:"name"`
+	Assessment       NormalizedAssessment        `json:"assessment"`
+	Objections       NormalizedObjections        `json:"objections"`
 }
 type NormalizedGraph struct {
+	Scope string                     `json:"scope,omitempty"`
 	Nodes []NormalizedGraphNodesItem `json:"nodes"`
 	Edges []NormalizedGraphEdgesItem `json:"edges"`
 }
 type NormalizedChain struct {
+	JudgmentOrigin   string                          `json:"judgment_origin,omitempty"`
+	ReasoningSources *NormalizedReasoningSources     `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]NormalizedSignal             `json:"variable_signals,omitempty"`
 	LocalKey         string                          `json:"local_key"`
 	SourceID         string                          `json:"source_id"`
 	Name             string                          `json:"name"`
@@ -624,11 +631,14 @@ type NormalizedChain struct {
 	EmptyState       *NormalizedChainEmptyState      `json:"empty_state"`
 }
 type NormalizedMacro struct {
-	LocalKey   string               `json:"local_key"`
-	SourceID   string               `json:"source_id"`
-	Name       string               `json:"name"`
-	Assessment NormalizedAssessment `json:"assessment"`
-	Objections NormalizedObjections `json:"objections"`
+	JudgmentOrigin   string                      `json:"judgment_origin,omitempty"`
+	ReasoningSources *NormalizedReasoningSources `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]NormalizedSignal         `json:"variable_signals,omitempty"`
+	LocalKey         string                      `json:"local_key"`
+	SourceID         string                      `json:"source_id"`
+	Name             string                      `json:"name"`
+	Assessment       NormalizedAssessment        `json:"assessment"`
+	Objections       NormalizedObjections        `json:"objections"`
 }
 type NormalizedAnchorRef struct {
 	TargetType    string  `json:"target_type"`
@@ -671,12 +681,14 @@ type NormalizedUnitSummaryImpactAssessment struct {
 }
 
 type NormalizedResolvedAnchor struct {
-	Reference  NormalizedAnchorRef  `json:"reference"`
-	SourceID   string               `json:"source_id"`
-	Name       string               `json:"name"`
-	Assessment NormalizedAssessment `json:"assessment"`
+	JudgmentOrigin string               `json:"judgment_origin,omitempty"`
+	Reference      NormalizedAnchorRef  `json:"reference"`
+	SourceID       string               `json:"source_id"`
+	Name           string               `json:"name"`
+	Assessment     NormalizedAssessment `json:"assessment"`
 }
 type NormalizedSummaryProjection struct {
+	JudgmentOrigin  string                     `json:"judgment_origin,omitempty"`
 	SchemaVersion   string                     `json:"schema_version"`
 	LocalKey        string                     `json:"local_key"`
 	SourceID        string                     `json:"source_id"`
@@ -686,16 +698,21 @@ type NormalizedSummaryProjection struct {
 	ChainCount      int                        `json:"chain_count"`
 }
 type NormalizedChainHeader struct {
-	LocalKey   string                     `json:"local_key"`
-	SourceID   string                     `json:"source_id"`
-	Name       string                     `json:"name"`
-	Assessment NormalizedAssessment       `json:"assessment"`
-	EmptyState *NormalizedChainEmptyState `json:"empty_state"`
+	JudgmentOrigin string                     `json:"judgment_origin,omitempty"`
+	LocalKey       string                     `json:"local_key"`
+	SourceID       string                     `json:"source_id"`
+	Name           string                     `json:"name"`
+	Assessment     NormalizedAssessment       `json:"assessment"`
+	EmptyState     *NormalizedChainEmptyState `json:"empty_state"`
 }
 type NormalizedDetailProjection struct {
-	Summary        NormalizedSummaryProjection `json:"summary"`
-	MacroImpacts   []NormalizedMacro           `json:"macro_impacts"`
-	IndustryChains []NormalizedChainHeader     `json:"industry_chains"`
+	JudgmentOrigin   string                      `json:"judgment_origin,omitempty"`
+	ReasoningSources *NormalizedReasoningSources `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]NormalizedSignal         `json:"variable_signals,omitempty"`
+	Companies        *[]NormalizedMacro          `json:"companies,omitempty"`
+	Summary          NormalizedSummaryProjection `json:"summary"`
+	MacroImpacts     []NormalizedMacro           `json:"macro_impacts"`
+	IndustryChains   []NormalizedChainHeader     `json:"industry_chains"`
 }
 
 type AnalysisPage struct {
@@ -738,4 +755,28 @@ func (u *UseCase) AnalysisChain(ctx context.Context, q AnalysisQuery) (Normalize
 	}
 	p, err := u.repository.GetAnalysisChain(ctx, q)
 	return p, normalizeRepositoryError(err)
+}
+
+type NormalizedReasoningSources struct {
+	SignalIDs    []string                `json:"signal_ids"`
+	EventIDs     []string                `json:"event_ids"`
+	UpstreamRefs []NormalizedUpstreamRef `json:"upstream_refs"`
+}
+type NormalizedUpstreamRef struct {
+	EntityID  string  `json:"entity_id"`
+	LocalKey  string  `json:"local_key"`
+	Mechanism *string `json:"mechanism,omitempty"`
+	Condition *string `json:"condition,omitempty"`
+}
+type NormalizedSignal struct {
+	VariableID         string   `json:"variable_id"`
+	VariableName       string   `json:"variable_name"`
+	SignalID           string   `json:"signal_id"`
+	Signal             string   `json:"signal"`
+	SourceDirection    string   `json:"source_direction"`
+	Adoption           string   `json:"adoption"`
+	Qualification      string   `json:"qualification"`
+	EventIDs           []string `json:"event_ids"`
+	EvidenceScopeToken *string  `json:"evidence_scope_token"`
+	EvidenceCount      int      `json:"evidence_count"`
 }
