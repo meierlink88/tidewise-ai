@@ -136,3 +136,23 @@ SQL 在 JSONB 内分页，cursor 绑定 Report、kind 和最后序号；不会�
 不可变数据纠错继续发布新的 publisher_report_id。
 
 故事线链详情扩展沿用 v3 字段与已有 Evidence scopes，无新 migration。报告列表的 industry_chain_count 仍只统计 Concept 板块，避免传导链重复计数。发布扩展快照前先更新 Data；回退必须保留故事线链详情读取能力。
+
+## 总结影响度（Issue #429）
+
+每个故事线/Concept 的 `summary.impact_assessment` 可选；省略时保持旧报告原样，不默认补低影响，
+不改变旧包 canonical hash。显式 null 不允许。新对象包含：
+
+- `level`：固定 code/label 配对 high/高影响、medium/中影响、low/低影响、pending/待评估。
+- `rationale`：非空、最长 10000 字符的判断依据，说明影响范围与关键条件。
+- `evidence_refs`：显式数组，角色为 summary_support；高/中/低必须至少一条，待评估可以为空。
+
+影响度表示条件成立时的潜在后果幅度，独立于方向和置信度。AgentOS 根据幅度、范围、时间、
+关键性和缓冲作出判断，Data 不根据事件或锚点数量自动评级。Event/Signal 和全量覆盖审计仍不发布。
+
+影响度 Evidence 独立索引到 `<kind>/<unit>/summary/impact_assessment/evidence_refs`，沿用
+story_summary/concept_summary scope；缺失 Evidence 整体拒绝。分析列表和单元详情的 summary
+返回可选 impact_assessment（level/rationale/evidence_scope_token），不暴露 Evidence ID。
+新增字段参与新内容 hash；同 publisher 改变评级、依据或证据仍冲突，旧包原样重放保持。
+
+不新增迁移，沿用 v3 的请求大小、预算、权限与不可变存储。先升级 Data，再发布带评级的新包；
+旧程序的 strict shape 会拒绝新字段，回退时须停止新格式发布并保留读取能力。

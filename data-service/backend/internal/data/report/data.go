@@ -616,6 +616,9 @@ func projectAnalysisImpact(p string, a reportbiz.AnalysisImpact, tokens map[stri
 func projectAnalysisSummary(kind string, u reportbiz.AnalysisUnit, ordinal int, tokens map[string]*string) (reportbiz.AnalysisUnitSummary, error) {
 	p := kind + "/" + u.LocalKey
 	result := reportbiz.AnalysisUnitSummary{LocalKey: u.LocalKey, SourceID: u.SourceID, Title: u.Title, Conclusion: u.Summary.Conclusion, TransmissionLogic: u.Summary.TransmissionLogic, AffectedAnchors: []reportbiz.AnalysisImpactProjection{}, ChainCount: len(u.Detail.IndustryChains), Ordinal: ordinal, EvidenceScopeToken: tokens[p+"/summary/evidence_refs"]}
+	if impact := u.Summary.ImpactAssessment; impact != nil {
+		result.ImpactAssessment = &reportbiz.ImpactAssessmentProjection{Level: impact.Level, Rationale: impact.Rationale, EvidenceScopeToken: tokens[p+"/summary/impact_assessment/evidence_refs"]}
+	}
 	impacts := map[string]reportbiz.AnalysisImpactProjection{}
 	for _, a := range u.Detail.AffectedAnchors {
 		impacts[a.LocalKey] = projectAnalysisImpact(p+"/detail/affected_anchors", a, tokens)

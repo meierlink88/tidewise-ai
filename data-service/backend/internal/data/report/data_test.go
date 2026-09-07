@@ -578,6 +578,33 @@ func TestPostgresStoryChainHTTPPublicationAndRead(t *testing.T) {
 	if !errors.As(err, &validation) {
 		t.Fatalf("invalid kind: %v", err)
 	}
+	for _, x := range []struct{ kind, key, level string }{{"geopolitical_stories", "geo-story", "high"}, {"macroeconomic_stories", "macro-story", "medium"}, {"concept_analyses", "concept-a", "low"}} {
+		detail, err := uc.GetAnalysis(context.Background(), id, x.kind, x.key)
+		if err != nil {
+			t.Fatal(err)
+		}
+		a := detail.Summary.ImpactAssessment
+		if a == nil || a.Level.Code != x.level || a.Rationale == "" || a.EvidenceScopeToken == nil {
+			t.Fatalf("impact missing: %+v", a)
+		}
+		ev, err := uc.ListEvidence(context.Background(), id, *a.EvidenceScopeToken)
+		if err != nil || len(ev) != 1 {
+			t.Fatalf("impact evidence: %+v %v", ev, err)
+		}
+		page, err := uc.ListAnalyses(context.Background(), reportbiz.AnalysisListRequest{ReportID: id, Kind: x.kind})
+		if err != nil || len(page.Items) != 1 || !reflect.DeepEqual(page.Items[0].ImpactAssessment, a) {
+			t.Fatalf("list impact: %+v %v", page, err)
+		}
+		w := call(http.MethodGet, prefix+"/analyses/"+x.kind+"/"+x.key, nil)
+		var wire reportapi.AnalysisUnitDetail
+		if err := json.Unmarshal(w.Body.Bytes(), &wire); err != nil {
+			t.Fatal(err)
+		}
+		if w.Code != 200 || wire.Summary.ImpactAssessment == nil || wire.Summary.ImpactAssessment.Level.Code != x.level || strings.Contains(w.Body.String(), "EVD") || strings.Contains(w.Body.String(), "evidence_refs") {
+			t.Fatalf("impact wire: %d %s", w.Code, w.Body.String())
+		}
+	}
+
 	var request struct {
 		PublisherReportID string           `json:"publisher_report_id"`
 		Report            reportbiz.Report `json:"report"`
@@ -591,6 +618,14 @@ func TestPostgresStoryChainHTTPPublicationAndRead(t *testing.T) {
 	var reference *reportbiz.ReferenceError
 	if !errors.As(err, &reference) {
 		t.Fatalf("missing nested Evidence: %v", err)
+	}
+
+	request.Report.MacroeconomicStories[0].Detail.IndustryChains[0].AffectedNodes[0].EvidenceRefs[0].EvidenceID = ids[0]
+	request.PublisherReportID = "missing-impact-evidence"
+	request.Report.MacroeconomicStories[0].Summary.ImpactAssessment.EvidenceRefs[0].EvidenceID = "EVD33333333-3333-4333-8333-333333333333"
+	_, err = uc.Publish(context.Background(), request.PublisherReportID, request.Report)
+	if !errors.As(err, &reference) {
+		t.Fatalf("missing impact Evidence accepted: %v", err)
 	}
 	var count int
 	if err := db.QueryRow(`SELECT count(*) FROM reports`).Scan(&count); err != nil || count != 1 {

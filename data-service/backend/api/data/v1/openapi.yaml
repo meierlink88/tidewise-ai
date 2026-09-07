@@ -4344,11 +4344,59 @@ components:
         start: {type: string, format: date-time}
         end: {type: string, format: date-time}
 
+    ReportImpactLevel:
+      type: object
+      additionalProperties: false
+      required: [code, label]
+      properties:
+        code: {type: string, enum: [high, medium, low, pending]}
+        label: {type: string, enum: [高影响, 中影响, 低影响, 待评估]}
+      oneOf:
+        - properties: {code: {enum: [high]}, label: {enum: [高影响]}}
+        - properties: {code: {enum: [medium]}, label: {enum: [中影响]}}
+        - properties: {code: {enum: [low]}, label: {enum: [低影响]}}
+        - properties: {code: {enum: [pending]}, label: {enum: [待评估]}}
+
+    ReportImpactAssessment:
+      type: object
+      additionalProperties: false
+      required: [level, rationale, evidence_refs]
+      description: Publisher assessment of conditional consequence magnitude, independent of direction and confidence. Rated levels require summary_support Evidence; pending may use an empty array. Omit the whole object for older reports; null is not accepted.
+      properties:
+        level: {$ref: '#/components/schemas/ReportImpactLevel'}
+        rationale: {type: string, minLength: 1, maxLength: 10000, pattern: '\S'}
+        evidence_refs:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/ReportEvidenceReference'
+              - properties:
+                  role:
+                    properties:
+                      code: {enum: [summary_support]}
+                      label: {enum: [核心依据]}
+      oneOf:
+        - properties:
+            level: {properties: {code: {enum: [high, medium, low]}}}
+            evidence_refs: {minItems: 1}
+        - properties:
+            level: {properties: {code: {enum: [pending]}}}
+
+    ReportImpactAssessmentProjection:
+      type: object
+      additionalProperties: false
+      required: [level, rationale, evidence_scope_token]
+      properties:
+        level: {$ref: '#/components/schemas/ReportImpactLevel'}
+        rationale: {type: string, minLength: 1, maxLength: 10000}
+        evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
+
     ReportAnalysisSummary:
       type: object
       additionalProperties: false
       required: [conclusion, transmission_logic, anchor_keys, evidence_refs]
       properties:
+        impact_assessment: {$ref: '#/components/schemas/ReportImpactAssessment'}
         conclusion: {type: string, minLength: 1}
         transmission_logic: {type: string, minLength: 1}
         anchor_keys: {type: array, items: {type: string, minLength: 1}}
@@ -4458,6 +4506,7 @@ components:
       additionalProperties: false
       required: [local_key, source_id, title, conclusion, transmission_logic, affected_anchors, chain_count, evidence_scope_token]
       properties:
+        impact_assessment: {$ref: '#/components/schemas/ReportImpactAssessmentProjection'}
         local_key: {$ref: '#/components/schemas/ReportLocalKey'}
         source_id: {type: string, minLength: 1, maxLength: 200, description: Publisher source identity snapshot; no cross-domain lookup or foreign key.}
         title: {type: string, minLength: 1}
