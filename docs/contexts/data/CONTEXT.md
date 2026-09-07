@@ -393,6 +393,14 @@ canonical report 返回原 Report，同 ID 不同 report 冲突，纠错必须�
 _Avoid_: Research Theme、Reason Tree、长期主题身份、原地修订、只保存当前报告
 
 **Report Publication Package**:
+
+Data 同时支持未带版本的旧合同与显式 `report-publication/v3`。新合同按多条地缘故事线、
+宏观故事线和 Concept 分析组织 summary/detail；Concept 下包含多条产业链，拓扑与影响分离。
+新合同允许任一板块为空，但整份报告至少一个单元。字段与读取边界见
+[Report v3 合同](report-publication-v3.md) 和 ADR-0060。以下扁平 Section、节点 Evidence
+限制仅适用于旧合同。旧报告不转换，新旧字段不能混用。
+
+旧版发布合同：
 版本化 Data REST 合同原子提交严格的 `{publisher_report_id, report}`。Report 根包含
 `report_type/generated_at/timezone`、相互独立可选的地缘政治/宏观经济对象，以及至少一条
 扁平产业链分析。AgentOS 定稿 fixture 是字段形状的最高验收基线；数组顺序就是发布顺序，
@@ -448,7 +456,8 @@ Data 对 canonical report 计算服务端 lowercase SHA-256，并以唯一
 _Avoid_: 独立 publication key、Receipt、请求 ID 作为幂等键、失败占位、调用方提交 Report ID
 
 **Report Read Projection**:
-Data 按 `published_at DESC, id ASC` 稳定列出全部 Report，并按 Report-local Section、chain 和
+Data 按 `published_at DESC, id ASC` 稳定列出所选版本的 Report（默认旧版，显式
+`schema_version=report-publication/v3` 选择新版），并按 Report-local Section、chain 和
 Evidence scope 返回固定投影；产业链 summary 使用绑定 Report 与最后 JSON array ordinality 的稳定 cursor
 分页，详情按 chain key 延迟读取。首页投影直接计算不可变数组的产业链总数。Evidence 投影可级联
 `report_evidence_links → evidences → raw_evidences`，项目顺序严格使用 link `position`，每项只返回

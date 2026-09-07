@@ -131,3 +131,13 @@ func (f *fakeUseCase) ListEvidence(_ context.Context, _ string, scopeToken strin
 }
 
 var _ UseCase = (*fakeUseCase)(nil)
+
+func (*fakeUseCase) ListAnalyses(context.Context, reportbiz.AnalysisListRequest) (reportbiz.AnalysisPage, error) {
+	return reportbiz.AnalysisPage{}, nil
+}
+func (*fakeUseCase) GetAnalysis(context.Context, string, string, string) (reportbiz.AnalysisUnitDetail, error) {
+	return reportbiz.AnalysisUnitDetail{}, nil
+}
+func (*fakeUseCase) GetAnalysisChain(context.Context, string, string, string) (reportbiz.ChainAnalysisDetail, error) {
+	return reportbiz.ChainAnalysisDetail{}, nil
+}

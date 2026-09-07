@@ -1,11 +1,17 @@
 package report
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
+	reportapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/report"
+	reportservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/report"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -355,5 +361,132 @@ func assertPostgresCode(t *testing.T, db *sql.DB, code, statement string, args .
 	var pgError *pgconn.PgError
 	if !errors.As(err, &pgError) || pgError.Code != code {
 		t.Fatalf("error=%T %v want PostgreSQL code %s", err, err, code)
+	}
+}
+
+func TestPostgresStoryConceptPublicationAndScopedReads(t *testing.T) {
+	db := openReportTestDatabase(t, 0)
+	ids := publishReportEvidence(t, db)
+	payload, err := os.ReadFile("../../../api/data/v1/report/testdata/story-concept-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload = []byte(strings.ReplaceAll(string(payload), "EVD11111111-1111-4111-8111-111111111111", ids[0]))
+	var request struct {
+		Report reportbiz.Report `json:"report"`
+	}
+	if err := json.Unmarshal(payload, &request); err != nil {
+		t.Fatal(err)
+	}
+	store, _ := NewStore(db)
+	uc, _ := reportbiz.NewUseCase(store, time.Now)
+	ctx := context.Background()
+	first, err := uc.Publish(ctx, "story-concept", request.Report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	replay, err := uc.Publish(ctx, "story-concept", request.Report)
+	if err != nil || !replay.Replayed || replay.Record.ID != first.Record.ID {
+		t.Fatalf("replay=%+v err=%v", replay, err)
+	}
+
+	app, _ := reportservice.NewService(uc)
+	httpServer := kratoshttp.NewServer()
+	reportapi.RegisterHTTPServer(httpServer, app)
+	wire, _ := json.Marshal(map[string]any{"publisher_report_id": "story-concept", "report": request.Report})
+	httpRequest := httptest.NewRequest(http.MethodPost, "/api/data/v1/report-publications", bytes.NewReader(wire))
+	httpRequest.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	httpServer.ServeHTTP(response, httpRequest)
+	if response.Code != http.StatusOK {
+		t.Fatalf("HTTP replay status=%d body=%s", response.Code, response.Body.String())
+	}
+	response = httptest.NewRecorder()
+	httpServer.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/data/v1/reports/"+first.Record.ID+"/analyses/concept_analyses", nil))
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "concept-a") || strings.Contains(response.Body.String(), "EVD") {
+		t.Fatalf("HTTP projection status=%d body=%s", response.Code, response.Body.String())
+	}
+	stored, err := uc.Get(ctx, first.Record.ID)
+	if err != nil || stored.ContentHash != first.Record.ContentHash {
+		t.Fatalf("stored hash error %v", err)
+	}
+	var count int
+	if err := db.QueryRow(`SELECT count(*) FROM report_evidence_links WHERE report_id=$1`, first.Record.ID).Scan(&count); err != nil || count != 14 {
+		t.Fatalf("links=%d err=%v", count, err)
+	}
+	page, err := uc.ListAnalyses(ctx, reportbiz.AnalysisListRequest{ReportID: first.Record.ID, Kind: "geopolitical_stories", Limit: 1})
+	if err != nil || len(page.Items) != 1 || page.NextCursor == nil {
+		t.Fatalf("page=%+v err=%v", page, err)
+	}
+	next, err := uc.ListAnalyses(ctx, reportbiz.AnalysisListRequest{ReportID: first.Record.ID, Kind: "geopolitical_stories", Limit: 1, Cursor: *page.NextCursor})
+	if err != nil || len(next.Items) != 1 || next.Items[0].LocalKey != "geo-b" || next.NextCursor != nil {
+		t.Fatalf("next=%+v err=%v", next, err)
+	}
+	for _, q := range []reportbiz.AnalysisListRequest{{ReportID: first.Record.ID, Kind: "concept_analyses", Cursor: *page.NextCursor}, {ReportID: "RPT22222222-2222-4222-8222-222222222222", Kind: "geopolitical_stories", Cursor: *page.NextCursor}} {
+		if _, err := uc.ListAnalyses(ctx, q); err == nil {
+			t.Fatal("accepted wrong cursor scope")
+		}
+	}
+	concept, err := uc.GetAnalysis(ctx, first.Record.ID, "concept_analyses", "concept-a")
+	if err != nil || len(concept.IndustryChains) != 2 || len(concept.Summary.AffectedAnchors) != 2 {
+		t.Fatalf("concept=%+v err=%v", concept, err)
+	}
+	chain, err := uc.GetAnalysisChain(ctx, first.Record.ID, "concept-a", "chain-a")
+	if err != nil || len(chain.AffectedNodes) != 1 || chain.AffectedNodes[0].EvidenceScopeToken == nil {
+		t.Fatalf("chain=%+v err=%v", chain, err)
+	}
+	evidence, err := uc.ListEvidence(ctx, first.Record.ID, *chain.AffectedNodes[0].EvidenceScopeToken)
+	if err != nil || len(evidence) != 1 {
+		t.Fatalf("evidence=%+v err=%v", evidence, err)
+	}
+	encoded, _ := json.Marshal(concept)
+	if strings.Contains(string(encoded), "EVD") || strings.Contains(string(encoded), "evidence_refs") || strings.Contains(string(encoded), "node_local_key") == false {
+		t.Fatalf("unsafe/incomplete projection: %s", encoded)
+	}
+	_, err = uc.GetAnalysisChain(ctx, first.Record.ID, "wrong-concept", "chain-a")
+	if !errors.Is(err, reportbiz.ErrChainNotFound) {
+		t.Fatalf("cross Concept chain: %v", err)
+	}
+	legacy := reportWithEvidenceIDs(t, agentOSFixtureReport(t), ids[0], ids[1])
+	old, err := uc.Publish(ctx, "legacy-alongside-v3", legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	list, err := uc.List(ctx, reportbiz.ListRequest{})
+	if err != nil || len(list.Items) != 1 || list.Items[0].ID != old.Record.ID {
+		t.Fatalf("legacy selection=%+v err=%v", list, err)
+	}
+	list, err = uc.List(ctx, reportbiz.ListRequest{SchemaVersion: reportbiz.AnalysisSchemaVersion})
+	if err != nil || len(list.Items) != 1 || list.Items[0].IndustryChainCount != 2 {
+		t.Fatalf("v3 selection=%+v err=%v", list, err)
+	}
+	_, err = uc.GetHome(ctx, old.Record.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request.Report.GeopoliticalStories[0].Summary.Conclusion = "不同结论"
+	if _, err := uc.Publish(ctx, "story-concept", request.Report); !errors.Is(err, reportbiz.ErrPublicationConflict) {
+		t.Fatalf("conflict=%v", err)
+	}
+	request.Report.GeopoliticalStories[0].Summary.EvidenceRefs[0].EvidenceID = "EVD33333333-3333-4333-8333-333333333333"
+	if _, err := uc.Publish(ctx, "missing-analysis-evidence", request.Report); err == nil {
+		t.Fatal("missing Evidence accepted")
+	}
+	if err := db.QueryRow(`SELECT count(*) FROM reports`).Scan(&count); err != nil || count != 2 {
+		t.Fatalf("atomicity count=%d err=%v", count, err)
+	}
+	request.Report.GeopoliticalStories[0].Summary.EvidenceRefs[0].EvidenceID = ids[0]
+	request.Report.ConceptAnalyses = []reportbiz.AnalysisUnit{}
+	onlyStory, err := uc.Publish(ctx, "story-only", request.Report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	list, err = uc.List(ctx, reportbiz.ListRequest{SchemaVersion: reportbiz.AnalysisSchemaVersion})
+	if err != nil || len(list.Items) != 2 {
+		t.Fatalf("story only list %v", err)
+	}
+	empty, err := uc.ListAnalyses(ctx, reportbiz.AnalysisListRequest{ReportID: onlyStory.Record.ID, Kind: "concept_analyses"})
+	if err != nil || len(empty.Items) != 0 {
+		t.Fatalf("empty group %v", err)
 	}
 }
