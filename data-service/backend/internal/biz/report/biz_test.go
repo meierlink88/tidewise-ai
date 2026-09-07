@@ -317,6 +317,50 @@ func (*fakeStore) ListAnalyses(context.Context, reportbiz.AnalysisListFilter) (r
 func (*fakeStore) GetAnalysis(context.Context, string, string, string) (reportbiz.AnalysisUnitDetail, error) {
 	return reportbiz.AnalysisUnitDetail{}, nil
 }
-func (*fakeStore) GetAnalysisChain(context.Context, string, string, string) (reportbiz.ChainAnalysisDetail, error) {
+func (*fakeStore) GetAnalysisChain(context.Context, string, string, string, string) (reportbiz.ChainAnalysisDetail, error) {
 	return reportbiz.ChainAnalysisDetail{}, nil
+}
+
+func TestStoryChainPublicationValidation(t *testing.T) {
+	payload, err := os.ReadFile("../../../api/data/v1/report/testdata/story-chain-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func() reportbiz.Report {
+		var r struct {
+			Report reportbiz.Report `json:"report"`
+		}
+		if err := json.Unmarshal(payload, &r); err != nil {
+			t.Fatal(err)
+		}
+		return r.Report
+	}
+	if err := reportbiz.ValidateReport(read()); err != nil {
+		t.Fatal(err)
+	}
+	for name, mutate := range map[string]func(*reportbiz.Report){
+		"story summary node": func(r *reportbiz.Report) {
+			r.GeopoliticalStories[0].Summary.AnchorKeys = []string{r.GeopoliticalStories[0].Detail.IndustryChains[0].AffectedNodes[0].LocalKey}
+		},
+		"unanchored chain":    func(r *reportbiz.Report) { r.GeopoliticalStories[0].Detail.IndustryChains[0].SourceID = "other" },
+		"chain name mismatch": func(r *reportbiz.Report) { r.GeopoliticalStories[0].Detail.IndustryChains[0].Name = "other" },
+		"macro targets macro": func(r *reportbiz.Report) {
+			r.MacroeconomicStories[0].Detail.AffectedAnchors[0].TargetType = reportbiz.CodedLabel{Code: "macro_anchor", Label: "宏观经济锚点"}
+		},
+		"geo targets node": func(r *reportbiz.Report) {
+			r.GeopoliticalStories[0].Detail.AffectedAnchors[0].TargetType = reportbiz.CodedLabel{Code: "industry_chain_node", Label: "产业链节点"}
+		},
+		"cross story node": func(r *reportbiz.Report) {
+			k := r.MacroeconomicStories[0].Detail.IndustryChains[0].Graph.Nodes[0].LocalKey
+			r.GeopoliticalStories[0].Detail.IndustryChains[0].AffectedNodes[0].NodeLocalKey = &k
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := read()
+			mutate(&r)
+			if reportbiz.ValidateReport(r) == nil {
+				t.Fatal("invalid story chain accepted")
+			}
+		})
+	}
 }

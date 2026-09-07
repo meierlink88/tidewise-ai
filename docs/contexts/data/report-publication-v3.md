@@ -37,9 +37,16 @@ Data Service 接收 AgentOS 已生成的结构化快照，不解析 Markdown，�
 | `summary.anchor_keys[]`      | 有序引用本单元内的影响项，不复制影响判断                     |
 | `summary.evidence_refs[]`    | 显式核心依据 `summary_support`                               |
 | `detail.reasoning_steps[]`   | 整体逻辑的有序 input/mechanism/output 步骤及推导依据         |
-| `detail.affected_anchors[]`  | 故事线的宏观锚点、产业链或节点影响；Concept 此数组为空       |
+| `detail.affected_anchors[]`  | 地缘的宏观/产业链锚点，宏观的产业链锚点；Concept 为空        |
 | `detail.uncertainty`         | 反证、证据缺口、边界、反转条件，四个字段均可为 null          |
-| `detail.industry_chains[]`   | 故事线此数组为空；Concept 必须包含至少一条链                 |
+| `detail.industry_chains[]`   | 故事线可包含受影响产业链详情；Concept 至少一条链             |
+
+故事线的 `anchor_keys` 仅引用自身 `detail.affected_anchors`，不能引用链内节点。
+地缘锚点只允许 macro_anchor（宏观故事线）或 industry_chain；宏观锚点只允许 industry_chain。
+故事线内每条链的 source_id/name 必须与自身某个 industry_chain 锚点一致。允许空链数组，
+Data 不为未提供详情的锚点补图。结构图不是故事线到产业链的既有因果边。
+新增合成样例 `data-service/backend/api/data/v1/report/testdata/story-chain-publication-request.json`
+同时包含地缘、宏观的链图、节点落点与推理 Evidence。
 
 Concept 的 `anchor_keys` 引用本 Concept 各链的 `affected_nodes`。
 同一真实节点在不同链中有独立影响项与 local key，不能通过名称自动去重或覆盖判断。
@@ -48,8 +55,8 @@ Concept 综合结论由 AgentOS 发布，不从链结果取平均或拼接生成
 ## 产业链因果分析
 
 每条链包含 `local_key/source_id/name/conclusion/transmission_logic/reasoning_steps/graph/
-affected_nodes/uncertainty/evidence_refs`。同一个 Concept 内同一个 source_id 只能出现一次，
-表达一个产业链对应一个详情分组。不同 Concept 可以包含相同来源产业链的独立分析快照。
+affected_nodes/uncertainty/evidence_refs`。同一个分析单元内同一个 source_id 只能出现一次，
+表达一个产业链对应一个详情分组。不同故事线或 Concept 可以包含相同来源产业链的独立分析快照。
 
 - `graph.nodes` 只包含 local_key/source_id/name；`graph.edges` 沿用显式有向边合同。
   边端点须在本链闭合，不允许重复边或自环。
@@ -80,6 +87,8 @@ validation_status/reasoning/transmission_signal/conditions/follow_up/time_window
 summary 引用只在当前单元闭合，链节点引用只在当前链闭合。source_id 仅用于来源追溯，
 不建立到 Concept、IndustryChain、ChainNode 或故事线表的外键。
 
+Event、Signal 来源和全量覆盖审计保留在 AgentOS，不发布到 Data；各推理实际引用的 Evidence ID 按作用域发布。
+
 发布事务先批量检查所有 unique EVD，然后原子写入 Report 与全部作用域关系。
 任何 Evidence 不存在则整体回滚。相同 publisher_report_id 同内容重放，异内容冲突。
 
@@ -87,6 +96,8 @@ Evidence 路径示例：
 
 - `geopolitical_stories/<key>/summary/evidence_refs`
 - `geopolitical_stories/<key>/detail/affected_anchors/<key>/evidence_refs`
+- `geopolitical_stories/<key>/detail/industry_chains/<key>/affected_nodes/<key>/evidence_refs`
+- `macroeconomic_stories/<key>/detail/industry_chains/<key>/reasoning_steps/<key>/evidence_refs`
 - `concept_analyses/<key>/detail/industry_chains/<key>/affected_nodes/<key>/evidence_refs`
 - `concept_analyses/<key>/detail/industry_chains/<key>/reasoning_steps/<key>/evidence_refs`
 
@@ -103,6 +114,7 @@ Migration 000085 仅扩展 scope_type CHECK：story_summary、concept_summary、
   分页，kind 使用根集合名；默认 20、最大 100。返回总结、显式锚点和链数量，不返回链全文。
 - `GET /reports/{report_id}/analyses/{kind}/{analysis_key}`：单元总结、整体推导、锚点详情和链头列表。
   链头只包含 local_key/source_id/name/conclusion，用于后续产品 Tab。
+- `GET /reports/{report_id}/analyses/{kind}/{analysis_key}/industry-chains/{chain_key}`：读取指定故事线或 Concept 下的单条链，严格限定报告、分组、单元和链。
 - `GET /reports/{report_id}/concept-analyses/{concept_key}/industry-chains/{chain_key}`：按需读取一条链。
 - `GET /reports/{report_id}/evidences?scope_token=`：复用现有 Evidence 读取接口。
 
@@ -121,3 +133,5 @@ SQL 在 JSONB 内分页，cursor 绑定 Report、kind 和最后序号；不会�
 回退应用前停止新版本发布；若已有新版本报告，需要保留能读取新版本的服务。
 不能将旧二进制无法解码新快照描述为完整回滚。扩展 CHECK 保持向前兼容，无需撤销，
 不可变数据纠错继续发布新的 publisher_report_id。
+
+故事线链详情扩展沿用 v3 字段与已有 Evidence scopes，无新 migration。报告列表的 industry_chain_count 仍只统计 Concept 板块，避免传导链重复计数。发布扩展快照前先更新 Data；回退必须保留故事线链详情读取能力。

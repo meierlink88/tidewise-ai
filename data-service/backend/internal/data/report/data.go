@@ -575,13 +575,13 @@ func (s Store) GetAnalysis(ctx context.Context, id, kind, key string) (reportbiz
 	}
 	return result, nil
 }
-func (s Store) GetAnalysisChain(ctx context.Context, id, concept, chain string) (reportbiz.ChainAnalysisDetail, error) {
+func (s Store) GetAnalysisChain(ctx context.Context, id, kind, analysis, chain string) (reportbiz.ChainAnalysisDetail, error) {
 	if err := s.requireAnalysisReport(ctx, id); err != nil {
 		return reportbiz.ChainAnalysisDetail{}, err
 	}
 	var raw []byte
-	err := s.db.QueryRowContext(ctx, `SELECT c FROM reports r CROSS JOIN LATERAL jsonb_array_elements(r.report->'concept_analyses') u
- CROSS JOIN LATERAL jsonb_array_elements(u#>'{detail,industry_chains}') c WHERE r.id=$1 AND u->>'local_key'=$2 AND c->>'local_key'=$3`, id, concept, chain).Scan(&raw)
+	err := s.db.QueryRowContext(ctx, `SELECT c FROM reports r CROSS JOIN LATERAL jsonb_array_elements(r.report->$2) u
+ CROSS JOIN LATERAL jsonb_array_elements(u#>'{detail,industry_chains}') c WHERE r.id=$1 AND u->>'local_key'=$3 AND c->>'local_key'=$4`, id, kind, analysis, chain).Scan(&raw)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return reportbiz.ChainAnalysisDetail{}, reportbiz.ErrChainNotFound
@@ -596,7 +596,7 @@ func (s Store) GetAnalysisChain(ctx context.Context, id, concept, chain string) 
 	if err != nil {
 		return reportbiz.ChainAnalysisDetail{}, err
 	}
-	p := "concept_analyses/" + concept + "/detail/industry_chains/" + chain
+	p := kind + "/" + analysis + "/detail/industry_chains/" + chain
 	result := reportbiz.ChainAnalysisDetail{LocalKey: c.LocalKey, SourceID: c.SourceID, Name: c.Name, Conclusion: c.Conclusion, TransmissionLogic: c.TransmissionLogic, ReasoningSteps: projectAnalysisSteps(p, c.ReasoningSteps, tokens), Graph: c.Graph, AffectedNodes: []reportbiz.AnalysisImpactProjection{}, Uncertainty: c.Uncertainty, EvidenceScopeToken: tokens[p+"/evidence_refs"]}
 	for _, a := range c.AffectedNodes {
 		result.AffectedNodes = append(result.AffectedNodes, projectAnalysisImpact(p+"/affected_nodes", a, tokens))

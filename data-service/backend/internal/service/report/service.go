@@ -17,7 +17,7 @@ import (
 type UseCase interface {
 	ListAnalyses(context.Context, reportbiz.AnalysisListRequest) (reportbiz.AnalysisPage, error)
 	GetAnalysis(context.Context, string, string, string) (reportbiz.AnalysisUnitDetail, error)
-	GetAnalysisChain(context.Context, string, string, string) (reportbiz.ChainAnalysisDetail, error)
+	GetAnalysisChain(context.Context, string, string, string, string) (reportbiz.ChainAnalysisDetail, error)
 	Publish(context.Context, string, reportbiz.Report) (reportbiz.PublicationResult, error)
 	List(context.Context, reportbiz.ListRequest) (reportbiz.Page, error)
 	GetHome(context.Context, string) (reportbiz.Home, error)
@@ -304,9 +304,9 @@ func (s *Service) GetReportAnalysis(ctx context.Context, r *reportapi.AnalysisRe
 }
 func (s *Service) GetReportAnalysisChain(ctx context.Context, r *reportapi.AnalysisRequest) (*v1.Response[reportapi.ChainAnalysisDetail], error) {
 	if r == nil {
-		return nil, publicError(v1.StatusBadRequest, reportapi.ErrorInvalidRequest, "Concept and chain identities are required")
+		return nil, publicError(v1.StatusBadRequest, reportapi.ErrorInvalidRequest, "Analysis and chain identities are required")
 	}
-	item, err := s.useCase.GetAnalysisChain(ctx, r.ReportID, r.AnalysisKey, r.ChainKey)
+	item, err := s.useCase.GetAnalysisChain(ctx, r.ReportID, r.Kind, r.AnalysisKey, r.ChainKey)
 	if err != nil {
 		return nil, readError(err)
 	}

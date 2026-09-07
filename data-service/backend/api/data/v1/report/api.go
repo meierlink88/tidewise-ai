@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	OperationGetReportAnalysisUnitChain = "data.v1.getReportAnalysisUnitChain"
 	OperationListReportAnalyses         = "data.v1.listReportAnalyses"
 	OperationGetReportAnalysis          = "data.v1.getReportAnalysis"
 	OperationGetReportAnalysisChain     = "data.v1.getReportAnalysisChain"
@@ -30,7 +31,7 @@ const (
 )
 
 func BusinessOperations() []string {
-	return []string{OperationListReportAnalyses, OperationGetReportAnalysis, OperationGetReportAnalysisChain, OperationPublishReport, OperationListReports, OperationGetReportHome, OperationGetReportLayer, OperationListReportChains, OperationGetReportChain, OperationListReportEvidence}
+	return []string{OperationGetReportAnalysisUnitChain, OperationListReportAnalyses, OperationGetReportAnalysis, OperationGetReportAnalysisChain, OperationPublishReport, OperationListReports, OperationGetReportHome, OperationGetReportLayer, OperationListReportChains, OperationGetReportChain, OperationListReportEvidence}
 }
 
 type Service interface {

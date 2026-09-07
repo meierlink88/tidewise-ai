@@ -397,7 +397,7 @@ type PublicationResult struct {
 type Store interface {
 	ListAnalyses(context.Context, AnalysisListFilter) (AnalysisStorePage, error)
 	GetAnalysis(context.Context, string, string, string) (AnalysisUnitDetail, error)
-	GetAnalysisChain(context.Context, string, string, string) (ChainAnalysisDetail, error)
+	GetAnalysisChain(context.Context, string, string, string, string) (ChainAnalysisDetail, error)
 	PublicationStore
 	ListReports(context.Context, ListFilter) (StorePage, error)
 	GetReport(context.Context, string) (Record, error)
@@ -1446,9 +1446,16 @@ func validateAnalysisUnit(kind string, u AnalysisUnit, index *reportIndex) error
 		return invalid(p, "arrays must not be null")
 	}
 	impacts := map[string]bool{}
+	storyChains := map[string]string{}
 	for _, a := range u.Detail.AffectedAnchors {
 		if err := validateAnalysisImpact(p, a, index, false); err != nil {
 			return err
+		}
+		if kind == "geopolitical_stories" && a.TargetType.Code != "macro_anchor" && a.TargetType.Code != "industry_chain" || kind == "macroeconomic_stories" && a.TargetType.Code != "industry_chain" {
+			return invalid(p, "story anchors must target the permitted downstream layer")
+		}
+		if a.TargetType.Code == "industry_chain" {
+			storyChains[a.SourceID] = a.Name
 		}
 		impacts[a.LocalKey] = true
 	}
@@ -1456,22 +1463,26 @@ func validateAnalysisUnit(kind string, u AnalysisUnit, index *reportIndex) error
 		if len(u.Detail.IndustryChains) == 0 || len(u.Detail.AffectedAnchors) != 0 {
 			return invalid(p, "Concept requires chains; impacts belong to chain nodes")
 		}
-	} else if len(u.Detail.IndustryChains) != 0 {
-		return invalid(p, "story details cannot contain Concept chain analyses")
 	}
 	chainSources := map[string]bool{}
 	for _, c := range u.Detail.IndustryChains {
 		if chainSources[c.SourceID] {
-			return invalid(p, "duplicate chain source within Concept")
+			return invalid(p, "duplicate chain source within analysis")
 		}
 		chainSources[c.SourceID] = true
+		if kind != "concept_analyses" && storyChains[c.SourceID] != c.Name {
+			return invalid(p, "story chain must match an affected industry-chain anchor source and name")
+		}
 		if err := validateChainAnalysis(p, c, index); err != nil {
 			return err
 		}
-		for _, a := range c.AffectedNodes {
-			impacts[a.LocalKey] = true
+		if kind == "concept_analyses" {
+			for _, a := range c.AffectedNodes {
+				impacts[a.LocalKey] = true
+			}
 		}
 	}
+
 	seen := map[string]bool{}
 	for _, k := range u.Summary.AnchorKeys {
 		if !impacts[k] || seen[k] {
@@ -1720,14 +1731,17 @@ func (s *UseCase) GetAnalysis(ctx context.Context, reportID, kind, key string) (
 	}
 	return s.store.GetAnalysis(ctx, reportID, kind, key)
 }
-func (s *UseCase) GetAnalysisChain(ctx context.Context, reportID, conceptKey, chainKey string) (ChainAnalysisDetail, error) {
+func (s *UseCase) GetAnalysisChain(ctx context.Context, reportID, kind, analysisKey, chainKey string) (ChainAnalysisDetail, error) {
 	if err := validateReportID(reportID); err != nil {
 		return ChainAnalysisDetail{}, err
 	}
-	if !localKeyPattern.MatchString(conceptKey) || !localKeyPattern.MatchString(chainKey) {
-		return ChainAnalysisDetail{}, invalid("local_key", "invalid Concept or chain key")
+	if err := validateAnalysisKind(kind); err != nil {
+		return ChainAnalysisDetail{}, err
 	}
-	return s.store.GetAnalysisChain(ctx, reportID, conceptKey, chainKey)
+	if !localKeyPattern.MatchString(analysisKey) || !localKeyPattern.MatchString(chainKey) {
+		return ChainAnalysisDetail{}, invalid("local_key", "invalid analysis or chain key")
+	}
+	return s.store.GetAnalysisChain(ctx, reportID, kind, analysisKey, chainKey)
 }
 
 func validateAnalysisEvidenceRefs(path string, refs []EvidenceReference, role string) error {

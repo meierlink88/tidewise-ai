@@ -20,6 +20,7 @@ func RegisterHTTPServer(server *kratoshttp.Server, application Service) {
 	router := server.Route(v1.APIPrefix)
 	router.GET("/reports/{report_id}/analyses/{kind}", analysisListHandler(application))
 	router.GET("/reports/{report_id}/analyses/{kind}/{analysis_key}", analysisHandler(application))
+	router.GET("/reports/{report_id}/analyses/{kind}/{analysis_key}/industry-chains/{chain_key}", analysisChainHandler(application))
 	router.GET("/reports/{report_id}/concept-analyses/{concept_key}/industry-chains/{chain_key}", analysisChainHandler(application))
 	router.POST("/report-publications", publishHandler(application))
 	router.GET("/reports", listHandler(application))
@@ -280,8 +281,14 @@ func analysisChainHandler(application Service) kratoshttp.HandlerFunc {
 		if len(ctx.Request().URL.Query()) != 0 {
 			return v1.NewPublicError(v1.StatusBadRequest, ErrorInvalidRequest, "chain detail accepts no query parameters", nil)
 		}
-		r := &AnalysisRequest{ReportID: ctx.Vars().Get("report_id"), AnalysisKey: ctx.Vars().Get("concept_key"), ChainKey: ctx.Vars().Get("chain_key")}
-		return callWithBudget(ctx, OperationGetReportAnalysisChain, readBudget, r, func(c context.Context) (*v1.Response[ChainAnalysisDetail], error) {
+		operation := OperationGetReportAnalysisUnitChain
+		kind, key := ctx.Vars().Get("kind"), ctx.Vars().Get("analysis_key")
+		if kind == "" {
+			operation = OperationGetReportAnalysisChain
+			kind, key = "concept_analyses", ctx.Vars().Get("concept_key")
+		}
+		r := &AnalysisRequest{ReportID: ctx.Vars().Get("report_id"), Kind: kind, AnalysisKey: key, ChainKey: ctx.Vars().Get("chain_key")}
+		return callWithBudget(ctx, operation, readBudget, r, func(c context.Context) (*v1.Response[ChainAnalysisDetail], error) {
 			return application.GetReportAnalysisChain(c, r)
 		})
 	}
