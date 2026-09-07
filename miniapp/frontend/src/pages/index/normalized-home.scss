@@ -1,41 +1,79 @@
+@use '../../styles/tokens' as *;
+
 .normalized-home {
-  padding: 0 0 40px;
-  color: #15325b;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  color: $color-report-ink;
+}
+.normalized-home-navigation {
+  flex: 0 0 auto;
+  background: $color-report-canvas;
+}
+.normalized-home-scroll {
+  display: block;
+  height: 0;
+  min-height: 0;
+  flex: 1;
+}
+.normalized-home-list {
+  padding-bottom: calc(40px + env(safe-area-inset-bottom));
+}
+.normalized-home-tabs-scroll {
+  width: 100%;
+  white-space: nowrap;
 }
 .normalized-home-tabs {
-  display: flex;
-  gap: 6px;
-  padding: 8px;
-  background: #e8edf5;
-  border: 1px solid #dbe3ef;
-  border-radius: 14px;
-  margin-bottom: 28px;
+  display: inline-flex;
+  gap: 14px;
+  padding: 4px 2px 12px;
+  vertical-align: top;
 }
 .normalized-home-tab {
-  flex: 1;
-  color: #75859f !important;
+  display: inline-flex !important;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 !important;
+  color: $color-text-secondary !important;
   font-size: 27px !important;
   font-weight: 500;
-  padding: 18px 0 !important;
-  background: transparent !important;
-  border-radius: 10px !important;
-  position: relative;
+  padding: 14px 24px 14px 16px !important;
+  background: $color-card !important;
+  border: 1px solid $color-report-group-border !important;
+  border-radius: 48px !important;
   line-height: 1.5 !important;
+  white-space: nowrap;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+.normalized-home-tab-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: $color-report-blue-50;
+}
+.normalized-home-tab-image {
+  width: 28px;
+  height: 28px;
+}
+.normalized-home-tab.selected .normalized-home-tab-icon {
+  background: $color-champagne-300;
 }
 .normalized-home-tab.selected {
-  color: #17375f !important;
-  background: #fff !important;
-  box-shadow: 0 2px 10px #0f2b5110;
-}
-.normalized-home-tab.selected::before {
-  content: '';
-  position: absolute;
-  width: 35px;
-  height: 4px;
-  background: #c9aa70;
-  bottom: 5px;
-  left: calc(50% - 18px);
-  border-radius: 4px;
+  color: $color-card !important;
+  font-weight: 650;
+  background: linear-gradient(135deg, $color-navy-800, $color-navy-900) !important;
+  border-color: $color-champagne-300 !important;
+  box-shadow: 0 4px 10px rgba($color-navy-900, 0.16);
 }
 .normalized-home-heading {
   display: flex;
@@ -45,7 +83,7 @@
   font-size: 36px;
   font-weight: 650;
 }
-.normalized-home-heading text:last-child {
+.normalized-home-total {
   font-size: 22px;
   color: #8292aa;
   font-weight: 400;

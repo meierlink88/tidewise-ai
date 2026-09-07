@@ -1,4 +1,4 @@
-import { Button, Text, View } from '@tarojs/components';
+import { Button, Image, ScrollView, Text, View } from '@tarojs/components';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   analysisKinds,
@@ -10,7 +10,16 @@ import {
 import type { ReportHomeGroup } from '../../features/reports/contract';
 import type { ReportDetailRoute, ReportEvidenceRoute } from '../../features/reports/navigation';
 import { getReportPort } from '../../features/reports/port';
+import globeIcon from '../../assets/icons/report-globe.svg';
+import macroIcon from '../../assets/icons/report-bar-chart.svg';
+import chainIcon from '../../assets/icons/report-link.svg';
 import './normalized-home.scss';
+
+const categoryIcons: Record<AnalysisKind, string> = {
+  geopolitical_stories: globeIcon,
+  macroeconomic_stories: macroIcon,
+  concept_analyses: chainIcon
+};
 
 const directionLabels = { warming: '升温', cooling: '降温', diverging: '分化', pending: '待验证' };
 const impactLabels: Record<string, string> = {
@@ -85,53 +94,68 @@ export function NormalizedHome({
   };
   return (
     <View className='normalized-home'>
-      <View className='normalized-home-tabs'>
-        {analysisKinds.map((k) => (
-          <Button
-            key={k}
-            className={`tidewise-button normalized-home-tab ${kind === k ? 'selected' : ''}`}
-            onClick={() => setKind(k)}
-          >
-            {analysisLabels[k]}
-          </Button>
-        ))}
-      </View>
-      <View className='normalized-home-heading'>
-        <Text>今日观潮</Text>
-        <Text>{items.length} 条结论</Text>
-      </View>
-      {items.map((u) => (
-        <HomeCard
-          key={u.local_key}
-          u={u}
-          publishedAt={group.report.publishedAt}
-          onDetail={() =>
-            onDetail({ reportId: group.report.id, targetType: kind, targetKey: u.local_key })
-          }
-          onEvidence={() => {
-            if (u.summary.evidence_scope_token)
-              onEvidence({
-                reportId: group.report.id,
-                scopeToken: u.summary.evidence_scope_token,
-                title: u.title
-              });
-          }}
-        />
-      ))}
-      {!items.length ? (
-        <View className='normalized-home-empty'>
-          {query ? '暂无匹配的结论' : '本期暂无相关结论'}
+      <View className='normalized-home-navigation'>
+        <ScrollView scrollX className='normalized-home-tabs-scroll'>
+          <View className='normalized-home-tabs'>
+            {analysisKinds.map((k) => (
+              <Button
+                key={k}
+                className={`tidewise-button normalized-home-tab ${kind === k ? 'selected' : ''}`}
+                onClick={() => setKind(k)}
+              >
+                <View className='normalized-home-tab-icon'>
+                  <Image
+                    src={categoryIcons[k]}
+                    mode='scaleToFill'
+                    className='normalized-home-tab-image'
+                  />
+                </View>
+                <Text>{analysisLabels[k]}</Text>
+              </Button>
+            ))}
+          </View>
+        </ScrollView>
+        <View className='normalized-home-heading'>
+          <Text>今日观潮</Text>
+          <Text className='normalized-home-total'>{items.length} 条结论</Text>
         </View>
-      ) : null}
-      {current?.next_cursor ? (
-        <Button
-          className='tidewise-button normalized-home-more'
-          disabled={pending !== null}
-          onClick={() => void load()}
-        >
-          {pending === kind ? '正在加载…' : failed === kind ? '加载失败，点击重试' : '加载更多'}
-        </Button>
-      ) : null}
+      </View>
+      <ScrollView key={kind} scrollY className='normalized-home-scroll'>
+        <View className='normalized-home-list'>
+          {items.map((u) => (
+            <HomeCard
+              key={u.local_key}
+              u={u}
+              publishedAt={group.report.publishedAt}
+              onDetail={() =>
+                onDetail({ reportId: group.report.id, targetType: kind, targetKey: u.local_key })
+              }
+              onEvidence={() => {
+                if (u.summary.evidence_scope_token)
+                  onEvidence({
+                    reportId: group.report.id,
+                    scopeToken: u.summary.evidence_scope_token,
+                    title: u.title
+                  });
+              }}
+            />
+          ))}
+          {!items.length ? (
+            <View className='normalized-home-empty'>
+              {query ? '暂无匹配的结论' : '本期暂无相关结论'}
+            </View>
+          ) : null}
+          {current?.next_cursor ? (
+            <Button
+              className='tidewise-button normalized-home-more'
+              disabled={pending !== null}
+              onClick={() => void load()}
+            >
+              {pending === kind ? '正在加载…' : failed === kind ? '加载失败，点击重试' : '加载更多'}
+            </Button>
+          ) : null}
+        </View>
+      </ScrollView>
     </View>
   );
 }
