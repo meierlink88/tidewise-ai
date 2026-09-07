@@ -176,7 +176,7 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeCompanyRead, true
 	case reportapi.OperationPublishReport:
 		return ScopeReportPublish, true
-	case reportapi.OperationListReports, reportapi.OperationGetReportHome, reportapi.OperationGetReportLayer,
+	case reportapi.OperationListReportAnalyses, reportapi.OperationGetReportAnalysis, reportapi.OperationGetReportAnalysisChain, reportapi.OperationListReports, reportapi.OperationGetReportHome, reportapi.OperationGetReportLayer,
 		reportapi.OperationListReportChains, reportapi.OperationGetReportChain, reportapi.OperationListReportEvidence:
 		return ScopeReportRead, true
 	default:

@@ -231,6 +231,11 @@ func TestServerEnforcesReportScopesAndRejectsDuplicateQueries(t *testing.T) {
 		body                      []byte
 		want                      int
 	}{
+		{name: "analysis list", method: http.MethodGet, path: dataapi.APIPrefix + "/reports/RPT11111111-1111-4111-8111-111111111111/analyses/geopolitical_stories", token: "report-read-token", want: http.StatusOK},
+		{name: "analysis denied", method: http.MethodGet, path: dataapi.APIPrefix + "/reports/RPT11111111-1111-4111-8111-111111111111/analyses/geopolitical_stories", token: "report-publish-token", want: http.StatusForbidden},
+		{name: "analysis detail", method: http.MethodGet, path: dataapi.APIPrefix + "/reports/RPT11111111-1111-4111-8111-111111111111/analyses/concept_analyses/concept-a", token: "report-read-token", want: http.StatusOK},
+		{name: "analysis chain", method: http.MethodGet, path: dataapi.APIPrefix + "/reports/RPT11111111-1111-4111-8111-111111111111/concept-analyses/concept-a/industry-chains/chain-a", token: "report-read-token", want: http.StatusOK},
+		{name: "duplicate analysis query", method: http.MethodGet, path: dataapi.APIPrefix + "/reports/RPT11111111-1111-4111-8111-111111111111/analyses/geopolitical_stories?limit=1&limit=2", token: "report-read-token", want: http.StatusBadRequest},
 		{name: "read", method: http.MethodGet, path: dataapi.APIPrefix + "/reports", token: "report-read-token", want: http.StatusNoContent},
 		{name: "read with publisher token", method: http.MethodGet, path: dataapi.APIPrefix + "/reports", token: "report-publish-token", want: http.StatusForbidden},
 		{name: "publish", method: http.MethodPost, path: dataapi.APIPrefix + "/report-publications", token: "report-publish-token", body: payload, want: http.StatusNoContent},
@@ -971,4 +976,14 @@ func testConfig() conf.Config {
 			WriteTimeoutSeconds: 10,
 		},
 	}
+}
+
+func (serverTestReportService) ListReportAnalyses(context.Context, *reportapi.AnalysisRequest) (*dataapi.Response[reportapi.AnalysisCollection], error) {
+	return &dataapi.Response[reportapi.AnalysisCollection]{Status: 200, Result: reportapi.AnalysisCollection{Items: []reportapi.AnalysisUnitSummary{}}}, nil
+}
+func (serverTestReportService) GetReportAnalysis(context.Context, *reportapi.AnalysisRequest) (*dataapi.Response[reportapi.AnalysisUnitDetail], error) {
+	return &dataapi.Response[reportapi.AnalysisUnitDetail]{Status: 200}, nil
+}
+func (serverTestReportService) GetReportAnalysisChain(context.Context, *reportapi.AnalysisRequest) (*dataapi.Response[reportapi.ChainAnalysisDetail], error) {
+	return &dataapi.Response[reportapi.ChainAnalysisDetail]{Status: 200}, nil
 }

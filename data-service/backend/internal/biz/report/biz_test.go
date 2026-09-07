@@ -250,3 +250,73 @@ func (s *fakeTransaction) InsertEvidenceLinks(_ context.Context, links []reportb
 }
 
 var _ reportbiz.Store = (*fakeStore)(nil)
+
+func TestStoryConceptReportValidation(t *testing.T) {
+	payload, err := os.ReadFile("../../../api/data/v1/report/testdata/story-concept-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func() reportbiz.Report {
+		var request struct {
+			Report reportbiz.Report `json:"report"`
+		}
+		if err := json.Unmarshal(payload, &request); err != nil {
+			t.Fatal(err)
+		}
+		return request.Report
+	}
+	if err := reportbiz.ValidateReport(read()); err != nil {
+		t.Fatal(err)
+	}
+	cases := map[string]func(*reportbiz.Report){
+		"unknown version":    func(r *reportbiz.Report) { r.SchemaVersion = "future" },
+		"missing version":    func(r *reportbiz.Report) { r.SchemaVersion = "" },
+		"cross-unit summary": func(r *reportbiz.Report) { r.GeopoliticalStories[0].Summary.AnchorKeys = []string{"geo-b-impact"} },
+		"duplicate unit":     func(r *reportbiz.Report) { r.GeopoliticalStories[1].LocalKey = "geo-a" },
+		"wrong hypothesis role": func(r *reportbiz.Report) {
+			r.GeopoliticalStories[0].Detail.AffectedAnchors[0].EvidenceRefs[0].Role = reportbiz.CodedLabel{Code: "direct_support", Label: "直接依据"}
+		},
+		"cross-chain node": func(r *reportbiz.Report) {
+			k := "chain-b-node"
+			r.ConceptAnalyses[0].Detail.IndustryChains[0].AffectedNodes[0].NodeLocalKey = &k
+		},
+		"null collection": func(r *reportbiz.Report) { r.MacroeconomicStories = nil },
+		"empty report": func(r *reportbiz.Report) {
+			r.GeopoliticalStories = []reportbiz.AnalysisUnit{}
+			r.ConceptAnalyses = []reportbiz.AnalysisUnit{}
+		},
+	}
+	for name, mutate := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := read()
+			mutate(&r)
+			if reportbiz.ValidateReport(r) == nil {
+				t.Fatal("accepted invalid report")
+			}
+		})
+	}
+	r := read()
+	r.ConceptAnalyses = []reportbiz.AnalysisUnit{}
+	if err := reportbiz.ValidateReport(r); err != nil {
+		t.Fatalf("story-only report: %v", err)
+	}
+	store := newFakeStore("EVD11111111-1111-4111-8111-111111111111")
+	uc, _ := reportbiz.NewUseCase(store, time.Now)
+	_, err = uc.Publish(context.Background(), "v3-test", read())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(store.links) != 14 {
+		t.Fatalf("scoped Evidence links=%d want 14", len(store.links))
+	}
+}
+
+func (*fakeStore) ListAnalyses(context.Context, reportbiz.AnalysisListFilter) (reportbiz.AnalysisStorePage, error) {
+	return reportbiz.AnalysisStorePage{}, nil
+}
+func (*fakeStore) GetAnalysis(context.Context, string, string, string) (reportbiz.AnalysisUnitDetail, error) {
+	return reportbiz.AnalysisUnitDetail{}, nil
+}
+func (*fakeStore) GetAnalysisChain(context.Context, string, string, string) (reportbiz.ChainAnalysisDetail, error) {
+	return reportbiz.ChainAnalysisDetail{}, nil
+}

@@ -1454,6 +1454,10 @@ paths:
         - $ref: '#/components/parameters/PublishedTo'
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
+        - name: schema_version
+          in: query
+          description: Omit for legacy reports; explicitly select v3 for story and Concept consumers. Cursor binds this selection.
+          schema: {type: string, enum: [report-publication/v3]}
       responses:
         '200': {description: Report 摘要页, content: {application/json: {schema: {$ref: '#/components/schemas/ReportCollectionEnvelope'}}}}
         '400': {$ref: '#/components/responses/BadRequest'}
@@ -1574,6 +1578,91 @@ paths:
           schema: {$ref: '#/components/schemas/ReportEvidenceScopeToken'}
       responses:
         '200': {description: 按 link position 升序的显式 Evidence 列表, content: {application/json: {schema: {$ref: '#/components/schemas/ReportEvidenceCollectionEnvelope'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /api/data/v1/reports/{report_id}/analyses/{kind}:
+    get:
+      tags: [Report]
+      operationId: listReportAnalyses
+      x-client-drift-anchor: data.v1.listReportAnalyses
+      x-required-service-scope: data.reports.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      x-error-codes: [INVALID_REQUEST, REPORT_NOT_FOUND, REPORT_LAYER_NOT_FOUND, REPORT_INDUSTRY_CHAIN_NOT_FOUND, REPORT_REPOSITORY_FAILURE]
+      summary: Read versioned story or Concept analysis snapshots
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/ReportID'
+        - name: kind
+          in: path
+          required: true
+          schema: {type: string, enum: [geopolitical_stories, macroeconomic_stories, concept_analyses]}
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200': {description: Ordered report analysis projection, content: {application/json: {schema: {$ref: '#/components/schemas/ReportAnalysisCollectionEnvelope'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /api/data/v1/reports/{report_id}/analyses/{kind}/{analysis_key}:
+    get:
+      tags: [Report]
+      operationId: getReportAnalysis
+      x-client-drift-anchor: data.v1.getReportAnalysis
+      x-required-service-scope: data.reports.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      x-error-codes: [INVALID_REQUEST, REPORT_NOT_FOUND, REPORT_LAYER_NOT_FOUND, REPORT_INDUSTRY_CHAIN_NOT_FOUND, REPORT_REPOSITORY_FAILURE]
+      summary: Read versioned story or Concept analysis snapshots
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/ReportID'
+        - name: kind
+          in: path
+          required: true
+          schema: {type: string, enum: [geopolitical_stories, macroeconomic_stories, concept_analyses]}
+        - name: analysis_key
+          in: path
+          required: true
+          schema: {$ref: '#/components/schemas/ReportLocalKey'}
+      responses:
+        '200': {description: Ordered report analysis projection, content: {application/json: {schema: {$ref: '#/components/schemas/ReportAnalysisUnitDetailEnvelope'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalError'}
+
+  /api/data/v1/reports/{report_id}/concept-analyses/{concept_key}/industry-chains/{chain_key}:
+    get:
+      tags: [Report]
+      operationId: getReportAnalysisChain
+      x-client-drift-anchor: data.v1.getReportAnalysisChain
+      x-required-service-scope: data.reports.read
+      x-retry-policy: safe-get
+      x-timeout-budget-ms: 5000
+      x-error-codes: [INVALID_REQUEST, REPORT_NOT_FOUND, REPORT_LAYER_NOT_FOUND, REPORT_INDUSTRY_CHAIN_NOT_FOUND, REPORT_REPOSITORY_FAILURE]
+      summary: Read versioned story or Concept analysis snapshots
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - $ref: '#/components/parameters/ReportID'
+        - name: concept_key
+          in: path
+          required: true
+          schema: {$ref: '#/components/schemas/ReportLocalKey'}
+        - name: chain_key
+          in: path
+          required: true
+          schema: {$ref: '#/components/schemas/ReportLocalKey'}
+      responses:
+        '200': {description: Ordered report analysis projection, content: {application/json: {schema: {$ref: '#/components/schemas/ReportChainAnalysisDetailEnvelope'}}}}
         '400': {$ref: '#/components/responses/BadRequest'}
         '401': {$ref: '#/components/responses/Unauthorized'}
         '403': {$ref: '#/components/responses/Forbidden'}
@@ -3946,7 +4035,10 @@ components:
       required: [publisher_report_id, report]
       properties:
         publisher_report_id: {type: string, minLength: 1, maxLength: 200}
-        report: {$ref: '#/components/schemas/Report'}
+        report:
+          oneOf:
+            - $ref: '#/components/schemas/Report'
+            - $ref: '#/components/schemas/ReportAnalysisSnapshot'
 
     ReportPublicationResult:
       type: object
@@ -3970,12 +4062,14 @@ components:
       additionalProperties: false
       required: [id, publisher_report_id, generated_at, has_geopolitics, has_macroeconomics, industry_chain_count, published_at]
       properties:
+        schema_version: {type: string, enum: [report-publication/v3]}
+        analysis_window: {$ref: '#/components/schemas/ReportAnalysisWindow'}
         id: {$ref: '#/components/schemas/ReportID'}
         publisher_report_id: {type: string, minLength: 1, maxLength: 200}
         generated_at: {$ref: '#/components/schemas/UTCTimestamp'}
         has_geopolitics: {type: boolean}
         has_macroeconomics: {type: boolean}
-        industry_chain_count: {type: integer, minimum: 1}
+        industry_chain_count: {type: integer, minimum: 0}
         published_at: {$ref: '#/components/schemas/UTCTimestamp'}
 
     ReportCollection:
@@ -4208,3 +4302,223 @@ components:
       properties:
         request_id: {type: string}
         result: {$ref: '#/components/schemas/ReportEvidenceCollection'}
+
+    ReportAnalysisWindow:
+      type: object
+      additionalProperties: false
+      required: [start, end]
+      properties:
+        start: {type: string, format: date-time}
+        end: {type: string, format: date-time}
+
+    ReportAnalysisSummary:
+      type: object
+      additionalProperties: false
+      required: [conclusion, transmission_logic, anchor_keys, evidence_refs]
+      properties:
+        conclusion: {type: string, minLength: 1}
+        transmission_logic: {type: string, minLength: 1}
+        anchor_keys: {type: array, items: {type: string, minLength: 1}}
+        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
+
+    ReportAnalysisImpact:
+      type: object
+      additionalProperties: false
+      required: [local_key, target_type, source_id, node_local_key, name, impact, result, conclusion_basis, validation_status, reasoning, transmission_signal, conditions, follow_up, time_window, confidence, evidence_refs]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        target_type: {type: object, additionalProperties: false, required: [code, label], properties: {code: {type: string, enum: [macro_anchor, industry_chain, industry_chain_node]}, label: {type: string, enum: [宏观经济锚点, 产业链, 产业链节点]}}}
+        source_id: {type: string, minLength: 1, maxLength: 200, description: Publisher source identity snapshot; no cross-domain lookup or foreign key.}
+        node_local_key: {type: string, nullable: true}
+        name: {type: string, minLength: 1}
+        impact: {type: string, minLength: 1}
+        result: {$ref: '#/components/schemas/ReportResult'}
+        conclusion_basis: {$ref: '#/components/schemas/ReportConclusionBasis'}
+        validation_status: {$ref: '#/components/schemas/ReportValidationStatus'}
+        reasoning: {type: string, minLength: 1}
+        transmission_signal: {type: string, nullable: true}
+        conditions: {type: array, items: {type: string, minLength: 1}}
+        follow_up: {type: array, items: {type: string, minLength: 1}}
+        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
+
+    ReportAnalysisTopologyNode:
+      type: object
+      additionalProperties: false
+      required: [local_key, source_id, name]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        source_id: {type: string, minLength: 1, maxLength: 200, description: Publisher source identity snapshot; no cross-domain lookup or foreign key.}
+        name: {type: string, minLength: 1}
+
+    ReportAnalysisGraph:
+      type: object
+      additionalProperties: false
+      required: [nodes, edges]
+      properties:
+        nodes: {type: array, items: {$ref: '#/components/schemas/ReportAnalysisTopologyNode'}}
+        edges: {type: array, items: {$ref: '#/components/schemas/ReportIndustryChainPublicationEdge'}}
+
+    ReportChainAnalysis:
+      type: object
+      additionalProperties: false
+      required: [local_key, source_id, name, conclusion, transmission_logic, reasoning_steps, graph, affected_nodes, uncertainty, evidence_refs]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        source_id: {type: string, minLength: 1, maxLength: 200, description: Publisher source identity snapshot; no cross-domain lookup or foreign key.}
+        name: {type: string, minLength: 1}
+        conclusion: {type: string, minLength: 1}
+        transmission_logic: {type: string, minLength: 1}
+        reasoning_steps: {type: array, items: {$ref: '#/components/schemas/ReportReasoningStep'}}
+        graph: {$ref: '#/components/schemas/ReportAnalysisGraph'}
+        affected_nodes: {type: array, items: {$ref: '#/components/schemas/ReportAnalysisImpact'}}
+        uncertainty: {$ref: '#/components/schemas/ReportLayerUncertainty'}
+        evidence_refs: {type: array, items: {$ref: '#/components/schemas/ReportEvidenceReference'}}
+
+    ReportAnalysisDetail:
+      type: object
+      additionalProperties: false
+      required: [reasoning_steps, affected_anchors, uncertainty, industry_chains]
+      properties:
+        reasoning_steps: {type: array, items: {$ref: '#/components/schemas/ReportReasoningStep'}}
+        affected_anchors: {type: array, items: {$ref: '#/components/schemas/ReportAnalysisImpact'}}
+        uncertainty: {$ref: '#/components/schemas/ReportLayerUncertainty'}
+        industry_chains: {type: array, items: {$ref: '#/components/schemas/ReportChainAnalysis'}}
+
+    ReportAnalysisUnit:
+      type: object
+      additionalProperties: false
+      required: [local_key, source_id, title, summary, detail]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        source_id: {type: string, minLength: 1, maxLength: 200, description: Publisher source identity snapshot; no cross-domain lookup or foreign key.}
+        title: {type: string, minLength: 1}
+        summary: {$ref: '#/components/schemas/ReportAnalysisSummary'}
+        detail: {$ref: '#/components/schemas/ReportAnalysisDetail'}
+
+    ReportAnalysisImpactProjection:
+      type: object
+      additionalProperties: false
+      required: [local_key, target_type, source_id, node_local_key, name, impact, result, conclusion_basis, validation_status, reasoning, transmission_signal, conditions, follow_up, time_window, confidence, evidence_scope_token]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        target_type: {type: object, additionalProperties: false, required: [code, label], properties: {code: {type: string, enum: [macro_anchor, industry_chain, industry_chain_node]}, label: {type: string, enum: [宏观经济锚点, 产业链, 产业链节点]}}}
+        source_id: {type: string, minLength: 1, maxLength: 200, description: Publisher source identity snapshot; no cross-domain lookup or foreign key.}
+        node_local_key: {type: string, nullable: true}
+        name: {type: string, minLength: 1}
+        impact: {type: string, minLength: 1}
+        result: {$ref: '#/components/schemas/ReportResult'}
+        conclusion_basis: {$ref: '#/components/schemas/ReportConclusionBasis'}
+        validation_status: {$ref: '#/components/schemas/ReportValidationStatus'}
+        reasoning: {type: string, minLength: 1}
+        transmission_signal: {type: string, nullable: true}
+        conditions: {type: array, items: {type: string, minLength: 1}}
+        follow_up: {type: array, items: {type: string, minLength: 1}}
+        time_window: {$ref: '#/components/schemas/ReportTimeWindow'}
+        confidence: {$ref: '#/components/schemas/ReportConfidence'}
+        evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
+
+    ReportAnalysisUnitSummary:
+      type: object
+      additionalProperties: false
+      required: [local_key, source_id, title, conclusion, transmission_logic, affected_anchors, chain_count, evidence_scope_token]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        source_id: {type: string, minLength: 1, maxLength: 200, description: Publisher source identity snapshot; no cross-domain lookup or foreign key.}
+        title: {type: string, minLength: 1}
+        conclusion: {type: string, minLength: 1}
+        transmission_logic: {type: string, minLength: 1}
+        affected_anchors: {type: array, items: {$ref: '#/components/schemas/ReportAnalysisImpactProjection'}}
+        chain_count: {type: integer, minimum: 0}
+        evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
+
+    ReportChainAnalysisSummary:
+      type: object
+      additionalProperties: false
+      required: [local_key, source_id, name, conclusion]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        source_id: {type: string, minLength: 1, maxLength: 200, description: Publisher source identity snapshot; no cross-domain lookup or foreign key.}
+        name: {type: string, minLength: 1}
+        conclusion: {type: string, minLength: 1}
+
+    ReportAnalysisUnitDetail:
+      type: object
+      additionalProperties: false
+      required: [summary, reasoning_steps, affected_anchors, uncertainty, industry_chains]
+      properties:
+        summary: {$ref: '#/components/schemas/ReportAnalysisUnitSummary'}
+        reasoning_steps: {type: array, items: {$ref: '#/components/schemas/ReportReasoningStepProjection'}}
+        affected_anchors: {type: array, items: {$ref: '#/components/schemas/ReportAnalysisImpactProjection'}}
+        uncertainty: {$ref: '#/components/schemas/ReportLayerUncertainty'}
+        industry_chains: {type: array, items: {$ref: '#/components/schemas/ReportChainAnalysisSummary'}}
+
+    ReportChainAnalysisDetail:
+      type: object
+      additionalProperties: false
+      required: [local_key, source_id, name, conclusion, transmission_logic, reasoning_steps, graph, affected_nodes, uncertainty, evidence_scope_token]
+      properties:
+        local_key: {$ref: '#/components/schemas/ReportLocalKey'}
+        source_id: {type: string, minLength: 1, maxLength: 200, description: Publisher source identity snapshot; no cross-domain lookup or foreign key.}
+        name: {type: string, minLength: 1}
+        conclusion: {type: string, minLength: 1}
+        transmission_logic: {type: string, minLength: 1}
+        reasoning_steps: {type: array, items: {$ref: '#/components/schemas/ReportReasoningStepProjection'}}
+        graph: {$ref: '#/components/schemas/ReportAnalysisGraph'}
+        affected_nodes: {type: array, items: {$ref: '#/components/schemas/ReportAnalysisImpactProjection'}}
+        uncertainty: {$ref: '#/components/schemas/ReportLayerUncertainty'}
+        evidence_scope_token: {$ref: '#/components/schemas/ReportNullableEvidenceScopeToken'}
+
+    ReportAnalysisCollection:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, items: {$ref: '#/components/schemas/ReportAnalysisUnitSummary'}}
+        next_cursor: {type: string, nullable: true}
+
+    ReportAnalysisSnapshot:
+      type: object
+      additionalProperties: false
+      description: Ordered story and Concept snapshots. At least one analysis across the three arrays. Concept units require chains and use chain-node impact keys; story units have no chains. Local keys are globally unique within the Report; anchor_keys close within their unit. Source IDs are snapshots only. No inference or graph lookup occurs in Data.
+      required: [schema_version, report_type, generated_at, timezone, analysis_window, geopolitical_stories, macroeconomic_stories, concept_analyses]
+      properties:
+        schema_version: {type: string, enum: [report-publication/v3]}
+        report_type:
+          type: object
+          additionalProperties: false
+          required: [code, label]
+          properties:
+            code: {type: string, enum: [investment_reasoning]}
+            label: {type: string, enum: [投研推理报告]}
+        generated_at: {type: string, format: date-time}
+        timezone: {type: string, enum: [Asia/Shanghai]}
+        analysis_window: {$ref: '#/components/schemas/ReportAnalysisWindow'}
+        geopolitical_stories: {type: array, items: {$ref: '#/components/schemas/ReportAnalysisUnit'}}
+        macroeconomic_stories: {type: array, items: {$ref: '#/components/schemas/ReportAnalysisUnit'}}
+        concept_analyses: {type: array, items: {$ref: '#/components/schemas/ReportAnalysisUnit'}}
+
+    ReportAnalysisCollectionEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string}
+        result: {$ref: '#/components/schemas/ReportAnalysisCollection'}
+
+    ReportAnalysisUnitDetailEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string}
+        result: {$ref: '#/components/schemas/ReportAnalysisUnitDetail'}
+
+    ReportChainAnalysisDetailEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: {type: string}
+        result: {$ref: '#/components/schemas/ReportChainAnalysisDetail'}

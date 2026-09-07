@@ -2,6 +2,7 @@ package report
 
 import (
 	"encoding/json"
+	"github.com/getkin/kin-openapi/openapi3"
 	"net/url"
 	"os"
 	"strings"
@@ -72,6 +73,51 @@ func TestReportQueriesRejectDuplicatesAndUnknowns(t *testing.T) {
 	} {
 		if got := validQueryValues(test.query, test.required, test.optional); got != test.want {
 			t.Fatalf("query=%v got=%t want=%t", test.query, got, test.want)
+		}
+	}
+}
+
+func TestStoryConceptStrictPublication(t *testing.T) {
+	payload, err := os.ReadFile("testdata/story-concept-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var request PublicationRequest
+	if err := v1.DecodeStrictJSON(payload, analysisPublicationShape(), &request); err != nil {
+		t.Fatal(err)
+	}
+	for _, change := range []func(map[string]any){
+		func(r map[string]any) { delete(r, "macroeconomic_stories") },
+		func(r map[string]any) { r["macroeconomic_stories"] = nil },
+		func(r map[string]any) { r["industry_chains"] = []any{} },
+		func(r map[string]any) { r["unexpected"] = true },
+	} {
+		var root map[string]any
+		_ = json.Unmarshal(payload, &root)
+		change(root["report"].(map[string]any))
+		raw, _ := json.Marshal(root)
+		if v1.DecodeStrictJSON(raw, analysisPublicationShape(), &request) == nil {
+			t.Fatal("accepted invalid shape")
+		}
+	}
+}
+
+func TestPublicationFixturesMatchOpenAPI(t *testing.T) {
+	document, err := openapi3.NewLoader().LoadFromFile("../openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"investment-report-publication-request.json", "story-concept-publication-request.json"} {
+		payload, err := os.ReadFile("testdata/" + name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var value any
+		if err := json.Unmarshal(payload, &value); err != nil {
+			t.Fatal(err)
+		}
+		if err := document.Components.Schemas["ReportPublicationRequest"].Value.VisitJSON(value); err != nil {
+			t.Fatalf("%s: %v", name, err)
 		}
 	}
 }

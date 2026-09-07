@@ -15,6 +15,9 @@ import (
 )
 
 type UseCase interface {
+	ListAnalyses(context.Context, reportbiz.AnalysisListRequest) (reportbiz.AnalysisPage, error)
+	GetAnalysis(context.Context, string, string, string) (reportbiz.AnalysisUnitDetail, error)
+	GetAnalysisChain(context.Context, string, string, string) (reportbiz.ChainAnalysisDetail, error)
 	Publish(context.Context, string, reportbiz.Report) (reportbiz.PublicationResult, error)
 	List(context.Context, reportbiz.ListRequest) (reportbiz.Page, error)
 	GetHome(context.Context, string) (reportbiz.Home, error)
@@ -73,7 +76,7 @@ func (s *Service) ListReports(ctx context.Context, request *reportapi.ListReques
 	if err != nil {
 		return nil, publicError(v1.StatusBadRequest, reportapi.ErrorInvalidRequest, "published_to must be a UTC RFC3339 timestamp")
 	}
-	page, err := s.useCase.List(ctx, reportbiz.ListRequest{PublishedFrom: from, PublishedTo: to, Limit: limit, Cursor: request.Cursor})
+	page, err := s.useCase.List(ctx, reportbiz.ListRequest{SchemaVersion: request.SchemaVersion, PublishedFrom: from, PublishedTo: to, Limit: limit, Cursor: request.Cursor})
 	if err != nil {
 		return nil, readError(err)
 	}
@@ -192,8 +195,12 @@ func mapContract(source, target any) error {
 }
 
 func apiSummary(value reportbiz.Summary) reportapi.Summary {
+	var window *reportapi.AnalysisWindow
+	if value.SchemaVersion != "" {
+		window = &reportapi.AnalysisWindow{Start: value.AnalysisWindowStart, End: value.AnalysisWindowEnd}
+	}
 	return reportapi.Summary{
-		ID: value.ID, PublisherReportID: value.PublisherReportID,
+		SchemaVersion: value.SchemaVersion, AnalysisWindow: window, ID: value.ID, PublisherReportID: value.PublisherReportID,
 		GeneratedAt: value.GeneratedAt.UTC().Format(time.RFC3339Nano), HasGeopolitics: value.HasGeopolitics,
 		HasMacroeconomics: value.HasMacroeconomics, IndustryChainCount: value.IndustryChainCount,
 		PublishedAt: value.PublishedAt.UTC().Format(time.RFC3339Nano),
@@ -261,4 +268,51 @@ func repositoryMappingError() error {
 }
 func publicError(status int, code, message string) error {
 	return v1.NewPublicError(status, code, message, nil)
+}
+
+func (s *Service) ListReportAnalyses(ctx context.Context, r *reportapi.AnalysisRequest) (*v1.Response[reportapi.AnalysisCollection], error) {
+	if r == nil {
+		return nil, publicError(v1.StatusBadRequest, reportapi.ErrorInvalidRequest, "analysis query is required")
+	}
+	limit, err := parseLimit(r.Limit)
+	if err != nil {
+		return nil, err
+	}
+	page, err := s.useCase.ListAnalyses(ctx, reportbiz.AnalysisListRequest{ReportID: r.ReportID, Kind: r.Kind, Limit: limit, Cursor: r.Cursor})
+	if err != nil {
+		return nil, readError(err)
+	}
+	result := reportapi.AnalysisCollection{Items: []reportapi.AnalysisUnitSummary{}, NextCursor: page.NextCursor}
+	if err := mapContract(page.Items, &result.Items); err != nil {
+		return nil, repositoryMappingError()
+	}
+	return &v1.Response[reportapi.AnalysisCollection]{Status: v1.StatusOK, Result: result}, nil
+}
+func (s *Service) GetReportAnalysis(ctx context.Context, r *reportapi.AnalysisRequest) (*v1.Response[reportapi.AnalysisUnitDetail], error) {
+	if r == nil {
+		return nil, publicError(v1.StatusBadRequest, reportapi.ErrorInvalidRequest, "analysis identity is required")
+	}
+	item, err := s.useCase.GetAnalysis(ctx, r.ReportID, r.Kind, r.AnalysisKey)
+	if err != nil {
+		return nil, readError(err)
+	}
+	var result reportapi.AnalysisUnitDetail
+	if err := mapContract(item, &result); err != nil {
+		return nil, repositoryMappingError()
+	}
+	return &v1.Response[reportapi.AnalysisUnitDetail]{Status: v1.StatusOK, Result: result}, nil
+}
+func (s *Service) GetReportAnalysisChain(ctx context.Context, r *reportapi.AnalysisRequest) (*v1.Response[reportapi.ChainAnalysisDetail], error) {
+	if r == nil {
+		return nil, publicError(v1.StatusBadRequest, reportapi.ErrorInvalidRequest, "Concept and chain identities are required")
+	}
+	item, err := s.useCase.GetAnalysisChain(ctx, r.ReportID, r.AnalysisKey, r.ChainKey)
+	if err != nil {
+		return nil, readError(err)
+	}
+	var result reportapi.ChainAnalysisDetail
+	if err := mapContract(item, &result); err != nil {
+		return nil, repositoryMappingError()
+	}
+	return &v1.Response[reportapi.ChainAnalysisDetail]{Status: v1.StatusOK, Result: result}, nil
 }

@@ -2,6 +2,7 @@ package report
 
 import (
 	"context"
+	"encoding/json"
 	"net/url"
 	"time"
 
@@ -17,6 +18,9 @@ const (
 
 func RegisterHTTPServer(server *kratoshttp.Server, application Service) {
 	router := server.Route(v1.APIPrefix)
+	router.GET("/reports/{report_id}/analyses/{kind}", analysisListHandler(application))
+	router.GET("/reports/{report_id}/analyses/{kind}/{analysis_key}", analysisHandler(application))
+	router.GET("/reports/{report_id}/concept-analyses/{concept_key}/industry-chains/{chain_key}", analysisChainHandler(application))
 	router.POST("/report-publications", publishHandler(application))
 	router.GET("/reports", listHandler(application))
 	router.GET("/reports/{report_id}/home", homeHandler(application))
@@ -41,7 +45,16 @@ func publishHandler(application Service) kratoshttp.HandlerFunc {
 			return err
 		}
 		request := new(PublicationRequest)
-		if err := v1.DecodeStrictJSON(payload, publicationShape(), request); err != nil {
+		shape := publicationShape()
+		var versionProbe struct {
+			Report struct {
+				SchemaVersion json.RawMessage `json:"schema_version"`
+			} `json:"report"`
+		}
+		if json.Unmarshal(payload, &versionProbe) == nil && versionProbe.Report.SchemaVersion != nil {
+			shape = analysisPublicationShape()
+		}
+		if err := v1.DecodeStrictJSON(payload, shape, request); err != nil {
 			return v1.NewPublicError(v1.StatusBadRequest, ErrorInvalidRequest,
 				"request body is not valid for Report publication", map[string]any{
 					"path": v1.StrictJSONErrorPath(err),
@@ -67,11 +80,11 @@ func chainListHandler(application Service) kratoshttp.HandlerFunc {
 
 func listHandler(application Service) kratoshttp.HandlerFunc {
 	return func(ctx kratoshttp.Context) error {
-		if !validQuery(ctx, nil, []string{"published_from", "published_to", "limit", "cursor"}) {
+		if !validQuery(ctx, nil, []string{"published_from", "published_to", "limit", "cursor", "schema_version"}) {
 			return v1.NewPublicError(v1.StatusBadRequest, ErrorInvalidRequest, "unsupported Report query parameter", nil)
 		}
 		query := ctx.Query()
-		request := &ListRequest{PublishedFrom: query.Get("published_from"), PublishedTo: query.Get("published_to"),
+		request := &ListRequest{SchemaVersion: query.Get("schema_version"), PublishedFrom: query.Get("published_from"), PublishedTo: query.Get("published_to"),
 			Limit: query.Get("limit"), Cursor: query.Get("cursor")}
 		return callWithBudget(ctx, OperationListReports, readBudget, request,
 			func(callContext context.Context) (*v1.Response[Collection], error) {
@@ -238,4 +251,56 @@ func publicationShape() *v1.StrictJSONShape {
 	}
 	report := v1.StrictJSONRequiredObject([]string{"report_type", "generated_at", "timezone", "industry_chains"}, reportFields)
 	return requiredShape(map[string]*v1.StrictJSONShape{"publisher_report_id": text, "report": report})
+}
+
+func analysisListHandler(application Service) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		if !validQuery(ctx, nil, []string{"limit", "cursor"}) {
+			return v1.NewPublicError(v1.StatusBadRequest, ErrorInvalidRequest, "unsupported analysis query", nil)
+		}
+		r := &AnalysisRequest{ReportID: ctx.Vars().Get("report_id"), Kind: ctx.Vars().Get("kind"), Limit: ctx.Query().Get("limit"), Cursor: ctx.Query().Get("cursor")}
+		return callWithBudget(ctx, OperationListReportAnalyses, readBudget, r, func(c context.Context) (*v1.Response[AnalysisCollection], error) {
+			return application.ListReportAnalyses(c, r)
+		})
+	}
+}
+func analysisHandler(application Service) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		if len(ctx.Request().URL.Query()) != 0 {
+			return v1.NewPublicError(v1.StatusBadRequest, ErrorInvalidRequest, "analysis detail accepts no query parameters", nil)
+		}
+		r := &AnalysisRequest{ReportID: ctx.Vars().Get("report_id"), Kind: ctx.Vars().Get("kind"), AnalysisKey: ctx.Vars().Get("analysis_key")}
+		return callWithBudget(ctx, OperationGetReportAnalysis, readBudget, r, func(c context.Context) (*v1.Response[AnalysisUnitDetail], error) {
+			return application.GetReportAnalysis(c, r)
+		})
+	}
+}
+func analysisChainHandler(application Service) kratoshttp.HandlerFunc {
+	return func(ctx kratoshttp.Context) error {
+		if len(ctx.Request().URL.Query()) != 0 {
+			return v1.NewPublicError(v1.StatusBadRequest, ErrorInvalidRequest, "chain detail accepts no query parameters", nil)
+		}
+		r := &AnalysisRequest{ReportID: ctx.Vars().Get("report_id"), AnalysisKey: ctx.Vars().Get("concept_key"), ChainKey: ctx.Vars().Get("chain_key")}
+		return callWithBudget(ctx, OperationGetReportAnalysisChain, readBudget, r, func(c context.Context) (*v1.Response[ChainAnalysisDetail], error) {
+			return application.GetReportAnalysisChain(c, r)
+		})
+	}
+}
+
+func analysisPublicationShape() *v1.StrictJSONShape {
+	codedLabel := requiredShape(map[string]*v1.StrictJSONShape{"code": v1.StrictJSONString(), "label": v1.StrictJSONString()})
+	analysisWindow := requiredShape(map[string]*v1.StrictJSONShape{"start": v1.StrictJSONString(), "end": v1.StrictJSONString()})
+	evidenceReference := requiredShape(map[string]*v1.StrictJSONShape{"evidence_id": v1.StrictJSONString(), "role": codedLabel})
+	analysisSummary := requiredShape(map[string]*v1.StrictJSONShape{"conclusion": v1.StrictJSONString(), "transmission_logic": v1.StrictJSONString(), "anchor_keys": v1.StrictJSONArray(v1.StrictJSONString()), "evidence_refs": v1.StrictJSONArray(evidenceReference)})
+	reasoningStep := requiredShape(map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "input": v1.StrictJSONString(), "mechanism": v1.StrictJSONString(), "output": v1.StrictJSONString(), "confidence": codedLabel, "evidence_refs": v1.StrictJSONArray(evidenceReference)})
+	analysisImpact := requiredShape(map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "target_type": codedLabel, "source_id": v1.StrictJSONString(), "node_local_key": v1.StrictJSONNullableString(), "name": v1.StrictJSONString(), "impact": v1.StrictJSONString(), "result": codedLabel, "conclusion_basis": codedLabel, "validation_status": codedLabel, "reasoning": v1.StrictJSONString(), "transmission_signal": v1.StrictJSONNullableString(), "conditions": v1.StrictJSONArray(v1.StrictJSONString()), "follow_up": v1.StrictJSONArray(v1.StrictJSONString()), "time_window": codedLabel, "confidence": codedLabel, "evidence_refs": v1.StrictJSONArray(evidenceReference)})
+	layerUncertainty := requiredShape(map[string]*v1.StrictJSONShape{"counterevidence": v1.StrictJSONNullableString(), "evidence_gap": v1.StrictJSONNullableString(), "boundary": v1.StrictJSONNullableString(), "reversal_condition": v1.StrictJSONNullableString()})
+	analysisTopologyNode := requiredShape(map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "source_id": v1.StrictJSONString(), "name": v1.StrictJSONString()})
+	industryChainEdge := requiredShape(map[string]*v1.StrictJSONShape{"from_node_local_key": v1.StrictJSONString(), "to_node_local_key": v1.StrictJSONString(), "relation_label": v1.StrictJSONString()})
+	analysisGraph := requiredShape(map[string]*v1.StrictJSONShape{"nodes": v1.StrictJSONArray(analysisTopologyNode), "edges": v1.StrictJSONArray(industryChainEdge)})
+	chainAnalysis := requiredShape(map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "source_id": v1.StrictJSONString(), "name": v1.StrictJSONString(), "conclusion": v1.StrictJSONString(), "transmission_logic": v1.StrictJSONString(), "reasoning_steps": v1.StrictJSONArray(reasoningStep), "graph": analysisGraph, "affected_nodes": v1.StrictJSONArray(analysisImpact), "uncertainty": layerUncertainty, "evidence_refs": v1.StrictJSONArray(evidenceReference)})
+	analysisDetail := requiredShape(map[string]*v1.StrictJSONShape{"reasoning_steps": v1.StrictJSONArray(reasoningStep), "affected_anchors": v1.StrictJSONArray(analysisImpact), "uncertainty": layerUncertainty, "industry_chains": v1.StrictJSONArray(chainAnalysis)})
+	analysisUnit := requiredShape(map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "source_id": v1.StrictJSONString(), "title": v1.StrictJSONString(), "summary": analysisSummary, "detail": analysisDetail})
+	report := requiredShape(map[string]*v1.StrictJSONShape{"schema_version": v1.StrictJSONString(), "report_type": codedLabel, "generated_at": v1.StrictJSONString(), "timezone": v1.StrictJSONString(), "analysis_window": analysisWindow, "geopolitical_stories": v1.StrictJSONArray(analysisUnit), "macroeconomic_stories": v1.StrictJSONArray(analysisUnit), "concept_analyses": v1.StrictJSONArray(analysisUnit)})
+	return requiredShape(map[string]*v1.StrictJSONShape{"publisher_report_id": v1.StrictJSONString(), "report": report})
 }

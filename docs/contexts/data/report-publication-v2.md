@@ -1,5 +1,8 @@
 # Report 发布领域契约
 
+本文描述未带 schema_version 的旧版合同，继续支持历史发布与读取。新的故事线／Concept 合同见
+[report-publication-v3.md](report-publication-v3.md)。旧版规则不限制新版集合基数与推导 Evidence 角色。
+
 ## 权威与边界
 
 HTTP 权威是 Data OpenAPI 的 `ReportPublicationRequest`，具体发布形状以
@@ -27,14 +30,14 @@ canonical report 返回原 `report_id/published_at` 且 `replayed=true`；内容
 uncertainty/evidence_refs/downward_transmission`。
 
 - Anchor 包含 `local_key/name/current_state/result/conclusion_basis/validation_status/reasoning/
-  time_window/confidence/evidence_refs`。
+time_window/confidence/evidence_refs`。
 - Reasoning step 包含 `local_key/input/mechanism/output/confidence/evidence_refs`，顺序即报告顺序。
 - Uncertainty 包含四个可空字段：
   `counterevidence/evidence_gap/boundary/reversal_condition`。
 - 地缘传导按 `to_macroeconomics` 和 `to_industry_chains` 分组；宏观传导按
   `to_industry_chains` 分组。每组含 `summary/paths`。
 - path 包含 `local_key/source_conclusion/targets/transmission_logic/transmission_kind/
-  confidence/status`。target 使用 `target_type/target_local_key/target_name/result`，必须在
+confidence/status`。target 使用 `target_type/target_local_key/target_name/result`，必须在
   同一 Report 中闭合。
 
 ## 产业链
@@ -45,7 +48,7 @@ accepted_hypothesis_summary/nodes/edges/uncertainty/evidence_refs`。
 
 - `path_summary` 和 `accepted_hypothesis_summary` 可空，不得由 Data 或 BFF 补写。
 - node 包含 `local_key/name/impact/result/conclusion_basis/validation_status/reasoning/
-  time_window/confidence/evidence_refs`；节点 `local_key` 同时是链图端点。
+time_window/confidence/evidence_refs`；节点 `local_key` 同时是链图端点。
 - edge 包含 `from_node_local_key/to_node_local_key/relation_label`，端点必须闭合。
 - uncertainty 包含可空 `counterevidence_and_gap/stop_condition`。
 
