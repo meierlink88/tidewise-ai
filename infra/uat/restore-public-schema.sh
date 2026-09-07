@@ -50,7 +50,7 @@ for command in openssl pg_restore psql sha256sum; do
   command -v "$command" >/dev/null 2>&1 || fail "required command is unavailable: $command"
 done
 
-require_exact "${PGHOST:-}" "775b3ecf9c934ae185c0b8eda157c50din03.internal.cn-east-3.postgresql.rds.myhuaweicloud.com" "database host"
+require_exact "${PGHOST:-}" "2331e94c06e34781a000885dae88575fin03.internal.cn-east-3.postgresql.rds.myhuaweicloud.com" "database host"
 require_exact "${PGPORT:-}" "5432" "database port"
 require_exact "${PGDATABASE:-}" "$expected_database" "database name"
 require_exact "${PGUSER:-}" "$expected_user" "database user"

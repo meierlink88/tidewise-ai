@@ -258,6 +258,13 @@ func TestUATPublicSchemaReplacementIsEncryptedBoundedAndLeavesAppsStopped(t *tes
 	restore := readContractFile(t, filepath.Join(root, "infra", "uat", "restore-public-schema.sh"))
 	dockerfile := readContractFile(t, filepath.Join(root, "infra", "uat", "uat-public-refresh.Dockerfile"))
 
+	const activeRDS = "2331e94c06e34781a000885dae88575fin03.internal.cn-east-3.postgresql.rds.myhuaweicloud.com"
+	for name, content := range map[string]string{"workflow": workflow, "restore": restore} {
+		if !strings.Contains(content, activeRDS) || strings.Contains(content, "775b3ecf9c934ae185c0b8eda157c50din03") {
+			t.Fatalf("%s must lock the refresh to the active UAT RDS instance", name)
+		}
+	}
+
 	for _, required := range []string{
 		"workflow_dispatch:",
 		"confirm_high_risk_backup:",
