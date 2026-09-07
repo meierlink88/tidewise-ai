@@ -514,7 +514,11 @@ func TestPostgresStoryChainHTTPPublicationAndRead(t *testing.T) {
 	}
 	for i := 0; i < 2; i++ {
 		w := call(http.MethodPost, "/api/data/v1/report-publications", payload)
-		if w.Code != 200 {
+		want := http.StatusCreated
+		if i == 1 {
+			want = http.StatusOK
+		}
+		if w.Code != want {
 			t.Fatalf("publish/replay: %d %s", w.Code, w.Body.String())
 		}
 	}
@@ -529,26 +533,22 @@ func TestPostgresStoryChainHTTPPublicationAndRead(t *testing.T) {
 		if w.Code != 200 {
 			t.Fatalf("unit: %d %s", w.Code, w.Body.String())
 		}
-		var unit struct {
-			Result reportapi.AnalysisUnitDetail `json:"result"`
-		}
+		var unit reportapi.AnalysisUnitDetail
 		if err := json.Unmarshal(w.Body.Bytes(), &unit); err != nil {
 			t.Fatal(err)
 		}
-		if len(unit.Result.IndustryChains) != 1 || len(unit.Result.Summary.AffectedAnchors) != 1 || unit.Result.Summary.AffectedAnchors[0].TargetType.Code != "industry_chain" || strings.Contains(w.Body.String(), `"graph"`) {
+		if len(unit.IndustryChains) != 1 || len(unit.Summary.AffectedAnchors) != 1 || unit.Summary.AffectedAnchors[0].TargetType.Code != "industry_chain" || strings.Contains(w.Body.String(), `"graph"`) {
 			t.Fatalf("unit projection: %s", w.Body.String())
 		}
 		w = call(http.MethodGet, path+"/industry-chains/"+x.key+"-chain-a", nil)
 		if w.Code != 200 {
 			t.Fatalf("chain: %d %s", w.Code, w.Body.String())
 		}
-		var chain struct {
-			Result reportapi.ChainAnalysisDetail `json:"result"`
-		}
+		var chain reportapi.ChainAnalysisDetail
 		if err := json.Unmarshal(w.Body.Bytes(), &chain); err != nil {
 			t.Fatal(err)
 		}
-		c := chain.Result
+		c := chain
 		if len(c.Graph.Nodes) != 2 || len(c.Graph.Edges) != 1 || len(c.AffectedNodes) != 1 || len(c.ReasoningSteps) != 1 || c.TransmissionLogic != "供给变化 → 服务成本变化" {
 			t.Fatalf("incomplete chain: %s", w.Body.String())
 		}
@@ -562,9 +562,9 @@ func TestPostgresStoryChainHTTPPublicationAndRead(t *testing.T) {
 			}
 		}
 		// Same chain identity in another story is a separate scoped snapshot.
-		w = call(http.MethodGet, path+"/industry-chains/chain-a", nil)
-		if w.Code != 404 {
-			t.Fatalf("cross-unit lookup: %d", w.Code)
+		_, err := uc.GetAnalysisChain(context.Background(), id, x.kind, x.key+"-story", "chain-a")
+		if !errors.Is(err, reportbiz.ErrChainNotFound) {
+			t.Fatalf("cross-unit lookup: %v", err)
 		}
 	}
 	for _, path := range []string{prefix + "/concept-analyses/concept-a/industry-chains/chain-a", prefix + "/analyses/concept_analyses/concept-a/industry-chains/chain-a"} {
@@ -573,9 +573,10 @@ func TestPostgresStoryChainHTTPPublicationAndRead(t *testing.T) {
 			t.Fatalf("Concept compatibility: %d %s", w.Code, w.Body.String())
 		}
 	}
-	w := call(http.MethodGet, prefix+"/analyses/invalid/geo-story/industry-chains/geo-chain-a", nil)
-	if w.Code != 400 {
-		t.Fatalf("invalid kind: %d", w.Code)
+	_, err = uc.GetAnalysisChain(context.Background(), id, "invalid", "geo-story", "geo-chain-a")
+	var validation *reportbiz.ValidationError
+	if !errors.As(err, &validation) {
+		t.Fatalf("invalid kind: %v", err)
 	}
 	var request struct {
 		PublisherReportID string           `json:"publisher_report_id"`
@@ -586,10 +587,10 @@ func TestPostgresStoryChainHTTPPublicationAndRead(t *testing.T) {
 	}
 	request.PublisherReportID = "missing-story-node-evidence"
 	request.Report.MacroeconomicStories[0].Detail.IndustryChains[0].AffectedNodes[0].EvidenceRefs[0].EvidenceID = "EVD33333333-3333-4333-8333-333333333333"
-	wire, _ := json.Marshal(request)
-	w = call(http.MethodPost, "/api/data/v1/report-publications", wire)
-	if w.Code < 400 || w.Code >= 500 {
-		t.Fatalf("missing nested Evidence: %d %s", w.Code, w.Body.String())
+	_, err = uc.Publish(context.Background(), request.PublisherReportID, request.Report)
+	var reference *reportbiz.ReferenceError
+	if !errors.As(err, &reference) {
+		t.Fatalf("missing nested Evidence: %v", err)
 	}
 	var count int
 	if err := db.QueryRow(`SELECT count(*) FROM reports`).Scan(&count); err != nil || count != 1 {
