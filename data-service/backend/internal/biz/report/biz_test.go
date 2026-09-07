@@ -338,6 +338,47 @@ func TestStoryChainPublicationValidation(t *testing.T) {
 	if err := reportbiz.ValidateReport(read()); err != nil {
 		t.Fatal(err)
 	}
+
+	t.Run("anchor order", func(t *testing.T) {
+		for _, reverse := range []bool{false, true} {
+			r := read()
+			u := &r.GeopoliticalStories[0]
+			a := u.Detail.AffectedAnchors[0]
+			a.LocalKey = "alternate-anchor"
+			a.Name = "alternate snapshot name"
+			u.Detail.AffectedAnchors = append(u.Detail.AffectedAnchors, a)
+			if reverse {
+				u.Detail.AffectedAnchors[0], u.Detail.AffectedAnchors[1] = u.Detail.AffectedAnchors[1], u.Detail.AffectedAnchors[0]
+			}
+			if err := reportbiz.ValidateReport(r); err != nil {
+				t.Fatal(err)
+			}
+		}
+	})
+	t.Run("historical exact replay", func(t *testing.T) {
+		r := read()
+		u := &r.GeopoliticalStories[0]
+		u.Detail.IndustryChains = []reportbiz.ChainAnalysis{}
+		u.Detail.AffectedAnchors[0].TargetType = reportbiz.CodedLabel{Code: "industry_chain_node", Label: "产业链节点"}
+		hash, err := reportbiz.ContentHash(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		store := newFakeStore()
+		store.byPublisher["historical"] = reportbiz.Record{PublisherReportID: "historical", ContentHash: hash, Report: r}
+		uc, _ := reportbiz.NewUseCase(store, time.Now)
+		result, err := uc.Publish(context.Background(), "historical", r)
+		if err != nil || !result.Replayed {
+			t.Fatalf("historical replay=%+v err=%v", result, err)
+		}
+		if _, err := uc.Publish(context.Background(), "new-invalid", r); err == nil {
+			t.Fatal("new invalid hierarchy accepted")
+		}
+		r.GeopoliticalStories[0].Summary.Conclusion = "changed"
+		if _, err := uc.Publish(context.Background(), "historical", r); !errors.Is(err, reportbiz.ErrPublicationConflict) {
+			t.Fatalf("historical conflict=%v", err)
+		}
+	})
 	for name, mutate := range map[string]func(*reportbiz.Report){
 		"story summary node": func(r *reportbiz.Report) {
 			r.GeopoliticalStories[0].Summary.AnchorKeys = []string{r.GeopoliticalStories[0].Detail.IndustryChains[0].AffectedNodes[0].LocalKey}

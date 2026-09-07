@@ -457,9 +457,6 @@ func (s *UseCase) Publish(ctx context.Context, publisherReportID string, report 
 	if err := requiredText("publisher_report_id", publisherReportID, 200); err != nil {
 		return PublicationResult{}, err
 	}
-	if err := ValidateReport(report); err != nil {
-		return PublicationResult{}, err
-	}
 	payloadHash, err := ContentHash(report)
 	if err != nil {
 		return PublicationResult{}, fmt.Errorf("canonicalize Report publication: %w", err)
@@ -479,6 +476,10 @@ func (s *UseCase) Publish(ctx context.Context, publisherReportID string, report 
 			}
 			result = PublicationResult{Record: *existing, Replayed: true}
 			return nil
+		}
+		// An immutable snapshot can be replayed even when later publication rules tighten.
+		if err := ValidateReport(report); err != nil {
+			return err
 		}
 		reportID, err := coreid.New(coreid.Report)
 		if err != nil {
@@ -1446,7 +1447,7 @@ func validateAnalysisUnit(kind string, u AnalysisUnit, index *reportIndex) error
 		return invalid(p, "arrays must not be null")
 	}
 	impacts := map[string]bool{}
-	storyChains := map[string]string{}
+	storyChains := map[[2]string]bool{}
 	for _, a := range u.Detail.AffectedAnchors {
 		if err := validateAnalysisImpact(p, a, index, false); err != nil {
 			return err
@@ -1455,7 +1456,7 @@ func validateAnalysisUnit(kind string, u AnalysisUnit, index *reportIndex) error
 			return invalid(p, "story anchors must target the permitted downstream layer")
 		}
 		if a.TargetType.Code == "industry_chain" {
-			storyChains[a.SourceID] = a.Name
+			storyChains[[2]string{a.SourceID, a.Name}] = true
 		}
 		impacts[a.LocalKey] = true
 	}
@@ -1470,7 +1471,7 @@ func validateAnalysisUnit(kind string, u AnalysisUnit, index *reportIndex) error
 			return invalid(p, "duplicate chain source within analysis")
 		}
 		chainSources[c.SourceID] = true
-		if kind != "concept_analyses" && storyChains[c.SourceID] != c.Name {
+		if kind != "concept_analyses" && !storyChains[[2]string{c.SourceID, c.Name}] {
 			return invalid(p, "story chain must match an affected industry-chain anchor source and name")
 		}
 		if err := validateChainAnalysis(p, c, index); err != nil {

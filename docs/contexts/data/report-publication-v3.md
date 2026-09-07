@@ -91,6 +91,7 @@ Event、Signal 来源和全量覆盖审计保留在 AgentOS，不发布到 Data�
 
 发布事务先批量检查所有 unique EVD，然后原子写入 Report 与全部作用域关系。
 任何 Evidence 不存在则整体回滚。相同 publisher_report_id 同内容重放，异内容冲突。
+事务中先匹配已存内容 hash，再对新发布执行当前校验，保证历史快照不因新锚点规则失去原样重放能力。
 
 Evidence 路径示例：
 
