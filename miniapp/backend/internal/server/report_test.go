@@ -3,8 +3,6 @@ package server
 import (
 	"context"
 	"encoding/json"
-	"io"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -31,9 +29,6 @@ func TestReportHTTPBindingsUseVersionedRoutes(t *testing.T) {
 	router := NewHTTPServer(testRuntimeConfig(), testLogger(), stub)
 	paths := []string{
 		"/api/miniapp/v1/reports/home",
-		"/api/miniapp/v1/reports/" + reportTestID + "/layers/geopolitics",
-		"/api/miniapp/v1/reports/" + reportTestID + "/industry-chains?limit=20&cursor=next",
-		"/api/miniapp/v1/reports/" + reportTestID + "/industry-chains/chain-21",
 		"/api/miniapp/v1/reports/" + reportTestID + "/evidences?scope_token=" + reportScopeToken,
 	}
 	for _, path := range paths {
@@ -45,8 +40,8 @@ func TestReportHTTPBindingsUseVersionedRoutes(t *testing.T) {
 			t.Fatalf("GET %s status/body=%d/%s", path, response.Code, response.Body.String())
 		}
 	}
-	if stub.chainListRequest == nil || stub.chainListRequest.Cursor != "next" || stub.evidenceRequest == nil || stub.evidenceRequest.ScopeToken != reportScopeToken {
-		t.Fatalf("chain=%#v evidence=%#v", stub.chainListRequest, stub.evidenceRequest)
+	if stub.evidenceRequest == nil || stub.evidenceRequest.ScopeToken != reportScopeToken {
+		t.Fatalf("evidence=%#v", stub.evidenceRequest)
 	}
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/reports/"+reportTestID+"/evidences?scope_token=a&scope_token=b", nil))
@@ -55,79 +50,14 @@ func TestReportHTTPBindingsUseVersionedRoutes(t *testing.T) {
 	}
 }
 
-func TestReportHomeAndEvidenceTraverseRealDataHTTP(t *testing.T) {
-	downstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if request.Header.Get("Authorization") != "Bearer miniapp-data-token" {
-			t.Fatalf("authorization=%q", request.Header.Get("Authorization"))
-		}
-		switch request.URL.Path {
-		case dataapi.DataAPIPrefix + "/reports":
-			writeDownstreamResult(t, writer, map[string]any{"items": []any{dataSummary()}, "next_cursor": nil})
-		case dataapi.DataAPIPrefix + "/reports/" + reportTestID + "/home":
-			writeDownstreamResult(t, writer, map[string]any{"report": dataSummary(), "geopolitics": nil, "macroeconomics": nil})
-		case dataapi.DataAPIPrefix + "/reports/" + reportTestID + "/industry-chains":
-			writeDownstreamResult(t, writer, map[string]any{"items": []any{dataChainSummary()}, "next_cursor": nil})
-		case dataapi.DataAPIPrefix + "/reports/" + reportTestID + "/evidences":
-			if request.URL.Query().Get("scope_token") != reportScopeToken {
-				t.Fatalf("query=%v", request.URL.Query())
-			}
-			writeDownstreamResult(t, writer, map[string]any{"report_id": reportTestID, "scope_token": reportScopeToken, "items": []any{map[string]any{"published_at": nil, "summary": "证据摘要", "keywords": []string{"关键词"}}}})
-		default:
-			t.Fatalf("unexpected Data request %s", request.URL.RequestURI())
-		}
-	}))
-	defer downstream.Close()
-	client, err := dataapi.NewHTTPClient(dataapi.HTTPConfig{BaseURL: downstream.URL, ServiceToken: "miniapp-data-token", Timeout: time.Second, MaxReadAttempts: 1, HTTPClient: downstream.Client()})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer client.Close()
-	repository, err := reportdata.NewRepository(client)
-	if err != nil {
-		t.Fatal(err)
-	}
-	useCase := biz.NewUseCaseWithClock(repository, func() time.Time { return time.Date(2026, 9, 2, 8, 0, 0, 0, time.UTC) })
-	application, err := reportservice.NewService(useCase)
-	if err != nil {
-		t.Fatal(err)
-	}
-	router := NewHTTPServer(testRuntimeConfig(), slog.New(slog.NewJSONHandler(io.Discard, nil)), application)
-	home := httptest.NewRecorder()
-	router.ServeHTTP(home, httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/reports/home", nil))
-	if home.Code != http.StatusOK || !strings.Contains(home.Body.String(), `"local_key":"chain-01"`) {
-		t.Fatalf("home=%d/%s", home.Code, home.Body.String())
-	}
-	if strings.Contains(home.Body.String(), "evidence_id") {
-		t.Fatalf("home leaked Evidence ID: %s", home.Body.String())
-	}
-	evidence := httptest.NewRecorder()
-	router.ServeHTTP(evidence, httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/reports/"+reportTestID+"/evidences?scope_token="+reportScopeToken, nil))
-	if evidence.Code != http.StatusOK || !strings.Contains(evidence.Body.String(), "证据摘要") {
-		t.Fatalf("evidence=%d/%s", evidence.Code, evidence.Body.String())
-	}
-}
-
 type reportAPIStub struct {
-	chainListRequest *api.IndustryChainListRequest
-	evidenceRequest  *api.EvidenceRequest
+	evidenceRequest *api.EvidenceRequest
 }
 
 func (*reportAPIStub) GetHome(context.Context, *api.HomeRequest) (*api.HomeResponse, error) {
 	return &api.HomeResponse{Selection: api.Selection{Mode: "today", Date: "2026-09-02", Timezone: "Asia/Shanghai"}, Reports: []api.HomeReport{}}, nil
 }
-func (s *reportAPIStub) ListIndustryChains(_ context.Context, request *api.IndustryChainListRequest) (*api.CardCollection, error) {
-	s.chainListRequest = request
-	if request.HasUnknownQuery {
-		return nil, v1.ErrInvalidRequest
-	}
-	return &api.CardCollection{Items: []api.Card{}}, nil
-}
-func (*reportAPIStub) GetLayer(context.Context, *api.LayerRequest) (*api.LayerDetail, error) {
-	return &api.LayerDetail{RelatedIndustryChains: []api.RelatedIndustryChain{}}, nil
-}
-func (*reportAPIStub) GetIndustryChain(context.Context, *api.IndustryChainRequest) (*api.IndustryChainDetail, error) {
-	return &api.IndustryChainDetail{}, nil
-}
+
 func (s *reportAPIStub) ListEvidences(_ context.Context, request *api.EvidenceRequest) (*api.EvidenceCollection, error) {
 	s.evidenceRequest = request
 	if request.HasUnknownQuery {
@@ -285,6 +215,17 @@ func testNormalizedHTTP(t *testing.T, version string) {
 		router.ServeHTTP(r, httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/reports/"+reportTestID+"/analyses/geopolitical_stories"+suffix, nil))
 		if r.Code != 400 {
 			t.Fatalf("%s: %d", suffix, r.Code)
+		}
+	}
+}
+
+func TestRetiredReportRoutesReturnNotFound(t *testing.T) {
+	router := NewHTTPServer(testRuntimeConfig(), testLogger(), &reportAPIStub{})
+	for _, suffix := range []string{"/industry-chains", "/layers/geopolitics", "/industry-chains/chain-01"} {
+		response := httptest.NewRecorder()
+		router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/reports/"+reportTestID+suffix, nil))
+		if response.Code != http.StatusNotFound {
+			t.Fatalf("%s status=%d", suffix, response.Code)
 		}
 	}
 }

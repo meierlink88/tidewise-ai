@@ -53,9 +53,9 @@ describe('APIReportPort', () => {
     const port = new APIReportPort('https://miniapp.example.com');
     const reportId = 'RPT11111111-1111-4111-8111-111111111111';
 
-    await expect(port.getIndustryChains(reportId, 'opaque cursor', 20)).resolves.toEqual({
+    await expect(port.getAnalyses(reportId, 'concept_analyses', 'opaque cursor')).resolves.toEqual({
       items: [],
-      nextCursor: null
+      next_cursor: null
     });
     expect(request.mock.calls[0][0].url).toContain('limit=20&cursor=opaque%20cursor');
   });

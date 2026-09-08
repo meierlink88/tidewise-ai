@@ -8,11 +8,11 @@ describe('Report navigation', () => {
     expect(
       buildReportDetailURL({
         reportId,
-        targetType: 'industry_chain',
+        targetType: 'concept_analyses',
         targetKey: 'chn-21'
       })
     ).toBe(
-      `/pages/report/detail/index?reportId=${reportId}&targetType=industry_chain&targetKey=chn-21`
+      `/pages/report/detail/index?reportId=${reportId}&targetType=concept_analyses&targetKey=chn-21`
     );
   });
 
@@ -20,10 +20,10 @@ describe('Report navigation', () => {
     const navigateTo = vi.fn();
     navigateToReportDetail(
       { navigateTo },
-      { reportId, targetType: 'layer', targetKey: 'geopolitics' }
+      { reportId, targetType: 'geopolitical_stories', targetKey: 'geopolitics' }
     );
     expect(navigateTo).toHaveBeenCalledWith({
-      url: `/pages/report/detail/index?reportId=${reportId}&targetType=layer&targetKey=geopolitics`
+      url: `/pages/report/detail/index?reportId=${reportId}&targetType=geopolitical_stories&targetKey=geopolitics`
     });
   });
 
@@ -31,16 +31,16 @@ describe('Report navigation', () => {
     expect(
       parseReportDetailRoute({
         reportId,
-        targetType: 'layer',
+        targetType: 'geopolitical_stories',
         targetKey: 'geopolitics',
         stamp: 'AA',
         $taroTimestamp: 1788265499968
       })
-    ).toEqual({ reportId, targetType: 'layer', targetKey: 'geopolitics' });
+    ).toEqual({ reportId, targetType: 'geopolitical_stories', targetKey: 'geopolitics' });
     expect(() =>
       parseReportDetailRoute({
         reportId,
-        targetType: 'layer',
+        targetType: 'geopolitical_stories',
         targetKey: 'geopolitics',
         stamp: '../AA'
       })
@@ -48,7 +48,7 @@ describe('Report navigation', () => {
     expect(() =>
       parseReportDetailRoute({
         reportId,
-        targetType: 'layer',
+        targetType: 'geopolitical_stories',
         targetKey: 'geopolitics',
         $taroTimestamp: '1788265499968'
       })
@@ -57,7 +57,11 @@ describe('Report navigation', () => {
 
   it('fails before a request when route parameters are missing, duplicated or illegal', () => {
     expect(() =>
-      parseReportDetailRoute({ reportId, targetType: 'layer', targetKey: '地缘政治' })
+      parseReportDetailRoute({
+        reportId,
+        targetType: 'geopolitical_stories',
+        targetKey: '地缘政治'
+      })
     ).toThrow('invalid Report route');
     expect(() =>
       parseReportDetailRoute({
@@ -69,7 +73,7 @@ describe('Report navigation', () => {
     expect(() =>
       parseReportDetailRoute({
         reportId,
-        targetType: 'layer',
+        targetType: 'geopolitical_stories',
         targetKey: 'geopolitics',
         title: '不允许从标题推导'
       })
@@ -77,7 +81,7 @@ describe('Report navigation', () => {
     expect(() =>
       parseReportDetailRoute({
         reportId,
-        targetType: 'industry_chain',
+        targetType: 'concept_analyses',
         targetKey: `a${'b'.repeat(128)}`
       })
     ).toThrow('invalid Report route');

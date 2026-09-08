@@ -103,7 +103,7 @@ if ! report_response="$(
             $evidence_two
           else . end
         )
-    ' "$repo_root/data-service/backend/api/data/v1/report/testdata/investment-report-publication-request.json" | \
+    ' "$repo_root/data-service/backend/api/data/v1/report/testdata/normalized-publication-request.json" | \
     curl --fail-with-body --silent --show-error \
       -H "$auth_header" -H 'Content-Type: application/json' \
       --data-binary @- "$data_api/report-publications"
@@ -115,30 +115,49 @@ fi
 report_id="$(jq -er '.result.report_id' <<<"$report_response")"
 
 echo "Reading smoke Miniapp Report homepage"
-data_home_response="$(curl --fail --silent --show-error -H "$auth_header" "$data_api/reports/$report_id/home")"
 if ! home_response="$(curl --fail-with-body --silent --show-error "$miniapp_api/reports/home")"; then
   echo "Miniapp Report homepage read failed" >&2
   printf '%s\n' "$home_response" >&2
-  printf 'Data Report homepage response: %s\n' "$data_home_response" >&2
   exit 1
 fi
 jq -e --arg report_id "$report_id" '
   .result.selection.timezone == "Asia/Shanghai"
   and (.result.reports | length == 1)
   and .result.reports[0].report.id == $report_id
-  and (.result.reports[0].cards | length == 3)
-  and .result.reports[0].cards[0].detail_ref.local_key == "geopolitics"
-  and .result.reports[0].cards[1].detail_ref.local_key == "macroeconomics"
-  and .result.reports[0].cards[2].detail_ref.local_key == "chain-01"
+  and .result.reports[0].report.schema_version == "report-publication/v4"
+  and (.result.reports[0].analysis_groups | map(.kind) ==
+    ["geopolitical_stories", "macroeconomic_stories", "concept_analyses"])
+  and all(.result.reports[0].analysis_groups[]; (.items | length == 1) and .next_cursor == null)
 ' <<<"$home_response" >/dev/null
 
-layer_response="$(curl --fail --silent --show-error "$miniapp_api/reports/$report_id/layers/geopolitics")"
-jq -e --arg report_id "$report_id" '
-  .result.report.id == $report_id
-  and .result.layer.key == "geopolitics"
-  and (.result.related_industry_chains | length == 1)
-' <<<"$layer_response" >/dev/null
-scope_token="$(jq -er '.result.layer.evidence_scope_token' <<<"$layer_response")"
+for kind in geopolitical_stories macroeconomic_stories concept_analyses; do
+  echo "Reading smoke Miniapp ${kind} cards and details"
+  page_response="$(curl --fail --silent --show-error "$miniapp_api/reports/$report_id/analyses/$kind?limit=1")"
+  expected_items="$(jq -c --arg kind "$kind" '.result.reports[0].analysis_groups[] | select(.kind == $kind) | .items' <<<"$home_response")"
+  jq -e --argjson expected "$expected_items" '
+    .result.items == $expected and .result.next_cursor == null
+  ' <<<"$page_response" >/dev/null
+  analysis_key="$(jq -er '.result.items[0].local_key' <<<"$page_response")"
+  detail_response="$(curl --fail --silent --show-error "$miniapp_api/reports/$report_id/analyses/$kind/$analysis_key")"
+  jq -e --argjson expected "$expected_items" '
+    .result.summary == $expected[0] and (.result.industry_chains | length > 0)
+  ' <<<"$detail_response" >/dev/null
+  chain_keys="$(jq -er '.result.industry_chains[].local_key' <<<"$detail_response")"
+  while IFS= read -r chain_key; do
+    chain_response="$(curl --fail --silent --show-error "$miniapp_api/reports/$report_id/analyses/$kind/$analysis_key/industry-chains/$chain_key")"
+    expected_chain="$(jq -c --arg kind "$kind" --arg analysis_key "$analysis_key" --arg chain_key "$chain_key" '
+      .report[$kind][] | select(.local_key == $analysis_key)
+      | .detail.industry_chains[] | select(.local_key == $chain_key)
+    ' "$repo_root/data-service/backend/api/data/v1/report/testdata/normalized-publication-request.json")"
+    jq -e --argjson expected "$expected_chain" '
+      .result.local_key == $expected.local_key
+      and .result.graph == $expected.graph
+      and (.result.affected_nodes | map(.local_key)) == ($expected.affected_nodes | map(.local_key))
+      and .result.empty_state == $expected.empty_state
+    ' <<<"$chain_response" >/dev/null
+  done <<<"$chain_keys"
+done
+scope_token="$(jq -er '.result.reports[0].analysis_groups[0].items[0].summary.evidence_scope_token' <<<"$home_response")"
 
 evidence_list_response="$(curl --fail --silent --show-error \
   "$miniapp_api/reports/$report_id/evidences?scope_token=$scope_token")"
@@ -148,6 +167,14 @@ jq -e --arg scope_token "$scope_token" '
   and (.result.items[0].summary | length > 0)
   and (.result.items[0] | has("evidence_id") | not)
 ' <<<"$evidence_list_response" >/dev/null
+
+for retired_path in "industry-chains" "layers/geopolitics" "industry-chains/chain-01"; do
+  retired_status="$(curl --silent --show-error --output /dev/null --write-out "%{http_code}" "$miniapp_api/reports/$report_id/$retired_path")"
+  if [[ "$retired_status" != "404" ]]; then
+    echo "Retired Report route ${retired_path} returned ${retired_status}, want 404" >&2
+    exit 1
+  fi
+done
 
 curl --fail --silent --show-error \
   "http://127.0.0.1:${MINIAPP_SERVICE_PORT}/docs/" \

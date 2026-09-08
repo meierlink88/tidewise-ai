@@ -39,9 +39,6 @@ describe('ReportEvidenceSheet', () => {
       getAnalyses: vi.fn(),
       getAnalysis: vi.fn(),
       getAnalysisChain: vi.fn(),
-      getIndustryChains: vi.fn(),
-      getLayer: vi.fn(),
-      getIndustryChain: vi.fn(),
       getEvidences
     } as ReportPort;
 
@@ -51,7 +48,7 @@ describe('ReportEvidenceSheet', () => {
 
   it('loads mock summary evidence including keywords', async () => {
     const home = await mockReportPort.getHome();
-    const token = home.reports[0]?.cards[0]?.evidenceScopeToken;
+    const token = home.reports[0]?.analysisGroups?.[0]?.items[0]?.summary.evidence_scope_token;
     if (!token) throw new Error('expected a summary evidence token');
     const result = await loadReportEvidences(mockReportPort, {
       reportId,

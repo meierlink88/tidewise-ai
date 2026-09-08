@@ -227,10 +227,7 @@ type Repository interface {
 	GetAnalysis(context.Context, AnalysisQuery) (NormalizedDetailProjection, error)
 	GetAnalysisChain(context.Context, AnalysisQuery) (NormalizedChain, error)
 	ListReports(context.Context, ListQuery) (Page, error)
-	GetHome(context.Context, string) (HomeSnapshot, error)
-	ListIndustryChains(context.Context, ChainListQuery) (IndustryChainPage, error)
-	GetLayer(context.Context, string, string) (LayerDetail, error)
-	GetIndustryChain(context.Context, string, string) (IndustryChainDetail, error)
+
 	ListEvidences(context.Context, string, string) (EvidenceCollection, error)
 }
 
@@ -302,132 +299,7 @@ func (u *UseCase) readHome(ctx context.Context, summary Summary) (Home, error) {
 		}
 		return home, nil
 	}
-	if summary.SchemaVersion != "" {
-		return Home{}, ErrDataUnavailable
-	}
-
-	snapshot, err := u.repository.GetHome(ctx, summary.ID)
-	if err != nil || !sameSummary(snapshot.Report, summary) {
-		return Home{}, ErrDataUnavailable
-	}
-	cards := make([]Card, 0, 2+chainPageSize)
-	for _, layer := range []*LayerSnapshot{snapshot.Geopolitics, snapshot.Macroeconomics} {
-		if layer == nil {
-			continue
-		}
-		detail, detailErr := u.repository.GetLayer(ctx, summary.ID, layer.Key)
-		if detailErr != nil || !sameSummary(detail.Report, summary) || !sameLayerSummary(detail.Layer, *layer) {
-			return Home{}, ErrDataUnavailable
-		}
-		cards = append(cards, layerCard(detail.Layer))
-	}
-	chains, err := u.repository.ListIndustryChains(ctx, ChainListQuery{ReportID: summary.ID, Limit: chainPageSize})
-	if err != nil {
-		return Home{}, normalizeRepositoryError(err)
-	}
-	for _, chain := range chains.Items {
-		cards = append(cards, chainCard(chain))
-	}
-	return Home{Report: summary, Cards: cards, NextCursor: chains.NextCursor}, nil
-}
-
-func (u *UseCase) IndustryChains(ctx context.Context, reportID string, limit int, cursor string) (CardPage, error) {
-	if !validReportID(reportID) || limit < 0 || limit > 100 || len(cursor) > 2048 {
-		return CardPage{}, ErrInvalidRequest
-	}
-	if u == nil || u.repository == nil {
-		return CardPage{}, ErrDataUnavailable
-	}
-	if limit == 0 {
-		limit = chainPageSize
-	}
-	page, err := u.repository.ListIndustryChains(ctx, ChainListQuery{ReportID: reportID, Limit: limit, Cursor: cursor})
-	if err != nil {
-		return CardPage{}, normalizeRepositoryError(err)
-	}
-	items := make([]Card, len(page.Items))
-	for index, item := range page.Items {
-		items[index] = chainCard(item)
-	}
-	return CardPage{Items: items, NextCursor: page.NextCursor}, nil
-}
-
-func (u *UseCase) Layer(ctx context.Context, reportID, layerKey string) (LayerDetail, error) {
-	if !validReportID(reportID) || !validLayer(layerKey) {
-		return LayerDetail{}, ErrInvalidRequest
-	}
-	if u == nil || u.repository == nil {
-		return LayerDetail{}, ErrDataUnavailable
-	}
-	value, err := u.repository.GetLayer(ctx, reportID, layerKey)
-	if err != nil {
-		return LayerDetail{}, normalizeRepositoryError(err)
-	}
-	if value.Report.ID != reportID || value.Layer.Key != layerKey {
-		return LayerDetail{}, ErrDataUnavailable
-	}
-	chains, err := u.listAllIndustryChains(ctx, reportID)
-	if err != nil || len(chains) != value.Report.IndustryChainCount {
-		return LayerDetail{}, ErrDataUnavailable
-	}
-	value.RelatedIndustryChains = make([]RelatedIndustryChain, len(chains))
-	for index, chain := range chains {
-		value.RelatedIndustryChains[index] = RelatedIndustryChain{LocalKey: chain.LocalKey, Name: chain.Name, Result: chain.Result}
-	}
-	return value, nil
-}
-
-func (u *UseCase) listAllIndustryChains(ctx context.Context, reportID string) ([]IndustryChainSummary, error) {
-	query := ChainListQuery{ReportID: reportID, Limit: listPageSize}
-	items := []IndustryChainSummary{}
-	seenCursors := map[string]struct{}{}
-	seenKeys := map[string]struct{}{}
-	for pageIndex := 0; pageIndex < maxListPages; pageIndex++ {
-		page, err := u.repository.ListIndustryChains(ctx, query)
-		if err != nil {
-			return nil, normalizeRepositoryError(err)
-		}
-		for _, item := range page.Items {
-			if !validLocalKey(item.LocalKey) {
-				return nil, ErrDataUnavailable
-			}
-			if _, duplicate := seenKeys[item.LocalKey]; duplicate {
-				return nil, ErrDataUnavailable
-			}
-			seenKeys[item.LocalKey] = struct{}{}
-			items = append(items, item)
-		}
-		if page.NextCursor == nil {
-			return items, nil
-		}
-		next := strings.TrimSpace(*page.NextCursor)
-		if next == "" || len(page.Items) == 0 || len(next) > 2048 {
-			return nil, ErrDataUnavailable
-		}
-		if _, duplicate := seenCursors[next]; duplicate {
-			return nil, ErrDataUnavailable
-		}
-		seenCursors[next] = struct{}{}
-		query.Cursor = next
-	}
-	return nil, ErrDataUnavailable
-}
-
-func (u *UseCase) IndustryChain(ctx context.Context, reportID, chainKey string) (IndustryChainDetail, error) {
-	if !validReportID(reportID) || !validLocalKey(chainKey) {
-		return IndustryChainDetail{}, ErrInvalidRequest
-	}
-	if u == nil || u.repository == nil {
-		return IndustryChainDetail{}, ErrDataUnavailable
-	}
-	value, err := u.repository.GetIndustryChain(ctx, reportID, chainKey)
-	if err != nil {
-		return IndustryChainDetail{}, normalizeRepositoryError(err)
-	}
-	if value.Report.ID != reportID || value.IndustryChain.LocalKey != chainKey {
-		return IndustryChainDetail{}, ErrDataUnavailable
-	}
-	return value, nil
+	return Home{}, ErrDataUnavailable
 }
 
 func (u *UseCase) Evidences(ctx context.Context, reportID, scopeToken string) (EvidenceCollection, error) {
@@ -445,69 +317,6 @@ func (u *UseCase) Evidences(ctx context.Context, reportID, scopeToken string) (E
 		return EvidenceCollection{}, ErrDataUnavailable
 	}
 	return value, nil
-}
-
-func (u *UseCase) listAll(ctx context.Context, first ListQuery) ([]Summary, error) {
-	query := first
-	items := []Summary{}
-	seen := map[string]struct{}{}
-	for pageIndex := 0; pageIndex < maxListPages; pageIndex++ {
-		page, err := u.repository.ListReports(ctx, query)
-		if err != nil {
-			return nil, err
-		}
-		items = append(items, page.Items...)
-		if page.NextCursor == nil {
-			return items, nil
-		}
-		next := strings.TrimSpace(*page.NextCursor)
-		if next == "" || len(page.Items) == 0 || len(next) > 2048 {
-			return nil, ErrDataUnavailable
-		}
-		if _, duplicate := seen[next]; duplicate {
-			return nil, ErrDataUnavailable
-		}
-		seen[next] = struct{}{}
-		query.Cursor = next
-	}
-	return nil, ErrDataUnavailable
-}
-
-func layerCard(layer Layer) Card {
-	impacts := make([]CardImpactItem, len(layer.Anchors))
-	for index, anchor := range layer.Anchors {
-		impacts[index] = CardImpactItem{
-			Ref: Reference{Type: "anchor", LocalKey: anchor.LocalKey}, Name: anchor.Name, Result: anchor.Result,
-			ConclusionBasis: anchor.ConclusionBasis, ValidationStatus: anchor.ValidationStatus,
-			Confidence: anchor.Confidence, TimeWindow: anchor.TimeWindow, EvidenceScopeToken: anchor.EvidenceScopeToken,
-		}
-	}
-	return Card{
-		LocalKey: layer.Key, Kind: layer.Key, DetailRef: Reference{Type: "layer", LocalKey: layer.Key},
-		Title: layer.Title, Conclusion: layer.Conclusion, Result: layer.Result, Confidence: layer.Confidence,
-		TimeWindow: layer.TimeWindow, ImpactItems: impacts, EvidenceScopeToken: layer.EvidenceScopeToken,
-	}
-}
-
-func chainCard(chain IndustryChainSummary) Card {
-	impacts := make([]CardImpactItem, len(chain.ImpactItems))
-	for index, item := range chain.ImpactItems {
-		impacts[index] = CardImpactItem{
-			Ref: Reference{Type: "industry_chain_node", LocalKey: item.LocalKey}, Name: item.Name, Result: item.Result,
-			ConclusionBasis: item.ConclusionBasis, ValidationStatus: item.ValidationStatus,
-			Confidence: item.Confidence, TimeWindow: item.TimeWindow, EvidenceScopeToken: item.EvidenceScopeToken,
-		}
-	}
-	return Card{
-		LocalKey: chain.LocalKey, Kind: "industry_chain", DetailRef: Reference{Type: "industry_chain", LocalKey: chain.LocalKey},
-		Title: chain.Name, Conclusion: chain.Conclusion, Result: chain.Result,
-		Confidence: chain.Confidence, TimeWindow: chain.TimeWindow, ImpactItems: impacts, EvidenceScopeToken: chain.EvidenceScopeToken,
-	}
-}
-
-func sameLayerSummary(layer Layer, snapshot LayerSnapshot) bool {
-	return layer.Key == snapshot.Key && layer.Title == snapshot.Title && layer.Conclusion == snapshot.Summary.Conclusion &&
-		layer.Result == snapshot.Summary.Result && layer.TimeWindow == snapshot.Summary.TimeWindow
 }
 
 func shanghaiDay(now time.Time) (time.Time, time.Time, string) {
@@ -543,10 +352,7 @@ func validateSummaryOrder(items []Summary) error {
 	}
 	return nil
 }
-func sameSummary(left, right Summary) bool {
-	return left.ID == right.ID && left.PublisherReportID == right.PublisherReportID && left.GeneratedAt.Equal(right.GeneratedAt) &&
-		left.PublishedAt.Equal(right.PublishedAt) && left.IndustryChainCount == right.IndustryChainCount
-}
+
 func normalizeRepositoryError(err error) error {
 	if err == nil {
 		return nil
