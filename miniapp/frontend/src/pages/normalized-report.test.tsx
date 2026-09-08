@@ -52,6 +52,58 @@ const click = (el: Element | null) => {
   act(() => el?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
 };
 describe('normalized report interaction', () => {
+  it('combines industry and legacy cards with independent cursors and real detail identities', async () => {
+    const home = await normalizedMockReportPort.getHome();
+    const group = structuredClone(home.reports[0]);
+    const legacy = group.analysisGroups![2];
+    const unit = legacy.items[0];
+    legacy.next_cursor = 'legacy-next';
+    const industry = Array.from({ length: 23 }, (_, i) => ({
+      ...unit,
+      local_key: i === 0 ? unit.local_key : `industry-${i}`
+    }));
+    group.analysisGroups!.push({
+      kind: 'industry_chain_analyses',
+      items: industry.slice(0, 20),
+      next_cursor: 'industry-next'
+    });
+    const detail = vi.fn();
+    const read = vi
+      .spyOn(normalizedMockReportPort, 'getAnalyses')
+      .mockRejectedValueOnce(new Error('temporary'))
+      .mockResolvedValueOnce({ items: industry.slice(20), next_cursor: null })
+      .mockResolvedValueOnce({
+        items: [{ ...unit, local_key: 'legacy-second' }],
+        next_cursor: null
+      });
+    act(() =>
+      root.render(<NormalizedHome group={group} query='' onDetail={detail} onEvidence={vi.fn()} />)
+    );
+    expect(host.querySelectorAll('.normalized-home-tab')).toHaveLength(3);
+    click(host.querySelectorAll('.normalized-home-tab')[2]);
+    expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(21);
+    click(host.querySelector('.normalized-card-path'));
+    expect(detail).toHaveBeenLastCalledWith({
+      reportId,
+      targetType: 'industry_chain_analyses',
+      targetKey: unit.local_key
+    });
+    await act(async () => host.querySelector<HTMLButtonElement>('.normalized-home-more')!.click());
+    expect(host.textContent).toContain('加载失败，点击重试');
+    await act(async () => host.querySelector<HTMLButtonElement>('.normalized-home-more')!.click());
+    expect(read).toHaveBeenNthCalledWith(2, reportId, 'industry_chain_analyses', 'industry-next');
+    expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(24);
+    await act(async () => host.querySelector<HTMLButtonElement>('.normalized-home-more')!.click());
+    expect(read).toHaveBeenLastCalledWith(reportId, 'concept_analyses', 'legacy-next');
+    expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(25);
+    expect(host.querySelector('.normalized-home-more')).toBeNull();
+    click(host.querySelectorAll('.normalized-card-path')[23]);
+    expect(detail).toHaveBeenLastCalledWith({
+      reportId,
+      targetType: 'concept_analyses',
+      targetKey: unit.local_key
+    });
+  });
   it('uses v5 judgment origin for direct and inferred node labels', () => {
     const c = parseAnalysisChain(v5.chains['geopolitical_stories/g1/g1-2-chain'], 'g1-2-chain');
     act(() => root.render(<ChainContent c={c} reportId={reportId} onEvidence={vi.fn()} />));

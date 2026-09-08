@@ -3,13 +3,15 @@ import { ReportError } from './contract';
 export const analysisKinds = [
   'geopolitical_stories',
   'macroeconomic_stories',
-  'concept_analyses'
+  'concept_analyses',
+  'industry_chain_analyses'
 ] as const;
 export type AnalysisKind = (typeof analysisKinds)[number];
 export const analysisLabels: Record<AnalysisKind, string> = {
   geopolitical_stories: '地缘政治',
   macroeconomic_stories: '宏观经济',
-  concept_analyses: '产业链'
+  concept_analyses: '产业链',
+  industry_chain_analyses: '产业链'
 };
 export interface EvidenceScope {
   evidence_scope_token: string | null;
@@ -308,7 +310,12 @@ export function parseAnalysisGroups(value: unknown): AnalysisGroup[] {
     kind: choice(obj(v).kind, analysisKinds)
   }));
   unique(groups.map((g) => g.kind));
-  if (groups.length !== 3) fail();
+  if (
+    ['geopolitical_stories', 'macroeconomic_stories', 'concept_analyses'].some(
+      (kind) => !groups.some((group) => group.kind === kind)
+    )
+  )
+    fail();
   return groups;
 }
 export function parseAnalysisDetail(value: unknown, expectedKey: string): AnalysisDetail {

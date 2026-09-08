@@ -290,7 +290,11 @@ func (u *UseCase) latestSummary(ctx context.Context, query ListQuery) (*Summary,
 func (u *UseCase) readHome(ctx context.Context, summary Summary) (Home, error) {
 	if summary.SchemaVersion == "report-publication/v4" || summary.SchemaVersion == "report-publication/v5" {
 		home := Home{Report: summary, Cards: []Card{}, AnalysisGroups: []AnalysisGroup{}}
-		for _, kind := range []string{"geopolitical_stories", "macroeconomic_stories", "concept_analyses"} {
+		kinds := []string{"geopolitical_stories", "macroeconomic_stories", "concept_analyses"}
+		if summary.SchemaVersion == "report-publication/v5" {
+			kinds = append(kinds, "industry_chain_analyses")
+		}
+		for _, kind := range kinds {
 			page, err := u.Analyses(ctx, AnalysisQuery{ReportID: summary.ID, Kind: kind, Limit: 20})
 			if err != nil {
 				return Home{}, err
@@ -536,7 +540,7 @@ type AnalysisQuery struct {
 }
 
 func validAnalysisQuery(q AnalysisQuery) bool {
-	return validReportID(q.ReportID) && (q.Kind == "geopolitical_stories" || q.Kind == "macroeconomic_stories" || q.Kind == "concept_analyses") && q.Limit >= 0 && q.Limit <= 100 && len(q.Cursor) <= 2048
+	return validReportID(q.ReportID) && (q.Kind == "geopolitical_stories" || q.Kind == "macroeconomic_stories" || q.Kind == "concept_analyses" || q.Kind == "industry_chain_analyses") && q.Limit >= 0 && q.Limit <= 100 && len(q.Cursor) <= 2048
 }
 func (u *UseCase) Analyses(ctx context.Context, q AnalysisQuery) (AnalysisPage, error) {
 	if u == nil || u.repository == nil || !validAnalysisQuery(q) {
