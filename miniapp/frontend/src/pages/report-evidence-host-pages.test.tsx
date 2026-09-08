@@ -15,9 +15,11 @@ const harness = vi.hoisted(() => ({
   pageScrollTo: vi.fn(),
   navigateTo: vi.fn(),
   scene: 1001,
-  friend: vi.fn<(callback: () => { title: string; path: string }) => void>(),
-  timeline: vi.fn<(callback: () => { title: string; query: string }) => void>()
+  friend: vi.fn<(callback: () => { title: string; path: string; imageUrl: string }) => void>(),
+  timeline: vi.fn<(callback: () => { title: string; query: string; imageUrl: string }) => void>()
 }));
+
+vi.mock('../assets/share-cover.jpg', () => ({ default: 'assets/share-cover.jpg' }));
 
 vi.mock('@tarojs/taro', () => ({
   default: {
@@ -230,11 +232,13 @@ describe('right-menu report sharing', () => {
     mount(createElement(IndexPage));
     expect(harness.friend.mock.lastCall?.[0]()).toEqual({
       title: '观潮家 · 今日观潮',
-      path: '/pages/index/index'
+      path: '/pages/index/index',
+      imageUrl: '/assets/share-cover.jpg'
     });
     expect(harness.timeline.mock.lastCall?.[0]()).toEqual({
       title: '观潮家 · 今日观潮',
-      query: ''
+      query: '',
+      imageUrl: '/assets/share-cover.jpg'
     });
     click(requiredElement('.normalized-card-path'));
     expect(harness.navigateTo).toHaveBeenCalledOnce();
@@ -305,6 +309,9 @@ describe('right-menu report sharing', () => {
     const timeline = harness.timeline.mock.lastCall?.[0]();
     expect(friend?.title).toBe(`${detail.summary.title} · 观潮家`);
     expect(timeline?.title).toBe(friend?.title);
+    expect(friend?.imageUrl).toBe('/assets/share-cover.jpg');
+    expect(timeline?.imageUrl).toBe(friend?.imageUrl);
+    expect(before?.imageUrl).toBe(friend?.imageUrl);
     expect(friend?.path).toBe(before?.path);
     expect(friend?.path).toBe(`/pages/report/detail/index?${timeline?.query}`);
     expect(

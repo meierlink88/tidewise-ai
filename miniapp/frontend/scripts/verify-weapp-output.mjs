@@ -11,6 +11,7 @@ const outputRoot = resolve(root, `dist/${platform}`);
 const appConfig = JSON.parse(await readFile(resolve(outputRoot, 'app.json'), 'utf8'));
 const stylesheet = resolve(outputRoot, platform === 'weapp' ? 'app.wxss' : 'app.ttss');
 const avatar = resolve(outputRoot, 'assets/nav-avatar.png');
+const shareCover = resolve(outputRoot, 'assets/share-cover.jpg');
 
 const expectedPages = ['pages/index/index', 'pages/report/detail/index'];
 if (JSON.stringify(appConfig.pages) !== JSON.stringify(expectedPages)) {
@@ -65,6 +66,10 @@ if (stylesheetSize >= 64 * 1024) {
 }
 
 const avatarSize = (await stat(avatar)).size;
+const shareCoverSize = (await stat(shareCover)).size;
+if (shareCoverSize === 0 || shareCoverSize >= 1024 * 1024) {
+  throw new Error(`分享封面必须非空且小于 1 MiB: ${shareCoverSize} bytes`);
+}
 if (avatarSize >= 128 * 1024) {
   throw new Error(`导航头像体积过大: ${avatarSize} bytes`);
 }
