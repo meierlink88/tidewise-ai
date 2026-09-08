@@ -56,7 +56,7 @@ _Avoid_: 今日主题、今日推理、隐藏回退来源
 **Report 分析投影**:
 Report v4/v5 按地缘政治故事线、宏观经济故事线、产业链所属 Concept 分为三个分页分组；
 一条故事线或一个 Concept 对应一张结论卡片，空分组不生成占位卡片。BFF 只读取 Data 的
-摘要、因果链目录和单链详情投影，不解码完整发布快照。旧扁平报告保留原 Section/产业链投影。
+摘要、因果链目录和单链详情投影，不解码完整发布快照。旧无版本报告与旧层级/产业链独立读取接口已退役。
 所有卡片、详情和证据始终绑定所属 `report_id`。
 _Avoid_: 固定四层、空层占位、Data 持久化首页卡片、跨 Report 聚合
 
@@ -107,33 +107,30 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
 - 图谱只用报告显式拓扑边；结构节点缺少当期评估时不继承整链结论；仅观察不展示虚构置信度。
 - 所有 `evidence_count` 原样使用 Data 发布时计算的 scope 内去重 Evidence 数量，
   与 opaque token 打开的清单一致；不以节点或因果链数量替代证据数量。
-- 最新报告读取失败或格式不支持时显式报错，不跳过该报告改选旧报告。旧无版本快照仍走原读取合同。
+- 最新报告读取失败或格式不支持时显式报错，不跳过该报告改选旧报告。旧无版本快照已退役，明确报错。
 
 ## Report API
 
-- `GET /api/miniapp/v1/reports/home` 返回选中 Report 的元数据和相应格式的首页投影；当日为空时返回历史最新一份，
-  全部为空时返回明确空集合。
-- 对旧无版本 Report，`GET /api/miniapp/v1/reports/home` 返回可选上层卡片和首个产业链 page，同时返回
-  `next_cursor`；BFF 不完整消费产业链集合，也不解码完整 Report JSON。
-- `GET /api/miniapp/v1/reports/{report_id}/industry-chains?limit=&cursor=` 原样推进 Data 主导的
-  report-bound cursor，并返回下一批产业链卡片。
-- `GET /api/miniapp/v1/reports/{report_id}/layers/{layer_key}` 读取
-  `geopolitics | macroeconomics` 上层详情，并通过 Data cursor 完整消费该 Report 的产业链摘要，
-  供详情页末尾展示全部产业链入口；不读取单链 detail。
-- `GET /api/miniapp/v1/reports/{report_id}/industry-chains/{chain_key}` 一对一读取单条产业链详情。
-- `GET /api/miniapp/v1/reports/{report_id}/evidences?scope_token=` 一对一读取相关 Evidence。
-- BFF 成功响应只返回 Miniapp DTO，不透传 Data `result/request_id` envelope、URL、
-  SQL 或内部错误。
-- Report、层、产业链或 Evidence scope 不存在时返回稳定 Miniapp 错误分类；网络/下游错误
-  保持显式可重试，不伪造空集合。
-- BFF 不扇出读取 Event、IndustryChain、ChainNode 或 Company，不补写或推断报告内容。
+Miniapp Report 仅保留以下五个 GET 接口（前缀 `/api/miniapp/v1`）：
+
+- `/reports/home`：上海当日最新优先，无当日报告则历史最新；只接受 v4/v5，旧无版本报告明确返回 503，不跳过最新报告或静默回退 mock。
+- `/reports/{report_id}/analyses/{kind}`：三类卡片独立分页。
+- `/reports/{report_id}/analyses/{kind}/{analysis_key}`：卡片详情、宏观影响与产业链目录。
+- `/reports/{report_id}/analyses/{kind}/{analysis_key}/industry-chains/{chain_key}`：所属单元下的产业链图谱及节点判断。
+- `/reports/{report_id}/evidences?scope_token=`：按 opaque token 读取事件展示清单。
+
+旧 `/reports/{report_id}/industry-chains`、`/reports/{report_id}/layers/{layer_key}`、
+`/reports/{report_id}/industry-chains/{chain_key}` 已删除，返回 404；不保留旧格式首页展示分支。
+本次只清理 Miniapp 消费与公开接口，Data Service API 和持久化报告不变。旧客户端/旧链接不再兼容，回滚应用可恢复旧行为。
+
+BFF 不读取完整报告或直接查询领域数据库；失败保持显式可重试，响应不透出内部错误。
 
 ## Frontend Routes And State
 
 - 首页保持 `pages/index/index` 和既有应用/底部 Tab 框架。
 - 推理详情注册为 `pages/report/detail/index`，query 为
-  `reportId + targetType=layer|industry_chain + targetKey`；`layer` 的 `targetKey` 只允许
-  `geopolitics | macroeconomics`。
+  `reportId + targetType=geopolitical_stories|macroeconomic_stories|concept_analyses + targetKey`。
+  旧 `layer|industry_chain` 路由在请求前进入参数错误状态。
 - 详情页是非 Tab 页面，使用官方 `Taro.navigateTo`/`navigateBack`，不引入自定义 Router；
   query 输入不可信，缺失、重复或非法参数必须在请求前进入明确参数错误状态。
 - 首页与详情页的 Evidence 入口打开当前页面管理的底部抽屉，不切换路由；抽屉使用
@@ -146,35 +143,16 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
 
 ## Homepage Presentation
 
-- 首页标题固定为 `今日观潮`，只展示选中 Report 的实际发布时间，不提供当日多 Report Tab。
-- 选中 Report 的地缘政治和宏观经济仅在对应 Section 存在时各展示一张摘要卡片。
-- 上层摘要卡片直接使用 AgentOS 发布的 Section 根结论、结果、置信度和时间窗口；BFF 不从锚点
-  聚合或从传导步骤反推。
-- 选中 Report 的产业链卡片按 JSON 数组顺序全量可达；Frontend 在固定内部 ScrollView 中每次
-  追加一个 bounded page，按 card local key 去重，并隔离刷新后晚到的旧响应。
-- 产业链标题的总数使用 Report 发布快照中的 `industry_chain_count`，首页展示数使用本组
-  已持久化的产业链卡片数；两者不要相互反推或硬编码。
-- 公司分析拥有定稿发布基线前不显示空边界，也不从 Company 正式事实生成卡片。
-- 状态同时显示中文文字与颜色；已知 code 使用 `升温 / 降温 / 分化 / 待验证`
-  的规范样式，未知 code 保留发布方 label 并使用中性样式。锚点或节点每行名称靠左，结果、置信度
-  和时间窗口统一靠右并自然换行。
-- 卡片 Evidence 入口显示为 `依据`，带 `查看证据` 可访问名称，不显示 ID 或数量。
+- 标题固定为 `今日观潮`，每张卡片展示实际发布时间；三类分组、搜索、分页与事件清单保留。
+- v4/v5 使用已定稿 normalized 首页：故事线/概念一张卡片，摘要、传导逻辑、受影响锚点与结果。
+- `evidence_count` 显示为 `X 条事件`，不从节点或产业链数反推。
+- 不支持旧无版本报告，不渲染旧层级卡片，不调用已退役 API。
 
 ## Report Detail Presentation
 
-- 地缘政治和宏观详情从各自一句话结论、影响锚点与“为什么”开始，再展示独立反转条件和
-  向下传导；不展示已废弃的“推理步骤”或合并式“不确定性与反转条件”区块，不引入报告之外的研究判断。
-- 传导目标保留 AgentOS 发布的宏观锚点、产业链和产业链节点结构化引用；v1 只允许产业链
-  目标进入独立详情页，锚点与链节点目标仅展示，不生成无法加载的跳转。
-- 上层详情末尾列出同一 Report 中全部产业链名称与结果，数量必须与 Report 摘要一致；
-  上层页不嵌入链节点或产业链推理图，选择产业链进入独立详情页。
-- 产业链详情先展示名称、一句话结论、结果、时间窗口和置信度；AgentOS 发布的可空
-  `path_summary/accepted_hypothesis_summary` 仅在产品确认需要的位置展示，不由 BFF 生成。
-- 图在一个横向 `ScrollView` 画布中布局全部 topology nodes，只绘制 Report 显式有向边；
-  节点 `local_key` 同时是链图端点；未评估的结构节点仍保留但不可打开详情。
-  长边使用独立正交通道和端口，不把没有边的相邻节点表现成关系。
-- 图节点和选中节点卡都将 `直接证据 / 推理假设` 结论依据与 `待验证` 验证状态分开展示。
-  选中节点额外展示本次影响、传导逻辑，以及链级反证与 Gap、停止条件。
+- 只接受三类分析单元详情目标；使用卡片详情中的 macro_impacts 和 industry_chains 目录。
+- 产业链 Tab 按所属 report/kind/analysis/chain 读取，保持显式图谱与完整节点推理，不动态补推。
+- 保留已定稿 UI：顶部结论、因果链 Tab、本链结论、关键机制、支持/反证、图谱、节点详情及后续验证。
 
 ## Evidence Presentation
 

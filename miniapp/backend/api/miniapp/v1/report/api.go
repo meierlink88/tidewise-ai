@@ -4,9 +4,6 @@ import "context"
 
 const (
 	OperationGetHome       = "miniapp.v1.getReportHome"
-	OperationListChains    = "miniapp.v1.listReportIndustryChains"
-	OperationGetLayer      = "miniapp.v1.getReportLayer"
-	OperationGetChain      = "miniapp.v1.getReportIndustryChain"
 	OperationListEvidences = "miniapp.v1.listReportEvidences"
 )
 
@@ -15,19 +12,10 @@ type Service interface {
 	GetAnalysis(context.Context, *AnalysisQuery) (*NormalizedDetailProjection, error)
 	GetAnalysisChain(context.Context, *AnalysisQuery) (*NormalizedChain, error)
 	GetHome(context.Context, *HomeRequest) (*HomeResponse, error)
-	ListIndustryChains(context.Context, *IndustryChainListRequest) (*CardCollection, error)
-	GetLayer(context.Context, *LayerRequest) (*LayerDetail, error)
-	GetIndustryChain(context.Context, *IndustryChainRequest) (*IndustryChainDetail, error)
 	ListEvidences(context.Context, *EvidenceRequest) (*EvidenceCollection, error)
 }
 
 type HomeRequest struct{}
-type LayerRequest struct{ ReportID, LayerKey string }
-type IndustryChainRequest struct{ ReportID, ChainKey string }
-type IndustryChainListRequest struct {
-	ReportID, Limit, Cursor string
-	HasUnknownQuery         bool
-}
 type EvidenceRequest struct {
 	ReportID, ScopeToken string
 	HasUnknownQuery      bool

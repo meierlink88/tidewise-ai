@@ -29,10 +29,7 @@ func TestOpenAPIContractExposesOperationsAndReportRoutes(t *testing.T) {
 		"/healthz":                     "getMiniappHealth",
 		"/readyz":                      "getMiniappReadiness",
 		"/api/miniapp/v1/reports/home": "getReportHome",
-		"/api/miniapp/v1/reports/{report_id}/industry-chains":             "listReportIndustryChains",
-		"/api/miniapp/v1/reports/{report_id}/layers/{layer_key}":          "getReportLayer",
-		"/api/miniapp/v1/reports/{report_id}/industry-chains/{chain_key}": "getReportIndustryChain",
-		"/api/miniapp/v1/reports/{report_id}/evidences":                   "listReportEvidences",
+		"/api/miniapp/v1/reports/{report_id}/evidences": "listReportEvidences",
 	}
 	if len(paths) != len(want) {
 		t.Fatalf("paths = %v, want %v", sortedKeys(paths), sortedKeys(want))
@@ -57,10 +54,7 @@ func TestOpenAPIContractExposesOperationsAndReportRoutes(t *testing.T) {
 			"/healthz":                     "#/components/schemas/HealthResponse",
 			"/readyz":                      "#/components/schemas/ReadinessResponse",
 			"/api/miniapp/v1/reports/home": "#/components/schemas/HomeEnvelope",
-			"/api/miniapp/v1/reports/{report_id}/industry-chains":             "#/components/schemas/CardCollectionEnvelope",
-			"/api/miniapp/v1/reports/{report_id}/layers/{layer_key}":          "#/components/schemas/LayerEnvelope",
-			"/api/miniapp/v1/reports/{report_id}/industry-chains/{chain_key}": "#/components/schemas/IndustryChainEnvelope",
-			"/api/miniapp/v1/reports/{report_id}/evidences":                   "#/components/schemas/EvidenceEnvelope",
+			"/api/miniapp/v1/reports/{report_id}/evidences": "#/components/schemas/EvidenceEnvelope",
 		}[path]
 		if responseSchema["$ref"] != wantSchema {
 			t.Fatalf("GET %s schema = %v, want %s", path, responseSchema["$ref"], wantSchema)
@@ -82,8 +76,6 @@ func TestOpenAPIContractExposesOperationsAndReportRoutes(t *testing.T) {
 		t.Fatalf("Summary properties = %v, want %v", got, want)
 	}
 	assertRequired(t, schema(t, document, "Card"), "local_key", "kind", "detail_ref", "impact_items", "evidence_scope_token")
-	assertRequired(t, schema(t, document, "Layer"), "reasoning_steps", "transmissions", "uncertainty", "evidence_scope_token")
-	assertRequired(t, schema(t, document, "IndustryChain"), "nodes", "edges", "counterevidence_and_gap", "stop_condition", "evidence_scope_token")
 	assertRequired(t, schema(t, document, "EvidenceCollection"), "report_id", "scope_token", "items")
 	evidenceProperties := object(t, schema(t, document, "EvidenceItem")["properties"], "EvidenceItem properties")
 	if got, want := sortedKeys(evidenceProperties), []string{"keywords", "published_at", "summary"}; strings.Join(got, ",") != strings.Join(want, ",") {

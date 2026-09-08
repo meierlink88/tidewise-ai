@@ -21,33 +21,7 @@ func RegisterHTTPServer(server *kratoshttp.Server, application Service) {
 	router.GET("/reports/{report_id}/analyses/{kind}/{analysis_key}", analysisHandler(application, "unit"))
 	router.GET("/reports/{report_id}/analyses/{kind}/{analysis_key}/industry-chains/{chain_key}", analysisHandler(application, "chain"))
 	router.GET("/reports/home", homeHandler(application))
-	router.GET("/reports/{report_id}/layers/{layer_key}", layerHandler(application))
-	router.GET("/reports/{report_id}/industry-chains", industryChainListHandler(application))
-	router.GET("/reports/{report_id}/industry-chains/{chain_key}", industryChainHandler(application))
 	router.GET("/reports/{report_id}/evidences", evidenceHandler(application))
-}
-
-func industryChainListHandler(application Service) kratoshttp.HandlerFunc {
-	return func(ctx kratoshttp.Context) error {
-		query := ctx.Request().URL.Query()
-		request := &IndustryChainListRequest{
-			ReportID:        ctx.Vars().Get("report_id"),
-			HasUnknownQuery: hasUnknownQuery(query, "limit", "cursor"),
-		}
-		if values := query["limit"]; len(values) == 1 {
-			request.Limit = values[0]
-		} else if len(values) > 1 {
-			request.HasUnknownQuery = true
-		}
-		if values := query["cursor"]; len(values) == 1 {
-			request.Cursor = values[0]
-		} else if len(values) > 1 {
-			request.HasUnknownQuery = true
-		}
-		return callWithBudget(ctx, OperationListChains, request, func(callContext context.Context) (any, error) {
-			return application.ListIndustryChains(callContext, request)
-		})
-	}
 }
 
 func homeHandler(application Service) kratoshttp.HandlerFunc {
@@ -57,30 +31,6 @@ func homeHandler(application Service) kratoshttp.HandlerFunc {
 		}
 		return callWithBudget(ctx, OperationGetHome, &HomeRequest{}, func(callContext context.Context) (any, error) {
 			return application.GetHome(callContext, &HomeRequest{})
-		})
-	}
-}
-
-func layerHandler(application Service) kratoshttp.HandlerFunc {
-	return func(ctx kratoshttp.Context) error {
-		if len(ctx.Request().URL.Query()) != 0 {
-			return v1.ErrInvalidRequest
-		}
-		request := &LayerRequest{ReportID: ctx.Vars().Get("report_id"), LayerKey: ctx.Vars().Get("layer_key")}
-		return callWithBudget(ctx, OperationGetLayer, request, func(callContext context.Context) (any, error) {
-			return application.GetLayer(callContext, request)
-		})
-	}
-}
-
-func industryChainHandler(application Service) kratoshttp.HandlerFunc {
-	return func(ctx kratoshttp.Context) error {
-		if len(ctx.Request().URL.Query()) != 0 {
-			return v1.ErrInvalidRequest
-		}
-		request := &IndustryChainRequest{ReportID: ctx.Vars().Get("report_id"), ChainKey: ctx.Vars().Get("chain_key")}
-		return callWithBudget(ctx, OperationGetChain, request, func(callContext context.Context) (any, error) {
-			return application.GetIndustryChain(callContext, request)
 		})
 	}
 }

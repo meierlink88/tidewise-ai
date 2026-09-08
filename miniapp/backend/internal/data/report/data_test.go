@@ -18,47 +18,7 @@ import (
 const testReportID = "RPT11111111-1111-4111-8111-111111111111"
 const testScopeToken = "RPE11111111-1111-4111-8111-111111111111"
 
-func TestRepositoryPassesPublishedCodesLabelsAndCursorWithoutTranslation(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		switch request.URL.Path {
-		case reportsPath:
-			if request.URL.Query().Get("cursor") != "report-cursor" {
-				t.Fatalf("query=%v", request.URL.Query())
-			}
-			writeDataResult(t, writer, wirePage{Items: []wireSummary{summaryFixture()}})
-		case reportsPath + "/" + testReportID + "/home":
-			writeDataResult(t, writer, homeFixture())
-		case reportsPath + "/" + testReportID + "/layers/geopolitics":
-			writeDataResult(t, writer, layerFixture())
-		case reportsPath + "/" + testReportID + "/industry-chains":
-			if request.URL.Query().Get("cursor") != "chain-cursor" {
-				t.Fatalf("query=%v", request.URL.Query())
-			}
-			writeDataResult(t, writer, wireChainPage{Items: []wireChainSummary{chainSummaryFixture()}})
-		default:
-			t.Fatalf("unexpected path %s", request.URL.Path)
-		}
-	}))
-	defer server.Close()
-	repository := newTestRepository(t, server)
-	if _, err := repository.ListReports(context.Background(), biz.ListQuery{Limit: 100, Cursor: "report-cursor"}); err != nil {
-		t.Fatal(err)
-	}
-	home, err := repository.GetHome(context.Background(), testReportID)
-	if err != nil || home.Geopolitics == nil || home.Macroeconomics == nil || home.Geopolitics.Summary.Result.Code != "future_result" || len(home.Geopolitics.Summary.Transmissions) != 2 || home.Geopolitics.Summary.Transmissions[0].LocalKey != "geo-macro" || home.Geopolitics.Summary.Transmissions[1].LocalKey != "geo-chain" || len(home.Macroeconomics.Summary.Transmissions) != 1 || home.Macroeconomics.Summary.Transmissions[0].LocalKey != "macro-chain" {
-		t.Fatalf("home=%#v err=%v", home, err)
-	}
-	layer, err := repository.GetLayer(context.Background(), testReportID, "geopolitics")
-	if err != nil || layer.Layer.Anchors[0].ConclusionBasis.Code != "direct_evidence" || layer.Layer.Confidence.Code != "future_confidence" {
-		t.Fatalf("layer=%#v err=%v", layer, err)
-	}
-	page, err := repository.ListIndustryChains(context.Background(), biz.ChainListQuery{ReportID: testReportID, Limit: 20, Cursor: "chain-cursor"})
-	if err != nil || page.Items[0].TimeWindow.Code != "future_window" {
-		t.Fatalf("page=%#v err=%v", page, err)
-	}
-}
-
-func TestRepositoryReadsIndustryChainAndOpaqueEvidenceScope(t *testing.T) {
+func TestRepositoryReadsOpaqueEvidenceScope(t *testing.T) {
 	publishedAt := "2026-09-02T01:00:00Z"
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		switch request.URL.Path {
@@ -75,10 +35,6 @@ func TestRepositoryReadsIndustryChainAndOpaqueEvidenceScope(t *testing.T) {
 	}))
 	defer server.Close()
 	repository := newTestRepository(t, server)
-	chain, err := repository.GetIndustryChain(context.Background(), testReportID, "chain-01")
-	if err != nil || len(chain.IndustryChain.TopologyNodes) != 3 || chain.IndustryChain.Nodes[1].EvidenceScopeToken != nil || chain.IndustryChain.Nodes[1].ConclusionBasis.Code != "reasoning_hypothesis" {
-		t.Fatalf("chain=%#v err=%v", chain, err)
-	}
 	evidence, err := repository.ListEvidences(context.Background(), testReportID, testScopeToken)
 	if err != nil || evidence.Items[0].PublishedAt == nil {
 		t.Fatalf("evidence=%#v err=%v", evidence, err)

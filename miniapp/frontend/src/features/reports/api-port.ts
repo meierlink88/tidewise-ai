@@ -6,15 +6,9 @@ import {
   parseAnalysisChain
 } from './normalized-contract';
 import { unwrapMiniappAPIEnvelope } from '../../platform/miniapp-api';
-import type { ReportErrorKind, ReportLayerKey, ReportPort } from './contract';
+import type { ReportErrorKind, ReportPort } from './contract';
 import { ReportError } from './contract';
-import {
-  parseReportEvidenceListWire,
-  parseReportCardPageWire,
-  parseReportHomeWire,
-  parseReportIndustryChainDetailWire,
-  parseReportLayerDetailWire
-} from './wire-contract';
+import { parseReportEvidenceListWire, parseReportHomeWire } from './wire-contract';
 
 const requestTimeoutMs = 10_000;
 
@@ -44,34 +38,12 @@ export class APIReportPort implements ReportPort {
   }
   async getHome() {
     const result = await this.get('/api/miniapp/v1/reports/home', 'reportUnavailable');
-    return parseResponse(result, parseReportHomeWire);
-  }
-
-  async getLayer(reportId: string, layerKey: ReportLayerKey) {
-    const result = await this.get(
-      `/api/miniapp/v1/reports/${encodeURIComponent(reportId)}/layers/${encodeURIComponent(layerKey)}`,
-      'layerUnavailable'
-    );
-    return parseResponse(result, (value) => parseReportLayerDetailWire(value, reportId, layerKey));
-  }
-
-  async getIndustryChains(reportId: string, cursor?: string, limit = 20) {
-    const query = `limit=${encodeURIComponent(String(limit))}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
-    const result = await this.get(
-      `/api/miniapp/v1/reports/${encodeURIComponent(reportId)}/industry-chains?${query}`,
-      'reportUnavailable'
-    );
-    return parseResponse(result, (value) => parseReportCardPageWire(value, reportId));
-  }
-
-  async getIndustryChain(reportId: string, chainKey: string) {
-    const result = await this.get(
-      `/api/miniapp/v1/reports/${encodeURIComponent(reportId)}/industry-chains/${encodeURIComponent(chainKey)}`,
-      'chainUnavailable'
-    );
-    return parseResponse(result, (value) =>
-      parseReportIndustryChainDetailWire(value, reportId, chainKey)
-    );
+    return parseResponse(result, (value) => {
+      const home = parseReportHomeWire(value);
+      if (home.reports.some((report) => !report.analysisGroups))
+        throw new Error('unsupported report format');
+      return home;
+    });
   }
 
   async getEvidences(reportId: string, scopeToken: string) {

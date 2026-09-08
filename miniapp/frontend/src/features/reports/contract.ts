@@ -227,9 +227,6 @@ export interface ReportPort {
     chainKey: string
   ): Promise<AnalysisChain>;
   getHome(): Promise<ReportHome>;
-  getIndustryChains(reportId: string, cursor?: string, limit?: number): Promise<ReportCardPage>;
-  getLayer(reportId: string, layerKey: ReportLayerKey): Promise<ReportLayerDetail>;
-  getIndustryChain(reportId: string, chainKey: string): Promise<ReportIndustryChainDetail>;
   getEvidences(reportId: string, scopeToken: string): Promise<ReportEvidenceList>;
 }
 

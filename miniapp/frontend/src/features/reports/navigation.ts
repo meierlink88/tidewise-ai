@@ -1,13 +1,12 @@
 import { analysisKinds } from './normalized-contract';
-import type { ReportDetailTargetType, ReportLayerKey } from './contract';
+import type { ReportDetailTargetType } from './contract';
 
 const reportIDPattern =
   /^RPT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const localKeyPattern = /^[a-z0-9][a-z0-9._-]{0,127}$/;
 const scopeTokenPattern =
   /^RPE[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const layerKeys = ['geopolitics', 'macroeconomics'] as const;
-const targetTypes = ['layer', 'industry_chain', ...analysisKinds] as const;
+const targetTypes = analysisKinds;
 
 export interface ReportDetailRoute {
   reportId: string;
@@ -46,7 +45,6 @@ function readReportDetailRoute(value: unknown, normalizeInboundValues: boolean):
     targetTypes
   );
   const targetKey = localKey(routeParam(params.targetKey, normalizeInboundValues));
-  if (targetType === 'layer' && !layerKeys.includes(targetKey as ReportLayerKey)) invalidRoute();
   return { reportId, targetType, targetKey };
 }
 

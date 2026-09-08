@@ -4,7 +4,7 @@ import { act, createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReportResourceState } from '../features/reports/session';
-import { mockReportPort } from '../mocks/reports/mock-port';
+import { normalizedMockReportPort } from '../mocks/reports/mock-port';
 import IndexPage from './index/index';
 import ReportDetailPage, { type LoadedReportDetail } from './report/detail/index';
 
@@ -20,8 +20,8 @@ vi.mock('@tarojs/taro', () => ({
       router: {
         params: {
           reportId: 'RPT11111111-1111-4111-8111-111111111111',
-          targetType: 'industry_chain',
-          targetKey: 'chn-01'
+          targetType: 'geopolitical_stories',
+          targetKey: 'g1'
         }
       }
     }),
@@ -109,7 +109,7 @@ afterEach(() => {
 
 describe('page-local Report Evidence hosts', () => {
   it('keeps the homepage overlay host and report resource stable when closing by icon', async () => {
-    const home = await mockReportPort.getHome();
+    const home = await normalizedMockReportPort.getHome();
     harness.states.set('report-home', {
       status: 'ready',
       data: home,
@@ -118,16 +118,16 @@ describe('page-local Report Evidence hosts', () => {
     });
     mount(createElement(IndexPage));
     const pageBefore = requiredElement('.home-page');
-    const scrollBefore = requiredElement('.home-report-scroll');
+    const scrollBefore = requiredElement('.normalized-home-scroll');
     const hostBefore = requiredElement('.report-overlay-host');
     scrollBefore.scrollTop = 780;
 
-    click(requiredElement('[aria-label="查看地缘政治依据"]'));
+    click(requiredElement('.normalized-card-evidence'));
 
     expect(requiredElement('.report-evidence-sheet')).toBeDefined();
     expect(harness.reads.get('report-home')).toBe(1);
     expect(requiredElement('.home-page')).toBe(pageBefore);
-    expect(requiredElement('.home-report-scroll')).toBe(scrollBefore);
+    expect(requiredElement('.normalized-home-scroll')).toBe(scrollBefore);
     expect(scrollBefore.scrollTop).toBe(780);
 
     click(requiredElement('.report-evidence-sheet__close'));
@@ -136,34 +136,40 @@ describe('page-local Report Evidence hosts', () => {
     expect(requiredElement('.report-overlay-host')).toBe(hostBefore);
     expect(harness.reads.get('report-home')).toBe(1);
     expect(requiredElement('.home-page')).toBe(pageBefore);
-    expect(requiredElement('.home-report-scroll')).toBe(scrollBefore);
+    expect(requiredElement('.normalized-home-scroll')).toBe(scrollBefore);
     expect(scrollBefore.scrollTop).toBe(780);
   });
 
   it('stops mask clicks at the persistent detail overlay host', async () => {
-    const detail = await mockReportPort.getIndustryChain(
+    const detail = await normalizedMockReportPort.getAnalysis(
       'RPT11111111-1111-4111-8111-111111111111',
-      'chn-01'
+      'geopolitical_stories',
+      'g1'
     );
     const resourceKey =
-      'report-detail:RPT11111111-1111-4111-8111-111111111111:industry_chain:chn-01';
+      'report-detail:RPT11111111-1111-4111-8111-111111111111:geopolitical_stories:g1';
     harness.states.set(resourceKey, {
       status: 'ready',
-      data: { targetType: 'industry_chain', detail } satisfies LoadedReportDetail,
+      data: {
+        targetType: 'analysis',
+        detail,
+        reportId: 'RPT11111111-1111-4111-8111-111111111111',
+        kind: 'geopolitical_stories'
+      } satisfies LoadedReportDetail,
       refreshing: false,
       refreshFailed: false
     });
     mount(createElement(ReportDetailPage));
-    const pageBefore = requiredElement('.report-detail-page');
+    const pageBefore = requiredElement('.normalized-detail');
     const hostBefore = requiredElement('.report-overlay-host');
-    const evidenceAction = requiredElement('[aria-label$="证据：依据"]');
+    const evidenceAction = requiredElement('.normalized-evidence');
     const initialPageScrollCalls = harness.pageScrollTo.mock.calls.length;
 
     click(evidenceAction);
 
     expect(requiredElement('.report-evidence-sheet')).toBeDefined();
     expect(harness.reads.get(resourceKey)).toBe(1);
-    expect(requiredElement('.report-detail-page')).toBe(pageBefore);
+    expect(requiredElement('.normalized-detail')).toBe(pageBefore);
     expect(harness.pageScrollTo).toHaveBeenCalledTimes(initialPageScrollCalls);
 
     const bubbledClick = vi.fn();
@@ -175,7 +181,7 @@ describe('page-local Report Evidence hosts', () => {
     expect(requiredElement('.report-overlay-host')).toBe(hostBefore);
     expect(bubbledClick).not.toHaveBeenCalled();
     expect(harness.reads.get(resourceKey)).toBe(1);
-    expect(requiredElement('.report-detail-page')).toBe(pageBefore);
+    expect(requiredElement('.normalized-detail')).toBe(pageBefore);
     expect(harness.pageScrollTo).toHaveBeenCalledTimes(initialPageScrollCalls);
   });
 });

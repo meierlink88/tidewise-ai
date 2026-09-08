@@ -38,7 +38,7 @@ paths:
     get:
       tags: [Reports]
       operationId: getReportHome
-      summary: 读取最新 Report；v4/v5 返回三个分组首批卡片，旧格式保留 cards
+      summary: 读取最新 v4/v5 Report，返回三个分组首批卡片
       responses:
         '200':
           {
@@ -46,72 +46,6 @@ paths:
             content: { application/json: { schema: { $ref: '#/components/schemas/HomeEnvelope' } } }
           }
         '400': { $ref: '#/components/responses/InvalidRequest' }
-        '503': { $ref: '#/components/responses/ReportServiceUnavailable' }
-  /api/miniapp/v1/reports/{report_id}/industry-chains:
-    get:
-      tags: [Reports]
-      operationId: listReportIndustryChains
-      summary: 使用 Data 主导的 report-bound cursor 分页读取产业链卡片
-      parameters:
-        - $ref: '#/components/parameters/ReportID'
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Cursor'
-      responses:
-        '200':
-          {
-            description: 产业链卡片页,
-            content:
-              {
-                application/json:
-                  { schema: { $ref: '#/components/schemas/CardCollectionEnvelope' } }
-              }
-          }
-        '400': { $ref: '#/components/responses/InvalidRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '503': { $ref: '#/components/responses/ReportServiceUnavailable' }
-  /api/miniapp/v1/reports/{report_id}/layers/{layer_key}:
-    get:
-      tags: [Reports]
-      operationId: getReportLayer
-      summary: 读取一份 Report 中存在的可选上层详情
-      parameters:
-        - $ref: '#/components/parameters/ReportID'
-        - name: layer_key
-          in: path
-          required: true
-          schema: { type: string, enum: [geopolitics, macroeconomics] }
-      responses:
-        '200':
-          {
-            description: 上层详情,
-            content:
-              { application/json: { schema: { $ref: '#/components/schemas/LayerEnvelope' } } }
-          }
-        '400': { $ref: '#/components/responses/InvalidRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '503': { $ref: '#/components/responses/ReportServiceUnavailable' }
-  /api/miniapp/v1/reports/{report_id}/industry-chains/{chain_key}:
-    get:
-      tags: [Reports]
-      operationId: getReportIndustryChain
-      summary: 读取一份 Report 的产业链详情
-      parameters:
-        - $ref: '#/components/parameters/ReportID'
-        - name: chain_key
-          in: path
-          required: true
-          schema: { $ref: '#/components/schemas/LocalKey' }
-      responses:
-        '200':
-          {
-            description: 产业链详情,
-            content:
-              {
-                application/json: { schema: { $ref: '#/components/schemas/IndustryChainEnvelope' } }
-              }
-          }
-        '400': { $ref: '#/components/responses/InvalidRequest' }
-        '404': { $ref: '#/components/responses/NotFound' }
         '503': { $ref: '#/components/responses/ReportServiceUnavailable' }
   /api/miniapp/v1/reports/{report_id}/evidences:
     get:
@@ -413,13 +347,6 @@ components:
         time_window: { $ref: '#/components/schemas/TimeWindow' }
         impact_items: { type: array, items: { $ref: '#/components/schemas/CardImpactItem' } }
         evidence_scope_token: { $ref: '#/components/schemas/NullableScopeToken' }
-    CardCollection:
-      type: object
-      additionalProperties: false
-      required: [items, next_cursor]
-      properties:
-        items: { type: array, items: { $ref: '#/components/schemas/Card' } }
-        next_cursor: { type: string, minLength: 1, maxLength: 2048, nullable: true }
     HomeReport:
       type: object
       additionalProperties: false
@@ -442,205 +369,6 @@ components:
       properties:
         selection: { $ref: '#/components/schemas/Selection' }
         reports: { type: array, maxItems: 1, items: { $ref: '#/components/schemas/HomeReport' } }
-    Anchor:
-      type: object
-      additionalProperties: false
-      required:
-        [
-          local_key,
-          name,
-          current_state,
-          result,
-          conclusion_basis,
-          validation_status,
-          reasoning,
-          time_window,
-          confidence,
-          evidence_scope_token
-        ]
-      properties:
-        local_key: { $ref: '#/components/schemas/LocalKey' }
-        name: { type: string }
-        current_state: { type: string }
-        result: { $ref: '#/components/schemas/CodedLabel' }
-        conclusion_basis: { $ref: '#/components/schemas/CodedLabel' }
-        validation_status: { $ref: '#/components/schemas/CodedLabel' }
-        reasoning: { type: string }
-        time_window: { $ref: '#/components/schemas/TimeWindow' }
-        confidence: { $ref: '#/components/schemas/Confidence' }
-        evidence_scope_token: { $ref: '#/components/schemas/NullableScopeToken' }
-    ReasoningStep:
-      type: object
-      additionalProperties: false
-      required: [local_key, input, mechanism, output, confidence, evidence_scope_token]
-      properties:
-        local_key: { $ref: '#/components/schemas/LocalKey' }
-        input: { type: string }
-        mechanism: { type: string }
-        output: { type: string }
-        confidence: { $ref: '#/components/schemas/Confidence' }
-        evidence_scope_token: { $ref: '#/components/schemas/NullableScopeToken' }
-    TransmissionTarget:
-      type: object
-      additionalProperties: false
-      required: [ref, name, result]
-      properties:
-        ref: { $ref: '#/components/schemas/Reference' }
-        name: { type: string }
-        result: { $ref: '#/components/schemas/CodedLabel' }
-    TransmissionPath:
-      type: object
-      additionalProperties: false
-      required: [local_key, source_conclusion, targets, logic, kind, confidence, status]
-      properties:
-        local_key: { $ref: '#/components/schemas/LocalKey' }
-        source_conclusion: { type: string }
-        targets:
-          { type: array, minItems: 1, items: { $ref: '#/components/schemas/TransmissionTarget' } }
-        logic: { type: string }
-        kind: { $ref: '#/components/schemas/CodedLabel' }
-        confidence: { $ref: '#/components/schemas/Confidence' }
-        status: { $ref: '#/components/schemas/CodedLabel' }
-    LayerUncertainty:
-      type: object
-      additionalProperties: false
-      required: [counterevidence, evidence_gap, boundary, reversal_condition]
-      properties:
-        counterevidence: { type: string, nullable: true }
-        evidence_gap: { type: string, nullable: true }
-        boundary: { type: string, nullable: true }
-        reversal_condition: { type: string, nullable: true }
-    Layer:
-      type: object
-      additionalProperties: false
-      required:
-        [
-          key,
-          title,
-          conclusion,
-          result,
-          confidence,
-          time_window,
-          anchors,
-          reasoning_steps,
-          transmissions,
-          uncertainty,
-          evidence_scope_token
-        ]
-      properties:
-        key: { type: string, enum: [geopolitics, macroeconomics] }
-        title: { type: string }
-        conclusion: { type: string }
-        result: { $ref: '#/components/schemas/CodedLabel' }
-        confidence: { $ref: '#/components/schemas/Confidence' }
-        time_window: { $ref: '#/components/schemas/TimeWindow' }
-        anchors: { type: array, items: { $ref: '#/components/schemas/Anchor' } }
-        reasoning_steps: { type: array, items: { $ref: '#/components/schemas/ReasoningStep' } }
-        transmissions: { type: array, items: { $ref: '#/components/schemas/TransmissionPath' } }
-        uncertainty: { $ref: '#/components/schemas/LayerUncertainty' }
-        evidence_scope_token: { $ref: '#/components/schemas/NullableScopeToken' }
-    RelatedIndustryChain:
-      type: object
-      additionalProperties: false
-      required: [local_key, name, result]
-      properties:
-        local_key: { $ref: '#/components/schemas/LocalKey' }
-        name: { type: string }
-        result: { $ref: '#/components/schemas/CodedLabel' }
-    LayerDetail:
-      type: object
-      additionalProperties: false
-      required: [report, layer, related_industry_chains]
-      properties:
-        report: { $ref: '#/components/schemas/Summary' }
-        layer: { $ref: '#/components/schemas/Layer' }
-        related_industry_chains:
-          { type: array, items: { $ref: '#/components/schemas/RelatedIndustryChain' } }
-    IndustryChainNode:
-      type: object
-      additionalProperties: false
-      required:
-        [
-          local_key,
-          name,
-          impact,
-          result,
-          conclusion_basis,
-          validation_status,
-          reasoning,
-          time_window,
-          confidence,
-          evidence_scope_token
-        ]
-      properties:
-        local_key: { $ref: '#/components/schemas/LocalKey' }
-        name: { type: string }
-        impact: { type: string }
-        result: { $ref: '#/components/schemas/CodedLabel' }
-        conclusion_basis: { $ref: '#/components/schemas/CodedLabel' }
-        validation_status: { $ref: '#/components/schemas/CodedLabel' }
-        reasoning: { type: string }
-        time_window: { $ref: '#/components/schemas/TimeWindow' }
-        confidence: { $ref: '#/components/schemas/Confidence' }
-        evidence_scope_token: { $ref: '#/components/schemas/NullableScopeToken' }
-    IndustryChainEdge:
-      type: object
-      additionalProperties: false
-      required: [from_node_local_key, to_node_local_key, relation_label]
-      properties:
-        from_node_local_key: { $ref: '#/components/schemas/LocalKey' }
-        to_node_local_key: { $ref: '#/components/schemas/LocalKey' }
-        relation_label: { type: string, minLength: 1 }
-    IndustryChainTopologyNode:
-      type: object
-      additionalProperties: false
-      required: [local_key, name]
-      properties:
-        local_key: { $ref: '#/components/schemas/LocalKey' }
-        name: { type: string }
-    IndustryChain:
-      type: object
-      additionalProperties: false
-      required:
-        [
-          local_key,
-          name,
-          conclusion,
-          result,
-          confidence,
-          time_window,
-          path_summary,
-          accepted_hypothesis_summary,
-          topology_nodes,
-          nodes,
-          edges,
-          counterevidence_and_gap,
-          stop_condition,
-          evidence_scope_token
-        ]
-      properties:
-        local_key: { $ref: '#/components/schemas/LocalKey' }
-        name: { type: string }
-        conclusion: { type: string }
-        result: { $ref: '#/components/schemas/CodedLabel' }
-        confidence: { $ref: '#/components/schemas/Confidence' }
-        time_window: { $ref: '#/components/schemas/TimeWindow' }
-        path_summary: { type: string, nullable: true }
-        accepted_hypothesis_summary: { type: string, nullable: true }
-        topology_nodes:
-          { type: array, items: { $ref: '#/components/schemas/IndustryChainTopologyNode' } }
-        nodes: { type: array, items: { $ref: '#/components/schemas/IndustryChainNode' } }
-        edges: { type: array, items: { $ref: '#/components/schemas/IndustryChainEdge' } }
-        counterevidence_and_gap: { type: string, nullable: true }
-        stop_condition: { type: string, nullable: true }
-        evidence_scope_token: { $ref: '#/components/schemas/NullableScopeToken' }
-    IndustryChainDetail:
-      type: object
-      additionalProperties: false
-      required: [report, industry_chain]
-      properties:
-        report: { $ref: '#/components/schemas/Summary' }
-        industry_chain: { $ref: '#/components/schemas/IndustryChain' }
     EvidenceItem:
       type: object
       additionalProperties: false
@@ -664,27 +392,6 @@ components:
       properties:
         request_id: { type: string }
         result: { $ref: '#/components/schemas/HomeResponse' }
-    CardCollectionEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id: { type: string }
-        result: { $ref: '#/components/schemas/CardCollection' }
-    LayerEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id: { type: string }
-        result: { $ref: '#/components/schemas/LayerDetail' }
-    IndustryChainEnvelope:
-      type: object
-      additionalProperties: false
-      required: [request_id, result]
-      properties:
-        request_id: { type: string }
-        result: { $ref: '#/components/schemas/IndustryChainDetail' }
     EvidenceEnvelope:
       type: object
       additionalProperties: false
