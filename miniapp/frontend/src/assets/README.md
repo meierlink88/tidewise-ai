@@ -1,5 +1,12 @@
 # Production asset provenance
 
+## share-cover.jpg
+
+- Source: 用户在 #454 确认的 imagegen 定稿 `exec-074dea31-40f7-4e9a-a02e-d7d2c0be17c7.png`
+- Content: 手绘科技、大数据、AI，用户提供的海浪 Logo，以及明确标识的故事线示例
+- Transform: 原尺寸转为 JPEG，质量 82；保留画面和文字，原 PNG 不覆盖
+- Purpose: 首页与详情的朋友/朋友圈固定分享封面；朋友圈按平台 1:1 展示可能裁切边缘
+
 ## nav-avatar.png
 
 - Source: `prototype/assets/nav-avatar.png`
