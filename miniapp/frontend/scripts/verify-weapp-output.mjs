@@ -1,5 +1,5 @@
-import { access, readFile, stat } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { access, readFile, readdir, stat } from 'node:fs/promises';
+import { extname, relative, resolve } from 'node:path';
 
 const platform = process.argv[2] ?? 'weapp';
 if (platform !== 'weapp' && platform !== 'tt') {
@@ -12,6 +12,38 @@ const appConfig = JSON.parse(await readFile(resolve(outputRoot, 'app.json'), 'ut
 const stylesheet = resolve(outputRoot, platform === 'weapp' ? 'app.wxss' : 'app.ttss');
 const avatar = resolve(outputRoot, 'assets/nav-avatar.png');
 const shareCover = resolve(outputRoot, 'assets/share-cover.jpg');
+// 使用十进制 200 KB，留在微信 200 K 资源检查范围内。
+const mediaSizeLimitBytes = 200_000;
+const mediaExtensions = new Set([
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.webp',
+  '.gif',
+  '.svg',
+  '.apng',
+  '.avif',
+  '.bmp',
+  '.ico',
+  '.tif',
+  '.tiff',
+  '.mp3',
+  '.wav',
+  '.aac',
+  '.m4a',
+  '.ogg',
+  '.flac',
+  '.amr',
+  '.opus'
+]);
+
+const oversizedMedia = [];
+await inspectMedia(outputRoot);
+if (oversizedMedia.length) {
+  throw new Error(
+    `图片和音频资源不得超过 ${mediaSizeLimitBytes} bytes:\n${oversizedMedia.join('\n')}`
+  );
+}
 
 const expectedPages = ['pages/index/index', 'pages/report/detail/index'];
 if (JSON.stringify(appConfig.pages) !== JSON.stringify(expectedPages)) {
@@ -67,8 +99,8 @@ if (stylesheetSize >= 64 * 1024) {
 
 const avatarSize = (await stat(avatar)).size;
 const shareCoverSize = (await stat(shareCover)).size;
-if (shareCoverSize === 0 || shareCoverSize >= 1024 * 1024) {
-  throw new Error(`分享封面必须非空且小于 1 MiB: ${shareCoverSize} bytes`);
+if (shareCoverSize === 0) {
+  throw new Error('分享封面不得为空');
 }
 if (avatarSize >= 128 * 1024) {
   throw new Error(`导航头像体积过大: ${avatarSize} bytes`);
@@ -82,8 +114,23 @@ await assertMissing(resolve(outputRoot, 'assets/icons/theme-history.svg'), '旧�
 await assertMissing(resolve(outputRoot, 'assets/icons/today-theme.svg'), '旧今日入口图标');
 
 process.stdout.write(
-  `${platform} output verified: pages=${appConfig.pages.length}, styles=${stylesheetSize} bytes, avatar=${avatarSize} bytes\n`
+  `${platform} output verified: pages=${appConfig.pages.length}, styles=${stylesheetSize} bytes, avatar=${avatarSize} bytes, cover=${shareCoverSize} bytes, media<=${mediaSizeLimitBytes} bytes\n`
 );
+
+async function inspectMedia(directory) {
+  const entries = await readdir(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) {
+      await inspectMedia(path);
+    } else if (entry.isFile() && mediaExtensions.has(extname(entry.name).toLowerCase())) {
+      const size = (await stat(path)).size;
+      if (size > mediaSizeLimitBytes) {
+        oversizedMedia.push(`${relative(outputRoot, path)}: ${size} bytes`);
+      }
+    }
+  }
+}
 
 async function assertMissing(path, label) {
   try {
