@@ -12,7 +12,7 @@ const appConfig = JSON.parse(await readFile(resolve(outputRoot, 'app.json'), 'ut
 const stylesheet = resolve(outputRoot, platform === 'weapp' ? 'app.wxss' : 'app.ttss');
 const avatar = resolve(outputRoot, 'assets/nav-avatar.png');
 const shareCover = resolve(outputRoot, 'assets/share-cover.jpg');
-// 使用十进制 200 KB，留在微信 200 K 资源检查范围内。
+// 微信 IMAGE_AND_AUDIO_LIMIT 校验媒体总量 < 200 * 1024；项目采用更保守的总预算。
 const mediaSizeLimitBytes = 200_000;
 const mediaExtensions = new Set([
   '.png',
@@ -34,14 +34,24 @@ const mediaExtensions = new Set([
   '.ogg',
   '.flac',
   '.amr',
-  '.opus'
+  '.opus',
+  '.ape',
+  '.wma',
+  '.mp4',
+  '.aiff',
+  '.caf'
 ]);
 
-const oversizedMedia = [];
+const mediaFiles = [];
 await inspectMedia(outputRoot);
-if (oversizedMedia.length) {
+const totalMediaSizeBytes = mediaFiles.reduce((total, file) => total + file.size, 0);
+if (totalMediaSizeBytes > mediaSizeLimitBytes) {
+  const details = mediaFiles
+    .sort((a, b) => b.size - a.size || a.path.localeCompare(b.path))
+    .map((file) => `${file.path}: ${file.size} bytes`)
+    .join('\n');
   throw new Error(
-    `图片和音频资源不得超过 ${mediaSizeLimitBytes} bytes:\n${oversizedMedia.join('\n')}`
+    `媒体资源总大小 ${totalMediaSizeBytes} bytes 超过预算 ${mediaSizeLimitBytes} bytes:\n${details}`
   );
 }
 
@@ -114,7 +124,7 @@ await assertMissing(resolve(outputRoot, 'assets/icons/theme-history.svg'), '旧�
 await assertMissing(resolve(outputRoot, 'assets/icons/today-theme.svg'), '旧今日入口图标');
 
 process.stdout.write(
-  `${platform} output verified: pages=${appConfig.pages.length}, styles=${stylesheetSize} bytes, avatar=${avatarSize} bytes, cover=${shareCoverSize} bytes, media<=${mediaSizeLimitBytes} bytes\n`
+  `${platform} output verified: pages=${appConfig.pages.length}, styles=${stylesheetSize} bytes, avatar=${avatarSize} bytes, cover=${shareCoverSize} bytes, mediaTotal=${totalMediaSizeBytes}/${mediaSizeLimitBytes} bytes\n`
 );
 
 async function inspectMedia(directory) {
@@ -125,9 +135,7 @@ async function inspectMedia(directory) {
       await inspectMedia(path);
     } else if (entry.isFile() && mediaExtensions.has(extname(entry.name).toLowerCase())) {
       const size = (await stat(path)).size;
-      if (size > mediaSizeLimitBytes) {
-        oversizedMedia.push(`${relative(outputRoot, path)}: ${size} bytes`);
-      }
+      mediaFiles.push({ path: relative(outputRoot, path), size });
     }
   }
 }
