@@ -1,4 +1,3 @@
-import Taro from '@tarojs/taro';
 import { Button, Image, Input, View } from '@tarojs/components';
 import type { HomeChromeMetrics } from '../../../platform/system-ui';
 import avatarImage from '../../../assets/nav-avatar.png';
@@ -9,10 +8,6 @@ interface HomeHeaderProps {
   chrome: HomeChromeMetrics;
   query: string;
   onQueryChange: (query: string) => void;
-}
-
-function showUnavailable(title: string) {
-  void Taro.showToast({ title, icon: 'none', duration: 1600 });
 }
 
 export function HomeHeader({ chrome, query, onQueryChange }: HomeHeaderProps) {
@@ -32,7 +27,8 @@ export function HomeHeader({ chrome, query, onQueryChange }: HomeHeaderProps) {
           <Button
             className='tidewise-button home-nav__avatar-button'
             hoverClass='none'
-            onClick={() => showUnavailable('个人中心即将开放')}
+            aria-label='个人中心'
+            disabled
           >
             <Image className='home-nav__avatar' src={avatarImage} mode='aspectFill' />
           </Button>
@@ -47,14 +43,15 @@ export function HomeHeader({ chrome, query, onQueryChange }: HomeHeaderProps) {
               type='text'
               value={query}
               confirmType='search'
-              placeholder='搜索事件、产业，或直接向问潮提问'
+              placeholder='搜索报告结论'
               placeholderClass='home-search__placeholder'
               onInput={(event) => onQueryChange(event.detail.value)}
             />
             <Button
               className='tidewise-button home-search__send'
               hoverClass='none'
-              onClick={() => showUnavailable('问潮对话即将开放')}
+              aria-label='问潮'
+              disabled
             >
               <Image className='home-search__send-icon' src={sendIcon} mode='scaleToFill' />
             </Button>
