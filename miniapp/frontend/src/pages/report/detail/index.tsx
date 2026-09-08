@@ -24,6 +24,8 @@ import {
 import { ReportStatePanel } from '../../../features/reports/report-components';
 import type { ReportResourceState } from '../../../features/reports/session';
 import { useReportResource } from '../../../features/reports/use-report-resource';
+import { reportDetailShare } from '../../../features/reports/share';
+import { usePageShare } from '../../../platform/use-page-share';
 import './index.scss';
 
 export type LoadedReportDetail = {
@@ -43,9 +45,12 @@ export default function ReportDetailPage() {
     () => loadReportDetail(port, route)
   );
 
-  useEffect(() => {
-    void Taro.setNavigationBarTitle({ title: '推理详情' });
-  }, [route]);
+  usePageShare(
+    reportDetailShare(
+      route,
+      resource.state.status === 'ready' ? resource.state.data.detail.summary.title : undefined
+    )
+  );
 
   useEffect(() => {
     resetPageScroll();

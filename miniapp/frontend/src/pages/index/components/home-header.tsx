@@ -6,35 +6,44 @@ import sendIcon from '../../../assets/icons/send.svg';
 
 interface HomeHeaderProps {
   chrome: HomeChromeMetrics;
+  isSinglePage?: boolean;
   query: string;
   onQueryChange: (query: string) => void;
 }
 
-export function HomeHeader({ chrome, query, onQueryChange }: HomeHeaderProps) {
+export function HomeHeader({
+  chrome,
+  query,
+  onQueryChange,
+  isSinglePage = false
+}: HomeHeaderProps) {
   const fixedChromeHeight = chrome.statusBarHeight + chrome.navigationBarHeight;
 
   return (
     <>
-      <View className='home-hero'>
-        <View style={{ height: `${chrome.statusBarHeight}px` }} />
-        <View
-          className='home-nav'
-          style={{
-            height: `${chrome.navigationBarHeight}px`,
-            paddingRight: `${chrome.rightReservedWidth}px`
-          }}
-        >
-          <Button
-            className='tidewise-button home-nav__avatar-button'
-            hoverClass='none'
-            aria-label='个人中心'
-            disabled
-          >
-            <Image className='home-nav__avatar' src={avatarImage} mode='aspectFill' />
-          </Button>
-          <View className='home-nav__title'>观潮家</View>
-        </View>
-
+      <View className={isSinglePage ? 'home-hero home-hero--single-page' : 'home-hero'}>
+        {!isSinglePage && (
+          <>
+            <View style={{ height: `${chrome.statusBarHeight}px` }} />
+            <View
+              className='home-nav'
+              style={{
+                height: `${chrome.navigationBarHeight}px`,
+                paddingRight: `${chrome.rightReservedWidth}px`
+              }}
+            >
+              <Button
+                className='tidewise-button home-nav__avatar-button'
+                hoverClass='none'
+                aria-label='个人中心'
+                disabled
+              >
+                <Image className='home-nav__avatar' src={avatarImage} mode='aspectFill' />
+              </Button>
+              <View className='home-nav__title'>观潮家</View>
+            </View>
+          </>
+        )}
         <View className='home-search-row'>
           <View className='home-search'>
             <Image className='home-search__icon' src={searchIcon} mode='scaleToFill' />
@@ -58,7 +67,9 @@ export function HomeHeader({ chrome, query, onQueryChange }: HomeHeaderProps) {
           </View>
         </View>
       </View>
-      <View className='home-hero-spacer' style={{ paddingTop: `${fixedChromeHeight}px` }} />
+      {!isSinglePage && (
+        <View className='home-hero-spacer' style={{ paddingTop: `${fixedChromeHeight}px` }} />
+      )}
     </>
   );
 }
