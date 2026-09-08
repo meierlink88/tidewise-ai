@@ -31,6 +31,12 @@ $home-hero-static-height: 168rpx;
   flex: 0 0 auto;
 }
 
+.home-hero--single-page {
+  position: relative;
+  flex: 0 0 auto;
+  padding-bottom: 20rpx;
+}
+
 .home-nav {
   position: relative;
   display: flex;

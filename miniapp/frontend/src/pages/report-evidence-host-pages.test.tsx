@@ -3,6 +3,7 @@
 import { act, createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { parseReportDetailRoute } from '../features/reports/navigation';
 import type { ReportResourceState } from '../features/reports/session';
 import { normalizedMockReportPort } from '../mocks/reports/mock-port';
 import IndexPage from './index/index';
@@ -11,7 +12,11 @@ import ReportDetailPage, { type LoadedReportDetail } from './report/detail/index
 const harness = vi.hoisted(() => ({
   states: new Map<string, ReportResourceState<unknown>>(),
   reads: new Map<string, number>(),
-  pageScrollTo: vi.fn()
+  pageScrollTo: vi.fn(),
+  navigateTo: vi.fn(),
+  scene: 1001,
+  friend: vi.fn<(callback: () => { title: string; path: string }) => void>(),
+  timeline: vi.fn<(callback: () => { title: string; query: string }) => void>()
 }));
 
 vi.mock('@tarojs/taro', () => ({
@@ -27,14 +32,17 @@ vi.mock('@tarojs/taro', () => ({
     }),
     getWindowInfo: () => ({ statusBarHeight: 44, windowWidth: 390 }),
     getMenuButtonBoundingClientRect: () => ({ top: 50, left: 300, width: 80, height: 32 }),
-    navigateTo: vi.fn(),
+    navigateTo: harness.navigateTo,
+    getLaunchOptionsSync: () => ({ scene: harness.scene }),
     pageScrollTo: harness.pageScrollTo,
     pxTransform: (value: number) => `${value}px`,
     setNavigationBarTitle: vi.fn(),
     showToast: vi.fn(),
     stopPullDownRefresh: vi.fn()
   },
-  usePullDownRefresh: vi.fn()
+  usePullDownRefresh: vi.fn(),
+  useShareAppMessage: harness.friend,
+  useShareTimeline: harness.timeline
 }));
 
 function element(tag: string) {
@@ -42,13 +50,15 @@ function element(tag: string) {
     children,
     className,
     ariaLabel,
-    onClick
+    onClick,
+    disabled
   }: Readonly<{
     children?: ReactNode;
     className?: string;
     ariaLabel?: string;
     onClick?: () => void;
-  }>) => createElement(tag, { className, 'aria-label': ariaLabel, onClick }, children);
+    disabled?: boolean;
+  }>) => createElement(tag, { className, 'aria-label': ariaLabel, onClick, disabled }, children);
 }
 
 vi.mock('@tarojs/components', () => ({
@@ -93,6 +103,11 @@ afterAll(() => {
 });
 
 beforeEach(() => {
+  vi.stubEnv('TARO_ENV', 'weapp');
+  harness.scene = 1001;
+  harness.friend.mockClear();
+  harness.timeline.mockClear();
+  harness.navigateTo.mockClear();
   harness.states.clear();
   harness.reads.clear();
   harness.pageScrollTo.mockClear();
@@ -102,6 +117,7 @@ beforeEach(() => {
 
 afterEach(() => {
   if (root) act(() => root?.unmount());
+  vi.unstubAllEnvs();
   container?.remove();
   root = undefined;
   container = undefined;
@@ -201,3 +217,102 @@ function requiredElement(selector: string): HTMLElement {
 function click(target: HTMLElement): void {
   act(() => target.click());
 }
+
+describe('right-menu report sharing', () => {
+  it('shares the homepage without transient parameters and keeps normal navigation', async () => {
+    const home = await normalizedMockReportPort.getHome();
+    harness.states.set('report-home', {
+      status: 'ready',
+      data: home,
+      refreshing: false,
+      refreshFailed: false
+    });
+    mount(createElement(IndexPage));
+    expect(harness.friend.mock.lastCall?.[0]()).toEqual({
+      title: '观潮家 · 今日观潮',
+      path: '/pages/index/index'
+    });
+    expect(harness.timeline.mock.lastCall?.[0]()).toEqual({
+      title: '观潮家 · 今日观潮',
+      query: ''
+    });
+    click(requiredElement('.normalized-card-path'));
+    expect(harness.navigateTo).toHaveBeenCalledOnce();
+    expect(container?.querySelector('.home-nav')).not.toBeNull();
+  });
+
+  it('disables single-page navigation while retaining readable content and evidence', async () => {
+    harness.scene = 1154;
+    const home = await normalizedMockReportPort.getHome();
+    harness.states.set('report-home', {
+      status: 'ready',
+      data: home,
+      refreshing: false,
+      refreshFailed: false
+    });
+    mount(createElement(IndexPage));
+    const detailButton = requiredElement('.normalized-card-path') as HTMLButtonElement;
+    expect(detailButton.disabled).toBe(true);
+    click(detailButton);
+    expect(harness.navigateTo).not.toHaveBeenCalled();
+    expect(container?.querySelector('.home-nav')).toBeNull();
+    expect(container?.querySelector('.home-hero-spacer')).toBeNull();
+    expect(requiredElement('.normalized-card-conclusion').textContent).not.toBe('');
+    click(requiredElement('.normalized-card-evidence'));
+    expect(requiredElement('.report-evidence-sheet')).toBeDefined();
+  });
+
+  it('does not apply WeChat single-page restrictions to tt', async () => {
+    vi.stubEnv('TARO_ENV', 'tt');
+    harness.scene = 1154;
+    const home = await normalizedMockReportPort.getHome();
+    harness.states.set('report-home', {
+      status: 'ready',
+      data: home,
+      refreshing: false,
+      refreshFailed: false
+    });
+    mount(createElement(IndexPage));
+    expect((requiredElement('.normalized-card-path') as HTMLButtonElement).disabled).toBe(false);
+    expect(container?.querySelector('.home-nav')).not.toBeNull();
+  });
+
+  it('keeps the exact detail route through loading and refreshes the share title when ready', async () => {
+    mount(createElement(ReportDetailPage));
+    const before = harness.friend.mock.lastCall?.[0]();
+    expect(before?.title).toBe('观潮家 · 推理详情');
+    const detail = await normalizedMockReportPort.getAnalysis(
+      'RPT11111111-1111-4111-8111-111111111111',
+      'geopolitical_stories',
+      'g1'
+    );
+    harness.states.set(
+      'report-detail:RPT11111111-1111-4111-8111-111111111111:geopolitical_stories:g1',
+      {
+        status: 'ready',
+        refreshing: false,
+        refreshFailed: false,
+        data: {
+          targetType: 'analysis',
+          detail,
+          reportId: 'RPT11111111-1111-4111-8111-111111111111',
+          kind: 'geopolitical_stories'
+        } satisfies LoadedReportDetail
+      }
+    );
+    act(() => root?.render(createElement(ReportDetailPage)));
+    const friend = harness.friend.mock.lastCall?.[0]();
+    const timeline = harness.timeline.mock.lastCall?.[0]();
+    expect(friend?.title).toBe(`${detail.summary.title} · 观潮家`);
+    expect(timeline?.title).toBe(friend?.title);
+    expect(friend?.path).toBe(before?.path);
+    expect(friend?.path).toBe(`/pages/report/detail/index?${timeline?.query}`);
+    expect(
+      parseReportDetailRoute(Object.fromEntries(new URLSearchParams(timeline?.query)))
+    ).toEqual({
+      reportId: 'RPT11111111-1111-4111-8111-111111111111',
+      targetType: 'geopolitical_stories',
+      targetKey: 'g1'
+    });
+  });
+});

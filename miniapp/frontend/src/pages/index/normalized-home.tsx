@@ -47,7 +47,7 @@ export function NormalizedHome({
 }: {
   group: ReportHomeGroup;
   query: string;
-  onDetail: (r: ReportDetailRoute) => void;
+  onDetail?: (r: ReportDetailRoute) => void;
   onEvidence: (r: ReportEvidenceRoute) => void;
 }) {
   const [kind, setKind] = useState<AnalysisKind>('geopolitical_stories');
@@ -139,8 +139,9 @@ export function NormalizedHome({
               u={u}
               publishedAt={group.report.publishedAt}
               onDetail={() =>
-                onDetail({ reportId: group.report.id, targetType: kind, targetKey: u.local_key })
+                onDetail?.({ reportId: group.report.id, targetType: kind, targetKey: u.local_key })
               }
+              canOpenDetail={!!onDetail}
               onEvidence={() => {
                 if (u.summary.evidence_scope_token)
                   onEvidence({
@@ -171,11 +172,13 @@ export function NormalizedHome({
   );
 }
 function HomeCard({
+  canOpenDetail,
   u,
   publishedAt,
   onDetail,
   onEvidence
 }: {
+  canOpenDetail: boolean;
   u: AnalysisSummary;
   publishedAt: string;
   onDetail: () => void;
@@ -234,7 +237,12 @@ function HomeCard({
           <Image src={evidenceIcon} className='normalized-evidence-icon' mode='scaleToFill' />
           <Text>{u.summary.evidence_count} 条事件</Text>
         </Button>
-        <Button className='tidewise-button normalized-card-path' onClick={onDetail}>
+        <Button
+          className='tidewise-button normalized-card-path'
+          disabled={!canOpenDetail}
+          hoverClass={canOpenDetail ? 'button-hover' : 'none'}
+          onClick={canOpenDetail ? onDetail : undefined}
+        >
           <Text>查看影响路径</Text>
           <View className='normalized-path-circle'>
             <Image src={arrowIcon} className='normalized-path-icon' mode='scaleToFill' />

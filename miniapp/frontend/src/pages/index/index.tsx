@@ -20,6 +20,8 @@ import type { ReportResourceState } from '../../features/reports/session';
 import { useReportResource } from '../../features/reports/use-report-resource';
 import { getHomeChromeMetrics, type HomeChromeMetrics } from '../../platform/system-ui';
 import { HomeHeader } from './components/home-header';
+import { homeReportShare } from '../../features/reports/share';
+import { usePageShare } from '../../platform/use-page-share';
 import './index.scss';
 
 interface HomeRefreshAPI {
@@ -30,6 +32,7 @@ interface HomeRefreshAPI {
 const isHomeEmpty = (home: ReportHome) => home.reports.length === 0;
 
 export default function IndexPage() {
+  const isSinglePage = usePageShare(homeReportShare());
   const [query, setQuery] = useState('');
   const chrome = useMemo(() => getHomeChromeMetrics(Taro), []);
   const port = useMemo(() => getReportPort(), []);
@@ -52,6 +55,7 @@ export default function IndexPage() {
   return (
     <>
       <IndexView
+        isSinglePage={isSinglePage}
         chrome={chrome}
         query={query}
         onQueryChange={setQuery}
@@ -67,6 +71,7 @@ export default function IndexPage() {
 }
 
 export function IndexView({
+  isSinglePage = false,
   chrome,
   query,
   onQueryChange,
@@ -76,6 +81,7 @@ export function IndexView({
   onOpenDetail,
   onOpenEvidence
 }: {
+  isSinglePage?: boolean;
   chrome: HomeChromeMetrics;
   query: string;
   onQueryChange: (query: string) => void;
@@ -88,7 +94,12 @@ export function IndexView({
   if (state.status === 'ready' && state.data.reports[0]?.analysisGroups) {
     return (
       <View className='home-page'>
-        <HomeHeader chrome={chrome} query={query} onQueryChange={onQueryChange} />
+        <HomeHeader
+          chrome={chrome}
+          query={query}
+          onQueryChange={onQueryChange}
+          isSinglePage={isSinglePage}
+        />
         <View className='home-content'>
           {state.refreshFailed ? (
             <View className='home-refresh-warning' onClick={onRefresh}>
@@ -99,7 +110,7 @@ export function IndexView({
             key={state.data.reports[0].report.id}
             group={state.data.reports[0]}
             query={query}
-            onDetail={onOpenDetail}
+            onDetail={isSinglePage ? undefined : onOpenDetail}
             onEvidence={onOpenEvidence}
           />
         </View>
@@ -108,7 +119,12 @@ export function IndexView({
   }
   return (
     <View className='home-page'>
-      <HomeHeader chrome={chrome} query={query} onQueryChange={onQueryChange} />
+      <HomeHeader
+        chrome={chrome}
+        query={query}
+        onQueryChange={onQueryChange}
+        isSinglePage={isSinglePage}
+      />
 
       <View className='home-content'>
         <View className='home-section-heading'>

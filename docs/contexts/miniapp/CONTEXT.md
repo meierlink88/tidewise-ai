@@ -127,6 +127,21 @@ BFF 不读取完整报告或直接查询领域数据库；失败保持显式可�
 
 ## Frontend Routes And State
 
+### WeChat Report Sharing
+
+- 首页和推理详情通过微信右上角菜单支持发送给朋友/群及分享到朋友圈，不新增页面分享按钮。
+- 首页分享标题为“观潮家 · 今日观潮”，打开时沿用最新 Report 选择规则，不固定分享时报告。
+- 详情分享标题使用当前分析标题；加载期间使用“观潮家 · 推理详情”。朋友 path 与朋友圈
+  query 只包含已验证的 `reportId + targetType + targetKey`，始终定位同一份 Report 分析。
+  非法路由继续展示参数错误，不伪造或回退到其他报告。
+- 微信场景 1154 为朋友圈单页模式：使用系统导航栏且挤压页面，首页不重复绘制自定义导航；
+  跨页“查看影响路径”禁用，报告正文、搜索、分组、分页和页内证据弹层继续可用。
+- 分享回调不主动调用分享菜单 API，不调用受限导航栏 API；详情标题由页面配置提供。
+- 微信分享页面配置只进入 weapp 产物，tt 保持原有交互，不承诺朋友圈能力。
+- 分享使用微信默认截图/小程序 Logo，不添加自定义分享图片。相关实现票据：#452。
+
+### Routes
+
 - 首页保持 `pages/index/index` 和既有应用/底部 Tab 框架。
 - 推理详情注册为 `pages/report/detail/index`，query 为
   `reportId + targetType=geopolitical_stories|macroeconomic_stories|concept_analyses + targetKey`。
