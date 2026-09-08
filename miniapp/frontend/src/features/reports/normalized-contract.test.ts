@@ -59,3 +59,9 @@ it('rejects malformed v5 provenance and unknown report versions', () => {
     )
   ).toThrow();
 });
+
+it('accepts optional industry groups but requires all historical groups', () => {
+  const industry = { ...v5.groups[2], kind: 'industry_chain_analyses' };
+  expect(parseAnalysisGroups([...v5.groups, industry])).toHaveLength(4);
+  expect(() => parseAnalysisGroups([v5.groups[0], v5.groups[1], industry])).toThrow();
+});

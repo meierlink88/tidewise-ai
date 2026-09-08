@@ -1,7 +1,6 @@
 import { Button, Image, ScrollView, Text, View } from '@tarojs/components';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  analysisKinds,
   analysisLabels,
   type AnalysisKind,
   type AnalysisGroup,
@@ -20,13 +19,15 @@ import evidenceIcon from '../../assets/icons/file-text-ink.svg';
 import arrowIcon from '../../assets/icons/report-arrow-right-light-gold.svg';
 import './normalized-home.scss';
 
-const selectedCategoryIcons: Record<AnalysisKind, string> = {
+const categories = ['geopolitical_stories', 'macroeconomic_stories', 'concept_analyses'] as const;
+type Category = (typeof categories)[number];
+const selectedCategoryIcons: Record<Category, string> = {
   geopolitical_stories: globeGoldIcon,
   macroeconomic_stories: macroGoldIcon,
   concept_analyses: chainGoldIcon
 };
 
-const categoryIcons: Record<AnalysisKind, string> = {
+const categoryIcons: Record<Category, string> = {
   geopolitical_stories: globeIcon,
   macroeconomic_stories: macroIcon,
   concept_analyses: chainIcon
@@ -50,7 +51,7 @@ export function NormalizedHome({
   onDetail?: (r: ReportDetailRoute) => void;
   onEvidence: (r: ReportEvidenceRoute) => void;
 }) {
-  const [kind, setKind] = useState<AnalysisKind>('geopolitical_stories');
+  const [kind, setKind] = useState<Category>('geopolitical_stories');
   const [pages, setPages] = useState<Partial<Record<AnalysisKind, AnalysisGroup>>>({});
   const [pending, setPending] = useState<AnalysisKind | null>(null),
     [failed, setFailed] = useState<AnalysisKind | null>(null);
@@ -67,19 +68,28 @@ export function NormalizedHome({
       generation.current = version + 1;
     };
   }, [group]);
-  const current = pages[kind] ?? group.analysisGroups?.find((g) => g.kind === kind);
-  const items = (current?.items ?? []).filter(
-    (x) =>
-      !query ||
-      [x.title, x.summary.conclusion, ...x.affected_anchors.map((a) => a.name)]
-        .join(' ')
-        .includes(query)
-  );
+  const sourceKinds: AnalysisKind[] =
+    kind === 'concept_analyses' ? ['industry_chain_analyses', 'concept_analyses'] : [kind];
+  const groups = sourceKinds.flatMap((sourceKind) => {
+    const page = pages[sourceKind] ?? group.analysisGroups?.find((g) => g.kind === sourceKind);
+    return page ? [page] : [];
+  });
+  const current =
+    groups.find((g) => g.next_cursor && g.kind === failed) ?? groups.find((g) => g.next_cursor);
+  const items = groups
+    .flatMap((g) => g.items.map((u) => ({ sourceKind: g.kind, u })))
+    .filter(
+      ({ u }) =>
+        !query ||
+        [u.title, u.summary.conclusion, ...u.affected_anchors.map((a) => a.name)]
+          .join(' ')
+          .includes(query)
+    );
   const load = async () => {
     if (inflight.current || !current?.next_cursor) return;
     inflight.current = true;
     const g = generation.current,
-      k = kind;
+      k = current.kind;
     setPending(k);
     setFailed(null);
     try {
@@ -108,7 +118,7 @@ export function NormalizedHome({
       <View className='normalized-home-navigation'>
         <ScrollView scrollX className='normalized-home-tabs-scroll'>
           <View className='normalized-home-tabs'>
-            {analysisKinds.map((k) => (
+            {categories.map((k) => (
               <Button
                 key={k}
                 className={`tidewise-button normalized-home-tab ${kind === k ? 'selected' : ''}`}
@@ -133,13 +143,17 @@ export function NormalizedHome({
       </View>
       <ScrollView key={kind} scrollY className='normalized-home-scroll'>
         <View className='normalized-home-list'>
-          {items.map((u) => (
+          {items.map(({ u, sourceKind }) => (
             <HomeCard
-              key={u.local_key}
+              key={`${sourceKind}:${u.local_key}`}
               u={u}
               publishedAt={group.report.publishedAt}
               onDetail={() =>
-                onDetail?.({ reportId: group.report.id, targetType: kind, targetKey: u.local_key })
+                onDetail?.({
+                  reportId: group.report.id,
+                  targetType: sourceKind,
+                  targetKey: u.local_key
+                })
               }
               canOpenDetail={!!onDetail}
               onEvidence={() => {
@@ -163,7 +177,11 @@ export function NormalizedHome({
               disabled={pending !== null}
               onClick={() => void load()}
             >
-              {pending === kind ? '正在加载…' : failed === kind ? '加载失败，点击重试' : '加载更多'}
+              {pending === current.kind
+                ? '正在加载…'
+                : failed === current.kind
+                  ? '加载失败，点击重试'
+                  : '加载更多'}
             </Button>
           ) : null}
         </View>

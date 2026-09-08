@@ -94,12 +94,12 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
 
 - v8 报告基线使用 `report-publication/v5`；Miniapp 同时支持 v4/v5，URL 仍为 v1。
 - v5 显式透传 `judgment_origin`、`reasoning_sources`、`variable_signals`、`graph.scope` 和详情中的 `companies`；变量信号保留 Data 签发的 evidence scope token/count，不暴露 Evidence ID。
-- 当前首页仍为三个既有分组；独立 `industry_chain_analyses`、`company_analyses` 的新入口另行设计，本次不合并到已有概念、不伪造故事线。
+- 首页保持地缘政治、宏观经济、产业链三个栏目；产业链栏目先展示 `industry_chain_analyses`，再展示历史 `concept_analyses`。两种来源保留真实类型与独立 cursor，相同 local_key 不跨类型去重；详情导航使用卡片来源类型。`company_analyses` 暂不接入。
 - v5 的直接/推理标签来自 `judgment_origin`，不从未来结论方向或 `conclusion_basis` 反推直接事实；变量信号在 typed 数据层保留，展示另行设计。
 
 - API 保持 `/api/miniapp/v1` 与 `/api/data/v1`。`schema_version` 表示既有报告内容格式，不新增 URL 版本。
 - 首页选中 v4/v5 时返回 `analysis_groups`，按 `geopolitical_stories`、`macroeconomic_stories`、
-  `concept_analyses` 顺序各取首批 20 项，每组独立保留 Data cursor；不拉取图谱或 Evidence 清单。
+  `concept_analyses` 顺序各取首批 20 项；v5 额外读取 `industry_chain_analyses` 首批 20 项。每组独立保留 Data cursor；不拉取图谱或 Evidence 清单。
 - `GET /reports/{report_id}/analyses/{kind}` 分页读取结论卡片；`/{analysis_key}` 读取目录及宏观锚点；
   `/{analysis_key}/industry-chains/{chain_key}` 读取该单元的产业链图谱和节点推理。
 - v4 详情统一按宏观经济/产业链类型展示因果链 Tab。内容顺序为结论、关键机制、支持/反证，
@@ -147,7 +147,7 @@ BFF 不读取完整报告或直接查询领域数据库；失败保持显式可�
 
 - 首页保持 `pages/index/index` 和既有应用/底部 Tab 框架。
 - 推理详情注册为 `pages/report/detail/index`，query 为
-  `reportId + targetType=geopolitical_stories|macroeconomic_stories|concept_analyses + targetKey`。
+  `reportId + targetType=geopolitical_stories|macroeconomic_stories|concept_analyses|industry_chain_analyses + targetKey`。
   旧 `layer|industry_chain` 路由在请求前进入参数错误状态。
 - 详情页是非 Tab 页面，使用官方 `Taro.navigateTo`/`navigateBack`，不引入自定义 Router；
   query 输入不可信，缺失、重复或非法参数必须在请求前进入明确参数错误状态。

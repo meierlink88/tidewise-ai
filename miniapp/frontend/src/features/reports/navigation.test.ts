@@ -4,17 +4,25 @@ import { buildReportDetailURL, navigateToReportDetail, parseReportDetailRoute } 
 const reportId = 'RPT11111111-1111-4111-8111-111111111111';
 
 describe('Report navigation', () => {
-  it('builds one encoded registered detail-page URL from stable references', () => {
-    expect(
-      buildReportDetailURL({
+  it.each(['concept_analyses', 'industry_chain_analyses'] as const)(
+    'round-trips the %s detail route',
+    (targetType) => {
+      expect(
+        buildReportDetailURL({
+          reportId,
+          targetType,
+          targetKey: 'chn-21'
+        })
+      ).toBe(
+        `/pages/report/detail/index?reportId=${reportId}&targetType=${targetType}&targetKey=chn-21`
+      );
+      expect(parseReportDetailRoute({ reportId, targetType, targetKey: 'chn-21' })).toEqual({
         reportId,
-        targetType: 'concept_analyses',
+        targetType,
         targetKey: 'chn-21'
-      })
-    ).toBe(
-      `/pages/report/detail/index?reportId=${reportId}&targetType=concept_analyses&targetKey=chn-21`
-    );
-  });
+      });
+    }
+  );
 
   it('uses navigateTo and never derives a target from display copy', () => {
     const navigateTo = vi.fn();

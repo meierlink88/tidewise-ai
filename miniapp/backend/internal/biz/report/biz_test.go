@@ -199,8 +199,11 @@ func TestV5HomeUsesNormalizedGroups(t *testing.T) {
 	s.SchemaVersion = "report-publication/v5"
 	r := &fakeRepository{listPage: Page{Items: []Summary{s}}, analysisPage: AnalysisPage{Items: []NormalizedSummaryProjection{}}}
 	home, err := NewUseCase(r).Home(context.Background())
-	if err != nil || len(home.Reports) != 1 || len(home.Reports[0].AnalysisGroups) != 3 || r.homeCalls != 0 {
+	if err != nil || len(home.Reports) != 1 || len(home.Reports[0].AnalysisGroups) != 4 || r.homeCalls != 0 {
 		t.Fatalf("v5 home failed: %+v %v", home, err)
+	}
+	if q := r.analysisQueries[3]; q.Kind != "industry_chain_analyses" || q.ReportID != s.ID || q.Limit != 20 {
+		t.Fatalf("industry query=%+v", q)
 	}
 }
 

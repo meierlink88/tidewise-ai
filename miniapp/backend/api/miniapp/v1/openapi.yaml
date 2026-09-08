@@ -85,6 +85,7 @@ paths:
               - geopolitical_stories
               - macroeconomic_stories
               - concept_analyses
+              - industry_chain_analyses
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Cursor'
       responses:
@@ -117,6 +118,7 @@ paths:
               - geopolitical_stories
               - macroeconomic_stories
               - concept_analyses
+              - industry_chain_analyses
         - name: analysis_key
           in: path
           required: true
@@ -152,6 +154,7 @@ paths:
               - geopolitical_stories
               - macroeconomic_stories
               - concept_analyses
+              - industry_chain_analyses
         - name: analysis_key
           in: path
           required: true
@@ -356,7 +359,7 @@ components:
           {
             type: array,
             minItems: 3,
-            maxItems: 3,
+            maxItems: 4,
             items: { $ref: '#/components/schemas/AnalysisGroup' }
           }
         report: { $ref: '#/components/schemas/Summary' }
@@ -1029,6 +1032,7 @@ components:
             - geopolitical_stories
             - macroeconomic_stories
             - concept_analyses
+            - industry_chain_analyses
     AnalysisPageEnvelope:
       type: object
       required:
