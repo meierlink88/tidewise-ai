@@ -68,7 +68,7 @@ _Avoid_: 从标题解析路由、前端检索完整 Report JSON、Reason Tree ID
 **产业链推理详情**:
 一条 Report-owned 产业链快照的独立详情页。图节点和边只来自该 Report；相同名称不证明
 存在正式 Data IndustryChain 或 ChainNode 关系。
-_Avoid_: Reason Tree、正式产业链动态查询、把无边节点串联
+_Avoid_: Reason Tree、正式产业链动态查询、把展示示意连线解释为真实拓扑关系
 
 **相关 Evidence**:
 某一 Report 卡片、层、锚点、产业链或节点直接关联的 Atomic Evidence 产品投影。列表只展示发布时间、
@@ -95,7 +95,7 @@ _Avoid_: 相关 Event、Event Evidence Link、改写服务端 position、Evidenc
 - v8 报告基线使用 `report-publication/v5`；Miniapp 同时支持 v4/v5，URL 仍为 v1。
 - v5 显式透传 `judgment_origin`、`reasoning_sources`、`variable_signals`、`graph.scope` 和详情中的 `companies`；变量信号保留 Data 签发的 evidence scope token/count，不暴露 Evidence ID。
 - 首页展示筛选为全部、地缘政治、宏观经济、产业链。全部按地缘政治、宏观经济、产业链、历史概念的既有来源顺序展示；其中先展示 `industry_chain_analyses`，再展示历史 `concept_analyses`。两种来源保留真实类型与独立 cursor，相同 local_key 不跨类型去重；详情导航使用卡片来源类型。`company_analyses` 暂不接入。
-- v5 的直接/推理标签来自 `judgment_origin`，不从未来结论方向或 `conclusion_basis` 反推直接事实；变量信号在 typed 数据层保留，展示另行设计。
+- v5 的直接依据节点高亮来自 `judgment_origin=direct`，不从未来结论方向或 `conclusion_basis` 反推直接事实；变量信号在选中节点的核心分析中展示。
 
 - API 保持 `/api/miniapp/v1` 与 `/api/data/v1`。`schema_version` 表示既有报告内容格式，不新增 URL 版本。
 - 首页选中 v4/v5 时返回 `analysis_groups`，按 `geopolitical_stories`、`macroeconomic_stories`、
@@ -103,8 +103,8 @@ _Avoid_: 相关 Event、Event Evidence Link、改写服务端 position、Evidenc
 - `GET /reports/{report_id}/analyses/{kind}` 分页读取结论卡片；`/{analysis_key}` 读取目录及宏观锚点；
   `/{analysis_key}/industry-chains/{chain_key}` 读取该单元的产业链图谱和节点推理。
 - v4 详情统一按宏观经济/产业链类型展示因果链 Tab。内容顺序为结论、关键机制、支持/反证，
-  产业链再展示完整横向图谱、选中节点的支持/反证/后续验证，最后是整链后续验证。
-- 图谱只用报告显式拓扑边；结构节点缺少当期评估时不继承整链结论；仅观察不展示虚构置信度。
+  产业链再展示横向节点图谱和选中节点的核心分析，不展示后续验证。
+- 图谱按报告节点顺序展示，节点之间和底部使用固定示意连线，不将其视为真实拓扑关系；API graph.edges 保留。结构节点缺少当期评估时不继承整链结论。
 - 所有 `evidence_count` 原样使用 Data 发布时计算的 scope 内去重 Evidence 数量，
   与 opaque token 打开的清单一致；不以节点或因果链数量替代证据数量。
 - 最新报告读取失败或格式不支持时显式报错，不跳过该报告改选旧报告。旧无版本快照已退役，明确报错。
@@ -182,13 +182,28 @@ BFF 不读取完整报告或直接查询领域数据库；失败保持显式可�
 
 ## Report Detail Presentation
 
+- 按用户后续确认，小程序详情不展示“后续验证”区块，涵盖宏观、产业链、节点详情及仅观察状态；follow_up 原数据字段、接口与解析保留。
+
+- 支持/反证沿用原文字与数据，采用两张并排分支卡片，标题仅“支持”“反证”；蓝灰/浅金背景、顶部色边及圆点，通过分支线连接关键机制。正文完整换行，不生成原型示例标题、不截断，也不添加原型对话动作。
+
+- 关键机制采用原型深蓝圆角问题卡片的视觉，不生成问句：标题“关键机制”，完整展示宏观 assessment.transmission_logic 或产业链 reasoning_summary.logic。原字段为字符串，不按箭头拆成节点；换行间以分号分隔成连续正文，保留条件和箭头。本链结论下 assessment.scope 仍直接使用原始字符串。
+
+- 票据 #470 后续：Tab 下方用白色圆角底板承载推理内容；“本链结论”采用原型事件根节点的浅金渐变、描边及左侧金色内线。移除本链结论的方向、置信度、周期和判断来源标签，保留 assessment.conclusion；原型来源说明位置显示 assessment.scope，右下角保留原 Evidence 数量和点击路径；不复制原型的事件标题、来源、更新时间或关键词。
+- 产业链节点方向标签：升温红色、降温绿色、分化黄色，直接依据节点白底高亮，选中状态独立于判断来源。核心分析采用浅色外框、白色内卡，显示选中节点名称、方向、affected_nodes[].assessment.conclusion；下方“关键信号”标题下逐项 bullet 只展示同一节点 variable_signals[].signal 原文，不加变量名称与方向。可选信号缺失时隐藏标题和列表，不补造、不借用整链信号。无涨幅、周期、置信度、公司卡片或验证时间线。内容核对基线为 uat-trial-005 报告，tidetell1.0 只提供视觉样式。
+- 白色推理底板到支持/反证结束；下方淡黄色圆角描边区域依次展示“产业链图谱”、节点图谱和“核心分析”。保留中央示意连接线，左右边缘与上方白色底板对齐，核心分析内部结论卡保持白色。
+- 节点卡片采用名称、结论方向、变量信号摘要三层布局；底部逐项显示同一节点 variable_signals 的变量名及 source_direction，多个变量换行，卡片高度随内容适配。信号正文仍仅在核心分析展开；不补充上中下游数据。
+- 首页、报告详情和 Evidence 子页面的内容字号统一通过 report-reading-font 按原字号乘 1.3，保留层级比例及原无单位行高。仅放大文字，不同比缩放图标、边框或图谱固定宽度；卡片与标签通过换行适配。系统原生导航栏字号不由此函数控制。
+- 试读后调整：首页卡片结论、详情顶部结论、本链结论、关键机制正文、节点结论恢复放大前字号；详情 Tab 名称为 24rpx、分类为 16rpx，均小于放大前。其余阅读字号保持 1.3 倍。核心分析节点卡片采用浅色统一底、灰色细边框、左侧金色渐变竖线，取消内部嵌套白色结论卡。
+
+- 票据 #470：推理树 Tab 上方显示完整宏观或产业链名称，下方灰色小字显示“宏观经济”或“产业链”，不再使用分类小标签。选中项采用左侧金色竖线、深蓝名称；内容区为象牙白圆角顶部。保留原有横向滚动、选中状态、加载和各推理线正文，不增加原型的对话提示或能力。
+
 - 票据 #468：导航标题为“深度分析”。顶部依次为故事线名称标签、所属报告发布时间、summary.conclusion 与 summary.transmission_logic；移除影响度标签及逻辑卡片边框。不展示顶部事件统计、跟踪状态，下方每条推理线的 Evidence scope/count 保持原有归属。
 - Miniapp Service 拥有 UI 组合：读取详情后，使用现有 Data ListReports 每页 100 条及原 cursor，按精确 reportId 查找所属报告 published_at，作为详情根级可选 published_at 返回。Data API 与数据库不变，不读取完整领域报告或直接查库，不用首页最新时间替代历史报告时间。
 - 查询沿用请求 context/超时；上游失败、循环 cursor 或列表耗尽未找到报告显式返回可重试错误。旧 BFF 未返回时间时前端保持正文可用、隐藏时间。展示为“X 分钟/小时/天前发布”，超过 7 天或未来时间使用上海绝对日期；不把发布时间表述成更新时间。
 
 - 只接受三类分析单元详情目标；使用卡片详情中的 macro_impacts 和 industry_chains 目录。
-- 产业链 Tab 按所属 report/kind/analysis/chain 读取，保持显式图谱与完整节点推理，不动态补推。
-- 保留已定稿 UI：顶部结论、因果链 Tab、本链结论、关键机制、支持/反证、图谱、节点详情及后续验证。
+- 产业链 Tab 按所属 report/kind/analysis/chain 读取，保留报告节点和评估归属，不动态补推；图谱连线为展示示意。
+- 保留已定稿 UI：顶部结论、因果链 Tab、本链结论、关键机制、支持/反证、图谱和核心分析。
 
 ## Evidence Presentation
 

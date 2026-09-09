@@ -38,7 +38,7 @@
   justify-content: center;
   margin: 0 !important;
   color: $color-home-secondary !important;
-  font-size: 22rpx !important;
+  font-size: report-reading-font(22rpx) !important;
   font-weight: 400;
   padding: 14rpx 22rpx !important;
   background: $color-home-card !important;
@@ -60,12 +60,12 @@
   align-items: baseline;
   gap: 12rpx;
   margin: 4rpx 4rpx 22rpx;
-  font-size: 28rpx;
+  font-size: report-reading-font(28rpx);
   line-height: 1.5;
   font-weight: 700;
 }
 .normalized-home-total {
-  font-size: 20rpx;
+  font-size: report-reading-font(20rpx);
   color: $color-home-muted;
   font-weight: 400;
 }
@@ -111,7 +111,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 8rpx;
-  font-size: 18rpx;
+  font-size: report-reading-font(18rpx);
   line-height: 1.5;
   color: $color-home-secondary;
   min-width: 0;
@@ -123,7 +123,7 @@
 }
 .normalized-card-time {
   flex-shrink: 0;
-  font-size: 16rpx;
+  font-size: report-reading-font(16rpx);
   line-height: 1.9;
   white-space: nowrap;
   color: $color-home-muted;
@@ -131,7 +131,7 @@
 .normalized-impact {
   padding: 4rpx 10rpx;
   border-radius: $radius-pill;
-  font-size: 16rpx;
+  font-size: report-reading-font(16rpx);
   font-weight: 700;
   background: $color-home-gold-soft;
   color: $color-home-secondary;
@@ -163,7 +163,7 @@
   border: 2rpx solid rgba($color-home-ink-soft, 0.06);
   border-radius: 18rpx;
   background: $color-home-logic;
-  font-size: 20rpx;
+  font-size: report-reading-font(20rpx);
   line-height: 1.48;
   font-weight: 600;
   color: $color-home-body;
@@ -190,13 +190,13 @@
   padding-top: 4rpx;
 }
 .normalized-anchor-number {
-  font-size: 42rpx;
+  font-size: report-reading-font(42rpx);
   line-height: 1;
   font-weight: 700;
   color: $color-home-ink-soft;
 }
 .normalized-anchor-caption {
-  font-size: 18rpx;
+  font-size: report-reading-font(18rpx);
   color: $color-home-muted;
 }
 .normalized-anchor-chips {
@@ -214,7 +214,7 @@
   border: 2rpx solid rgba($color-home-gold, 0.38);
   border-radius: 12rpx;
   background: $color-home-gold-soft;
-  font-size: 18rpx;
+  font-size: report-reading-font(18rpx);
   line-height: 1.4;
   min-width: 0;
   max-width: 100%;
@@ -229,7 +229,7 @@
   flex-shrink: 0;
   padding: 2rpx 6rpx;
   border-radius: 6rpx;
-  font-size: 16rpx;
+  font-size: report-reading-font(16rpx);
   white-space: nowrap;
   color: $color-report-pending;
   background: $color-report-slate-100;
@@ -262,7 +262,7 @@
   padding: 0 !important;
   background: transparent !important;
   color: $color-home-ink !important;
-  font-size: 18rpx !important;
+  font-size: report-reading-font(18rpx) !important;
   font-weight: 700;
   line-height: 1.5 !important;
   margin: 0 !important;
@@ -306,5 +306,5 @@
 .normalized-home-more {
   background: $color-home-card !important;
   color: $color-home-ink !important;
-  font-size: $font-report-meta !important;
+  font-size: report-reading-font($font-report-meta) !important;
 }
