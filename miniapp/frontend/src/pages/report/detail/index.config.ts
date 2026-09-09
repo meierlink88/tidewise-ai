@@ -6,8 +6,8 @@ export default definePageConfig({
         singlePage: { navigationBarFit: 'squeezed' }
       }
     : {}),
-  navigationBarTitleText: '推理详情',
-  navigationBarBackgroundColor: '#071735',
+  navigationBarTitleText: '深度分析',
+  navigationBarBackgroundColor: '#0b2035',
   navigationBarTextStyle: 'white',
   navigationStyle: 'default',
   enablePullDownRefresh: true,

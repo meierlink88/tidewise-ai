@@ -95,6 +95,8 @@ type fakeRepository struct {
 	analysisQueries []AnalysisQuery
 	analysisPage    AnalysisPage
 	analysisErr     error
+	analysisDetail  NormalizedDetailProjection
+	listErr         error
 	homeCalls       int
 	listPage        Page
 	listPages       []Page
@@ -118,7 +120,7 @@ func (f *fakeRepository) ListReports(_ context.Context, query ListQuery) (Page, 
 	if query.Limit > 0 && len(page.Items) > query.Limit {
 		page.Items = page.Items[:query.Limit]
 	}
-	return page, nil
+	return page, f.listErr
 }
 func (f *fakeRepository) GetHome(_ context.Context, reportID string) (HomeSnapshot, error) {
 	f.homeCalls++
@@ -151,8 +153,8 @@ func (f *fakeRepository) ListAnalyses(_ context.Context, q AnalysisQuery) (Analy
 	return f.analysisPage, f.analysisErr
 }
 
-func (*fakeRepository) GetAnalysis(context.Context, AnalysisQuery) (NormalizedDetailProjection, error) {
-	return NormalizedDetailProjection{}, ErrDataUnavailable
+func (f *fakeRepository) GetAnalysis(context.Context, AnalysisQuery) (NormalizedDetailProjection, error) {
+	return f.analysisDetail, f.analysisErr
 }
 
 func (*fakeRepository) GetAnalysisChain(context.Context, AnalysisQuery) (NormalizedChain, error) {
@@ -214,5 +216,48 @@ func TestHomeRejectsRetiredSnapshotWithoutReadingLegacyEndpoints(t *testing.T) {
 	_, err := NewUseCase(repository).Home(context.Background())
 	if err != ErrDataUnavailable || len(repository.analysisQueries) != 0 {
 		t.Fatalf("err=%v queries=%v", err, repository.analysisQueries)
+	}
+}
+
+func TestAnalysisAssociatesPublicationFromHistoricalReportPage(t *testing.T) {
+	target := validSummary()
+	newer := target
+	newer.ID = "RPT22222222-2222-4222-8222-222222222222"
+	newer.PublishedAt = target.PublishedAt.Add(time.Hour)
+	repo := &fakeRepository{listPages: []Page{
+		{Items: []Summary{newer}, NextCursor: stringPointer("next-page")},
+		{Items: []Summary{target}},
+	}}
+	got, err := NewUseCase(repo).Analysis(context.Background(), AnalysisQuery{ReportID: target.ID, Kind: "geopolitical_stories", Key: "story"})
+	if err != nil || got.PublishedAt == nil || !got.PublishedAt.Equal(target.PublishedAt) {
+		t.Fatalf("publication=%v err=%v", got.PublishedAt, err)
+	}
+	if len(repo.listQueries) != 2 || repo.listQueries[1].Cursor != "next-page" || repo.listQueries[0].Limit != 100 {
+		t.Fatalf("queries=%#v", repo.listQueries)
+	}
+}
+
+func TestAnalysisPublicationLookupFailsExplicitly(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		repo *fakeRepository
+	}{
+		{"absent", &fakeRepository{}},
+		{"upstream failure", &fakeRepository{listErr: ErrDataUnavailable}},
+		{"repeated cursor", &fakeRepository{listPage: Page{Items: []Summary{validSummary()}, NextCursor: stringPointer("loop")}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := NewUseCase(tc.repo).Analysis(context.Background(), AnalysisQuery{ReportID: "RPT22222222-2222-4222-8222-222222222222", Kind: "geopolitical_stories", Key: "story"})
+			if err == nil {
+				t.Fatal("expected explicit metadata lookup failure")
+			}
+		})
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	repo := &fakeRepository{}
+	_, err := NewUseCase(repo).Analysis(ctx, AnalysisQuery{ReportID: testReportID, Kind: "geopolitical_stories", Key: "story"})
+	if err != ErrDataUnavailable || len(repo.listQueries) != 0 {
+		t.Fatalf("err=%v queries=%v", err, repo.listQueries)
 	}
 }

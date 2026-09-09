@@ -43,3 +43,16 @@ export function reportErrorCopy(kind: ReportErrorKind): {
 function two(value: number): string {
   return String(value).padStart(2, '0');
 }
+
+export function formatReportPublication(value: string | undefined, now = Date.now()): string {
+  if (!value) return '';
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return '';
+  const minutes = Math.floor((now - timestamp) / 60000);
+  if (minutes < 0) return `${formatShanghaiTimestamp(value)} 发布`;
+  if (minutes < 1) return '刚刚发布';
+  if (minutes < 120) return `${minutes} 分钟前发布`;
+  if (minutes < 1440) return `${Math.floor(minutes / 60)} 小时前发布`;
+  if (minutes < 10080) return `${Math.floor(minutes / 1440)} 天前发布`;
+  return `${formatShanghaiTimestamp(value)} 发布`;
+}

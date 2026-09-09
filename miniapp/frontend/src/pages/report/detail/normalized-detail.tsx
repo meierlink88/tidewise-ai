@@ -18,6 +18,7 @@ import { ReportStatePanel } from '../../../features/reports/report-components';
 import supportIcon from '../../../assets/icons/report-shield-check.svg';
 import counterIcon from '../../../assets/icons/report-scale.svg';
 import followUpIcon from '../../../assets/icons/report-eye.svg';
+import { formatReportPublication } from '../../../features/reports/presentation';
 import './normalized-detail.scss';
 
 const directions = { warming: '升温', cooling: '降温', diverging: '分化', pending: '仅观察' };
@@ -45,17 +46,14 @@ export function NormalizedDetailView({
   );
   const [selected, setSelected] = useState(tabs[0]?.local_key ?? '');
   const current = tabs.find((t) => t.local_key === selected) ?? tabs[0];
-  const level = { high: '高影响', medium: '中影响', low: '低影响', pending: '待评估' }[
-    detail.summary.summary.impact_assessment.level
-  ];
+  const publication = formatReportPublication(detail.published_at);
   return (
     <View className='normalized-detail'>
       <View className='normalized-hero'>
         <View className='normalized-kicker'>
-          <Text className='normalized-kicker-badge'>{level}</Text>
-          <Text>{analysisLabels[kind]}</Text>
+          <Text className='normalized-story'>{detail.summary.title}</Text>
+          {publication && <Text className='normalized-publication'>{publication}</Text>}
         </View>
-        <Text className='normalized-story'>{detail.summary.title}</Text>
         <Text className='normalized-headline'>{detail.summary.summary.conclusion}</Text>
         <View className='normalized-hero-logic'>
           <Text>{detail.summary.summary.transmission_logic}</Text>

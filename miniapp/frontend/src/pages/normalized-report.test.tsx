@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import fixture from '../mocks/reports/normalized.json';
 import v5 from '../mocks/reports/normalized-v5.json';
+import { formatReportPublication } from '../features/reports/presentation';
 import { normalizedMockReportPort } from '../mocks/reports/mock-port';
 import { parseAnalysisChain, parseAnalysisDetail } from '../features/reports/normalized-contract';
 import { NormalizedHome } from './index/normalized-home';
@@ -52,6 +53,52 @@ const click = (el: Element | null) => {
   act(() => el?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
 };
 describe('normalized report interaction', () => {
+  it('shows the owning story, publication, conclusion and logic without impact or top-level event counts', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-09-09T05:30:00Z'));
+    const detail = parseAnalysisDetail(
+      { ...fixture.details['geopolitical_stories/g1'], published_at: '2026-09-09T04:00:00Z' },
+      'g1'
+    );
+    const render = () =>
+      act(() =>
+        root.render(
+          <NormalizedDetailView
+            detail={detail}
+            reportId={reportId}
+            kind='geopolitical_stories'
+            onEvidence={vi.fn()}
+          />
+        )
+      );
+    render();
+    const hero = host.querySelector('.normalized-hero')!;
+    expect(hero.querySelector('.normalized-story')?.textContent).toBe(detail.summary.title);
+    expect(hero.querySelector('.normalized-publication')?.textContent).toBe('90 分钟前发布');
+    expect(hero.querySelector('.normalized-headline')?.textContent).toBe(
+      detail.summary.summary.conclusion
+    );
+    expect(hero.querySelector('.normalized-hero-logic')?.textContent).toBe(
+      detail.summary.summary.transmission_logic
+    );
+    expect(hero.textContent).not.toMatch(/高影响|中影响|低影响|条政经事件聚合|跟踪中/);
+    delete detail.published_at;
+    render();
+    expect(hero.querySelector('.normalized-publication')).toBeNull();
+    expect(hero.querySelector('.normalized-headline')?.textContent).toBe(
+      detail.summary.summary.conclusion
+    );
+  });
+  it('formats publication elapsed time without inventing future or missing timestamps', () => {
+    const now = Date.parse('2026-09-09T05:30:00Z');
+    expect(formatReportPublication(undefined, now)).toBe('');
+    expect(formatReportPublication('invalid', now)).toBe('');
+    expect(formatReportPublication('2026-09-09T05:30:00Z', now)).toBe('刚刚发布');
+    expect(formatReportPublication('2026-09-09T03:30:00Z', now)).toBe('2 小时前发布');
+    expect(formatReportPublication('2026-09-08T05:30:00Z', now)).toBe('1 天前发布');
+    expect(formatReportPublication('2026-09-01T05:30:00Z', now)).toBe('2026.09.01 13:30 发布');
+    expect(formatReportPublication('2026-09-10T05:30:00Z', now)).toBe('2026.09.10 13:30 发布');
+  });
+
   it('combines industry and legacy cards with independent cursors and real detail identities', async () => {
     const home = await normalizedMockReportPort.getHome();
     const group = structuredClone(home.reports[0]);

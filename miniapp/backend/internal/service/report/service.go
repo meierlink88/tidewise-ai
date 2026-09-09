@@ -352,6 +352,10 @@ func mapNormalizedChainHeader(v biz.NormalizedChainHeader) api.NormalizedChainHe
 
 func mapNormalizedDetailProjection(v biz.NormalizedDetailProjection) api.NormalizedDetailProjection {
 	out := api.NormalizedDetailProjection{}
+	if v.PublishedAt != nil {
+		formatted := formatTime(*v.PublishedAt)
+		out.PublishedAt = &formatted
+	}
 	out.JudgmentOrigin = v.JudgmentOrigin
 	out.ReasoningSources = mapNormalizedReasoningSources(v.ReasoningSources)
 	out.VariableSignals = mapNormalizedSignals(v.VariableSignals)

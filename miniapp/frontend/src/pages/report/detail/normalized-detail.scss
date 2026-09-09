@@ -6,34 +6,60 @@
   min-height: 100vh;
 }
 .normalized-hero {
-  padding: 44px 32px 48px;
-  background: linear-gradient(135deg, #10294f, #173f78);
-  color: white;
+  position: relative;
+  overflow: hidden;
+  padding: 20px 32px 26px;
+  background:
+    radial-gradient(ellipse at 100% 0, rgba(201, 169, 98, 0.14), transparent 55%),
+    linear-gradient(150deg, #132d43, #0b2035);
+  color: #fff;
+
+  &::before {
+    content: '';
+    position: absolute;
+    right: -120px;
+    bottom: -260px;
+    width: 660px;
+    height: 440px;
+    border: 2px solid rgba(216, 193, 138, 0.09);
+    border-radius: 50%;
+    box-shadow:
+      0 -36px 0 rgba(216, 193, 138, 0.025),
+      0 -76px 0 rgba(216, 193, 138, 0.02);
+    pointer-events: none;
+  }
 }
 .normalized-kicker {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 16px;
-  font-size: 23px;
-  color: #c2cee3;
-}
-.normalized-kicker .normalized-kicker-badge {
-  color: #efd397;
-  border: 1px solid #687fa3;
-  padding: 6px 12px;
-  border-radius: 6px;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 20px;
+  line-height: 1.5;
 }
 .normalized-story {
-  display: block;
-  margin: 24px 0 12px;
-  font-size: 24px;
-  color: #ccd8eb;
+  max-width: 100%;
+  padding: 6px 14px;
+  border: 2px solid rgba(216, 193, 138, 0.4);
+  border-radius: 999px;
+  background: rgba(216, 193, 138, 0.1);
+  color: #f4ecd8;
+  font-size: 20px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.normalized-publication {
+  color: rgba(244, 236, 216, 0.7);
+  font-size: 20px;
 }
 .normalized-headline {
+  position: relative;
   display: block;
-  font-size: 34px;
-  line-height: 1.65;
-  font-weight: 650;
+  margin-top: 14px;
+  font-size: 32px;
+  line-height: 1.38;
+  font-weight: 700;
 }
 .normalized-main {
   padding: 0 26px 50px;
@@ -385,15 +411,11 @@
 }
 
 .normalized-hero-logic {
-  margin-top: 28px;
-  padding: 22px 24px;
-  border: 1px solid rgba($color-card, 0.13);
-  border-left: 4px solid $color-champagne-300;
-  border-radius: 0 12px 12px 0;
-  background: rgba($color-card, 0.06);
-  color: $color-report-slate-200;
-  font-size: 25px;
-  line-height: 1.9;
+  position: relative;
+  margin-top: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 20px;
+  line-height: 1.48;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

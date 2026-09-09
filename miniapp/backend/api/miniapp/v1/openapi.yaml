@@ -675,6 +675,10 @@ components:
         - macro_impacts
         - industry_chains
       properties:
+        published_at:
+          type: string
+          format: date-time
+          description: Publication time of the owning report, composed by Miniapp Service from existing Data report summaries. Optional for compatibility with older Miniapp Service responses.
         judgment_origin:
           type: string
           enum:
