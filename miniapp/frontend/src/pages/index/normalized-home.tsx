@@ -247,7 +247,7 @@ function HomeCard({
           onClick={onEvidence}
         >
           <Image src={evidenceIcon} className='normalized-evidence-icon' mode='scaleToFill' />
-          <Text>{u.summary.evidence_count} 条事件</Text>
+          <Text>{u.summary.evidence_count} 条政经事件</Text>
         </Button>
         <Button
           className='tidewise-button normalized-card-path'
