@@ -2,7 +2,7 @@
 
 .normalized-detail {
   color: #16325d;
-  background: #fbfaf7;
+  background: #0b2035;
   min-height: 100vh;
 }
 .normalized-hero {
@@ -62,49 +62,69 @@
   font-weight: 700;
 }
 .normalized-main {
-  padding: 0 26px 50px;
+  position: relative;
+  padding: 22px 26px 50px;
+  border-radius: 36px 36px 0 0;
+  background: radial-gradient(circle at 94% 2%, rgba(201, 169, 98, 0.07), transparent 20%), #f7f5ef;
+  min-height: 70vh;
 }
 .normalized-tabs {
   width: 100%;
-  margin-bottom: 28px;
-  border-bottom: 1px solid #d5dfec;
+  margin-bottom: 14px;
 }
 .normalized-tabs-row {
   display: flex;
   min-width: 100%;
+  align-items: stretch;
 }
 .normalized-tab {
+  position: relative;
   flex: 1 0 240px;
   max-width: 330px;
-  min-height: 180px;
-  padding: 24px 18px !important;
+  margin: 0 !important;
+  padding: 2px 18px 6px 22px !important;
+  border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
-  border-bottom: 5px solid transparent !important;
-  font-size: 24px !important;
-  color: #73839b !important;
+  color: #7c7973 !important;
   text-align: left !important;
   white-space: normal;
-  line-height: 1.7 !important;
+  line-height: 1.5 !important;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 4px;
+    bottom: 8px;
+    width: 6px;
+    border-radius: 6px;
+    background: transparent;
+  }
 }
 .normalized-tab.selected {
-  border-bottom-color: #c6a45c !important;
-  color: #16365f !important;
-  background: linear-gradient(#fff, transparent) !important;
+  color: #0b2035 !important;
+
+  &::before {
+    background: linear-gradient(180deg, #c9a962, #dfc788);
+  }
+}
+.normalized-tab-name {
+  display: block;
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  overflow-wrap: anywhere;
+}
+.normalized-tab.selected .normalized-tab-name {
+  font-weight: 700;
 }
 .normalized-tab-type {
   display: block;
-  width: fit-content;
-  font-size: 20px;
-  padding: 1px 10px;
-  margin-bottom: 8px;
-  border: 1px solid #d8e1ed;
-  border-radius: 5px;
-}
-.normalized-tab.selected .normalized-tab-type {
-  color: #275cb8;
-  background: #e9f1ff;
-  border-color: #ccdaf3;
+  margin-top: 2px;
+  color: #7c7973;
+  font-size: 18px;
+  font-weight: 400;
 }
 .normalized-conclusion {
   padding: 6px 12px 20px;

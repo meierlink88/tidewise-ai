@@ -72,10 +72,10 @@ export function NormalizedDetailView({
                 onClick={() => setSelected(t.local_key)}
                 ariaLabel={`${t.type === 'macro' ? '宏观经济' : '产业链'}：${t.name}`}
               >
+                <Text className='normalized-tab-name'>{t.name}</Text>
                 <Text className='normalized-tab-type'>
                   {t.type === 'macro' ? '宏观经济' : '产业链'}
                 </Text>
-                <Text>{t.name}</Text>
               </Button>
             ))}
           </View>
