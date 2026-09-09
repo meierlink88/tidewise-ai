@@ -305,8 +305,8 @@ function HorizontalGraph({
   onSelect: (key: string) => void;
 }) {
   const nodes = c.graph.nodes;
-  const width = 224,
-    gap = 32,
+  const width = 148,
+    gap = 28,
     step = width + gap,
     pad = 10;
   const style = (values: Record<string, number>) =>
@@ -330,10 +330,7 @@ function HorizontalGraph({
           return (
             <View key={n.local_key} className='normalized-graph-item' style={style({ width })}>
               {i < nodes.length - 1 ? (
-                <View
-                  className='normalized-edge'
-                  style={style({ left: width, top: 110, width: gap })}
-                />
+                <View className='normalized-edge' style={style({ left: width, width: gap })} />
               ) : null}
               {nodes.length > 1 ? (
                 <View

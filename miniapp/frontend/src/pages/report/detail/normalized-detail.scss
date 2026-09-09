@@ -402,7 +402,7 @@
   position: relative;
   display: flex;
   align-items: stretch;
-  gap: 32px;
+  gap: 28px;
   padding: 10px 10px 50px;
   box-sizing: border-box;
 }
@@ -413,19 +413,22 @@
 }
 .normalized-graph-node {
   position: relative;
-  width: 100%;
-  min-height: 240px;
+  width: 100% !important;
+  min-width: 0;
+  flex: 0 0 100%;
+  box-sizing: border-box;
+  min-height: 140px;
   height: auto !important;
   display: flex !important;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 12px;
+  gap: 6px;
   text-align: center !important;
-  padding: 14px 10px !important;
+  padding: 14px 4px 12px !important;
   border: 2px solid #cbdce2 !important;
   background: #eef2f3 !important;
-  border-radius: 20px !important;
+  border-radius: 18px !important;
   white-space: normal;
   color: #102638 !important;
 }
@@ -451,20 +454,20 @@
   box-shadow: 0 0 0 5px #efddbe;
 }
 .normalized-graph-name {
-  min-height: 66px;
+  min-height: 44px;
   display: flex;
   align-items: center;
-  font-size: 23px;
+  font-size: 18px;
   font-weight: 700;
-  line-height: 1.45;
+  line-height: 1.25;
   overflow-wrap: anywhere;
 }
 .normalized-graph-variables {
   width: 100%;
   margin-top: auto;
-  padding-top: 8px;
+  padding-top: 6px;
   color: #827d73;
-  font-size: 20px;
+  font-size: 16px;
   line-height: 1.5;
 }
 .normalized-graph-variable {
@@ -491,37 +494,49 @@
   color: #a67c20;
   background: #f7e9bc;
 }
+.normalized-graph-node .normalized-direction {
+  font-size: 14px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  line-height: 1.2;
+}
 .normalized-edge {
   position: absolute;
-  height: 4px;
-  background: #e6bc85;
+  top: 50%;
+  margin-top: -14px;
+  height: 5px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #f7b58d, #fa995c);
   &::after {
     content: '';
     position: absolute;
-    right: 2px;
-    top: -6px;
-    border-top: 8px solid transparent;
-    border-bottom: 8px solid transparent;
-    border-left: 9px solid #deab64;
+    right: -2px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-top: 10px solid transparent;
+    border-bottom: 10px solid transparent;
+    border-left: 12px solid #f98a4d;
   }
 }
 .normalized-graph-baseline {
   position: absolute;
-  height: 3px;
-  background: linear-gradient(90deg, #e5b27d, #94bfcc);
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #fa9393, #ffb487, #88cce5);
 }
 .normalized-graph-stem {
   position: absolute;
-  width: 3px;
-  background: #dbc39b;
+  width: 4px;
+  border-radius: 2px;
+  background: #ffb487;
   &::before {
     content: '';
     position: absolute;
     top: 0;
-    left: -5px;
-    width: 9px;
-    height: 9px;
-    border: 3px solid #d5b475;
+    left: -6px;
+    width: 10px;
+    height: 10px;
+    border: 4px solid #ffb487;
     border-radius: 50%;
     background: #fff;
   }
