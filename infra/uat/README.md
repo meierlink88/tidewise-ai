@@ -402,3 +402,7 @@ Miniapp 客户端地址和 Admin CORS 配置。发布完成后应从 ECS 外部�
    migration `80` 完成且 Report 仓仍为空后，选择 `data_81_cutover` 并再次确认恢复点与
    破坏性变更。
 7. 检查 Actions deployment plan、受影响业务镜像、完整四服务 release state、代表性 BFF→Data 读取以及 `state/current.sha`、`state/previous.sha`。
+
+### Report 总结/详情拆分（migration 88）
+
+`Deploy UAT` 的 `data_88_cutover` 专用于87→88：停止写入、受保护备份、保留2026-09-09上海零点之后发布的报告并拆分、清理此前Report、校验后启动。沿用备份与破坏性变更确认及同release恢复机制，禁用schema重建。执行与恢复详见 `docs/contexts/data/report-storage-cutover.md`。普通部署仍拦截pending88。

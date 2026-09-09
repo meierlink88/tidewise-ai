@@ -40,3 +40,13 @@ Issue #473。外部 API/发布包不变。必须先人工合并 PR、使用该 m
 任何失败不得跳过 verify，也不得自动回退访问未迁移归档。新表无内容时启动并不算迁移成功。Schema 88 是 forward-only：需要回退时停止流量、恢复匹配的数据库备份和旧应用；不执行 Down，不只回退旧镜像。
 
 运维命令需要表 owner 权限执行指定表锁/trigger 开关；不为运行时 API 新增权限或后台清理动作。CLI 不配置固定日期，截止时间只属于这次显式 UAT 操作。
+
+## GitHub Actions 切换入口（Issue #475）
+
+人工合并后，在 `Deploy UAT` 选择 `data_88_cutover`，指定该已合并提交，确认实际 RDS 恢复点及历史 Report 删除授权。模式只接受 87→88，强制构建完整应用 release。首次执行需要现有完整 release；失败后仅允许同 SHA/同目标版本恢复，禁止 empty schema rebuild。
+
+停写后使用固定 digest 的 PostgreSQL 16.14 客户端备份 `tidewise_uat`，文件保存在 ECS `/opt/tidewise/uat/state/report-storage-<release_sha>/before.dump`，配套 `before.sha256`、归档目录和每次尝试的迁移计划。目录0700，不上传数据库内容到 Actions artifact。dump 不包含角色创建、owner/ACL，完整灾难恢复以已确认的 RDS 恢复点为准。现有 SQL 函数依赖 public search_path，逻辑恢复需采用已演练的 public search_path 方式，不能假设默认 pg_restore 全库恢复可直接成功。
+
+备份失败不开始迁移。迁移后校验计划截止时间、已知两份 Sep9 报告必须保留；根据固定截止时间保留更新报告、删除更早 Report。通过 report-storage apply 和 verify 后才允许启动候选应用。备份/计划不会被成功部署清理；恢复运行验证并复用原始备份，不用已迁移数据库覆盖备份。失败时保留 marker，数据库变更后不自动回退旧镜像。
+
+本模式暂停既有完整应用 release，以沿用所有写入者停止与一致恢复机制；迁移完成后启动四服务并做健康/API读路径检查。部署后仍需对照外部准备的1704条接口基线，验证保留报告和清理对象。
