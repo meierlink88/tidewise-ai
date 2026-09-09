@@ -372,11 +372,22 @@
 }
 // Graph connectors are illustrative; report topology remains in the data contract.
 .normalized-graph-section {
+  position: relative;
   margin-top: 26px;
   padding: 28px 20px 26px;
   border-top: 1px solid #e3dfd7;
   background: #f8f5ed;
   color: #102638;
+  &::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -50px;
+    margin-left: -1.5px;
+    width: 3px;
+    height: 50px;
+    background: linear-gradient(to bottom, #527586 0%, #527586 58%, #dfcca1 58%, #dfcca1 100%);
+  }
 }
 .normalized-tree-panel > .normalized-columns {
   margin-bottom: 0;
