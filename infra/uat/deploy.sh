@@ -812,6 +812,10 @@ if [ -n "$high_risk_pending" ] && [ "$backup_confirmed" != true ]; then
   exit 1
 fi
 echo "PASS migration-risk-gate"
+if [ "$deployment_mode" = data_88_cutover ]; then
+  source "$(dirname "${BASH_SOURCE[0]}")/report-storage-cutover.sh"
+  prepare_report_storage_image
+fi
 
 if [ "$committed_cutover_recovery" = true ]; then
   if [ "$data_current_version" != "$cutover_target_version_padded" ] || [ -n "$data_pending_versions" ]; then
@@ -882,7 +886,6 @@ if [ "$bounded_data_cutover" = true ]; then
   fi
   echo "PASS application-write-stop"
   if [ "$deployment_mode" = data_88_cutover ]; then
-    source "$(dirname "${BASH_SOURCE[0]}")/report-storage-cutover.sh"
     prepare_report_storage_backup
   fi
   if [ "$cutover_migration_started" != true ]; then

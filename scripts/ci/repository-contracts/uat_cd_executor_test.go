@@ -1728,6 +1728,8 @@ case " $* " in
 	    touch "$FAKE_CUTOVER_APPLIED"
 	    cat "$FAKE_MIGRATION_APPLY_REPORT"
 	    ;;
+  *" pull "*) [ "$FAKE_REPORT_STORAGE_FAILURE" = image ] && exit 1 ;;
+  *" pg_dump --version "*) echo pg_dump-fixture ;;
   *" pg_dump "*)
     [ "$FAKE_REPORT_STORAGE_FAILURE" = backup ] && exit 1
     echo fixture-dump
@@ -1813,6 +1815,8 @@ exit 0
 		"GITHUB_STEP_SUMMARY="+filepath.Join(temp, "summary.md"),
 		"FAKE_DOCKER_LOG="+dockerLog,
 		"FAKE_REPORT_STORAGE_FAILURE="+options.reportStorageFailure,
+		"SWR_REGISTRY=swr.example.test",
+		"REPORT_BACKUP_IMAGE=swr.example.test/deploy/backup@sha256:"+strings.Repeat("a", 64),
 		"FAKE_MIGRATION_REPORT="+filepath.Join(temp, "migration.json"),
 		"FAKE_MIGRATION_APPLY_REPORT="+filepath.Join(temp, "migration-apply.json"),
 		"FAKE_CUTOVER_APPLIED="+filepath.Join(temp, "cutover-applied"),
@@ -1914,7 +1918,7 @@ func conditionalValue(condition bool, value string) string {
 }
 
 func TestUATReportStorageCutover(t *testing.T) {
-	for _, failure := range []string{"", "backup", "verify"} {
+	for _, failure := range []string{"", "image", "backup", "verify"} {
 		t.Run(failure, func(t *testing.T) {
 			r := runDeployFixture(t, deployFixtureOptions{currentRelease: true, deploymentMode: "data_88_cutover", backupConfirmed: true, destructiveConfirmed: true, reportStorageFailure: failure,
 				migrationReport:      `{"current_version":"87","pending":[{"Version":"88"}]}`,
@@ -1927,7 +1931,7 @@ func TestUATReportStorageCutover(t *testing.T) {
 				if r.err != nil {
 					t.Fatalf("%v: %s", r.err, r.output)
 				}
-				backup := strings.Index(log, " pg_dump ")
+				backup := strings.Index(log, " pg_dump --format")
 				verify := strings.LastIndex(log, " --verify")
 				if backup < 0 || migration < backup || verify < migration || start < verify {
 					t.Fatalf("unsafe sequence: %s", log)
@@ -1940,7 +1944,10 @@ func TestUATReportStorageCutover(t *testing.T) {
 				if start >= 0 {
 					t.Fatalf("candidate started after failure: %s", log)
 				}
-				if failure == "backup" && migration >= 0 {
+				if failure == "image" && strings.Contains(log, " stop ") {
+					t.Fatalf("image failure stopped services: %s", log)
+				}
+				if (failure == "backup" || failure == "image") && migration >= 0 {
 					t.Fatalf("migration ran without backup: %s", log)
 				}
 				if failure == "verify" {
@@ -1966,7 +1973,7 @@ func TestUATReportStorageRecoveryUsesOriginalBackup(t *testing.T) {
 	for _, backup := range []bool{false, true} {
 		r := runDeployFixture(t, deployFixtureOptions{currentRelease: true, deploymentMode: "data_88_cutover", backupConfirmed: true, destructiveConfirmed: true, existingReportBackup: backup, cutoverMarkerPhase: "migration-started", cutoverMarkerTargetVersion: "88", migrationReport: `{"current_version":"88","pending":[]}`, migrationApplyReport: `{"current_version":"88","pending":[]}`})
 		raw, _ := os.ReadFile(r.dockerLog)
-		if strings.Contains(string(raw), " pg_dump ") {
+		if strings.Contains(string(raw), " pg_dump --format") {
 			t.Fatal("recovery overwrote pre-migration backup")
 		}
 		if backup {

@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
-# Sourced only by the bounded Data 88 deployment after all writers are stopped.
+# Sourced only by the bounded Data 88 deployment; image preflight precedes stop.
 # Uses the owning deploy.sh state/Compose arrays and its forward-recovery trap.
+
+prepare_report_storage_image() {
+  report_backup_image="${REPORT_BACKUP_IMAGE:-}"
+  if [ -z "${SWR_REGISTRY:-}" ] || [[ "$report_backup_image" != "${SWR_REGISTRY}/"* ]] || ! [[ "$report_backup_image" =~ @sha256:[0-9a-f]{64}$ ]]; then
+    echo "FAIL report-storage-image: expected a digest-pinned backup client in the configured SWR registry" >&2
+    return 1
+  fi
+  docker pull "$report_backup_image" >/dev/null
+  docker run --rm "$report_backup_image" pg_dump --version
+  echo "PASS report-storage-backup-image-ready"
+}
 
 prepare_report_storage_backup() {
   report_backup_dir="${state_dir}/report-storage-${release_sha}"
-  report_backup_image='postgres:16.14-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777'
   umask 077
   mkdir -p "$report_backup_dir"
   chmod 0700 "$report_backup_dir"
@@ -27,7 +37,6 @@ prepare_report_storage_backup() {
     return 1
   fi
   # Only the same UAT application database is backed up; credentials stay off stdout.
-  docker pull "$report_backup_image" >/dev/null
   PGHOST="$backup_host" PGPASSWORD="$backup_password" docker run --rm --network host \
     -e PGHOST -e PGPASSWORD -e PGPORT=5432 -e PGUSER=tidewise_uat \
     -e PGDATABASE=tidewise_uat -e PGSSLMODE=require -e PGCONNECT_TIMEOUT=10 \
