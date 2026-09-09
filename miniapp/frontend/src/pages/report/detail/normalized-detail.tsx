@@ -6,7 +6,6 @@ import type {
   AnalysisDetail,
   AnalysisChain,
   Assessment,
-  JudgmentOrigin,
   EvidenceScope,
   Objections
 } from '../../../features/reports/normalized-contract';
@@ -19,7 +18,13 @@ import { formatReportPublication } from '../../../features/reports/presentation'
 import './normalized-detail.scss';
 
 const directions = { warming: '升温', cooling: '降温', diverging: '分化', pending: '仅观察' };
-const confidences = { low: '低', medium: '中', high: '高' };
+const signalDirections = {
+  UP: '上升',
+  DOWN: '下降',
+  STABLE: '稳定',
+  MIXED: '分化',
+  UNKNOWN: '未知'
+};
 export function NormalizedDetailView({
   detail,
   reportId,
@@ -244,30 +249,35 @@ export function ChainContent({
           <Text className='normalized-prose'>{c.empty_state.reason}</Text>
         ) : (
           <View>
-            <Text className='normalized-title'>节点详情</Text>
+            <Text className='normalized-title'>核心分析</Text>
             <View className='normalized-node-detail'>
               <View className='normalized-node-heading'>
                 <Text>{top?.name}</Text>
                 {node ? (
-                  <Text className='normalized-node-basis'>
-                    {judgmentLabel(node.assessment, node.judgment_origin)}
+                  <Text className={`normalized-direction ${node.assessment.direction}`}>
+                    {directions[node.assessment.direction]}
                   </Text>
                 ) : null}
               </View>
               {node ? (
-                <View>
-                  <View className='normalized-node-impact'>
-                    <Text className='normalized-prose'>{node.assessment.conclusion}</Text>
-                    <Text className='normalized-prose normalized-node-transmission'>
-                      {node.assessment.transmission_logic}
-                    </Text>
-                  </View>
-                  <View className='normalized-node-body'>
-                    <AssessmentColumns
-                      support={node.assessment.conditions}
-                      objections={node.objections}
-                    />
-                  </View>
+                <View className='normalized-node-impact'>
+                  <Text className='normalized-node-conclusion'>{node.assessment.conclusion}</Text>
+                  {node.variable_signals?.map((signal, index) => (
+                    <View
+                      className='normalized-variable-signal'
+                      key={`${signal.variable_id}:${signal.signal_id}:${index}`}
+                    >
+                      <Text className='normalized-signal-bullet'>•</Text>
+                      <Text className='normalized-signal-text'>
+                        <Text className='normalized-variable-name'>{signal.variable_name}</Text>
+                        <Text className={`normalized-signal-direction ${signal.source_direction}`}>
+                          {' '}
+                          · {signalDirections[signal.source_direction]} ·{' '}
+                        </Text>
+                        {signal.signal}
+                      </Text>
+                    </View>
+                  ))}
                 </View>
               ) : (
                 <Text className='normalized-prose'>暂无本期节点评估。</Text>
@@ -276,21 +286,6 @@ export function ChainContent({
           </View>
         )}
       </View>
-    </View>
-  );
-}
-function NodeMetadata({ assessment: a }: { assessment: Assessment }) {
-  return (
-    <View className='normalized-node-metadata'>
-      <View className='normalized-node-badges'>
-        <Text className={`normalized-direction ${a.direction}`}>{directions[a.direction]}</Text>
-        {a.confidence ? (
-          <Text className='normalized-node-confidence'>置信度 {confidences[a.confidence]}</Text>
-        ) : null}
-      </View>
-      {a.forecast_window.kind !== 'not_applicable' ? (
-        <Text className='normalized-node-period'>{a.forecast_window.description}</Text>
-      ) : null}
     </View>
   );
 }
@@ -303,20 +298,11 @@ function HorizontalGraph({
   selected: string;
   onSelect: (key: string) => void;
 }) {
-  const nodes = c.graph.nodes,
-    edges = c.graph.edges,
-    indexes = new Map(nodes.map((n, i) => [n.local_key, i]));
-  const width = 300,
-    gap = 52,
+  const nodes = c.graph.nodes;
+  const width = 168,
+    gap = 32,
     step = width + gap,
-    pad = 20;
-  const longs = edges.filter(
-      (e) =>
-        Math.abs(
-          (indexes.get(e.from_node_local_key) ?? 0) - (indexes.get(e.to_node_local_key) ?? 0)
-        ) > 1
-    ),
-    top = 50 + longs.length * 34;
+    pad = 10;
   const style = (values: Record<string, number>) =>
     Object.entries(values)
       .map(([k, v]) => `${k}:${Taro.pxTransform(v)}`)
@@ -325,75 +311,47 @@ function HorizontalGraph({
     <ScrollView scrollX className='normalized-graph-scroll'>
       <View
         className='normalized-graph-canvas'
-        style={style({ width: pad * 2 + nodes.length * step - gap, height: top + 370 })}
+        style={style({ width: Math.max(width, pad * 2 + nodes.length * step - gap), height: 250 })}
       >
-        {edges.map((e, i) => {
-          const from = indexes.get(e.from_node_local_key)!,
-            to = indexes.get(e.to_node_local_key)!;
-          const adjacent = Math.abs(from - to) === 1;
-          const sx = pad + from * step + (adjacent ? (from < to ? width : 0) : width / 2),
-            tx = pad + to * step + (adjacent ? (from < to ? 0 : width) : width / 2);
-          const y = adjacent ? top + 90 : 18 + longs.indexOf(e) * 34;
-          return (
-            <View key={`${e.from_node_local_key}:${e.to_node_local_key}:${i}`}>
-              <View
-                className='normalized-edge'
-                style={style({ left: Math.min(sx, tx), top: y, width: Math.abs(sx - tx) })}
-              >
-                <Text className='normalized-edge-label'>{e.relation_label}</Text>
-              </View>
-              {!adjacent ? (
-                <>
-                  <View
-                    className='normalized-edge-vertical'
-                    style={style({ left: sx, top: y, height: top - y })}
-                  />
-                  <View
-                    className='normalized-edge-vertical'
-                    style={style({ left: tx, top: y, height: top - y })}
-                  />
-                </>
-              ) : null}
-              <View
-                className={`normalized-arrow ${adjacent ? (from < to ? 'right' : 'left') : 'down'}`}
-                style={style({ left: tx - 6, top: adjacent ? y - 6 : top - 10 })}
-              />
-            </View>
-          );
-        })}
+        {nodes.length > 1 ? (
+          <View
+            className='normalized-graph-baseline'
+            style={style({ left: pad + width / 2, top: 234, width: (nodes.length - 1) * step })}
+          />
+        ) : null}
         {nodes.map((n, i) => {
           const hit = c.affected_nodes.find((a) => a.node_local_key === n.local_key);
           return (
-            <Button
-              key={n.local_key}
-              className={`tidewise-button normalized-graph-node ${selected === n.local_key ? 'selected' : ''}`}
-              style={style({ left: pad + i * step, top, width })}
-              onClick={() => onSelect(n.local_key)}
-              ariaLabel={`查看${n.name}节点详情`}
-            >
-              <View className='normalized-graph-heading'>
+            <View key={n.local_key}>
+              {i < nodes.length - 1 ? (
+                <View
+                  className='normalized-edge'
+                  style={style({ left: pad + i * step + width, top: 96, width: gap })}
+                />
+              ) : null}
+              {nodes.length > 1 ? (
+                <View
+                  className='normalized-graph-stem'
+                  style={style({ left: pad + i * step + width / 2, top: 208, height: 26 })}
+                />
+              ) : null}
+              <Button
+                className={`tidewise-button normalized-graph-node ${hit?.assessment.direction ?? 'pending'} ${hit?.judgment_origin === 'direct' ? 'direct' : ''} ${selected === n.local_key ? 'selected' : ''}`}
+                style={style({ left: pad + i * step, top: 10, width })}
+                onClick={() => onSelect(n.local_key)}
+                ariaLabel={`查看${n.name}节点详情`}
+              >
                 <Text className='normalized-graph-name'>{n.name}</Text>
                 {hit ? (
-                  <Text className='normalized-node-method'>
-                    {judgmentLabel(hit.assessment, hit.judgment_origin)}
+                  <Text className={`normalized-direction ${hit.assessment.direction}`}>
+                    {directions[hit.assessment.direction]}
                   </Text>
                 ) : null}
-              </View>
-              <View className='normalized-graph-signal-space' />
-              {hit ? (
-                <NodeMetadata assessment={hit.assessment} />
-              ) : (
-                <Text className='normalized-unassessed'>暂无本期评估</Text>
-              )}
-            </Button>
+              </Button>
+            </View>
           );
         })}
       </View>
     </ScrollView>
   );
-}
-
-function judgmentLabel(a: Assessment, origin?: JudgmentOrigin): string {
-  if (origin) return origin === 'direct' ? '直接' : '推理';
-  return a.conclusion_basis === 'observation_only' ? '仅观察' : '推理';
 }

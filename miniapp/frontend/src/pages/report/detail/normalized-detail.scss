@@ -370,129 +370,178 @@
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
+// Graph connectors are illustrative; report topology remains in the data contract.
 .normalized-graph-section {
-  padding: 26px;
-  background: #fff;
-  border: 1px solid #dce3ed;
-  border-radius: 14px;
+  padding: 24px 0 0;
+  border-top: 1px solid #e3dfd7;
+  color: #102638;
 }
 .normalized-graph-scroll {
   width: 100%;
-  margin-bottom: 30px;
-  background: #f8faff;
-  border: 1px solid #e0e6ef;
-  border-radius: 12px;
+  margin-bottom: 28px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e3dfd7;
 }
 .normalized-graph-canvas {
   position: relative;
 }
 .normalized-graph-node {
   position: absolute;
-  height: 340px !important;
+  height: 190px !important;
   display: flex !important;
   flex-direction: column;
-  justify-content: flex-start;
-  text-align: left !important;
-  padding: 22px !important;
-  border: 1px solid #cbd6e5 !important;
-  background: #fff !important;
-  border-radius: 12px !important;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center !important;
+  padding: 14px 10px !important;
+  border: 2px solid #cbdce2 !important;
+  background: #eef2f3 !important;
+  border-radius: 20px !important;
   white-space: normal;
+  color: #102638 !important;
+}
+.normalized-graph-node.warming {
+  background: #fbefea !important;
+  border-color: #f6cbbd !important;
+}
+.normalized-graph-node.cooling {
+  background: #edf5f0 !important;
+  border-color: #bddcca !important;
+}
+.normalized-graph-node.diverging {
+  background: #faf4e5 !important;
+  border-color: #ead49b !important;
+}
+.normalized-graph-node.direct {
+  background: #fff !important;
+  border-color: #eab46b !important;
+  box-shadow: 0 0 0 4px #f8ead5;
 }
 .normalized-graph-node.selected {
-  border: 3px solid #376bed !important;
-  background: #eef5ff !important;
-  box-shadow: 0 2px 8px #16325d14;
+  border-width: 3px !important;
+  box-shadow: 0 0 0 5px #efddbe;
 }
 .normalized-graph-name {
-  font-size: 25px;
-  font-weight: 600;
-  line-height: 1.6;
+  font-size: 23px;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
-.normalized-unassessed {
-  font-size: 21px;
-  color: #8290a5;
+.normalized-graph-section .normalized-direction {
+  flex-shrink: 0;
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 9px;
+}
+.normalized-graph-section .normalized-direction.warming {
+  color: #cb302f;
+  background: #ffe0d9;
+}
+.normalized-graph-section .normalized-direction.cooling {
+  color: #288057;
+  background: #dfefe4;
+}
+.normalized-graph-section .normalized-direction.diverging {
+  color: #a67c20;
+  background: #f7e9bc;
 }
 .normalized-edge {
   position: absolute;
-  border-top: 2px solid #8aa0c4;
-  height: 0;
+  height: 4px;
+  background: #e6bc85;
+  &::after {
+    content: '';
+    position: absolute;
+    right: 2px;
+    top: -6px;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    border-left: 9px solid #deab64;
+  }
 }
-.normalized-edge-label {
+.normalized-graph-baseline {
   position: absolute;
-  bottom: 6px;
-  left: 0;
-  width: 100%;
-  text-align: center;
-  font-size: 17px;
-  color: #8193ac;
+  height: 3px;
+  background: linear-gradient(90deg, #e5b27d, #94bfcc);
 }
-.normalized-edge-vertical {
+.normalized-graph-stem {
   position: absolute;
-  border-left: 2px solid #8aa0c4;
-}
-.normalized-arrow {
-  position: absolute;
-  width: 0;
-  height: 0;
-  border: 6px solid transparent;
-}
-.normalized-arrow.right {
-  border-left-color: #8aa0c4;
-}
-.normalized-arrow.left {
-  border-right-color: #8aa0c4;
-}
-.normalized-arrow.down {
-  border-top-color: #8aa0c4;
+  width: 3px;
+  background: #dbc39b;
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -5px;
+    width: 9px;
+    height: 9px;
+    border: 3px solid #d5b475;
+    border-radius: 50%;
+    background: #fff;
+  }
 }
 .normalized-node-detail {
-  border: 1px solid #d5dfe7;
-  border-left: 3px solid #237a86;
-  border-radius: 7px;
-  overflow: hidden;
-  background: #f7f9fb;
+  padding: 22px;
+  border: 2px solid #f4ccae;
+  border-radius: 24px;
+  box-shadow: 0 0 0 5px #faf0e7;
+  background: #f8efe6;
 }
 .normalized-node-heading {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 22px 24px 10px;
-  font-size: 26px;
-  font-weight: 600;
-  gap: 12px;
-}
-.normalized-node-basis {
-  font-size: 19px;
-  font-weight: 400;
-  color: #73849d;
-  white-space: nowrap;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 .normalized-node-impact {
-  padding: 0 24px 22px;
-  font-weight: 550;
+  padding: 22px;
+  border: 1px solid #ffe1cd;
+  border-radius: 18px;
+  background: #fff;
 }
-.normalized-node-transmission {
-  margin-top: 18px;
-  border-left: 1px solid #92b5bc;
-  padding-left: 18px;
-  font-weight: 400;
-  font-size: 22px;
+.normalized-node-conclusion {
+  display: block;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
-.normalized-node-body {
-  padding: 0 24px 22px;
+.normalized-variable-signal {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  color: #585954;
+  font-size: 23px;
+  line-height: 1.65;
 }
-.normalized-node-body .normalized-columns {
-  margin: 0;
+.normalized-signal-bullet {
+  flex-shrink: 0;
 }
-.normalized-node-body .normalized-support {
-  padding-right: 16px;
+.normalized-signal-text {
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
-.normalized-node-body .normalized-counter {
-  padding-left: 16px;
+.normalized-variable-name {
+  font-weight: 600;
 }
-.normalized-node-body .normalized-prose {
-  font-size: 22px;
+.normalized-signal-direction.UP {
+  color: #be4036;
+}
+.normalized-signal-direction.DOWN {
+  color: #288057;
+}
+.normalized-signal-direction.MIXED {
+  color: #a67c20;
 }
 
 .normalized-hero-logic {
@@ -502,63 +551,5 @@
   font-size: 20px;
   line-height: 1.48;
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-.normalized-graph-heading {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-}
-.normalized-graph-heading .normalized-graph-name {
-  flex: 1;
-  min-width: 0;
-}
-.normalized-graph-heading .normalized-node-method {
-  flex: 0 0 auto;
-  line-height: 1.5;
-}
-// Reserved for a future variable-signal field; no invented signal or placeholder copy.
-.normalized-graph-signal-space {
-  flex: 1 1 auto;
-  min-height: 24px;
-}
-.normalized-node-metadata {
-  flex: 0 0 auto;
-  width: 100%;
-}
-.normalized-node-badges {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  font-size: 21px;
-  line-height: 1.5;
-}
-.normalized-node-badges .normalized-direction {
-  padding: 4px 12px;
-}
-.normalized-node-method {
-  padding: 3px 10px;
-  border: 1px solid $color-report-group-border;
-  border-radius: 6px;
-  color: $color-text-secondary;
-  font-size: 19px;
-}
-.normalized-node-confidence {
-  color: $color-text-secondary;
-  font-size: 20px;
-  white-space: nowrap;
-}
-.normalized-node-period {
-  display: block;
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid $color-report-divider;
-  color: $color-text-secondary;
-  font-size: 20px;
-  line-height: 1.6;
   overflow-wrap: anywhere;
 }

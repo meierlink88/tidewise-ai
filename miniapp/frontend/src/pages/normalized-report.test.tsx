@@ -156,12 +156,49 @@ describe('normalized report interaction', () => {
       targetKey: unit.local_key
     });
   });
-  it('uses v5 judgment origin for direct and inferred node labels', () => {
+  it('keeps direct highlights independent of selection and binds core signals to the selected node', () => {
     const c = parseAnalysisChain(v5.chains['geopolitical_stories/g1/g1-2-chain'], 'g1-2-chain');
+    const first = c.affected_nodes[0];
+    const second = c.affected_nodes[1];
+    const signal = first.variable_signals![0];
+    first.variable_signals = [
+      signal,
+      {
+        ...signal,
+        signal_id: 'another-signal',
+        variable_name: '成本',
+        source_direction: 'DOWN',
+        signal: '第二条独立变量信号'
+      }
+    ];
+    second.variable_signals = undefined;
     act(() => root.render(<ChainContent c={c} reportId={reportId} onEvidence={vi.fn()} />));
-    expect(host.querySelector('.normalized-node-basis')?.textContent).toBe('直接');
+    expect(host.querySelectorAll('.normalized-graph-node')[0].classList.contains('direct')).toBe(
+      true
+    );
+    expect(host.querySelectorAll('.normalized-variable-signal')).toHaveLength(2);
+    expect(host.querySelector('.normalized-node-detail')?.textContent).toContain(
+      signal.variable_name
+    );
+    expect(host.querySelector('.normalized-node-detail')?.textContent).toContain(signal.signal);
+    expect(host.querySelectorAll('.normalized-variable-signal')[1].textContent).toContain('下降');
+    expect(host.querySelector('.normalized-node-conclusion')?.textContent).toBe(
+      first.assessment.conclusion
+    );
     click(host.querySelectorAll('.normalized-graph-node')[1]);
-    expect(host.querySelector('.normalized-node-basis')?.textContent).toBe('推理');
+    expect(host.querySelectorAll('.normalized-graph-node')[0].classList.contains('direct')).toBe(
+      true
+    );
+    expect(host.querySelectorAll('.normalized-graph-node')[1].classList.contains('direct')).toBe(
+      false
+    );
+    expect(host.querySelector('.normalized-node-conclusion')?.textContent).toBe(
+      second.assessment.conclusion
+    );
+    expect(host.querySelectorAll('.normalized-variable-signal')).toHaveLength(0);
+    expect(host.querySelector('.normalized-node-detail')?.textContent).not.toContain(
+      '第二条独立变量信号'
+    );
   });
   it('renders mechanism as continuous prose preserving paths and conditional text', () => {
     const detail = parseAnalysisDetail(fixture.details['geopolitical_stories/g1'], 'g1');
@@ -289,8 +326,8 @@ describe('normalized report interaction', () => {
     click(host.querySelector(`[aria-label="查看${c.affected_nodes[1].name}节点详情"]`));
     const node = host.querySelector('.normalized-node-detail');
     expect(node?.textContent).toContain(c.affected_nodes[1].assessment.conclusion);
-    expect(node?.textContent).toContain(c.affected_nodes[1].assessment.conditions[0]);
-    expect(node?.textContent).toContain(c.affected_nodes[1].objections.summary);
+    expect(node?.querySelector('.normalized-columns')).toBeNull();
+    expect(node?.querySelector('.normalized-node-transmission')).toBeNull();
     expect(host.querySelector('.normalized-followup')).toBeNull();
   });
   it('keeps pagination inside its group and ignores a late page after report refresh', async () => {
