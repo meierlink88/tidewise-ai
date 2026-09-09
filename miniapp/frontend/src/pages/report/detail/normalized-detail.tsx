@@ -247,11 +247,12 @@ export function ChainContent({
           support={[c.reasoning_summary.support.text]}
           objections={c.reasoning_summary.objections}
         />
-        <View className='normalized-graph-section'>
-          <HorizontalGraph c={c} selected={nodeKey} onSelect={setNodeKey} />
-        </View>
       </View>
       <View className='normalized-core-section'>
+        <View className='normalized-graph-section'>
+          <Text className='normalized-title'>产业链图谱</Text>
+          <HorizontalGraph c={c} selected={nodeKey} onSelect={setNodeKey} />
+        </View>
         {c.empty_state ? (
           <Text className='normalized-prose'>{c.empty_state.reason}</Text>
         ) : (
