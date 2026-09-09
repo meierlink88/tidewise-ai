@@ -305,7 +305,7 @@ function HorizontalGraph({
   onSelect: (key: string) => void;
 }) {
   const nodes = c.graph.nodes;
-  const width = 168,
+  const width = 224,
     gap = 32,
     step = width + gap,
     pad = 10;
@@ -317,33 +317,32 @@ function HorizontalGraph({
     <ScrollView scrollX className='normalized-graph-scroll'>
       <View
         className='normalized-graph-canvas'
-        style={style({ width: Math.max(width, pad * 2 + nodes.length * step - gap), height: 250 })}
+        style={style({ width: Math.max(width, pad * 2 + nodes.length * step - gap) })}
       >
         {nodes.length > 1 ? (
           <View
             className='normalized-graph-baseline'
-            style={style({ left: pad + width / 2, top: 234, width: (nodes.length - 1) * step })}
+            style={style({ left: pad + width / 2, bottom: 16, width: (nodes.length - 1) * step })}
           />
         ) : null}
         {nodes.map((n, i) => {
           const hit = c.affected_nodes.find((a) => a.node_local_key === n.local_key);
           return (
-            <View key={n.local_key}>
+            <View key={n.local_key} className='normalized-graph-item' style={style({ width })}>
               {i < nodes.length - 1 ? (
                 <View
                   className='normalized-edge'
-                  style={style({ left: pad + i * step + width, top: 96, width: gap })}
+                  style={style({ left: width, top: 110, width: gap })}
                 />
               ) : null}
               {nodes.length > 1 ? (
                 <View
                   className='normalized-graph-stem'
-                  style={style({ left: pad + i * step + width / 2, top: 208, height: 26 })}
+                  style={style({ left: width / 2, bottom: -34, height: 26 })}
                 />
               ) : null}
               <Button
                 className={`tidewise-button normalized-graph-node ${hit?.assessment.direction ?? 'pending'} ${hit?.judgment_origin === 'direct' ? 'direct' : ''} ${selected === n.local_key ? 'selected' : ''}`}
-                style={style({ left: pad + i * step, top: 10, width })}
                 onClick={() => onSelect(n.local_key)}
                 ariaLabel={`查看${n.name}节点详情`}
               >
@@ -352,6 +351,18 @@ function HorizontalGraph({
                   <Text className={`normalized-direction ${hit.assessment.direction}`}>
                     {directions[hit.assessment.direction]}
                   </Text>
+                ) : null}
+                {hit?.variable_signals?.length ? (
+                  <View className='normalized-graph-variables'>
+                    {hit.variable_signals.map((signal, index) => (
+                      <Text
+                        className='normalized-graph-variable'
+                        key={`${signal.signal_id}:${signal.variable_id}:${index}`}
+                      >
+                        {signal.variable_name} · {signalDirections[signal.source_direction]}
+                      </Text>
+                    ))}
+                  </View>
                 ) : null}
               </Button>
             </View>

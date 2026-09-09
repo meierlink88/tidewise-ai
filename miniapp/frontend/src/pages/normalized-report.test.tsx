@@ -177,6 +177,11 @@ describe('normalized report interaction', () => {
       true
     );
     expect(host.querySelectorAll('.normalized-variable-signal')).toHaveLength(2);
+    const graphNodes = host.querySelectorAll('.normalized-graph-node');
+    expect(graphNodes[0].querySelectorAll('.normalized-graph-variable')).toHaveLength(2);
+    expect(graphNodes[0].textContent).toContain('成本 · 下降');
+    expect(graphNodes[0].textContent).not.toContain('第二条独立变量信号');
+    expect(graphNodes[1].querySelector('.normalized-graph-variables')).toBeNull();
     expect(host.querySelector('.normalized-node-detail')?.textContent).toContain(
       signal.variable_name
     );

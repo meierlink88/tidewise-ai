@@ -400,14 +400,26 @@
 }
 .normalized-graph-canvas {
   position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 32px;
+  padding: 10px 10px 50px;
+  box-sizing: border-box;
+}
+.normalized-graph-item {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
 }
 .normalized-graph-node {
-  position: absolute;
-  height: 190px !important;
+  position: relative;
+  width: 100%;
+  min-height: 240px;
+  height: auto !important;
   display: flex !important;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 12px;
   text-align: center !important;
   padding: 14px 10px !important;
@@ -439,9 +451,24 @@
   box-shadow: 0 0 0 5px #efddbe;
 }
 .normalized-graph-name {
+  min-height: 66px;
+  display: flex;
+  align-items: center;
   font-size: 23px;
   font-weight: 700;
   line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.normalized-graph-variables {
+  width: 100%;
+  margin-top: auto;
+  padding-top: 8px;
+  color: #827d73;
+  font-size: 20px;
+  line-height: 1.5;
+}
+.normalized-graph-variable {
+  display: block;
   overflow-wrap: anywhere;
 }
 .normalized-graph-section .normalized-direction {
