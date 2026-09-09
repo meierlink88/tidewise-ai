@@ -80,33 +80,30 @@ export function NormalizedDetailView({
             ))}
           </View>
         </ScrollView>
-        {!current ? (
-          <ReportStatePanel title='暂无因果链详情' description='' />
-        ) : current.type === 'macro' ? (
-          <View key={current.local_key}>
-            <Conclusion
-              origin={current.judgment_origin}
-              a={current.assessment}
+        <View className='normalized-tree-panel'>
+          {!current ? (
+            <ReportStatePanel title='暂无因果链详情' description='' />
+          ) : current.type === 'macro' ? (
+            <View key={current.local_key}>
+              <Conclusion a={current.assessment} reportId={reportId} onEvidence={onEvidence} />
+              <Mechanism text={current.assessment.transmission_logic} />
+              <AssessmentColumns
+                support={current.assessment.conditions}
+                objections={current.objections}
+              />
+              <FollowUp paragraphs={current.assessment.follow_up} />
+            </View>
+          ) : (
+            <LoadedChain
+              key={`${reportId}:${kind}:${detail.summary.local_key}:${current.local_key}`}
               reportId={reportId}
+              kind={kind}
+              unitKey={detail.summary.local_key}
+              chainKey={current.local_key}
               onEvidence={onEvidence}
             />
-            <Mechanism text={current.assessment.transmission_logic} />
-            <AssessmentColumns
-              support={current.assessment.conditions}
-              objections={current.objections}
-            />
-            <FollowUp paragraphs={current.assessment.follow_up} />
-          </View>
-        ) : (
-          <LoadedChain
-            key={`${reportId}:${kind}:${detail.summary.local_key}:${current.local_key}`}
-            reportId={reportId}
-            kind={kind}
-            unitKey={detail.summary.local_key}
-            chainKey={current.local_key}
-            onEvidence={onEvidence}
-          />
-        )}
+          )}
+        </View>
       </View>
     </View>
   );
@@ -165,28 +162,12 @@ export function EvidenceCountButton({
     </Button>
   );
 }
-function Signals({ a, origin }: { a: Assessment; origin?: JudgmentOrigin }) {
-  return (
-    <View className='normalized-signals'>
-      <Text className={`normalized-direction ${a.direction}`}>{directions[a.direction]}</Text>
-      {a.confidence ? (
-        <Text className='normalized-signal-chip'>置信度 {confidences[a.confidence]}</Text>
-      ) : null}
-      {a.forecast_window.kind !== 'not_applicable' ? (
-        <Text className='normalized-signal-chip'>{a.forecast_window.description}</Text>
-      ) : null}
-      <Text className='normalized-signal-chip'>{judgmentLabel(a, origin)}</Text>
-    </View>
-  );
-}
 function Conclusion({
   a,
-  origin,
   reportId,
   onEvidence
 }: {
   a: Assessment;
-  origin?: JudgmentOrigin;
   reportId: string;
   onEvidence: (r: ReportEvidenceRoute) => void;
 }) {
@@ -194,7 +175,6 @@ function Conclusion({
     <View className='normalized-conclusion'>
       <Text className='normalized-section-label'>本链结论</Text>
       <Text className='normalized-conclusion-text'>{a.conclusion}</Text>
-      <Signals a={a} origin={origin} />
       {a.scope ? <Text className='normalized-scope'>{a.scope}</Text> : null}
       <EvidenceCountButton scope={a} reportId={reportId} title='本链证据' onEvidence={onEvidence} />
     </View>
@@ -281,12 +261,7 @@ export function ChainContent({
     top = c.graph.nodes.find((n) => n.local_key === nodeKey);
   return (
     <View>
-      <Conclusion
-        origin={c.judgment_origin}
-        a={c.assessment}
-        reportId={reportId}
-        onEvidence={onEvidence}
-      />
+      <Conclusion a={c.assessment} reportId={reportId} onEvidence={onEvidence} />
       <Mechanism text={c.reasoning_summary.logic} />
       <AssessmentColumns
         support={[c.reasoning_summary.support.text]}

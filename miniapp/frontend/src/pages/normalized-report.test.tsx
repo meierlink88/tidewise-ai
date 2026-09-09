@@ -242,13 +242,14 @@ describe('normalized report interaction', () => {
   });
   it('switches a macro tab to its scoped industry chain, then renders selected node prose', async () => {
     const detail = parseAnalysisDetail(fixture.details['geopolitical_stories/g1'], 'g1');
+    const evidence = vi.fn();
     act(() =>
       root.render(
         <NormalizedDetailView
           detail={detail}
           reportId={reportId}
           kind='geopolitical_stories'
-          onEvidence={vi.fn()}
+          onEvidence={evidence}
         />
       )
     );
@@ -258,10 +259,31 @@ describe('normalized report interaction', () => {
     expect(host.querySelector('.normalized-mechanism')?.textContent).toContain(
       detail.macro_impacts[0].assessment.transmission_logic
     );
+    const verifyConclusion = (assessment: (typeof detail.macro_impacts)[0]['assessment']) => {
+      const card = host.querySelector('.normalized-conclusion')!;
+      expect(card.querySelector('.normalized-conclusion-text')?.textContent).toBe(
+        assessment.conclusion
+      );
+      expect(card.querySelector('.normalized-scope')?.textContent ?? '').toBe(
+        assessment.scope ?? ''
+      );
+      expect(card.querySelector('.normalized-signals')).toBeNull();
+      expect(card.querySelector('.normalized-evidence')?.textContent).toContain(
+        `${assessment.evidence_count} 条事件`
+      );
+      click(card.querySelector('.normalized-evidence'));
+      expect(evidence).toHaveBeenLastCalledWith({
+        reportId,
+        scopeToken: assessment.evidence_scope_token,
+        title: `地缘政治 · ${detail.summary.title}`
+      });
+    };
+    verifyConclusion(detail.macro_impacts[0].assessment);
     expect(host.querySelector('.normalized-graph-section')).toBeNull();
     await act(async () => host.querySelectorAll<HTMLButtonElement>('.normalized-tab')[1].click());
     expect(host.querySelector('.normalized-graph-section')).not.toBeNull();
     const c = fixture.chains['geopolitical_stories/g1/g1-2-chain'];
+    verifyConclusion(parseAnalysisChain(c, c.local_key).assessment);
     click(host.querySelector(`[aria-label="查看${c.affected_nodes[1].name}节点详情"]`));
     const node = host.querySelector('.normalized-node-detail');
     expect(node?.textContent).toContain(c.affected_nodes[1].assessment.conclusion);

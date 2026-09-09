@@ -126,10 +126,31 @@
   font-size: 18px;
   font-weight: 400;
 }
+.normalized-tree-panel {
+  padding: 20px 20px 22px;
+  border: 2px solid rgba(201, 169, 98, 0.24);
+  border-radius: 28px;
+  background: #fff;
+  box-shadow:
+    0 2px 0 rgba(255, 255, 255, 0.9) inset,
+    0 20px 56px rgba(8, 25, 41, 0.06);
+}
 .normalized-conclusion {
-  padding: 6px 12px 20px;
-  color: $color-report-ink;
-  margin-bottom: 12px;
+  padding: 16px 20px;
+  border: 2px solid rgba(201, 169, 98, 0.3);
+  border-radius: 20px;
+  background: linear-gradient(135deg, #fffdfa, #f8f3e8);
+  box-shadow: inset 6px 0 #c9a962;
+  color: #0b2035;
+  margin-bottom: 24px;
+}
+.normalized-conclusion .normalized-section-label {
+  padding-left: 0;
+  border-left: 0;
+  color: #927132;
+  font-size: 20px;
+  letter-spacing: 0.08em;
+  line-height: 1.5;
 }
 .normalized-section-label {
   display: block;
@@ -142,33 +163,12 @@
 }
 .normalized-conclusion-text {
   display: block;
-  font-size: 29px;
-  line-height: 1.75;
-  font-weight: 600;
-  margin: 18px 0;
-}
-.normalized-signals {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 12px;
-  font-size: 21px;
-  line-height: 1.6;
-  align-items: center;
-}
-.normalized-signals .normalized-direction,
-.normalized-signal-chip {
-  box-sizing: border-box;
-  padding: 6px 14px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  max-width: 100%;
-  line-height: 1.6;
+  font-size: 26px;
+  line-height: 1.5;
+  font-weight: 700;
+  margin: 12px 0;
+  white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-.normalized-signal-chip {
-  color: $color-text-secondary;
-  background: $color-card;
-  border-color: $color-border;
 }
 .normalized-direction {
   padding: 2px 9px;
@@ -190,10 +190,10 @@
 }
 .normalized-scope {
   display: block;
-  font-size: 22px;
-  line-height: 1.7;
-  color: $color-text-secondary;
-  margin-top: 20px;
+  font-size: 20px;
+  line-height: 1.55;
+  color: #9a9185;
+  margin-top: 10px;
 }
 .normalized-evidence {
   font-size: 22px !important;
@@ -205,8 +205,10 @@
   margin: 0 !important;
 }
 .normalized-conclusion .normalized-evidence {
-  margin: 16px 0 0 auto !important;
-  color: $color-report-diverging !important;
+  margin: 10px 0 0 auto !important;
+  padding: 12px 0 0 16px !important;
+  color: #927132 !important;
+  font-size: 20px !important;
 }
 .normalized-title {
   display: block;
