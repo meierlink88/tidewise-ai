@@ -6,11 +6,11 @@
   min-height: 0;
   flex-direction: column;
   overflow: hidden;
-  color: $color-report-ink;
+  color: $color-home-ink;
 }
 .normalized-home-navigation {
   flex: 0 0 auto;
-  background: $color-report-paper;
+  background: $color-home-paper;
 }
 .normalized-home-scroll {
   display: block;
@@ -19,7 +19,7 @@
   flex: 1;
 }
 .normalized-home-list {
-  padding-bottom: calc(40px + env(safe-area-inset-bottom));
+  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
 }
 .normalized-home-tabs-scroll {
   width: 100%;
@@ -27,8 +27,8 @@
 }
 .normalized-home-tabs {
   display: inline-flex;
-  gap: 22px;
-  padding: 2px 2px 10px;
+  gap: 14rpx;
+  padding: 2rpx 2rpx 22rpx;
   vertical-align: top;
 }
 .normalized-home-tab {
@@ -36,97 +36,101 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  gap: 16px;
   margin: 0 !important;
-  color: $color-report-ink !important;
-  font-size: $font-report-body !important;
-  font-weight: 500;
-  padding: 16px 28px !important;
-  background: $color-card !important;
-  border: 1px solid $color-report-paper-border !important;
+  color: $color-home-secondary !important;
+  font-size: 22rpx !important;
+  font-weight: 400;
+  padding: 14rpx 22rpx !important;
+  background: $color-home-card !important;
+  border: 2rpx solid $color-home-border !important;
   border-radius: $radius-pill !important;
-  line-height: 1.5 !important;
+  line-height: 1.4 !important;
   white-space: nowrap;
 }
-.normalized-home-tab-icon {
-  display: flex;
-  flex: 0 0 40px;
-  width: 40px;
-  height: 40px;
-}
-.normalized-home-tab-image {
-  width: 40px;
-  height: 40px;
-}
 .normalized-home-tab.selected {
-  color: $color-card !important;
-  background: $color-report-brand !important;
-  border-color: $color-champagne-500 !important;
-  box-shadow: 0 4px 10px rgba($color-champagne-500, 0.15);
+  color: $color-home-ink !important;
+  background: $color-home-gold-soft !important;
+  border-color: $color-home-gold !important;
+  font-weight: 700;
+  box-shadow: 0 0 0 4rpx rgba($color-home-gold, 0.1);
 }
 .normalized-home-heading {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin: 26px 6px 30px;
-  font-size: 40px;
-  font-weight: 650;
+  align-items: baseline;
+  gap: 12rpx;
+  margin: 4rpx 4rpx 22rpx;
+  font-size: 28rpx;
+  line-height: 1.5;
+  font-weight: 700;
 }
 .normalized-home-total {
-  font-size: $font-report-caption;
-  color: $color-report-caption;
+  font-size: 20rpx;
+  color: $color-home-muted;
   font-weight: 400;
 }
 .normalized-home-card {
-  padding: 30px 26px 20px;
-  background: $color-card;
-  border: 1px solid $color-report-paper-border;
-  border-radius: 12px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 6px rgba($color-report-brand, 0.02);
+  position: relative;
+  overflow: hidden;
+  padding: 20rpx 24rpx 20rpx 30rpx;
+  background: $color-home-card;
+  border: 2rpx solid rgba($color-home-ink-soft, 0.12);
+  border-radius: $radius-home-card;
+  margin-bottom: 22rpx;
+  box-shadow: $shadow-home-card;
+}
+.normalized-home-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6rpx;
+  background: $color-home-gold;
+}
+.normalized-home-card.impact-high {
+  border-color: rgba($color-home-high, 0.25);
+  box-shadow: 0 16rpx 44rpx rgba($color-home-high, 0.09);
+}
+.normalized-home-card.impact-high::before {
+  background: $color-home-high;
+}
+.normalized-home-card.impact-medium::before {
+  background: $color-home-medium;
 }
 .normalized-card-meta {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 30px;
+  gap: 12rpx;
+  margin-bottom: 14rpx;
 }
 .normalized-card-story {
-  position: relative;
   flex: 1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding-left: 20px;
-  font-size: $font-report-caption;
-  line-height: 1.6;
-  color: $color-report-ink;
+  gap: 8rpx;
+  font-size: 18rpx;
+  line-height: 1.5;
+  color: $color-home-secondary;
   min-width: 0;
-}
-.normalized-card-story::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 6px;
-  width: 4px;
-  height: 30px;
-  background: $color-champagne-500;
+  overflow-wrap: anywhere;
 }
 .normalized-card-time {
   flex-shrink: 0;
-  font-size: 18px;
+  font-size: 16rpx;
   line-height: 1.9;
   white-space: nowrap;
-  color: $color-report-caption;
+  color: $color-home-muted;
 }
 .normalized-impact {
-  padding: 2px 10px;
-  border-radius: 6px;
-  font-size: 19px;
-  background: $color-report-slate-100;
-  color: $color-report-pending;
+  padding: 4rpx 10rpx;
+  border-radius: $radius-pill;
+  font-size: 16rpx;
+  font-weight: 700;
+  background: $color-home-gold-soft;
+  color: $color-home-secondary;
   white-space: nowrap;
 }
 .normalized-impact.high {
@@ -143,94 +147,85 @@
 }
 .normalized-card-conclusion {
   display: block;
-  font-size: $font-report-conclusion;
-  line-height: 1.75;
-  font-weight: 650;
-  color: $color-report-ink;
-  margin-bottom: 32px;
+  font-size: 30rpx;
+  line-height: 1.42;
+  font-weight: 700;
+  color: $color-home-ink;
+  margin-bottom: 14rpx;
+  overflow-wrap: anywhere;
 }
 .normalized-card-logic {
-  padding-left: 20px;
-  font-size: $font-report-label;
-  line-height: 1.8;
-  color: $color-report-ink;
+  padding: 12rpx 16rpx;
+  border: 2rpx solid rgba($color-home-ink-soft, 0.06);
+  border-radius: 18rpx;
+  background: $color-home-logic;
+  font-size: 20rpx;
+  line-height: 1.48;
+  font-weight: 600;
+  color: $color-home-body;
 }
 .normalized-card-logic-path {
-  position: relative;
-  border-left: 1px solid $color-champagne-300;
-  padding: 0 0 20px 30px;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
-.normalized-card-logic-path:last-child {
-  padding-bottom: 0;
-  border-color: transparent;
-}
-.normalized-card-logic-path::before {
-  content: '';
-  position: absolute;
-  left: -6px;
-  top: 18px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: $color-champagne-500;
+.normalized-card-logic-path + .normalized-card-logic-path {
+  margin-top: 8rpx;
 }
 .normalized-anchor-area {
   display: flex;
-  align-items: center;
-  gap: 28px;
-  margin: 42px 0 36px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 14rpx 20rpx;
+  margin: 14rpx 0 16rpx;
 }
 .normalized-anchor-count {
-  flex: 0 0 136px;
-  align-self: stretch;
+  flex: 0 0 auto;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  gap: 12px;
-  padding-right: 22px;
-  border-right: 1px solid $color-champagne-300;
+  align-items: baseline;
+  gap: 8rpx;
+  padding-top: 4rpx;
 }
 .normalized-anchor-number {
-  font-size: 72px;
-  line-height: 1.1;
-  font-weight: 650;
+  font-size: 42rpx;
+  line-height: 1;
+  font-weight: 700;
+  color: $color-home-ink-soft;
 }
 .normalized-anchor-caption {
-  font-size: 18px;
-  color: $color-report-caption;
+  font-size: 18rpx;
+  color: $color-home-muted;
 }
 .normalized-anchor-chips {
-  flex: 1;
+  flex: 1 1 280rpx;
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 8rpx;
   min-width: 0;
 }
 .normalized-anchor-chip {
   display: flex;
-  flex: 1 1 100%;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 10px 8px 18px;
-  border: 1px solid $color-report-paper-border;
-  border-radius: 8px;
-  font-size: $font-report-caption;
-  line-height: 1.5;
+  gap: 8rpx;
+  padding: 8rpx 14rpx;
+  border: 2rpx solid rgba($color-home-gold, 0.38);
+  border-radius: 12rpx;
+  background: $color-home-gold-soft;
+  font-size: 18rpx;
+  line-height: 1.4;
   min-width: 0;
   max-width: 100%;
 }
 .normalized-anchor-name {
   min-width: 0;
   overflow-wrap: anywhere;
+  color: $color-home-ink;
+  font-weight: 600;
 }
 .normalized-anchor-direction {
   flex-shrink: 0;
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-size: 20px;
+  padding: 2rpx 6rpx;
+  border-radius: 6rpx;
+  font-size: 16rpx;
   white-space: nowrap;
   color: $color-report-pending;
   background: $color-report-slate-100;
@@ -249,11 +244,12 @@
 }
 .normalized-card-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid $color-champagne-300;
-  padding-top: 16px;
-  gap: 12px;
+  border-top: 2rpx solid $color-home-border;
+  padding-top: 14rpx;
+  gap: 14rpx;
 }
 .normalized-card-evidence,
 .normalized-card-path {
@@ -261,46 +257,50 @@
   align-items: center;
   padding: 0 !important;
   background: transparent !important;
-  color: $color-report-ink !important;
-  font-size: $font-report-label !important;
-  line-height: 1.6 !important;
+  color: $color-home-ink !important;
+  font-size: 18rpx !important;
+  font-weight: 700;
+  line-height: 1.5 !important;
   margin: 0 !important;
-  min-height: 72px;
+  min-height: 56rpx;
 }
 .normalized-card-evidence {
-  gap: 12px;
+  gap: 8rpx;
 }
 .normalized-card-evidence.is-disabled {
   opacity: 0.45;
 }
 .normalized-evidence-icon {
-  width: 36px;
-  height: 36px;
+  width: 24rpx;
+  height: 24rpx;
 }
 .normalized-card-path {
-  gap: 24px;
-  font-weight: 600;
+  margin-left: auto !important;
+  gap: 6rpx;
+  padding: 12rpx 18rpx !important;
+  border: 2rpx solid rgba($color-home-gold, 0.32) !important;
+  border-radius: $radius-pill !important;
+  background: $color-home-ink !important;
+  color: $color-home-gold-soft !important;
 }
 .normalized-path-circle {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 62px;
-  height: 62px;
-  border-radius: 50%;
-  background: $color-report-brand;
+  width: 24rpx;
+  height: 24rpx;
 }
 .normalized-path-icon {
-  width: 36px;
-  height: 36px;
+  width: 24rpx;
+  height: 24rpx;
 }
 .normalized-home-empty {
-  padding: 60px 20px;
+  padding: 60rpx 20rpx;
   text-align: center;
-  color: $color-text-muted;
+  color: $color-home-muted;
 }
 .normalized-home-more {
-  background: $color-card !important;
-  color: $color-report-ink !important;
+  background: $color-home-card !important;
+  color: $color-home-ink !important;
   font-size: $font-report-meta !important;
 }

@@ -96,6 +96,7 @@ export function IndexView({
       <View className='home-page'>
         <HomeHeader
           chrome={chrome}
+          publishedAt={state.data.reports[0].report.publishedAt}
           query={query}
           onQueryChange={onQueryChange}
           isSinglePage={isSinglePage}
@@ -128,7 +129,7 @@ export function IndexView({
 
       <View className='home-content'>
         <View className='home-section-heading'>
-          <Text className='home-section-heading__title'>今日观潮</Text>
+          <Text className='home-section-heading__title'>今日推理主线</Text>
         </View>
         <HomeReportState state={state} onRetry={onRetry} />
       </View>

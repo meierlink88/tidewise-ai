@@ -80,9 +80,9 @@ describe('normalized report interaction', () => {
       root.render(<NormalizedHome group={group} query='' onDetail={detail} onEvidence={vi.fn()} />)
     );
     expect(host.querySelectorAll('.normalized-home-tab')).toHaveLength(3);
-    click(host.querySelectorAll('.normalized-home-tab')[2]);
-    expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(21);
-    click(host.querySelector('.normalized-card-path'));
+    expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(23);
+    expect(host.querySelector('.normalized-home-total')?.textContent).toBe('已加载 23 条主线');
+    click(host.querySelectorAll('.normalized-card-path')[2]);
     expect(detail).toHaveBeenLastCalledWith({
       reportId,
       targetType: 'industry_chain_analyses',
@@ -92,12 +92,13 @@ describe('normalized report interaction', () => {
     expect(host.textContent).toContain('加载失败，点击重试');
     await act(async () => host.querySelector<HTMLButtonElement>('.normalized-home-more')!.click());
     expect(read).toHaveBeenNthCalledWith(2, reportId, 'industry_chain_analyses', 'industry-next');
-    expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(24);
+    expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(26);
     await act(async () => host.querySelector<HTMLButtonElement>('.normalized-home-more')!.click());
     expect(read).toHaveBeenLastCalledWith(reportId, 'concept_analyses', 'legacy-next');
-    expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(25);
+    expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(27);
+    expect(host.querySelector('.normalized-home-total')?.textContent).toBe('27 条主线');
     expect(host.querySelector('.normalized-home-more')).toBeNull();
-    click(host.querySelectorAll('.normalized-card-path')[23]);
+    click(host.querySelectorAll('.normalized-card-path')[25]);
     expect(detail).toHaveBeenLastCalledWith({
       reportId,
       targetType: 'concept_analyses',
@@ -143,26 +144,50 @@ describe('normalized report interaction', () => {
         <NormalizedHome group={home.reports[0]} query='' onDetail={detail} onEvidence={evidence} />
       )
     );
+    expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(3);
+    expect(host.querySelector('.normalized-home-total')?.textContent).toBe('3 条主线');
     for (let i = 0; i < 3; i++) {
-      click(host.querySelectorAll('.normalized-home-tab')[i]);
+      click(host.querySelectorAll('.normalized-home-tab')[i < 2 ? i + 1 : 0]);
       const group = fixture.groups[i],
         unit = group.items[0];
-      expect(host.querySelector('.normalized-card-conclusion')?.textContent).toBe(
+      const card = host.querySelectorAll('.normalized-home-card')[i < 2 ? 0 : 2];
+      expect(card.querySelector('.normalized-card-conclusion')?.textContent).toBe(
         unit.summary.conclusion
       );
-      click(host.querySelector('.normalized-card-evidence'));
+      click(card.querySelector('.normalized-card-evidence'));
       expect(evidence).toHaveBeenLastCalledWith({
         reportId,
         scopeToken: unit.summary.evidence_scope_token,
         title: unit.title
       });
-      click(host.querySelector('.normalized-card-path'));
+      click(card.querySelector('.normalized-card-path'));
       expect(detail).toHaveBeenLastCalledWith({
         reportId,
         targetType: group.kind,
         targetKey: unit.local_key
       });
     }
+  });
+  it('filters the displayed cards and count without discarding the report content', async () => {
+    const home = await normalizedMockReportPort.getHome();
+    const group = home.reports[0];
+    const render = (query: string) =>
+      act(() =>
+        root.render(
+          <NormalizedHome group={group} query={query} onDetail={vi.fn()} onEvidence={vi.fn()} />
+        )
+      );
+    const title = group.analysisGroups![1].items[0].title;
+    render(title);
+    expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(1);
+    expect(host.querySelector('.normalized-home-total')?.textContent).toBe('1 条主线');
+    click(host.querySelectorAll('.normalized-home-tab')[1]);
+    expect(host.textContent).toContain('暂无匹配的结论');
+    expect(host.querySelector('.normalized-home-total')?.textContent).toBe('0 条主线');
+    render('');
+    expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(1);
+    click(host.querySelectorAll('.normalized-home-tab')[0]);
+    expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(3);
   });
   it('switches a macro tab to its scoped industry chain, then renders selected node prose', async () => {
     const detail = parseAnalysisDetail(fixture.details['geopolitical_stories/g1'], 'g1');
@@ -214,7 +239,7 @@ describe('normalized report interaction', () => {
     );
     click(host.querySelector('.normalized-home-more'));
     expect(read).toHaveBeenCalledWith(reportId, 'geopolitical_stories', 'geo-next');
-    click(host.querySelectorAll('.normalized-home-tab')[1]);
+    click(host.querySelectorAll('.normalized-home-tab')[2]);
     expect(host.querySelector('.normalized-card-conclusion')?.textContent).toBe(
       fixture.groups[1].items[0].summary.conclusion
     );
@@ -234,7 +259,7 @@ describe('normalized report interaction', () => {
         next_cursor: null
       })
     );
-    click(host.querySelectorAll('.normalized-home-tab')[0]);
+    click(host.querySelectorAll('.normalized-home-tab')[1]);
     expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(1);
   });
   it('allows retrying a failed chain without losing its selected tab', async () => {
