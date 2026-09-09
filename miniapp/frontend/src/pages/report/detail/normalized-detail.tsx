@@ -82,7 +82,11 @@ export function NormalizedDetailView({
             ))}
           </View>
         </ScrollView>
-        <View className='normalized-tree-panel'>
+        <View
+          className={
+            current?.type === 'chain' ? 'normalized-chain-content' : 'normalized-tree-panel'
+          }
+        >
           {!current ? (
             <ReportStatePanel title='暂无因果链详情' description='' />
           ) : current.type === 'macro' ? (
@@ -236,12 +240,14 @@ export function ChainContent({
     top = c.graph.nodes.find((n) => n.local_key === nodeKey);
   return (
     <View>
-      <Conclusion a={c.assessment} reportId={reportId} onEvidence={onEvidence} />
-      <Mechanism text={c.reasoning_summary.logic} />
-      <AssessmentColumns
-        support={[c.reasoning_summary.support.text]}
-        objections={c.reasoning_summary.objections}
-      />
+      <View className='normalized-tree-panel'>
+        <Conclusion a={c.assessment} reportId={reportId} onEvidence={onEvidence} />
+        <Mechanism text={c.reasoning_summary.logic} />
+        <AssessmentColumns
+          support={[c.reasoning_summary.support.text]}
+          objections={c.reasoning_summary.objections}
+        />
+      </View>
       <View className='normalized-graph-section'>
         <Text className='normalized-title'>产业链图谱</Text>
         <HorizontalGraph c={c} selected={nodeKey} onSelect={setNodeKey} />

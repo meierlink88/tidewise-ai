@@ -372,9 +372,14 @@
 }
 // Graph connectors are illustrative; report topology remains in the data contract.
 .normalized-graph-section {
-  padding: 24px 0 0;
+  margin-top: 26px;
+  padding: 28px 20px 26px;
   border-top: 1px solid #e3dfd7;
+  background: #f8f5ed;
   color: #102638;
+}
+.normalized-tree-panel > .normalized-columns {
+  margin-bottom: 0;
 }
 .normalized-graph-scroll {
   width: 100%;
