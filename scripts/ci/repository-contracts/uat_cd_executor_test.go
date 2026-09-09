@@ -1730,6 +1730,7 @@ case " $* " in
 	    ;;
   *" pull "*) [ "$FAKE_REPORT_STORAGE_FAILURE" = image ] && exit 1 ;;
   *" pg_dump --version "*) echo pg_dump-fixture ;;
+  *" pg_dump --schema-only "*) [ "$FAKE_REPORT_STORAGE_FAILURE" = version ] && exit 1; echo fixture-schema ;;
   *" pg_dump "*)
     [ "$FAKE_REPORT_STORAGE_FAILURE" = backup ] && exit 1
     echo fixture-dump
@@ -1918,7 +1919,7 @@ func conditionalValue(condition bool, value string) string {
 }
 
 func TestUATReportStorageCutover(t *testing.T) {
-	for _, failure := range []string{"", "image", "backup", "verify"} {
+	for _, failure := range []string{"", "image", "version", "backup", "verify"} {
 		t.Run(failure, func(t *testing.T) {
 			r := runDeployFixture(t, deployFixtureOptions{currentRelease: true, deploymentMode: "data_88_cutover", backupConfirmed: true, destructiveConfirmed: true, reportStorageFailure: failure,
 				migrationReport:      `{"current_version":"87","pending":[{"Version":"88"}]}`,
@@ -1933,7 +1934,9 @@ func TestUATReportStorageCutover(t *testing.T) {
 				}
 				backup := strings.Index(log, " pg_dump --format")
 				verify := strings.LastIndex(log, " --verify")
-				if backup < 0 || migration < backup || verify < migration || start < verify {
+				preflight := strings.Index(log, " pg_dump --schema-only")
+				stop := strings.Index(log, " stop ")
+				if preflight < 0 || stop < preflight || backup < stop || migration < backup || verify < migration || start < verify {
 					t.Fatalf("unsafe sequence: %s", log)
 				}
 				assertFileContent(t, filepath.Join(r.root, "state", "current.sha"), fixtureSHA)
@@ -1944,10 +1947,10 @@ func TestUATReportStorageCutover(t *testing.T) {
 				if start >= 0 {
 					t.Fatalf("candidate started after failure: %s", log)
 				}
-				if failure == "image" && strings.Contains(log, " stop ") {
+				if (failure == "image" || failure == "version") && strings.Contains(log, " stop ") {
 					t.Fatalf("image failure stopped services: %s", log)
 				}
-				if (failure == "backup" || failure == "image") && migration >= 0 {
+				if (failure == "backup" || failure == "image" || failure == "version") && migration >= 0 {
 					t.Fatalf("migration ran without backup: %s", log)
 				}
 				if failure == "verify" {

@@ -10,7 +10,9 @@ prepare_report_storage_image() {
   fi
   docker pull "$report_backup_image" >/dev/null
   docker run --rm "$report_backup_image" pg_dump --version
+  run_report_database_dump --schema-only --no-owner --no-acl >/dev/null
   echo "PASS report-storage-backup-image-ready"
+  echo "PASS report-storage-database-backup-preflight"
 }
 
 prepare_report_storage_backup() {
@@ -29,18 +31,7 @@ prepare_report_storage_backup() {
     echo "FAIL report-storage-backup: original pre-migration backup is missing; restore the verified recovery point" >&2
     return 1
   fi
-  local backup_host backup_password
-  backup_host="$(runtime_value "$runtime_env" TIDEWISE_DB_HOST)"
-  backup_password="$(runtime_value "$runtime_env" TIDEWISW_DB_PASSWORD)"
-  if [[ "$backup_host" != *.internal.cn-east-3.postgresql.rds.myhuaweicloud.com ]] || [ -z "$backup_password" ]; then
-    echo "FAIL report-storage-backup: UAT database identity/credential missing" >&2
-    return 1
-  fi
-  # Only the same UAT application database is backed up; credentials stay off stdout.
-  PGHOST="$backup_host" PGPASSWORD="$backup_password" docker run --rm --network host \
-    -e PGHOST -e PGPASSWORD -e PGPORT=5432 -e PGUSER=tidewise_uat \
-    -e PGDATABASE=tidewise_uat -e PGSSLMODE=require -e PGCONNECT_TIMEOUT=10 \
-    "$report_backup_image" pg_dump --format=custom --no-owner --no-acl > "${report_backup_dump}.partial"
+  run_report_database_dump --format=custom --no-owner --no-acl > "${report_backup_dump}.partial"
   test -s "${report_backup_dump}.partial"
   docker run --rm -i "$report_backup_image" pg_restore --list < "${report_backup_dump}.partial" > "${report_backup_dir}/before.contents"
   mv "${report_backup_dump}.partial" "$report_backup_dump"
@@ -84,4 +75,19 @@ PY
     --backup-reference "${report_backup_dump}#sha256=${backup_hash}"
   "${maintenance[@]}" --verify
   echo "PASS report-storage-projections-verified"
+}
+
+# Shared by pre-stop compatibility check and post-stop frozen backup.
+run_report_database_dump() {
+  local backup_host backup_password
+  backup_host="$(runtime_value "$runtime_env" TIDEWISE_DB_HOST)"
+  backup_password="$(runtime_value "$runtime_env" TIDEWISW_DB_PASSWORD)"
+  if [[ "$backup_host" != *.internal.cn-east-3.postgresql.rds.myhuaweicloud.com ]] || [ -z "$backup_password" ]; then
+    echo "FAIL report-storage-backup: UAT database identity/credential missing" >&2
+    return 1
+  fi
+  PGHOST="$backup_host" PGPASSWORD="$backup_password" docker run --rm --network host \
+    -e PGHOST -e PGPASSWORD -e PGPORT=5432 -e PGUSER=tidewise_uat \
+    -e PGDATABASE=tidewise_uat -e PGSSLMODE=require -e PGCONNECT_TIMEOUT=10 \
+    "$report_backup_image" pg_dump "$@"
 }
