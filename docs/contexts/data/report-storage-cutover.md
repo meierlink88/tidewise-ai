@@ -50,3 +50,8 @@ Issue #473。外部 API/发布包不变。必须先人工合并 PR、使用该 m
 备份失败不开始迁移。迁移后校验计划截止时间、已知两份 Sep9 报告必须保留；根据固定截止时间保留更新报告、删除更早 Report。通过 report-storage apply 和 verify 后才允许启动候选应用。备份/计划不会被成功部署清理；恢复运行验证并复用原始备份，不用已迁移数据库覆盖备份。失败时保留 marker，数据库变更后不自动回退旧镜像。
 
 本模式暂停既有完整应用 release，以沿用所有写入者停止与一致恢复机制；迁移完成后启动四服务并做健康/API读路径检查。部署后仍需对照外部准备的1704条接口基线，验证保留报告和清理对象。
+
+
+### 备份工具镜像分发
+
+Issue #477：ECS 不直接访问 Docker Hub。GitHub-hosted builder 将固定 PostgreSQL 客户端构建并推送到已有 SWR deployment repository；工作流将返回的不可变 digest 传给 ECS。部署脚本先验证 registry/digest、拉取镜像并检查 pg_dump 可执行，再停止任何服务。镜像准备失败时旧服务保持运行。2026-09-09 首次切换因 Docker Hub 超时在备份前失败，数据库未变更，已自动恢复旧 release。

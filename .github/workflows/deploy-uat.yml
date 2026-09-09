@@ -362,6 +362,7 @@ jobs:
       adminportal_image: ${{ steps.images.outputs.adminportal_image }}
       admin_image: ${{ steps.images.outputs.admin_image }}
       deploy_bundle_image: ${{ steps.deploy-bundle-ref.outputs.deploy_bundle_image }}
+      report_backup_image: ${{ steps.report-backup-ref.outputs.image }}
     env:
       SWR_REGISTRY: ${{ vars.SWR_REGISTRY }}
       SWR_NAMESPACE: ${{ vars.SWR_NAMESPACE }}
@@ -433,6 +434,7 @@ jobs:
           echo "miniapp_image=$(select_image "$DEPLOY_MINIAPP" "$miniapp_build_image" "$CURRENT_MINIAPP_IMAGE")" >> "$GITHUB_OUTPUT"
           echo "adminportal_image=$(select_image "$DEPLOY_ADMINPORTAL" "$adminportal_build_image" "$CURRENT_ADMINPORTAL_IMAGE")" >> "$GITHUB_OUTPUT"
           echo "admin_image=$(select_image "$DEPLOY_ADMIN" "$admin_build_image" "$CURRENT_ADMIN_IMAGE")" >> "$GITHUB_OUTPUT"
+          echo "report_backup_tag=${prefix}/${SWR_DEPLOY_REPOSITORY}:report-backup-${COMMIT_SHA}-${CONTROL_PLANE_SHA}" >> "$GITHUB_OUTPUT"
           echo "deploy_bundle_tag=${prefix}/${SWR_DEPLOY_REPOSITORY}:${COMMIT_SHA}-${CONTROL_PLANE_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
@@ -507,6 +509,30 @@ jobs:
           provenance: false
           tags: ${{ steps.images.outputs.admin_build_image }}
 
+      - name: Build and push report backup client to SWR
+        if: inputs.deployment_mode == 'data_88_cutover'
+        id: report-backup-client
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .uat-control/infra/uat
+          file: .uat-control/infra/uat/report-backup-client.Dockerfile
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          tags: ${{ steps.images.outputs.report_backup_tag }}
+
+      - name: Resolve immutable report backup client
+        if: inputs.deployment_mode == 'data_88_cutover'
+        id: report-backup-ref
+        env:
+          IMAGE_TAG: ${{ steps.images.outputs.report_backup_tag }}
+          IMAGE_DIGEST: ${{ steps.report-backup-client.outputs.digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "image=${IMAGE_TAG}@${IMAGE_DIGEST}" >> "$GITHUB_OUTPUT"
+
       - name: Build and push immutable UAT deployment bundle
         id: deploy-bundle-image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
@@ -561,6 +587,7 @@ jobs:
       ADMINPORTAL_IMAGE: ${{ needs.build-and-push.outputs.adminportal_image }}
       ADMIN_IMAGE: ${{ needs.build-and-push.outputs.admin_image }}
       DEPLOY_BUNDLE_IMAGE: ${{ needs.build-and-push.outputs.deploy_bundle_image }}
+      REPORT_BACKUP_IMAGE: ${{ needs.build-and-push.outputs.report_backup_image }}
       TIDEWISW_DB_PASSWORD: ${{ secrets.TIDEWISW_DB_PASSWORD }}
       DATA_SERVICE_TOKEN: ${{ secrets.DATA_SERVICE_TOKEN }}
       ADMIN_SERVICE_TOKEN: ${{ secrets.ADMIN_SERVICE_TOKEN }}
