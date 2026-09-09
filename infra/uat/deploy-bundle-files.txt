@@ -2,5 +2,6 @@ release	infra/uat/docker-compose.yaml
 release	data-service/backend/configs/config.uat.yaml
 control	infra/uat/preflight.sh
 control	infra/uat/deploy.sh
+control	infra/uat/report-storage-cutover.sh
 control	infra/uat/collect-diagnostics.sh
 control	infra/uat/migration-risk.tsv

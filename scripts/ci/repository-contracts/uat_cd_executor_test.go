@@ -1455,12 +1455,14 @@ type deployFixtureOptions struct {
 	cutoverMarkerPhase              string
 	cutoverMarkerTargetVersion      string
 	failCutoverMarkerSync           bool
+	reportStorageFailure            string
 	failRunningServiceProbe         bool
 	rebuildEmptyDataSchema          bool
 	orphanedCutoverWriter           bool
 	orphanedRestartingCutoverWriter bool
 	legacyQdrantSnapshot            bool
 	legacyAgentRunMarkers           bool
+	existingReportBackup            bool
 }
 
 type deployFixtureResult struct {
@@ -1484,6 +1486,15 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		}
 	}
 
+	if options.existingReportBackup {
+		dir := filepath.Join(state, "report-storage-"+fixtureSHA)
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatal(err)
+		}
+		writeFixture(t, filepath.Join(dir, "before.dump"), "original-backup")
+		sum := sha256.Sum256([]byte("original-backup"))
+		writeFixture(t, filepath.Join(dir, "before.sha256"), fmt.Sprintf("%x  before.dump\n", sum))
+	}
 	runtimeEnv := filepath.Join(temp, "candidate.runtime.env")
 	imagesEnv := filepath.Join(temp, "candidate.images.env")
 	compose := filepath.Join(temp, "compose.yaml")
@@ -1500,7 +1511,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	if options.orphanedRestartingCutoverWriter {
 		writeFixture(t, restartingWriter, "restarting\n")
 	}
-	writeFixture(t, runtimeEnv, "ADMIN_SERVICE_TOKEN=fixture-admin-secret\nDATA_SERVICE_TOKEN=fixture-data-secret\n")
+	writeFixture(t, runtimeEnv, "ADMIN_SERVICE_TOKEN=fixture-admin-secret\nDATA_SERVICE_TOKEN=fixture-data-secret\nTIDEWISE_DB_HOST=fixture.internal.cn-east-3.postgresql.rds.myhuaweicloud.com\nTIDEWISW_DB_PASSWORD=fixture-db-secret\n")
 	writeFixture(t, imagesEnv, "DATA_IMAGE=fixture/data:"+fixtureSHA+"\nMINIAPP_IMAGE=fixture/miniapp:"+fixtureSHA+"\nADMINPORTAL_IMAGE=fixture/adminportal:"+fixtureSHA+"\nADMIN_IMAGE=fixture/admin:"+fixtureSHA+"\n")
 	composeContent := "name: tidewise-uat\nservices:\n  data: {}\n  miniapp: {}\n  adminportal: {}\n  admin: {}\n"
 	writeFixture(t, compose, composeContent)
@@ -1517,7 +1528,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		migrationScope = "schema"
 	}
 	manifestRows := ""
-	for version := 1; version <= 80; version++ {
+	for version := 1; version <= 88; version++ {
 		risk := "normal"
 		scope := "schema"
 		reason := "fixture migration"
@@ -1713,10 +1724,29 @@ case " $* " in
 	    if [ -n "$compose_file" ] && grep -q 'qdrant:' "$compose_file"; then echo qdrant; fi
 	    printf 'data\nminiapp\nadminportal\nadmin\n'
     ;;
-	  *" run "*" /usr/local/bin/dbmigrate -apply -target-version 58 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 59 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 60 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 77 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 79 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 80 "*)
+	  *" run "*" /usr/local/bin/dbmigrate -apply -target-version 58 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 59 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 60 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 77 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 79 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 80 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 88 "*)
 	    touch "$FAKE_CUTOVER_APPLIED"
 	    cat "$FAKE_MIGRATION_APPLY_REPORT"
 	    ;;
+  *" pg_dump "*)
+    [ "$FAKE_REPORT_STORAGE_FAILURE" = backup ] && exit 1
+    echo fixture-dump
+    ;;
+  *" pg_restore "*) cat >/dev/null; echo fixture-contents ;;
+  *" /usr/local/bin/report-storage "*)
+    [ "$FAKE_REPORT_STORAGE_FAILURE" = verify ] && exit 1
+    previous=""; mount=""; plan=""
+    for argument in "$@"; do
+      [ "$previous" = -v ] && mount="${argument%%:/maintenance}"
+      [ "$previous" = --plan ] && plan="${argument##*/}"
+      previous="$argument"
+    done
+    case " $* " in
+      *" --retain-from "*)
+        printf '%s' '{"retain_from":"2026-09-08T16:00:00Z","keep":[{"id":"RPT4587d39b-fc02-4a4d-bbc6-dbeb64f35081","published_at":"2026-09-09T13:01:43Z"},{"id":"RPT74b0c274-67f8-4e25-978e-d7876291ece5","published_at":"2026-09-09T13:06:06Z"}],"delete":[]}' > "$mount/$plan"
+        ;;
+    esac
+    ;;
   *" run "*" /usr/local/bin/dbmigrate "*)
 	    if [ -f "$FAKE_CUTOVER_APPLIED" ]; then cat "$FAKE_MIGRATION_APPLY_REPORT"; else cat "$FAKE_MIGRATION_REPORT"; fi
 	    ;;
@@ -1782,6 +1812,7 @@ exit 0
 		"GITHUB_RUN_ID=fixture",
 		"GITHUB_STEP_SUMMARY="+filepath.Join(temp, "summary.md"),
 		"FAKE_DOCKER_LOG="+dockerLog,
+		"FAKE_REPORT_STORAGE_FAILURE="+options.reportStorageFailure,
 		"FAKE_MIGRATION_REPORT="+filepath.Join(temp, "migration.json"),
 		"FAKE_MIGRATION_APPLY_REPORT="+filepath.Join(temp, "migration-apply.json"),
 		"FAKE_CUTOVER_APPLIED="+filepath.Join(temp, "cutover-applied"),
@@ -1880,4 +1911,73 @@ func conditionalValue(condition bool, value string) string {
 		return value
 	}
 	return ""
+}
+
+func TestUATReportStorageCutover(t *testing.T) {
+	for _, failure := range []string{"", "backup", "verify"} {
+		t.Run(failure, func(t *testing.T) {
+			r := runDeployFixture(t, deployFixtureOptions{currentRelease: true, deploymentMode: "data_88_cutover", backupConfirmed: true, destructiveConfirmed: true, reportStorageFailure: failure,
+				migrationReport:      `{"current_version":"87","pending":[{"Version":"88"}]}`,
+				migrationApplyReport: `{"current_version":"88","pending":[]}`})
+			raw, _ := os.ReadFile(r.dockerLog)
+			log := string(raw)
+			migration := strings.Index(log, "dbmigrate -apply -target-version 88")
+			start := strings.Index(log, " up -d --remove-orphans")
+			if failure == "" {
+				if r.err != nil {
+					t.Fatalf("%v: %s", r.err, r.output)
+				}
+				backup := strings.Index(log, " pg_dump ")
+				verify := strings.LastIndex(log, " --verify")
+				if backup < 0 || migration < backup || verify < migration || start < verify {
+					t.Fatalf("unsafe sequence: %s", log)
+				}
+				assertFileContent(t, filepath.Join(r.root, "state", "current.sha"), fixtureSHA)
+			} else {
+				if r.err == nil {
+					t.Fatal("expected failure")
+				}
+				if start >= 0 {
+					t.Fatalf("candidate started after failure: %s", log)
+				}
+				if failure == "backup" && migration >= 0 {
+					t.Fatalf("migration ran without backup: %s", log)
+				}
+				if failure == "verify" {
+					if _, err := os.Stat(filepath.Join(r.root, "state", "tidewise-2-cutover-in-progress")); err != nil {
+						t.Fatal("missing recovery marker", err)
+					}
+					if strings.Contains(r.output, "restoring release") {
+						t.Fatal("unsafe image rollback", r.output)
+					}
+				}
+			}
+		})
+	}
+}
+func TestUATReportStorageNormalDeployStillBlocked(t *testing.T) {
+	r := runDeployFixture(t, deployFixtureOptions{currentRelease: true, backupConfirmed: true, migrationReport: `{"current_version":"87","pending":[{"Version":"88"}]}`})
+	if r.err == nil || !strings.Contains(r.output, "FAIL report-storage-cutover") {
+		t.Fatalf("normal deployment bypassed gate: %s", r.output)
+	}
+}
+
+func TestUATReportStorageRecoveryUsesOriginalBackup(t *testing.T) {
+	for _, backup := range []bool{false, true} {
+		r := runDeployFixture(t, deployFixtureOptions{currentRelease: true, deploymentMode: "data_88_cutover", backupConfirmed: true, destructiveConfirmed: true, existingReportBackup: backup, cutoverMarkerPhase: "migration-started", cutoverMarkerTargetVersion: "88", migrationReport: `{"current_version":"88","pending":[]}`, migrationApplyReport: `{"current_version":"88","pending":[]}`})
+		raw, _ := os.ReadFile(r.dockerLog)
+		if strings.Contains(string(raw), " pg_dump ") {
+			t.Fatal("recovery overwrote pre-migration backup")
+		}
+		if backup {
+			if r.err != nil {
+				t.Fatalf("%v: %s", r.err, r.output)
+			}
+			if !strings.Contains(r.output, "PASS report-storage-original-backup-reused") {
+				t.Fatal(r.output)
+			}
+		} else if r.err == nil || !strings.Contains(r.output, "original pre-migration backup is missing") {
+			t.Fatalf("missing backup was accepted: %s", r.output)
+		}
+	}
 }

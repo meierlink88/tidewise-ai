@@ -66,6 +66,10 @@ pre_data81_runtime="${deployment_root}/pre-data81.runtime.env"
 pre_data81_images="${state_dir}/pre-data81.images.env"
 pre_data81_compose="${state_dir}/pre-data81.compose.yaml"
 pre_data81_sha="${state_dir}/pre-data81.sha"
+pre_data88_runtime="${deployment_root}/pre-data88.runtime.env"
+pre_data88_images="${state_dir}/pre-data88.images.env"
+pre_data88_compose="${state_dir}/pre-data88.compose.yaml"
+pre_data88_sha="${state_dir}/pre-data88.sha"
 agentrun_rollback_marker="${state_dir}/agentrun-010-rollback-required"
 agentrun_version_publication="${state_dir}/agentrun-agent-version-publication.json"
 candidate_services_started=false
@@ -208,8 +212,22 @@ case "$deployment_mode" in
     cutover_checkpoint_compose="$pre_data81_compose"
     cutover_checkpoint_sha="$pre_data81_sha"
     ;;
+  data_88_cutover)
+    bounded_data_cutover=true
+    cutover_target_version=88
+    cutover_target_version_padded=000088
+    cutover_initial_current_version=000087
+    cutover_initial_pending_versions=000088
+    cutover_recovery_minimum_version=87
+    cutover_gate_name=data88
+    cutover_release_state_mode=pre-data88
+    cutover_checkpoint_runtime="$pre_data88_runtime"
+    cutover_checkpoint_images="$pre_data88_images"
+    cutover_checkpoint_compose="$pre_data88_compose"
+    cutover_checkpoint_sha="$pre_data88_sha"
+    ;;
   *)
-    echo "FAIL deployment-mode-gate: DEPLOYMENT_MODE must be normal, tidewise_2_cutover, data_59_cutover, data_60_cutover, data_63_77_cutover, data_78_79_cutover, data_78_80_cutover, data_80_cutover, or data_81_cutover" >&2
+    echo "FAIL deployment-mode-gate: DEPLOYMENT_MODE must be normal, tidewise_2_cutover, data_59_cutover, data_60_cutover, data_63_77_cutover, data_78_79_cutover, data_78_80_cutover, data_80_cutover, data_81_cutover, or data_88_cutover" >&2
     exit 1
     ;;
 esac
@@ -368,6 +386,16 @@ restore_interrupted_release_state() {
       install -m 0640 "$pre_data81_compose" "$current_compose"
       install -m 0640 "$pre_data81_sha" "$current_sha"
       ;;
+    pre-data88)
+      if [ ! -s "$pre_data88_runtime" ] || [ ! -s "$pre_data88_images" ] || [ ! -s "$pre_data88_compose" ] || [ ! -s "$pre_data88_sha" ]; then
+        echo "FAIL release-state-recovery: pre-Data-88 snapshot is incomplete" >&2
+        return 1
+      fi
+      install -m 0600 "$pre_data88_runtime" "$current_runtime"
+      install -m 0640 "$pre_data88_images" "$current_images"
+      install -m 0640 "$pre_data88_compose" "$current_compose"
+      install -m 0640 "$pre_data88_sha" "$current_sha"
+      ;;
     none)
       rm -f "$current_runtime" "$current_images" "$current_compose" "$current_sha"
       ;;
@@ -401,7 +429,7 @@ current_release_state_fingerprint() {
 
 verify_planned_release_state() {
   local recovered_cutover_state=false
-  if [ "$bounded_data_cutover" = true ] && [[ "$interrupted_state_recovery_mode" =~ ^(pre-data2|pre-data59|pre-data60|pre-data63|pre-data78|pre-data78-80|pre-data80|pre-data81|committed)$ ]]; then
+  if [ "$bounded_data_cutover" = true ] && [[ "$interrupted_state_recovery_mode" =~ ^(pre-data2|pre-data59|pre-data60|pre-data63|pre-data78|pre-data78-80|pre-data80|pre-data81|pre-data88|committed)$ ]]; then
     recovered_cutover_state=true
   fi
   if [ "$recovered_cutover_state" != true ] && [ "$(current_release_state_fingerprint)" != "$expected_current_state_fingerprint" ]; then
@@ -665,11 +693,11 @@ data_pending_versions="$(printf '%s\n' "$migration_risk_summary" | sed -n '5p')"
 
 # Report storage requires a separate, operator-reviewed data cutover. Never let
 # ordinary deployment rename the archive and start readers before the backfill.
-if [[ ",$data_pending_versions," == *,000088,* ]]; then
+if [[ ",$data_pending_versions," == *,000088,* ]] && [ "$deployment_mode" != data_88_cutover ]; then
   echo "FAIL report-storage-cutover: stop traffic, apply schema 88 and run reviewed report-storage maintenance; see docs/contexts/data/report-storage-cutover.md" >&2
   exit 1
 fi
-if [ "$data_current_version" -ge 88 ]; then
+if [ "$data_current_version" -ge 88 ] && { [ "$deployment_mode" != data_88_cutover ] || [ "$committed_cutover_recovery" = true ]; }; then
   "${candidate_compose[@]}" run --rm --no-deps data /usr/local/bin/report-storage --verify
 fi
 
@@ -853,6 +881,10 @@ if [ "$bounded_data_cutover" = true ]; then
     write_data2_cutover_marker services-stopped
   fi
   echo "PASS application-write-stop"
+  if [ "$deployment_mode" = data_88_cutover ]; then
+    source "$(dirname "${BASH_SOURCE[0]}")/report-storage-cutover.sh"
+    prepare_report_storage_backup
+  fi
   if [ "$cutover_migration_started" != true ]; then
     cutover_migration_started=true
     write_data2_cutover_marker migration-started
@@ -879,6 +911,9 @@ PY
   then
     echo "FAIL ${cutover_gate_name}-target-version: Data did not reach migration ${cutover_target_version} with no pending migrations" >&2
     exit 1
+  fi
+  if [ "$deployment_mode" = data_88_cutover ]; then
+    apply_report_storage_cutover
   fi
   write_data2_cutover_marker data-migrated
   echo "PASS ${cutover_gate_name}-target-version"
