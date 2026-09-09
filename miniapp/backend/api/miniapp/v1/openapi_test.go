@@ -78,9 +78,20 @@ func TestOpenAPIContractExposesOperationsAndReportRoutes(t *testing.T) {
 	assertRequired(t, schema(t, document, "Card"), "local_key", "kind", "detail_ref", "impact_items", "evidence_scope_token")
 	assertRequired(t, schema(t, document, "EvidenceCollection"), "report_id", "scope_token", "items")
 	evidenceProperties := object(t, schema(t, document, "EvidenceItem")["properties"], "EvidenceItem properties")
-	if got, want := sortedKeys(evidenceProperties), []string{"keywords", "published_at", "summary"}; strings.Join(got, ",") != strings.Join(want, ",") {
+	if got, want := sortedKeys(evidenceProperties), []string{"keywords", "published_at", "semantic_tags", "summary"}; strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("EvidenceItem properties = %v, want %v", got, want)
 	}
+	assertRequired(t, schema(t, document, "EvidenceItem"), "published_at", "summary", "keywords")
+	for _, name := range array(t, schema(t, document, "EvidenceItem")["required"], "EvidenceItem required") {
+		if name == "semantic_tags" {
+			t.Fatal("semantic_tags must remain optional for existing evidence responses")
+		}
+	}
+	tags := object(t, evidenceProperties["semantic_tags"], "semantic_tags")
+	if tags["type"] != "array" || object(t, tags["items"], "semantic_tags items")["$ref"] != "#/components/schemas/EvidenceSemanticTag" {
+		t.Fatalf("semantic_tags = %#v, want array of EvidenceSemanticTag", tags)
+	}
+	assertRequired(t, schema(t, document, "EvidenceSemanticTag"), "kind", "text")
 	for _, retired := range []string{"/api/miniapp/v1/research/themes", "/api/miniapp/v1/reasoning-trees", "/api/miniapp/v1/events"} {
 		if _, exists := paths[retired]; exists {
 			t.Fatalf("retired path %q remains in OpenAPI", retired)
