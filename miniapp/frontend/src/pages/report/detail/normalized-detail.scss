@@ -1,11 +1,14 @@
 @use '../../../styles/tokens.scss' as *;
 
 .normalized-detail {
+  display: flex;
+  flex-direction: column;
   color: #16325d;
   background: #0b2035;
   min-height: 100vh;
 }
 .normalized-hero {
+  flex-shrink: 0;
   position: relative;
   overflow: hidden;
   padding: 20px 32px 26px;
@@ -62,11 +65,16 @@
   font-weight: 700;
 }
 .normalized-main {
+  flex: 1;
   position: relative;
   padding: 22px 26px 50px;
   border-radius: 36px 36px 0 0;
   background: radial-gradient(circle at 94% 2%, rgba(201, 169, 98, 0.07), transparent 20%), #f7f5ef;
-  min-height: 70vh;
+  &::after {
+    content: '';
+    display: block;
+    height: env(safe-area-inset-bottom);
+  }
 }
 .normalized-tabs {
   width: 100%;

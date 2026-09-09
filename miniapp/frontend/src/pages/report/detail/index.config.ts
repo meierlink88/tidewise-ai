@@ -11,6 +11,6 @@ export default definePageConfig({
   navigationBarTextStyle: 'white',
   navigationStyle: 'default',
   enablePullDownRefresh: true,
-  backgroundColor: '#f8fafc',
+  backgroundColor: '#f7f5ef',
   backgroundTextStyle: 'dark'
 });
