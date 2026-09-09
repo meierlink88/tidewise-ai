@@ -15,8 +15,6 @@ import type { ReportEvidenceRoute } from '../../../features/reports/navigation';
 import { getReportPort } from '../../../features/reports/port';
 import { useReportResource } from '../../../features/reports/use-report-resource';
 import { ReportStatePanel } from '../../../features/reports/report-components';
-import supportIcon from '../../../assets/icons/report-shield-check.svg';
-import counterIcon from '../../../assets/icons/report-scale.svg';
 import followUpIcon from '../../../assets/icons/report-eye.svg';
 import { formatReportPublication } from '../../../features/reports/presentation';
 import './normalized-detail.scss';
@@ -198,7 +196,6 @@ function AssessmentColumns({ support, objections }: { support: string[]; objecti
     <View className='normalized-columns'>
       <View className='normalized-support'>
         <View className='normalized-insight-heading'>
-          <Image src={supportIcon} className='normalized-insight-icon' />
           <Text>支持</Text>
         </View>
         {support.length ? (
@@ -213,7 +210,6 @@ function AssessmentColumns({ support, objections }: { support: string[]; objecti
       </View>
       <View className='normalized-counter'>
         <View className='normalized-insight-heading'>
-          <Image src={counterIcon} className='normalized-insight-icon' />
           <Text>反证</Text>
         </View>
         <Text className='normalized-prose'>{objections.summary}</Text>

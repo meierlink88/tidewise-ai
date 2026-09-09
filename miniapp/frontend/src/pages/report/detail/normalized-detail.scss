@@ -228,7 +228,7 @@
 }
 .normalized-mechanism {
   position: relative;
-  margin: 36px 24px 36px;
+  margin: 36px 24px 0;
   padding: 18px 24px;
   border: 2px solid rgba(216, 193, 138, 0.34);
   border-radius: 20px;
@@ -241,7 +241,8 @@
   &::before {
     content: '';
     position: absolute;
-    left: calc(50% - 1px);
+    left: 50%;
+    margin-left: -1px;
     top: -38px;
     height: 36px;
     width: 2px;
@@ -265,19 +266,78 @@
   overflow-wrap: anywhere;
 }
 .normalized-columns {
+  position: relative;
   display: flex;
   align-items: stretch;
-  margin: 0 12px 32px;
+  gap: 18px;
+  padding-top: 36px;
+  margin: 0 0 32px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 20px;
+    left: 25%;
+    right: 25%;
+    height: 16px;
+    border: 3px solid rgba(201, 169, 98, 0.5);
+    border-bottom: 0;
+    border-radius: 16px 16px 0 0;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    margin-left: -1px;
+    height: 20px;
+    width: 2px;
+    background: #526f83;
+  }
 }
 .normalized-support,
 .normalized-counter {
+  position: relative;
   flex: 1;
   min-width: 0;
-  padding: 0 22px 0 0;
+  min-height: 184px;
+  padding: 24px 16px 18px;
+  border: 2px solid rgba(18, 42, 69, 0.12);
+  border-top: 4px solid #284761;
+  border-radius: 22px;
+  background: linear-gradient(155deg, #f2f5f7, #fff 64%);
+  box-shadow: 0 10px 30px rgba(8, 25, 41, 0.055);
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    margin-left: -7px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #284761;
+    box-shadow: 0 0 0 6px #fff;
+  }
 }
 .normalized-counter {
-  padding: 0 0 0 22px;
-  border-left: 1px solid #d9dde0;
+  border-top-color: #c9a962;
+  background: linear-gradient(155deg, #faf6ed, #fff 64%);
+
+  &::before {
+    background: #c9a962;
+  }
+}
+.normalized-columns .normalized-insight-heading {
+  color: #132d43;
+  font-size: 20px;
+  line-height: 1.5;
+  margin-bottom: 10px;
+}
+.normalized-columns .normalized-counter .normalized-insight-heading {
+  color: #755c2f;
 }
 .normalized-insight-heading {
   display: flex;
@@ -298,8 +358,10 @@
   color: #a66c25;
 }
 .normalized-columns .normalized-prose {
-  font-size: 23px;
-  line-height: 1.85;
+  color: #7c7973;
+  font-size: 22px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
 }
 .normalized-followup {
   margin: 30px 12px 0;
