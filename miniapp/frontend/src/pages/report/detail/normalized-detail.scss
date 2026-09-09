@@ -60,7 +60,7 @@
   position: relative;
   display: block;
   margin-top: 14px;
-  font-size: report-reading-font(32px);
+  font-size: 32px;
   line-height: 1.38;
   font-weight: 700;
 }
@@ -119,7 +119,7 @@
 }
 .normalized-tab-name {
   display: block;
-  font-size: report-reading-font(26px);
+  font-size: 24px;
   font-weight: 600;
   letter-spacing: 0.03em;
   overflow-wrap: anywhere;
@@ -131,7 +131,7 @@
   display: block;
   margin-top: 2px;
   color: #7c7973;
-  font-size: report-reading-font(18px);
+  font-size: 16px;
   font-weight: 400;
 }
 .normalized-tree-panel {
@@ -171,7 +171,7 @@
 }
 .normalized-conclusion-text {
   display: block;
-  font-size: report-reading-font(26px);
+  font-size: 26px;
   line-height: 1.5;
   font-weight: 700;
   margin: 12px 0;
@@ -268,7 +268,7 @@
 .normalized-mechanism-text {
   display: block;
   color: #fff;
-  font-size: report-reading-font(26px);
+  font-size: 26px;
   font-weight: 700;
   line-height: 1.55;
   overflow-wrap: anywhere;
@@ -550,11 +550,22 @@
   }
 }
 .normalized-node-detail {
-  padding: 22px;
-  border: 2px solid #f4ccae;
+  position: relative;
+  padding: 26px 24px;
+  border: 2px solid #e1e3e5;
   border-radius: 24px;
-  box-shadow: 0 0 0 5px #faf0e7;
-  background: #f8efe6;
+  box-shadow: 0 14px 34px rgba(8, 25, 41, 0.05);
+  background: #fbfaf7;
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 24px;
+    bottom: 24px;
+    width: 4px;
+    border-radius: 4px;
+    background: linear-gradient(180deg, #c9a962, #eee4ce);
+  }
 }
 .normalized-node-heading {
   display: flex;
@@ -568,14 +579,11 @@
   overflow-wrap: anywhere;
 }
 .normalized-node-impact {
-  padding: 22px;
-  border: 1px solid #ffe1cd;
-  border-radius: 18px;
-  background: #fff;
+  padding: 0;
 }
 .normalized-node-conclusion {
   display: block;
-  font-size: report-reading-font(26px);
+  font-size: 26px;
   font-weight: 700;
   line-height: 1.6;
   white-space: pre-wrap;
