@@ -373,30 +373,32 @@
 // Graph connectors are illustrative; report topology remains in the data contract.
 .normalized-graph-section {
   position: relative;
-  margin-top: 26px;
-  padding: 28px 20px 26px;
-  border-top: 1px solid #e3dfd7;
-  background: #f8f5ed;
+  margin-top: 40px;
   color: #102638;
   &::before {
     content: '';
     position: absolute;
     left: 50%;
-    top: -50px;
+    top: -40px;
     margin-left: -1.5px;
     width: 3px;
-    height: 50px;
+    height: 40px;
     background: linear-gradient(to bottom, #527586 0%, #527586 58%, #dfcca1 58%, #dfcca1 100%);
   }
+}
+.normalized-core-section {
+  margin-top: 26px;
+  padding: 20px 20px 26px;
+  border: 2px solid rgba(201, 169, 98, 0.24);
+  border-radius: 28px;
+  background: #f8f5ed;
+  color: #102638;
 }
 .normalized-tree-panel > .normalized-columns {
   margin-bottom: 0;
 }
 .normalized-graph-scroll {
   width: 100%;
-  margin-bottom: 28px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #e3dfd7;
 }
 .normalized-graph-canvas {
   position: relative;
@@ -474,7 +476,8 @@
   display: block;
   overflow-wrap: anywhere;
 }
-.normalized-graph-section .normalized-direction {
+.normalized-graph-section .normalized-direction,
+.normalized-core-section .normalized-direction {
   flex-shrink: 0;
   font-size: 20px;
   line-height: 1.4;
@@ -482,15 +485,18 @@
   padding: 3px 10px;
   border-radius: 9px;
 }
-.normalized-graph-section .normalized-direction.warming {
+.normalized-graph-section .normalized-direction.warming,
+.normalized-core-section .normalized-direction.warming {
   color: #cb302f;
   background: #ffe0d9;
 }
-.normalized-graph-section .normalized-direction.cooling {
+.normalized-graph-section .normalized-direction.cooling,
+.normalized-core-section .normalized-direction.cooling {
   color: #288057;
   background: #dfefe4;
 }
-.normalized-graph-section .normalized-direction.diverging {
+.normalized-graph-section .normalized-direction.diverging,
+.normalized-core-section .normalized-direction.diverging {
   color: #a67c20;
   background: #f7e9bc;
 }
@@ -589,17 +595,13 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.normalized-variable-name {
+.normalized-key-signals-title {
+  display: block;
+  margin-top: 18px;
+  color: #9c752c;
+  font-size: 23px;
   font-weight: 600;
-}
-.normalized-signal-direction.UP {
-  color: #be4036;
-}
-.normalized-signal-direction.DOWN {
-  color: #288057;
-}
-.normalized-signal-direction.MIXED {
-  color: #a67c20;
+  line-height: 1.5;
 }
 
 .normalized-hero-logic {

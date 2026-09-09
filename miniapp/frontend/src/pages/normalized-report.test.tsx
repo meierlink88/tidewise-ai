@@ -182,11 +182,12 @@ describe('normalized report interaction', () => {
     expect(graphNodes[0].textContent).toContain('成本 · 下降');
     expect(graphNodes[0].textContent).not.toContain('第二条独立变量信号');
     expect(graphNodes[1].querySelector('.normalized-graph-variables')).toBeNull();
-    expect(host.querySelector('.normalized-node-detail')?.textContent).toContain(
-      signal.variable_name
-    );
     expect(host.querySelector('.normalized-node-detail')?.textContent).toContain(signal.signal);
-    expect(host.querySelectorAll('.normalized-variable-signal')[1].textContent).toContain('下降');
+    expect(host.querySelectorAll('.normalized-signal-text')[1].textContent).toBe(
+      '第二条独立变量信号'
+    );
+    expect(host.querySelector('.normalized-key-signals-title')?.textContent).toBe('关键信号');
+    expect(host.querySelector('.normalized-node-detail')?.textContent).not.toContain('成本 · 下降');
     expect(host.querySelector('.normalized-node-conclusion')?.textContent).toBe(
       first.assessment.conclusion
     );
@@ -201,6 +202,7 @@ describe('normalized report interaction', () => {
       second.assessment.conclusion
     );
     expect(host.querySelectorAll('.normalized-variable-signal')).toHaveLength(0);
+    expect(host.querySelector('.normalized-key-signals-title')).toBeNull();
     expect(host.querySelector('.normalized-node-detail')?.textContent).not.toContain(
       '第二条独立变量信号'
     );

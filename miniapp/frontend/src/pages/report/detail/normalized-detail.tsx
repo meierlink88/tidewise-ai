@@ -247,10 +247,11 @@ export function ChainContent({
           support={[c.reasoning_summary.support.text]}
           objections={c.reasoning_summary.objections}
         />
+        <View className='normalized-graph-section'>
+          <HorizontalGraph c={c} selected={nodeKey} onSelect={setNodeKey} />
+        </View>
       </View>
-      <View className='normalized-graph-section'>
-        <Text className='normalized-title'>产业链图谱</Text>
-        <HorizontalGraph c={c} selected={nodeKey} onSelect={setNodeKey} />
+      <View className='normalized-core-section'>
         {c.empty_state ? (
           <Text className='normalized-prose'>{c.empty_state.reason}</Text>
         ) : (
@@ -268,20 +269,16 @@ export function ChainContent({
               {node ? (
                 <View className='normalized-node-impact'>
                   <Text className='normalized-node-conclusion'>{node.assessment.conclusion}</Text>
+                  {node.variable_signals?.length ? (
+                    <Text className='normalized-key-signals-title'>关键信号</Text>
+                  ) : null}
                   {node.variable_signals?.map((signal, index) => (
                     <View
                       className='normalized-variable-signal'
                       key={`${signal.variable_id}:${signal.signal_id}:${index}`}
                     >
                       <Text className='normalized-signal-bullet'>•</Text>
-                      <Text className='normalized-signal-text'>
-                        <Text className='normalized-variable-name'>{signal.variable_name}</Text>
-                        <Text className={`normalized-signal-direction ${signal.source_direction}`}>
-                          {' '}
-                          · {signalDirections[signal.source_direction]} ·{' '}
-                        </Text>
-                        {signal.signal}
-                      </Text>
+                      <Text className='normalized-signal-text'>{signal.signal}</Text>
                     </View>
                   ))}
                 </View>
