@@ -155,7 +155,7 @@ export function NormalizedHome({
                   onEvidence({
                     reportId: group.report.id,
                     scopeToken: u.summary.evidence_scope_token,
-                    title: u.title
+                    title: `${analysisLabels[sourceKind]} · ${u.title}`
                   });
               }}
             />

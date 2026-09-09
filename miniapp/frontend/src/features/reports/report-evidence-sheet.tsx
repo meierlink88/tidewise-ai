@@ -1,7 +1,6 @@
-import { Button, Image, ScrollView, Text, View } from '@tarojs/components';
+import { Button, ScrollView, Text, View } from '@tarojs/components';
 import type { ITouchEvent } from '@tarojs/components';
 import { useSyncExternalStore } from 'react';
-import reportClockIcon from '../../assets/icons/report-clock.svg';
 import { ReportOverlayHost } from '../../platform/report-overlay-host';
 import type { ReportEvidenceList, ReportPort } from './contract';
 import type { ReportEvidenceRoute } from './navigation';
@@ -139,6 +138,9 @@ export function ReportEvidenceSheetView({
           <View className='report-evidence-sheet__close-icon' />
           <Text className='report-evidence-sheet__close-label'>关闭相关证据</Text>
         </Button>
+        <View className='report-evidence-sheet__header'>
+          <Text className='report-evidence-sheet__title'>{title}</Text>
+        </View>
         <ScrollView className='report-evidence-sheet__scroll' scrollY>
           <View className='report-evidence-sheet__content'>
             <ReportEvidenceSheetContent state={state} onRetry={onRetry} />
@@ -178,30 +180,31 @@ function ReportEvidenceSheetContent({
 
   return (
     <View className='report-evidence-sheet__list'>
-      {state.data.items.map((item, index) => (
-        <View className='report-evidence-sheet__item' key={`${evidenceStableKey(item)}-${index}`}>
-          <View className='report-evidence-sheet__time-row'>
-            <Image
-              className='report-evidence-sheet__clock'
-              src={reportClockIcon}
-              mode='aspectFit'
-            />
-            <Text className='report-evidence-sheet__time'>
-              {item.publishedAt ? formatEvidenceTimestamp(item.publishedAt) : '时间待确认'}
-            </Text>
-          </View>
-          <Text className='report-evidence-sheet__summary'>{item.summary}</Text>
-          {item.keywords.length ? (
-            <View className='report-evidence-sheet__keywords' ariaLabel='关键词'>
-              {item.keywords.map((keyword) => (
-                <Text className='report-evidence-sheet__keyword' key={keyword}>
-                  {keyword}
-                </Text>
-              ))}
+      {state.data.items
+        .map((item, index) => ({ item, key: `${evidenceStableKey(item)}-${index}` }))
+        .sort((a, b) => evidenceTime(b.item.publishedAt) - evidenceTime(a.item.publishedAt))
+        .map(({ item, key }) => (
+          <View className='report-evidence-sheet__item' key={key}>
+            <View className='report-evidence-sheet__time-row'>
+              <View className='report-evidence-sheet__dot' />
+              <Text className='report-evidence-sheet__time'>
+                {item.publishedAt && Number.isFinite(evidenceTime(item.publishedAt))
+                  ? formatEvidenceTimestamp(item.publishedAt)
+                  : '时间待确认'}
+              </Text>
             </View>
-          ) : null}
-        </View>
-      ))}
+            {item.keywords.length ? (
+              <View className='report-evidence-sheet__keywords' ariaLabel='关键词'>
+                {item.keywords.map((keyword) => (
+                  <Text className='report-evidence-sheet__keyword' key={keyword}>
+                    {keyword}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+            <Text className='report-evidence-sheet__summary'>{item.summary}</Text>
+          </View>
+        ))}
     </View>
   );
 }
@@ -209,4 +212,9 @@ function ReportEvidenceSheetContent({
 function formatEvidenceTimestamp(value: string): string {
   const formatted = formatShanghaiTimestamp(value);
   return `${formatted.slice(5, 7)}-${formatted.slice(8)}`;
+}
+
+function evidenceTime(value: string | null): number {
+  const time = value ? Date.parse(value) : NaN;
+  return Number.isFinite(time) ? time : -Infinity;
 }

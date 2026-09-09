@@ -23,7 +23,7 @@
   max-height: 76vh;
   overflow: hidden;
   border-radius: $radius-sheet $radius-sheet 0 0;
-  background: $color-card;
+  background: $color-evidence-paper;
   box-shadow: $shadow-sheet;
   flex-direction: column;
   animation: report-evidence-sheet-in 240ms cubic-bezier(0.2, 0.85, 0.3, 1);
@@ -31,33 +31,33 @@
 
 .report-evidence-sheet__handle-zone {
   display: flex;
-  height: 60rpx;
-  flex: 0 0 60rpx;
+  height: 48rpx;
+  flex: 0 0 48rpx;
   align-items: center;
   justify-content: center;
 }
 
 .report-evidence-sheet__handle {
-  width: 84rpx;
-  height: 10rpx;
+  width: 72rpx;
+  height: 8rpx;
   border-radius: $radius-handle;
-  background: $color-border;
+  background: $color-evidence-line;
 }
 
 .report-evidence-sheet__close {
   position: absolute;
   z-index: 1;
-  top: 10rpx;
+  top: 20rpx;
   right: 22rpx;
   display: flex;
   width: 64rpx;
   height: 64rpx;
   align-items: center;
   justify-content: center;
-  border: 1rpx solid $color-border;
+  border: 0;
   border-radius: 50%;
-  background: $color-card;
-  color: $color-blue-700;
+  background: $color-evidence-summary;
+  color: $color-evidence-ink;
 }
 
 .report-evidence-sheet__close--pressed {
@@ -101,76 +101,107 @@
 
 .report-evidence-sheet__scroll {
   min-height: 0;
-  max-height: calc(76vh - 60rpx);
+  height: 100%;
   flex: 1 1 auto;
 }
 
 .report-evidence-sheet__content {
-  padding: 4rpx 36rpx calc(20rpx + env(safe-area-inset-bottom));
+  padding: 36rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+}
+
+.report-evidence-sheet__header {
+  flex: 0 0 auto;
+  padding: 12rpx 100rpx 28rpx 32rpx;
+  border-bottom: 1rpx solid $color-evidence-line;
+}
+
+.report-evidence-sheet__title {
+  display: block;
+  color: $color-evidence-ink;
+  font-size: $font-report-conclusion;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .report-evidence-sheet__list {
-  display: flex;
-  gap: 18rpx;
-  flex-direction: column;
+  padding-left: 40rpx;
 }
 
 .report-evidence-sheet__item {
-  padding: 22rpx;
-  border: 1rpx solid $color-border;
-  border-radius: 16rpx;
-  background: $color-card;
-  box-shadow: $shadow-report-evidence-item;
+  position: relative;
+  padding-bottom: 32rpx;
+}
+
+.report-evidence-sheet__item:not(:last-child)::before {
+  position: absolute;
+  top: 12rpx;
+  bottom: -12rpx;
+  left: -30rpx;
+  width: 2rpx;
+  background: $color-evidence-line;
+  content: '';
+}
+
+.report-evidence-sheet__item:last-child {
+  padding-bottom: 0;
+}
+
+.report-evidence-sheet__dot {
+  position: absolute;
+  top: 8rpx;
+  left: -40rpx;
+  width: 20rpx;
+  height: 20rpx;
+  box-sizing: border-box;
+  border: 4rpx solid $color-evidence-dot;
+  border-radius: 50%;
+  background: $color-evidence-paper;
 }
 
 .report-evidence-sheet__time-row {
   display: flex;
   align-items: center;
-  gap: 9rpx;
-}
-
-.report-evidence-sheet__clock {
-  width: 24rpx;
-  height: 24rpx;
-  flex: 0 0 24rpx;
 }
 
 .report-evidence-sheet__time {
-  color: $color-blue-700;
-  font-size: $font-report-meta;
+  color: $color-evidence-ink;
+  font-size: $font-report-caption;
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.5;
 }
 
 .report-evidence-sheet__summary {
   display: block;
-  margin-top: 14rpx;
-  color: $color-text-primary;
-  font-size: $font-report-body;
-  font-weight: 650;
-  line-height: 1.45;
+  margin-top: 12rpx;
+  padding: 16rpx;
+  border-radius: 12rpx;
+  background: $color-evidence-summary;
+  color: $color-evidence-muted;
+  font-size: $font-report-meta;
+  font-weight: 400;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .report-evidence-sheet__keywords {
   display: flex;
-  gap: 10rpx;
-  margin-top: 18rpx;
+  gap: 8rpx;
+  margin-top: 8rpx;
   flex-wrap: wrap;
 }
 
 .report-evidence-sheet__keyword {
-  display: inline-flex;
-  min-height: 38rpx;
-  align-items: center;
-  padding: 0 12rpx;
-  border: 1rpx solid $color-report-blue-border-subtle;
-  border-radius: $radius-pill;
-  background: $color-page-background;
-  color: $color-blue-700;
-  font-size: $font-report-meta;
-  font-weight: 700;
-  line-height: 36rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  background: $color-evidence-summary;
+  color: $color-evidence-ink;
+  font-size: $font-report-caption;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 @keyframes report-evidence-overlay-in {

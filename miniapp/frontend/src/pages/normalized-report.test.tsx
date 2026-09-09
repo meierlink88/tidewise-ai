@@ -162,7 +162,7 @@ describe('normalized report interaction', () => {
       expect(evidence).toHaveBeenLastCalledWith({
         reportId,
         scopeToken: unit.summary.evidence_scope_token,
-        title: unit.title
+        title: `${['地缘政治', '宏观经济', '产业链'][i]} · ${unit.title}`
       });
       click(card.querySelector('.normalized-card-path'));
       expect(detail).toHaveBeenLastCalledWith({

@@ -26,13 +26,16 @@ export function NormalizedDetailView({
   detail,
   reportId,
   kind,
-  onEvidence
+  onEvidence: openEvidence
 }: {
   detail: AnalysisDetail;
   reportId: string;
   kind: AnalysisKind;
   onEvidence: (r: ReportEvidenceRoute) => void;
 }) {
+  const onEvidence = (route: ReportEvidenceRoute): void => {
+    openEvidence({ ...route, title: `${analysisLabels[kind]} · ${detail.summary.title}` });
+  };
   const tabs = useMemo(
     () => [
       ...detail.macro_impacts.map((m) => ({ ...m, type: 'macro' as const })),

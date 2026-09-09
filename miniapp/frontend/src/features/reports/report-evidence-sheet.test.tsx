@@ -93,6 +93,46 @@ describe('ReportEvidenceSheet', () => {
     expect(html).not.toContain(reportId);
   });
 
+  it('shows the story context and a newest-first timeline without mutating evidence', () => {
+    const items = [
+      { publishedAt: null, summary: '未定时间', keywords: [] },
+      { publishedAt: '2026-09-01T01:00:00Z', summary: '较早完整正文', keywords: ['甲', '乙'] },
+      {
+        publishedAt: '2026-09-01T04:00:00Z',
+        summary: '最新第一条',
+        keywords: ['关键词一', '关键词二']
+      },
+      { publishedAt: '2026-09-01T04:00:00Z', summary: '最新第二条', keywords: [] }
+    ];
+    const before = JSON.stringify(items);
+    const html = renderToStaticMarkup(
+      createElement(ReportEvidenceSheetView, {
+        title: '地缘政治 · 美伊战争',
+        state: {
+          status: 'ready',
+          data: { reportId, scopeToken, items },
+          refreshing: false,
+          refreshFailed: false
+        },
+        onRetry: vi.fn(),
+        onClose: vi.fn()
+      })
+    );
+    expect(html).toContain('地缘政治 · 美伊战争');
+    const ordered = [
+      '关键词一',
+      '关键词二',
+      '最新第一条',
+      '最新第二条',
+      '较早完整正文',
+      '未定时间'
+    ];
+    for (let i = 1; i < ordered.length; i++) {
+      expect(html.indexOf(ordered[i])).toBeGreaterThan(html.indexOf(ordered[i - 1]));
+    }
+    expect(JSON.stringify(items)).toBe(before);
+  });
+
   it('renders loading, empty and retryable error states', () => {
     const render = (state: Parameters<typeof ReportEvidenceSheetView>[0]['state']) =>
       renderToStaticMarkup(
