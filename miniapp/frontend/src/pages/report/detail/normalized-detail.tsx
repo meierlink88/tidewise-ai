@@ -181,24 +181,15 @@ function Conclusion({
   );
 }
 function Mechanism({ text }: { text: string }) {
+  const prose = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join('；');
   return (
     <View className='normalized-mechanism'>
-      <Text className='normalized-section-label'>关键机制</Text>
-      {text
-        .split(/\r?\n/)
-        .filter((path) => path.trim())
-        .map((path, pathIndex) => (
-          <View className='normalized-mechanism-path' key={pathIndex}>
-            {path.split('→').map((step, i, steps) => (
-              <View
-                className={`normalized-mechanism-step ${i === steps.length - 1 ? 'terminal' : ''}`}
-                key={i}
-              >
-                <Text className='normalized-prose'>{step.trim()}</Text>
-              </View>
-            ))}
-          </View>
-        ))}
+      <Text className='normalized-mechanism-label'>关键机制</Text>
+      <Text className='normalized-mechanism-text'>{prose}</Text>
     </View>
   );
 }

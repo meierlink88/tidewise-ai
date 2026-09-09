@@ -163,7 +163,7 @@ describe('normalized report interaction', () => {
     click(host.querySelectorAll('.normalized-graph-node')[1]);
     expect(host.querySelector('.normalized-node-basis')?.textContent).toBe('推理');
   });
-  it('keeps independent mechanism paths and conditional text intact', () => {
+  it('renders mechanism as continuous prose preserving paths and conditional text', () => {
     const detail = parseAnalysisDetail(fixture.details['geopolitical_stories/g1'], 'g1');
     const paths = [
       '通道受扰 → 替代不足时成本可能上升',
@@ -181,10 +181,8 @@ describe('normalized report interaction', () => {
         />
       )
     );
-    const rendered = [...host.querySelectorAll('.normalized-mechanism-path')].map((path) =>
-      [...path.querySelectorAll('.normalized-prose')].map((step) => step.textContent).join(' → ')
-    );
-    expect(rendered).toEqual(paths);
+    expect(host.querySelector('.normalized-mechanism-text')?.textContent).toBe(paths.join('；'));
+    expect(host.querySelector('.normalized-mechanism-step')).toBeNull();
   });
   it('filters all three card groups and preserves report identity in evidence and detail navigation', async () => {
     const home = await normalizedMockReportPort.getHome(),
@@ -258,6 +256,10 @@ describe('normalized report interaction', () => {
     );
     expect(host.querySelector('.normalized-mechanism')?.textContent).toContain(
       detail.macro_impacts[0].assessment.transmission_logic
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .join('；')
     );
     const verifyConclusion = (assessment: (typeof detail.macro_impacts)[0]['assessment']) => {
       const card = host.querySelector('.normalized-conclusion')!;
