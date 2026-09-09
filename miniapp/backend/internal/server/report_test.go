@@ -235,7 +235,12 @@ func testNormalizedHTTP(t *testing.T, version string) {
 		}
 	}
 	for key, want := range fixture.Details {
-		if got := read("/api/miniapp/v1/reports/" + reportTestID + "/analyses/" + key); !reflect.DeepEqual(got, want) {
+		got := read("/api/miniapp/v1/reports/" + reportTestID + "/analyses/" + key).(map[string]any)
+		if got["published_at"] != dataSummary()["published_at"] {
+			t.Fatalf("publication mismatch %s: %v", key, got["published_at"])
+		}
+		delete(got, "published_at")
+		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("detail mismatch %s", key)
 		}
 	}

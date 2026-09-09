@@ -366,6 +366,7 @@ type NormalizedChainHeader struct {
 	EmptyState     *NormalizedChainEmptyState `json:"empty_state"`
 }
 type NormalizedDetailProjection struct {
+	PublishedAt      *string                     `json:"published_at,omitempty"`
 	JudgmentOrigin   string                      `json:"judgment_origin,omitempty"`
 	ReasoningSources *NormalizedReasoningSources `json:"reasoning_sources,omitempty"`
 	VariableSignals  *[]NormalizedSignal         `json:"variable_signals,omitempty"`

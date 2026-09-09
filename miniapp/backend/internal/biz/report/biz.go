@@ -517,6 +517,7 @@ type NormalizedChainHeader struct {
 	EmptyState     *NormalizedChainEmptyState `json:"empty_state"`
 }
 type NormalizedDetailProjection struct {
+	PublishedAt      *time.Time                  `json:"-"`
 	JudgmentOrigin   string                      `json:"judgment_origin,omitempty"`
 	ReasoningSources *NormalizedReasoningSources `json:"reasoning_sources,omitempty"`
 	VariableSignals  *[]NormalizedSignal         `json:"variable_signals,omitempty"`
@@ -558,7 +559,15 @@ func (u *UseCase) Analysis(ctx context.Context, q AnalysisQuery) (NormalizedDeta
 		return NormalizedDetailProjection{}, ErrInvalidRequest
 	}
 	p, err := u.repository.GetAnalysis(ctx, q)
-	return p, normalizeRepositoryError(err)
+	if err != nil {
+		return p, normalizeRepositoryError(err)
+	}
+	publishedAt, err := u.reportPublication(ctx, q.ReportID)
+	if err != nil {
+		return NormalizedDetailProjection{}, normalizeRepositoryError(err)
+	}
+	p.PublishedAt = &publishedAt
+	return p, nil
 }
 func (u *UseCase) AnalysisChain(ctx context.Context, q AnalysisQuery) (NormalizedChain, error) {
 	if u == nil || u.repository == nil || !validAnalysisQuery(q) || !localKeyPattern.MatchString(q.Key) || !localKeyPattern.MatchString(q.ChainKey) {
@@ -596,4 +605,37 @@ type NormalizedSignal struct {
 type EvidenceTag struct {
 	Kind string `json:"kind"`
 	Text string `json:"text"`
+}
+
+// reportPublication combines existing domain summaries for the Miniapp detail view.
+// The cursor and request context keep historical lookups tied to the exact report.
+func (u *UseCase) reportPublication(ctx context.Context, reportID string) (time.Time, error) {
+	query := ListQuery{Limit: 100}
+	seen := map[string]bool{}
+	for {
+		if err := ctx.Err(); err != nil {
+			return time.Time{}, err
+		}
+		page, err := u.repository.ListReports(ctx, query)
+		if err != nil {
+			return time.Time{}, err
+		}
+		if len(page.Items) > query.Limit || validateSummaryOrder(page.Items) != nil {
+			return time.Time{}, ErrDataUnavailable
+		}
+		for _, report := range page.Items {
+			if report.ID == reportID {
+				return report.PublishedAt, nil
+			}
+		}
+		if page.NextCursor == nil {
+			return time.Time{}, ErrDataUnavailable
+		}
+		cursor := *page.NextCursor
+		if len(page.Items) == 0 || cursor == "" || len(cursor) > 2048 || seen[cursor] {
+			return time.Time{}, ErrDataUnavailable
+		}
+		seen[cursor] = true
+		query.Cursor = cursor
+	}
 }

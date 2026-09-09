@@ -106,7 +106,7 @@ export function ReportDetailView({
   if (state.status === 'idle' || state.status === 'loading') {
     return (
       <View className='report-detail-page'>
-        <ReportStatePanel title='正在读取推理详情' description='正在加载报告快照' busy />
+        <ReportStatePanel title='正在读取深度分析' description='正在加载报告快照' busy />
       </View>
     );
   }
@@ -126,7 +126,7 @@ export function ReportDetailView({
   if (state.status === 'empty') {
     return (
       <View className='report-detail-page'>
-        <ReportStatePanel title='暂无推理详情' description='该对象没有发布可展示的详情' />
+        <ReportStatePanel title='暂无深度分析' description='该对象没有发布可展示的详情' />
       </View>
     );
   }

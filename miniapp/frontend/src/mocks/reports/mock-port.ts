@@ -29,7 +29,7 @@ export class MockReportPort implements ReportPort {
     assertReport(reportId);
     const value: unknown = (normalized.details as Record<string, unknown>)[`${kind}/${key}`];
     if (!value) throw new ReportError('layerUnavailable');
-    return parseAnalysisDetail(value, key);
+    return { ...parseAnalysisDetail(value, key), published_at: report.publishedAt };
   }
   async getAnalysisChain(reportId: string, kind: AnalysisKind, key: string, chainKey: string) {
     assertReport(reportId);

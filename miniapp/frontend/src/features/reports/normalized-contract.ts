@@ -133,6 +133,7 @@ export interface AnalysisGroup extends AnalysisPage {
   kind: AnalysisKind;
 }
 export interface AnalysisDetail extends Provenance {
+  published_at?: string;
   companies?: MacroImpact[];
   summary: AnalysisSummary;
   macro_impacts: MacroImpact[];
@@ -322,6 +323,9 @@ export function parseAnalysisDetail(value: unknown, expectedKey: string): Analys
   const v = obj(value);
   const d: AnalysisDetail = {
     ...provenance(v),
+    ...(typeof v.published_at === 'string' && Number.isFinite(Date.parse(v.published_at))
+      ? { published_at: v.published_at }
+      : {}),
     ...(v.companies !== undefined ? { companies: list(v.companies, macro) } : {}),
     summary: parseAnalysisSummary(v.summary),
     macro_impacts: list(v.macro_impacts, macro),

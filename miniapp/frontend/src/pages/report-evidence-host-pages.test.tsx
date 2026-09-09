@@ -284,7 +284,7 @@ describe('right-menu report sharing', () => {
   it('keeps the exact detail route through loading and refreshes the share title when ready', async () => {
     mount(createElement(ReportDetailPage));
     const before = harness.friend.mock.lastCall?.[0]();
-    expect(before?.title).toBe('观潮家 · 推理详情');
+    expect(before?.title).toBe('观潮家 · 深度分析');
     const detail = await normalizedMockReportPort.getAnalysis(
       'RPT11111111-1111-4111-8111-111111111111',
       'geopolitical_stories',

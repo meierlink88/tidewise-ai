@@ -92,6 +92,16 @@ func TestOpenAPIContractExposesOperationsAndReportRoutes(t *testing.T) {
 		t.Fatalf("semantic_tags = %#v, want array of EvidenceSemanticTag", tags)
 	}
 	assertRequired(t, schema(t, document, "EvidenceSemanticTag"), "kind", "text")
+	detailSchema := schema(t, document, "NormalizedDetailProjection")
+	publication := object(t, object(t, detailSchema["properties"], "detail properties")["published_at"], "detail publication")
+	if publication["type"] != "string" || publication["format"] != "date-time" {
+		t.Fatalf("detail published_at = %#v, want date-time string", publication)
+	}
+	for _, name := range array(t, detailSchema["required"], "detail required") {
+		if name == "published_at" {
+			t.Fatal("detail published_at must remain optional for older Miniapp Service responses")
+		}
+	}
 	for _, retired := range []string{"/api/miniapp/v1/research/themes", "/api/miniapp/v1/reasoning-trees", "/api/miniapp/v1/events"} {
 		if _, exists := paths[retired]; exists {
 			t.Fatalf("retired path %q remains in OpenAPI", retired)

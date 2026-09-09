@@ -65,3 +65,15 @@ it('accepts optional industry groups but requires all historical groups', () => 
   expect(parseAnalysisGroups([...v5.groups, industry])).toHaveLength(4);
   expect(() => parseAnalysisGroups([v5.groups[0], v5.groups[1], industry])).toThrow();
 });
+
+it('accepts additive publication metadata and preserves older detail responses', () => {
+  const detail = fixture.details['geopolitical_stories/g1'];
+  expect(parseAnalysisDetail(detail, 'g1').published_at).toBeUndefined();
+  expect(
+    parseAnalysisDetail({ ...detail, published_at: '2026-09-09T04:00:00Z', future: true }, 'g1')
+      .published_at
+  ).toBe('2026-09-09T04:00:00Z');
+  expect(
+    parseAnalysisDetail({ ...detail, published_at: 'invalid' }, 'g1').published_at
+  ).toBeUndefined();
+});

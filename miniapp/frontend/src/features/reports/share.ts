@@ -11,7 +11,7 @@ export function homeReportShare() {
 export function reportDetailShare(route: ReportDetailRoute | null, title?: string) {
   const path = route ? buildReportDetailURL(route) : '/pages/report/detail/index';
   return {
-    title: title ? `${title} · 观潮家` : '观潮家 · 推理详情',
+    title: title ? `${title} · 观潮家` : '观潮家 · 深度分析',
     path,
     imageUrl,
     query: path.split('?')[1] ?? ''
