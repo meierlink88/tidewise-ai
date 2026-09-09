@@ -82,10 +82,6 @@ export class APIReportPort implements ReportPort {
 
 function unwrapReportEnvelope(value: unknown): unknown | undefined {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
-  const keys = Object.keys(value);
-  if (keys.length !== 2 || !keys.includes('request_id') || !keys.includes('result')) {
-    return undefined;
-  }
   return unwrapMiniappAPIEnvelope<unknown>(value);
 }
 
