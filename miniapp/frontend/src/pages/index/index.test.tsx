@@ -1,5 +1,7 @@
 import { Children, isValidElement, type ReactNode } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import { HomeHeader } from './components/home-header';
 import { normalizedMockReportPort } from '../../mocks/reports/mock-port';
 import { IndexView, stopHomeRefresh } from './index';
 import { NormalizedHome } from './normalized-home';
@@ -39,5 +41,26 @@ describe('home refresh', () => {
     const stopPullDownRefresh = vi.fn();
     await stopHomeRefresh({ stopPullDownRefresh, showToast: vi.fn() });
     expect(stopPullDownRefresh).toHaveBeenCalledOnce();
+  });
+});
+
+describe('home publication header', () => {
+  const props = {
+    chrome: { statusBarHeight: 44, navigationBarHeight: 44, rightReservedWidth: 102 },
+    query: '',
+    onQueryChange: vi.fn()
+  };
+  it('uses the report publication in Shanghai, including date and weekday rollover', () => {
+    const html = renderToStaticMarkup(<HomeHeader {...props} publishedAt='2026-12-31T18:05:00Z' />);
+    expect(html).toContain('01.01 周五');
+    expect(html).toContain('截至 02:05');
+    expect(html).not.toContain('过去24小时');
+    expect(html).not.toContain('07.07');
+  });
+  it('does not fabricate a date or cutoff without a report', () => {
+    const html = renderToStaticMarkup(<HomeHeader {...props} />);
+    expect(html).toContain('全球政经事件');
+    expect(html).not.toContain('截至');
+    expect(html).not.toContain('周');
   });
 });

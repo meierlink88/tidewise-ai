@@ -9,29 +9,23 @@ import {
 import type { ReportHomeGroup } from '../../features/reports/contract';
 import type { ReportDetailRoute, ReportEvidenceRoute } from '../../features/reports/navigation';
 import { getReportPort } from '../../features/reports/port';
-import globeIcon from '../../assets/icons/report-globe-ink.svg';
-import macroIcon from '../../assets/icons/report-bar-chart-ink.svg';
-import chainIcon from '../../assets/icons/report-link-ink.svg';
-import globeGoldIcon from '../../assets/icons/report-globe-gold.svg';
-import macroGoldIcon from '../../assets/icons/report-bar-chart-gold.svg';
-import chainGoldIcon from '../../assets/icons/report-link-gold.svg';
 import evidenceIcon from '../../assets/icons/file-text-ink.svg';
 import arrowIcon from '../../assets/icons/report-arrow-right-light-gold.svg';
 import './normalized-home.scss';
 
-const categories = ['geopolitical_stories', 'macroeconomic_stories', 'concept_analyses'] as const;
+const categories = [
+  'all',
+  'geopolitical_stories',
+  'macroeconomic_stories',
+  'concept_analyses'
+] as const;
 type Category = (typeof categories)[number];
-const selectedCategoryIcons: Record<Category, string> = {
-  geopolitical_stories: globeGoldIcon,
-  macroeconomic_stories: macroGoldIcon,
-  concept_analyses: chainGoldIcon
-};
-
-const categoryIcons: Record<Category, string> = {
-  geopolitical_stories: globeIcon,
-  macroeconomic_stories: macroIcon,
-  concept_analyses: chainIcon
-};
+const allKinds: AnalysisKind[] = [
+  'geopolitical_stories',
+  'macroeconomic_stories',
+  'industry_chain_analyses',
+  'concept_analyses'
+];
 
 const directionLabels = { warming: '升温', cooling: '降温', diverging: '分化', pending: '待验证' };
 const impactLabels: Record<string, string> = {
@@ -51,7 +45,7 @@ export function NormalizedHome({
   onDetail?: (r: ReportDetailRoute) => void;
   onEvidence: (r: ReportEvidenceRoute) => void;
 }) {
-  const [kind, setKind] = useState<Category>('geopolitical_stories');
+  const [kind, setKind] = useState<Category>('all');
   const [pages, setPages] = useState<Partial<Record<AnalysisKind, AnalysisGroup>>>({});
   const [pending, setPending] = useState<AnalysisKind | null>(null),
     [failed, setFailed] = useState<AnalysisKind | null>(null);
@@ -69,7 +63,11 @@ export function NormalizedHome({
     };
   }, [group]);
   const sourceKinds: AnalysisKind[] =
-    kind === 'concept_analyses' ? ['industry_chain_analyses', 'concept_analyses'] : [kind];
+    kind === 'all'
+      ? allKinds
+      : kind === 'concept_analyses'
+        ? ['industry_chain_analyses', 'concept_analyses']
+        : [kind];
   const groups = sourceKinds.flatMap((sourceKind) => {
     const page = pages[sourceKind] ?? group.analysisGroups?.find((g) => g.kind === sourceKind);
     return page ? [page] : [];
@@ -124,21 +122,17 @@ export function NormalizedHome({
                 className={`tidewise-button normalized-home-tab ${kind === k ? 'selected' : ''}`}
                 onClick={() => setKind(k)}
               >
-                <View className='normalized-home-tab-icon'>
-                  <Image
-                    src={kind === k ? selectedCategoryIcons[k] : categoryIcons[k]}
-                    mode='scaleToFill'
-                    className='normalized-home-tab-image'
-                  />
-                </View>
-                <Text>{analysisLabels[k]}</Text>
+                <Text>{k === 'all' ? '全部' : analysisLabels[k]}</Text>
               </Button>
             ))}
           </View>
         </ScrollView>
         <View className='normalized-home-heading'>
-          <Text>今日观潮</Text>
-          <Text className='normalized-home-total'>{items.length} 条结论</Text>
+          <Text>今日推理主线</Text>
+          <Text className='normalized-home-total'>
+            {current ? '已加载 ' : ''}
+            {items.length} 条主线
+          </Text>
         </View>
       </View>
       <ScrollView key={kind} scrollY className='normalized-home-scroll'>
@@ -205,13 +199,13 @@ function HomeCard({
   const date = new Date(new Date(publishedAt).getTime() + 8 * 60 * 60 * 1000);
   const time = `${String(date.getUTCMonth() + 1).padStart(2, '0')}.${String(date.getUTCDate()).padStart(2, '0')} ${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}`;
   return (
-    <View className='normalized-home-card'>
+    <View className={`normalized-home-card impact-${u.summary.impact_assessment.level}`}>
       <View className='normalized-card-meta'>
         <View className='normalized-card-story'>
-          <Text>{u.title}</Text>
           <Text className={`normalized-impact ${u.summary.impact_assessment.level}`}>
             {impactLabels[u.summary.impact_assessment.level]}
           </Text>
+          <Text className='normalized-card-story-name'>{u.title}</Text>
         </View>
         <Text className='normalized-card-time'>{time} 发布</Text>
       </View>
@@ -253,7 +247,7 @@ function HomeCard({
           onClick={onEvidence}
         >
           <Image src={evidenceIcon} className='normalized-evidence-icon' mode='scaleToFill' />
-          <Text>{u.summary.evidence_count} 条事件</Text>
+          <Text>{u.summary.evidence_count} 条政经事件</Text>
         </Button>
         <Button
           className='tidewise-button normalized-card-path'

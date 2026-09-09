@@ -79,3 +79,30 @@ $color-report-paper: #fbfaf7;
 $color-report-paper-border: #f2eee8;
 $color-report-caption: #7d818b;
 $color-report-brand: #102b50;
+
+// Miniapp home: tidetell1.0 approved visual reference (scoped to home).
+$color-home-ink: #0b1f33;
+$color-home-ink-soft: #122a45;
+$color-home-paper: #f7f5f0;
+$color-home-card: #fbfaf7;
+$color-home-logic: #f8f6f1;
+$color-home-border: #e2ddd3;
+$color-home-muted: #79756e;
+$color-home-secondary: #5f5c57;
+$color-home-body: #424546;
+$color-home-gold: #c9a962;
+$color-home-gold-soft: #f4ecd8;
+$color-home-high: #d84f4f;
+$color-home-medium: #d79a3c;
+$radius-home-card: 28rpx;
+$shadow-home-card: 0 14rpx 44rpx rgba(8, 25, 41, 0.07);
+$background-home-hero:
+  radial-gradient(circle at 78% 2%, rgba($color-home-gold, 0.16), transparent 60%),
+  radial-gradient(circle at 6% 80%, rgba(142, 164, 181, 0.12), transparent 65%),
+  repeating-linear-gradient(
+    162deg,
+    transparent 0 44rpx,
+    rgba(216, 193, 138, 0.035) 46rpx,
+    transparent 48rpx 92rpx
+  ),
+  linear-gradient(155deg, $color-home-ink-soft 0%, $color-home-ink 100%);

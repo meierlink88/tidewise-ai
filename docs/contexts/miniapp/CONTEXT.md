@@ -49,9 +49,9 @@ Data 仍保留所有已发布 Report，首页选择不删除、合并或修改�
 _Avoid_: 今日 Theme、当日多 Report Tab、前端自行排序或选择、跨 Report 聚合
 
 **今日观潮**:
-首页 Report 的产品入口标题。它不承诺 Report 一定在当日生成；发生历史回退时继续展示
-该份 Report 的实际发布时间。
-_Avoid_: 今日主题、今日推理、隐藏回退来源
+首页 Report 的分享入口文案；页面栏目按 tidetell1.0 视觉基线显示“今日推理主线”。
+它不承诺 Report 一定在当日生成；发生历史回退时继续展示该份 Report 的实际发布时间。
+_Avoid_: 今日主题、隐藏回退来源
 
 **Report 分析投影**:
 Report v4/v5 按地缘政治故事线、宏观经济故事线、产业链所属 Concept 分为三个分页分组；
@@ -94,7 +94,7 @@ _Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence �
 
 - v8 报告基线使用 `report-publication/v5`；Miniapp 同时支持 v4/v5，URL 仍为 v1。
 - v5 显式透传 `judgment_origin`、`reasoning_sources`、`variable_signals`、`graph.scope` 和详情中的 `companies`；变量信号保留 Data 签发的 evidence scope token/count，不暴露 Evidence ID。
-- 首页保持地缘政治、宏观经济、产业链三个栏目；产业链栏目先展示 `industry_chain_analyses`，再展示历史 `concept_analyses`。两种来源保留真实类型与独立 cursor，相同 local_key 不跨类型去重；详情导航使用卡片来源类型。`company_analyses` 暂不接入。
+- 首页展示筛选为全部、地缘政治、宏观经济、产业链。全部按地缘政治、宏观经济、产业链、历史概念的既有来源顺序展示；其中先展示 `industry_chain_analyses`，再展示历史 `concept_analyses`。两种来源保留真实类型与独立 cursor，相同 local_key 不跨类型去重；详情导航使用卡片来源类型。`company_analyses` 暂不接入。
 - v5 的直接/推理标签来自 `judgment_origin`，不从未来结论方向或 `conclusion_basis` 反推直接事实；变量信号在 typed 数据层保留，展示另行设计。
 
 - API 保持 `/api/miniapp/v1` 与 `/api/data/v1`。`schema_version` 表示既有报告内容格式，不新增 URL 版本。
@@ -124,6 +124,20 @@ Miniapp Report 仅保留以下五个 GET 接口（前缀 `/api/miniapp/v1`）：
 本次只清理 Miniapp 消费与公开接口，Data Service API 和持久化报告不变。旧客户端/旧链接不再兼容，回滚应用可恢复旧行为。
 
 BFF 不读取完整报告或直接查询领域数据库；失败保持显式可重试，响应不透出内部错误。
+
+## Frontend Visual Baseline
+
+- 后续 Miniapp 视觉对齐以用户选定的 `prototype/tidetell1.0/miniprogram.html` 为设计参考；
+  该原型的静态示例不定义数据、API 或业务事实。本轮票据 #462 只对齐首页。
+- 顶部展示“全球政经事件”和“聚焦重要事件与产业链传导逻辑”；日期、星期和
+  “截至 HH:mm”来自所选 Report 的 `publishedAt`，按上海时区展示。没有 Report 时不伪造日期。
+  当前合同没有统计窗口，不展示原型的“过去24小时”，也不固定示例日期或时间。
+- 首页默认“全部”；地缘政治、宏观经济和产业链筛选只改变已有卡片的展示范围。
+  产业链与历史概念卡片同时可从全部和产业链视图访问，每个来源保持原有 cursor、路由身份和 Evidence scope。
+- 栏目标题“今日推理主线”；数量使用当前筛选已加载卡片数，有后续页时明确标识
+  “已加载 N 条主线”，不硬编码 3、不把已加载数量当作服务端总数。
+- 首页使用原型墨蓝纹理、象牙白底、浅金标签与圆角卡片；样式 token 限于首页，
+  保留报告全文和锚点方向。不添加统计、跟踪、传导阶段或“尚未显现”等数据字段。
 
 ## Frontend Routes And State
 
@@ -163,7 +177,7 @@ BFF 不读取完整报告或直接查询领域数据库；失败保持显式可�
 
 - 标题固定为 `今日观潮`，每张卡片展示实际发布时间；三类分组、搜索、分页与事件清单保留。
 - v4/v5 使用已定稿 normalized 首页：故事线/概念一张卡片，摘要、传导逻辑、受影响锚点与结果。
-- `evidence_count` 显示为 `X 条事件`，不从节点或产业链数反推。
+- 首页卡片的 `evidence_count` 显示为 `X 条政经事件`，不从节点或产业链数反推。
 - 不支持旧无版本报告，不渲染旧层级卡片，不调用已退役 API。
 
 ## Report Detail Presentation
