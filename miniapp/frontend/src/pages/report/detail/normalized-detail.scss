@@ -353,8 +353,7 @@
   height: 30px;
   flex-shrink: 0;
 }
-.normalized-counter .normalized-insight-heading,
-.normalized-followup .normalized-insight-heading {
+.normalized-counter .normalized-insight-heading {
   color: #a66c25;
 }
 .normalized-columns .normalized-prose {
@@ -362,15 +361,6 @@
   font-size: 22px;
   line-height: 1.65;
   overflow-wrap: anywhere;
-}
-.normalized-followup {
-  margin: 30px 12px 0;
-  padding: 22px 0 0;
-  border-top: 1px solid #d7d4cc;
-}
-.normalized-followup .normalized-prose {
-  padding-left: 40px;
-  font-size: 23px;
 }
 .normalized-graph-section {
   padding: 26px;
@@ -495,14 +485,6 @@
 }
 .normalized-node-body .normalized-prose {
   font-size: 22px;
-}
-.normalized-node-body .normalized-followup {
-  border-top: 1px solid #dce4ec;
-  padding: 18px 0 0;
-  margin: 20px 0 0;
-}
-.normalized-node-body .normalized-followup .normalized-insight-heading {
-  color: #237a86;
 }
 
 .normalized-hero-logic {

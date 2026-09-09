@@ -1,5 +1,5 @@
 import Taro from '@tarojs/taro';
-import { Button, Text, View, ScrollView, Image } from '@tarojs/components';
+import { Button, Text, View, ScrollView } from '@tarojs/components';
 import { useMemo, useState } from 'react';
 import type {
   AnalysisKind,
@@ -15,7 +15,6 @@ import type { ReportEvidenceRoute } from '../../../features/reports/navigation';
 import { getReportPort } from '../../../features/reports/port';
 import { useReportResource } from '../../../features/reports/use-report-resource';
 import { ReportStatePanel } from '../../../features/reports/report-components';
-import followUpIcon from '../../../assets/icons/report-eye.svg';
 import { formatReportPublication } from '../../../features/reports/presentation';
 import './normalized-detail.scss';
 
@@ -89,7 +88,6 @@ export function NormalizedDetailView({
                 support={current.assessment.conditions}
                 objections={current.objections}
               />
-              <FollowUp paragraphs={current.assessment.follow_up} />
             </View>
           ) : (
             <LoadedChain
@@ -217,21 +215,6 @@ function AssessmentColumns({ support, objections }: { support: string[]; objecti
     </View>
   );
 }
-function FollowUp({ paragraphs }: { paragraphs: string[] }) {
-  return (
-    <View className='normalized-followup'>
-      <View className='normalized-insight-heading'>
-        <Image src={followUpIcon} className='normalized-insight-icon' />
-        <Text>后续验证</Text>
-      </View>
-      {paragraphs.map((p, i) => (
-        <Text className='normalized-prose' key={i}>
-          {p}
-        </Text>
-      ))}
-    </View>
-  );
-}
 export function ChainContent({
   c,
   reportId,
@@ -284,7 +267,6 @@ export function ChainContent({
                       support={node.assessment.conditions}
                       objections={node.objections}
                     />
-                    <FollowUp paragraphs={node.assessment.follow_up} />
                   </View>
                 </View>
               ) : (
@@ -294,7 +276,6 @@ export function ChainContent({
           </View>
         )}
       </View>
-      <FollowUp paragraphs={c.empty_state?.follow_up ?? c.assessment.follow_up} />
     </View>
   );
 }

@@ -291,9 +291,7 @@ describe('normalized report interaction', () => {
     expect(node?.textContent).toContain(c.affected_nodes[1].assessment.conclusion);
     expect(node?.textContent).toContain(c.affected_nodes[1].assessment.conditions[0]);
     expect(node?.textContent).toContain(c.affected_nodes[1].objections.summary);
-    expect(node?.querySelector('.normalized-followup .normalized-prose')?.textContent).toBe(
-      c.affected_nodes[1].assessment.follow_up[0]
-    );
+    expect(host.querySelector('.normalized-followup')).toBeNull();
   });
   it('keeps pagination inside its group and ignores a late page after report refresh', async () => {
     const home = await normalizedMockReportPort.getHome();
@@ -362,12 +360,13 @@ describe('normalized report interaction', () => {
     expect(read).toHaveBeenCalledTimes(2);
     expect(host.querySelector('.normalized-graph-section')).not.toBeNull();
   });
-  it('shows observation follow-up without inventing confidence or assessed nodes', () => {
+  it('shows observation reason without follow-up, invented confidence or assessed nodes', () => {
     const c = parseAnalysisChain(fixture.chains['concept_analyses/c1/c5-ai1'], 'c5-ai1');
     act(() => root.render(<ChainContent c={c} reportId={reportId} onEvidence={vi.fn()} />));
     expect(host.textContent).not.toContain('置信度');
     expect(host.querySelector('.normalized-node-detail')).toBeNull();
     expect(host.textContent).toContain(c.empty_state!.reason);
-    expect(host.textContent).toContain(c.empty_state!.follow_up[0]);
+    expect(host.querySelector('.normalized-followup')).toBeNull();
+    expect(host.textContent).not.toContain(c.empty_state!.follow_up[0]);
   });
 });
