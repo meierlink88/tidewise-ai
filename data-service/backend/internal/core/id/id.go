@@ -55,6 +55,7 @@ const (
 	Source                    Kind = "SRC"
 	Report                    Kind = "RPT"
 	ReportEvidenceLink        Kind = "RPE"
+	ReportAnalysis            Kind = "RPA"
 )
 
 var (
@@ -159,7 +160,7 @@ func registered(kind Kind) bool {
 		EventEvidenceLink, EventActorLink, EventAssetLink, Event, EventPublicationReceipt,
 		IndustryChainGraphEdge, OrganizationMembership,
 		Source,
-		Report, ReportEvidenceLink:
+		Report, ReportEvidenceLink, ReportAnalysis:
 		return true
 	default:
 		return false

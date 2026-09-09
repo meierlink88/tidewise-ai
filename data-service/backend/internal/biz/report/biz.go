@@ -3566,3 +3566,9 @@ func ProjectEvidenceTags(value EvidenceSemanticProjection) []EvidenceTag {
 	}
 	return tags
 }
+
+// AnalysisIdentity is the stable, Data-owned identity shared by one summary/detail pair.
+// Source IDs remain published snapshot references, never foreign keys to live graph objects.
+func AnalysisIdentity(reportID, kind, localKey string) (string, error) {
+	return coreid.Derive(coreid.ReportAnalysis, "report-analysis", reportID, kind, localKey)
+}

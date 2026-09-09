@@ -30,7 +30,7 @@ const summaryColumns = `id, publisher_report_id, report ->> 'generated_at',
        CASE WHEN report->>'schema_version' IN ('report-publication/v3','report-publication/v4','report-publication/v5') THEN (SELECT COALESCE(sum(jsonb_array_length(u#>'{detail,industry_chains}')),0) FROM jsonb_array_elements((report->'concept_analyses') || COALESCE(report->'industry_chain_analyses','[]'::jsonb)) u) ELSE jsonb_array_length(report -> 'industry_chains') END, published_at, COALESCE(report->>'schema_version',''), COALESCE(report#>>'{analysis_window,start}',''), COALESCE(report#>>'{analysis_window,end}','')`
 
 func (s Store) ListReports(ctx context.Context, filter reportbiz.ListFilter) (reportbiz.StorePage, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT `+summaryColumns+` FROM reports
+	rows, err := s.db.QueryContext(ctx, `SELECT `+publicationSummaryColumns+` FROM report_publications
 WHERE (($6='all' AND COALESCE(report->>'schema_version','') IN ('','report-publication/v3','report-publication/v4','report-publication/v5')) OR ($6='legacy' AND COALESCE(report->>'schema_version','')='') OR ($6 NOT IN ('all','legacy') AND COALESCE(report->>'schema_version','')=$6)) AND ($1::timestamptz IS NULL OR published_at >= $1)
   AND ($2::timestamptz IS NULL OR published_at < $2)
   AND ($3::timestamptz IS NULL OR published_at < $3 OR (published_at = $3 AND id > $4))
@@ -60,7 +60,7 @@ LIMIT $5`, nullableTime(filter.PublishedFrom), nullableTime(filter.PublishedTo),
 }
 
 func (s Store) GetReport(ctx context.Context, reportID string) (reportbiz.Record, error) {
-	return scanRecord(s.db.QueryRowContext(ctx, `SELECT id, publisher_report_id, content_hash, report, published_at FROM reports WHERE id = $1`, reportID))
+	return scanRecord(s.db.QueryRowContext(ctx, `SELECT id, publisher_report_id, content_hash, report, published_at FROM report_archive WHERE id = $1`, reportID))
 }
 
 func (s Store) GetHome(ctx context.Context, reportID string) (reportbiz.Home, error) {
@@ -72,7 +72,7 @@ func (s Store) GetHome(ctx context.Context, reportID string) (reportbiz.Home, er
 		return s.getNormalizedHome(ctx, reportID)
 	}
 
-	row := s.db.QueryRowContext(ctx, `SELECT `+summaryColumns+`, report -> 'geopolitics', report -> 'macroeconomics' FROM reports WHERE id = $1`, reportID)
+	row := s.db.QueryRowContext(ctx, `SELECT `+summaryColumns+`, report -> 'geopolitics', report -> 'macroeconomics' FROM report_archive WHERE id = $1`, reportID)
 	var summary reportbiz.Summary
 	var generatedAt string
 	var geopoliticsJSON, macroeconomicsJSON []byte
@@ -110,7 +110,7 @@ func (s Store) GetHome(ctx context.Context, reportID string) (reportbiz.Home, er
 }
 
 func (s Store) GetLayer(ctx context.Context, reportID, layerKey string) (reportbiz.Summary, reportbiz.LayerProjection, error) {
-	row := s.db.QueryRowContext(ctx, `SELECT `+summaryColumns+`, report -> $2 FROM reports WHERE id = $1`, reportID, layerKey)
+	row := s.db.QueryRowContext(ctx, `SELECT `+summaryColumns+`, report -> $2 FROM report_archive WHERE id = $1`, reportID, layerKey)
 	var summary reportbiz.Summary
 	var generatedAt string
 	var layerJSON []byte
@@ -140,7 +140,7 @@ func (s Store) GetLayer(ctx context.Context, reportID, layerKey string) (reportb
 
 func (s Store) ListIndustryChains(ctx context.Context, filter reportbiz.IndustryChainListFilter) (reportbiz.IndustryChainStorePage, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT chains.ordinality, chains.chain
-FROM reports AS reports
+FROM report_archive AS reports
 CROSS JOIN LATERAL jsonb_array_elements(reports.report -> 'industry_chains') WITH ORDINALITY AS chains(chain, ordinality)
 WHERE reports.id = $1 AND chains.ordinality > $2
 ORDER BY chains.ordinality ASC
@@ -171,7 +171,7 @@ LIMIT $3`, filter.ReportID, filter.AfterOrdinal, filter.Limit+1)
 	}
 	if len(stored) == 0 {
 		var exists bool
-		if err := s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM reports WHERE id = $1)`, filter.ReportID).Scan(&exists); err != nil {
+		if err := s.db.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM report_archive WHERE id = $1)`, filter.ReportID).Scan(&exists); err != nil {
 			return reportbiz.IndustryChainStorePage{}, fmt.Errorf("check Report existence: %w", err)
 		}
 		if !exists {
@@ -198,7 +198,7 @@ func (s Store) GetIndustryChain(ctx context.Context, reportID, chainKey string) 
 	row := s.db.QueryRowContext(ctx, `SELECT `+summaryColumns+`, (
     SELECT chain FROM jsonb_array_elements(report -> 'industry_chains') AS chains(chain)
     WHERE chain ->> 'local_key' = $2 LIMIT 1
-) FROM reports WHERE id = $1`, reportID, chainKey)
+) FROM report_archive WHERE id = $1`, reportID, chainKey)
 	var summary reportbiz.Summary
 	var generatedAt string
 	var chainJSON []byte
@@ -279,7 +279,15 @@ ORDER BY link.position ASC`, reportID, scopePath)
 }
 
 func (s Store) scopeTokens(ctx context.Context, reportID string) (map[string]*string, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT DISTINCT ON (scope_path) scope_path, id
+	return readScopeTokens(ctx, s.db, reportID)
+}
+
+type scopeReader interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}
+
+func readScopeTokens(ctx context.Context, db scopeReader, reportID string) (map[string]*string, error) {
+	rows, err := db.QueryContext(ctx, `SELECT DISTINCT ON (scope_path) scope_path, id
 FROM report_evidence_links WHERE report_id = $1 ORDER BY scope_path, position, id`, reportID)
 	if err != nil {
 		return nil, fmt.Errorf("query Report Evidence scope tokens: %w", err)
@@ -507,7 +515,7 @@ func (s Store) ListAnalyses(ctx context.Context, f reportbiz.AnalysisListFilter)
 	if err := s.requireAnalysisReport(ctx, f.ReportID); err != nil {
 		return reportbiz.AnalysisStorePage{}, err
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT unit.ordinality,`+analysisUnitReadJSON+` FROM reports r
+	rows, err := s.db.QueryContext(ctx, `SELECT unit.ordinality,`+analysisUnitReadJSON+` FROM report_archive r
  CROSS JOIN LATERAL jsonb_array_elements(r.report -> $2) WITH ORDINALITY unit(value,ordinality)
  WHERE r.id=$1 AND unit.ordinality>$3 ORDER BY unit.ordinality LIMIT $4`, f.ReportID, f.Kind, f.AfterOrdinal, f.Limit+1)
 	if err != nil {
@@ -552,7 +560,7 @@ func (s Store) ListAnalyses(ctx context.Context, f reportbiz.AnalysisListFilter)
 }
 func (s Store) requireAnalysisReport(ctx context.Context, id string) error {
 	var version string
-	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(report->>'schema_version','') FROM reports WHERE id=$1`, id).Scan(&version); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT COALESCE(report->>'schema_version','') FROM report_archive WHERE id=$1`, id).Scan(&version); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return reportbiz.ErrReportNotFound
 		}
@@ -577,7 +585,7 @@ func (s Store) GetAnalysis(ctx context.Context, id, kind, key string) (reportbiz
 	}
 	var raw []byte
 	err = s.db.QueryRowContext(ctx, `SELECT `+analysisUnitReadJSON+`
- FROM reports r CROSS JOIN LATERAL jsonb_array_elements(r.report->$2) WITH ORDINALITY unit(value,ordinality)
+ FROM report_archive r CROSS JOIN LATERAL jsonb_array_elements(r.report->$2) WITH ORDINALITY unit(value,ordinality)
  WHERE r.id=$1 AND unit.value->>'local_key'=$3`, id, kind, key).Scan(&raw)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -619,7 +627,7 @@ func (s Store) GetAnalysisChain(ctx context.Context, id, kind, analysis, chain s
 		return reportbiz.ChainAnalysisDetail{}, err
 	}
 	var raw []byte
-	err = s.db.QueryRowContext(ctx, `SELECT c FROM reports r CROSS JOIN LATERAL jsonb_array_elements(r.report->$2) u
+	err = s.db.QueryRowContext(ctx, `SELECT c FROM report_archive r CROSS JOIN LATERAL jsonb_array_elements(r.report->$2) u
  CROSS JOIN LATERAL jsonb_array_elements(u#>'{detail,industry_chains}') c WHERE r.id=$1 AND u->>'local_key'=$3 AND c->>'local_key'=$4`, id, kind, analysis, chain).Scan(&raw)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -688,7 +696,7 @@ const analysisUnitReadJSON = `jsonb_set(unit.value,'{detail,industry_chains}',
 
 func (s Store) isNormalizedReport(ctx context.Context, id string) (bool, error) {
 	var v string
-	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(report->>'schema_version','') FROM reports WHERE id=$1`, id).Scan(&v)
+	err := s.db.QueryRowContext(ctx, `SELECT COALESCE(report->>'schema_version','') FROM report_publications WHERE id=$1`, id).Scan(&v)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, reportbiz.ErrReportNotFound
 	}
@@ -805,70 +813,49 @@ func normalizedSummary(u reportbiz.V4ReadUnit, ordinal int) (reportbiz.AnalysisU
 	return reportbiz.AnalysisUnitSummary{V4: &p, LocalKey: u.LocalKey, Ordinal: ordinal}, nil
 }
 func (s Store) listNormalizedAnalyses(ctx context.Context, f reportbiz.AnalysisListFilter) (reportbiz.AnalysisStorePage, error) {
-	if f.Kind == "company_analyses" {
-		return s.listSignalCompanies(ctx, f)
-	}
-	rows, err := s.db.QueryContext(ctx, `SELECT u.ordinality,u.value,r.report->>'schema_version' FROM reports r CROSS JOIN LATERAL jsonb_array_elements(r.report->$2) WITH ORDINALITY u(value,ordinality) WHERE r.id=$1 AND u.ordinality>$3 ORDER BY u.ordinality LIMIT $4`, f.ReportID, f.Kind, f.AfterOrdinal, f.Limit+1)
+	rows, err := s.db.QueryContext(ctx, `SELECT ordinal, local_key, summary_data FROM report_summary WHERE report_id=$1 AND analysis_kind=$2 AND ordinal>$3 ORDER BY ordinal LIMIT $4`, f.ReportID, f.Kind, f.AfterOrdinal, f.Limit+1)
 	if err != nil {
 		return reportbiz.AnalysisStorePage{}, err
 	}
 	defer rows.Close()
-	type entry struct {
-		ordinal int
-		unit    reportbiz.V4Unit
-		version string
-	}
-	entries := []entry{}
+	page := reportbiz.AnalysisStorePage{Items: []reportbiz.AnalysisUnitSummary{}}
 	for rows.Next() {
-		var e entry
 		var raw []byte
-		if err := rows.Scan(&e.ordinal, &raw, &e.version); err != nil {
-			return reportbiz.AnalysisStorePage{}, err
-		}
-		if err := decodeStoredJSON(raw, &e.unit); err != nil {
-			return reportbiz.AnalysisStorePage{}, err
-		}
-		if err := validateVersionedUnit(e.version, f.Kind, e.unit); err != nil {
-			return reportbiz.AnalysisStorePage{}, err
-		}
-		entries = append(entries, e)
-	}
-	if err := rows.Err(); err != nil {
-		return reportbiz.AnalysisStorePage{}, err
-	}
-	// Release rows before the scope query, including single-connection pools.
-	if err := rows.Close(); err != nil {
-		return reportbiz.AnalysisStorePage{}, err
-	}
-	counts, err := s.evidenceCounts(ctx, f.ReportID)
-	if err != nil {
-		return reportbiz.AnalysisStorePage{}, err
-	}
-	tokens, err := s.scopeTokens(ctx, f.ReportID)
-	if err != nil {
-		return reportbiz.AnalysisStorePage{}, err
-	}
-	page := reportbiz.AnalysisStorePage{Items: []reportbiz.AnalysisUnitSummary{}, HasMore: len(entries) > f.Limit}
-	if page.HasMore {
-		entries = entries[:f.Limit]
-	}
-	for _, e := range entries {
-		var u reportbiz.V4ReadUnit
-		if err := projectNormalizedEvidence(e.unit, f.Kind+"/"+e.unit.LocalKey, tokens, counts, &u); err != nil {
+		var item reportbiz.AnalysisUnitSummary
+		if err = rows.Scan(&item.Ordinal, &item.LocalKey, &raw); err != nil {
 			return page, err
 		}
-		item, err := normalizedSummary(u, e.ordinal)
+		if f.Kind == "company_analyses" {
+			item.Company = &reportbiz.V5CompanyProjection{}
+			err = decodeStoredJSON(raw, item.Company)
+		} else {
+			item.V4 = &reportbiz.V4SummaryProjection{}
+			err = decodeStoredJSON(raw, item.V4)
+		}
 		if err != nil {
 			return page, err
 		}
+		if item.V4 != nil && (item.V4.LocalKey != item.LocalKey || strings.TrimSpace(item.V4.SourceID) == "" || strings.TrimSpace(item.V4.Title) == "" || (item.V4.SchemaVersion != reportbiz.SignalSchemaVersion && item.V4.SchemaVersion != reportbiz.NormalizedSchemaVersion)) {
+			return page, persistedInvariant("Report summary", "identity", "invalid stored summary identity/version")
+		}
+		if item.Company != nil && (item.Company.Company.LocalKey != item.LocalKey || strings.TrimSpace(item.Company.Company.SourceID) == "" || item.Company.SchemaVersion != reportbiz.SignalSchemaVersion) {
+			return page, persistedInvariant("Report company summary", "identity", "invalid stored company summary")
+		}
 		page.Items = append(page.Items, item)
+	}
+	if err = rows.Err(); err != nil {
+		return page, err
+	}
+	page.HasMore = len(page.Items) > f.Limit
+	if page.HasMore {
+		page.Items = page.Items[:f.Limit]
 	}
 	return page, nil
 }
 func (s Store) normalizedUnit(ctx context.Context, id, kind, key string) (reportbiz.V4ReadUnit, error) {
 	var raw []byte
 	var version string
-	err := s.db.QueryRowContext(ctx, `SELECT u,r.report->>'schema_version' FROM reports r CROSS JOIN LATERAL jsonb_array_elements(r.report->$2) u WHERE r.id=$1 AND u->>'local_key'=$3`, id, kind, key).Scan(&raw, &version)
+	err := s.db.QueryRowContext(ctx, `SELECT d.detail_data,p.report->>'schema_version' FROM report_detail d JOIN report_summary s ON s.id=d.id JOIN report_publications p ON p.id=s.report_id WHERE s.report_id=$1 AND s.analysis_kind=$2 AND s.local_key=$3`, id, kind, key).Scan(&raw, &version)
 	if errors.Is(err, sql.ErrNoRows) {
 		return reportbiz.V4ReadUnit{}, reportbiz.ErrLayerNotFound
 	}
@@ -920,47 +907,17 @@ func (s Store) getNormalizedChain(ctx context.Context, id, kind, key, chain stri
 	if err != nil {
 		return reportbiz.ChainAnalysisDetail{}, err
 	}
-	if parent.JudgmentOrigin != "" {
-		for _, c := range parent.Detail.IndustryChains {
-			if c.LocalKey == chain {
-				return reportbiz.ChainAnalysisDetail{V4: &c}, nil
-			}
+	for _, c := range parent.Detail.IndustryChains {
+		if c.LocalKey == chain {
+			return reportbiz.ChainAnalysisDetail{V4: &c}, nil
 		}
-		return reportbiz.ChainAnalysisDetail{}, reportbiz.ErrChainNotFound
 	}
-	var raw []byte
-	err = s.db.QueryRowContext(ctx, `SELECT c FROM reports r CROSS JOIN LATERAL jsonb_array_elements(r.report->$2) u CROSS JOIN LATERAL jsonb_array_elements(u#>'{detail,industry_chains}') c WHERE r.id=$1 AND u->>'local_key'=$3 AND c->>'local_key'=$4`, id, kind, key, chain).Scan(&raw)
-	if errors.Is(err, sql.ErrNoRows) {
-		return reportbiz.ChainAnalysisDetail{}, reportbiz.ErrChainNotFound
-	}
-	if err != nil {
-		return reportbiz.ChainAnalysisDetail{}, err
-	}
-	var c reportbiz.V4Chain
-	if err := decodeStoredJSON(raw, &c); err != nil {
-		return reportbiz.ChainAnalysisDetail{}, err
-	}
-	if err := reportbiz.ValidateNormalizedChain(c); err != nil {
-		return reportbiz.ChainAnalysisDetail{}, err
-	}
-	counts, err := s.evidenceCounts(ctx, id)
-	if err != nil {
-		return reportbiz.ChainAnalysisDetail{}, err
-	}
-	tokens, err := s.scopeTokens(ctx, id)
-	if err != nil {
-		return reportbiz.ChainAnalysisDetail{}, err
-	}
-	var projected reportbiz.V4ReadChain
-	if err := projectNormalizedEvidence(c, kind+"/"+key+"/detail/industry_chains/"+chain, tokens, counts, &projected); err != nil {
-		return reportbiz.ChainAnalysisDetail{}, err
-	}
-	return reportbiz.ChainAnalysisDetail{V4: &projected}, nil
+	return reportbiz.ChainAnalysisDetail{}, reportbiz.ErrChainNotFound
 }
 
 func (s Store) getNormalizedHome(ctx context.Context, id string) (reportbiz.Home, error) {
 	var raw []byte
-	err := s.db.QueryRowContext(ctx, `SELECT jsonb_build_object('report_type',report->'report_type','schema_version',report->'schema_version','generated_at',report->'generated_at','timezone',report->'timezone','analysis_window',report->'analysis_window','observations',report->'observations','limitations',report->'limitations') FROM reports WHERE id=$1`, id).Scan(&raw)
+	err := s.db.QueryRowContext(ctx, `SELECT jsonb_build_object('report_type',report->'report_type','schema_version',report->'schema_version','generated_at',report->'generated_at','timezone',report->'timezone','analysis_window',report->'analysis_window','observations',report->'observations','limitations',report->'limitations') FROM report_publications WHERE id=$1`, id).Scan(&raw)
 	if err != nil {
 		return reportbiz.Home{}, err
 	}
@@ -998,7 +955,7 @@ func (s Store) getNormalizedHome(ctx context.Context, id string) (reportbiz.Home
 
 func (s Store) evidenceCounts(ctx context.Context, id string) (map[string]int, error) {
 	var raw []byte
-	if err := s.db.QueryRowContext(ctx, `SELECT evidence_counts FROM reports WHERE id=$1`, id).Scan(&raw); err != nil {
+	if err := s.db.QueryRowContext(ctx, `SELECT evidence_counts FROM report_publications WHERE id=$1`, id).Scan(&raw); err != nil {
 		return nil, fmt.Errorf("read Report Evidence counts: %w", err)
 	}
 	if len(raw) == 0 {
@@ -1025,60 +982,9 @@ func projectSignalCompany(c reportbiz.V4Macro, tokens map[string]*string, counts
 	err := projectNormalizedEvidence(c, "company_analyses/"+c.LocalKey, tokens, counts, &result.Company)
 	return result, err
 }
-func (s Store) listSignalCompanies(ctx context.Context, f reportbiz.AnalysisListFilter) (reportbiz.AnalysisStorePage, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT u.ordinality,u.value FROM reports r CROSS JOIN LATERAL jsonb_array_elements(r.report->'company_analyses') WITH ORDINALITY u(value,ordinality) WHERE r.id=$1 AND u.ordinality>$2 ORDER BY u.ordinality LIMIT $3`, f.ReportID, f.AfterOrdinal, f.Limit+1)
-	if err != nil {
-		return reportbiz.AnalysisStorePage{}, err
-	}
-	defer rows.Close()
-	type entry struct {
-		ordinal int
-		company reportbiz.V4Macro
-	}
-	entries := []entry{}
-	for rows.Next() {
-		var e entry
-		var raw []byte
-		if err := rows.Scan(&e.ordinal, &raw); err != nil {
-			return reportbiz.AnalysisStorePage{}, err
-		}
-		if err := decodeStoredJSON(raw, &e.company); err != nil {
-			return reportbiz.AnalysisStorePage{}, err
-		}
-		entries = append(entries, e)
-	}
-	if err := rows.Err(); err != nil {
-		return reportbiz.AnalysisStorePage{}, err
-	}
-	if err := rows.Close(); err != nil {
-		return reportbiz.AnalysisStorePage{}, err
-	}
-	page := reportbiz.AnalysisStorePage{Items: []reportbiz.AnalysisUnitSummary{}, HasMore: len(entries) > f.Limit}
-	if page.HasMore {
-		entries = entries[:f.Limit]
-	}
-	counts, err := s.evidenceCounts(ctx, f.ReportID)
-	if err != nil {
-		return page, err
-	}
-	tokens, err := s.scopeTokens(ctx, f.ReportID)
-	if err != nil {
-		return page, err
-	}
-	for _, e := range entries {
-		c, err := projectSignalCompany(e.company, tokens, counts)
-		if err != nil {
-			return page, err
-		}
-		c.Company.VariableSignals = nil
-		c.Company.ReasoningSources = nil
-		page.Items = append(page.Items, reportbiz.AnalysisUnitSummary{Company: &c, LocalKey: e.company.LocalKey, Ordinal: e.ordinal})
-	}
-	return page, nil
-}
 func (s Store) getSignalCompany(ctx context.Context, id, key string) (reportbiz.AnalysisUnitDetail, error) {
 	var raw []byte
-	err := s.db.QueryRowContext(ctx, `SELECT u FROM reports r CROSS JOIN LATERAL jsonb_array_elements(r.report->'company_analyses') u WHERE r.id=$1 AND u->>'local_key'=$2`, id, key).Scan(&raw)
+	err := s.db.QueryRowContext(ctx, `SELECT d.detail_data FROM report_detail d JOIN report_summary s ON s.id=d.id WHERE s.report_id=$1 AND s.analysis_kind='company_analyses' AND s.local_key=$2`, id, key).Scan(&raw)
 	if errors.Is(err, sql.ErrNoRows) {
 		return reportbiz.AnalysisUnitDetail{}, reportbiz.ErrLayerNotFound
 	}
@@ -1100,3 +1006,5 @@ func (s Store) getSignalCompany(ctx context.Context, id, key string) (reportbiz.
 	projected, err := projectSignalCompany(c, tokens, counts)
 	return reportbiz.AnalysisUnitDetail{Company: &projected}, err
 }
+
+const publicationSummaryColumns = `id,publisher_report_id,report->>'generated_at',has_geopolitics,has_macroeconomics,industry_chain_count,published_at,COALESCE(report->>'schema_version',''),COALESCE(report#>>'{analysis_window,start}',''),COALESCE(report#>>'{analysis_window,end}','')`

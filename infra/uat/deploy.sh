@@ -663,6 +663,16 @@ non_schema_pending="$(printf '%s\n' "$migration_risk_summary" | sed -n '3p')"
 data_current_version="$(printf '%s\n' "$migration_risk_summary" | sed -n '4p')"
 data_pending_versions="$(printf '%s\n' "$migration_risk_summary" | sed -n '5p')"
 
+# Report storage requires a separate, operator-reviewed data cutover. Never let
+# ordinary deployment rename the archive and start readers before the backfill.
+if [[ ",$data_pending_versions," == *,000088,* ]]; then
+  echo "FAIL report-storage-cutover: stop traffic, apply schema 88 and run reviewed report-storage maintenance; see docs/contexts/data/report-storage-cutover.md" >&2
+  exit 1
+fi
+if [ "$data_current_version" -ge 88 ]; then
+  "${candidate_compose[@]}" run --rm --no-deps data /usr/local/bin/report-storage --verify
+fi
+
 database_identity="tidewise_uat@config.uat.yaml/tidewise_uat"
 
 {
