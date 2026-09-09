@@ -55,7 +55,7 @@ export function HomeHeader({
         <View className='home-brief__copy'>
           <Text className='home-brief__title'>全球政经事件</Text>
           <Text className='home-brief__subtitle'>
-            {dateLabel ? `${dateLabel} · ` : ''}聚焦重要事件与产业链传导逻辑
+            {dateLabel ? `${dateLabel} · ` : ''}读懂全球政经变化
           </Text>
         </View>
         {timeLabel ? <Text className='home-brief__window'>{timeLabel}</Text> : null}
