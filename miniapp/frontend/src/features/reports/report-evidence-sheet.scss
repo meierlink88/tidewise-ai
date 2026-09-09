@@ -19,7 +19,7 @@
   bottom: 0;
   left: 0;
   display: flex;
-  min-height: 260rpx;
+  height: 76vh;
   max-height: 76vh;
   overflow: hidden;
   border-radius: $radius-sheet $radius-sheet 0 0;
@@ -31,10 +31,12 @@
 
 .report-evidence-sheet__handle-zone {
   display: flex;
-  height: 48rpx;
-  flex: 0 0 48rpx;
+  height: 28rpx;
+  flex: 0 0 28rpx;
   align-items: center;
   justify-content: center;
+  padding-top: 20rpx;
+  box-sizing: border-box;
 }
 
 .report-evidence-sheet__handle {
@@ -50,8 +52,8 @@
   top: 20rpx;
   right: 22rpx;
   display: flex;
-  width: 64rpx;
-  height: 64rpx;
+  width: 56rpx;
+  height: 56rpx;
   align-items: center;
   justify-content: center;
   border: 0;
@@ -66,16 +68,16 @@
 
 .report-evidence-sheet__close-icon {
   position: relative;
-  width: 28rpx;
-  height: 28rpx;
+  width: 16rpx;
+  height: 16rpx;
 }
 
 .report-evidence-sheet__close-icon::before,
 .report-evidence-sheet__close-icon::after {
   position: absolute;
-  top: 13rpx;
+  top: 7rpx;
   left: 1rpx;
-  width: 26rpx;
+  width: 14rpx;
   height: 2rpx;
   border-radius: 2rpx;
   background: currentcolor;
@@ -111,7 +113,7 @@
 
 .report-evidence-sheet__header {
   flex: 0 0 auto;
-  padding: 12rpx 100rpx 28rpx 32rpx;
+  padding: 24rpx 96rpx 24rpx 32rpx;
   border-bottom: 1rpx solid $color-evidence-line;
 }
 
@@ -122,6 +124,23 @@
   font-weight: 600;
   line-height: 1.5;
   overflow-wrap: anywhere;
+}
+
+.report-evidence-sheet__subtitle {
+  display: block;
+  margin-top: 4rpx;
+  color: $color-evidence-muted;
+  font-size: $font-report-caption;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.report-evidence-sheet__section-title {
+  display: block;
+  margin-bottom: 16rpx;
+  color: $color-evidence-muted;
+  font-size: $font-report-meta;
+  line-height: 1.5;
 }
 
 .report-evidence-sheet__list {

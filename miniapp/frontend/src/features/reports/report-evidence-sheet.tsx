@@ -4,6 +4,7 @@ import { useSyncExternalStore } from 'react';
 import { ReportOverlayHost } from '../../platform/report-overlay-host';
 import type { ReportEvidenceList, ReportPort } from './contract';
 import type { ReportEvidenceRoute } from './navigation';
+import { analysisLabels } from './normalized-contract';
 import { evidenceStableKey, formatShanghaiTimestamp, reportErrorCopy } from './presentation';
 import { ReportStatePanel } from './report-components';
 import type { ReportResourceState } from './session';
@@ -105,6 +106,9 @@ export function ReportEvidenceSheetView({
   onRetry: () => void;
   onClose: () => void;
 }) {
+  const category = Object.values(analysisLabels).find((label) => title.startsWith(`${label} · `));
+  const storyName = category ? title.slice(category.length + 3) : title;
+
   const dismiss = (event: ITouchEvent): void => {
     event.stopPropagation();
     onClose();
@@ -139,7 +143,8 @@ export function ReportEvidenceSheetView({
           <Text className='report-evidence-sheet__close-label'>关闭相关证据</Text>
         </Button>
         <View className='report-evidence-sheet__header'>
-          <Text className='report-evidence-sheet__title'>{title}</Text>
+          <Text className='report-evidence-sheet__title'>{category ?? '政经事件'}</Text>
+          <Text className='report-evidence-sheet__subtitle'>{storyName}</Text>
         </View>
         <ScrollView className='report-evidence-sheet__scroll' scrollY>
           <View className='report-evidence-sheet__content'>
@@ -179,32 +184,35 @@ function ReportEvidenceSheetContent({
   }
 
   return (
-    <View className='report-evidence-sheet__list'>
-      {state.data.items
-        .map((item, index) => ({ item, key: `${evidenceStableKey(item)}-${index}` }))
-        .sort((a, b) => evidenceTime(b.item.publishedAt) - evidenceTime(a.item.publishedAt))
-        .map(({ item, key }) => (
-          <View className='report-evidence-sheet__item' key={key}>
-            <View className='report-evidence-sheet__time-row'>
-              <View className='report-evidence-sheet__dot' />
-              <Text className='report-evidence-sheet__time'>
-                {item.publishedAt && Number.isFinite(evidenceTime(item.publishedAt))
-                  ? formatEvidenceTimestamp(item.publishedAt)
-                  : '时间待确认'}
-              </Text>
-            </View>
-            {item.keywords.length ? (
-              <View className='report-evidence-sheet__keywords' ariaLabel='关键词'>
-                {item.keywords.map((keyword) => (
-                  <Text className='report-evidence-sheet__keyword' key={keyword}>
-                    {keyword}
-                  </Text>
-                ))}
+    <View>
+      <Text className='report-evidence-sheet__section-title'>事件时间线</Text>
+      <View className='report-evidence-sheet__list'>
+        {state.data.items
+          .map((item, index) => ({ item, key: `${evidenceStableKey(item)}-${index}` }))
+          .sort((a, b) => evidenceTime(b.item.publishedAt) - evidenceTime(a.item.publishedAt))
+          .map(({ item, key }) => (
+            <View className='report-evidence-sheet__item' key={key}>
+              <View className='report-evidence-sheet__time-row'>
+                <View className='report-evidence-sheet__dot' />
+                <Text className='report-evidence-sheet__time'>
+                  {item.publishedAt && Number.isFinite(evidenceTime(item.publishedAt))
+                    ? formatEvidenceTimestamp(item.publishedAt)
+                    : '时间待确认'}
+                </Text>
               </View>
-            ) : null}
-            <Text className='report-evidence-sheet__summary'>{item.summary}</Text>
-          </View>
-        ))}
+              {item.keywords.length ? (
+                <View className='report-evidence-sheet__keywords' ariaLabel='关键词'>
+                  {item.keywords.map((keyword) => (
+                    <Text className='report-evidence-sheet__keyword' key={keyword}>
+                      {keyword}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+              <Text className='report-evidence-sheet__summary'>{item.summary}</Text>
+            </View>
+          ))}
+      </View>
     </View>
   );
 }

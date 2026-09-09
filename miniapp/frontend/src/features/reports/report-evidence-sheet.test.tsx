@@ -118,7 +118,8 @@ describe('ReportEvidenceSheet', () => {
         onClose: vi.fn()
       })
     );
-    expect(html).toContain('地缘政治 · 美伊战争');
+    expect(html).toContain('report-evidence-sheet__title">地缘政治</span>');
+    expect(html).toContain('report-evidence-sheet__subtitle">美伊战争</span>');
     const ordered = [
       '关键词一',
       '关键词二',
