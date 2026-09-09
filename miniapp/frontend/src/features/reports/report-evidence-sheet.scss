@@ -205,6 +205,7 @@
   overflow-wrap: anywhere;
 }
 
+.report-evidence-sheet__semantic-tags,
 .report-evidence-sheet__keywords {
   display: flex;
   gap: 8rpx;
@@ -215,12 +216,17 @@
 .report-evidence-sheet__keyword {
   padding: 4rpx 12rpx;
   border-radius: 8rpx;
-  background: $color-evidence-summary;
-  color: $color-evidence-ink;
-  font-size: $font-report-caption;
+  background: $color-evidence-tag-surface;
+  color: $color-evidence-tag-ink;
+  font-size: $font-evidence-tag;
   font-weight: 500;
   line-height: 1.4;
   overflow-wrap: anywhere;
+}
+
+.report-evidence-sheet__keyword--action {
+  color: $color-evidence-action;
+  background: $color-evidence-action-surface;
 }
 
 @keyframes report-evidence-overlay-in {

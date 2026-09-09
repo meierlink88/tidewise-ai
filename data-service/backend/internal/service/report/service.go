@@ -185,6 +185,9 @@ func (s *Service) ListReportEvidence(ctx context.Context, request *reportapi.Evi
 			publishedAt = &formatted
 		}
 		items[index] = reportapi.EvidenceItem{PublishedAt: publishedAt, Summary: item.Summary, Keywords: item.Keywords}
+		for _, tag := range item.SemanticTags {
+			items[index].SemanticTags = append(items[index].SemanticTags, reportapi.EvidenceTag{Kind: tag.Kind, Text: tag.Text})
+		}
 	}
 	return &v1.Response[reportapi.EvidenceCollection]{Status: v1.StatusOK, Result: reportapi.EvidenceCollection{
 		ReportID: request.ReportID, ScopeToken: request.ScopeToken, Items: items,

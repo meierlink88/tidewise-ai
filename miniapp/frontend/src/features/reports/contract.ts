@@ -205,7 +205,13 @@ export interface ReportIndustryChainDetail {
   industryChain: ReportIndustryChainDetailContent;
 }
 
+export interface ReportEvidenceTag {
+  kind: 'actor' | 'action' | 'object' | 'metric';
+  text: string;
+}
+
 export interface ReportEvidence {
+  semanticTags?: ReportEvidenceTag[];
   publishedAt: string | null;
   summary: string;
   keywords: string[];

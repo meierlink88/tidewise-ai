@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import semanticFixture from '../../mocks/reports/evidence-semantic.json';
 import {
   parseReportCardPageWire,
   parseReportEvidenceListWire,
@@ -125,7 +126,8 @@ describe('Report BFF wire contract', () => {
     expect(parseReportEvidenceListWire(evidence, reportId, scopeToken).items[0]).toEqual({
       publishedAt: null,
       summary: '摘要',
-      keywords: ['关键词']
+      keywords: ['关键词'],
+      semanticTags: [{ kind: 'action', text: '发布' }]
     });
     expect(() =>
       parseReportEvidenceListWire({ ...evidence, scope_token: 'wrong' }, reportId, scopeToken)
@@ -277,4 +279,17 @@ describe('Report BFF wire contract', () => {
       items: [{ publishedAt: null, summary: '证据摘要', keywords: ['海湾', '航运'] }]
     });
   });
+});
+
+it('reads optional preformatted semantic tags and ignores future tag dimensions', () => {
+  const result = parseReportEvidenceListWire(semanticFixture, reportId, scopeToken);
+  expect(result.items[0].semanticTags).toEqual(semanticFixture.items[0].semantic_tags);
+  const future = structuredClone(semanticFixture);
+  future.items[0].semantic_tags.push({ kind: 'future', text: 'future' });
+  expect(parseReportEvidenceListWire(future, reportId, scopeToken)).toEqual(result);
+  const malformed = {
+    ...semanticFixture,
+    items: [{ ...semanticFixture.items[0], semantic_tags: [{ kind: 'action', text: 42 }] }]
+  };
+  expect(() => parseReportEvidenceListWire(malformed, reportId, scopeToken)).toThrow();
 });

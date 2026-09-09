@@ -380,6 +380,18 @@ components:
         published_at: { type: string, format: date-time, nullable: true }
         summary: { type: string }
         keywords: { type: array, items: { type: string } }
+        semantic_tags:
+          description: Optional preformatted labels extracted from existing Evidence semantic; absent when unavailable. Existing fields remain unchanged.
+          type: array
+          items: { $ref: '#/components/schemas/EvidenceSemanticTag' }
+    EvidenceSemanticTag:
+      type: object
+      additionalProperties: false
+      required: [kind, text]
+      properties:
+        kind: { type: string, enum: [actor, action, object, metric] }
+        text: { type: string, minLength: 1, maxLength: 2000 }
+
     EvidenceCollection:
       type: object
       additionalProperties: false

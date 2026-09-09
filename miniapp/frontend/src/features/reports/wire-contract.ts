@@ -7,6 +7,7 @@ import type {
   ReportConfidence,
   ReportEvidence,
   ReportEvidenceList,
+  ReportEvidenceTag,
   ReportGraphEdge,
   ReportHome,
   ReportHomeGroup,
@@ -428,10 +429,21 @@ function parseGraphEdge(value: unknown): ReportGraphEdge {
 
 function parseEvidence(value: unknown): ReportEvidence {
   const root = requiredFields(value, ['published_at', 'summary', 'keywords']);
+  const semanticTags =
+    root.semantic_tags === undefined
+      ? undefined
+      : list(root.semantic_tags).flatMap((tagValue): ReportEvidenceTag[] => {
+          const tag = requiredFields(tagValue, ['kind', 'text']);
+          const kind = text(tag.kind);
+          if (kind !== 'actor' && kind !== 'action' && kind !== 'object' && kind !== 'metric')
+            return [];
+          return [{ kind, text: text(tag.text) }];
+        });
   return {
     publishedAt: root.published_at === null ? null : timestamp(root.published_at),
     summary: text(root.summary),
-    keywords: list(root.keywords).map(text)
+    keywords: list(root.keywords).map(text),
+    ...(semanticTags === undefined ? {} : { semanticTags })
   };
 }
 

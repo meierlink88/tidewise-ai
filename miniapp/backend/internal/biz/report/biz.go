@@ -178,9 +178,10 @@ type IndustryChainDetail struct {
 }
 
 type EvidenceItem struct {
-	PublishedAt *time.Time
-	Summary     string
-	Keywords    []string
+	SemanticTags []EvidenceTag
+	PublishedAt  *time.Time
+	Summary      string
+	Keywords     []string
 }
 type EvidenceCollection struct {
 	ReportID, ScopeToken string
@@ -589,4 +590,10 @@ type NormalizedSignal struct {
 	EventIDs           []string `json:"event_ids"`
 	EvidenceScopeToken *string  `json:"evidence_scope_token"`
 	EvidenceCount      int      `json:"evidence_count"`
+}
+
+// EvidenceTag is a deterministic reading projection of existing semantic content.
+type EvidenceTag struct {
+	Kind string `json:"kind"`
+	Text string `json:"text"`
 }

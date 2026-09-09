@@ -91,6 +91,9 @@ func TestPostgresReportPublicationReplayAndReadProjections(t *testing.T) {
 	if err != nil || len(evidence) != 1 || evidence[0].Summary != "第一条报告依据" || !reflect.DeepEqual(evidence[0].Keywords, []string{"依据一"}) {
 		t.Fatalf("evidence=%#v err=%v", evidence, err)
 	}
+	if len(evidence[0].SemanticTags) != 3 || evidence[0].SemanticTags[0].Text != "Example actor" || evidence[0].SemanticTags[1].Kind != "action" || evidence[0].SemanticTags[2].Text != "Report claim" {
+		t.Fatalf("persisted semantic tags=%#v", evidence[0].SemanticTags)
+	}
 	_, err = useCase.ListEvidence(ctx, first.Record.ID, "RPE33333333-3333-4333-8333-333333333333")
 	if !errors.Is(err, reportbiz.ErrEvidenceScopeNotFound) {
 		t.Fatalf("unknown token error=%v", err)

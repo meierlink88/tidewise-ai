@@ -129,7 +129,7 @@ BFF 不读取完整报告或直接查询领域数据库；失败保持显式可�
 
 - 后续 Miniapp 视觉对齐以用户选定的 `prototype/tidetell1.0/miniprogram.html` 为设计参考；
   该原型的静态示例不定义数据、API 或业务事实。本轮票据 #462 只对齐首页。
-- 顶部展示“全球政经事件”和“聚焦重要事件与产业链传导逻辑”；日期、星期和
+- 顶部展示“全球政经事件”和“读懂全球政经变化”；日期、星期和
   “截至 HH:mm”来自所选 Report 的 `publishedAt`，按上海时区展示。没有 Report 时不伪造日期。
   当前合同没有统计窗口，不展示原型的“过去24小时”，也不固定示例日期或时间。
 - 首页默认“全部”；地缘政治、宏观经济和产业链筛选只改变已有卡片的展示范围。
@@ -189,8 +189,9 @@ BFF 不读取完整报告或直接查询领域数据库；失败保持显式可�
 ## Evidence Presentation
 
 - 按票据 #464 与用户确认的 tidetell1.0 设计，顶部展示所属卡片的分析类型与故事线名称。
-- Evidence 仅使用现有 `published_at`、`keywords`、`summary`，按时间倒序展示；同时间保留接口顺序，空或无效时间置末。排序不修改接口数组或服务端 position。
-- 每项依次展示时间、有序关键词浅底标签、完整 summary 浅灰正文块；没有 Evidence 标题字段，因此省略标题，不生成等级或指标。
+- Evidence 使用既有 `published_at`、`keywords`、`summary` 与可选的 `semantic_tags` 展示投影，按时间倒序展示；同时间保留接口顺序，空或无效时间置末。排序不修改接口数组或服务端 position。
+- 每项依次展示时间、语义标签、完整 summary 浅灰正文块、原有 keywords。语义标签为后端预先整理的 `kind + text` 列表，依序来自 actors/action/objects/metrics；action 固定红色。不解析完整 semantic JSON，不生成标题、等级或推断指标。
+- `/evidences` 原路由、scope_token 和原三字段保持不变，只追加可选 `semantic_tags`，不新增 include 参数。旧 Data 未返回标签时，BFF 与新版前端仍正常展示旧内容。先发布可忽略额外字段的兼容 Miniapp，再升级可接收可选字段的 BFF，最后升级 Data；不假设发布新版会立即替换所有旧会话。
 - 采用暖灰底、圆点与竖线时间轴；空发布时间仍显示时间待确认。保留 scope 请求、加载、空态、重试和关闭行为。
 
 ## Response Compatibility
