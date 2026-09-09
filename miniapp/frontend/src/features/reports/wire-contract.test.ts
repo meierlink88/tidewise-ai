@@ -94,13 +94,56 @@ describe('Report BFF wire contract', () => {
     ).toThrow('invalid Report wire response');
   });
 
-  it('fails closed on retired home fields', () => {
+  it('ignores additive fields at every consumed object level', () => {
+    const home = {
+      future: true,
+      selection: { mode: 'today', date: '2026-09-01', timezone: 'Asia/Shanghai', future: true },
+      reports: [
+        {
+          report: { ...report, future: true },
+          cards: [{ ...card(), future: true }],
+          next_cursor: null,
+          future: true
+        }
+      ]
+    };
+    expect(parseReportHomeWire(home).reports[0].cards[0].title).toBe(card().title);
+    const evidence = {
+      report_id: reportId,
+      scope_token: scopeToken,
+      future: true,
+      items: [
+        {
+          published_at: null,
+          summary: '摘要',
+          keywords: ['关键词'],
+          semantic_tags: [{ kind: 'action', text: '发布' }],
+          future: true
+        }
+      ]
+    };
+    expect(parseReportEvidenceListWire(evidence, reportId, scopeToken).items[0]).toEqual({
+      publishedAt: null,
+      summary: '摘要',
+      keywords: ['关键词']
+    });
     expect(() =>
-      parseReportHomeWire({
-        selection: { mode: 'today', date: '2026-09-01', timezone: 'Asia/Shanghai' },
-        reports: [{ report, cards: [card()], next_cursor: null, industry_chain_count: 54 }]
-      })
-    ).toThrow('invalid Report wire response');
+      parseReportEvidenceListWire({ ...evidence, scope_token: 'wrong' }, reportId, scopeToken)
+    ).toThrow();
+    expect(() =>
+      parseReportEvidenceListWire(
+        { ...evidence, items: [{ summary: '摘要', keywords: [] }] },
+        reportId,
+        scopeToken
+      )
+    ).toThrow();
+    expect(() =>
+      parseReportEvidenceListWire(
+        { ...evidence, items: [{ published_at: null, summary: 42, keywords: [] }] },
+        reportId,
+        scopeToken
+      )
+    ).toThrow();
   });
 
   it('parses a report-bound industry-chain page', () => {

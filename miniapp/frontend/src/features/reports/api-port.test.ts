@@ -60,7 +60,7 @@ describe('APIReportPort', () => {
     expect(request.mock.calls[0][0].url).toContain('limit=20&cursor=opaque%20cursor');
   });
 
-  it('fails closed on surplus envelopes and malformed DTOs', async () => {
+  it('ignores extra envelope fields but rejects malformed consumed DTOs', async () => {
     const port = new APIReportPort('https://miniapp.example.com');
     request.mockResolvedValueOnce({
       statusCode: 200,
@@ -73,7 +73,7 @@ describe('APIReportPort', () => {
         event_count: 1
       }
     });
-    await expect(port.getHome()).rejects.toMatchObject({ kind: 'invalidResponse' });
+    await expect(port.getHome()).resolves.toMatchObject({ reports: [] });
 
     request.mockResolvedValueOnce({
       statusCode: 200,

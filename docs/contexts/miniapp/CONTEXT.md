@@ -72,9 +72,9 @@ _Avoid_: Reason Tree、正式产业链动态查询、把无边节点串联
 
 **相关 Evidence**:
 某一 Report 卡片、层、锚点、产业链或节点直接关联的 Atomic Evidence 产品投影。列表只展示发布时间、
-摘要和有序关键词，列表项保持 Report Evidence Link 的显式 `position`；Evidence ID 只在
+摘要和有序关键词，接口保持 Report Evidence Link 的显式 `position`，前端按发布时间倒序展示；Evidence ID 只在
 Data 内部用于持久化关联与诊断，Miniapp BFF 不向 Frontend 透出。
-_Avoid_: 相关 Event、Event Evidence Link、按时间自行重排、Evidence 正文、来源技术元数据
+_Avoid_: 相关 Event、Event Evidence Link、改写服务端 position、Evidence 正文、来源技术元数据
 
 ## Home Report Selection
 
@@ -188,11 +188,16 @@ BFF 不读取完整报告或直接查询领域数据库；失败保持显式可�
 
 ## Evidence Presentation
 
-- Evidence 底部抽屉直接从 Report Evidence Link 的显式顺序列表开始，不显示内部 scope
-  标题、来源类型、关系立场、Evidence ID 或技术边界说明。
-- 每项只展示 `published_at`、`summary` 和有序 `keywords`；空发布时间显示明确的时间待确认。
-- Keywords 使用有边框的蓝色轻量 chip；发布时间与摘要优先级更高。
-- 页面不按 `published_at` 重排；发布时间只是列表项属性，不添加装饰时间线点或连线。
+- 按票据 #464 与用户确认的 tidetell1.0 设计，顶部展示所属卡片的分析类型与故事线名称。
+- Evidence 仅使用现有 `published_at`、`keywords`、`summary`，按时间倒序展示；同时间保留接口顺序，空或无效时间置末。排序不修改接口数组或服务端 position。
+- 每项依次展示时间、有序关键词浅底标签、完整 summary 浅灰正文块；没有 Evidence 标题字段，因此省略标题，不生成等级或指标。
+- 采用暖灰底、圆点与竖线时间轴；空发布时间仍显示时间待确认。保留 scope 请求、加载、空态、重试和关闭行为。
+
+## Response Compatibility
+
+- Frontend 只读取并校验实际消费的字段，忽略响应 envelope 和嵌套 DTO 中新增的未知字段；新增字段不会令旧页面整体失败。
+- 必需字段、类型、报告版本、report/scope 身份和图谱引用不变量继续校验；该兼容约定不放宽导航请求输入校验。
+- 该策略随新版 Miniapp 发布生效，已安装的旧版严格客户端仍需 Backend 保持原有响应结构。语义扩展发布前不得假设所有旧客户端已升级。
 
 ## Frontend Mock Policy
 

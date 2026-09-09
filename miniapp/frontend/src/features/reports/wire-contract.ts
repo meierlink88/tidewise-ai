@@ -44,8 +44,8 @@ const referenceTypes = [
 ] as const;
 
 export function parseReportHomeWire(value: unknown): ReportHome {
-  const root = exact(value, ['selection', 'reports']);
-  const selectionWire = exact(root.selection, ['mode', 'date', 'timezone']);
+  const root = requiredFields(value, ['selection', 'reports']);
+  const selectionWire = requiredFields(root.selection, ['mode', 'date', 'timezone']);
   const selection = {
     mode: enumeration(selectionWire.mode, ['today', 'latest_fallback'] as const),
     date: match(selectionWire.date, datePattern),
@@ -60,7 +60,7 @@ export function parseReportHomeWire(value: unknown): ReportHome {
 
 export function parseReportCardPageWire(value: unknown, expectedReportId: string): ReportCardPage {
   reportID(expectedReportId);
-  const root = exact(value, ['items', 'next_cursor']);
+  const root = requiredFields(value, ['items', 'next_cursor']);
   const items = list(root.items).map(parseCard);
   unique(items.map((item) => item.key));
   return { items, nextCursor: nullableCursor(root.next_cursor) };
@@ -71,7 +71,7 @@ export function parseReportLayerDetailWire(
   expectedReportId: string,
   expectedLayerKey: ReportLayerKey
 ): ReportLayerDetail {
-  const root = exact(value, ['report', 'layer', 'related_industry_chains']);
+  const root = requiredFields(value, ['report', 'layer', 'related_industry_chains']);
   const report = parseSummary(root.report);
   const layer = parseLayer(root.layer);
   const relatedIndustryChains = list(root.related_industry_chains).map(parseRelatedChain);
@@ -85,7 +85,7 @@ export function parseReportIndustryChainDetailWire(
   expectedReportId: string,
   expectedChainKey: string
 ): ReportIndustryChainDetail {
-  const root = exact(value, ['report', 'industry_chain']);
+  const root = requiredFields(value, ['report', 'industry_chain']);
   const report = parseSummary(root.report);
   const industryChain = parseIndustryChain(root.industry_chain);
   if (
@@ -102,7 +102,7 @@ export function parseReportEvidenceListWire(
   expectedReportId: string,
   expectedScopeToken: string
 ): ReportEvidenceList {
-  const root = exact(value, ['report_id', 'scope_token', 'items']);
+  const root = requiredFields(value, ['report_id', 'scope_token', 'items']);
   const reportId = reportID(root.report_id);
   const scopeToken = token(root.scope_token);
   if (reportId !== reportID(expectedReportId) || scopeToken !== token(expectedScopeToken))
@@ -112,7 +112,7 @@ export function parseReportEvidenceListWire(
 
 function parseHomeGroup(value: unknown): ReportHomeGroup {
   const extra = value != null && Object.prototype.hasOwnProperty.call(value, 'analysis_groups');
-  const root = exact(value, [
+  const root = requiredFields(value, [
     'report',
     'cards',
     'next_cursor',
@@ -137,7 +137,7 @@ function parseHomeGroup(value: unknown): ReportHomeGroup {
 
 function parseSummary(value: unknown): ReportSummary {
   const extra = value != null && Object.prototype.hasOwnProperty.call(value, 'schema_version');
-  const root = exact(value, [
+  const root = requiredFields(value, [
     'id',
     'generated_at',
     'published_at',
@@ -154,7 +154,7 @@ function parseSummary(value: unknown): ReportSummary {
 }
 
 function parseCard(value: unknown): ReportCard {
-  const root = exact(value, [
+  const root = requiredFields(value, [
     'local_key',
     'kind',
     'detail_ref',
@@ -189,7 +189,7 @@ function parseCard(value: unknown): ReportCard {
 }
 
 function parseImpactItem(value: unknown) {
-  const root = exact(value, [
+  const root = requiredFields(value, [
     'ref',
     'name',
     'result',
@@ -212,7 +212,7 @@ function parseImpactItem(value: unknown) {
 }
 
 function parseLayer(value: unknown): ReportLayerDetailContent {
-  const root = exact(value, [
+  const root = requiredFields(value, [
     'key',
     'title',
     'conclusion',
@@ -241,7 +241,7 @@ function parseLayer(value: unknown): ReportLayerDetailContent {
 }
 
 function parseAnchor(value: unknown): ReportAnchor {
-  const root = exact(value, [
+  const root = requiredFields(value, [
     'local_key',
     'name',
     'current_state',
@@ -268,7 +268,7 @@ function parseAnchor(value: unknown): ReportAnchor {
 }
 
 function parseReasoningStep(value: unknown): ReportReasoningStep {
-  const root = exact(value, [
+  const root = requiredFields(value, [
     'local_key',
     'input',
     'mechanism',
@@ -287,7 +287,7 @@ function parseReasoningStep(value: unknown): ReportReasoningStep {
 }
 
 function parseTransmission(value: unknown): ReportTransmissionPath {
-  const root = exact(value, [
+  const root = requiredFields(value, [
     'local_key',
     'source_conclusion',
     'targets',
@@ -308,12 +308,17 @@ function parseTransmission(value: unknown): ReportTransmissionPath {
 }
 
 function parseTransmissionTarget(value: unknown): ReportTransmissionTarget {
-  const root = exact(value, ['ref', 'name', 'result']);
+  const root = requiredFields(value, ['ref', 'name', 'result']);
   return { ref: parseReference(root.ref), name: text(root.name), result: coded(root.result) };
 }
 
 function parseLayerUncertainty(value: unknown) {
-  const root = exact(value, ['counterevidence', 'evidence_gap', 'boundary', 'reversal_condition']);
+  const root = requiredFields(value, [
+    'counterevidence',
+    'evidence_gap',
+    'boundary',
+    'reversal_condition'
+  ]);
   return {
     counterevidence: nullableText(root.counterevidence),
     evidenceGap: nullableText(root.evidence_gap),
@@ -323,12 +328,12 @@ function parseLayerUncertainty(value: unknown) {
 }
 
 function parseRelatedChain(value: unknown): ReportRelatedIndustryChain {
-  const root = exact(value, ['local_key', 'name', 'result']);
+  const root = requiredFields(value, ['local_key', 'name', 'result']);
   return { key: localKey(root.local_key), name: text(root.name), result: coded(root.result) };
 }
 
 function parseIndustryChain(value: unknown): ReportIndustryChainDetailContent {
-  const root = exact(value, [
+  const root = requiredFields(value, [
     'local_key',
     'name',
     'conclusion',
@@ -377,12 +382,12 @@ function parseIndustryChain(value: unknown): ReportIndustryChainDetailContent {
 }
 
 function parseGraphNode(value: unknown) {
-  const root = exact(value, ['local_key', 'name']);
+  const root = requiredFields(value, ['local_key', 'name']);
   return { key: localKey(root.local_key), name: text(root.name) };
 }
 
 function parseIndustryNode(value: unknown): ReportIndustryChainNode {
-  const root = exact(value, [
+  const root = requiredFields(value, [
     'local_key',
     'name',
     'impact',
@@ -409,7 +414,11 @@ function parseIndustryNode(value: unknown): ReportIndustryChainNode {
 }
 
 function parseGraphEdge(value: unknown): ReportGraphEdge {
-  const root = exact(value, ['from_node_local_key', 'to_node_local_key', 'relation_label']);
+  const root = requiredFields(value, [
+    'from_node_local_key',
+    'to_node_local_key',
+    'relation_label'
+  ]);
   return {
     fromNodeLocalKey: localKey(root.from_node_local_key),
     toNodeLocalKey: localKey(root.to_node_local_key),
@@ -418,7 +427,7 @@ function parseGraphEdge(value: unknown): ReportGraphEdge {
 }
 
 function parseEvidence(value: unknown): ReportEvidence {
-  const root = exact(value, ['published_at', 'summary', 'keywords']);
+  const root = requiredFields(value, ['published_at', 'summary', 'keywords']);
   return {
     publishedAt: root.published_at === null ? null : timestamp(root.published_at),
     summary: text(root.summary),
@@ -427,12 +436,12 @@ function parseEvidence(value: unknown): ReportEvidence {
 }
 
 function parseReference(value: unknown): ReportReference {
-  const root = exact(value, ['type', 'local_key']);
+  const root = requiredFields(value, ['type', 'local_key']);
   return { type: enumeration(root.type, referenceTypes), localKey: localKey(root.local_key) };
 }
 
 function coded(value: unknown): ReportCodedLabel {
-  const root = exact(value, ['code', 'label']);
+  const root = requiredFields(value, ['code', 'label']);
   return { code: text(root.code), label: text(root.label) };
 }
 
@@ -444,14 +453,10 @@ function timeWindow(value: unknown): ReportTimeWindow {
   return coded(value);
 }
 
-function exact(value: unknown, keys: readonly string[]): RecordValue {
+function requiredFields(value: unknown, keys: readonly string[]): RecordValue {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) invalid();
   const record = value as RecordValue;
-  const actual = Object.keys(record);
-  if (
-    actual.length !== keys.length ||
-    keys.some((key) => !Object.prototype.hasOwnProperty.call(record, key))
-  ) {
+  if (keys.some((key) => !Object.prototype.hasOwnProperty.call(record, key))) {
     invalid();
   }
   return record;
