@@ -57,7 +57,7 @@ func TestPostgresReportPublicationReplayAndReadProjections(t *testing.T) {
 	}
 
 	var reportCount, linkCount int
-	if err := db.QueryRow(`SELECT count(*) FROM reports`).Scan(&reportCount); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM report_archive`).Scan(&reportCount); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.QueryRow(`SELECT count(*) FROM report_evidence_links WHERE report_id=$1`, first.Record.ID).Scan(&linkCount); err != nil {
@@ -111,7 +111,7 @@ func TestPostgresReportPublicationReplayAndReadProjections(t *testing.T) {
 	if !errors.As(err, &reference) {
 		t.Fatalf("missing Evidence error=%v", err)
 	}
-	if err := db.QueryRow(`SELECT count(*) FROM reports`).Scan(&reportCount); err != nil {
+	if err := db.QueryRow(`SELECT count(*) FROM report_archive`).Scan(&reportCount); err != nil {
 		t.Fatal(err)
 	}
 	if err := db.QueryRow(`SELECT count(*) FROM report_evidence_links`).Scan(&linkCount); err != nil {
@@ -120,7 +120,7 @@ func TestPostgresReportPublicationReplayAndReadProjections(t *testing.T) {
 	if reportCount != 1 || linkCount != 5 {
 		t.Fatalf("missing Evidence was not rolled back: reports=%d links=%d", reportCount, linkCount)
 	}
-	assertPostgresCode(t, db, "55000", `UPDATE reports SET content_hash=repeat('b',64) WHERE id=$1`, first.Record.ID)
+	assertPostgresCode(t, db, "55000", `UPDATE report_archive SET content_hash=repeat('b',64) WHERE id=$1`, first.Record.ID)
 }
 
 func TestPostgresReportIndustryChainCursorPagesFiftyFourSummaries(t *testing.T) {
@@ -477,7 +477,7 @@ func TestPostgresStoryConceptPublicationAndScopedReads(t *testing.T) {
 	if _, err := uc.Publish(ctx, "missing-analysis-evidence", request.Report); err == nil {
 		t.Fatal("missing Evidence accepted")
 	}
-	if err := db.QueryRow(`SELECT count(*) FROM reports`).Scan(&count); err != nil || count != 2 {
+	if err := db.QueryRow(`SELECT count(*) FROM report_archive`).Scan(&count); err != nil || count != 2 {
 		t.Fatalf("atomicity count=%d err=%v", count, err)
 	}
 	request.Report.GeopoliticalStories[0].Summary.EvidenceRefs[0].EvidenceID = ids[0]
@@ -528,7 +528,7 @@ func TestPostgresStoryChainHTTPPublicationAndRead(t *testing.T) {
 		}
 	}
 	var id string
-	if err := db.QueryRow(`SELECT id FROM reports WHERE publisher_report_id='story-chain-example'`).Scan(&id); err != nil {
+	if err := db.QueryRow(`SELECT id FROM report_archive WHERE publisher_report_id='story-chain-example'`).Scan(&id); err != nil {
 		t.Fatal(err)
 	}
 	prefix := "/api/data/v1/reports/" + id
@@ -633,7 +633,7 @@ func TestPostgresStoryChainHTTPPublicationAndRead(t *testing.T) {
 		t.Fatalf("missing impact Evidence accepted: %v", err)
 	}
 	var count int
-	if err := db.QueryRow(`SELECT count(*) FROM reports`).Scan(&count); err != nil || count != 1 {
+	if err := db.QueryRow(`SELECT count(*) FROM report_archive`).Scan(&count); err != nil || count != 1 {
 		t.Fatalf("atomic report count=%d err=%v", count, err)
 	}
 }
@@ -715,11 +715,11 @@ func testNormalizedHTTPRoundTrip(t *testing.T, signals bool) {
 		}
 	}
 	var id string
-	if err := db.QueryRow(`SELECT id FROM reports WHERE publisher_report_id=$1`, publisher).Scan(&id); err != nil {
+	if err := db.QueryRow(`SELECT id FROM report_archive WHERE publisher_report_id=$1`, publisher).Scan(&id); err != nil {
 		t.Fatal(err)
 	}
 	var storedCounts []byte
-	if err := db.QueryRow(`SELECT evidence_counts FROM reports WHERE id=$1`, id).Scan(&storedCounts); err != nil {
+	if err := db.QueryRow(`SELECT evidence_counts FROM report_archive WHERE id=$1`, id).Scan(&storedCounts); err != nil {
 		t.Fatal(err)
 	}
 	var counts map[string]int
@@ -908,7 +908,7 @@ func testNormalizedHTTPRoundTrip(t *testing.T, signals bool) {
 		t.Fatalf("missing Evidence: %d %s", w.Code, w.Body.String())
 	}
 	var count int
-	db.QueryRow(`SELECT count(*) FROM reports`).Scan(&count)
+	db.QueryRow(`SELECT count(*) FROM report_archive`).Scan(&count)
 	if count != 1 {
 		t.Fatal("publication was not atomic")
 	}
@@ -948,12 +948,19 @@ func testNormalizedHTTPRoundTrip(t *testing.T, signals bool) {
 	}
 	// Simulate a pre-metadata immutable publication without modifying the original row.
 	historicalID := "RPTaaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
-	if _, err := db.Exec(`INSERT INTO reports(id,publisher_report_id,content_hash,report,published_at)
- SELECT $2,'historical-count-fallback',content_hash,report,published_at - interval '1 day' FROM reports WHERE id=$1`, id, historicalID); err != nil {
+	if _, err := db.Exec(`INSERT INTO report_archive(id,publisher_report_id,content_hash,report,published_at)
+ SELECT $2,'historical-count-fallback',content_hash,report,published_at - interval '1 day' FROM report_archive WHERE id=$1`, id, historicalID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.Exec(`INSERT INTO report_evidence_links(id,report_id,evidence_id,scope_type,scope_path,position)
  SELECT 'RPE'||gen_random_uuid()::text,$2,evidence_id,scope_type,scope_path,position FROM report_evidence_links WHERE report_id=$1`, id, historicalID); err != nil {
+		t.Fatal(err)
+	}
+	plan, err := store.PlanStorage(context.Background(), time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = store.ApplyStorage(context.Background(), plan, "test historical fixture"); err != nil {
 		t.Fatal(err)
 	}
 	historical, err := uc.ListAnalyses(context.Background(), reportbiz.AnalysisListRequest{ReportID: historicalID, Kind: "geopolitical_stories"})
@@ -978,4 +985,159 @@ func withoutEvidenceFields(v any) any {
 		}
 	}
 	return v
+}
+
+func TestPostgresSplitReportStorageReadIsolationAndMaintenance(t *testing.T) {
+	db := openReportTestDatabase(t, 0)
+	ctx := context.Background()
+	ids := publishReportEvidence(t, db)
+	payload, err := os.ReadFile("../../../api/data/v1/report/testdata/signal-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload = bytes.ReplaceAll(payload, []byte("EVD11111111-1111-4111-8111-111111111111"), []byte(ids[0]))
+	var req struct {
+		Report reportbiz.Report `json:"report"`
+	}
+	if err = json.Unmarshal(payload, &req); err != nil {
+		t.Fatal(err)
+	}
+	store, _ := NewStore(db)
+	cutoff := time.Date(2026, 9, 8, 16, 0, 0, 0, time.UTC)
+	now := cutoff.Add(-time.Microsecond)
+	uc, _ := reportbiz.NewUseCase(store, func() time.Time { return now })
+	old, err := uc.Publish(ctx, "split-before-cutoff", req.Report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now = cutoff
+	today, err := uc.Publish(ctx, "split-at-cutoff", req.Report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	kind := "geopolitical_stories"
+	key := req.Report.V4.GeopoliticalStories[0].LocalKey
+	page, err := uc.ListAnalyses(ctx, reportbiz.AnalysisListRequest{ReportID: today.Record.ID, Kind: kind})
+	if err != nil || len(page.Items) == 0 {
+		t.Fatalf("summary %v %v", page, err)
+	}
+	detail, err := uc.GetAnalysis(ctx, today.Record.ID, kind, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cardCount, detailCount int
+	if err = db.QueryRow(`SELECT count(*) FROM report_summary WHERE report_id=$1`, today.Record.ID).Scan(&cardCount); err != nil {
+		t.Fatal(err)
+	}
+	if err = db.QueryRow(`SELECT count(*) FROM report_detail d JOIN report_summary s ON s.id=d.id WHERE s.report_id=$1`, today.Record.ID).Scan(&detailCount); err != nil {
+		t.Fatal(err)
+	}
+	if cardCount == 0 || detailCount != cardCount {
+		t.Fatalf("summary/detail pairs %d/%d", cardCount, detailCount)
+	}
+	// No normalized product read may query the full archive, even by accident.
+	if _, err = db.Exec(`ALTER TABLE report_archive RENAME TO inaccessible_report_archive`); err != nil {
+		t.Fatal(err)
+	}
+	p2, e1 := uc.ListAnalyses(ctx, reportbiz.AnalysisListRequest{ReportID: today.Record.ID, Kind: kind})
+	d2, e2 := uc.GetAnalysis(ctx, today.Record.ID, kind, key)
+	_, e3 := uc.List(ctx, reportbiz.ListRequest{})
+	_, e4 := uc.GetHome(ctx, today.Record.ID)
+	if _, err = db.Exec(`ALTER TABLE inaccessible_report_archive RENAME TO report_archive`); err != nil {
+		t.Fatal(err)
+	}
+	if e1 != nil || e2 != nil || e3 != nil || e4 != nil || !reflect.DeepEqual(page, p2) || !reflect.DeepEqual(detail, d2) {
+		t.Fatalf("archive-dependent read: %v %v %v %v", e1, e2, e3, e4)
+	}
+	// Summary lists also remain independent of the entire detail table.
+	if _, err = db.Exec(`ALTER TABLE report_detail RENAME TO inaccessible_report_detail`); err != nil {
+		t.Fatal(err)
+	}
+	p2, e1 = uc.ListAnalyses(ctx, reportbiz.AnalysisListRequest{ReportID: today.Record.ID, Kind: kind})
+	if _, err = db.Exec(`ALTER TABLE inaccessible_report_detail RENAME TO report_detail`); err != nil {
+		t.Fatal(err)
+	}
+	if e1 != nil || !reflect.DeepEqual(page, p2) {
+		t.Fatal("summary loaded detail", e1)
+	}
+	if err = store.VerifyStorage(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// Simulate the schema-only cutover: originals and Evidence links exist, projections do not.
+	for _, stmt := range []string{`ALTER TABLE report_detail DISABLE TRIGGER report_detail_immutable`, `ALTER TABLE report_summary DISABLE TRIGGER report_summary_immutable`, `ALTER TABLE report_publications DISABLE TRIGGER report_publications_immutable`, `DELETE FROM report_detail`, `DELETE FROM report_summary`, `DELETE FROM report_publications`, `ALTER TABLE report_detail ENABLE TRIGGER report_detail_immutable`, `ALTER TABLE report_summary ENABLE TRIGGER report_summary_immutable`, `ALTER TABLE report_publications ENABLE TRIGGER report_publications_immutable`} {
+		if _, err = db.Exec(stmt); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err = store.VerifyStorage(ctx); err == nil {
+		t.Fatal("incomplete migration passed release gate")
+	}
+	plan, err := store.PlanStorage(ctx, cutoff)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plan.Keep) != 1 || len(plan.Delete) != 1 || plan.Keep[0].ID != today.Record.ID || plan.Delete[0].ID != old.Record.ID {
+		t.Fatalf("cutoff plan %+v", plan)
+	}
+	if err = store.ApplyStorage(ctx, plan, ""); err == nil {
+		t.Fatal("missing backup accepted")
+	}
+	// A projection failure must roll back both split rows and any planned history deletion.
+	if _, err = db.Exec(`CREATE FUNCTION reject_summary_for_test() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'projection failure'; END $$; CREATE TRIGGER reject_summary_for_test BEFORE INSERT ON report_summary FOR EACH ROW EXECUTE FUNCTION reject_summary_for_test()`); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.ApplyStorage(ctx, plan, "test recovery fixture"); err == nil {
+		t.Fatal("failed projection accepted")
+	}
+	var archived, metadata int
+	if err = db.QueryRow(`SELECT count(*) FROM report_archive`).Scan(&archived); err != nil {
+		t.Fatal(err)
+	}
+	if err = db.QueryRow(`SELECT count(*) FROM report_publications`).Scan(&metadata); err != nil {
+		t.Fatal(err)
+	}
+	if archived != 2 || metadata != 0 {
+		t.Fatalf("partial migration retained %d archives and %d metadata", archived, metadata)
+	}
+	if _, err = db.Exec(`DROP TRIGGER reject_summary_for_test ON report_summary; DROP FUNCTION reject_summary_for_test()`); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.ApplyStorage(ctx, plan, "test recovery fixture"); err != nil {
+		t.Fatal(err)
+	}
+	if err = store.VerifyStorage(ctx); err != nil {
+		t.Fatal(err)
+	}
+	p2, err = uc.ListAnalyses(ctx, reportbiz.AnalysisListRequest{ReportID: today.Record.ID, Kind: kind})
+	if err != nil || !reflect.DeepEqual(page, p2) {
+		t.Fatalf("backfill changed summary %v", err)
+	}
+	d2, err = uc.GetAnalysis(ctx, today.Record.ID, kind, key)
+	if err != nil || !reflect.DeepEqual(detail, d2) {
+		t.Fatalf("backfill changed detail %v", err)
+	}
+	if _, err = uc.Get(ctx, old.Record.ID); !errors.Is(err, reportbiz.ErrReportNotFound) {
+		t.Fatalf("old report not removed %v", err)
+	}
+	var remaining int
+	if err = db.QueryRow(`SELECT count(*) FROM evidences WHERE id=ANY($1::text[])`, ids).Scan(&remaining); err != nil || remaining != len(ids) {
+		t.Fatal("source Evidence was deleted", err)
+	}
+	if err = store.ApplyStorage(ctx, plan, "test recovery fixture"); err == nil {
+		t.Fatal("stale inventory accepted")
+	}
+	again, err := store.PlanStorage(ctx, cutoff)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = store.ApplyStorage(ctx, again, "test recovery fixture"); err != nil {
+		t.Fatal("idempotent backfill", err)
+	}
+	replay, err := uc.Publish(ctx, "split-at-cutoff", req.Report)
+	if err != nil || !replay.Replayed || replay.Record.ID != today.Record.ID {
+		t.Fatal("migration broke replay", err)
+	}
+	if _, err = db.Exec(`DELETE FROM report_summary WHERE report_id=$1`, today.Record.ID); err == nil {
+		t.Fatal("maintenance failed to restore immutability")
+	}
 }

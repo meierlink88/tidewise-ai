@@ -615,3 +615,15 @@ projector，也不包含 Event Semantic audit/synthetic 命令。每个环境只
 `configs/config.<environment>.yaml`；local 使用容器可访问的
 外部 PostgreSQL endpoint，不维护宿主机直跑配置。Neo4j、Qdrant 不由 Data application
 创建、持有、探测或写入。这不改变 Data 的 PostgreSQL 事实 ownership。
+
+## Report 分单元存储（ADR-0063）
+
+Report 的外部 wire 不变。v4/v5 发布在同一事务保存 `report_archive` 原件、
+`report_publications` 根元信息、`report_summary` 卡片及一对一 `report_detail` 完整分析单元。
+总结列表直接读取 summary 行，详情仅读取指定单元，均不依赖归档 JSONB。RPA 为 Biz 派生的
+内部持久化身份；现有 RPT、local_key、source_id、ordinal、RPE scope 和 published_at 保持不变。
+legacy/v3 保留既有归档投影合同，不作为 v4/v5 的读失败回退。
+
+历史转换与一次性清理由 Data-owned `report-storage` 运维命令显式执行，不属于 Goose DDL 或
+正常发布动作。用户已授权的 UAT 2026-09-09 清理例外及停流量/备份/恢复边界见
+[ADR-0063](../../adr/0063-split-report-summary-and-detail-storage.md)；不增加通用定期删除规则。
