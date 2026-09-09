@@ -387,9 +387,10 @@ type IndustryChainDetail struct {
 }
 
 type EvidenceItem struct {
-	PublishedAt *string  `json:"published_at"`
-	Summary     string   `json:"summary"`
-	Keywords    []string `json:"keywords"`
+	SemanticTags []EvidenceTag `json:"semantic_tags,omitempty"`
+	PublishedAt  *string       `json:"published_at"`
+	Summary      string        `json:"summary"`
+	Keywords     []string      `json:"keywords"`
 }
 
 type EvidenceCollection struct {
@@ -1160,4 +1161,9 @@ type V5ReadSignal struct {
 type V5CompanyProjection struct {
 	SchemaVersion string      `json:"schema_version"`
 	Company       V4ReadMacro `json:"company"`
+}
+
+type EvidenceTag struct {
+	Kind string `json:"kind"`
+	Text string `json:"text"`
 }

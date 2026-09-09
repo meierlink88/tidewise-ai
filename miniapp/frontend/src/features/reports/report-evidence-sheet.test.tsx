@@ -1,6 +1,8 @@
 import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import semanticFixture from '../../mocks/reports/evidence-semantic.json';
+import { parseReportEvidenceListWire } from './wire-contract';
 import { mockReportPort } from '../../mocks/reports/mock-port';
 import type { ReportEvidenceList, ReportPort } from './contract';
 import { ReportError } from './contract';
@@ -121,9 +123,9 @@ describe('ReportEvidenceSheet', () => {
     expect(html).toContain('report-evidence-sheet__title">地缘政治</span>');
     expect(html).toContain('report-evidence-sheet__subtitle">美伊战争</span>');
     const ordered = [
+      '最新第一条',
       '关键词一',
       '关键词二',
-      '最新第一条',
       '最新第二条',
       '较早完整正文',
       '未定时间'
@@ -152,4 +154,27 @@ describe('ReportEvidenceSheet', () => {
       '重新加载'
     );
   });
+});
+
+it('renders semantic tags before the full summary and keywords after it', () => {
+  const html = renderToStaticMarkup(
+    createElement(ReportEvidenceSheetView, {
+      title: '产业链 · 合成故事线',
+      state: {
+        status: 'ready',
+        refreshing: false,
+        refreshFailed: false,
+        data: parseReportEvidenceListWire(semanticFixture, reportId, scopeToken)
+      },
+      onRetry: vi.fn(),
+      onClose: vi.fn()
+    })
+  );
+  const top = html.indexOf('report-evidence-sheet__semantic-tags');
+  const summary = html.indexOf('report-evidence-sheet__summary');
+  const bottom = html.indexOf('report-evidence-sheet__keywords');
+  expect(top).toBeLessThan(summary);
+  expect(bottom).toBeGreaterThan(summary);
+  expect(html).toContain('report-evidence-sheet__keyword--action');
+  expect(html).toContain(semanticFixture.items[0].summary);
 });

@@ -96,6 +96,12 @@ func (r *Repository) ListEvidences(ctx context.Context, reportID, scopeToken str
 			publishedAt = &parsed
 		}
 		items[index] = biz.EvidenceItem{PublishedAt: publishedAt, Summary: item.Summary, Keywords: item.Keywords}
+		for _, tag := range item.SemanticTags {
+			if (tag.Kind != "actor" && tag.Kind != "action" && tag.Kind != "object" && tag.Kind != "metric") || !validText(tag.Text, 2000) {
+				return biz.EvidenceCollection{}, biz.ErrDataUnavailable
+			}
+		}
+		items[index].SemanticTags = item.SemanticTags
 	}
 	return biz.EvidenceCollection{ReportID: reportID, ScopeToken: scopeToken, Items: items}, nil
 }
@@ -424,9 +430,10 @@ type wireIndustryChainDetail struct {
 	IndustryChain wireIndustryChain `json:"industry_chain"`
 }
 type wireEvidenceItem struct {
-	PublishedAt *string  `json:"published_at"`
-	Summary     string   `json:"summary"`
-	Keywords    []string `json:"keywords"`
+	SemanticTags []biz.EvidenceTag `json:"semantic_tags,omitempty"`
+	PublishedAt  *string           `json:"published_at"`
+	Summary      string            `json:"summary"`
+	Keywords     []string          `json:"keywords"`
 }
 type wireEvidenceCollection struct {
 	ReportID   string             `json:"report_id"`

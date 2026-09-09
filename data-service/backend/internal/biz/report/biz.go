@@ -209,9 +209,10 @@ type EvidenceLink struct {
 }
 
 type Evidence struct {
-	PublishedAt *time.Time
-	Summary     string
-	Keywords    []string
+	SemanticTags []EvidenceTag
+	PublishedAt  *time.Time
+	Summary      string
+	Keywords     []string
 }
 
 type Summary struct {
@@ -3517,4 +3518,51 @@ func ValidateStandaloneSignalCompany(c V4Macro) error {
 		return err
 	}
 	return validateSignalJudgments([]signalJudgment{{c.LocalKey, c.SourceID, c.JudgmentOrigin, c.ReasoningSources, c.VariableSignals}})
+}
+
+// EvidenceTag is a deterministic reading projection of existing semantic content.
+type EvidenceTag struct {
+	Kind string `json:"kind"`
+	Text string `json:"text"`
+}
+
+// Report readers consume four semantic dimensions without the full Evidence JSON.
+type EvidenceSemanticProjection struct {
+	Actors  []string                   `json:"actors"`
+	Action  string                     `json:"action"`
+	Objects []string                   `json:"objects"`
+	Metrics []EvidenceMetricProjection `json:"metrics"`
+}
+type EvidenceMetricProjection struct {
+	Name   string  `json:"name"`
+	Value  *string `json:"value"`
+	Unit   *string `json:"unit"`
+	Change *string `json:"change"`
+	Period *string `json:"period"`
+}
+
+func ProjectEvidenceTags(value EvidenceSemanticProjection) []EvidenceTag {
+	tags := make([]EvidenceTag, 0)
+	appendTag := func(kind, text string) {
+		if strings.TrimSpace(text) != "" {
+			tags = append(tags, EvidenceTag{Kind: kind, Text: text})
+		}
+	}
+	for _, text := range value.Actors {
+		appendTag("actor", text)
+	}
+	appendTag("action", value.Action)
+	for _, text := range value.Objects {
+		appendTag("object", text)
+	}
+	for _, metric := range value.Metrics {
+		parts := []string{}
+		for _, text := range []*string{&metric.Name, metric.Value, metric.Unit, metric.Change, metric.Period} {
+			if text != nil && strings.TrimSpace(*text) != "" {
+				parts = append(parts, *text)
+			}
+		}
+		appendTag("metric", strings.Join(parts, " · "))
+	}
+	return tags
 }

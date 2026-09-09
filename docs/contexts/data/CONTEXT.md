@@ -214,6 +214,14 @@ Data 为新建 Atomic Evidence 保存数据库生成的内部 `created_at`；发
 不返回，历史行不回填。Evidence 不可变，因此没有 `updated_at`。
 _Avoid_: Event Evidence Link、完整 Raw Evidence、Evidence Group、Event
 
+**Report Evidence Semantic Tags**:
+Report 的 `/evidences` 读取投影在原 `published_at/summary/keywords` 上追加可选
+`semantic_tags: [{kind, text}]`；kind 为 actor/action/object/metric。Data 从已持久化
+semantic 提取 actors/action/objects/metrics，按原顺序输出；metric 用 `·` 连接非空
+name/value/unit/change/period，保留原始值与语境，不生成结论或重新提取语义。
+缺少可展示语义时不生成标签；不改变报告、Evidence 身份、查询 scope 或持久化字段。
+该新增响应字段需在严格的旧 BFF 和 Miniapp 消费者完成兼容升级后发布，详见 #466。
+
 **Atomic Evidence Identity**:
 Data 根据所属 Raw Evidence 身份与 Atomic Evidence 的 `summary + keywords + semantic` 规范内容确定性
 派生正式 ID；调用方不提交 ID。该身份只保证同一 Raw Evidence 完整集合的安全重试，不执行

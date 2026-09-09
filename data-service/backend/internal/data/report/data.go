@@ -235,7 +235,7 @@ func (s Store) ListEvidence(ctx context.Context, reportID, scopeToken string) ([
 	if err != nil {
 		return nil, fmt.Errorf("resolve Report Evidence scope: %w", err)
 	}
-	rows, err := s.db.QueryContext(ctx, `SELECT raw.published_at, evidence.summary, to_json(evidence.keywords)
+	rows, err := s.db.QueryContext(ctx, `SELECT raw.published_at, evidence.summary, to_json(evidence.keywords), evidence.semantic
 FROM report_evidence_links AS link
 JOIN evidences AS evidence ON evidence.id = link.evidence_id
 JOIN raw_evidences AS raw ON raw.id = evidence.raw_evidence_id
@@ -249,8 +249,8 @@ ORDER BY link.position ASC`, reportID, scopePath)
 	for rows.Next() {
 		var item reportbiz.Evidence
 		var publishedAt sql.NullTime
-		var keywordsJSON []byte
-		if err := rows.Scan(&publishedAt, &item.Summary, &keywordsJSON); err != nil {
+		var keywordsJSON, semanticJSON []byte
+		if err := rows.Scan(&publishedAt, &item.Summary, &keywordsJSON, &semanticJSON); err != nil {
 			return nil, fmt.Errorf("scan Report Evidence: %w", err)
 		}
 		if publishedAt.Valid {
@@ -262,6 +262,13 @@ ORDER BY link.position ASC`, reportID, scopePath)
 		}
 		if strings.TrimSpace(item.Summary) == "" {
 			return nil, persistedInvariant("Report Evidence", "summary", "value is blank")
+		}
+		if !isNullJSON(semanticJSON) {
+			var semantic reportbiz.EvidenceSemanticProjection
+			if err := json.Unmarshal(semanticJSON, &semantic); err != nil {
+				return nil, persistedInvariant("Report Evidence", "semantic", "invalid semantic projection")
+			}
+			item.SemanticTags = reportbiz.ProjectEvidenceTags(semantic)
 		}
 		result = append(result, item)
 	}

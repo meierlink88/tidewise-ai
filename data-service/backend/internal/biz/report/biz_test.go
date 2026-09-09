@@ -7,6 +7,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -690,5 +691,20 @@ func TestSignalDirectionsAreIndependentOfJudgmentDirection(t *testing.T) {
 	co.ReasoningSources = &reportbiz.V5ReasoningSources{SignalIDs: []string{row.SignalID}, EventIDs: row.EventIDs, UpstreamRefs: []reportbiz.V5UpstreamRef{}}
 	if err := reportbiz.ValidateReport(r); err == nil {
 		t.Fatal("accepted a story signal copied to a company")
+	}
+}
+
+func TestEvidenceSemanticTagProjectionPreservesOrderAndMetrics(t *testing.T) {
+	value, unit, change, period := "100", "台", "同比增长20%", "2026年9月"
+	tags := reportbiz.ProjectEvidenceTags(reportbiz.EvidenceSemanticProjection{
+		Actors: []string{"示例企业"}, Action: "发布扩产计划", Objects: []string{"服务器产线"},
+		Metrics: []reportbiz.EvidenceMetricProjection{{Name: "月产能", Value: &value, Unit: &unit, Change: &change, Period: &period}, {Name: "无数值指标"}},
+	})
+	expected := []reportbiz.EvidenceTag{{Kind: "actor", Text: "示例企业"}, {Kind: "action", Text: "发布扩产计划"}, {Kind: "object", Text: "服务器产线"}, {Kind: "metric", Text: "月产能 · 100 · 台 · 同比增长20% · 2026年9月"}, {Kind: "metric", Text: "无数值指标"}}
+	if !reflect.DeepEqual(tags, expected) {
+		t.Fatalf("tags=%#v", tags)
+	}
+	if len(reportbiz.ProjectEvidenceTags(reportbiz.EvidenceSemanticProjection{})) != 0 {
+		t.Fatal("empty semantic invented tags")
 	}
 }

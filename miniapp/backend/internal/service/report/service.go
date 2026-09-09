@@ -50,6 +50,9 @@ func (s *Service) ListEvidences(ctx context.Context, request *api.EvidenceReques
 			publishedAt = &formatted
 		}
 		items[index] = api.EvidenceItem{PublishedAt: publishedAt, Summary: item.Summary, Keywords: cloneStrings(item.Keywords)}
+		for _, tag := range item.SemanticTags {
+			items[index].SemanticTags = append(items[index].SemanticTags, api.EvidenceTag{Kind: tag.Kind, Text: tag.Text})
+		}
 	}
 	return &api.EvidenceCollection{ReportID: result.ReportID, ScopeToken: result.ScopeToken, Items: items}, nil
 }

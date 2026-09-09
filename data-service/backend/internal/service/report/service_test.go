@@ -48,13 +48,16 @@ func TestListIndustryChainsReturnsCursorPage(t *testing.T) {
 }
 
 func TestEvidenceReadUsesOpaqueScopeToken(t *testing.T) {
-	useCase := &fakeUseCase{evidence: []reportbiz.Evidence{{Summary: "证据摘要", Keywords: []string{"关键词"}}}}
+	useCase := &fakeUseCase{evidence: []reportbiz.Evidence{{Summary: "证据摘要", Keywords: []string{"关键词"}, SemanticTags: []reportbiz.EvidenceTag{{Kind: "action", Text: "发布"}}}}}
 	service, _ := NewService(useCase)
 	response, err := service.ListReportEvidence(context.Background(), &reportapi.EvidenceRequest{
 		ReportID: reportfixture.ReportOne, ScopeToken: "RPE11111111-1111-4111-8111-111111111111",
 	})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if len(response.Result.Items[0].SemanticTags) != 1 || response.Result.Items[0].SemanticTags[0].Text != "发布" {
+		t.Fatal("semantic projection lost")
 	}
 	if useCase.scopeToken != "RPE11111111-1111-4111-8111-111111111111" || response.Result.Items[0].Summary != "证据摘要" {
 		t.Fatalf("response=%#v token=%s", response, useCase.scopeToken)

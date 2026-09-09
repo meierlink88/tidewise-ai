@@ -1,3 +1,5 @@
+import semanticFixture from './evidence-semantic.json';
+import { parseReportEvidenceListWire } from '../../features/reports/wire-contract';
 import normalized from './normalized.json';
 import {
   type AnalysisKind,
@@ -59,13 +61,20 @@ export class MockReportPort implements ReportPort {
         { published_at: string; summary: string; keywords: string[] }[]
       >
     )[scopeToken];
-    const items = normalizedItems?.map((x) => ({
-      publishedAt: x.published_at,
-      summary: x.summary,
-      keywords: x.keywords
-    }));
-    if (!items) throw new ReportError('evidenceScopeUnavailable');
-    return { reportId, scopeToken, items };
+    if (!normalizedItems) throw new ReportError('evidenceScopeUnavailable');
+    return parseReportEvidenceListWire(
+      {
+        report_id: reportId,
+        scope_token: scopeToken,
+        items: normalizedItems.map((item, index) =>
+          index === 0 && scopeToken === normalized.groups[0].items[0].summary.evidence_scope_token
+            ? semanticFixture.items[0]
+            : item
+        )
+      },
+      reportId,
+      scopeToken
+    );
   }
 }
 

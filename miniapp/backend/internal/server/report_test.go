@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -262,5 +263,52 @@ func TestRetiredReportRoutesReturnNotFound(t *testing.T) {
 		if response.Code != http.StatusNotFound {
 			t.Fatalf("%s status=%d", suffix, response.Code)
 		}
+	}
+}
+
+func TestEvidenceSemanticProjectionHTTPIsAdditive(t *testing.T) {
+	raw, err := os.ReadFile("../../../frontend/src/mocks/reports/evidence-semantic.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, enriched := range []bool{false, true} {
+		t.Run(fmt.Sprint(enriched), func(t *testing.T) {
+			var expected map[string]any
+			if err := json.Unmarshal(raw, &expected); err != nil {
+				t.Fatal(err)
+			}
+			if !enriched {
+				delete(expected["items"].([]any)[0].(map[string]any), "semantic_tags")
+			}
+			downstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/api/data/v1/reports/"+reportTestID+"/evidences" || r.URL.Query().Get("scope_token") != reportScopeToken || len(r.URL.Query()) != 1 {
+					t.Errorf("unexpected request %s", r.URL.RequestURI())
+				}
+				writeDownstreamResult(t, w, expected)
+			}))
+			defer downstream.Close()
+			client, err := dataapi.NewHTTPClient(dataapi.HTTPConfig{BaseURL: downstream.URL, ServiceToken: "test-token", Timeout: time.Second, MaxReadAttempts: 1, HTTPClient: downstream.Client()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer client.Close()
+			repo, _ := reportdata.NewRepository(client)
+			app, _ := reportservice.NewService(biz.NewUseCase(repo))
+			router := NewHTTPServer(testRuntimeConfig(), testLogger(), app)
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/miniapp/v1/reports/"+reportTestID+"/evidences?scope_token="+reportScopeToken, nil))
+			if response.Code != 200 {
+				t.Fatalf("status/body=%d/%s", response.Code, response.Body.String())
+			}
+			var actual struct {
+				Result map[string]any `json:"result"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &actual); err != nil {
+				t.Fatal(err)
+			}
+			if !reflect.DeepEqual(actual.Result, expected) {
+				t.Fatalf("actual=%#v expected=%#v", actual.Result, expected)
+			}
+		})
 	}
 }

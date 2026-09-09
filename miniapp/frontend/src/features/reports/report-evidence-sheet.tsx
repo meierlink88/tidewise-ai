@@ -200,6 +200,19 @@ function ReportEvidenceSheetContent({
                     : '时间待确认'}
                 </Text>
               </View>
+              {item.semanticTags?.length ? (
+                <View className='report-evidence-sheet__semantic-tags' ariaLabel='事件语义标签'>
+                  {item.semanticTags.map((tag, index) => (
+                    <Text
+                      className={`report-evidence-sheet__keyword report-evidence-sheet__keyword--${tag.kind}`}
+                      key={`${tag.kind}:${tag.text}:${index}`}
+                    >
+                      {tag.text}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+              <Text className='report-evidence-sheet__summary'>{item.summary}</Text>
               {item.keywords.length ? (
                 <View className='report-evidence-sheet__keywords' ariaLabel='关键词'>
                   {item.keywords.map((keyword) => (
@@ -209,7 +222,6 @@ function ReportEvidenceSheetContent({
                   ))}
                 </View>
               ) : null}
-              <Text className='report-evidence-sheet__summary'>{item.summary}</Text>
             </View>
           ))}
       </View>

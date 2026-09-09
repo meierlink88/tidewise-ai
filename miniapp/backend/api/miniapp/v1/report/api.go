@@ -215,9 +215,10 @@ type IndustryChainDetail struct {
 }
 
 type EvidenceItem struct {
-	PublishedAt *string  `json:"published_at"`
-	Summary     string   `json:"summary"`
-	Keywords    []string `json:"keywords"`
+	SemanticTags []EvidenceTag `json:"semantic_tags,omitempty"`
+	PublishedAt  *string       `json:"published_at"`
+	Summary      string        `json:"summary"`
+	Keywords     []string      `json:"keywords"`
 }
 
 type EvidenceCollection struct {
@@ -410,4 +411,9 @@ type NormalizedSignal struct {
 	EventIDs           []string `json:"event_ids"`
 	EvidenceScopeToken *string  `json:"evidence_scope_token"`
 	EvidenceCount      int      `json:"evidence_count"`
+}
+
+type EvidenceTag struct {
+	Kind string `json:"kind"`
+	Text string `json:"text"`
 }
