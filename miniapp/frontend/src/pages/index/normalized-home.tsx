@@ -205,7 +205,7 @@ function HomeCard({
           <Text className={`normalized-impact ${u.summary.impact_assessment.level}`}>
             {impactLabels[u.summary.impact_assessment.level]}
           </Text>
-          <Text>{u.title}</Text>
+          <Text className='normalized-card-story-name'>{u.title}</Text>
         </View>
         <Text className='normalized-card-time'>{time} 发布</Text>
       </View>
