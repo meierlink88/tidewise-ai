@@ -120,7 +120,7 @@
 .report-evidence-sheet__title {
   display: block;
   color: $color-evidence-ink;
-  font-size: $font-report-conclusion;
+  font-size: report-reading-font($font-report-conclusion);
   font-weight: 600;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -130,7 +130,7 @@
   display: block;
   margin-top: 4rpx;
   color: $color-evidence-muted;
-  font-size: $font-report-caption;
+  font-size: report-reading-font($font-report-caption);
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -139,7 +139,7 @@
   display: block;
   margin-bottom: 16rpx;
   color: $color-evidence-muted;
-  font-size: $font-report-meta;
+  font-size: report-reading-font($font-report-meta);
   line-height: 1.5;
 }
 
@@ -185,7 +185,7 @@
 
 .report-evidence-sheet__time {
   color: $color-evidence-ink;
-  font-size: $font-report-caption;
+  font-size: report-reading-font($font-report-caption);
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   line-height: 1.5;
@@ -198,7 +198,7 @@
   border-radius: 12rpx;
   background: $color-evidence-summary;
   color: $color-evidence-muted;
-  font-size: $font-report-meta;
+  font-size: report-reading-font($font-report-meta);
   font-weight: 400;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -218,7 +218,7 @@
   border-radius: 8rpx;
   background: $color-evidence-tag-surface;
   color: $color-evidence-tag-ink;
-  font-size: $font-evidence-tag;
+  font-size: report-reading-font($font-evidence-tag);
   font-weight: 500;
   line-height: 1.4;
   overflow-wrap: anywhere;
