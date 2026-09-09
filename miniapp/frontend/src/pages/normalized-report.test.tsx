@@ -79,7 +79,7 @@ describe('normalized report interaction', () => {
     act(() =>
       root.render(<NormalizedHome group={group} query='' onDetail={detail} onEvidence={vi.fn()} />)
     );
-    expect(host.querySelectorAll('.normalized-home-tab')).toHaveLength(3);
+    expect(host.querySelectorAll('.normalized-home-tab')).toHaveLength(4);
     expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(23);
     expect(host.querySelector('.normalized-home-total')?.textContent).toBe('已加载 23 条主线');
     click(host.querySelectorAll('.normalized-card-path')[2]);
@@ -97,6 +97,10 @@ describe('normalized report interaction', () => {
     expect(read).toHaveBeenLastCalledWith(reportId, 'concept_analyses', 'legacy-next');
     expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(27);
     expect(host.querySelector('.normalized-home-total')?.textContent).toBe('27 条主线');
+    click(host.querySelectorAll('.normalized-home-tab')[3]);
+    expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(25);
+    expect(host.querySelector('.normalized-home-total')?.textContent).toBe('25 条主线');
+    click(host.querySelectorAll('.normalized-home-tab')[0]);
     expect(host.querySelector('.normalized-home-more')).toBeNull();
     click(host.querySelectorAll('.normalized-card-path')[25]);
     expect(detail).toHaveBeenLastCalledWith({
@@ -147,10 +151,10 @@ describe('normalized report interaction', () => {
     expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(3);
     expect(host.querySelector('.normalized-home-total')?.textContent).toBe('3 条主线');
     for (let i = 0; i < 3; i++) {
-      click(host.querySelectorAll('.normalized-home-tab')[i < 2 ? i + 1 : 0]);
+      click(host.querySelectorAll('.normalized-home-tab')[i + 1]);
       const group = fixture.groups[i],
         unit = group.items[0];
-      const card = host.querySelectorAll('.normalized-home-card')[i < 2 ? 0 : 2];
+      const card = host.querySelectorAll('.normalized-home-card')[0];
       expect(card.querySelector('.normalized-card-conclusion')?.textContent).toBe(
         unit.summary.conclusion
       );

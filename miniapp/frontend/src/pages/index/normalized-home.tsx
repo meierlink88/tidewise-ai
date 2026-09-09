@@ -13,7 +13,12 @@ import evidenceIcon from '../../assets/icons/file-text-ink.svg';
 import arrowIcon from '../../assets/icons/report-arrow-right-light-gold.svg';
 import './normalized-home.scss';
 
-const categories = ['all', 'geopolitical_stories', 'macroeconomic_stories'] as const;
+const categories = [
+  'all',
+  'geopolitical_stories',
+  'macroeconomic_stories',
+  'concept_analyses'
+] as const;
 type Category = (typeof categories)[number];
 const allKinds: AnalysisKind[] = [
   'geopolitical_stories',
@@ -57,7 +62,12 @@ export function NormalizedHome({
       generation.current = version + 1;
     };
   }, [group]);
-  const sourceKinds: AnalysisKind[] = kind === 'all' ? allKinds : [kind];
+  const sourceKinds: AnalysisKind[] =
+    kind === 'all'
+      ? allKinds
+      : kind === 'concept_analyses'
+        ? ['industry_chain_analyses', 'concept_analyses']
+        : [kind];
   const groups = sourceKinds.flatMap((sourceKind) => {
     const page = pages[sourceKind] ?? group.analysisGroups?.find((g) => g.kind === sourceKind);
     return page ? [page] : [];
