@@ -9,6 +9,8 @@ ChainNode(产业链节点): EntityType
         name(产业链节点名称): Text
             desc: 产业链节点的正式显示名称
             constraint: NotNull
+        shortName(简称): Text
+            desc: 可选的锚点标签展示简称，未填写时为空，不替代正式名称或检索别名
         aliases(产业链节点别名): Text
             desc: 产业链节点用于匹配和检索的零个或多个稳定别名
             constraint: NotNull, MultiValue

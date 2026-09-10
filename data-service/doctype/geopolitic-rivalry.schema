@@ -6,6 +6,8 @@ GeopoliticRivalry(地缘政治故事线): EntityType
         name(故事线中文名称): Text
             desc: 故事线的中文正式名称
             constraint: NotNull
+        shortName(简称): Text
+            desc: 可选的锚点标签展示简称，未填写时为空，不替代故事线正式名称
         category(故事线分类): Text
             desc: 非枚举的故事线分类文案
             constraint: NotNull

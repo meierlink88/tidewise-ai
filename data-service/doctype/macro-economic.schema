@@ -6,6 +6,8 @@ MacroEconomic(宏观经济故事线): EntityType
         name(故事线中文名称): Text
             desc: 唯一的故事线中文正式名称
             constraint: NotNull
+        shortName(简称): Text
+            desc: 可选的锚点标签展示简称，未填写时为空，不替代故事线正式名称
         macroEconomicsDomainId(领域标识): Text
             desc: 故事线唯一主领域的 MacroEconomicDomain 标识
             constraint: NotNull

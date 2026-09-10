@@ -579,6 +579,14 @@ Tidewise AI 1.0 用于混合表达国家、全球范围、区域和跨国对象�
 Country 创建兼容 UUID、双读或双写入口；历史 migration 和合法宏观经济词汇不受影响。
 _Avoid_: Economy alias、Country/Economy fallback、从混合旧行猜测 Country
 
+**实体简称（Short Name）**:
+IndustryChain、ChainNode、MacroEconomic 和 GeopoliticRivalry 拥有可选的 `short_name`
+持久化属性，对应 Object Schema 的 `shortName`，供后续小程序锚点短标签使用。
+`NULL` 表示尚未填写；非空值必须包含非空白字符，无唯一性要求，不改变正式 `name`、
+检索 `aliases`、稳定 ID 或关系。第一阶段只新增数据库字段并导出人工审阅，既有 CRUD API
+尚不暴露该属性，报告发布与读取继续遵守不可变快照合同，不动态关联或改写历史报告标签。
+_Avoid_: 自动截取正式名称、把简称作为身份匹配别名、从实体简称动态改写历史报告
+
 **Research Graph Search**:
 Data Service 面向 Codex 分析师提供的同步、无状态、幂等只读图谱检索合同。Codex 显式
 指定 seed Entity、每种 Relation 的方向、最大深度、可选 Industry Chain scope 以及

@@ -87,3 +87,4 @@
 000086	normal	schema	expand immutable Report Evidence scope types for normalized assessments without rewriting historical rows
 000087	normal	schema	add nullable server-computed Report Evidence scope counts without rewriting immutable snapshots
 000088	high	schema	rename Report archive and add per-analysis summary/detail storage; stop traffic and run separate verified backfill before serving
+000089	normal	schema	add nullable entity short names without backfill or changes to existing names and immutable Report snapshots
