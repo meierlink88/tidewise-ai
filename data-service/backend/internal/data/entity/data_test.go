@@ -273,12 +273,12 @@ func TestIndependentEntityPersistenceSchemasStayAligned(t *testing.T) {
 		},
 		"chain_node": {
 			"short_name": "YES",
-			"id": "NO", "name": "NO", "aliases": "NO", "definition": "NO",
+			"id":         "NO", "name": "NO", "aliases": "NO", "definition": "NO",
 			"review_status": "NO", "created_at": "NO", "updated_at": "NO",
 		},
 		"industry_chain": {
 			"short_name": "YES",
-			"id": "NO", "name": "NO", "aliases": "NO", "scope": "NO", "target_output": "NO",
+			"id":         "NO", "name": "NO", "aliases": "NO", "scope": "NO", "target_output": "NO",
 			"end_use": "NO", "geography": "NO", "as_of_date": "NO", "review_status": "NO",
 			"review_note": "YES", "created_at": "NO", "updated_at": "NO",
 			"technology_route_qualifier": "YES", "observable_variables": "NO", "primary_country_id": "YES",
