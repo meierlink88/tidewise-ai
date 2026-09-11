@@ -32,6 +32,18 @@ func TestChainNodeHTTPContractPersistsIndependentChainNodeFacts(t *testing.T) {
 		t.Fatalf("created ChainNode = %#v", created)
 	}
 
+	if created.ShortName != nil {
+		t.Fatal("new entity must have null short_name")
+	}
+	for _, invalid := range []string{"一二三四五六", "   "} {
+		if _, err := db.ExecContext(context.Background(), "UPDATE chain_node SET short_name=$1 WHERE id=$2", invalid, created.ID); err == nil {
+			t.Fatal("accepted invalid short_name")
+		}
+	}
+	if _, err := db.ExecContext(context.Background(), "UPDATE chain_node SET short_name=$1 WHERE id=$2", "晶圆制造", created.ID); err != nil {
+		t.Fatal(err)
+	}
+
 	updated := request[chainnodeapi.ChainNode](t, handler, http.MethodPut, v1.APIPrefix+"/entities/chain-nodes/"+created.ID, `{
 		"name":"晶圆制造环节","aliases":["Wafer Fabrication"],
 		"definition":"将芯片设计转化为晶圆产品的制造环节","review_status":"approved"
@@ -40,9 +52,15 @@ func TestChainNodeHTTPContractPersistsIndependentChainNodeFacts(t *testing.T) {
 		t.Fatalf("updated ChainNode = %#v", updated)
 	}
 
+	if updated.ShortName == nil || *updated.ShortName != "晶圆制造" {
+		t.Fatal("old update erased initialized short_name")
+	}
 	detail := request[chainnodeapi.ChainNode](t, handler, http.MethodGet, v1.APIPrefix+"/entities/chain-nodes/"+created.ID, "", http.StatusOK)
 	if detail.Name != updated.Name || detail.Definition != updated.Definition {
 		t.Fatalf("ChainNode detail = %#v", detail)
+	}
+	if detail.ShortName == nil || *detail.ShortName != "晶圆制造" {
+		t.Fatal("detail lost short_name")
 	}
 	second := request[chainnodeapi.ChainNode](t, handler, http.MethodPost, v1.APIPrefix+"/entities/chain-nodes", `{
 		"name":"封装测试","aliases":[],"definition":"芯片封装与测试环节","review_status":"candidate"
@@ -55,6 +73,12 @@ func TestChainNodeHTTPContractPersistsIndependentChainNodeFacts(t *testing.T) {
 	if len(secondPage.Items) != 1 || secondPage.NextCursor != nil {
 		t.Fatalf("second ChainNode page = %#v", secondPage)
 	}
+	for _, item := range []chainnodeapi.ChainNode{firstPage.Items[0], secondPage.Items[0]} {
+		if item.ID == created.ID && (item.ShortName == nil || *item.ShortName != "晶圆制造") {
+			t.Fatal("list lost short_name")
+		}
+	}
+
 	listedIDs := map[string]bool{firstPage.Items[0].ID: true, secondPage.Items[0].ID: true}
 	if len(listedIDs) != 2 || !listedIDs[created.ID] || !listedIDs[second.ID] {
 		t.Fatalf("listed ChainNode IDs = %#v", listedIDs)

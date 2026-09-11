@@ -51,6 +51,7 @@ type UpdateRequest struct {
 	ReviewStatus string   `json:"review_status"`
 }
 type ChainNode struct {
+	ShortName    *string  `json:"short_name"`
 	ID           string   `json:"id"`
 	Name         string   `json:"name"`
 	Aliases      []string `json:"aliases"`

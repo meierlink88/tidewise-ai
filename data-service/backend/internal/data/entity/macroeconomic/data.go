@@ -40,6 +40,7 @@ type UpdateInput struct {
 }
 
 type MacroEconomic struct {
+	ShortName             *string
 	ID                    string
 	Name                  string
 	MacroEconomicDomainID string
@@ -158,7 +159,7 @@ RETURNING `+macroEconomicColumns,
 }
 
 const macroEconomicColumns = `
-id, name, macro_economics_domain_id, core_proposition, candidate_assets, created_at, updated_at`
+id, name, short_name, macro_economics_domain_id, core_proposition, candidate_assets, created_at, updated_at`
 
 type rowScanner interface{ Scan(...any) error }
 
@@ -166,7 +167,7 @@ func scanMacroEconomic(row rowScanner) (MacroEconomic, error) {
 	var result MacroEconomic
 	var candidateAssetsJSON []byte
 	if err := row.Scan(
-		&result.ID, &result.Name, &result.MacroEconomicDomainID,
+		&result.ID, &result.Name, &result.ShortName, &result.MacroEconomicDomainID,
 		&result.CoreProposition,
 		&candidateAssetsJSON,
 		&result.CreatedAt, &result.UpdatedAt,
@@ -201,6 +202,9 @@ func validateFilter(filter Filter) error {
 }
 
 func validateStored(input MacroEconomic) error {
+	if input.ShortName != nil && !validRequiredText(*input.ShortName, 5) {
+		return ErrInvalidMacroEconomic
+	}
 	if !coreid.Is(input.ID, coreid.MacroEconomic) || validateInput(CreateInput{
 		Name: input.Name, MacroEconomicDomainID: input.MacroEconomicDomainID,
 		CoreProposition: input.CoreProposition,

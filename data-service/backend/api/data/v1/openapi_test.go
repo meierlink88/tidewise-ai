@@ -372,8 +372,8 @@ func TestOpenAPIContractFreezesIndustryAndConceptWriteOperations(t *testing.T) {
 	}
 	assertRequired(t, schema(t, document, "Industry"), "id", "name", "aliases", "classification_system", "industry_code", "parent_industry_id", "hierarchy_path_codes", "definition", "review_status", "created_at", "updated_at")
 	assertRequired(t, schema(t, document, "Concept"), "id", "name", "aliases", "concept_type", "definition", "review_status", "created_at", "updated_at")
-	assertRequired(t, schema(t, document, "ChainNode"), "id", "name", "aliases", "definition", "review_status", "created_at", "updated_at")
-	assertRequired(t, schema(t, document, "IndustryChain"), "id", "name", "aliases", "scope", "target_output", "end_use", "geography", "primary_country_id", "as_of_date", "review_status", "review_note", "technology_route_qualifier", "observable_variables", "created_at", "updated_at")
+	assertRequired(t, schema(t, document, "ChainNode"), "id", "name", "short_name", "aliases", "definition", "review_status", "created_at", "updated_at")
+	assertRequired(t, schema(t, document, "IndustryChain"), "id", "name", "short_name", "aliases", "scope", "target_output", "end_use", "geography", "primary_country_id", "as_of_date", "review_status", "review_note", "technology_route_qualifier", "observable_variables", "created_at", "updated_at")
 }
 
 func TestOpenAPIContractFreezesIndustryAndConceptKeysetPagination(t *testing.T) {

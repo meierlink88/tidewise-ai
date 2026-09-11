@@ -9,6 +9,8 @@ IndustryChain(产业链): EntityType
         name(产业链名称): Text
             desc: 产业链的正式显示名称
             constraint: NotNull
+        shortName(简称): Text
+            desc: 可选锚点简称，非空时最多五个字符，明确国家时保留国家信息，不替代正式名称
         aliases(产业链别名): Text
             desc: 产业链用于匹配和检索的零个或多个稳定别名
             constraint: NotNull, MultiValue

@@ -3302,10 +3302,18 @@ components:
     ChainNode:
       type: object
       additionalProperties: false
-      required: [id, name, aliases, definition, review_status, created_at, updated_at]
+      required: [id, name, short_name, aliases, definition, review_status, created_at, updated_at]
       properties:
         id: { $ref: '#/components/schemas/ChainNodeID' }
         name: { type: string, minLength: 1 }
+        short_name:
+          type: string
+          nullable: true
+          readOnly: true
+          minLength: 1
+          maxLength: 5
+          pattern: '\S'
+          description: Reviewed short display name; null when unfilled. Managed by a separate data publication; ordinary writes preserve it.
         aliases:
           type: array
           uniqueItems: true
@@ -3383,6 +3391,7 @@ components:
         [
           id,
           name,
+          short_name,
           aliases,
           scope,
           target_output,
@@ -3400,6 +3409,14 @@ components:
       properties:
         id: { $ref: '#/components/schemas/IndustryChainID' }
         name: { type: string, minLength: 1 }
+        short_name:
+          type: string
+          nullable: true
+          readOnly: true
+          minLength: 1
+          maxLength: 5
+          pattern: '\S'
+          description: Reviewed short display name; null when unfilled. Managed by a separate data publication; ordinary writes preserve it.
         aliases: { type: array, uniqueItems: true, items: { type: string, minLength: 1 } }
         scope: { type: string, minLength: 1 }
         target_output: { type: string, minLength: 1 }

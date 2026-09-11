@@ -46,6 +46,7 @@ type UpdateInput struct {
 }
 
 type GeopoliticRivalry struct {
+	ShortName          *string
 	ID                 string
 	Name               string
 	Category           string
@@ -171,7 +172,7 @@ RETURNING `+geopoliticRivalryColumns,
 }
 
 const geopoliticRivalryColumns = `
-id, name, category, geopolitic_domain_id, core_proposition,
+id, name, short_name, category, geopolitic_domain_id, core_proposition,
 core_actors, main_transmission, candidate_assets, created_at, updated_at`
 
 type rowScanner interface{ Scan(...any) error }
@@ -180,7 +181,7 @@ func scanGeopoliticRivalry(row rowScanner) (GeopoliticRivalry, error) {
 	var result GeopoliticRivalry
 	var candidateAssetsJSON []byte
 	if err := row.Scan(
-		&result.ID, &result.Name, &result.Category, &result.GeopoliticDomainID,
+		&result.ID, &result.Name, &result.ShortName, &result.Category, &result.GeopoliticDomainID,
 		&result.CoreProposition, &result.CoreActors, &result.MainTransmission,
 		&candidateAssetsJSON,
 		&result.CreatedAt, &result.UpdatedAt,
@@ -219,6 +220,9 @@ func validateFilter(filter Filter) error {
 }
 
 func validateStored(input GeopoliticRivalry) error {
+	if input.ShortName != nil && !validRequiredText(*input.ShortName, 5) {
+		return ErrInvalidGeopoliticRivalry
+	}
 	if !coreid.Is(input.ID, coreid.GeopoliticRivalry) || validateInput(CreateInput{
 		Name: input.Name, Category: input.Category, GeopoliticDomainID: input.GeopoliticDomainID,
 		CoreProposition: input.CoreProposition, CoreActors: input.CoreActors,

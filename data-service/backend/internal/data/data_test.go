@@ -138,6 +138,7 @@ func TestPublishedObjectSchemasAndPersistenceStayAligned(t *testing.T) {
 			schemaMembers: []string{
 				"GeopoliticRivalry(地缘政治故事线): EntityType",
 				"name(故事线中文名称): Text",
+				"shortName(简称): Text",
 				"category(故事线分类): Text",
 				"geopoliticDomainId(领域标识): Text",
 				"coreProposition(核心命题): Text",
@@ -151,6 +152,7 @@ func TestPublishedObjectSchemasAndPersistenceStayAligned(t *testing.T) {
 			columns: []schemaColumn{
 				{name: "id", nullable: "NO", dataType: "varchar", maxLength: 39},
 				{name: "name", nullable: "NO", dataType: "varchar", maxLength: 100},
+				{name: "short_name", nullable: "YES", dataType: "text"},
 				{name: "category", nullable: "NO", dataType: "varchar", maxLength: 100},
 				{name: "geopolitic_domain_id", nullable: "NO", dataType: "varchar", maxLength: 39},
 				{name: "core_proposition", nullable: "NO", dataType: "text"},
@@ -161,6 +163,8 @@ func TestPublishedObjectSchemasAndPersistenceStayAligned(t *testing.T) {
 				{name: "updated_at", nullable: "NO", dataType: "timestamptz", defaultContains: "now()"},
 			},
 			constraints: []schemaConstraint{
+				{name: "chk_geopolitic_rivalries_short_name", requiredTokens: []string{"short_name IS NULL", "[^[:space:]]"}},
+				{name: "chk_geopolitic_rivalries_short_name_length", requiredTokens: []string{"char_length(short_name) >= 1", "char_length(short_name) <= 5"}},
 				{name: "chk_geopolitic_rivalries_identity", requiredTokens: []string{"^GPR[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"}},
 				{name: "chk_geopolitic_rivalries_required_text", requiredTokens: []string{"btrim(name::text) <> ''::text", "btrim(category::text) <> ''::text", "btrim(core_proposition) <> ''::text", "btrim(core_actors) <> ''::text", "btrim(main_transmission) <> ''::text"}},
 				{name: "chk_geopolitic_rivalries_candidate_assets", requiredTokens: []string{"validate_geopolitic_candidate_assets(candidate_assets)"}},
@@ -210,6 +214,7 @@ func TestPublishedObjectSchemasAndPersistenceStayAligned(t *testing.T) {
 			schemaMembers: []string{
 				"MacroEconomic(宏观经济故事线): EntityType",
 				"name(故事线中文名称): Text",
+				"shortName(简称): Text",
 				"macroEconomicsDomainId(领域标识): Text",
 				"coreProposition(核心命题): Text",
 				"candidateAssets(候选资产): Text",
@@ -220,6 +225,7 @@ func TestPublishedObjectSchemasAndPersistenceStayAligned(t *testing.T) {
 			columns: []schemaColumn{
 				{name: "id", nullable: "NO", dataType: "varchar", maxLength: 39},
 				{name: "name", nullable: "NO", dataType: "varchar", maxLength: 100},
+				{name: "short_name", nullable: "YES", dataType: "text"},
 				{name: "macro_economics_domain_id", nullable: "NO", dataType: "varchar", maxLength: 39},
 				{name: "core_proposition", nullable: "NO", dataType: "text"},
 				{name: "candidate_assets", nullable: "NO", dataType: "jsonb"},
@@ -227,6 +233,8 @@ func TestPublishedObjectSchemasAndPersistenceStayAligned(t *testing.T) {
 				{name: "updated_at", nullable: "NO", dataType: "timestamptz", defaultContains: "now()"},
 			},
 			constraints: []schemaConstraint{
+				{name: "chk_macro_economics_short_name", requiredTokens: []string{"short_name IS NULL", "[^[:space:]]"}},
+				{name: "chk_macro_economics_short_name_length", requiredTokens: []string{"char_length(short_name) >= 1", "char_length(short_name) <= 5"}},
 				{name: "chk_macro_economics_identity", requiredTokens: []string{"^MEC[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"}},
 				{name: "chk_macro_economics_required_text", requiredTokens: []string{"btrim(name::text) <> ''::text", "btrim(core_proposition) <> ''::text"}},
 				{name: "macro_economics_candidate_assets_check", requiredTokens: []string{"validate_macroeconomic_candidate_assets(candidate_assets)"}},

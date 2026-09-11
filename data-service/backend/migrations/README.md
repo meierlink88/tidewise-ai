@@ -1,5 +1,13 @@
 # Database Migrations
 
+## 000090: 简称长度约束
+
+`000090_limit_entity_short_names.sql` 在四类实体既有的可空简称字段上增加最多五个
+Unicode 字符的限制，保留原有非纯空白约束。历史非法值会使整次迁移失败，须依据审阅数据
+另行修复。该迁移不填入任何简称；初始化由 `data-service/initdata/entity-short-names-v1.sql`
+独立发布（#483），不得接入部署。先应用 000089/000090，再发布数据。旧代码显式列写入
+继续兼容；应用回退保留字段、约束和已确认的简称。
+
 本目录保存 PostgreSQL schema 的版本化 DDL，是数据库结构演进的工程来源。
 
 规则：
@@ -400,3 +408,11 @@ check-only。迁移会删除 `storyline_domain_tactics`、`storyline_domains`、
 `geopolitical-catalog-publish -file /app/initdata/geopolitical-storylines-v2.json`，验证每条故事线的
 `candidate_assets` 均为非空、有序、无重复字符串数组。回滚必须同时恢复 migration 83 前快照和上一版
 应用，不运行 down migration。
+
+## Entity short names (000089)
+
+`000089_add_entity_short_names.sql` 为 `industry_chain`、`chain_node`、`macro_economics`
+和 `geopolitic_rivalries` 增加可空 `short_name TEXT`；非空值必须包含非空白字符。
+不回填简称、不更新旧字段或业务时间戳。先迁移 Schema，旧应用显式列读写保持兼容；回退应用时保留
+新增字段与人工审阅值。DDL 获取锁最多等待 5 秒，超时整次事务回滚后重试。第一阶段只提供持久化
+字段和人工审阅导出，CRUD wire 与历史 Report 快照保持现有合同。追踪：#481。

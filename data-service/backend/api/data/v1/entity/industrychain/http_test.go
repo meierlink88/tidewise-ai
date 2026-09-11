@@ -34,6 +34,18 @@ func TestIndustryChainHTTPContractPersistsIndependentIndustryChainFacts(t *testi
 		t.Fatalf("created IndustryChain = %#v", created)
 	}
 
+	if created.ShortName != nil {
+		t.Fatal("new entity must have null short_name")
+	}
+	for _, invalid := range []string{"一二三四五六", "   "} {
+		if _, err := db.ExecContext(context.Background(), "UPDATE industry_chain SET short_name=$1 WHERE id=$2", invalid, created.ID); err == nil {
+			t.Fatal("accepted invalid short_name")
+		}
+	}
+	if _, err := db.ExecContext(context.Background(), "UPDATE industry_chain SET short_name=$1 WHERE id=$2", "先进制程", created.ID); err != nil {
+		t.Fatal(err)
+	}
+
 	updated := request[industrychainapi.IndustryChain](t, handler, http.MethodPut, v1.APIPrefix+"/entities/industry-chains/"+created.ID, `{
 		"name":"先进逻辑芯片产业链","aliases":["先进逻辑"],"scope":"先进逻辑芯片全链条",
 		"target_output":"先进逻辑芯片","end_use":"人工智能与高性能计算","geography":"全球",
@@ -44,9 +56,15 @@ func TestIndustryChainHTTPContractPersistsIndependentIndustryChainFacts(t *testi
 		t.Fatalf("updated IndustryChain = %#v", updated)
 	}
 
+	if updated.ShortName == nil || *updated.ShortName != "先进制程" {
+		t.Fatal("old update erased initialized short_name")
+	}
 	detail := request[industrychainapi.IndustryChain](t, handler, http.MethodGet, v1.APIPrefix+"/entities/industry-chains/"+created.ID, "", http.StatusOK)
 	if detail.Name != updated.Name || detail.Scope != updated.Scope || detail.TechnologyRouteQualifier != nil {
 		t.Fatalf("IndustryChain detail = %#v", detail)
+	}
+	if detail.ShortName == nil || *detail.ShortName != "先进制程" {
+		t.Fatal("detail lost short_name")
 	}
 	second := request[industrychainapi.IndustryChain](t, handler, http.MethodPost, v1.APIPrefix+"/entities/industry-chains", `{
 		"name":"成熟制程产业链","aliases":[],"scope":"成熟制程","target_output":"成熟制程芯片",
@@ -62,6 +80,12 @@ func TestIndustryChainHTTPContractPersistsIndependentIndustryChainFacts(t *testi
 	if len(secondPage.Items) != 1 || secondPage.NextCursor != nil {
 		t.Fatalf("second IndustryChain page = %#v", secondPage)
 	}
+	for _, item := range []industrychainapi.IndustryChain{firstPage.Items[0], secondPage.Items[0]} {
+		if item.ID == created.ID && (item.ShortName == nil || *item.ShortName != "先进制程") {
+			t.Fatal("list lost short_name")
+		}
+	}
+
 	listedIDs := map[string]bool{firstPage.Items[0].ID: true, secondPage.Items[0].ID: true}
 	if len(listedIDs) != 2 || !listedIDs[created.ID] || !listedIDs[second.ID] {
 		t.Fatalf("listed IndustryChain IDs = %#v", listedIDs)
