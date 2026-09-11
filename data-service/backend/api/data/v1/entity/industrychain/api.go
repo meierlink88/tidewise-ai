@@ -54,6 +54,7 @@ type UpdateRequest struct {
 	CreateRequest
 }
 type IndustryChain struct {
+	ShortName                *string  `json:"short_name"`
 	ID                       string   `json:"id"`
 	Name                     string   `json:"name"`
 	Aliases                  []string `json:"aliases"`

@@ -1,5 +1,13 @@
 # Database Migrations
 
+## 000090: 简称长度约束
+
+`000090_limit_entity_short_names.sql` 在四类实体既有的可空简称字段上增加最多五个
+Unicode 字符的限制，保留原有非纯空白约束。历史非法值会使整次迁移失败，须依据审阅数据
+另行修复。该迁移不填入任何简称；初始化由 `data-service/initdata/entity-short-names-v1.sql`
+独立发布（#483），不得接入部署。先应用 000089/000090，再发布数据。旧代码显式列写入
+继续兼容；应用回退保留字段、约束和已确认的简称。
+
 本目录保存 PostgreSQL schema 的版本化 DDL，是数据库结构演进的工程来源。
 
 规则：

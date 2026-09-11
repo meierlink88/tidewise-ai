@@ -110,7 +110,7 @@ func industryChainDTO(input industrychainbiz.IndustryChain) industrychainapi.Ind
 	if variables == nil {
 		variables = []string{}
 	}
-	return industrychainapi.IndustryChain{ID: string(input.ID), Name: input.Name, Aliases: aliases, Scope: input.Scope, TargetOutput: input.TargetOutput, EndUse: input.EndUse, Geography: input.Geography, PrimaryCountryID: cloneString(input.PrimaryCountryID), AsOfDate: input.AsOfDate.Format("2006-01-02"), ReviewStatus: string(input.ReviewStatus), ReviewNote: cloneString(input.ReviewNote), TechnologyRouteQualifier: cloneString(input.TechnologyRouteQualifier), ObservableVariables: variables, CreatedAt: input.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: input.UpdatedAt.UTC().Format(time.RFC3339Nano)}
+	return industrychainapi.IndustryChain{ShortName: input.ShortName, ID: string(input.ID), Name: input.Name, Aliases: aliases, Scope: input.Scope, TargetOutput: input.TargetOutput, EndUse: input.EndUse, Geography: input.Geography, PrimaryCountryID: cloneString(input.PrimaryCountryID), AsOfDate: input.AsOfDate.Format("2006-01-02"), ReviewStatus: string(input.ReviewStatus), ReviewNote: cloneString(input.ReviewNote), TechnologyRouteQualifier: cloneString(input.TechnologyRouteQualifier), ObservableVariables: variables, CreatedAt: input.CreatedAt.UTC().Format(time.RFC3339Nano), UpdatedAt: input.UpdatedAt.UTC().Format(time.RFC3339Nano)}
 }
 func cloneString(value *string) *string {
 	if value == nil {

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 )
@@ -35,6 +36,7 @@ const (
 type ID string
 
 type ChainNode struct {
+	ShortName    *string
 	ID           ID
 	Name         string
 	Aliases      []string
@@ -145,6 +147,9 @@ func (s *UseCase) Update(ctx context.Context, id ID, input Update) (ChainNode, e
 func IsID(value string) bool { return coreid.Is(value, coreid.ChainNode) }
 
 func ValidatePersisted(input ChainNode) error {
+	if input.ShortName != nil && (strings.TrimSpace(*input.ShortName) == "" || utf8.RuneCountInString(*input.ShortName) > 5) {
+		return &ValidationError{Field: "short_name", Message: "must be nonblank and at most 5 characters"}
+	}
 	if err := validateID(input.ID); err != nil {
 		return err
 	}

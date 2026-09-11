@@ -19,7 +19,7 @@ func NewStore(db *sql.DB) (*Store, error) {
 	return &Store{db: db}, nil
 }
 
-const industryChainColumns = `i.id, i.name, array_to_json(i.aliases), i.scope, i.target_output, i.end_use,
+const industryChainColumns = `i.id, i.name, i.short_name, array_to_json(i.aliases), i.scope, i.target_output, i.end_use,
 i.geography, i.primary_country_id, i.as_of_date, i.review_status, i.review_note,
 i.technology_route_qualifier, array_to_json(i.observable_variables), i.created_at, i.updated_at,
 (i.primary_country_id IS NULL OR EXISTS (SELECT 1 FROM countries country WHERE country.id = i.primary_country_id))`
@@ -38,7 +38,7 @@ func (s *Store) Create(ctx context.Context, input industrychainbiz.IndustryChain
 	row := s.db.QueryRowContext(ctx, `WITH inserted AS (
 INSERT INTO industry_chain (id,name,aliases,scope,target_output,end_use,geography,primary_country_id,as_of_date,review_status,review_note,technology_route_qualifier,observable_variables)
 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *)
-SELECT id,name,array_to_json(aliases),scope,target_output,end_use,geography,primary_country_id,as_of_date,review_status,review_note,technology_route_qualifier,array_to_json(observable_variables),created_at,updated_at,
+SELECT id,name,short_name,array_to_json(aliases),scope,target_output,end_use,geography,primary_country_id,as_of_date,review_status,review_note,technology_route_qualifier,array_to_json(observable_variables),created_at,updated_at,
 (primary_country_id IS NULL OR EXISTS (SELECT 1 FROM countries country WHERE country.id = inserted.primary_country_id)) FROM inserted`,
 		input.ID, input.Name, input.Aliases, input.Scope, input.TargetOutput, input.EndUse, input.Geography, input.PrimaryCountryID, input.AsOfDate, input.ReviewStatus, input.ReviewNote, input.TechnologyRouteQualifier, input.ObservableVariables)
 	return scanIndustryChain(row, classifyWriteError)
@@ -93,7 +93,7 @@ func scanIndustryChain(row rowScanner, classify func(error) error) (industrychai
 	var aliasesJSON, variablesJSON []byte
 	var country, reviewNote, qualifier sql.NullString
 	var countryValid bool
-	if err := row.Scan(&result.ID, &result.Name, &aliasesJSON, &result.Scope, &result.TargetOutput, &result.EndUse, &result.Geography, &country, &result.AsOfDate, &result.ReviewStatus, &reviewNote, &qualifier, &variablesJSON, &result.CreatedAt, &result.UpdatedAt, &countryValid); err != nil {
+	if err := row.Scan(&result.ID, &result.Name, &result.ShortName, &aliasesJSON, &result.Scope, &result.TargetOutput, &result.EndUse, &result.Geography, &country, &result.AsOfDate, &result.ReviewStatus, &reviewNote, &qualifier, &variablesJSON, &result.CreatedAt, &result.UpdatedAt, &countryValid); err != nil {
 		return industrychainbiz.IndustryChain{}, classify(err)
 	}
 	if country.Valid {

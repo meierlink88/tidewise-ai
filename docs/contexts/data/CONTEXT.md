@@ -582,9 +582,14 @@ _Avoid_: Economy alias、Country/Economy fallback、从混合旧行猜测 Countr
 **实体简称（Short Name）**:
 IndustryChain、ChainNode、MacroEconomic 和 GeopoliticRivalry 拥有可选的 `short_name`
 持久化属性，对应 Object Schema 的 `shortName`，供后续小程序锚点短标签使用。
-`NULL` 表示尚未填写；非空值必须包含非空白字符，无唯一性要求，不改变正式 `name`、
-检索 `aliases`、稳定 ID 或关系。第一阶段只新增数据库字段并导出人工审阅，既有 CRUD API
-尚不暴露该属性，报告发布与读取继续遵守不可变快照合同，不动态关联或改写历史报告标签。
+`NULL` 表示尚未填写；非空值为 1–5 个 Unicode 字符且不能是纯空白，无唯一性要求，
+不改变正式 `name`、检索 `aliases`、稳定 ID 或关系。审阅简称尽量简短，原名称明确国家时
+保留国家信息。四类 Data 读取模型返回简称；IndustryChain/ChainNode 的既有 HTTP 响应增加
+可空只读 `short_name`，写入请求保持不变，既有更新与目录发布均保留简称。MacroEconomic/
+GeopoliticRivalry 仍只有现有 Data Adapter，不为此新增 HTTP CRUD。
+人工确认的简称通过独立 Data initdata 属性更新包发布（#483），不由 Schema migration 或
+普通部署初始化。该一次性更新不创建 Entity/关系，不构成 Data-owned Entity authoring 能力。
+报告发布与读取继续遵守不可变快照合同，不动态关联或改写历史报告标签。
 _Avoid_: 自动截取正式名称、把简称作为身份匹配别名、从实体简称动态改写历史报告
 
 **Research Graph Search**:

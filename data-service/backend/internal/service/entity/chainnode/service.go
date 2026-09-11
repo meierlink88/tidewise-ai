@@ -102,7 +102,7 @@ func chainNodeDTO(input chainnodebiz.ChainNode) chainnodeapi.ChainNode {
 	if aliases == nil {
 		aliases = []string{}
 	}
-	return chainnodeapi.ChainNode{
+	return chainnodeapi.ChainNode{ShortName: input.ShortName,
 		ID: string(input.ID), Name: input.Name, Aliases: aliases, Definition: input.Definition,
 		ReviewStatus: string(input.ReviewStatus), CreatedAt: input.CreatedAt.UTC().Format(time.RFC3339Nano),
 		UpdatedAt: input.UpdatedAt.UTC().Format(time.RFC3339Nano),

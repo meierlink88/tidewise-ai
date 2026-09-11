@@ -19,7 +19,7 @@ func NewStore(db *sql.DB) (*Store, error) {
 	return &Store{db: db}, nil
 }
 
-const chainNodeColumns = `c.id, c.name, array_to_json(c.aliases), c.definition,
+const chainNodeColumns = `c.id, c.name, c.short_name, array_to_json(c.aliases), c.definition,
 c.review_status, c.created_at, c.updated_at`
 
 func (s *Store) Create(ctx context.Context, input chainnodebiz.ChainNode) (chainnodebiz.ChainNode, error) {
@@ -36,7 +36,7 @@ WITH inserted AS (
     VALUES ($1, $2, $3, $4, $5)
     RETURNING *
 )
-SELECT id, name, array_to_json(aliases), definition, review_status, created_at, updated_at
+SELECT id, name, short_name, array_to_json(aliases), definition, review_status, created_at, updated_at
 FROM inserted`, input.ID, input.Name, input.Aliases, input.Definition, input.ReviewStatus)
 	return scanChainNode(row, classifyWriteError)
 }
@@ -97,7 +97,7 @@ type rowScanner interface{ Scan(...any) error }
 func scanChainNode(row rowScanner, classify func(error) error) (chainnodebiz.ChainNode, error) {
 	var result chainnodebiz.ChainNode
 	var aliasesJSON []byte
-	if err := row.Scan(&result.ID, &result.Name, &aliasesJSON, &result.Definition, &result.ReviewStatus, &result.CreatedAt, &result.UpdatedAt); err != nil {
+	if err := row.Scan(&result.ID, &result.Name, &result.ShortName, &aliasesJSON, &result.Definition, &result.ReviewStatus, &result.CreatedAt, &result.UpdatedAt); err != nil {
 		return chainnodebiz.ChainNode{}, classify(err)
 	}
 	if err := json.Unmarshal(aliasesJSON, &result.Aliases); err != nil {

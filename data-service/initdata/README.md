@@ -1,5 +1,39 @@
 # Data initialization packages
 
+## Reviewed entity short names (#483)
+
+`entity-short-names-v1.sql` is a separate operator publication from the user-approved
+`六类实体全量数据_简称含国家_20260911.xlsx`; its SHA-256 is in the SQL header.
+It updates 708 industry chains, 3,049 chain nodes, 34 macroeconomic storylines and
+44 geopolitical storylines. It creates no entities. The workbook omits IDs;
+exact unique names were joined to the original export snapshot to recover IDs.
+Both ID and name are verified against the destination, never fuzzily matched.
+
+Apply migrations through 000090 with the Data image first. Take a recovery point
+and record the four tables and relationship counts. Verify the destination's
+identity/name set independently in each environment; do not assume UAT equals
+the reviewed local catalog. Then use an operator-controlled PostgreSQL connection:
+
+```sh
+psql -X -v ON_ERROR_STOP=1 -f data-service/initdata/entity-short-names-v1.sql
+```
+
+This is never run by Goose or deployment. One transaction locks the four tables
+with a five-second lock timeout, checks all rows before updating, and aborts on
+missing IDs, changed names or conflicting labels. Only NULL labels are filled;
+exact replay changes zero rows and preserves timestamps. Only `short_name` and
+the changed rows' `updated_at` are modified. Unlisted rows and relationships stay
+unchanged. Labels contain 1–5 Unicode characters, including common AI/5G forms.
+
+Verify every value against the workbook, compare other fields and relationships,
+then replay to verify zero changes. Restore from the recovery point or use a
+reviewed forward repair on failure; application rollback retains initialized
+labels. Existing CRUD and catalog updates preserve this property. Consumers that
+reject unknown response fields must accept `short_name` before shared rollout.
+
+This one-time Data-owned attribute update is not a new Entity authoring/import
+capability. Existing IDs are update selectors, not caller-supplied creation IDs.
+
 These versioned packages are Data-owned publication inputs. They are not
 schema migrations and UAT deployment must not publish them automatically.
 

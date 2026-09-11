@@ -40,6 +40,25 @@ func TestStorePersistsGeopoliticalStorylineWithOneDomain(t *testing.T) {
 		t.Fatalf("Create() times = %s, %s", created.CreatedAt, created.UpdatedAt)
 	}
 
+	if created.ShortName != nil {
+		t.Fatal("new storyline must have null short_name")
+	}
+	for _, invalid := range []string{"", "   ", "一二三四五六"} {
+		if _, err := db.ExecContext(context.Background(), "UPDATE geopolitic_rivalries SET short_name=$1 WHERE id=$2", invalid, created.ID); err == nil {
+			t.Fatal("accepted invalid short_name")
+		}
+		corrupt := created
+		corrupt.ShortName = &invalid
+		if err := validateStored(corrupt); err == nil {
+			t.Fatal("accepted corrupted stored short_name")
+		}
+	}
+	label := "俄乌战争"
+	if _, err := db.ExecContext(context.Background(), "UPDATE geopolitic_rivalries SET short_name=$1 WHERE id=$2", label, created.ID); err != nil {
+		t.Fatal(err)
+	}
+	created.ShortName = &label
+
 	got, err := store.Get(context.Background(), created.ID)
 	if err != nil || !reflect.DeepEqual(got, created) {
 		t.Fatalf("Get() = %#v, %v; want %#v", got, err, created)
@@ -55,6 +74,10 @@ func TestStorePersistsGeopoliticalStorylineWithOneDomain(t *testing.T) {
 	if !reflect.DeepEqual(updated.CandidateAssets, []string{"原油", "黄金", "VIX指数"}) {
 		t.Fatalf("Update() candidate assets = %#v", updated.CandidateAssets)
 	}
+	if updated.ShortName == nil || *updated.ShortName != label {
+		t.Fatal("update erased short_name")
+	}
+
 	listed, err := store.List(context.Background(), Filter{})
 	if err != nil || len(listed) != 1 || !reflect.DeepEqual(listed[0], updated) {
 		t.Fatalf("List() = %#v, %v; want %#v", listed, err, updated)

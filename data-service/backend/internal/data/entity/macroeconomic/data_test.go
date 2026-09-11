@@ -33,6 +33,25 @@ func TestStoreStorylineContracts(t *testing.T) {
 	if !coreid.Is(created.ID, coreid.MacroEconomic) || created.Name != input.Name || created.CoreProposition != input.CoreProposition || !reflect.DeepEqual(created.CandidateAssets, input.CandidateAssets) {
 		t.Fatalf("created: %#v", created)
 	}
+	if created.ShortName != nil {
+		t.Fatal("new storyline must have null short_name")
+	}
+	for _, invalid := range []string{"", "   ", "一二三四五六"} {
+		if _, err := db.ExecContext(context.Background(), "UPDATE macro_economics SET short_name=$1 WHERE id=$2", invalid, created.ID); err == nil {
+			t.Fatal("accepted invalid short_name")
+		}
+		corrupt := created
+		corrupt.ShortName = &invalid
+		if err := validateStored(corrupt); err == nil {
+			t.Fatal("accepted corrupted stored short_name")
+		}
+	}
+	label := "中国利率"
+	if _, err := db.ExecContext(context.Background(), "UPDATE macro_economics SET short_name=$1 WHERE id=$2", label, created.ID); err != nil {
+		t.Fatal(err)
+	}
+	created.ShortName = &label
+
 	got, err := s.Get(ctx, created.ID)
 	if err != nil || !reflect.DeepEqual(got, created) {
 		t.Fatalf("get: %#v %v", got, err)
@@ -65,6 +84,10 @@ func TestStoreStorylineContracts(t *testing.T) {
 	if err != nil || updated.ID != created.ID || !updated.CreatedAt.Equal(created.CreatedAt) || updated.CoreProposition == created.CoreProposition || len(updated.CandidateAssets) != 1 {
 		t.Fatalf("update: %#v %v", updated, err)
 	}
+	if updated.ShortName == nil || *updated.ShortName != label {
+		t.Fatal("update erased short_name")
+	}
+
 	for _, payload := range []string{`{}`, `null`, `[]`, `["黄金","黄金"]`, `[1]`} {
 		if _, err := db.ExecContext(ctx, "UPDATE macro_economics SET candidate_assets=$1::jsonb WHERE id=$2", payload, created.ID); err == nil {
 			t.Fatalf("database accepted %s", payload)
