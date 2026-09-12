@@ -36,11 +36,11 @@ func TestChainNodeHTTPContractPersistsIndependentChainNodeFacts(t *testing.T) {
 		t.Fatal("new entity must have null short_name")
 	}
 	for _, invalid := range []string{"一二三四五六", "   "} {
-		if _, err := db.ExecContext(context.Background(), "UPDATE chain_node SET short_name=$1 WHERE id=$2", invalid, created.ID); err == nil {
+		if _, err := db.ExecContext(context.Background(), "UPDATE industry_chain_node SET short_name=$1 WHERE id=$2", invalid, created.ID); err == nil {
 			t.Fatal("accepted invalid short_name")
 		}
 	}
-	if _, err := db.ExecContext(context.Background(), "UPDATE chain_node SET short_name=$1 WHERE id=$2", "晶圆制造", created.ID); err != nil {
+	if _, err := db.ExecContext(context.Background(), "UPDATE industry_chain_node SET short_name=$1 WHERE id=$2", "晶圆制造", created.ID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -90,13 +90,6 @@ func TestChainNodeHTTPContractPersistsIndependentChainNodeFacts(t *testing.T) {
 	}`, http.StatusBadRequest, "INVALID_REQUEST")
 	requestError(t, handler, http.MethodGet, v1.APIPrefix+"/entities/chain-nodes/CND99999999-9999-4999-8999-999999999999", "", http.StatusNotFound, chainnodeapi.ErrorNotFound)
 
-	var shadowRows int
-	if err := db.QueryRowContext(context.Background(), `SELECT count(*) FROM entity_nodes WHERE id = ANY($1::text[])`, []string{created.ID, second.ID}).Scan(&shadowRows); err != nil {
-		t.Fatal(err)
-	}
-	if shadowRows != 0 {
-		t.Fatalf("ChainNode writes created %d shadow Entity rows", shadowRows)
-	}
 }
 
 func newHandler(t *testing.T, db *sql.DB) http.Handler {

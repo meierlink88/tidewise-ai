@@ -35,7 +35,7 @@ func TestServiceMapsResearchGraphResult(t *testing.T) {
 		GraphFingerprint: "graph",
 		ActualDepth:      1,
 		Entities: []researchbiz.GraphEntity{{
-			EntityID: "ENT11111111-1111-4111-8111-111111111111",
+			EntityID: "IND11111111-1111-4111-8111-111111111111",
 			Name:     "Producer",
 		}},
 	}}
@@ -45,7 +45,7 @@ func TestServiceMapsResearchGraphResult(t *testing.T) {
 	}
 	response, err := service.SearchResearchGraph(context.Background(), &researchapi.ResearchGraphSearchRequest{
 		AnalysisAsOf:  "2026-07-30T00:00:00Z",
-		SeedEntityIDs: []string{"ENT11111111-1111-4111-8111-111111111111"},
+		SeedEntityIDs: []string{"IND11111111-1111-4111-8111-111111111111"},
 		RelationFilters: []researchapi.ResearchGraphRelationFilter{{
 			RelationType: "produces",
 			Direction:    "outgoing",

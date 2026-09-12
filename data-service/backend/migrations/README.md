@@ -416,3 +416,5 @@ check-only。迁移会删除 `storyline_domain_tactics`、`storyline_domains`、
 不回填简称、不更新旧字段或业务时间戳。先迁移 Schema，旧应用显式列读写保持兼容；回退应用时保留
 新增字段与人工审阅值。DDL 获取锁最多等待 5 秒，超时整次事务回滚后重试。第一阶段只提供持久化
 字段和人工审阅导出，CRUD wire 与历史 Report 快照保持现有合同。追踪：#481。
+
+- `000091_retire_generic_entities_and_rename_chain_nodes.sql`：无损更名节点及节点图表，删除通用 Entity/Edge 与八类 profile，更新身份、引用保护和防环函数；协调停写并备份，回滚需恢复数据库及匹配应用。

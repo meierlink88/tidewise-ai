@@ -32,7 +32,7 @@ func (s *Store) Create(ctx context.Context, input chainnodebiz.ChainNode) (chain
 	}
 	row := s.db.QueryRowContext(ctx, `
 WITH inserted AS (
-    INSERT INTO chain_node (id, name, aliases, definition, review_status)
+    INSERT INTO industry_chain_node (id, name, aliases, definition, review_status)
     VALUES ($1, $2, $3, $4, $5)
     RETURNING *
 )
@@ -42,7 +42,7 @@ FROM inserted`, input.ID, input.Name, input.Aliases, input.Definition, input.Rev
 }
 
 func (s *Store) Get(ctx context.Context, id chainnodebiz.ID) (chainnodebiz.ChainNode, error) {
-	return scanChainNode(s.db.QueryRowContext(ctx, `SELECT `+chainNodeColumns+` FROM chain_node c WHERE c.id = $1`, id), classifyReadError)
+	return scanChainNode(s.db.QueryRowContext(ctx, `SELECT `+chainNodeColumns+` FROM industry_chain_node c WHERE c.id = $1`, id), classifyReadError)
 }
 
 func (s *Store) List(ctx context.Context, query chainnodebiz.ListQuery) (chainnodebiz.ListResult, error) {
@@ -52,7 +52,7 @@ func (s *Store) List(ctx context.Context, query chainnodebiz.ListQuery) (chainno
 	}
 	rows, err := s.db.QueryContext(ctx, `
 SELECT `+chainNodeColumns+`
-FROM chain_node c
+FROM industry_chain_node c
 WHERE $1::text IS NULL OR c.id > $1
 ORDER BY c.id
 LIMIT $2`, afterID, query.PageSize+1)
@@ -80,7 +80,7 @@ LIMIT $2`, afterID, query.PageSize+1)
 
 func (s *Store) Update(ctx context.Context, id chainnodebiz.ID, input chainnodebiz.Update) (chainnodebiz.ChainNode, error) {
 	_, err := s.db.ExecContext(ctx, `
-UPDATE chain_node
+UPDATE industry_chain_node
 SET name = $2, aliases = $3, definition = $4, review_status = $5, updated_at = now()
 WHERE id = $1
   AND ROW(name, aliases, definition, review_status)
@@ -116,10 +116,9 @@ func (s *Store) objectIdentityExists(ctx context.Context, id chainnodebiz.ID) (b
 	var exists bool
 	err := s.db.QueryRowContext(ctx, `
 SELECT EXISTS (
-    SELECT 1 FROM entity_nodes WHERE id = $1
-    UNION ALL SELECT 1 FROM industry WHERE id = $1
+    SELECT 1 FROM industry WHERE id = $1
     UNION ALL SELECT 1 FROM concept WHERE id = $1
-    UNION ALL SELECT 1 FROM chain_node WHERE id = $1
+    UNION ALL SELECT 1 FROM industry_chain_node WHERE id = $1
     UNION ALL SELECT 1 FROM industry_chain WHERE id = $1
 )`, id).Scan(&exists)
 	if err != nil {
