@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import { useDidShow } from '@tarojs/taro';
 import { Button, Image, Input, Text, View } from '@tarojs/components';
 import type { HomeChromeMetrics } from '../../../platform/system-ui';
 import avatarImage from '../../../assets/nav-avatar.png';
@@ -12,6 +14,8 @@ interface HomeHeaderProps {
   onQueryChange: (query: string) => void;
 }
 
+const currentShanghaiDay = () => Math.floor((Date.now() + 8 * 60 * 60 * 1000) / 86400000);
+
 export function HomeHeader({
   chrome,
   publishedAt,
@@ -19,13 +23,20 @@ export function HomeHeader({
   onQueryChange,
   isSinglePage = false
 }: HomeHeaderProps) {
+  const [day, setDay] = useState(currentShanghaiDay);
+  useDidShow(() => setDay(currentShanghaiDay()));
+  useEffect(() => {
+    const timer = setInterval(() => setDay(currentShanghaiDay()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const currentDate = new Date(day * 86400000);
   const timestamp = publishedAt ? Date.parse(publishedAt) : NaN;
   const date = Number.isFinite(timestamp) ? new Date(timestamp + 8 * 60 * 60 * 1000) : null;
   const two = (value: number) => String(value).padStart(2, '0');
-  const dateLabel = date
-    ? `${two(date.getUTCMonth() + 1)}.${two(date.getUTCDate())} 周${'日一二三四五六'[date.getUTCDay()]}`
+  const dateLabel = `${two(currentDate.getUTCMonth() + 1)}.${two(currentDate.getUTCDate())} 周${'日一二三四五六'[currentDate.getUTCDay()]}`;
+  const timeLabel = date
+    ? `截至 ${two(date.getUTCMonth() + 1)}.${two(date.getUTCDate())} ${two(date.getUTCHours())}:${two(date.getUTCMinutes())}`
     : '';
-  const timeLabel = date ? `截至 ${two(date.getUTCHours())}:${two(date.getUTCMinutes())}` : '';
 
   return (
     <View className={isSinglePage ? 'home-hero home-hero--single-page' : 'home-hero'}>

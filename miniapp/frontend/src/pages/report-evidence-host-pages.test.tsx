@@ -43,6 +43,7 @@ vi.mock('@tarojs/taro', () => ({
     stopPullDownRefresh: vi.fn()
   },
   usePullDownRefresh: vi.fn(),
+  useDidShow: vi.fn(),
   useShareAppMessage: harness.friend,
   useShareTimeline: harness.timeline
 }));
