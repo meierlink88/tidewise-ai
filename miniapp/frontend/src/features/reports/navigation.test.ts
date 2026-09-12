@@ -21,7 +21,7 @@ describe('Report navigation', () => {
     expect(
       parseReportDetailRoute({
         ...route,
-        targetKey: targetKey.replaceAll('I', '%49').replaceAll('C', '%43')
+        targetKey: targetKey.replace(/I/g, '%49').replace(/C/g, '%43')
       })
     ).toEqual(route);
     const share = reportDetailShare(route);
