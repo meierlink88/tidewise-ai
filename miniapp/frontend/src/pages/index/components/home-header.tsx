@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDidShow } from '@tarojs/taro';
 import { Button, Image, Input, Text, View } from '@tarojs/components';
+import { NavigationBar } from '../../../platform/navigation-bar';
 import type { HomeChromeMetrics } from '../../../platform/system-ui';
 import avatarImage from '../../../assets/nav-avatar.png';
 import searchIcon from '../../../assets/icons/search.svg';
@@ -41,15 +42,10 @@ export function HomeHeader({
   return (
     <View className={isSinglePage ? 'home-hero home-hero--single-page' : 'home-hero'}>
       {!isSinglePage && (
-        <>
-          <View style={{ height: `${chrome.statusBarHeight}px` }} />
-          <View
-            className='home-nav'
-            style={{
-              height: `${chrome.navigationBarHeight}px`,
-              paddingRight: `${chrome.rightReservedWidth}px`
-            }}
-          >
+        <NavigationBar
+          title='观潮家'
+          chrome={chrome}
+          leading={
             <Button
               className='tidewise-button home-nav__avatar-button'
               hoverClass='none'
@@ -58,9 +54,8 @@ export function HomeHeader({
             >
               <Image className='home-nav__avatar' src={avatarImage} mode='aspectFill' />
             </Button>
-            <View className='home-nav__title'>观潮家</View>
-          </View>
-        </>
+          }
+        />
       )}
       <View className='home-brief'>
         <View className='home-brief__copy'>

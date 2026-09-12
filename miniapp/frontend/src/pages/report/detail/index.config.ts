@@ -9,7 +9,7 @@ export default definePageConfig({
   navigationBarTitleText: '深度分析',
   navigationBarBackgroundColor: '#0b2035',
   navigationBarTextStyle: 'white',
-  navigationStyle: 'default',
+  navigationStyle: 'custom',
   enablePullDownRefresh: true,
   backgroundColor: '#f7f5ef',
   backgroundTextStyle: 'dark'

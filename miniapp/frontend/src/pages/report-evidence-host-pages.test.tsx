@@ -15,6 +15,10 @@ const harness = vi.hoisted(() => ({
   pageScrollTo: vi.fn(),
   navigateTo: vi.fn(),
   scene: 1001,
+  pageCount: 2,
+  navigateBack: vi.fn(),
+  reLaunch: vi.fn(),
+  showToast: vi.fn(),
   friend: vi.fn<(callback: () => { title: string; path: string; imageUrl: string }) => void>(),
   timeline: vi.fn<(callback: () => { title: string; query: string; imageUrl: string }) => void>()
 }));
@@ -35,11 +39,14 @@ vi.mock('@tarojs/taro', () => ({
     getWindowInfo: () => ({ statusBarHeight: 44, windowWidth: 390 }),
     getMenuButtonBoundingClientRect: () => ({ top: 50, left: 300, width: 80, height: 32 }),
     navigateTo: harness.navigateTo,
+    getCurrentPages: () => Array(harness.pageCount).fill({}),
+    navigateBack: harness.navigateBack,
+    reLaunch: harness.reLaunch,
     getLaunchOptionsSync: () => ({ scene: harness.scene }),
     pageScrollTo: harness.pageScrollTo,
     pxTransform: (value: number) => `${value}px`,
     setNavigationBarTitle: vi.fn(),
-    showToast: vi.fn(),
+    showToast: harness.showToast,
     stopPullDownRefresh: vi.fn()
   },
   usePullDownRefresh: vi.fn(),
@@ -108,6 +115,10 @@ afterAll(() => {
 beforeEach(() => {
   vi.stubEnv('TARO_ENV', 'weapp');
   harness.scene = 1001;
+  harness.pageCount = 2;
+  harness.navigateBack.mockReset();
+  harness.reLaunch.mockReset();
+  harness.showToast.mockClear();
   harness.friend.mockClear();
   harness.timeline.mockClear();
   harness.navigateTo.mockClear();
@@ -243,7 +254,7 @@ describe('right-menu report sharing', () => {
     });
     click(requiredElement('.normalized-card-path'));
     expect(harness.navigateTo).toHaveBeenCalledOnce();
-    expect(container?.querySelector('.home-nav')).not.toBeNull();
+    expect(container?.querySelector('.navigation-bar')).not.toBeNull();
   });
 
   it('disables single-page navigation while retaining readable content and evidence', async () => {
@@ -260,7 +271,7 @@ describe('right-menu report sharing', () => {
     expect(detailButton.disabled).toBe(true);
     click(detailButton);
     expect(harness.navigateTo).not.toHaveBeenCalled();
-    expect(container?.querySelector('.home-nav')).toBeNull();
+    expect(container?.querySelector('.navigation-bar')).toBeNull();
     expect(container?.querySelector('.home-hero-spacer')).toBeNull();
     expect(requiredElement('.normalized-card-conclusion').textContent).not.toBe('');
     click(requiredElement('.normalized-card-evidence'));
@@ -279,7 +290,7 @@ describe('right-menu report sharing', () => {
     });
     mount(createElement(IndexPage));
     expect((requiredElement('.normalized-card-path') as HTMLButtonElement).disabled).toBe(false);
-    expect(container?.querySelector('.home-nav')).not.toBeNull();
+    expect(container?.querySelector('.navigation-bar')).not.toBeNull();
   });
 
   it('keeps the exact detail route through loading and refreshes the share title when ready', async () => {
@@ -322,5 +333,39 @@ describe('right-menu report sharing', () => {
       targetType: 'geopolitical_stories',
       targetKey: 'g1'
     });
+  });
+});
+
+describe('shared navigation', () => {
+  it('renders the shared title on the homepage and detail loading state', () => {
+    mount(createElement(IndexPage));
+    expect(requiredElement('.navigation-bar__title').textContent).toBe('观潮家');
+    act(() => root?.render(createElement(ReportDetailPage)));
+    expect(requiredElement('.navigation-bar__title').textContent).toBe('深度分析');
+  });
+  it('returns to the previous page', async () => {
+    mount(createElement(ReportDetailPage));
+    await act(async () => requiredElement('.report-detail-navigation__back').click());
+    expect(harness.navigateBack).toHaveBeenCalledWith({ delta: 1 });
+    expect(harness.reLaunch).not.toHaveBeenCalled();
+  });
+  it('returns to home when the shared detail has no previous page', async () => {
+    harness.pageCount = 1;
+    mount(createElement(ReportDetailPage));
+    await act(async () => requiredElement('.report-detail-navigation__back').click());
+    expect(harness.reLaunch).toHaveBeenCalledWith({ url: '/pages/index/index' });
+    expect(harness.navigateBack).not.toHaveBeenCalled();
+  });
+  it('shows a retry message when returning fails', async () => {
+    harness.navigateBack.mockRejectedValueOnce(new Error('navigation failed'));
+    mount(createElement(ReportDetailPage));
+    await act(async () => requiredElement('.report-detail-navigation__back').click());
+    expect(harness.showToast).toHaveBeenCalledWith({ title: '返回失败，请重试', icon: 'none' });
+  });
+  it('leaves timeline single-page navigation to the system', () => {
+    vi.stubEnv('TARO_ENV', 'weapp');
+    harness.scene = 1154;
+    mount(createElement(ReportDetailPage));
+    expect(container?.querySelector('.navigation-bar')).toBeNull();
   });
 });
