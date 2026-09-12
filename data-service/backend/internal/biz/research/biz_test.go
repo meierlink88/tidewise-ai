@@ -21,7 +21,7 @@ func (s *graphStoreStub) SearchResearchGraph(_ context.Context, query GraphQuery
 func validGraphRequest() GraphSearchRequest {
 	return GraphSearchRequest{
 		AnalysisAsOf:  "2026-07-30T00:00:00Z",
-		SeedEntityIDs: []string{"ENT11111111-1111-4111-8111-111111111111"},
+		SeedEntityIDs: []string{"IND11111111-1111-4111-8111-111111111111"},
 		RelationFilters: []RelationFilter{{
 			RelationType: "produces",
 			Direction:    DirectionOutgoing,
@@ -45,13 +45,13 @@ func TestGraphReturnsDeterministicReferenceCompleteGraph(t *testing.T) {
 	store := &graphStoreStub{graph: GraphSubgraph{
 		ActualDepth: 1,
 		Entities: []GraphEntity{
-			{EntityID: "ENT11111111-1111-4111-8111-111111111111", EntityType: "company", Name: "Producer", CanonicalName: "producer", Status: "active"},
+			{EntityID: "IND11111111-1111-4111-8111-111111111111", EntityType: "industry", Name: "Producer", CanonicalName: "producer", Status: "active"},
 			{EntityID: "ICH22222222-2222-4222-8222-222222222222", EntityType: "industry_chain", Name: "Product", CanonicalName: "product", Status: "active"},
 		},
 		RelationDefinitions: []GraphRelationDefinition{{RelationType: "produces", Direction: "directed"}},
 		EntityRelations: []GraphEntityRelation{{
 			EntityRelationID: "ERL33333333-3333-4333-8333-333333333333",
-			FromEntityID:     "ENT11111111-1111-4111-8111-111111111111",
+			FromEntityID:     "IND11111111-1111-4111-8111-111111111111",
 			ToEntityID:       "ICH22222222-2222-4222-8222-222222222222",
 			RelationType:     "produces",
 			Status:           "active",
@@ -146,11 +146,11 @@ func TestGraphRejectsInvalidOrOrphanedGraphRequests(t *testing.T) {
 	}
 
 	store := &graphStoreStub{graph: GraphSubgraph{
-		Entities:            []GraphEntity{{EntityID: "ENT11111111-1111-4111-8111-111111111111", EntityType: "company"}},
+		Entities:            []GraphEntity{{EntityID: "IND11111111-1111-4111-8111-111111111111", EntityType: "industry"}},
 		RelationDefinitions: []GraphRelationDefinition{{RelationType: "produces", Direction: "directed"}},
 		EntityRelations: []GraphEntityRelation{{
 			EntityRelationID: "ERL33333333-3333-4333-8333-333333333333",
-			FromEntityID:     "ENT11111111-1111-4111-8111-111111111111",
+			FromEntityID:     "IND11111111-1111-4111-8111-111111111111",
 			ToEntityID:       "ICH22222222-2222-4222-8222-222222222222",
 			RelationType:     "produces",
 		}},
@@ -164,7 +164,7 @@ func TestGraphReportsExceededGraphBudgetDimension(t *testing.T) {
 	valid := validGraphRequest()
 	valid.EdgeBudget = 1
 	entities := []GraphEntity{
-		{EntityID: "ENT11111111-1111-4111-8111-111111111111"},
+		{EntityID: "IND11111111-1111-4111-8111-111111111111"},
 		{EntityID: "ICH22222222-2222-4222-8222-222222222222"},
 	}
 	relations := []GraphEntityRelation{
@@ -183,7 +183,7 @@ func TestGraphReportsExceededGraphBudgetDimension(t *testing.T) {
 
 	valid.EdgeBudget = 10
 	_, err = (&UseCase{graphStore: &graphStoreStub{graph: GraphSubgraph{Entities: []GraphEntity{{
-		EntityID: "ENT11111111-1111-4111-8111-111111111111", Name: strings.Repeat("x", GraphMaxResultBytes),
+		EntityID: "IND11111111-1111-4111-8111-111111111111", Name: strings.Repeat("x", GraphMaxResultBytes),
 	}}}}}).Search(context.Background(), valid)
 	if !errors.As(err, &resourceLimit) || resourceLimit.Component != "research_graph_result" ||
 		resourceLimit.ActualBytes == nil || resourceLimit.MaxBytes == nil {

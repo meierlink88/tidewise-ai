@@ -101,13 +101,6 @@ func TestCountryHTTPContractPersistsCountryAndRegionRelationships(t *testing.T) 
 		t.Fatalf("no-op updated_at = %q, want %q", unchanged.UpdatedAt, updated.UpdatedAt)
 	}
 
-	var genericCountryRows int
-	if err := db.QueryRowContext(context.Background(), `SELECT count(*) FROM entity_nodes WHERE entity_type = 'country' OR name = '中华人民共和国'`).Scan(&genericCountryRows); err != nil {
-		t.Fatal(err)
-	}
-	if genericCountryRows != 0 {
-		t.Fatalf("Country created %d generic Entity rows", genericCountryRows)
-	}
 	var oldProfileTable *string
 	if err := db.QueryRowContext(context.Background(), `SELECT to_regclass('economy_profiles')::text`).Scan(&oldProfileTable); err != nil {
 		t.Fatal(err)

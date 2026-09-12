@@ -2,7 +2,6 @@ package concept_test
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -68,13 +67,6 @@ func TestConceptHTTPContractPersistsIndependentConceptFacts(t *testing.T) {
 	}`, http.StatusBadRequest, "INVALID_REQUEST")
 	requestError(t, handler, http.MethodGet, v1.APIPrefix+"/entities/concepts/CON99999999-9999-4999-8999-999999999999", "", http.StatusNotFound, "CONCEPT_NOT_FOUND")
 
-	var shadowRows int
-	if err := db.QueryRowContext(context.Background(), `SELECT count(*) FROM entity_nodes WHERE id = ANY($1::text[])`, []string{created.ID, second.ID}).Scan(&shadowRows); err != nil {
-		t.Fatal(err)
-	}
-	if shadowRows != 0 {
-		t.Fatalf("Concept write created %d shadow Entity rows", shadowRows)
-	}
 }
 
 func newHandler(t *testing.T, db *sql.DB) http.Handler {

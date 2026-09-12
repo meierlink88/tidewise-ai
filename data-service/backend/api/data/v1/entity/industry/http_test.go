@@ -2,7 +2,6 @@ package industry_test
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -81,13 +80,6 @@ func TestIndustryHTTPContractPersistsIndependentIndustryFacts(t *testing.T) {
 		"definition":"禁止调用方 ID","review_status":"candidate"
 	}`, http.StatusBadRequest, "INVALID_REQUEST")
 
-	var shadowRows int
-	if err := db.QueryRowContext(context.Background(), `SELECT count(*) FROM entity_nodes WHERE id = ANY($1::text[])`, []string{root.ID, child.ID}).Scan(&shadowRows); err != nil {
-		t.Fatal(err)
-	}
-	if shadowRows != 0 {
-		t.Fatalf("Industry writes created %d shadow Entity rows", shadowRows)
-	}
 }
 
 func newHandler(t *testing.T, db *sql.DB) http.Handler {

@@ -658,7 +658,8 @@ func testNormalizedHTTPRoundTrip(t *testing.T, signals bool) {
 	publicationTime := time.Now()
 	uc, _ := reportbiz.NewUseCase(store, func() time.Time { return publicationTime })
 	app, _ := reportservice.NewService(uc)
-	server := kratoshttp.NewServer(kratoshttp.ErrorEncoder(func(w http.ResponseWriter, r *http.Request, err error) {
+	// Match the production transport; the API owns read and publication budgets.
+	server := kratoshttp.NewServer(kratoshttp.Timeout(0), kratoshttp.ErrorEncoder(func(w http.ResponseWriter, r *http.Request, err error) {
 		var p *v1.PublicError
 		if errors.As(err, &p) {
 			w.WriteHeader(p.Status)

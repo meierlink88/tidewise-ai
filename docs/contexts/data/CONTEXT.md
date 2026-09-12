@@ -298,9 +298,9 @@ _Avoid_: Concept Profile、Concept shadow Entity、把 Concept 当作 Industry �
 全局属性。
 _Avoid_: 节点全局上下游标签、节点之间的图谱边、review/status、inclusion reason、Evidence、Source、verified at
 
-**产业链图谱边（Industry Chain Graph Edge）**:
+**产业链节点图（Industry Chain Node Graph；API 兼容名称 Industry Chain Graph Edge）**:
 同一 Industry Chain 的两个成员节点之间带明确方向和受控 relation type 的当前正式关系；行
-存在即表示当前拓扑。这是 Data 当前唯一节点间拓扑事实，只保存身份、IndustryChain、两个
+存在即表示当前拓扑。物理表为 `industry_chain_node_graph`。这是 Data 当前唯一节点间拓扑事实，只保存身份、IndustryChain、两个
 成员端点、relation type 和审计时间，并保持无环。
 _Avoid_: `chain_node_relations`、机制/条件/压缩段解释、review/status、Evidence、Source、verified at、发现映射、关键词相关、单次 Research Anchor 的临时传导路径
 
@@ -640,3 +640,14 @@ legacy/v3 保留既有归档投影合同，不作为 v4/v5 的读失败回退。
 历史转换与一次性清理由 Data-owned `report-storage` 运维命令显式执行，不属于 Goose DDL 或
 正常发布动作。用户已授权的 UAT 2026-09-09 清理例外及停流量/备份/恢复边界见
 [ADR-0063](../../adr/0063-split-report-summary-and-detail-storage.md)；不增加通用定期删除规则。
+
+## Generic Entity retirement and node table naming
+
+ADR-0064 / Issue #488：`chain_node` 物理表无损更名为 `industry_chain_node`；
+`industry_chain_graph_edges` 物理表无损更名为 `industry_chain_node_graph`。
+现有 CND/IGE 身份、成员端点、API 路径和 JSON 字段保留，节点关系仍属于特定产业链，保持同链成员与无环约束。
+
+`entity_nodes`、`entity_edges` 及 policy_body/person/instrument/index/security/theme/commodity/market_profiles
+全部退役，不再有通用 Entity/Profile 读写或 ENT 研究图身份。研究图保留独立对象、Organization 成员关系及 typed IndustryChain Links；不从其他表重建退役通用数据。
+旧迁移只作历史账本保留，新增 000091 删除旧表和数据，更新函数及触发器。
+迁移前备份并停止 Data 流量，迁移与新版服务协调切换；不能仅回滚应用，恢复需匹配的数据库备份。其他业务表内容保留。

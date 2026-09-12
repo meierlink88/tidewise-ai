@@ -121,7 +121,7 @@ func scanIndustryChain(row rowScanner, classify func(error) error) (industrychai
 }
 func (s *Store) objectIdentityExists(ctx context.Context, id industrychainbiz.ID) (bool, error) {
 	var exists bool
-	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM entity_nodes WHERE id=$1 UNION ALL SELECT 1 FROM industry WHERE id=$1 UNION ALL SELECT 1 FROM concept WHERE id=$1 UNION ALL SELECT 1 FROM chain_node WHERE id=$1 UNION ALL SELECT 1 FROM industry_chain WHERE id=$1)`, id).Scan(&exists)
+	err := s.db.QueryRowContext(ctx, `SELECT EXISTS(SELECT 1 FROM industry WHERE id=$1 UNION ALL SELECT 1 FROM concept WHERE id=$1 UNION ALL SELECT 1 FROM industry_chain_node WHERE id=$1 UNION ALL SELECT 1 FROM industry_chain WHERE id=$1)`, id).Scan(&exists)
 	if err != nil {
 		return false, classifyReadError(err)
 	}

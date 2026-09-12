@@ -99,13 +99,6 @@ func TestIndustryChainHTTPContractPersistsIndependentIndustryChainFacts(t *testi
 	}`, http.StatusBadRequest, "INVALID_REQUEST")
 	requestError(t, handler, http.MethodGet, v1.APIPrefix+"/entities/industry-chains/ICH99999999-9999-4999-8999-999999999999", "", http.StatusNotFound, industrychainapi.ErrorNotFound)
 
-	var shadowRows int
-	if err := db.QueryRowContext(context.Background(), `SELECT count(*) FROM entity_nodes WHERE id = ANY($1::text[])`, []string{created.ID, second.ID}).Scan(&shadowRows); err != nil {
-		t.Fatal(err)
-	}
-	if shadowRows != 0 {
-		t.Fatalf("IndustryChain writes created %d shadow Entity rows", shadowRows)
-	}
 }
 
 func newHandler(t *testing.T, db *sql.DB) http.Handler {

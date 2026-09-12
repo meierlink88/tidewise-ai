@@ -54,10 +54,10 @@ func TestResearchGraphIdentityRejectsLegacyUUIDAsOrganization(t *testing.T) {
 }
 
 func TestResearchGraphAdapterRejectsMalformedPersistedSubgraph(t *testing.T) {
-	entityID := "ENT11111111-1111-4111-8111-111111111111"
+	entityID := "IND11111111-1111-4111-8111-111111111111"
 	valid := domain.ResearchGraphSubgraph{
 		Entities: []domain.ResearchGraphEntity{{
-			EntityID: entityID, EntityType: "security", Name: "Security", CanonicalName: "Security", Status: "active",
+			EntityID: entityID, EntityType: "industry", Name: "Security", CanonicalName: "Security", Status: "active",
 		}},
 	}
 	if err := validatePersistedResearchGraph(valid, 2); err != nil {
@@ -72,7 +72,7 @@ func TestResearchGraphAdapterRejectsMalformedPersistedSubgraph(t *testing.T) {
 	invalid = valid
 	invalid.EntityRelations = []domain.ResearchGraphEntityRelation{{
 		EntityRelationID: "ERL22222222-2222-4222-8222-222222222222",
-		FromEntityID:     entityID, ToEntityID: "ENT33333333-3333-4333-8333-333333333333",
+		FromEntityID:     entityID, ToEntityID: "IND33333333-3333-4333-8333-333333333333",
 		RelationType: "supplies", Status: "active",
 	}}
 	invalid.RelationDefinitions = []domain.ResearchGraphRelation{{RelationType: "supplies", Direction: "directed"}}
@@ -209,10 +209,7 @@ func TestResearchGraphResolvesIndustryChainTypedLinksWithoutShadowEntities(t *te
 	for name, statement := range map[string]string{
 		"duplicate Industry endpoint pair": `INSERT INTO industry_chain_industry_links (id, industry_chain_id, industry_id)
 			VALUES ('ERL66666666-6666-4666-8666-666666666666', '` + chainID + `', '` + industryID + `')`,
-		"reserved generic mapping type": `INSERT INTO entity_edges (id, from_entity_id, to_entity_id, relation_type, evidence_note, status)
-			VALUES ('ERL77777777-7777-4777-8777-777777777777', '` + chainID + `', '` + industryID + `', 'mapped_to_industry', 'legacy write', 'active')`,
-		"cross-store ERL identity": `INSERT INTO entity_edges (id, from_entity_id, to_entity_id, relation_type, evidence_note, status)
-			VALUES ('` + industryLinkID + `', '` + chainID + `', '` + conceptID + `', 'related_to', 'identity collision', 'active')`,
+		"cross-store ERL identity": `INSERT INTO industry_chain_concept_links (id, industry_chain_id, concept_id) VALUES ('` + industryLinkID + `', '` + chainID + `', '` + conceptID + `')`,
 		"unknown typed Industry": `INSERT INTO industry_chain_industry_links (id, industry_chain_id, industry_id)
 			VALUES ('ERL88888888-8888-4888-8888-888888888888', '` + chainID + `', 'IND99999999-9999-4999-8999-999999999999')`,
 	} {
@@ -230,13 +227,6 @@ func TestResearchGraphResolvesIndustryChainTypedLinksWithoutShadowEntities(t *te
 	}
 	if !foundIndustry {
 		t.Fatalf("independent Industry missing from closure: %#v", closure.Entities)
-	}
-	var shadowRows int
-	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM entity_nodes WHERE id = $1`, industryID).Scan(&shadowRows); err != nil {
-		t.Fatal(err)
-	}
-	if shadowRows != 0 {
-		t.Fatalf("shadow Entity rows = %d", shadowRows)
 	}
 	if _, err := db.ExecContext(ctx, `DELETE FROM industry WHERE id = $1`, industryID); err == nil ||
 		!strings.Contains(err.Error(), "is still referenced and cannot change identity or be deleted") {
@@ -271,7 +261,7 @@ func TestIndependentEntityPersistenceSchemasStayAligned(t *testing.T) {
 			"id": "NO", "name": "NO", "aliases": "NO", "concept_type": "NO",
 			"definition": "NO", "review_status": "NO", "created_at": "NO", "updated_at": "NO",
 		},
-		"chain_node": {
+		"industry_chain_node": {
 			"short_name": "YES",
 			"id":         "NO", "name": "NO", "aliases": "NO", "definition": "NO",
 			"review_status": "NO", "created_at": "NO", "updated_at": "NO",
@@ -337,13 +327,13 @@ func TestIndependentEntityPersistenceSchemasStayAligned(t *testing.T) {
 	}
 
 	for name, statement := range map[string]string{
-		"blank ChainNode alias": `INSERT INTO chain_node (
+		"blank ChainNode alias": `INSERT INTO industry_chain_node (
 			id, name, aliases, definition, review_status
 		) VALUES ('CND60000000-0000-4000-8000-000000000001', 'Blank Alias', ARRAY[''], 'definition', 'candidate')`,
-		"duplicate ChainNode alias": `INSERT INTO chain_node (
+		"duplicate ChainNode alias": `INSERT INTO industry_chain_node (
 			id, name, aliases, definition, review_status
 		) VALUES ('CND60000000-0000-4000-8000-000000000002', 'Duplicate Alias', ARRAY['same','same'], 'definition', 'candidate')`,
-		"inverted ChainNode timestamps": `INSERT INTO chain_node (
+		"inverted ChainNode timestamps": `INSERT INTO industry_chain_node (
 			id, name, aliases, definition, review_status, created_at, updated_at
 		) VALUES ('CND60000000-0000-4000-8000-000000000003', 'Inverted Time', '{}', 'definition', 'candidate', now(), now() - interval '1 day')`,
 		"blank IndustryChain variable": `INSERT INTO industry_chain (
@@ -378,13 +368,7 @@ func TestIndependentObjectPrefixesSeparateOwnersWithTheSameUUIDSuffix(t *testing
 	) VALUES ($1, '独立概念', '{}', 'technology', '测试概念', 'approved')`, "CON"+suffix); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO entity_nodes (
-		id, entity_key, entity_type, layer_code, name, canonical_name, aliases, status
-	) VALUES ($1, 'security:same-suffix', 'security', 'security', '独立证券', '独立证券', '{}', 'active')`, "ENT"+suffix); err != nil {
-		t.Fatal(err)
-	}
 	for objectID, wantType := range map[string]string{
-		"ENT" + suffix: "security",
 		"IND" + suffix: "industry",
 		"CON" + suffix: "concept",
 	} {
@@ -410,7 +394,7 @@ func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 		nodeC  = "CND20000000-0000-4000-8000-000000000005"
 	)
 	for _, statement := range []string{
-		`INSERT INTO chain_node (id, name, aliases, definition, review_status) VALUES
+		`INSERT INTO industry_chain_node (id, name, aliases, definition, review_status) VALUES
 		    ('` + nodeA + `', 'Graph Node A', '{}', 'Graph Node A definition', 'approved'),
 		    ('` + nodeB + `', 'Graph Node B', '{}', 'Graph Node B definition', 'approved'),
 		    ('` + nodeC + `', 'Graph Node C', '{}', 'Graph Node C definition', 'approved')`,
@@ -427,7 +411,7 @@ func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 		    ('` + chainA + `', '` + nodeB + `', 2, 'midstream'),
 		    ('` + chainB + `', '` + nodeA + `', 1, 'upstream'),
 		    ('` + chainB + `', '` + nodeC + `', 2, 'downstream')`,
-		`INSERT INTO industry_chain_graph_edges (
+		`INSERT INTO industry_chain_node_graph (
 		    id, industry_chain_id, from_chain_node_id, to_chain_node_id,
 		    relation_type
 		) VALUES
@@ -435,12 +419,6 @@ func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 		     'input_to'),
 		    ('IGE20000000-0000-4000-8000-000000000008', '` + chainB + `', '` + nodeA + `', '` + nodeC + `',
 		     'input_to')`,
-		`INSERT INTO entity_edges (
-		    id, from_entity_id, to_entity_id, relation_type, evidence_note, status
-		) VALUES (
-		    'ERL20000000-0000-4000-8000-000000000007', '` + nodeB + `', '` + nodeA + `',
-		    'depends_on', 'Cycle fixture outside the chain topology table', 'active'
-		)`,
 	} {
 		if _, err := db.ExecContext(ctx, statement); err != nil {
 			t.Fatalf("seed scoped graph: %v\n%s", err, statement)
@@ -456,7 +434,6 @@ func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 		SeedEntityIDs: []string{nodeA},
 		RelationFilters: []domain.ResearchGraphRelationFilter{
 			{RelationType: "input_to", Direction: domain.ResearchGraphDirectionOutgoing},
-			{RelationType: "depends_on", Direction: domain.ResearchGraphDirectionOutgoing},
 		},
 		MaxDepth:        5,
 		IndustryChainID: graphStringPointer(chainA),
@@ -473,7 +450,7 @@ func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 		graph.IndustryChains[0].IndustryChainID != chainA ||
 		len(graph.IndustryChainMemberships) != 2 ||
 		len(graph.IndustryChainGraphEdges) != 1 ||
-		len(graph.EntityRelations) != 1 {
+		len(graph.EntityRelations) != 0 {
 		t.Fatalf("scoped cyclic graph = %#v", graph)
 	}
 	for _, entity := range graph.Entities {
@@ -481,7 +458,7 @@ func TestResearchGraphSearchHonorsChainScopeAndBoundsCycles(t *testing.T) {
 			t.Fatalf("out-of-scope entity returned: %#v", entity)
 		}
 	}
-	if _, err := db.ExecContext(ctx, `INSERT INTO industry_chain_graph_edges (
+	if _, err := db.ExecContext(ctx, `INSERT INTO industry_chain_node_graph (
 		id, industry_chain_id, from_chain_node_id, to_chain_node_id, relation_type
 	) VALUES (
 		'IGE20000000-0000-4000-8000-000000000009', $1, $2, $3, 'depends_on'

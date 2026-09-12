@@ -164,17 +164,16 @@ INSERT INTO company_catalog_stage (
 	// disabling that trigger preserves the same invariant without exhausting
 	// PostgreSQL's lock table for a full market catalog.
 	if _, err := tx.ExecContext(ctx, `
-LOCK TABLE entity_nodes, industry, concept, chain_node, industry_chain,
+LOCK TABLE industry, concept, industry_chain_node, industry_chain,
     company, company_industry_links IN ACCESS EXCLUSIVE MODE`); err != nil {
 		return classifyCatalogWriteError(err)
 	}
 	var identityConflict bool
 	if err := tx.QueryRowContext(ctx, `
 SELECT EXISTS (
-    SELECT 1 FROM company_catalog_stage staged JOIN entity_nodes value ON value.id = staged.id
-    UNION ALL SELECT 1 FROM company_catalog_stage staged JOIN industry value ON value.id = staged.id
+    SELECT 1 FROM company_catalog_stage staged JOIN industry value ON value.id = staged.id
     UNION ALL SELECT 1 FROM company_catalog_stage staged JOIN concept value ON value.id = staged.id
-    UNION ALL SELECT 1 FROM company_catalog_stage staged JOIN chain_node value ON value.id = staged.id
+    UNION ALL SELECT 1 FROM company_catalog_stage staged JOIN industry_chain_node value ON value.id = staged.id
     UNION ALL SELECT 1 FROM company_catalog_stage staged JOIN industry_chain value ON value.id = staged.id
 )`).Scan(&identityConflict); err != nil {
 		return classifyCatalogWriteError(err)

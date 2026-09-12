@@ -89,3 +89,4 @@
 000088	high	schema	rename Report archive and add per-analysis summary/detail storage; stop traffic and run separate verified backfill before serving
 000089	normal	schema	add nullable entity short names without backfill or changes to existing names and immutable Report snapshots
 000090	normal	schema	limit optional entity short names to five Unicode characters; publish reviewed values separately
+000091	high	mixed	retire generic entities and profiles; preserve renamed node topology; require backup and coordinated Data cutover

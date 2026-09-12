@@ -16,6 +16,7 @@ import (
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	companyapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/entity/company"
 	companybiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/entity/company"
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 	companydata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/entity/company"
 	companyservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/entity/company"
 	postgresfixture "github.com/meierlink88/tidewise-ai/data-service/backend/internal/testsupport/postgres"
@@ -93,8 +94,12 @@ func TestCompanyProjectionHTTPReturnsFormalLinksAndRejectsSnapshotDrift(t *testi
 			t.Fatal(err)
 		}
 	}
+	linkID, err := coreid.Derive(coreid.CompanyIndustryLink, "company-industry-link", string(firstID), string(industryID))
+	if err != nil {
+		t.Fatal(err)
+	}
 	if _, err := store.ReplaceIndustries(ctx, firstID, []companybiz.IndustryLink{{
-		ID: "CIL44444444-4444-4444-8444-444444444444", IndustryID: industryID,
+		ID: linkID, IndustryID: industryID,
 	}}); err != nil {
 		t.Fatal(err)
 	}

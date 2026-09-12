@@ -20,14 +20,12 @@ const (
 	ObjectTypeConcept       = "concept"
 	ObjectTypeChainNode     = "chain_node"
 	ObjectTypeIndustryChain = "industry_chain"
-	EntityIDPrefix          = coreid.Entity
 	EntityRelationIDPrefix  = coreid.EntityRelation
 	CountryIDPrefix         = coreid.Country
 	RegionIDPrefix          = coreid.Region
 	OrganizationIDPrefix    = coreid.Organization
 )
 
-func IsEntityID(value string) bool         { return coreid.Is(value, EntityIDPrefix) }
 func IsEntityRelationID(value string) bool { return coreid.Is(value, EntityRelationIDPrefix) }
 func IsCountryID(value string) bool        { return coreid.Is(value, CountryIDPrefix) }
 func IsRegionID(value string) bool         { return coreid.Is(value, RegionIDPrefix) }
@@ -38,7 +36,7 @@ func IsChainNodeID(value string) bool      { return coreid.Is(value, coreid.Chai
 func IsIndustryChainID(value string) bool  { return coreid.Is(value, coreid.IndustryChain) }
 
 func IsObjectID(value string) bool {
-	return IsEntityID(value) || IsCountryID(value) || IsRegionID(value) || IsOrganizationID(value) ||
+	return IsCountryID(value) || IsRegionID(value) || IsOrganizationID(value) ||
 		IsIndustryID(value) || IsConceptID(value) || IsChainNodeID(value) || IsIndustryChainID(value)
 }
 
@@ -59,7 +57,7 @@ func ObjectTypeMatchesID(objectType, value string) bool {
 	case ObjectTypeIndustryChain:
 		return IsIndustryChainID(value)
 	default:
-		return IsEntityID(value)
+		return false
 	}
 }
 
@@ -230,85 +228,6 @@ const (
 	StatusMerged   Status = "merged"
 )
 
-type EntityType string
-
-const (
-	EntityTypePolicyBody    EntityType = "policy_body"
-	EntityTypeMarket        EntityType = "market"
-	EntityTypeIndex         EntityType = "index"
-	EntityTypeSector        EntityType = "sector"
-	EntityTypeIndustry      EntityType = "industry"
-	EntityTypeConcept       EntityType = "concept"
-	EntityTypeIndustryChain EntityType = "industry_chain"
-	EntityTypeChainNode     EntityType = "chain_node"
-	EntityTypeTheme         EntityType = "theme"
-	EntityTypeSecurity      EntityType = "security"
-	EntityTypeInstrument    EntityType = "instrument"
-	EntityTypeCommodity     EntityType = "commodity"
-	EntityTypeProduct       EntityType = "product"
-	EntityTypePerson        EntityType = "person"
-)
-
-type Entity struct {
-	ID            string
-	EntityType    EntityType
-	LayerCode     string
-	Name          string
-	CanonicalName string
-	Aliases       []string
-	Status        Status
-}
-
-func (e Entity) Validate() error {
-	if !IsEntityID(e.ID) {
-		return fmt.Errorf("entity id must equal %s immediately followed by a canonical lowercase UUID", EntityIDPrefix)
-	}
-	if e.EntityType == "" {
-		return fmt.Errorf("entity type is required")
-	}
-	if !validEntityType(e.EntityType) {
-		return fmt.Errorf("unsupported entity type %q", e.EntityType)
-	}
-	if e.LayerCode == "" {
-		return fmt.Errorf("layer code is required")
-	}
-	if e.Name == "" {
-		return fmt.Errorf("name is required")
-	}
-	if e.CanonicalName == "" {
-		return fmt.Errorf("canonical name is required")
-	}
-	if !validStatus(e.Status, StatusActive, StatusInactive, StatusMerged) {
-		return fmt.Errorf("unsupported entity status %q", e.Status)
-	}
-	return nil
-}
-
-type EntityRelation struct {
-	ID           string
-	FromEntityID string
-	ToEntityID   string
-	RelationType string
-	EvidenceNote string
-	Status       Status
-}
-
-func (r EntityRelation) Validate() error {
-	if !IsEntityRelationID(r.ID) {
-		return fmt.Errorf("entity relation id must equal %s immediately followed by a canonical lowercase UUID", EntityRelationIDPrefix)
-	}
-	if !IsEntityID(r.FromEntityID) || !IsEntityID(r.ToEntityID) || r.FromEntityID == r.ToEntityID {
-		return fmt.Errorf("entity relation endpoints must be distinct Entity IDs")
-	}
-	if strings.TrimSpace(r.RelationType) == "" {
-		return fmt.Errorf("entity relation type is required")
-	}
-	if !validStatus(r.Status, StatusActive, StatusInactive) {
-		return fmt.Errorf("unsupported entity relation status %q", r.Status)
-	}
-	return nil
-}
-
 type IndustryChainContextualStage string
 
 const (
@@ -367,204 +286,6 @@ func (e IndustryChainGraphEdge) Validate() error {
 	return nil
 }
 
-type PolicyBodyProfile struct {
-	EntityID     string
-	BodyType     string
-	Jurisdiction string
-	PolicyDomain string
-}
-
-type MarketProfile struct {
-	EntityID     string
-	MarketType   string
-	CountryID    string
-	CurrencyCode string
-	Timezone     string
-}
-
-type IndexProfile struct {
-	EntityID       string
-	IndexCode      string
-	IndexType      string
-	MarketEntityID string
-	Provider       string
-	CurrencyCode   string
-	ListDate       *time.Time
-}
-
-type SectorProfile struct {
-	EntityID              string
-	SectorSystem          string
-	SectorCode            string
-	SectorType            string
-	ExchangeScope         string
-	ConstituentCount      int
-	ListDate              *time.Time
-	ParentSectorEntityID  string
-	ClassificationCode    SectorClassification
-	PrimaryMarketEntityID string
-	PrimaryCountryID      string
-	MethodologyURL        string
-	ReviewStatus          SectorReviewStatus
-}
-
-type SectorClassification string
-
-const (
-	SectorClassificationIndustry SectorClassification = "industry_sector"
-	SectorClassificationTheme    SectorClassification = "theme_sector"
-	SectorClassificationMarket   SectorClassification = "market_sector"
-	SectorClassificationStyle    SectorClassification = "style_sector"
-	SectorClassificationRegion   SectorClassification = "region_sector"
-)
-
-type SectorReviewStatus string
-
-const (
-	SectorReviewCandidate SectorReviewStatus = "candidate"
-	SectorReviewApproved  SectorReviewStatus = "approved"
-	SectorReviewRejected  SectorReviewStatus = "rejected"
-)
-
-func (p SectorProfile) Validate() error {
-	if p.PrimaryCountryID != "" && !IsCountryID(p.PrimaryCountryID) {
-		return fmt.Errorf("sector primary country must be a stable Country ID")
-	}
-	if p.EntityID == "" {
-		return fmt.Errorf("entity id is required")
-	}
-	if !validStatus(p.ClassificationCode, SectorClassificationIndustry, SectorClassificationTheme, SectorClassificationMarket, SectorClassificationStyle, SectorClassificationRegion) {
-		return fmt.Errorf("unsupported sector classification %q", p.ClassificationCode)
-	}
-	if !validStatus(p.ReviewStatus, SectorReviewCandidate, SectorReviewApproved, SectorReviewRejected) {
-		return fmt.Errorf("unsupported sector review status %q", p.ReviewStatus)
-	}
-	return nil
-}
-
-type SectorSourceTaxonomyType string
-
-const (
-	SectorSourceTaxonomyConcept     SectorSourceTaxonomyType = "concept"
-	SectorSourceTaxonomyIndustry    SectorSourceTaxonomyType = "industry"
-	SectorSourceTaxonomyIndexSector SectorSourceTaxonomyType = "index_sector"
-)
-
-type SectorSourceMappingStatus string
-
-const (
-	SectorSourceMappingCandidate SectorSourceMappingStatus = "candidate"
-	SectorSourceMappingApproved  SectorSourceMappingStatus = "approved"
-	SectorSourceMappingRejected  SectorSourceMappingStatus = "rejected"
-	SectorSourceMappingMerged    SectorSourceMappingStatus = "merged"
-)
-
-type SectorSourceMapping struct {
-	ID                         string
-	SectorEntityID             string
-	SourceSystem               string
-	SourceTaxonomyType         SectorSourceTaxonomyType
-	SourceSectorCode           string
-	SourceSectorName           string
-	SourceSectorNameNormalized string
-	SourceMarketScope          string
-	SourceURL                  string
-	RankSnapshot               int
-	SnapshotDate               *time.Time
-	MappingStatus              SectorSourceMappingStatus
-	ReviewNote                 string
-}
-
-func (m SectorSourceMapping) Validate() error {
-	if m.ID == "" || m.SectorEntityID == "" || m.SourceSystem == "" || m.SourceSectorName == "" || m.SourceSectorNameNormalized == "" {
-		return fmt.Errorf("sector source mapping identity fields are required")
-	}
-	if !validStatus(m.SourceTaxonomyType, SectorSourceTaxonomyConcept, SectorSourceTaxonomyIndustry, SectorSourceTaxonomyIndexSector) {
-		return fmt.Errorf("unsupported source taxonomy type %q", m.SourceTaxonomyType)
-	}
-	if !validStatus(m.MappingStatus, SectorSourceMappingCandidate, SectorSourceMappingApproved, SectorSourceMappingRejected, SectorSourceMappingMerged) {
-		return fmt.Errorf("unsupported sector source mapping status %q", m.MappingStatus)
-	}
-	return nil
-}
-
-type Theme struct {
-	Entity
-}
-
-type ThemeProfile struct {
-	EntityID     string
-	Definition   string
-	BoundaryNote string
-}
-
-func (p ThemeProfile) Validate() error {
-	if strings.TrimSpace(p.EntityID) == "" || strings.TrimSpace(p.Definition) == "" || strings.TrimSpace(p.BoundaryNote) == "" {
-		return fmt.Errorf("theme identity, definition, and boundary note are required")
-	}
-	return nil
-}
-
-type SecurityProfile struct {
-	EntityID     string
-	Ticker       string
-	Symbol       string
-	Exchange     string
-	MarketBoard  string
-	SecurityType string
-	ListDate     *time.Time
-	DelistDate   *time.Time
-	ListStatus   string
-	CurrencyCode string
-}
-
-type InstrumentProfile struct {
-	EntityID           string
-	InstrumentType     string
-	UnderlyingEntityID string
-	Exchange           string
-	CurrencyCode       string
-}
-
-type CommodityProfile struct {
-	EntityID      string
-	CommodityType string
-}
-
-type PersonProfile struct {
-	EntityID             string
-	RoleTitle            string
-	OrganizationEntityID string
-	CountryID            string
-}
-
-type ProductProfile struct {
-	EntityID        string
-	ProductCategory string
-	Specification   string
-	ReviewStatus    ReviewStatus
-}
-
-func (p ProductProfile) Validate() error {
-	if strings.TrimSpace(p.EntityID) == "" {
-		return fmt.Errorf("product entity id is required")
-	}
-	if !validStatus(p.ReviewStatus, ReviewStatusCandidate, ReviewStatusApproved) {
-		return fmt.Errorf("unsupported product review status %q", p.ReviewStatus)
-	}
-	return nil
-}
-
-type ReviewStatus string
-
-const (
-	ReviewStatusCandidate ReviewStatus = "candidate"
-	ReviewStatusReviewed  ReviewStatus = "reviewed"
-	ReviewStatusPending   ReviewStatus = "pending"
-	ReviewStatusApproved  ReviewStatus = "approved"
-	ReviewStatusRejected  ReviewStatus = "rejected"
-)
-
 func validStatus[T comparable](value T, allowed ...T) bool {
 	for _, candidate := range allowed {
 		if value == candidate {
@@ -572,22 +293,6 @@ func validStatus[T comparable](value T, allowed ...T) bool {
 		}
 	}
 	return false
-}
-
-func validEntityType(value EntityType) bool {
-	return validStatus(
-		value,
-		EntityTypePolicyBody,
-		EntityTypeMarket,
-		EntityTypeIndex,
-		EntityTypeSector,
-		EntityTypeTheme,
-		EntityTypeSecurity,
-		EntityTypeInstrument,
-		EntityTypeCommodity,
-		EntityTypeProduct,
-		EntityTypePerson,
-	)
 }
 
 const (

@@ -6,7 +6,7 @@
 BEGIN;
 SET LOCAL lock_timeout = '5s';
 SET LOCAL statement_timeout = '60s';
-LOCK TABLE industry_chain, chain_node, macro_economics, geopolitic_rivalries IN SHARE ROW EXCLUSIVE MODE;
+LOCK TABLE industry_chain, industry_chain_node, macro_economics, geopolitic_rivalries IN SHARE ROW EXCLUSIVE MODE;
 CREATE TEMP TABLE reviewed_entity_short_names (
     entity_type text NOT NULL,
     entity_id text NOT NULL,
@@ -3862,7 +3862,7 @@ BEGIN
         EXECUTE format('SELECT EXISTS (
             SELECT 1 FROM reviewed_entity_short_names r LEFT JOIN %I t ON t.id=r.entity_id
             WHERE r.entity_type=$1 AND (t.id IS NULL OR t.name IS DISTINCT FROM r.name
-                OR (t.short_name IS NOT NULL AND t.short_name IS DISTINCT FROM r.short_name)))', target)
+                OR (t.short_name IS NOT NULL AND t.short_name IS DISTINCT FROM r.short_name)))', CASE WHEN target='chain_node' THEN 'industry_chain_node' ELSE target END)
         INTO invalid USING target;
         IF invalid THEN
             RAISE EXCEPTION 'short-name publication identity, name or existing-value conflict: %', target;
@@ -3871,7 +3871,7 @@ BEGIN
     FOREACH target IN ARRAY ARRAY['industry_chain','chain_node','macro_economics','geopolitic_rivalries'] LOOP
         EXECUTE format('UPDATE %I t SET short_name=r.short_name, updated_at=now()
             FROM reviewed_entity_short_names r
-            WHERE r.entity_type=$1 AND t.id=r.entity_id AND t.short_name IS NULL', target)
+            WHERE r.entity_type=$1 AND t.id=r.entity_id AND t.short_name IS NULL', CASE WHEN target='chain_node' THEN 'industry_chain_node' ELSE target END)
         USING target;
         GET DIAGNOSTICS changed = ROW_COUNT;
         RAISE NOTICE '% short names initialized: %', target, changed;
