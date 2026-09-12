@@ -406,3 +406,20 @@ Miniapp 客户端地址和 Admin CORS 配置。发布完成后应从 ECS 外部�
 ### Report 总结/详情拆分（migration 88）
 
 `Deploy UAT` 的 `data_88_cutover` 专用于87→88：停止写入、受保护备份、保留2026-09-09上海零点之后发布的报告并拆分、清理此前Report、校验后启动。沿用备份与破坏性变更确认及同release恢复机制，禁用schema重建。执行与恢复详见 `docs/contexts/data/report-storage-cutover.md`。普通部署仍拦截pending88。
+
+## Data migration 91 Entity retirement
+
+`data_91_cutover` 只接受当前 Data migration `90` 且唯一 pending 为 `91`，用于
+PR #489 已批准的两表更名与十表及其数据删除。用户明确授权后，仍需确认当前 RDS
+恢复点与破坏性变更；普通 `normal` 模式继续拒绝 mixed migration。
+
+切换复用四服务 release unit、停写证明、同 SHA recovery marker 和独立 `pre-data91.*`
+检查点。镜像预检在停服前完成；停服后由 digest-pinned PostgreSQL client 把完整数据库
+备份到 `state/entity-retirement-<release-sha>/before.dump`，验证 archive 目录并生成
+SHA-256 清单，同时冻结所有 public 业务表的行数和行内容指纹。迁移只执行到 91。
+启动前验证十张指定表消失、两个新表取代旧名，且所有保留业务表内容完全一致；任何
+额外表或内容变化均失败。只输出计数和表名，不输出事实内容或凭据。
+
+迁移启动后的失败必须保持旧服务停止；同 SHA 续跑只复用已校验的原始备份，不覆盖
+备份，也不提供空 schema 重建。人工回退必须恢复原始数据库快照和匹配的旧 release。
+成功后回到 normal 发布。此入口仅部署授权的 UAT 变更，不用本地数据替换 UAT。

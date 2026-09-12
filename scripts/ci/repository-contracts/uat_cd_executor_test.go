@@ -1487,13 +1487,26 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 	}
 
 	if options.existingReportBackup {
-		dir := filepath.Join(state, "report-storage-"+fixtureSHA)
+		prefix := "report-storage-"
+		if options.deploymentMode == "data_91_cutover" {
+			prefix = "entity-retirement-"
+		}
+		dir := filepath.Join(state, prefix+fixtureSHA)
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			t.Fatal(err)
 		}
 		writeFixture(t, filepath.Join(dir, "before.dump"), "original-backup")
 		sum := sha256.Sum256([]byte("original-backup"))
-		writeFixture(t, filepath.Join(dir, "before.sha256"), fmt.Sprintf("%x  before.dump\n", sum))
+		manifest := fmt.Sprintf("%x  before.dump\n", sum)
+		if options.deploymentMode == "data_91_cutover" {
+			snapshot := "__migration__|90|ledger\n"
+			for _, table := range strings.Fields("chain_node industry_chain_graph_edges events evidences report_archive entity_nodes entity_edges policy_body_profiles person_profiles instrument_profiles index_profiles security_profiles theme_profiles commodity_profiles market_profiles") {
+				snapshot += table + "|1|" + strings.Repeat("a", 32) + "\n"
+			}
+			writeFixture(t, filepath.Join(dir, "before.tsv"), snapshot)
+			manifest += fmt.Sprintf("%x  before.tsv\n", sha256.Sum256([]byte(snapshot)))
+		}
+		writeFixture(t, filepath.Join(dir, "before.sha256"), manifest)
 	}
 	runtimeEnv := filepath.Join(temp, "candidate.runtime.env")
 	imagesEnv := filepath.Join(temp, "candidate.images.env")
@@ -1528,7 +1541,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		migrationScope = "schema"
 	}
 	manifestRows := ""
-	for version := 1; version <= 88; version++ {
+	for version := 1; version <= 91; version++ {
 		risk := "normal"
 		scope := "schema"
 		reason := "fixture migration"
@@ -1724,7 +1737,7 @@ case " $* " in
 	    if [ -n "$compose_file" ] && grep -q 'qdrant:' "$compose_file"; then echo qdrant; fi
 	    printf 'data\nminiapp\nadminportal\nadmin\n'
     ;;
-	  *" run "*" /usr/local/bin/dbmigrate -apply -target-version 58 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 59 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 60 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 77 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 79 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 80 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 88 "*)
+	  *" run "*" /usr/local/bin/dbmigrate -apply -target-version 58 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 59 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 60 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 77 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 79 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 80 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 88 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 91 "*)
 	    touch "$FAKE_CUTOVER_APPLIED"
 	    cat "$FAKE_MIGRATION_APPLY_REPORT"
 	    ;;
@@ -1736,6 +1749,22 @@ case " $* " in
     echo fixture-dump
     ;;
   *" pg_restore "*) cat >/dev/null; echo fixture-contents ;;
+  *" psql -XAtq "*)
+    cat >/dev/null
+    if [ -f "$FAKE_CUTOVER_APPLIED" ]; then
+      printf '__migration__|91|ledger\n'
+      tables='industry_chain_node industry_chain_node_graph events evidences report_archive'
+    else
+      printf '__migration__|90|ledger\n'
+      tables='chain_node industry_chain_graph_edges events evidences report_archive entity_nodes entity_edges policy_body_profiles person_profiles instrument_profiles index_profiles security_profiles theme_profiles commodity_profiles market_profiles'
+    fi
+    for table in $tables; do
+      count=1
+      if [ -f "$FAKE_CUTOVER_APPLIED" ] && [ "$FAKE_REPORT_STORAGE_FAILURE" = retained ] && [ "$table" = events ]; then count=2; fi
+      printf '%s|%s|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n' "$table" "$count"
+    done
+    ;;
+
   *" /usr/local/bin/report-storage "*)
     [ "$FAKE_REPORT_STORAGE_FAILURE" = verify ] && exit 1
     previous=""; mount=""; plan=""
@@ -1988,6 +2017,89 @@ func TestUATReportStorageRecoveryUsesOriginalBackup(t *testing.T) {
 			}
 		} else if r.err == nil || !strings.Contains(r.output, "original pre-migration backup is missing") {
 			t.Fatalf("missing backup was accepted: %s", r.output)
+		}
+	}
+}
+
+func TestUATEntityRetirementCutover(t *testing.T) {
+	for _, failure := range []string{"", "image", "version", "backup", "retained"} {
+		t.Run(failure, func(t *testing.T) {
+			r := runDeployFixture(t, deployFixtureOptions{currentRelease: true, deploymentMode: "data_91_cutover", backupConfirmed: true, destructiveConfirmed: true, reportStorageFailure: failure,
+				migrationReport: `{"current_version":"90","pending":[{"Version":"91"}]}`, migrationApplyReport: `{"current_version":"91","pending":[]}`})
+			raw, _ := os.ReadFile(r.dockerLog)
+			log := string(raw)
+			migration := strings.Index(log, "dbmigrate -apply -target-version 91")
+			start := strings.Index(log, " up -d --remove-orphans")
+			if failure == "" {
+				if r.err != nil {
+					t.Fatalf("%v: %s", r.err, r.output)
+				}
+				stop := strings.Index(log, " stop ")
+				backup := strings.Index(log, " pg_dump --format")
+				before := strings.Index(log, " psql -XAtq ")
+				after := strings.LastIndex(log, " psql -XAtq ")
+				if stop < 0 || backup < stop || before < backup || migration < before || after < migration || start < after {
+					t.Fatalf("unsafe order: %s", log)
+				}
+				if !strings.Contains(r.output, "retained_tables=5 dropped_tables=10 dropped_rows=10") {
+					t.Fatal(r.output)
+				}
+				assertFileContent(t, filepath.Join(r.root, "state", "current.sha"), fixtureSHA)
+			} else {
+				if r.err == nil || start >= 0 {
+					t.Fatalf("failure started candidate: %s", r.output)
+				}
+				if failure != "retained" && migration >= 0 {
+					t.Fatal("migration without backup")
+				}
+				if failure == "retained" {
+					marker, _ := os.ReadFile(filepath.Join(r.root, "state", "tidewise-2-cutover-in-progress"))
+					if !strings.Contains(string(marker), "target_version=91") {
+						t.Fatal("missing recovery marker", string(marker))
+					}
+					if strings.Contains(r.output, "restoring release") {
+						t.Fatal("unsafe rollback", r.output)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestUATEntityRetirementRejectsInvalidPlan(t *testing.T) {
+	for _, tc := range []struct {
+		name, mode, report  string
+		backup, destructive bool
+	}{
+		{"normal", "normal", `{"current_version":"90","pending":[{"Version":"91"}]}`, true, true},
+		{"wrong-start", "data_91_cutover", `{"current_version":"89","pending":[{"Version":"90"},{"Version":"91"}]}`, true, true},
+		{"extra-migration", "data_91_cutover", `{"current_version":"90","pending":[{"Version":"91"},{"Version":"92"}]}`, true, true},
+		{"no-backup", "data_91_cutover", `{"current_version":"90","pending":[{"Version":"91"}]}`, false, true},
+		{"no-delete-authorization", "data_91_cutover", `{"current_version":"90","pending":[{"Version":"91"}]}`, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := runDeployFixture(t, deployFixtureOptions{currentRelease: true, deploymentMode: tc.mode, backupConfirmed: tc.backup, destructiveConfirmed: tc.destructive, migrationReport: tc.report})
+			raw, _ := os.ReadFile(r.dockerLog)
+			if r.err == nil || strings.Contains(string(raw), "dbmigrate -apply") || strings.Contains(string(raw), " stop ") {
+				t.Fatalf("unsafe invalid plan: %s", r.output)
+			}
+		})
+	}
+}
+
+func TestUATEntityRetirementRecoveryPreservesOriginalBackup(t *testing.T) {
+	for _, backup := range []bool{false, true} {
+		r := runDeployFixture(t, deployFixtureOptions{currentRelease: true, deploymentMode: "data_91_cutover", backupConfirmed: true, destructiveConfirmed: true, existingReportBackup: backup, cutoverMarkerPhase: "migration-started", cutoverMarkerTargetVersion: "91", migrationReport: `{"current_version":"91","pending":[]}`, migrationApplyReport: `{"current_version":"91","pending":[]}`})
+		raw, _ := os.ReadFile(r.dockerLog)
+		if strings.Contains(string(raw), " pg_dump --format") {
+			t.Fatal("overwrote original backup")
+		}
+		if backup {
+			if r.err != nil || !strings.Contains(r.output, "original-backup-reused") {
+				t.Fatalf("%v: %s", r.err, r.output)
+			}
+		} else if r.err == nil {
+			t.Fatal("accepted missing backup")
 		}
 	}
 }
