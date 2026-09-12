@@ -8,7 +8,7 @@ on:
         required: false
         type: string
       deployment_mode:
-        description: Use normal for ongoing releases; cutover modes are bounded to Data migrations 44-58, 59, 60, 63-77, 78-79, 78-80, 80, 81, or 88.
+        description: Use normal for ongoing releases; cutover modes are bounded to Data migrations 44-58, 59, 60, 63-77, 78-79, 78-80, 80, 81, 88, or 91.
         required: true
         default: normal
         type: choice
@@ -23,6 +23,7 @@ on:
           - data_80_cutover
           - data_81_cutover
           - data_88_cutover
+          - data_91_cutover
       confirm_high_risk_backup:
         description: Confirm a current RDS recovery point for high-risk migrations.
         required: false
@@ -173,6 +174,10 @@ jobs:
           pre_data88_sha="${state_dir}/pre-data88.sha"
           pre_data88_images="${state_dir}/pre-data88.images.env"
           pre_data88_compose="${state_dir}/pre-data88.compose.yaml"
+          pre_data91_runtime="${DEPLOY_ROOT}/pre-data91.runtime.env"
+          pre_data91_sha="${state_dir}/pre-data91.sha"
+          pre_data91_images="${state_dir}/pre-data91.images.env"
+          pre_data91_compose="${state_dir}/pre-data91.compose.yaml"
           state_fingerprint() {
             for path in "$runtime_file" "$sha_file" "$images_file" "$compose_file" "$write_marker" "$cutover_marker"; do
               if [ -e "$path" ]; then
@@ -184,7 +189,7 @@ jobs:
           }
           echo "available=false" >> "$GITHUB_OUTPUT"
           echo "state_fingerprint=$(state_fingerprint)" >> "$GITHUB_OUTPUT"
-          if [ -e "$cutover_marker" ] && [ "$DEPLOYMENT_MODE" != tidewise_2_cutover ] && [ "$DEPLOYMENT_MODE" != data_59_cutover ] && [ "$DEPLOYMENT_MODE" != data_60_cutover ] && [ "$DEPLOYMENT_MODE" != data_63_77_cutover ] && [ "$DEPLOYMENT_MODE" != data_78_79_cutover ] && [ "$DEPLOYMENT_MODE" != data_78_80_cutover ] && [ "$DEPLOYMENT_MODE" != data_80_cutover ] && [ "$DEPLOYMENT_MODE" != data_81_cutover ] && [ "$DEPLOYMENT_MODE" != data_88_cutover ]; then
+          if [ -e "$cutover_marker" ] && [ "$DEPLOYMENT_MODE" != tidewise_2_cutover ] && [ "$DEPLOYMENT_MODE" != data_59_cutover ] && [ "$DEPLOYMENT_MODE" != data_60_cutover ] && [ "$DEPLOYMENT_MODE" != data_63_77_cutover ] && [ "$DEPLOYMENT_MODE" != data_78_79_cutover ] && [ "$DEPLOYMENT_MODE" != data_78_80_cutover ] && [ "$DEPLOYMENT_MODE" != data_80_cutover ] && [ "$DEPLOYMENT_MODE" != data_81_cutover ] && [ "$DEPLOYMENT_MODE" != data_88_cutover ] && [ "$DEPLOYMENT_MODE" != data_91_cutover ]; then
             echo "A bounded Data cutover recovery marker blocks ordinary UAT deployment." >&2
             exit 1
           fi
@@ -244,7 +249,13 @@ jobs:
               images_file="$pre_data88_images"
               compose_file="$pre_data88_compose"
               echo "Using the archived pre-Data-88 release as the interrupted cutover recovery baseline."
-            elif [[ "$DEPLOYMENT_MODE" =~ ^(tidewise_2_cutover|data_59_cutover|data_60_cutover|data_63_77_cutover|data_78_79_cutover|data_78_80_cutover|data_80_cutover|data_81_cutover|data_88_cutover)$ ]] && [ "$recovery_mode" = committed ]; then
+            elif [ "$DEPLOYMENT_MODE" = data_91_cutover ] && [ "$recovery_mode" = pre-data91 ]; then
+              runtime_file="$pre_data91_runtime"
+              sha_file="$pre_data91_sha"
+              images_file="$pre_data91_images"
+              compose_file="$pre_data91_compose"
+              echo "Using the archived pre-Data-91 release as the interrupted cutover recovery baseline."
+            elif [[ "$DEPLOYMENT_MODE" =~ ^(tidewise_2_cutover|data_59_cutover|data_60_cutover|data_63_77_cutover|data_78_79_cutover|data_78_80_cutover|data_80_cutover|data_81_cutover|data_88_cutover|data_91_cutover)$ ]] && [ "$recovery_mode" = committed ]; then
               echo "Using the committed candidate release as the interrupted cutover recovery baseline."
             else
               echo "Previous UAT release has an interrupted state write; full deployment required."
@@ -331,7 +342,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "$DEPLOYMENT_MODE" =~ ^(tidewise_2_cutover|data_59_cutover|data_60_cutover|data_63_77_cutover|data_78_79_cutover|data_78_80_cutover|data_80_cutover|data_81_cutover|data_88_cutover)$ ]]; then
+          if [[ "$DEPLOYMENT_MODE" =~ ^(tidewise_2_cutover|data_59_cutover|data_60_cutover|data_63_77_cutover|data_78_79_cutover|data_78_80_cutover|data_80_cutover|data_81_cutover|data_88_cutover|data_91_cutover)$ ]]; then
             plan="$(printf '%s\n' \
               'deploy_all=true' \
               'deploy_data=true' \
@@ -510,7 +521,7 @@ jobs:
           tags: ${{ steps.images.outputs.admin_build_image }}
 
       - name: Build and push report backup client to SWR
-        if: inputs.deployment_mode == 'data_88_cutover'
+        if: inputs.deployment_mode == 'data_88_cutover' || inputs.deployment_mode == 'data_91_cutover'
         id: report-backup-client
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
@@ -522,7 +533,7 @@ jobs:
           tags: ${{ steps.images.outputs.report_backup_tag }}
 
       - name: Resolve immutable report backup client
-        if: inputs.deployment_mode == 'data_88_cutover'
+        if: inputs.deployment_mode == 'data_88_cutover' || inputs.deployment_mode == 'data_91_cutover'
         id: report-backup-ref
         env:
           IMAGE_TAG: ${{ steps.images.outputs.report_backup_tag }}

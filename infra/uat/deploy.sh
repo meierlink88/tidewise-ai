@@ -70,6 +70,10 @@ pre_data88_runtime="${deployment_root}/pre-data88.runtime.env"
 pre_data88_images="${state_dir}/pre-data88.images.env"
 pre_data88_compose="${state_dir}/pre-data88.compose.yaml"
 pre_data88_sha="${state_dir}/pre-data88.sha"
+pre_data91_runtime="${deployment_root}/pre-data91.runtime.env"
+pre_data91_images="${state_dir}/pre-data91.images.env"
+pre_data91_compose="${state_dir}/pre-data91.compose.yaml"
+pre_data91_sha="${state_dir}/pre-data91.sha"
 agentrun_rollback_marker="${state_dir}/agentrun-010-rollback-required"
 agentrun_version_publication="${state_dir}/agentrun-agent-version-publication.json"
 candidate_services_started=false
@@ -226,8 +230,22 @@ case "$deployment_mode" in
     cutover_checkpoint_compose="$pre_data88_compose"
     cutover_checkpoint_sha="$pre_data88_sha"
     ;;
+  data_91_cutover)
+    bounded_data_cutover=true
+    cutover_target_version=91
+    cutover_target_version_padded=000091
+    cutover_initial_current_version=000090
+    cutover_initial_pending_versions=000091
+    cutover_recovery_minimum_version=90
+    cutover_gate_name=data91
+    cutover_release_state_mode=pre-data91
+    cutover_checkpoint_runtime="$pre_data91_runtime"
+    cutover_checkpoint_images="$pre_data91_images"
+    cutover_checkpoint_compose="$pre_data91_compose"
+    cutover_checkpoint_sha="$pre_data91_sha"
+    ;;
   *)
-    echo "FAIL deployment-mode-gate: DEPLOYMENT_MODE must be normal, tidewise_2_cutover, data_59_cutover, data_60_cutover, data_63_77_cutover, data_78_79_cutover, data_78_80_cutover, data_80_cutover, data_81_cutover, or data_88_cutover" >&2
+    echo "FAIL deployment-mode-gate: DEPLOYMENT_MODE must be normal, tidewise_2_cutover, data_59_cutover, data_60_cutover, data_63_77_cutover, data_78_79_cutover, data_78_80_cutover, data_80_cutover, data_81_cutover, data_88_cutover, or data_91_cutover" >&2
     exit 1
     ;;
 esac
@@ -396,6 +414,16 @@ restore_interrupted_release_state() {
       install -m 0640 "$pre_data88_compose" "$current_compose"
       install -m 0640 "$pre_data88_sha" "$current_sha"
       ;;
+    pre-data91)
+      if [ ! -s "$pre_data91_runtime" ] || [ ! -s "$pre_data91_images" ] || [ ! -s "$pre_data91_compose" ] || [ ! -s "$pre_data91_sha" ]; then
+        echo "FAIL release-state-recovery: pre-Data-91 snapshot is incomplete" >&2
+        return 1
+      fi
+      install -m 0600 "$pre_data91_runtime" "$current_runtime"
+      install -m 0640 "$pre_data91_images" "$current_images"
+      install -m 0640 "$pre_data91_compose" "$current_compose"
+      install -m 0640 "$pre_data91_sha" "$current_sha"
+      ;;
     none)
       rm -f "$current_runtime" "$current_images" "$current_compose" "$current_sha"
       ;;
@@ -429,7 +457,7 @@ current_release_state_fingerprint() {
 
 verify_planned_release_state() {
   local recovered_cutover_state=false
-  if [ "$bounded_data_cutover" = true ] && [[ "$interrupted_state_recovery_mode" =~ ^(pre-data2|pre-data59|pre-data60|pre-data63|pre-data78|pre-data78-80|pre-data80|pre-data81|pre-data88|committed)$ ]]; then
+  if [ "$bounded_data_cutover" = true ] && [[ "$interrupted_state_recovery_mode" =~ ^(pre-data2|pre-data59|pre-data60|pre-data63|pre-data78|pre-data78-80|pre-data80|pre-data81|pre-data88|pre-data91|committed)$ ]]; then
     recovered_cutover_state=true
   fi
   if [ "$recovered_cutover_state" != true ] && [ "$(current_release_state_fingerprint)" != "$expected_current_state_fingerprint" ]; then
@@ -812,6 +840,10 @@ if [ -n "$high_risk_pending" ] && [ "$backup_confirmed" != true ]; then
   exit 1
 fi
 echo "PASS migration-risk-gate"
+if [ "$deployment_mode" = data_91_cutover ]; then
+  source "$(dirname "${BASH_SOURCE[0]}")/entity-retirement-cutover.sh"
+  prepare_entity_retirement_image
+fi
 if [ "$deployment_mode" = data_88_cutover ]; then
   source "$(dirname "${BASH_SOURCE[0]}")/report-storage-cutover.sh"
   prepare_report_storage_image
@@ -888,6 +920,9 @@ if [ "$bounded_data_cutover" = true ]; then
   if [ "$deployment_mode" = data_88_cutover ]; then
     prepare_report_storage_backup
   fi
+  if [ "$deployment_mode" = data_91_cutover ]; then
+    prepare_entity_retirement_backup
+  fi
   if [ "$cutover_migration_started" != true ]; then
     cutover_migration_started=true
     write_data2_cutover_marker migration-started
@@ -917,6 +952,9 @@ PY
   fi
   if [ "$deployment_mode" = data_88_cutover ]; then
     apply_report_storage_cutover
+  fi
+  if [ "$deployment_mode" = data_91_cutover ]; then
+    verify_entity_retirement
   fi
   write_data2_cutover_marker data-migrated
   echo "PASS ${cutover_gate_name}-target-version"

@@ -3,5 +3,8 @@ release	data-service/backend/configs/config.uat.yaml
 control	infra/uat/preflight.sh
 control	infra/uat/deploy.sh
 control	infra/uat/report-storage-cutover.sh
+control	infra/uat/entity-retirement-cutover.sh
+control	infra/uat/entity-retirement-snapshot.sql
+control	infra/uat/verify-entity-retirement.py
 control	infra/uat/collect-diagnostics.sh
 control	infra/uat/migration-risk.tsv
