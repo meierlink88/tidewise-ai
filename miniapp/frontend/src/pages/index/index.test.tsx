@@ -1,12 +1,12 @@
 import { Children, isValidElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { HomeHeader } from './components/home-header';
 import { normalizedMockReportPort } from '../../mocks/reports/mock-port';
 import { IndexView, stopHomeRefresh } from './index';
 import { NormalizedHome } from './normalized-home';
 
-vi.mock('@tarojs/taro', () => ({ default: {}, usePullDownRefresh: vi.fn() }));
+vi.mock('@tarojs/taro', () => ({ default: {}, usePullDownRefresh: vi.fn(), useDidShow: vi.fn() }));
 vi.mock('@tarojs/components', () => ({
   View: 'view',
   Text: 'text',
@@ -45,22 +45,32 @@ describe('home refresh', () => {
 });
 
 describe('home publication header', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-11T16:05:00Z'));
+  });
+  afterEach(() => vi.useRealTimers());
   const props = {
     chrome: { statusBarHeight: 44, navigationBarHeight: 44, rightReservedWidth: 102 },
     query: '',
     onQueryChange: vi.fn()
   };
-  it('uses the report publication in Shanghai, including date and weekday rollover', () => {
+  it('uses the current Shanghai date independently of the report publication', () => {
     const html = renderToStaticMarkup(<HomeHeader {...props} publishedAt='2026-12-31T18:05:00Z' />);
-    expect(html).toContain('01.01 周五');
-    expect(html).toContain('截至 02:05');
+    expect(html).toContain('09.12 周六');
+    expect(html).toContain('截至 01.01 02:05');
     expect(html).not.toContain('过去24小时');
     expect(html).not.toContain('07.07');
   });
-  it('does not fabricate a date or cutoff without a report', () => {
+  it('hides invalid publication timestamps', () => {
+    const html = renderToStaticMarkup(<HomeHeader {...props} publishedAt='invalid' />);
+    expect(html).toContain('09.12 周六');
+    expect(html).not.toContain('截至');
+  });
+  it('shows the current date without fabricating a cutoff without a report', () => {
     const html = renderToStaticMarkup(<HomeHeader {...props} />);
     expect(html).toContain('全球政经事件');
     expect(html).not.toContain('截至');
-    expect(html).not.toContain('周');
+    expect(html).toContain('09.12 周六');
   });
 });

@@ -55,7 +55,9 @@
   left: 0;
   z-index: 1;
   color: $color-card;
-  font-size: report-reading-font(32rpx);
+  // Match the native navigation title without rpx conversion or reading-scale enlargement.
+  /* prettier-ignore */
+  font-size: 17PX;
   font-weight: 700;
   letter-spacing: 0.08em;
   line-height: 1;
@@ -66,13 +68,14 @@
 .home-brief {
   display: flex;
   align-items: flex-end;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 12rpx;
   padding: 20rpx 32rpx 0;
 }
 
 .home-brief__copy {
-  flex: 1;
+  flex: 1 0 360rpx;
   min-width: 0;
 }
 
