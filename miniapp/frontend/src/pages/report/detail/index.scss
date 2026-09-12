@@ -697,3 +697,26 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.report-detail-navigation {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: $color-home-ink;
+}
+.report-detail-navigation__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* prettier-ignore */
+  width: 44PX;
+  /* prettier-ignore */
+  height: 44PX;
+}
+.report-detail-navigation__chevron {
+  width: 20rpx;
+  height: 20rpx;
+  border-left: 4rpx solid currentColor;
+  border-bottom: 4rpx solid currentColor;
+  transform: rotate(45deg);
+}

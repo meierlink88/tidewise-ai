@@ -22,13 +22,6 @@
   padding-top: 12rpx;
 }
 
-.home-nav {
-  position: relative;
-  display: flex;
-  align-items: center;
-  padding-left: 28rpx;
-}
-
 .home-nav__avatar-button {
   position: relative;
   z-index: 2;
@@ -46,23 +39,6 @@
   width: 56rpx;
   height: 56rpx;
   border-radius: 50%;
-}
-
-.home-nav__title {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  left: 0;
-  z-index: 1;
-  color: $color-card;
-  // Match the native navigation title without rpx conversion or reading-scale enlargement.
-  /* prettier-ignore */
-  font-size: 17PX;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  text-align: center;
-  transform: translateY(-50%);
 }
 
 .home-brief {

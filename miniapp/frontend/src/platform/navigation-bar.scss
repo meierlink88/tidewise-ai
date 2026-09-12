@@ -1,0 +1,28 @@
+@use '../styles/tokens' as *;
+.navigation-bar {
+  flex-shrink: 0;
+  color: $color-card;
+}
+.navigation-bar__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.navigation-bar__leading {
+  position: relative;
+  z-index: 2;
+  padding-left: 28rpx;
+}
+.navigation-bar__title {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  /* prettier-ignore */
+  font-size: 17PX;
+  font-weight: 600;
+  letter-spacing: normal;
+  line-height: 1.4;
+  text-align: center;
+  white-space: nowrap;
+}

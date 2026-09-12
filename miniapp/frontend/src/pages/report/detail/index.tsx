@@ -1,5 +1,5 @@
 import Taro, { usePullDownRefresh } from '@tarojs/taro';
-import { View } from '@tarojs/components';
+import { Button, View } from '@tarojs/components';
 import { useEffect, useMemo } from 'react';
 import { NormalizedDetailView } from './normalized-detail';
 import {
@@ -26,6 +26,8 @@ import type { ReportResourceState } from '../../../features/reports/session';
 import { useReportResource } from '../../../features/reports/use-report-resource';
 import { reportDetailShare } from '../../../features/reports/share';
 import { usePageShare } from '../../../platform/use-page-share';
+import { NavigationBar } from '../../../platform/navigation-bar';
+import { getHomeChromeMetrics } from '../../../platform/system-ui';
 import './index.scss';
 
 export type LoadedReportDetail = {
@@ -36,6 +38,7 @@ export type LoadedReportDetail = {
 };
 
 export default function ReportDetailPage() {
+  const chrome = useMemo(() => getHomeChromeMetrics(Taro), []);
   const instance = useMemo(() => Taro.getCurrentInstance(), []);
   const route = useMemo(() => safeDetailRoute(instance.router?.params), [instance]);
   const port = useMemo(() => getReportPort(), []);
@@ -45,7 +48,7 @@ export default function ReportDetailPage() {
     () => loadReportDetail(port, route)
   );
 
-  usePageShare(
+  const isSinglePage = usePageShare(
     reportDetailShare(
       route,
       resource.state.status === 'ready' ? resource.state.data.detail.summary.title : undefined
@@ -65,8 +68,35 @@ export default function ReportDetailPage() {
     void Taro.stopPullDownRefresh();
   });
 
+  const goBack = async () => {
+    try {
+      if (Taro.getCurrentPages().length > 1) await Taro.navigateBack({ delta: 1 });
+      else await Taro.reLaunch({ url: '/pages/index/index' });
+    } catch {
+      void Taro.showToast({ title: '返回失败，请重试', icon: 'none' });
+    }
+  };
+
   return (
     <>
+      {!isSinglePage && (
+        <View className='report-detail-navigation'>
+          <NavigationBar
+            title='深度分析'
+            chrome={chrome}
+            leading={
+              <Button
+                className='tidewise-button report-detail-navigation__back'
+                aria-label='返回'
+                hoverClass='none'
+                onClick={() => void goBack()}
+              >
+                <View className='report-detail-navigation__chevron' />
+              </Button>
+            }
+          />
+        </View>
+      )}
       <ReportDetailView
         state={resource.state}
         onRetry={() => void resource.retry()}
