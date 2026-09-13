@@ -6,6 +6,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/storyline-domain-backfill ./data-service/backend/cmd/storyline-domain-backfill
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/report-storage ./data-service/backend/cmd/report-storage
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/macroeconomic-catalog-publish ./data-service/backend/cmd/macroeconomic-catalog-publish
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/data-service ./data-service/backend/cmd/server
@@ -26,6 +27,7 @@ RUN apk add --no-cache ca-certificates wget
 
 WORKDIR /app
 
+COPY --from=builder /out/storyline-domain-backfill /usr/local/bin/storyline-domain-backfill
 COPY --from=builder /out/data-service /usr/local/bin/data-service
 COPY --from=builder /out/macroeconomic-catalog-publish /usr/local/bin/macroeconomic-catalog-publish
 COPY --from=builder /out/report-storage /usr/local/bin/report-storage

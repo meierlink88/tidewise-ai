@@ -90,3 +90,5 @@
 000089	normal	schema	add nullable entity short names without backfill or changes to existing names and immutable Report snapshots
 000090	normal	schema	limit optional entity short names to five Unicode characters; publish reviewed values separately
 000091	high	mixed	retire generic entities and profiles; preserve renamed node topology; require backup and coordinated Data cutover
+000092	normal	schema	add storyline domain membership tables; publish legacy memberships separately before 93
+000093	high	schema	verify legacy memberships have been separately backfilled before dropping scalar domain columns; coordinate catalog writers

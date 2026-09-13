@@ -23,7 +23,7 @@ func TestStorePersistsGeopoliticalStorylineWithOneDomain(t *testing.T) {
 		t.Fatal(err)
 	}
 	input := CreateInput{
-		Name: "俄乌战争", Category: "俄乌及欧洲安全", GeopoliticDomainID: domainID,
+		Name: "俄乌战争", Category: "俄乌及欧洲安全", GeopoliticDomainIDs: []string{domainID},
 		CoreProposition:  "俄罗斯与乌克兰之间的战场进程、领土控制和停火安排发生变化",
 		CoreActors:       "俄罗斯、乌克兰及直接军援方",
 		MainTransmission: "战争进程→风险偏好、军工需求及地区基础设施风险变化",
@@ -33,7 +33,7 @@ func TestStorePersistsGeopoliticalStorylineWithOneDomain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create() error = %v", err)
 	}
-	if !coreid.Is(created.ID, coreid.GeopoliticRivalry) || created.GeopoliticDomainID != domainID {
+	if !coreid.Is(created.ID, coreid.GeopoliticRivalry) || !reflect.DeepEqual(created.GeopoliticDomainIDs, []string{domainID}) {
 		t.Fatalf("Create() = %#v", created)
 	}
 	if created.CreatedAt.IsZero() || !created.CreatedAt.Equal(created.UpdatedAt) || time.Since(created.CreatedAt) > time.Minute {
@@ -64,7 +64,7 @@ func TestStorePersistsGeopoliticalStorylineWithOneDomain(t *testing.T) {
 		t.Fatalf("Get() = %#v, %v; want %#v", got, err, created)
 	}
 	updated, err := store.Update(context.Background(), UpdateInput{
-		ID: created.ID, Name: input.Name, Category: input.Category, GeopoliticDomainID: input.GeopoliticDomainID,
+		ID: created.ID, Name: input.Name, Category: input.Category, GeopoliticDomainIDs: input.GeopoliticDomainIDs,
 		CoreProposition: input.CoreProposition, CoreActors: input.CoreActors,
 		MainTransmission: input.MainTransmission, CandidateAssets: []string{"原油", "黄金", "VIX指数"},
 	})
@@ -159,7 +159,7 @@ func TestStoreRejectsInvalidCandidateAssets(t *testing.T) {
 
 func validInput(name, category, domainID string) CreateInput {
 	return CreateInput{
-		Name: name, Category: category, GeopoliticDomainID: domainID,
+		Name: name, Category: category, GeopoliticDomainIDs: []string{domainID},
 		CoreProposition:  "每条故事线只表达一个核心命题",
 		CoreActors:       "核心参与方",
 		MainTransmission: "直接影响→对中国经济的主要传导",

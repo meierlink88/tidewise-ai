@@ -1,4 +1,4 @@
-// Package geopoliticrivalry persists geopolitical storylines and their primary domain.
+// Package geopoliticrivalry persists geopolitical storylines and their domain memberships.
 package geopoliticrivalry
 
 import (
@@ -25,38 +25,38 @@ var (
 )
 
 type CreateInput struct {
-	Name               string
-	Category           string
-	GeopoliticDomainID string
-	CoreProposition    string
-	CoreActors         string
-	MainTransmission   string
-	CandidateAssets    []string
+	Name                string
+	Category            string
+	GeopoliticDomainIDs []string
+	CoreProposition     string
+	CoreActors          string
+	MainTransmission    string
+	CandidateAssets     []string
 }
 
 type UpdateInput struct {
-	ID                 string
-	Name               string
-	Category           string
-	GeopoliticDomainID string
-	CoreProposition    string
-	CoreActors         string
-	MainTransmission   string
-	CandidateAssets    []string
+	ID                  string
+	Name                string
+	Category            string
+	GeopoliticDomainIDs []string
+	CoreProposition     string
+	CoreActors          string
+	MainTransmission    string
+	CandidateAssets     []string
 }
 
 type GeopoliticRivalry struct {
-	ShortName          *string
-	ID                 string
-	Name               string
-	Category           string
-	GeopoliticDomainID string
-	CoreProposition    string
-	CoreActors         string
-	MainTransmission   string
-	CandidateAssets    []string
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	ShortName           *string
+	ID                  string
+	Name                string
+	Category            string
+	GeopoliticDomainIDs []string
+	CoreProposition     string
+	CoreActors          string
+	MainTransmission    string
+	CandidateAssets     []string
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
 }
 
 type Filter struct {
@@ -85,17 +85,32 @@ func (s *Store) Create(ctx context.Context, input CreateInput) (GeopoliticRivalr
 	if err != nil {
 		return GeopoliticRivalry{}, ErrInvalidGeopoliticRivalry
 	}
-	row := s.db.QueryRowContext(ctx, `
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return GeopoliticRivalry{}, classifyWriteError(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	row := tx.QueryRowContext(ctx, `
 INSERT INTO geopolitic_rivalries (
-    id, name, category, geopolitic_domain_id,
+    id, name, category,
     core_proposition, core_actors, main_transmission, candidate_assets
-) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
-RETURNING `+geopoliticRivalryColumns,
-		id, input.Name, input.Category, input.GeopoliticDomainID,
+) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+RETURNING id`,
+		id, input.Name, input.Category,
 		input.CoreProposition, input.CoreActors, input.MainTransmission, candidateAssets,
 	)
-	created, err := scanGeopoliticRivalry(row)
+	var persistedID string
+	if err := row.Scan(&persistedID); err != nil {
+		return GeopoliticRivalry{}, classifyWriteError(err)
+	}
+	if _, err := replaceDomainLinks(ctx, tx, persistedID, input.GeopoliticDomainIDs); err != nil {
+		return GeopoliticRivalry{}, classifyWriteError(err)
+	}
+	created, err := scanGeopoliticRivalry(tx.QueryRowContext(ctx, `SELECT `+geopoliticRivalryColumns+` FROM geopolitic_rivalries WHERE id=$1`, persistedID))
 	if err != nil {
+		return GeopoliticRivalry{}, classifyReadError(err)
+	}
+	if err := tx.Commit(); err != nil {
 		return GeopoliticRivalry{}, classifyWriteError(err)
 	}
 	return created, nil
@@ -120,7 +135,7 @@ func (s *Store) List(ctx context.Context, filter Filter) ([]GeopoliticRivalry, e
 	rows, err := s.db.QueryContext(ctx, `
 SELECT `+geopoliticRivalryColumns+`
 FROM geopolitic_rivalries
-WHERE ($1::text IS NULL OR geopolitic_domain_id = $1)
+WHERE ($1::text IS NULL OR EXISTS (SELECT 1 FROM geopolitic_rivalry_domain_links l WHERE l.geopolitic_rivalry_id=geopolitic_rivalries.id AND l.geopolitic_domain_id=$1))
   AND ($2::text IS NULL OR category = $2)
 ORDER BY name ASC, id ASC`, nullableString(filter.GeopoliticDomainID), nullableString(filter.Category))
 	if err != nil {
@@ -143,7 +158,7 @@ ORDER BY name ASC, id ASC`, nullableString(filter.GeopoliticDomainID), nullableS
 
 func (s *Store) Update(ctx context.Context, input UpdateInput) (GeopoliticRivalry, error) {
 	if !coreid.Is(input.ID, coreid.GeopoliticRivalry) || validateInput(CreateInput{
-		Name: input.Name, Category: input.Category, GeopoliticDomainID: input.GeopoliticDomainID,
+		Name: input.Name, Category: input.Category, GeopoliticDomainIDs: input.GeopoliticDomainIDs,
 		CoreProposition: input.CoreProposition, CoreActors: input.CoreActors,
 		MainTransmission: input.MainTransmission, CandidateAssets: input.CandidateAssets,
 	}) != nil {
@@ -153,35 +168,50 @@ func (s *Store) Update(ctx context.Context, input UpdateInput) (GeopoliticRivalr
 	if err != nil {
 		return GeopoliticRivalry{}, ErrInvalidGeopoliticRivalry
 	}
-	row := s.db.QueryRowContext(ctx, `
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return GeopoliticRivalry{}, classifyWriteError(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	row := tx.QueryRowContext(ctx, `
 UPDATE geopolitic_rivalries
-SET name = $2, category = $3, geopolitic_domain_id = $4,
-    core_proposition = $5, core_actors = $6, main_transmission = $7,
-    candidate_assets = $8::jsonb,
+SET name = $2, category = $3,
+    core_proposition = $4, core_actors = $5, main_transmission = $6,
+    candidate_assets = $7::jsonb,
     updated_at = now()
 WHERE id = $1
-RETURNING `+geopoliticRivalryColumns,
-		input.ID, input.Name, input.Category, input.GeopoliticDomainID,
+RETURNING id`,
+		input.ID, input.Name, input.Category,
 		input.CoreProposition, input.CoreActors, input.MainTransmission, candidateAssets,
 	)
-	updated, err := scanGeopoliticRivalry(row)
+	var persistedID string
+	if err := row.Scan(&persistedID); err != nil {
+		return GeopoliticRivalry{}, classifyWriteError(err)
+	}
+	if _, err := replaceDomainLinks(ctx, tx, persistedID, input.GeopoliticDomainIDs); err != nil {
+		return GeopoliticRivalry{}, classifyWriteError(err)
+	}
+	updated, err := scanGeopoliticRivalry(tx.QueryRowContext(ctx, `SELECT `+geopoliticRivalryColumns+` FROM geopolitic_rivalries WHERE id=$1`, persistedID))
 	if err != nil {
+		return GeopoliticRivalry{}, classifyReadError(err)
+	}
+	if err := tx.Commit(); err != nil {
 		return GeopoliticRivalry{}, classifyWriteError(err)
 	}
 	return updated, nil
 }
 
 const geopoliticRivalryColumns = `
-id, name, short_name, category, geopolitic_domain_id, core_proposition,
+id, name, short_name, category, (SELECT COALESCE(jsonb_agg(l.geopolitic_domain_id ORDER BY l.geopolitic_domain_id), '[]'::jsonb) FROM geopolitic_rivalry_domain_links l WHERE l.geopolitic_rivalry_id=geopolitic_rivalries.id), core_proposition,
 core_actors, main_transmission, candidate_assets, created_at, updated_at`
 
 type rowScanner interface{ Scan(...any) error }
 
 func scanGeopoliticRivalry(row rowScanner) (GeopoliticRivalry, error) {
 	var result GeopoliticRivalry
-	var candidateAssetsJSON []byte
+	var candidateAssetsJSON, domainIDsJSON []byte
 	if err := row.Scan(
-		&result.ID, &result.Name, &result.ShortName, &result.Category, &result.GeopoliticDomainID,
+		&result.ID, &result.Name, &result.ShortName, &result.Category, &domainIDsJSON,
 		&result.CoreProposition, &result.CoreActors, &result.MainTransmission,
 		&candidateAssetsJSON,
 		&result.CreatedAt, &result.UpdatedAt,
@@ -193,6 +223,9 @@ func scanGeopoliticRivalry(row rowScanner) (GeopoliticRivalry, error) {
 		return GeopoliticRivalry{}, err
 	}
 	result.CandidateAssets = candidateAssets
+	if err := json.Unmarshal(domainIDsJSON, &result.GeopoliticDomainIDs); err != nil {
+		return GeopoliticRivalry{}, err
+	}
 	if err := validateStored(result); err != nil {
 		return GeopoliticRivalry{}, err
 	}
@@ -201,7 +234,7 @@ func scanGeopoliticRivalry(row rowScanner) (GeopoliticRivalry, error) {
 
 func validateInput(input CreateInput) error {
 	if !validRequiredText(input.Name, 100) || !validRequiredText(input.Category, 100) ||
-		!coreid.Is(input.GeopoliticDomainID, coreid.GeopoliticDomain) ||
+		!validDomainIDs(input.GeopoliticDomainIDs) ||
 		strings.TrimSpace(input.CoreProposition) == "" || strings.TrimSpace(input.CoreActors) == "" ||
 		strings.TrimSpace(input.MainTransmission) == "" || !validCandidateAssets(input.CandidateAssets) {
 		return ErrInvalidGeopoliticRivalry
@@ -224,7 +257,7 @@ func validateStored(input GeopoliticRivalry) error {
 		return ErrInvalidGeopoliticRivalry
 	}
 	if !coreid.Is(input.ID, coreid.GeopoliticRivalry) || validateInput(CreateInput{
-		Name: input.Name, Category: input.Category, GeopoliticDomainID: input.GeopoliticDomainID,
+		Name: input.Name, Category: input.Category, GeopoliticDomainIDs: input.GeopoliticDomainIDs,
 		CoreProposition: input.CoreProposition, CoreActors: input.CoreActors,
 		MainTransmission: input.MainTransmission, CandidateAssets: input.CandidateAssets,
 	}) != nil || input.CreatedAt.IsZero() || input.UpdatedAt.IsZero() || input.UpdatedAt.Before(input.CreatedAt) {
@@ -309,4 +342,18 @@ func classifyReadError(err error) error {
 		return fmt.Errorf("%w: invalid persisted GeopoliticRivalry", ErrPersistence)
 	}
 	return ErrPersistence
+}
+
+func validDomainIDs(ids []string) bool {
+	if len(ids) == 0 {
+		return false
+	}
+	seen := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		if !coreid.Is(id, coreid.GeopoliticDomain) || seen[id] {
+			return false
+		}
+		seen[id] = true
+	}
+	return true
 }

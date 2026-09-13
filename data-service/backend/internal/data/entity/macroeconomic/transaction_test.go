@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -257,7 +258,8 @@ func assertPublishedCatalog(t *testing.T, db *sql.DB, publication CatalogPublica
 		t.Fatal(err)
 	}
 	if err := db.QueryRow(`SELECT count(*) FROM macro_economics storyline
-LEFT JOIN macro_economics_domain domain ON domain.id = storyline.macro_economics_domain_id
+LEFT JOIN macro_economic_domain_links link ON link.macro_economic_id = storyline.id
+LEFT JOIN macro_economics_domain domain ON domain.id = link.macro_economic_domain_id
 WHERE domain.id IS NULL`).Scan(&orphanCount); err != nil {
 		t.Fatal(err)
 	}
@@ -318,8 +320,8 @@ WHERE domain.id IS NULL`).Scan(&orphanCount); err != nil {
 	for _, storyline := range publication.Storylines {
 		wantStorylines[storyline.Name] = storyline
 	}
-	rows, err = db.Query(`SELECT name, macro_economics_domain_id, core_proposition, candidate_assets
-FROM macro_economics ORDER BY name`)
+	rows, err = db.Query(`SELECT name, link.macro_economic_domain_id, core_proposition, candidate_assets
+FROM macro_economics s JOIN macro_economic_domain_links link ON link.macro_economic_id=s.id ORDER BY name`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -389,4 +391,131 @@ func openMacroeconomicCatalogTestDatabase(t *testing.T, name string) *sql.DB {
 		t.Fatal(err)
 	}
 	return postgresfixture.OpenIsolated(t, name, migrationDir, 0)
+}
+
+func TestManyDomainMemberships(t *testing.T) {
+	db := openMacroeconomicCatalogTestDatabase(t, "tw_many_domains")
+	ctx := context.Background()
+	path := filepath.Join(filepath.Dir(macroeconomicCatalogPath(t)), "macroeconomic-storylines-v2.json")
+	publication, err := LoadCatalog(ctx, path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, b := publication.Domains[0].Code, publication.Domains[1].Code
+	publication.Storylines[0].DomainCodes = []string{b, a}
+	publication.Storylines[1].DomainCodes = []string{a}
+	if err := PublishCatalog(ctx, db, publication); err != nil {
+		t.Fatal(err)
+	}
+	domains, stories, err := catalogIdentities(publication)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := stories[publication.Storylines[0].Name]
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, err := store.Get(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{domains[a], domains[b]}
+	sort.Strings(want)
+	if !reflect.DeepEqual(before.MacroEconomicDomainIDs, want) {
+		t.Fatalf("memberships: %#v", before)
+	}
+	for _, code := range []string{a, b} {
+		domainID := domains[code]
+		found, err := store.List(ctx, Filter{MacroEconomicDomainID: &domainID})
+		if err != nil {
+			t.Fatal(err)
+		}
+		expected := map[string]bool{}
+		for _, item := range publication.Storylines {
+			for _, membership := range item.DomainCodes {
+				if membership == code {
+					expected[stories[item.Name]] = true
+				}
+			}
+		}
+		for _, item := range found {
+			if !expected[item.ID] {
+				t.Fatalf("unexpected or duplicate membership result %s", item.ID)
+			}
+			delete(expected, item.ID)
+		}
+		if len(expected) != 0 {
+			t.Fatal("missing membership results")
+		}
+	}
+	// Set order is not a fact change; replay preserves identity and timestamps.
+	publication.Storylines[0].DomainCodes = []string{a, b}
+	if err := PublishCatalog(ctx, db, publication); err != nil {
+		t.Fatal(err)
+	}
+	replay, err := store.Get(ctx, id)
+	if err != nil || !reflect.DeepEqual(before, replay) {
+		t.Fatalf("unstable replay: %#v %v", replay, err)
+	}
+	input := UpdateInput{ID: id, Name: before.Name, CoreProposition: before.CoreProposition, CandidateAssets: before.CandidateAssets, MacroEconomicDomainIDs: []string{domains[b]}}
+	after, err := store.Update(ctx, input)
+	if err != nil || !reflect.DeepEqual(after.MacroEconomicDomainIDs, input.MacroEconomicDomainIDs) {
+		t.Fatalf("replace: %#v %v", after, err)
+	}
+	missing, err := coreid.New(coreid.MacroEconomicDomain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, invalid := range [][]string{nil, {}, {domains[a], domains[a]}, {domains[a], missing}} {
+		input.MacroEconomicDomainIDs = invalid
+		input.CoreProposition = "must roll back"
+		if _, err := store.Update(ctx, input); !errors.Is(err, ErrInvalidMacroEconomic) {
+			t.Fatalf("accepted invalid membership: %v", err)
+		}
+		current, err := store.Get(ctx, id)
+		if err != nil || !reflect.DeepEqual(current, after) {
+			t.Fatalf("partial write: %#v %v", current, err)
+		}
+	}
+	// Current catalog must reject ambiguous, duplicate, empty and unknown references.
+	for _, invalid := range [][]string{nil, {}, {a, a}, {"UNKNOWN"}} {
+		publication.Storylines[0].DomainCodes = invalid
+		if err := PublishCatalog(ctx, db, publication); err == nil {
+			t.Fatal("accepted invalid catalog memberships")
+		}
+	}
+	// Legacy single-domain package still works with replacement semantics.
+	legacy, err := LoadCatalog(ctx, macroeconomicCatalogPath(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := PublishCatalog(ctx, db, legacy); err != nil {
+		t.Fatal(err)
+	}
+	restored, err := store.Get(ctx, id)
+	if err != nil || !reflect.DeepEqual(restored.MacroEconomicDomainIDs, []string{domains[legacy.Storylines[0].DomainCode]}) {
+		t.Fatalf("legacy replacement: %#v %v", restored, err)
+	}
+	create := CreateInput{Name: "多领域写入验证", CoreProposition: before.CoreProposition, CandidateAssets: before.CandidateAssets, MacroEconomicDomainIDs: []string{domains[a], missing}}
+	if _, err := store.Create(ctx, create); !errors.Is(err, ErrInvalidMacroEconomic) {
+		t.Fatalf("invalid create: %v", err)
+	}
+	var orphan int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM macro_economics WHERE name=$1`, create.Name).Scan(&orphan); err != nil || orphan != 0 {
+		t.Fatalf("partial create: %d %v", orphan, err)
+	}
+	create.MacroEconomicDomainIDs = []string{domains[b], domains[a]}
+	created, err := store.Create(ctx, create)
+	if err != nil || !reflect.DeepEqual(created.MacroEconomicDomainIDs, want) {
+		t.Fatalf("multi create: %#v %v", created, err)
+	}
+	duplicateID, err := coreid.New(coreid.MacroEconomicDomainLink)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO macro_economic_domain_links (id,macro_economic_id,macro_economic_domain_id) VALUES ($1,$2,$3)`, duplicateID, created.ID, domains[a]); err == nil {
+		t.Fatal("database accepted duplicate pair")
+	}
+
 }

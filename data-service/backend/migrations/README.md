@@ -418,3 +418,11 @@ check-only。迁移会删除 `storyline_domain_tactics`、`storyline_domains`、
 字段和人工审阅导出，CRUD wire 与历史 Report 快照保持现有合同。追踪：#481。
 
 - `000091_retire_generic_entities_and_rename_chain_nodes.sql`：无损更名节点及节点图表，删除通用 Entity/Edge 与八类 profile，更新身份、引用保护和防环函数；协调停写并备份，回滚需恢复数据库及匹配应用。
+
+## Storyline domain memberships (000092–000093)
+
+按 ADR-0065 分阶段发布：停写并备份 → 同版镜像 `dbmigrate -apply -target-version 92` →
+显式 `storyline-domain-backfill` 验证后以 `-apply` 提交 → `dbmigrate -apply -target-version 93`。
+92仅建关系表；独立命令使用当前库复制原领域关系，保留全部故事线内容和时间；93仅在所有
+旧关联已存在时移除原单值列。不要在非空库直接跳过回填执行完整升级。
+最终镜像的 Store/目录要求93；旧镜像要求旧列，不得混跑。完整回滚恢复数据库与对应应用。

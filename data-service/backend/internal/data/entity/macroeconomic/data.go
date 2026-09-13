@@ -1,4 +1,4 @@
-// Package macroeconomic persists macroeconomic storylines and their primary domain.
+// Package macroeconomic persists macroeconomic storylines and their domain memberships.
 package macroeconomic
 
 import (
@@ -25,29 +25,29 @@ var (
 )
 
 type CreateInput struct {
-	Name                  string
-	MacroEconomicDomainID string
-	CoreProposition       string
-	CandidateAssets       []string
+	Name                   string
+	MacroEconomicDomainIDs []string
+	CoreProposition        string
+	CandidateAssets        []string
 }
 
 type UpdateInput struct {
-	ID                    string
-	Name                  string
-	MacroEconomicDomainID string
-	CoreProposition       string
-	CandidateAssets       []string
+	ID                     string
+	Name                   string
+	MacroEconomicDomainIDs []string
+	CoreProposition        string
+	CandidateAssets        []string
 }
 
 type MacroEconomic struct {
-	ShortName             *string
-	ID                    string
-	Name                  string
-	MacroEconomicDomainID string
-	CoreProposition       string
-	CandidateAssets       []string
-	CreatedAt             time.Time
-	UpdatedAt             time.Time
+	ShortName              *string
+	ID                     string
+	Name                   string
+	MacroEconomicDomainIDs []string
+	CoreProposition        string
+	CandidateAssets        []string
+	CreatedAt              time.Time
+	UpdatedAt              time.Time
 }
 
 type Filter struct {
@@ -75,16 +75,31 @@ func (s *Store) Create(ctx context.Context, input CreateInput) (MacroEconomic, e
 	if err != nil {
 		return MacroEconomic{}, ErrInvalidMacroEconomic
 	}
-	row := s.db.QueryRowContext(ctx, `
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return MacroEconomic{}, classifyWriteError(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	row := tx.QueryRowContext(ctx, `
 INSERT INTO macro_economics (
-    id, name, macro_economics_domain_id, core_proposition, candidate_assets
-) VALUES ($1, $2, $3, $4, $5::jsonb)
-RETURNING `+macroEconomicColumns,
-		id, input.Name, input.MacroEconomicDomainID,
+    id, name, core_proposition, candidate_assets
+) VALUES ($1, $2, $3, $4::jsonb)
+RETURNING id`,
+		id, input.Name,
 		input.CoreProposition, candidateAssets,
 	)
-	created, err := scanMacroEconomic(row)
+	var persistedID string
+	if err := row.Scan(&persistedID); err != nil {
+		return MacroEconomic{}, classifyWriteError(err)
+	}
+	if _, err := replaceDomainLinks(ctx, tx, persistedID, input.MacroEconomicDomainIDs); err != nil {
+		return MacroEconomic{}, classifyWriteError(err)
+	}
+	created, err := scanMacroEconomic(tx.QueryRowContext(ctx, `SELECT `+macroEconomicColumns+` FROM macro_economics WHERE id=$1`, persistedID))
 	if err != nil {
+		return MacroEconomic{}, classifyReadError(err)
+	}
+	if err := tx.Commit(); err != nil {
 		return MacroEconomic{}, classifyWriteError(err)
 	}
 	return created, nil
@@ -109,7 +124,7 @@ func (s *Store) List(ctx context.Context, filter Filter) ([]MacroEconomic, error
 	rows, err := s.db.QueryContext(ctx, `
 SELECT `+macroEconomicColumns+`
 FROM macro_economics
-WHERE ($1::text IS NULL OR macro_economics_domain_id = $1)
+WHERE ($1::text IS NULL OR EXISTS (SELECT 1 FROM macro_economic_domain_links l WHERE l.macro_economic_id=macro_economics.id AND l.macro_economic_domain_id=$1))
 ORDER BY name ASC, id ASC`, nullableString(filter.MacroEconomicDomainID))
 	if err != nil {
 		return nil, classifyReadError(err)
@@ -131,7 +146,7 @@ ORDER BY name ASC, id ASC`, nullableString(filter.MacroEconomicDomainID))
 
 func (s *Store) Update(ctx context.Context, input UpdateInput) (MacroEconomic, error) {
 	if !coreid.Is(input.ID, coreid.MacroEconomic) || validateInput(CreateInput{
-		Name: input.Name, MacroEconomicDomainID: input.MacroEconomicDomainID,
+		Name: input.Name, MacroEconomicDomainIDs: input.MacroEconomicDomainIDs,
 		CoreProposition: input.CoreProposition,
 		CandidateAssets: input.CandidateAssets,
 	}) != nil {
@@ -141,33 +156,48 @@ func (s *Store) Update(ctx context.Context, input UpdateInput) (MacroEconomic, e
 	if err != nil {
 		return MacroEconomic{}, ErrInvalidMacroEconomic
 	}
-	row := s.db.QueryRowContext(ctx, `
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return MacroEconomic{}, classifyWriteError(err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	row := tx.QueryRowContext(ctx, `
 UPDATE macro_economics
-SET name = $2, macro_economics_domain_id = $3,
-    core_proposition = $4, candidate_assets = $5::jsonb,
+SET name = $2,
+    core_proposition = $3, candidate_assets = $4::jsonb,
     updated_at = now()
 WHERE id = $1
-RETURNING `+macroEconomicColumns,
-		input.ID, input.Name, input.MacroEconomicDomainID,
+RETURNING id`,
+		input.ID, input.Name,
 		input.CoreProposition, candidateAssets,
 	)
-	updated, err := scanMacroEconomic(row)
+	var persistedID string
+	if err := row.Scan(&persistedID); err != nil {
+		return MacroEconomic{}, classifyWriteError(err)
+	}
+	if _, err := replaceDomainLinks(ctx, tx, persistedID, input.MacroEconomicDomainIDs); err != nil {
+		return MacroEconomic{}, classifyWriteError(err)
+	}
+	updated, err := scanMacroEconomic(tx.QueryRowContext(ctx, `SELECT `+macroEconomicColumns+` FROM macro_economics WHERE id=$1`, persistedID))
 	if err != nil {
+		return MacroEconomic{}, classifyReadError(err)
+	}
+	if err := tx.Commit(); err != nil {
 		return MacroEconomic{}, classifyWriteError(err)
 	}
 	return updated, nil
 }
 
 const macroEconomicColumns = `
-id, name, short_name, macro_economics_domain_id, core_proposition, candidate_assets, created_at, updated_at`
+id, name, short_name, (SELECT COALESCE(jsonb_agg(l.macro_economic_domain_id ORDER BY l.macro_economic_domain_id), '[]'::jsonb) FROM macro_economic_domain_links l WHERE l.macro_economic_id=macro_economics.id), core_proposition, candidate_assets, created_at, updated_at`
 
 type rowScanner interface{ Scan(...any) error }
 
 func scanMacroEconomic(row rowScanner) (MacroEconomic, error) {
 	var result MacroEconomic
-	var candidateAssetsJSON []byte
+	var candidateAssetsJSON, domainIDsJSON []byte
 	if err := row.Scan(
-		&result.ID, &result.Name, &result.ShortName, &result.MacroEconomicDomainID,
+		&result.ID, &result.Name, &result.ShortName, &domainIDsJSON,
 		&result.CoreProposition,
 		&candidateAssetsJSON,
 		&result.CreatedAt, &result.UpdatedAt,
@@ -179,6 +209,9 @@ func scanMacroEconomic(row rowScanner) (MacroEconomic, error) {
 		return MacroEconomic{}, err
 	}
 	result.CandidateAssets = candidateAssets
+	if err := json.Unmarshal(domainIDsJSON, &result.MacroEconomicDomainIDs); err != nil {
+		return MacroEconomic{}, err
+	}
 	if err := validateStored(result); err != nil {
 		return MacroEconomic{}, err
 	}
@@ -187,7 +220,7 @@ func scanMacroEconomic(row rowScanner) (MacroEconomic, error) {
 
 func validateInput(input CreateInput) error {
 	if !validRequiredText(input.Name, 100) ||
-		!coreid.Is(input.MacroEconomicDomainID, coreid.MacroEconomicDomain) ||
+		!validDomainIDs(input.MacroEconomicDomainIDs) ||
 		strings.TrimSpace(input.CoreProposition) == "" || !validCandidateAssets(input.CandidateAssets) {
 		return ErrInvalidMacroEconomic
 	}
@@ -206,7 +239,7 @@ func validateStored(input MacroEconomic) error {
 		return ErrInvalidMacroEconomic
 	}
 	if !coreid.Is(input.ID, coreid.MacroEconomic) || validateInput(CreateInput{
-		Name: input.Name, MacroEconomicDomainID: input.MacroEconomicDomainID,
+		Name: input.Name, MacroEconomicDomainIDs: input.MacroEconomicDomainIDs,
 		CoreProposition: input.CoreProposition,
 		CandidateAssets: input.CandidateAssets,
 	}) != nil || input.CreatedAt.IsZero() || input.UpdatedAt.IsZero() || input.UpdatedAt.Before(input.CreatedAt) {
@@ -291,4 +324,18 @@ func classifyReadError(err error) error {
 		return fmt.Errorf("%w: invalid persisted MacroEconomic", ErrPersistence)
 	}
 	return ErrPersistence
+}
+
+func validDomainIDs(ids []string) bool {
+	if len(ids) == 0 {
+		return false
+	}
+	seen := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		if !coreid.Is(id, coreid.MacroEconomicDomain) || seen[id] {
+			return false
+		}
+		seen[id] = true
+	}
+	return true
 }

@@ -11,9 +11,9 @@ GeopoliticRivalry(地缘政治故事线): EntityType
         category(故事线分类): Text
             desc: 非枚举的故事线分类文案
             constraint: NotNull
-        geopoliticDomainId(领域标识): Text
-            desc: 故事线唯一主地缘政治领域的 GeopoliticDomain 标识
-            constraint: NotNull
+        geopoliticDomainIds(领域标识集合): Text
+            desc: 故事线关联的领域标识集合，至少一个，无主次和顺序，持久化于关系表
+            constraint: NotNull, MultiValue
         coreProposition(核心命题): Text
             desc: 该故事线唯一需要跟踪和判断的核心内容
             constraint: NotNull

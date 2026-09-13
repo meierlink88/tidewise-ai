@@ -167,78 +167,40 @@ required operational backup and stop Region/Country-Region writes before
 running it. UAT publication remains a manual operation separate from the UAT
 deployment workflow.
 
-## Geopolitical domain and storyline catalog
+## Geopolitical and macroeconomic domain memberships
 
-`geopolitical-storylines-v2.json` is the reviewed complete package for the
-current geopolitical research foundation. It contains 14 GeopoliticDomain
-rows, exactly eight Chinese-name/description tactics per domain, and 44
-GeopoliticRivalry storyline rows. Every storyline has one free-text category,
-one primary domain code, one core proposition, core-actor text, and one main
-transmission statement plus a non-empty, ordered, duplicate-free candidate-asset
-array. Candidate assets are a post-match research universe, not Event-to-storyline
-matching semantics, investment direction, confidence or conclusion. The package
-does not contain primary IDs or Event, Actor, graph, API, or UI facts. Version 1
-is retained only as the historical package published before migration 83.
+The current packages are `geopolitical-storylines-v3.json` and
+`macroeconomic-storylines-v2.json`. They retain the reviewed facts: 14 geopolitical
+domains, eight tactics per domain and 44 stories; 10 macroeconomic domains,
+78 tactics and 34 stories. Each story supplies a nonempty, unique `domain_codes`
+array. Membership is an unordered set; there is no primary domain.
 
-Publish the package with the same Data image that supplied migration 82:
+Each publication replaces the complete membership set atomically with its story
+facts. Duplicate or unknown domains are rejected. Unchanged memberships preserve
+relation IDs; reordering alone does not change timestamps. Existing story IDs,
+short names and candidate asset semantics remain unchanged. The publishers still
+reject identities outside the complete catalog and do not infer memberships.
 
-```text
-/usr/local/bin/geopolitical-catalog-publish -file /app/initdata/geopolitical-storylines-v2.json
-```
+The new publishers can also read geopolitical v2 and macroeconomic v1 packages:
+legacy `domain_code` becomes a single-element set and uses the same replacement
+semantics. There is no special legacy merge or overwrite guard. Geopolitical v1
+remains a historical package from before candidate assets and is not accepted.
 
-Publication derives deterministic `GPD` identities from domain codes and
-deterministic `GPR` identities from the reviewed unique Chinese storyline
-names. It validates the exact 14/8/44 package shape, runs atomically and
-idempotently, and fails closed if either table contains an identity outside the
-package. It never runs automatically during deployment.
-
-Before the migration 83 publication, stop GeopoliticRivalry writers, take the
-approved PostgreSQL recovery point, verify the current rows are the replaceable
-v1 catalog, and explicitly remove those storyline rows. Apply migration 83 and
-use the released image's database-operation configuration to publish v2. Verify
-the exact domain, tactic and storyline catalog, zero orphan domain references,
-and valid candidate assets for every storyline. Rollback requires the
-pre-migration database snapshot and the previous application release; do not
-run the forward-only down migration.
-
-## Macroeconomic domain and storyline catalog
-
-`macroeconomic-storylines-v1.json` contains 10 MacroEconomicDomain rows, the
-78 reference tactics transcribed from the reviewed attachments (six for
-GROWTH_CYCLE and eight for each other domain), and the 34 approved storylines.
-Each storyline has one domain code, its verbatim one-sentence China-impact
-proposition, and an ordered nonempty candidate-asset array. Domain tactics are
-`[{name, description}]`, never an object keyed by tactic code. Reference tactics
-are not an Event admission whitelist. Candidate assets are research scopes, not
-security identities, observed macro indicators, or investment conclusions.
-
-After human merge, preserve a PostgreSQL recovery point, stop old MacroEconomic
-writers and apply migration 84 using the matching Data image. The migration
-requires an empty old macroeconomic table and never clears existing facts.
-Publish separately using the image's database-operation configuration:
+Use the matching Data image only after migration 93. For existing databases,
+first follow ADR-0065: backup and stop writers, migrate to92, explicitly verify
+and apply `storyline-domain-backfill`, then migrate to93. The backfill copies
+current database relationships; it does not replay these catalogs or delete stories.
 
 ```text
-/usr/local/bin/macroeconomic-catalog-publish -file /app/initdata/macroeconomic-storylines-v1.json
+/usr/local/bin/geopolitical-catalog-publish -file /app/initdata/geopolitical-storylines-v3.json
+/usr/local/bin/macroeconomic-catalog-publish -file /app/initdata/macroeconomic-storylines-v2.json
 ```
 
-The operator can use the existing local Compose environment:
-
-```bash
-docker compose --env-file infra/local/.env.local -f infra/local/docker-compose.yaml run --rm --no-deps --entrypoint /usr/local/bin/macroeconomic-catalog-publish data
-```
-
-The command strictly validates the package, derives MCD IDs from domain codes
-and MEC IDs from storyline names, and atomically reconciles both tables.
-Unknown persisted identities cause a conflict, not deletion. Replaying an
-unchanged package preserves IDs and timestamps. Do not rename catalog stories
-without a separately reviewed identity migration.
-
-Acceptance: compare every stored field against the package, verify the exact
-10-domain/78-tactic/34-storyline contents, zero orphan references, and unchanged
-IDs and timestamps on replay. Confirm existing geopolitical facts are unchanged.
-Rollback requires the pre-cutover backup with the old application, not down SQL.
-Development tests run in an isolated PostgreSQL instance; they do not initialize
-the shared local business database.
+These commands run separately from deployment, using the image's database-operation
+configuration. Do not rename catalog stories without an identity migration. Verify
+all story facts, complete memberships, zero orphan references, and stable replay.
+Rollback after migration93 requires the previous database backup and matching
+application; do not run down SQL. This change does not publish an HTTP CRUD API.
 
 ## Organization facts
 
