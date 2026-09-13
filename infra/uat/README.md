@@ -423,3 +423,20 @@ SHA-256 清单，同时冻结所有 public 业务表的行数和行内容指纹�
 迁移启动后的失败必须保持旧服务停止；同 SHA 续跑只复用已校验的原始备份，不覆盖
 备份，也不提供空 schema 重建。人工回退必须恢复原始数据库快照和匹配的旧 release。
 成功后回到 normal 发布。此入口仅部署授权的 UAT 变更，不用本地数据替换 UAT。
+
+## Data 91 → 93 故事线领域多对多发布
+
+PR493 的两步 Schema migration 必须使用 `data_93_cutover`；`normal` 在 pending92/93时
+主动阻断。初次仅接受当前91且pending精确92、93，并要求已确认当前RDS恢复点与数据变更。
+工作流构建四服务及digest-pinned备份客户端，校验后停写，保存
+`state/storyline-domain-<release_sha>/before.dump`、`before.tsv` 和 `before.sha256`。
+
+执行顺序为92建表 → 同版镜像显式运行 `storyline-domain-backfill -apply` → 93核验并移除旧列。
+启动前用 `storyline-domain-snapshot.sql` 核验完整保留表数据（仅排除已移走的两个旧外键字段），
+并逐组比较旧外键与新关系表的完整端点集合；既不依据名称推断，也不从本地初始化包覆盖UAT。
+保存 `after.tsv`，然后验证四服务和既有业务API，再提交release状态。
+
+失败保留同SHA、目标93的恢复marker与 `pre-data93.*` 快照。92恢复会重新执行幂等回填；
+93恢复只核验，不运行仅适用于92的回填命令。原始备份缺失或校验失败时拒绝继续；
+迁移开始后不自动恢复旧应用。恢复必须沿用同一SHA或还原已验证的数据库恢复点和对应旧应用。
+本模式不启用空库重建，也不改变旧91/88等切换路径。

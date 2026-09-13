@@ -1491,6 +1491,9 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		if options.deploymentMode == "data_91_cutover" {
 			prefix = "entity-retirement-"
 		}
+		if options.deploymentMode == "data_93_cutover" {
+			prefix = "storyline-domain-"
+		}
 		dir := filepath.Join(state, prefix+fixtureSHA)
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			t.Fatal(err)
@@ -1506,6 +1509,15 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 			writeFixture(t, filepath.Join(dir, "before.tsv"), snapshot)
 			manifest += fmt.Sprintf("%x  before.tsv\n", sha256.Sum256([]byte(snapshot)))
 		}
+		if options.deploymentMode == "data_93_cutover" {
+			snapshot := "__migration__|91|ledger\n"
+			for _, table := range strings.Fields("geopolitic_domains geopolitic_rivalries macro_economics_domain macro_economics events evidences report_archive __geo_memberships__ __macro_memberships__") {
+				snapshot += table + "|1|" + strings.Repeat("a", 32) + "\n"
+			}
+			writeFixture(t, filepath.Join(dir, "before.tsv"), snapshot)
+			manifest += fmt.Sprintf("%x  before.tsv\n", sha256.Sum256([]byte(snapshot)))
+		}
+
 		writeFixture(t, filepath.Join(dir, "before.sha256"), manifest)
 	}
 	runtimeEnv := filepath.Join(temp, "candidate.runtime.env")
@@ -1541,7 +1553,7 @@ func runDeployFixture(t *testing.T, options deployFixtureOptions) deployFixtureR
 		migrationScope = "schema"
 	}
 	manifestRows := ""
-	for version := 1; version <= 91; version++ {
+	for version := 1; version <= 93; version++ {
 		risk := "normal"
 		scope := "schema"
 		reason := "fixture migration"
@@ -1737,6 +1749,19 @@ case " $* " in
 	    if [ -n "$compose_file" ] && grep -q 'qdrant:' "$compose_file"; then echo qdrant; fi
 	    printf 'data\nminiapp\nadminportal\nadmin\n'
     ;;
+  *" /usr/local/bin/dbmigrate -apply -target-version 92 "*)
+    [ "$FAKE_REPORT_STORAGE_FAILURE" = schema92 ] && exit 1
+    echo '{"current_version":"92","pending":[{"Version":"93"}]}'
+    ;;
+  *" /usr/local/bin/storyline-domain-backfill "*)
+    [ "$FAKE_REPORT_STORAGE_FAILURE" = backfill ] && exit 1
+    echo 'verified memberships'
+    ;;
+  *" /usr/local/bin/dbmigrate -apply -target-version 93 "*)
+    [ "$FAKE_REPORT_STORAGE_FAILURE" = schema93 ] && exit 1
+    touch "$FAKE_CUTOVER_APPLIED"
+    cat "$FAKE_MIGRATION_APPLY_REPORT"
+    ;;
 	  *" run "*" /usr/local/bin/dbmigrate -apply -target-version 58 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 59 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 60 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 77 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 79 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 80 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 88 "*|*" run "*" /usr/local/bin/dbmigrate -apply -target-version 91 "*)
 	    touch "$FAKE_CUTOVER_APPLIED"
 	    cat "$FAKE_MIGRATION_APPLY_REPORT"
@@ -1751,6 +1776,24 @@ case " $* " in
   *" pg_restore "*) cat >/dev/null; echo fixture-contents ;;
   *" psql -XAtq "*)
     cat >/dev/null
+    if [ "$DEPLOYMENT_MODE" = data_93_cutover ]; then
+      version=91
+      tables='geopolitic_domains geopolitic_rivalries macro_economics_domain macro_economics events evidences report_archive __geo_memberships__ __macro_memberships__'
+      if [ -f "$FAKE_CUTOVER_APPLIED" ] || grep -q '"current_version":"93"' "$FAKE_MIGRATION_REPORT"; then
+        version=93
+        tables="$tables geopolitic_rivalry_domain_links macro_economic_domain_links"
+      fi
+      printf '__migration__|%s|ledger\n' "$version"
+      for table in $tables; do
+        count=1; digest=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+        if [ "$version" = 93 ]; then
+          [ "$FAKE_REPORT_STORAGE_FAILURE" = retained ] && [ "$table" = events ] && count=2
+          [ "$FAKE_REPORT_STORAGE_FAILURE" = memberships ] && [ "$table" = __geo_memberships__ ] && digest=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+        fi
+        printf '%s|%s|%s\n' "$table" "$count" "$digest"
+      done
+      exit 0
+    fi
     if [ -f "$FAKE_CUTOVER_APPLIED" ]; then
       printf '__migration__|91|ledger\n'
       tables='industry_chain_node industry_chain_node_graph events evidences report_archive'
@@ -2100,6 +2143,99 @@ func TestUATEntityRetirementRecoveryPreservesOriginalBackup(t *testing.T) {
 			}
 		} else if r.err == nil {
 			t.Fatal("accepted missing backup")
+		}
+	}
+}
+
+func TestUATStorylineDomainCutover(t *testing.T) {
+	for _, failure := range []string{"", "image", "version", "backup", "schema92", "backfill", "schema93", "retained", "memberships"} {
+		t.Run(failure, func(t *testing.T) {
+			r := runDeployFixture(t, deployFixtureOptions{currentRelease: true, deploymentMode: "data_93_cutover", backupConfirmed: true, destructiveConfirmed: true, reportStorageFailure: failure,
+				migrationReport: `{"current_version":"91","pending":[{"Version":"92"},{"Version":"93"}]}`, migrationApplyReport: `{"current_version":"93","pending":[]}`})
+			raw, _ := os.ReadFile(r.dockerLog)
+			log := string(raw)
+			stages := []string{" stop ", " pg_dump --format", " psql -XAtq ", "dbmigrate -apply -target-version 92", "storyline-domain-backfill -apply", "dbmigrate -apply -target-version 93"}
+			if failure == "" {
+				if r.err != nil {
+					t.Fatalf("%v: %s", r.err, r.output)
+				}
+				previous := -1
+				for _, stage := range stages {
+					i := strings.Index(log, stage)
+					if i <= previous {
+						t.Fatalf("wrong stage order %s: %s", stage, log)
+					}
+					previous = i
+				}
+				after := strings.LastIndex(log, " psql -XAtq ")
+				start := strings.Index(log, " up -d --remove-orphans")
+				if after <= previous || start <= after {
+					t.Fatal("started before verification", log)
+				}
+				if !strings.Contains(r.output, "retained_tables=7 geopolitical_links=1 macroeconomic_links=1") {
+					t.Fatal(r.output)
+				}
+				assertFileContent(t, filepath.Join(r.root, "state", "current.sha"), fixtureSHA)
+			} else {
+				if r.err == nil || strings.Contains(log, " up -d --remove-orphans") {
+					t.Fatal("failure started candidate", r.output)
+				}
+				if strings.Contains(log, "dbmigrate -apply") && strings.Contains(r.output, "restoring release") {
+					t.Fatal("unsafe rollback", r.output)
+				}
+				if failure == "backfill" && strings.Contains(log, "dbmigrate -apply -target-version 93") {
+					t.Fatal("ignored backfill failure", log)
+				}
+			}
+		})
+	}
+}
+
+func TestUATStorylineDomainRejectsInvalidPlan(t *testing.T) {
+	for _, tc := range []struct {
+		name, mode, report  string
+		backup, destructive bool
+	}{
+		{"normal", "normal", `{"current_version":"91","pending":[{"Version":"92"},{"Version":"93"}]}`, true, true},
+		{"wrong-start", "data_93_cutover", `{"current_version":"90","pending":[{"Version":"91"},{"Version":"92"},{"Version":"93"}]}`, true, true},
+		{"extra", "data_93_cutover", `{"current_version":"91","pending":[{"Version":"92"},{"Version":"93"},{"Version":"94"}]}`, true, true},
+		{"no-backup", "data_93_cutover", `{"current_version":"91","pending":[{"Version":"92"},{"Version":"93"}]}`, false, true},
+		{"no-confirmation", "data_93_cutover", `{"current_version":"91","pending":[{"Version":"92"},{"Version":"93"}]}`, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := runDeployFixture(t, deployFixtureOptions{currentRelease: true, deploymentMode: tc.mode, backupConfirmed: tc.backup, destructiveConfirmed: tc.destructive, migrationReport: tc.report})
+			raw, _ := os.ReadFile(r.dockerLog)
+			if r.err == nil || strings.Contains(string(raw), "dbmigrate -apply") || strings.Contains(string(raw), " stop ") {
+				t.Fatal("unsafe invalid plan", r.output)
+			}
+		})
+	}
+}
+
+func TestUATStorylineDomainRecovery(t *testing.T) {
+	for _, version := range []string{"92", "93"} {
+		for _, backup := range []bool{false, true} {
+			pending := `[]`
+			if version == "92" {
+				pending = `[{"Version":"93"}]`
+			}
+			report := `{"current_version":"` + version + `","pending":` + pending + `}`
+			r := runDeployFixture(t, deployFixtureOptions{currentRelease: true, deploymentMode: "data_93_cutover", backupConfirmed: true, destructiveConfirmed: true, existingReportBackup: backup, cutoverMarkerPhase: "migration-started", cutoverMarkerTargetVersion: "93", migrationReport: report, migrationApplyReport: `{"current_version":"93","pending":[]}`})
+			raw, _ := os.ReadFile(r.dockerLog)
+			log := string(raw)
+			if strings.Contains(log, " pg_dump --format") {
+				t.Fatal("overwrote original backup")
+			}
+			if backup {
+				if r.err != nil || !strings.Contains(r.output, "original-backup-reused") {
+					t.Fatalf("version %s: %v %s", version, r.err, r.output)
+				}
+				if version == "93" && strings.Contains(log, "storyline-domain-backfill") {
+					t.Fatal("ran backfill at93")
+				}
+			} else if r.err == nil {
+				t.Fatal("accepted missing original backup")
+			}
 		}
 	}
 }
