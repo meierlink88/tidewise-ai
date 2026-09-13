@@ -74,6 +74,10 @@ pre_data91_runtime="${deployment_root}/pre-data91.runtime.env"
 pre_data91_images="${state_dir}/pre-data91.images.env"
 pre_data91_compose="${state_dir}/pre-data91.compose.yaml"
 pre_data91_sha="${state_dir}/pre-data91.sha"
+pre_data93_runtime="${deployment_root}/pre-data93.runtime.env"
+pre_data93_images="${state_dir}/pre-data93.images.env"
+pre_data93_compose="${state_dir}/pre-data93.compose.yaml"
+pre_data93_sha="${state_dir}/pre-data93.sha"
 agentrun_rollback_marker="${state_dir}/agentrun-010-rollback-required"
 agentrun_version_publication="${state_dir}/agentrun-agent-version-publication.json"
 candidate_services_started=false
@@ -244,8 +248,22 @@ case "$deployment_mode" in
     cutover_checkpoint_compose="$pre_data91_compose"
     cutover_checkpoint_sha="$pre_data91_sha"
     ;;
+  data_93_cutover)
+    bounded_data_cutover=true
+    cutover_target_version=93
+    cutover_target_version_padded=000093
+    cutover_initial_current_version=000091
+    cutover_initial_pending_versions=000092,000093
+    cutover_recovery_minimum_version=91
+    cutover_gate_name=data93
+    cutover_release_state_mode=pre-data93
+    cutover_checkpoint_runtime="$pre_data93_runtime"
+    cutover_checkpoint_images="$pre_data93_images"
+    cutover_checkpoint_compose="$pre_data93_compose"
+    cutover_checkpoint_sha="$pre_data93_sha"
+    ;;
   *)
-    echo "FAIL deployment-mode-gate: DEPLOYMENT_MODE must be normal, tidewise_2_cutover, data_59_cutover, data_60_cutover, data_63_77_cutover, data_78_79_cutover, data_78_80_cutover, data_80_cutover, data_81_cutover, data_88_cutover, or data_91_cutover" >&2
+    echo "FAIL deployment-mode-gate: DEPLOYMENT_MODE must be normal, tidewise_2_cutover, data_59_cutover, data_60_cutover, data_63_77_cutover, data_78_79_cutover, data_78_80_cutover, data_80_cutover, data_81_cutover, data_88_cutover, data_91_cutover, or data_93_cutover" >&2
     exit 1
     ;;
 esac
@@ -725,6 +743,10 @@ if [[ ",$data_pending_versions," == *,000088,* ]] && [ "$deployment_mode" != dat
   echo "FAIL report-storage-cutover: stop traffic, apply schema 88 and run reviewed report-storage maintenance; see docs/contexts/data/report-storage-cutover.md" >&2
   exit 1
 fi
+if { [[ ",$data_pending_versions," == *,000092,* ]] || [[ ",$data_pending_versions," == *,000093,* ]]; } && [ "$deployment_mode" != data_93_cutover ]; then
+  echo "FAIL storyline-domain-cutover: use data_93_cutover to backfill memberships between schema 92 and 93" >&2
+  exit 1
+fi
 if [ "$data_current_version" -ge 88 ] && { [ "$deployment_mode" != data_88_cutover ] || [ "$committed_cutover_recovery" = true ]; }; then
   "${candidate_compose[@]}" run --rm --no-deps data /usr/local/bin/report-storage --verify
 fi
@@ -844,6 +866,10 @@ if [ "$deployment_mode" = data_91_cutover ]; then
   source "$(dirname "${BASH_SOURCE[0]}")/entity-retirement-cutover.sh"
   prepare_entity_retirement_image
 fi
+if [ "$deployment_mode" = data_93_cutover ]; then
+  source "$(dirname "${BASH_SOURCE[0]}")/storyline-domain-cutover.sh"
+  prepare_storyline_domain_image
+fi
 if [ "$deployment_mode" = data_88_cutover ]; then
   source "$(dirname "${BASH_SOURCE[0]}")/report-storage-cutover.sh"
   prepare_report_storage_image
@@ -923,11 +949,16 @@ if [ "$bounded_data_cutover" = true ]; then
   if [ "$deployment_mode" = data_91_cutover ]; then
     prepare_entity_retirement_backup
   fi
+  if [ "$deployment_mode" = data_93_cutover ]; then
+    prepare_storyline_domain_backup
+  fi
   if [ "$cutover_migration_started" != true ]; then
     cutover_migration_started=true
     write_data2_cutover_marker migration-started
   fi
-  if [ "$empty_data_schema_rebuild_requested" = true ]; then
+  if [ "$deployment_mode" = data_93_cutover ]; then
+    apply_storyline_domain_cutover
+  elif [ "$empty_data_schema_rebuild_requested" = true ]; then
     "${candidate_compose[@]}" run --rm --no-deps \
       -e TIDEWISE_EMPTY_DATA_SCHEMA_REBUILD_CONFIRMED=issue-266-data-only \
       -e "PGOPTIONS=-c tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified -c tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified -c tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified" \
@@ -955,6 +986,9 @@ PY
   fi
   if [ "$deployment_mode" = data_91_cutover ]; then
     verify_entity_retirement
+  fi
+  if [ "$deployment_mode" = data_93_cutover ]; then
+    verify_storyline_domains
   fi
   write_data2_cutover_marker data-migrated
   echo "PASS ${cutover_gate_name}-target-version"
