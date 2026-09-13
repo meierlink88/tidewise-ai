@@ -25,7 +25,7 @@ func TestStoreStorylineContracts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	input := CreateInput{Name: "中国政策利率调整", MacroEconomicDomainID: d.ID, CoreProposition: "政策利率通过融资成本影响投资。", CandidateAssets: []string{"国债ETF", "银行板块"}}
+	input := CreateInput{Name: "中国政策利率调整", MacroEconomicDomainIDs: []string{d.ID}, CoreProposition: "政策利率通过融资成本影响投资。", CandidateAssets: []string{"国债ETF", "银行板块"}}
 	created, err := s.Create(ctx, input)
 	if err != nil {
 		t.Fatal(err)
@@ -66,7 +66,7 @@ func TestStoreStorylineContracts(t *testing.T) {
 	missing, _ := coreid.New(coreid.MacroEconomicDomain)
 	invalid := input
 	invalid.Name = "未知领域"
-	invalid.MacroEconomicDomainID = missing
+	invalid.MacroEconomicDomainIDs = []string{missing}
 	if _, err := s.Create(ctx, invalid); !errors.Is(err, ErrInvalidMacroEconomic) {
 		t.Fatalf("missing domain: %v", err)
 	}
@@ -80,7 +80,7 @@ func TestStoreStorylineContracts(t *testing.T) {
 	if _, err := db.ExecContext(ctx, "DELETE FROM macro_economics_domain WHERE id=$1", d.ID); err == nil {
 		t.Fatal("accepted referenced domain deletion")
 	}
-	updated, err := s.Update(ctx, UpdateInput{ID: created.ID, Name: created.Name, MacroEconomicDomainID: d.ID, CoreProposition: "利率变化影响融资成本与资产估值。", CandidateAssets: []string{"国债ETF"}})
+	updated, err := s.Update(ctx, UpdateInput{ID: created.ID, Name: created.Name, MacroEconomicDomainIDs: []string{d.ID}, CoreProposition: "利率变化影响融资成本与资产估值。", CandidateAssets: []string{"国债ETF"}})
 	if err != nil || updated.ID != created.ID || !updated.CreatedAt.Equal(created.CreatedAt) || updated.CoreProposition == created.CoreProposition || len(updated.CandidateAssets) != 1 {
 		t.Fatalf("update: %#v %v", updated, err)
 	}

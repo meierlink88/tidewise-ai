@@ -552,9 +552,9 @@ _Avoid_: 独立 Tactic 表、手段英文字段、调用方主键、从名称推
 以 `GPR + canonical lowercase UUID` 为稳定身份，保存唯一中文名称、非枚举故事线分类、
 核心命题、核心参与方、主要传导和有序候选资产数组。候选资产是故事线匹配后扩展到可交易
 资产、板块或产业链节点的研究范围，不表达方向、置信度或投研结论，也不参与 Event 到故事线的语义
-匹配。每条故事线必须且只能通过 restrictive foreign key 引用一个 GeopoliticDomain；一条故事线只表达
+匹配。每条故事线通过 `geopolitic_rivalry_domain_links` 关联一个或多个 GeopoliticDomain；一条故事线只表达
 一个核心内容。参与方是文本，不证明 Actor 关系。
-_Avoid_: 通用 Storyline 包装层、Event 关联表、多领域、范围字段、枚举分类、Actor 解析、用候选资产反向扩大 Event 匹配
+_Avoid_: 通用 Storyline 包装层、Event 关联表、隐含主领域、范围字段、枚举分类、Actor 解析、用候选资产反向扩大 Event 匹配
 
 **MacroEconomicDomain（宏观经济领域）**:
 以 `MCD + canonical lowercase UUID` 为稳定身份，以唯一且不可变的大写 ASCII code 为自然键，
@@ -565,10 +565,16 @@ _Avoid_: 独立 Tactic 表、以手段覆盖率代替 Event 关联质量、观�
 **MacroEconomic（宏观经济故事线）**:
 以 `MEC + canonical lowercase UUID` 为稳定身份，保存唯一中文名称、一句话核心命题和
 有序非空候选资产数组。核心命题表达关键因素通过哪些渠道影响中国经济市场，不预设方向、
-置信度或投资结论。每条故事线只讲一个核心话题，必须且只能 restrictive 引用一个
+置信度或投资结论。每条故事线只讲一个核心话题，通过 `macro_economic_domain_links` 关联一个或多个
 MacroEconomicDomain。候选资产是匹配后的资产、板块或产业链节点研究范围，不反向扩大 Event
 匹配。不存在额外故事线分类、英文名、状态、参与方或主要传导字段。
-_Avoid_: 静态叙事蓝图、通用 Storyline 包装、多领域、Country/Region/Institution 外键、调用方 ID
+_Avoid_: 静态叙事蓝图、通用 Storyline 包装、隐含主领域、Country/Region/Institution 外键、调用方 ID
+
+领域归属为无序多对多集合，Store 按领域 ID 排序读取，按单个领域筛选返回所有成员且不重复。
+两类关系表各有独立 GRD/MED 身份、两端 restrictive 外键与端点唯一约束；故事线 Store 和目录发布
+以事务替换完整非空领域集合。目录 geo v3 / macro v2 使用 `domain_codes` 数组，旧 geo v2 / macro v1
+的 `domain_code` 转为单元素集合；重放旧包也执行完整替换，不增加旧包多领域保护逻辑。
+迁移92建表，独立回填复制现有关系，迁移93核验后移除单值列；见 ADR-0065。本次不增加 HTTP CRUD。
 
 Industry Chain 的可选主要国家范围使用 `primary_country_id` 引用独立 Country；不得把国家
 写回 `geography` 自由文本或旧 Economy UUID。已退役的 Sector 持久化表不因 Country 切换而恢复。

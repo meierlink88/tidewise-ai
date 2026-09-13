@@ -38,7 +38,8 @@ type DomainCatalogItem struct {
 
 type StorylineCatalogItem struct {
 	Name            string   `json:"name"`
-	DomainCode      string   `json:"domain_code"`
+	DomainCode      string   `json:"domain_code,omitempty"`
+	DomainCodes     []string `json:"domain_codes,omitempty"`
 	CoreProposition string   `json:"core_proposition"`
 	CandidateAssets []string `json:"candidate_assets"`
 }
@@ -111,7 +112,7 @@ func PublishCatalog(ctx context.Context, db *sql.DB, publication CatalogPublicat
 	}
 	defer func() { _ = tx.Rollback() }()
 	// Serialize against individual Store writes as well as catalog publishers.
-	if _, err := tx.ExecContext(ctx, `LOCK TABLE macro_economics_domain, macro_economics IN SHARE ROW EXCLUSIVE MODE`); err != nil {
+	if _, err := tx.ExecContext(ctx, `LOCK TABLE macro_economics_domain, macro_economics, macro_economic_domain_links IN SHARE ROW EXCLUSIVE MODE`); err != nil {
 		return classifyCatalogWriteError(err)
 	}
 	if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock(hashtextextended('macroeconomic-catalog-publish', 0))`); err != nil {
@@ -165,20 +166,19 @@ RETURNING id`, id, item.Code, item.Name, item.Description, tactics).Scan(&publis
 		var publishedID string
 		err = tx.QueryRowContext(ctx, `
 INSERT INTO macro_economics (
-    id, name, macro_economics_domain_id, core_proposition, candidate_assets
-) VALUES ($1, $2, $3, $4, $5::jsonb)
+    id, name, core_proposition, candidate_assets
+) VALUES ($1, $2, $3, $4::jsonb)
 ON CONFLICT (name) DO UPDATE SET
-    macro_economics_domain_id = excluded.macro_economics_domain_id,
     core_proposition = excluded.core_proposition,
     candidate_assets = excluded.candidate_assets,
     updated_at = CASE
-        WHEN (macro_economics.macro_economics_domain_id, macro_economics.core_proposition, macro_economics.candidate_assets)
-          IS DISTINCT FROM (excluded.macro_economics_domain_id, excluded.core_proposition, excluded.candidate_assets)
+        WHEN (macro_economics.core_proposition, macro_economics.candidate_assets)
+          IS DISTINCT FROM (excluded.core_proposition, excluded.candidate_assets)
         THEN now()
         ELSE macro_economics.updated_at
     END
 WHERE macro_economics.id = excluded.id
-RETURNING id`, id, item.Name, domainIDByCode[item.DomainCode],
+RETURNING id`, id, item.Name,
 			item.CoreProposition, candidateAssets).Scan(&publishedID)
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrMacroEconomicCatalogConflict
@@ -188,6 +188,19 @@ RETURNING id`, id, item.Name, domainIDByCode[item.DomainCode],
 		}
 		if publishedID != id {
 			return ErrMacroEconomicCatalogConflict
+		}
+		domainIDs := make([]string, 0, len(item.domainCodes()))
+		for _, code := range item.domainCodes() {
+			domainIDs = append(domainIDs, domainIDByCode[code])
+		}
+		changed, err := replaceDomainLinks(ctx, tx, id, domainIDs)
+		if err != nil {
+			return classifyCatalogWriteError(err)
+		}
+		if changed {
+			if _, err := tx.ExecContext(ctx, `UPDATE macro_economics SET updated_at=now() WHERE id=$1`, id); err != nil {
+				return classifyCatalogWriteError(err)
+			}
 		}
 	}
 	if err := verifyCatalogCounts(ctx, tx, len(publication.Domains), len(publication.Storylines)); err != nil {
@@ -200,7 +213,7 @@ RETURNING id`, id, item.Name, domainIDByCode[item.DomainCode],
 }
 
 func validateCatalog(publication CatalogPublication) error {
-	if publication.SchemaVersion != 1 || publication.PublicationMode != CatalogPublicationModeReconcile ||
+	if (publication.SchemaVersion != 1 && publication.SchemaVersion != 2) || publication.PublicationMode != CatalogPublicationModeReconcile ||
 		len(publication.Domains) != expectedDomainCount || len(publication.Storylines) != expectedStorylineCount {
 		return ErrInvalidMacroEconomicCatalog
 	}
@@ -239,8 +252,18 @@ func validateCatalog(publication CatalogPublication) error {
 			strings.TrimSpace(item.CoreProposition) == "" || !validCandidateAssets(item.CandidateAssets) {
 			return ErrInvalidMacroEconomicCatalog
 		}
-		if _, exists := seenDomains[item.DomainCode]; !exists {
+		if publication.SchemaVersion == 1 && (item.DomainCode == "" || item.DomainCodes != nil) {
 			return ErrInvalidMacroEconomicCatalog
+		}
+		if publication.SchemaVersion == 2 && (item.DomainCode != "" || len(item.DomainCodes) == 0) {
+			return ErrInvalidMacroEconomicCatalog
+		}
+		seenMemberships := make(map[string]bool)
+		for _, code := range item.domainCodes() {
+			if _, exists := seenDomains[code]; !exists || seenMemberships[code] {
+				return ErrInvalidMacroEconomicCatalog
+			}
+			seenMemberships[code] = true
 		}
 		if _, duplicate := seenStorylines[item.Name]; duplicate {
 			return ErrInvalidMacroEconomicCatalog
@@ -321,4 +344,90 @@ func classifyCatalogWriteError(err error) error {
 		return ErrMacroEconomicCatalogConflict
 	}
 	return classified
+}
+
+// replaceDomainLinks reconciles an unordered set. Callers lock the parent row
+// before replacing links; unchanged pairs keep their deterministic identities.
+func replaceDomainLinks(ctx context.Context, tx *sql.Tx, id string, domains []string) (bool, error) {
+	removed, err := tx.ExecContext(ctx, `DELETE FROM macro_economic_domain_links WHERE macro_economic_id=$1 AND NOT (macro_economic_domain_id=ANY($2::text[]))`, id, domains)
+	if err != nil {
+		return false, err
+	}
+	count, err := removed.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	changed := count > 0
+	for _, domainID := range domains {
+		linkID, err := coreid.Derive(coreid.MacroEconomicDomainLink, "macro_economic_domain_links", id, domainID)
+		if err != nil {
+			return false, err
+		}
+		inserted, err := tx.ExecContext(ctx, `INSERT INTO macro_economic_domain_links (id, macro_economic_id, macro_economic_domain_id) VALUES ($1,$2,$3) ON CONFLICT (macro_economic_id, macro_economic_domain_id) DO NOTHING`, linkID, id, domainID)
+		if err != nil {
+			return false, err
+		}
+		count, err := inserted.RowsAffected()
+		if err != nil {
+			return false, err
+		}
+		changed = changed || count > 0
+	}
+	return changed, nil
+}
+
+// Legacy packages remain readable; every publication replaces the complete set.
+func (item StorylineCatalogItem) domainCodes() []string {
+	if item.DomainCodes != nil {
+		return item.DomainCodes
+	}
+	return []string{item.DomainCode}
+}
+
+// BackfillDomainLinks copies the legacy scalar relationship without rewriting
+// any storyline facts. The maintenance caller owns the transaction and table locks.
+func BackfillDomainLinks(ctx context.Context, tx *sql.Tx) (int, error) {
+	rows, err := tx.QueryContext(ctx, `SELECT id, macro_economics_domain_id FROM macro_economics ORDER BY id`)
+	if err != nil {
+		return 0, classifyWriteError(err)
+	}
+	type pair struct{ story, domain string }
+	pairs := make([]pair, 0)
+	for rows.Next() {
+		var item pair
+		if err := rows.Scan(&item.story, &item.domain); err != nil {
+			_ = rows.Close()
+			return 0, classifyReadError(err)
+		}
+		if !coreid.Is(item.story, coreid.MacroEconomic) || !coreid.Is(item.domain, coreid.MacroEconomicDomain) {
+			_ = rows.Close()
+			return 0, ErrPersistence
+		}
+		pairs = append(pairs, item)
+	}
+	err = rows.Err()
+	closeErr := rows.Close()
+	if err != nil {
+		return 0, classifyReadError(err)
+	}
+	if closeErr != nil {
+		return 0, classifyReadError(closeErr)
+	}
+	for _, item := range pairs {
+		linkID, err := coreid.Derive(coreid.MacroEconomicDomainLink, "macro_economic_domain_links", item.story, item.domain)
+		if err != nil {
+			return 0, ErrPersistence
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO macro_economic_domain_links (id, macro_economic_id, macro_economic_domain_id) VALUES ($1,$2,$3) ON CONFLICT (macro_economic_id, macro_economic_domain_id) DO NOTHING`, linkID, item.story, item.domain); err != nil {
+			return 0, classifyWriteError(err)
+		}
+	}
+	var matched int
+	if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM macro_economics s JOIN macro_economic_domain_links l ON l.macro_economic_id=s.id AND l.macro_economic_domain_id=s.macro_economics_domain_id`).Scan(&matched); err != nil {
+		return 0, classifyReadError(err)
+	}
+	if matched != len(pairs) {
+		return 0, ErrPersistence
+	}
+	return matched, nil
 }

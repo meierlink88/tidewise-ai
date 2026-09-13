@@ -8,9 +8,9 @@ MacroEconomic(宏观经济故事线): EntityType
             constraint: NotNull
         shortName(简称): Text
             desc: 可选锚点简称，非空时最多五个字符，明确国家时保留国家信息，不替代正式名称
-        macroEconomicsDomainId(领域标识): Text
-            desc: 故事线唯一主领域的 MacroEconomicDomain 标识
-            constraint: NotNull
+        macroEconomicDomainIds(领域标识集合): Text
+            desc: 故事线关联的领域标识集合，至少一个，无主次和顺序，持久化于关系表
+            constraint: NotNull, MultiValue
         coreProposition(核心命题): Text
             desc: 一句话描述关键因素通过传导渠道影响中国经济市场的哪些方面，不预设预测方向
             constraint: NotNull

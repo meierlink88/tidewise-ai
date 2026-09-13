@@ -488,7 +488,7 @@ def verify_geopolitic_rivalry(parser):
     expected_properties = {
         "name",
         "category",
-        "geopoliticDomainId",
+        "geopoliticDomainIds",
         "coreProposition",
         "coreActors",
         "mainTransmission",
@@ -501,7 +501,7 @@ def verify_geopolitic_rivalry(parser):
         rivalry,
         expected_properties | {"shortName"},
         expected_properties,
-        {"candidateAssets"},
+        {"candidateAssets", "geopoliticDomainIds"},
     )
 
 
@@ -512,11 +512,11 @@ def verify_macro_economic(parser, schema_file):
     assert macro.name_zh == "宏观经济故事线"
     assert not macro.relations
     expected_properties = {
-        "name", "macroEconomicsDomainId", "coreProposition",
+        "name", "macroEconomicDomainIds", "coreProposition",
         "candidateAssets", "createdAt", "updatedAt",
     }
     verify_text_property_contract(
-        "MacroEconomic", macro, expected_properties | {"shortName"}, expected_properties, {"candidateAssets"}
+        "MacroEconomic", macro, expected_properties | {"shortName"}, expected_properties, {"candidateAssets", "macroEconomicDomainIds"}
     )
     domain = parser.types.get("Tidewise.MacroEconomicDomain")
     assert domain is not None, "macro-economic-domain.schema must define Tidewise.MacroEconomicDomain"
