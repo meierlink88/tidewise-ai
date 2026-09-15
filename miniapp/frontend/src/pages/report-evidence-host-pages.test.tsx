@@ -192,7 +192,7 @@ describe('page-local Report Evidence hosts', () => {
     mount(createElement(ReportDetailPage));
     const pageBefore = requiredElement('.normalized-detail');
     const hostBefore = requiredElement('.report-overlay-host');
-    const evidenceAction = requiredElement('.unified-evidence');
+    const evidenceAction = requiredElement('.normalized-evidence');
     const initialPageScrollCalls = harness.pageScrollTo.mock.calls.length;
 
     click(evidenceAction);

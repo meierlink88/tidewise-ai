@@ -16,7 +16,7 @@ import { useReportResource } from '../../../features/reports/use-report-resource
 import { ReportStatePanel } from '../../../features/reports/report-components';
 import { formatReportPublication } from '../../../features/reports/presentation';
 import './normalized-detail.scss';
-import { UnifiedDetailView } from './unified-detail';
+import { reasoningTabs } from '../../../features/reports/detail-presentation';
 
 const directions = { warming: '升温', cooling: '降温', diverging: '分化', pending: '仅观察' };
 const signalDirections = {
@@ -42,6 +42,7 @@ export function LegacyDetailView({
   };
   const tabs = useMemo(
     () => [
+      ...reasoningTabs(detail),
       ...detail.macro_impacts.map((m) => ({ ...m, type: 'macro' as const })),
       ...detail.industry_chains.map((c) => ({ ...c, type: 'chain' as const }))
     ],
@@ -85,7 +86,9 @@ export function LegacyDetailView({
         </ScrollView>
         <View
           className={
-            current?.type === 'chain' ? 'normalized-chain-content' : 'normalized-tree-panel'
+            current && current.type !== 'macro'
+              ? 'normalized-chain-content'
+              : 'normalized-tree-panel'
           }
         >
           {!current ? (
@@ -99,6 +102,13 @@ export function LegacyDetailView({
                 objections={current.objections}
               />
             </View>
+          ) : current.type === 'inline-chain' ? (
+            <ChainContent
+              key={current.local_key}
+              c={current.chain}
+              reportId={reportId}
+              onEvidence={onEvidence}
+            />
           ) : (
             <LoadedChain
               key={`${reportId}:${kind}:${detail.summary.local_key}:${current.local_key}`}
@@ -371,9 +381,10 @@ function HorizontalGraph({
 
 export function NormalizedDetailView(props: Parameters<typeof LegacyDetailView>[0]) {
   return (
-    <UnifiedDetailView
+    <LegacyDetailView
       key={`${props.reportId}:${props.detail.summary.local_key}`}
       detail={props.detail}
+      kind={props.kind}
       reportId={props.reportId}
       onEvidence={props.onEvidence}
     />

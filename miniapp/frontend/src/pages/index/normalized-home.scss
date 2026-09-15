@@ -308,24 +308,3 @@
   color: $color-home-ink !important;
   font-size: report-reading-font($font-report-meta) !important;
 }
-
-.normalized-anchor-chip.warming {
-  background: rgba($color-danger, 0.06);
-  border-color: rgba($color-danger, 0.2);
-  .normalized-anchor-name {
-    color: $color-danger;
-  }
-}
-.normalized-anchor-chip.cooling {
-  background: rgba($color-report-chain-accent, 0.06);
-  border-color: rgba($color-report-chain-accent, 0.2);
-  .normalized-anchor-name {
-    color: $color-report-chain-accent;
-  }
-}
-.normalized-card-judgment {
-  color: $color-home-muted;
-  font-size: report-reading-font(20rpx);
-  line-height: 1.6;
-  margin: 12rpx 0;
-}
