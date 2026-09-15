@@ -64,14 +64,6 @@ export function LegacyDetailView({
           <Text>{detail.summary.summary.transmission_logic}</Text>
         </View>
       </View>
-      {kind === 'geopolitical_stories' && detail.summary.summary.evidence_scope_token && (
-        <EvidenceCountButton
-          scope={detail.summary.summary}
-          reportId={reportId}
-          title={detail.summary.title}
-          onEvidence={onEvidence}
-        />
-      )}
       {kind === 'geopolitical_stories' && detail.reasonings ? (
         <GeopoliticalBody
           key={`${reportId}:${detail.summary.local_key}`}
