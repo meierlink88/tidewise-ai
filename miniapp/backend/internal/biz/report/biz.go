@@ -558,6 +558,13 @@ func (u *UseCase) Analyses(ctx context.Context, q AnalysisQuery) (AnalysisPage, 
 		q.Limit = 20
 	}
 	p, err := u.repository.ListAnalyses(ctx, q)
+	if err == nil {
+		for _, item := range p.Items {
+			if item.SchemaVersion != "report-publication/v6" {
+				return AnalysisPage{}, ErrLayerNotFound
+			}
+		}
+	}
 	return p, normalizeRepositoryError(err)
 }
 func (u *UseCase) Analysis(ctx context.Context, q AnalysisQuery) (NormalizedDetailProjection, error) {
@@ -567,6 +574,9 @@ func (u *UseCase) Analysis(ctx context.Context, q AnalysisQuery) (NormalizedDeta
 	p, err := u.repository.GetAnalysis(ctx, q)
 	if err != nil {
 		return p, normalizeRepositoryError(err)
+	}
+	if p.Summary.SchemaVersion != "report-publication/v6" {
+		return NormalizedDetailProjection{}, ErrLayerNotFound
 	}
 	publishedAt, err := u.reportPublication(ctx, q.ReportID)
 	if err != nil {
@@ -579,8 +589,8 @@ func (u *UseCase) AnalysisChain(ctx context.Context, q AnalysisQuery) (Normalize
 	if u == nil || u.repository == nil || !validAnalysisQuery(q) || !localKeyPattern.MatchString(q.Key) || !localKeyPattern.MatchString(q.ChainKey) {
 		return NormalizedChain{}, ErrInvalidRequest
 	}
-	p, err := u.repository.GetAnalysisChain(ctx, q)
-	return p, normalizeRepositoryError(err)
+	// v6 returns all reasonings in the unit detail; retired chain reads are unavailable.
+	return NormalizedChain{}, ErrChainNotFound
 }
 
 type NormalizedReasoningSources struct {

@@ -530,7 +530,7 @@ func (r *Repository) GetAnalysis(ctx context.Context, q biz.AnalysisQuery) (biz.
 		return p, biz.ErrDataUnavailable
 	}
 	if p.Summary.SchemaVersion == "report-publication/v6" {
-		if len(p.Reasonings) == 0 {
+		if !validUnifiedDetail(p) {
 			return p, biz.ErrDataUnavailable
 		}
 		seen := map[string]bool{}
@@ -722,6 +722,126 @@ func validNormalizedProvenance(origin string, sources *biz.NormalizedReasoningSo
 			return false
 		}
 		refs[r.LocalKey] = true
+	}
+	return true
+}
+
+// Validate the v6 provider boundary before returning report content to Biz.
+func validUnifiedDetail(p biz.NormalizedDetailProjection) bool {
+	if len(p.Reasonings) == 0 || len(p.MacroImpacts) > 0 || len(p.IndustryChains) > 0 || p.Summary.ReasoningCount != len(p.Reasonings) {
+		return false
+	}
+	keys := map[string]bool{}
+	assets := map[string]biz.NormalizedNode{}
+	for _, r := range p.Reasonings {
+		if !validLocalKey(r.LocalKey) || keys[r.LocalKey] || !validText(r.ReasoningSummary.Logic, 16000) || !validNormalizedProvenance(r.JudgmentOrigin, r.ReasoningSources, r.VariableSignals, false) {
+			return false
+		}
+		keys[r.LocalKey] = true
+		graphNodes := map[string]biz.NormalizedGraphNodesItem{}
+		if r.Graph != nil {
+			if r.Graph.Scope != "" && r.Graph.Scope != "assessed_nodes_only" {
+				return false
+			}
+			for _, n := range r.Graph.Nodes {
+				if !validLocalKey(n.LocalKey) || !validText(n.Name, 16000) {
+					return false
+				}
+				if _, ok := graphNodes[n.LocalKey]; ok {
+					return false
+				}
+				graphNodes[n.LocalKey] = n
+			}
+			edges := map[string]bool{}
+			for _, e := range r.Graph.Edges {
+				_, from := graphNodes[e.FromNodeLocalKey]
+				_, to := graphNodes[e.ToNodeLocalKey]
+				key := e.FromNodeLocalKey + "/" + e.ToNodeLocalKey
+				if !from || !to || e.FromNodeLocalKey == e.ToNodeLocalKey || edges[key] || !validText(e.RelationLabel, 16000) {
+					return false
+				}
+				edges[key] = true
+			}
+		}
+		for _, a := range r.AffectedAssets {
+			key := r.LocalKey + "/" + a.LocalKey
+			if _, ok := assets[key]; ok {
+				return false
+			}
+			if !validText(a.Name, 16000) || !validNormalizedProvenance(a.JudgmentOrigin, a.ReasoningSources, a.VariableSignals, false) {
+				return false
+			}
+			if a.NodeLocalKey != "" {
+				n, ok := graphNodes[a.NodeLocalKey]
+				if !ok || n.Name != a.Name || n.SourceID != a.SourceID {
+					return false
+				}
+			}
+			if a.Assessment.WeightDeltaPP != nil && (*a.Assessment.WeightDeltaPP < -100 || *a.Assessment.WeightDeltaPP > 100) {
+				return false
+			}
+			assets[key] = a
+		}
+		blocks := map[string]bool{}
+		for _, b := range r.ReasoningBlocks {
+			if !validLocalKey(b.LocalKey) || blocks[b.LocalKey] || !validText(b.Title, 16000) || !validText(b.Explanation, 16000) || (b.RelationType != "causal" && b.RelationType != "comparison") || len(b.Nodes) == 0 {
+				return false
+			}
+			blocks[b.LocalKey] = true
+			nodes := map[string]bool{}
+			for _, n := range b.Nodes {
+				if !validLocalKey(n.LocalKey) || nodes[n.LocalKey] || !validText(n.Name, 16000) || len(n.Metrics) == 0 {
+					return false
+				}
+				nodes[n.LocalKey] = true
+				for _, m := range n.Metrics {
+					if !validText(m.Name, 16000) || (m.Value == nil && !validText(m.DisplayValue, 16000)) {
+						return false
+					}
+					if m.MeasureType != "level" && m.MeasureType != "change_rate" && m.MeasureType != "count" {
+						return false
+					}
+					if m.ValueNature != "observed" && m.ValueNature != "forecast" && m.ValueNature != "assumption" {
+						return false
+					}
+					if m.AsOf != "" {
+						if _, e := time.Parse("2006-01-02", m.AsOf); e != nil {
+							if _, e = time.Parse(time.RFC3339Nano, m.AsOf); e != nil {
+								return false
+							}
+						}
+					}
+				}
+			}
+			edges := map[string]bool{}
+			for _, e := range b.Links {
+				key := e.FromNodeLocalKey + "/" + e.ToNodeLocalKey
+				if b.RelationType != "causal" || !nodes[e.FromNodeLocalKey] || !nodes[e.ToNodeLocalKey] || e.FromNodeLocalKey == e.ToNodeLocalKey || edges[key] {
+					return false
+				}
+				edges[key] = true
+			}
+		}
+	}
+	refs := map[string]bool{}
+	for _, r := range p.Summary.Summary.AffectedRefs {
+		key := r.ReasoningLocalKey + "/" + r.LocalKey
+		if _, ok := assets[key]; !ok || refs[key] || r.TargetType != "" || r.ChainLocalKey != nil {
+			return false
+		}
+		refs[key] = true
+	}
+	if len(p.Summary.AffectedAnchors) != len(refs) {
+		return false
+	}
+	seen := map[string]bool{}
+	for _, a := range p.Summary.AffectedAnchors {
+		key := a.Reference.ReasoningLocalKey + "/" + a.Reference.LocalKey
+		asset, ok := assets[key]
+		if !ok || !refs[key] || seen[key] || a.Name != asset.Name || !reflect.DeepEqual(a.Assessment, asset.Assessment) {
+			return false
+		}
+		seen[key] = true
 	}
 	return true
 }

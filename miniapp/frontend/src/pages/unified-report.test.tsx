@@ -96,4 +96,24 @@ describe('unified report interactions', () => {
     expect(host.querySelector('.unified-delta')?.textContent).not.toContain('0%');
     expect(host.querySelector('.normalized-publication')).toBeNull();
   });
+  it('keeps independent assessment, missing evidence and original graph relationships accessible', () => {
+    const detail = parseAnalysisDetail(unified.details['geopolitical_stories/g1'], 'g1');
+    detail.reasonings![0].assessment.conclusion = '独立评估结论，不等于指标区块标题';
+    detail.reasonings![0].assessment.conditions = ['通道必须保持可用'];
+    act(() =>
+      root.render(createElement(UnifiedDetailView, { detail, reportId, onEvidence: vi.fn() }))
+    );
+    expect(host.textContent).toContain(
+      detail.reasonings![0].reasoning_summary.objections.evidence_gaps[0]
+    );
+    click(host.querySelector('[aria-label="查看评估详情"]'));
+    expect(host.textContent).toContain('独立评估结论，不等于指标区块标题');
+    expect(host.textContent).toContain('通道必须保持可用');
+    click(host.querySelector('[aria-label="收起评估详情"]'));
+    expect(host.textContent).not.toContain('独立评估结论，不等于指标区块标题');
+    click(host.querySelectorAll('.unified-tab')[1]);
+    expect(host.querySelector('.unified-graph')?.textContent).toContain(
+      detail.reasonings![1].graph!.edges[0].relation_label
+    );
+  });
 });

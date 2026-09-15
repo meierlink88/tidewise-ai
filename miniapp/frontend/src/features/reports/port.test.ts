@@ -6,7 +6,9 @@ vi.mock('@tarojs/taro', () => ({ default: { request: vi.fn() } }));
 
 describe('Report port selection', () => {
   it('selects mock only when explicitly configured', () => {
-    expect(createReportPort('mock', undefined, 'weapp').constructor.name).toBe('UnifiedMockReportPort');
+    expect(createReportPort('mock', undefined, 'weapp').constructor.name).toBe(
+      'UnifiedMockReportPort'
+    );
   });
 
   it('selects production API without a mock fallback', () => {

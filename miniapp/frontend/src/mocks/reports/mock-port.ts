@@ -87,6 +87,17 @@ function assertReport(reportId: string): void {
 }
 
 export class UnifiedMockReportPort extends MockReportPort {
+  async getEvidences(reportId: string, scopeToken: string) {
+    assertReport(reportId);
+    if (scopeToken !== semanticFixture.scope_token)
+      throw new ReportError('evidenceScopeUnavailable');
+    return parseReportEvidenceListWire(
+      { ...semanticFixture, items: semanticFixture.items.slice(0, 1) },
+      reportId,
+      scopeToken
+    );
+  }
+
   async getAnalyses(reportId: string, kind: AnalysisKind, cursor?: string) {
     assertReport(reportId);
     if (cursor) throw new ReportError('invalidRequest');

@@ -98,12 +98,24 @@ function EvidenceButton({
     </Button>
   ) : null;
 }
-function Signals({ signals }: { signals?: VariableSignal[] }) {
+function Signals({
+  signals,
+  onEvidence
+}: {
+  signals?: VariableSignal[];
+  onEvidence: EvidenceAction;
+}) {
   return signals?.length ? (
     <View className='unified-signals'>
       <Text className='unified-label'>关键信号</Text>
       {signals.map((s) => (
-        <Text key={`${s.signal_id}:${s.variable_id}`}>{s.signal}</Text>
+        <View key={`${s.signal_id}:${s.variable_id}`}>
+          <Text>{s.signal}</Text>
+          <Text className='unified-period'>
+            {s.adoption === 'qualified' ? '限定采用' : '采用'} · {s.qualification}
+          </Text>
+          <EvidenceButton scope={s} title={s.variable_name} onEvidence={onEvidence} />
+        </View>
       ))}
     </View>
   ) : null;
@@ -125,6 +137,14 @@ function ObjectionContent({
           <EvidenceButton scope={c} title='反证与缓冲' onEvidence={onEvidence} />
         </View>
       ))}
+      {value.evidence_gaps.length > 0 && (
+        <View className='unified-gaps'>
+          <Text className='unified-label'>待补充信息</Text>
+          {value.evidence_gaps.map((item, i) => (
+            <Text key={`${i}:${item}`}>{item}</Text>
+          ))}
+        </View>
+      )}
       {value.scope_limits.map((s) => (
         <Text key={s}>{s}</Text>
       ))}
@@ -190,6 +210,7 @@ function Reasoning({
                         <Text className='unified-period'>
                           {[m.period_label, m.as_of].filter(Boolean).join(' · ')}
                         </Text>
+                        <EvidenceButton scope={m} title={m.name} onEvidence={onEvidence} />
                       </View>
                     ))}
                     {n.description && <Text className='unified-period'>{n.description}</Text>}
@@ -210,6 +231,7 @@ function Reasoning({
             <View className='unified-connector' />
           </View>
         ))}
+        <AssessmentContext assessment={r.assessment} onEvidence={onEvidence} />
         <View className='unified-mechanism'>
           <Text className='unified-label'>关键机制</Text>
           <Text className='unified-heading'>{r.reasoning_summary.logic}</Text>
@@ -239,7 +261,7 @@ function Reasoning({
             ))}
           </View>
         )}
-        <Signals signals={r.variable_signals} />
+        <Signals signals={r.variable_signals} onEvidence={onEvidence} />
       </View>
       {r.affected_assets.length > 0 && (
         <View className='unified-assets'>
@@ -263,6 +285,13 @@ function Reasoning({
                   })}
                 </View>
               </ScrollView>
+              {r.graph.edges.map((edge, i) => (
+                <Text className='unified-link-description' key={i}>
+                  {r.graph!.nodes.find((n) => n.local_key === edge.from_node_local_key)?.name} →{' '}
+                  {edge.relation_label} →{' '}
+                  {r.graph!.nodes.find((n) => n.local_key === edge.to_node_local_key)?.name}
+                </Text>
+              ))}
             </View>
           )}
           {r.affected_assets.length > 3 && (
@@ -318,11 +347,50 @@ function Reasoning({
                   ))}
                 </View>
               )}
-              <Signals signals={asset.variable_signals} />
+              <Signals signals={asset.variable_signals} onEvidence={onEvidence} />
               <ObjectionContent value={asset.objections} onEvidence={onEvidence} />
               <EvidenceButton scope={asset.assessment} title={asset.name} onEvidence={onEvidence} />
             </View>
           )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+function AssessmentContext({
+  assessment: a,
+  onEvidence
+}: {
+  assessment: Assessment;
+  onEvidence: EvidenceAction;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View className='unified-assessment-context'>
+      <Button
+        className='tidewise-button unified-evidence'
+        onClick={() => setOpen(!open)}
+        ariaLabel={open ? '收起评估详情' : '查看评估详情'}
+      >
+        评估详情 {open ? '⌃' : '⌄'}
+      </Button>
+      {open && (
+        <View className='unified-time'>
+          <Text className={`unified-label ${a.direction}`}>{labels[a.direction]}</Text>
+          <Text className='unified-heading'>{a.conclusion}</Text>
+          <Text>{a.scope}</Text>
+          <Text>{a.transmission_logic}</Text>
+          {a.forecast_window.kind !== 'not_applicable' && (
+            <Text>{a.forecast_window.description}</Text>
+          )}
+          {a.conditions.map((item, i) => (
+            <Text key={`condition-${i}`}>{item}</Text>
+          ))}
+          {a.follow_up.map((item, i) => (
+            <Text key={`followup-${i}`}>{item}</Text>
+          ))}
+          <EvidenceButton scope={a} title='推导评估' onEvidence={onEvidence} />
         </View>
       )}
     </View>

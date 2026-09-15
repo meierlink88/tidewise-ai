@@ -154,7 +154,11 @@ func (f *fakeRepository) ListAnalyses(_ context.Context, q AnalysisQuery) (Analy
 }
 
 func (f *fakeRepository) GetAnalysis(context.Context, AnalysisQuery) (NormalizedDetailProjection, error) {
-	return f.analysisDetail, f.analysisErr
+	p := f.analysisDetail
+	if p.Summary.SchemaVersion == "" {
+		p.Summary.SchemaVersion = "report-publication/v6"
+	}
+	return p, f.analysisErr
 }
 
 func (*fakeRepository) GetAnalysisChain(context.Context, AnalysisQuery) (NormalizedChain, error) {
@@ -259,5 +263,22 @@ func TestAnalysisPublicationLookupFailsExplicitly(t *testing.T) {
 	_, err := NewUseCase(repo).Analysis(ctx, AnalysisQuery{ReportID: testReportID, Kind: "geopolitical_stories", Key: "story"})
 	if err != ErrDataUnavailable || len(repo.listQueries) != 0 {
 		t.Fatalf("err=%v queries=%v", err, repo.listQueries)
+	}
+}
+
+func TestProductReadsRejectArchivedVersions(t *testing.T) {
+	for _, version := range []string{"report-publication/v4", "report-publication/v5"} {
+		r := &fakeRepository{analysisDetail: NormalizedDetailProjection{Summary: NormalizedSummaryProjection{SchemaVersion: version}}, analysisPage: AnalysisPage{Items: []NormalizedSummaryProjection{{SchemaVersion: version}}}}
+		u := NewUseCase(r)
+		q := AnalysisQuery{ReportID: testReportID, Kind: "geopolitical_stories", Key: "story", ChainKey: "chain"}
+		if _, err := u.Analysis(context.Background(), q); err != ErrLayerNotFound {
+			t.Fatalf("old detail accepted: %v", err)
+		}
+		if _, err := u.Analyses(context.Background(), q); err != ErrLayerNotFound {
+			t.Fatalf("old cards accepted: %v", err)
+		}
+		if _, err := u.AnalysisChain(context.Background(), q); err != ErrChainNotFound {
+			t.Fatalf("old chain accepted: %v", err)
+		}
 	}
 }

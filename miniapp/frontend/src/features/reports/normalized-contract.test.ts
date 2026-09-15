@@ -1,5 +1,5 @@
-import unified from '../../mocks/reports/unified-v6.json';
 import { describe, expect, it } from 'vitest';
+import unified from '../../mocks/reports/unified-v6.json';
 import fixture from '../../mocks/reports/normalized.json';
 import v5 from '../../mocks/reports/normalized-v5.json';
 import {

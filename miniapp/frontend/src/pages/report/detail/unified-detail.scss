@@ -195,7 +195,7 @@
   color: $color-report-chain-accent;
 }
 .unified-delta.neutral {
-  color: #111;
+  color: $color-allocation-neutral;
 }
 .unified-delta.diverging {
   color: $color-warning;
@@ -260,4 +260,15 @@
 .unified-asset {
   aspect-ratio: 1;
   min-height: 0;
+}
+
+.unified-metric .unified-evidence {
+  font-size: report-reading-font(14px);
+  margin: 6px auto 0;
+  text-align: center;
+}
+.unified-assessment-context .unified-time {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }

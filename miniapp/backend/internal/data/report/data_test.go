@@ -297,3 +297,49 @@ func TestRepositorySelectsOnlyV6Reports(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestUnifiedBoundaryRejectsMalformedProviderData(t *testing.T) {
+	raw, err := os.ReadFile("../../../../frontend/src/mocks/reports/unified-v6.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		Details map[string]json.RawMessage `json:"details"`
+	}
+	json.Unmarshal(raw, &fixture)
+	for _, tc := range []struct {
+		name   string
+		mutate func(*biz.NormalizedDetailProjection)
+	}{
+		{"metric nature", func(p *biz.NormalizedDetailProjection) {
+			p.Reasonings[0].ReasoningBlocks[0].Nodes[0].Metrics[0].ValueNature = "unexpected"
+		}},
+		{"missing metric value", func(p *biz.NormalizedDetailProjection) {
+			p.Reasonings[0].ReasoningBlocks[0].Nodes[0].Metrics[0].Value = nil
+		}},
+		{"duplicate asset", func(p *biz.NormalizedDetailProjection) {
+			r := &p.Reasonings[0]
+			r.AffectedAssets = append(r.AffectedAssets, r.AffectedAssets[0])
+		}},
+		{"foreign home ref", func(p *biz.NormalizedDetailProjection) {
+			p.Summary.Summary.AffectedRefs[0].ReasoningLocalKey = "missing"
+		}},
+		{"foreign metric edge", func(p *biz.NormalizedDetailProjection) {
+			p.Reasonings[0].ReasoningBlocks[0].Links = []biz.UnifiedReadMetricLink{{FromNodeLocalKey: "missing", ToNodeLocalKey: "brent"}}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var p biz.NormalizedDetailProjection
+			if err := json.Unmarshal(fixture.Details["geopolitical_stories/g1"], &p); err != nil {
+				t.Fatal(err)
+			}
+			if !validUnifiedDetail(p) {
+				t.Fatal("valid baseline failed")
+			}
+			tc.mutate(&p)
+			if validUnifiedDetail(p) {
+				t.Fatal("malformed provider data accepted")
+			}
+		})
+	}
+}
