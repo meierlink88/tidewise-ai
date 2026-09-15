@@ -61,6 +61,9 @@ func publishHandler(application Service) kratoshttp.HandlerFunc {
 			if json.Unmarshal(versionProbe.Report.SchemaVersion, &version) == nil && version == SignalSchemaVersion {
 				shape = requiredShape(map[string]*v1.StrictJSONShape{"publisher_report_id": v1.StrictJSONString(), "report": v5ReportShape()})
 			}
+			if version == UnifiedSchemaVersion {
+				shape = requiredShape(map[string]*v1.StrictJSONShape{"publisher_report_id": v1.StrictJSONString(), "report": unifiedReportShape()})
+			}
 		}
 		if err := v1.DecodeStrictJSON(payload, shape, request); err != nil {
 			return v1.NewPublicError(v1.StatusBadRequest, ErrorInvalidRequest,
@@ -445,4 +448,49 @@ func v5CompanyShape() *v1.StrictJSONShape {
 
 func v5ReportShape() *v1.StrictJSONShape {
 	return v1.StrictJSONRequiredObject([]string{"schema_version", "report_type", "generated_at", "timezone", "analysis_window", "geopolitical_stories", "macroeconomic_stories", "concept_analyses", "observations", "limitations", "industry_chain_analyses", "company_analyses"}, map[string]*v1.StrictJSONShape{"schema_version": v1.StrictJSONString(), "report_type": v5CodedLabelShape(), "generated_at": v1.StrictJSONString(), "timezone": v1.StrictJSONString(), "analysis_window": v1.StrictJSONRequiredObject([]string{"start", "end"}, map[string]*v1.StrictJSONShape{"start": v1.StrictJSONString(), "end": v1.StrictJSONString()}), "geopolitical_stories": v1.StrictJSONArray(v5UnitShape()), "macroeconomic_stories": v1.StrictJSONArray(v5UnitShape()), "concept_analyses": v1.StrictJSONArray(v5UnitShape()), "observations": v1.StrictJSONArray(v1.StrictJSONRequiredObject([]string{"local_key", "title", "text", "evidence_ids"}, map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "title": v1.StrictJSONString(), "text": v1.StrictJSONString(), "evidence_ids": v1.StrictJSONArray(v1.StrictJSONString())})), "limitations": v1.StrictJSONArray(v1.StrictJSONString()), "industry_chain_analyses": v1.StrictJSONArray(v5UnitShape()), "company_analyses": v1.StrictJSONArray(v5CompanyShape())})
+}
+
+// Unified HTTP shapes preserve required fields and reject unknown keys before business validation.
+func unifiedReportShape() *v1.StrictJSONShape {
+	return v1.StrictJSONRequiredObject([]string{"schema_version", "report_type", "generated_at", "timezone", "analysis_window", "geopolitical_stories", "macroeconomic_stories", "concept_analyses", "observations", "limitations"}, map[string]*v1.StrictJSONShape{"schema_version": v1.StrictJSONString(), "report_type": v4CodedLabelShape(), "generated_at": v1.StrictJSONString(), "timezone": v1.StrictJSONString(), "analysis_window": v1.StrictJSONRequiredObject([]string{"start", "end"}, map[string]*v1.StrictJSONShape{"start": v1.StrictJSONString(), "end": v1.StrictJSONString()}), "geopolitical_stories": v1.StrictJSONArray(unifiedUnitShape()), "macroeconomic_stories": v1.StrictJSONArray(unifiedUnitShape()), "concept_analyses": v1.StrictJSONArray(unifiedUnitShape()), "observations": v1.StrictJSONArray(v1.StrictJSONRequiredObject([]string{"local_key", "title", "text", "evidence_ids"}, map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "title": v1.StrictJSONString(), "text": v1.StrictJSONString(), "evidence_ids": v1.StrictJSONArray(v1.StrictJSONString())})), "limitations": v1.StrictJSONArray(v1.StrictJSONString()), "industry_chain_analyses": v1.StrictJSONArray(unifiedUnitShape()), "company_analyses": v1.StrictJSONArray(unifiedCompanyShape())})
+}
+
+func unifiedUnitShape() *v1.StrictJSONShape {
+	return v1.StrictJSONRequiredObject([]string{"local_key", "source_id", "title", "summary", "detail"}, map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "source_id": v1.StrictJSONString(), "title": v1.StrictJSONString(), "summary": v1.StrictJSONRequiredObject([]string{"conclusion", "transmission_logic", "impact_assessment", "affected_refs", "evidence_ids"}, map[string]*v1.StrictJSONShape{"conclusion": v1.StrictJSONString(), "transmission_logic": v1.StrictJSONString(), "impact_assessment": v1.StrictJSONRequiredObject([]string{"level", "rationale", "evidence_ids"}, map[string]*v1.StrictJSONShape{"level": v1.StrictJSONString(), "rationale": v1.StrictJSONString(), "evidence_ids": v1.StrictJSONArray(v1.StrictJSONString())}), "affected_refs": v1.StrictJSONArray(unifiedAnchorRefShape()), "evidence_ids": v1.StrictJSONArray(v1.StrictJSONString()), "judgment": v1.StrictJSONString()}), "detail": v1.StrictJSONRequiredObject([]string{"reasonings"}, map[string]*v1.StrictJSONShape{"variable_signals": v1.StrictJSONArray(v5SignalShape()), "companies": v1.StrictJSONArray(unifiedCompanyShape()), "reasonings": v1.StrictJSONArray(unifiedReasoningShape())}), "judgment_origin": v1.StrictJSONString(), "reasoning_sources": v5ReasoningSourcesShape()})
+}
+
+func unifiedCompanyShape() *v1.StrictJSONShape {
+	return v1.StrictJSONRequiredObject([]string{"local_key", "source_id", "name", "assessment", "objections"}, map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "source_id": v1.StrictJSONString(), "name": v1.StrictJSONString(), "assessment": unifiedAssessmentShape(), "objections": v4ObjectionsShape(), "judgment_origin": v1.StrictJSONString(), "reasoning_sources": v5ReasoningSourcesShape(), "variable_signals": v1.StrictJSONArray(v5SignalShape())})
+}
+
+func unifiedAnchorRefShape() *v1.StrictJSONShape {
+	return v1.StrictJSONRequiredObject([]string{"reasoning_local_key", "local_key"}, map[string]*v1.StrictJSONShape{"reasoning_local_key": v1.StrictJSONString(), "local_key": v1.StrictJSONString()})
+}
+
+func unifiedReasoningShape() *v1.StrictJSONShape {
+	return v1.StrictJSONRequiredObject([]string{"local_key", "title", "assessment", "reasoning_summary", "reasoning_blocks", "affected_assets"}, map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "source_id": v1.StrictJSONString(), "assessment": unifiedAssessmentShape(), "reasoning_summary": v1.StrictJSONRequiredObject([]string{"logic", "objections"}, map[string]*v1.StrictJSONShape{"logic": v1.StrictJSONString(), "support": v4ClaimShape(), "objections": v4ObjectionsShape()}), "graph": v5GraphShape(), "empty_state": v1.StrictJSONNullable(v1.StrictJSONRequiredObject([]string{"code", "reason", "follow_up"}, map[string]*v1.StrictJSONShape{"code": v1.StrictJSONString(), "reason": v1.StrictJSONString(), "follow_up": v1.StrictJSONArray(v1.StrictJSONString())})), "judgment_origin": v1.StrictJSONString(), "reasoning_sources": v5ReasoningSourcesShape(), "variable_signals": v1.StrictJSONArray(v5SignalShape()), "title": v1.StrictJSONString(), "affected_assets": v1.StrictJSONArray(unifiedNodeShape()), "reasoning_blocks": v1.StrictJSONArray(unifiedBlockShape())})
+}
+
+func unifiedAssessmentShape() *v1.StrictJSONShape {
+	return v1.StrictJSONRequiredObject([]string{"conclusion", "direction", "conclusion_basis", "validation_status", "confidence", "forecast_window", "scope", "conditions", "follow_up", "transmission_logic", "evidence_ids"}, map[string]*v1.StrictJSONShape{"conclusion": v1.StrictJSONString(), "direction": v1.StrictJSONString(), "conclusion_basis": v1.StrictJSONString(), "validation_status": v1.StrictJSONString(), "confidence": v1.StrictJSONNullable(v1.StrictJSONString()), "forecast_window": v4WindowShape(), "scope": v1.StrictJSONString(), "conditions": v1.StrictJSONArray(v1.StrictJSONString()), "follow_up": v1.StrictJSONArray(v1.StrictJSONString()), "transmission_logic": v1.StrictJSONString(), "evidence_ids": v1.StrictJSONArray(v1.StrictJSONString()), "weight_delta_pp": v1.StrictJSONNumber(), "adjustment_purpose": v1.StrictJSONString()})
+}
+
+func unifiedNodeShape() *v1.StrictJSONShape {
+	return v1.StrictJSONRequiredObject([]string{"local_key", "source_id", "node_local_key", "name", "assessment", "objections"}, map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "source_id": v1.StrictJSONString(), "node_local_key": v1.StrictJSONString(), "name": v1.StrictJSONString(), "assessment": unifiedAssessmentShape(), "objections": v4ObjectionsShape(), "judgment_origin": v1.StrictJSONString(), "reasoning_sources": v5ReasoningSourcesShape(), "variable_signals": v1.StrictJSONArray(v5SignalShape())})
+}
+
+func unifiedBlockShape() *v1.StrictJSONShape {
+	return v1.StrictJSONRequiredObject([]string{"local_key", "title", "explanation", "relation_type", "nodes"}, map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "title": v1.StrictJSONString(), "explanation": v1.StrictJSONString(), "relation_type": v1.StrictJSONString(), "nodes": v1.StrictJSONArray(unifiedMetricNodeShape()), "links": v1.StrictJSONArray(unifiedMetricLinkShape())})
+}
+
+func unifiedMetricNodeShape() *v1.StrictJSONShape {
+	return v1.StrictJSONRequiredObject([]string{"local_key", "name", "metrics"}, map[string]*v1.StrictJSONShape{"local_key": v1.StrictJSONString(), "name": v1.StrictJSONString(), "description": v1.StrictJSONString(), "metrics": v1.StrictJSONArray(unifiedMetricShape())})
+}
+
+func unifiedMetricLinkShape() *v1.StrictJSONShape {
+	return v1.StrictJSONRequiredObject([]string{"from_node_local_key", "to_node_local_key"}, map[string]*v1.StrictJSONShape{"from_node_local_key": v1.StrictJSONString(), "to_node_local_key": v1.StrictJSONString(), "label": v1.StrictJSONString()})
+}
+
+func unifiedMetricShape() *v1.StrictJSONShape {
+	return v1.StrictJSONRequiredObject([]string{"name", "unit", "measure_type", "value_nature", "evidence_ids"}, map[string]*v1.StrictJSONShape{"name": v1.StrictJSONString(), "value": v1.StrictJSONNumber(), "display_value": v1.StrictJSONString(), "unit": v1.StrictJSONString(), "measure_type": v1.StrictJSONString(), "period_label": v1.StrictJSONString(), "as_of": v1.StrictJSONString(), "value_nature": v1.StrictJSONString(), "evidence_ids": v1.StrictJSONArray(v1.StrictJSONString())})
 }

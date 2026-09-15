@@ -23,7 +23,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/source-
 FROM alpine:3.20
 
 RUN addgroup -S tidewise && adduser -S -G tidewise tidewise
-RUN apk add --no-cache ca-certificates wget
+RUN apk add --no-cache ca-certificates wget tzdata
 
 WORKDIR /app
 
