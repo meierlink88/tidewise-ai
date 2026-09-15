@@ -332,3 +332,45 @@ describe('geopolitical prototype with report-owned data', () => {
     expect(host.textContent).toContain(detail.reasonings[0].assessment.conclusion);
   });
 });
+
+it('loads geopolitical null metadata and keeps story Evidence accessible', () => {
+  const raw = JSON.parse(JSON.stringify(unified.details['geopolitical_stories/g1']));
+  const clear = (assessment: Record<string, unknown>) => {
+    assessment.confidence = null;
+    assessment.forecast_window = null;
+    assessment.follow_up = null;
+    assessment.evidence_scope_token = null;
+    assessment.evidence_count = 0;
+  };
+  raw.summary.affected_anchors.forEach((a: { assessment: Record<string, unknown> }) =>
+    clear(a.assessment)
+  );
+  raw.reasonings.forEach(
+    (r: {
+      assessment: Record<string, unknown>;
+      affected_assets: { assessment: Record<string, unknown> }[];
+    }) => {
+      clear(r.assessment);
+      r.affected_assets.forEach((a) => clear(a.assessment));
+    }
+  );
+  const detail = parseAnalysisDetail(raw, 'g1', 'geopolitical_stories');
+  expect(() => parseAnalysisDetail(raw, 'g1', 'macroeconomic_stories')).toThrow();
+  const evidence = vi.fn();
+  act(() =>
+    root.render(
+      createElement(NormalizedDetailView, {
+        detail,
+        reportId,
+        kind: 'geopolitical_stories',
+        onEvidence: evidence
+      })
+    )
+  );
+  expect(host.textContent).toContain(detail.summary.summary.conclusion);
+  expect(host.textContent).not.toContain('传导时间');
+  const token = detail.summary.summary.evidence_scope_token;
+  expect(token).toBeTruthy();
+  click(host.querySelector('.normalized-evidence'));
+  expect(evidence).toHaveBeenCalledWith(expect.objectContaining({ scopeToken: token, reportId }));
+});

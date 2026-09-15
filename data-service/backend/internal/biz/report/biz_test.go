@@ -756,3 +756,46 @@ func TestUnifiedReportRejectsBrokenReferencesAndInventedMetrics(t *testing.T) {
 		})
 	}
 }
+
+func TestGeopoliticalOptionalAssessmentAndStoryEvidence(t *testing.T) {
+	makeUnit := func() reportbiz.V4Unit {
+		u := unifiedFixture(t).V4.GeopoliticalStories[0]
+		clear := func(a *reportbiz.V4Assessment) {
+			a.ForecastWindow = reportbiz.V4Window{}
+			a.Confidence = nil
+			a.FollowUp = nil
+			a.EvidenceIDs = []string{}
+		}
+		clear(&u.Detail.Reasonings[0].Assessment)
+		for i := range u.Detail.Reasonings[0].AffectedAssets {
+			clear(&u.Detail.Reasonings[0].AffectedAssets[i].Assessment)
+		}
+		return u
+	}
+	u := makeUnit()
+	if err := reportbiz.ValidateUnifiedUnit("geopolitical_stories", u); err != nil {
+		t.Fatal(err)
+	}
+	for _, kind := range []string{"macroeconomic_stories", "concept_analyses", "industry_chain_analyses"} {
+		if err := reportbiz.ValidateUnifiedUnit(kind, u); err == nil {
+			t.Fatalf("%s accepted missing required assessment metadata", kind)
+		}
+	}
+	for _, tc := range []struct {
+		name   string
+		change func(*reportbiz.V4Unit)
+	}{
+		{"missing story Evidence", func(u *reportbiz.V4Unit) { u.Summary.EvidenceIDs = []string{} }},
+		{"malformed window", func(u *reportbiz.V4Unit) { u.Detail.Reasonings[0].Assessment.ForecastWindow.Kind = "relative" }},
+		{"invalid confidence", func(u *reportbiz.V4Unit) { s := "invented"; u.Detail.Reasonings[0].Assessment.Confidence = &s }},
+		{"blank follow up", func(u *reportbiz.V4Unit) { u.Detail.Reasonings[0].Assessment.FollowUp = []string{" "} }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			u := makeUnit()
+			tc.change(&u)
+			if reportbiz.ValidateUnifiedUnit("geopolitical_stories", u) == nil {
+				t.Fatal("invalid data accepted")
+			}
+		})
+	}
+}

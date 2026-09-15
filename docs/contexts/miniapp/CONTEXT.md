@@ -248,3 +248,7 @@ scope token 始终绑定所属 reportId，证据弹层交互保持。业务字�
 地缘政治 v6 详情保留原顶部蓝色区域，仅主体采用 tidetell1.0 地缘原型：按顺序显示 reasoning_blocks 的结论、解释、指标卡，再显示固定标题“关键机制问题”及 reasoning_summary.logic 原文，最后为横滑资产卡与选中资产分析。多个推导本地切换，单个推导无需切换栏；无指标不填造数值。宏观经济、产业链详情继续遵循 #500 的原展示。
 
 指标来自 metrics，配置幅度来自 weight_delta_pp；配置零值显示“—”，缺省只显示报告方向，不当作零或收益率。配置幅度颜色按正负，缺省时按 direction；首页颜色仍按 direction。传导时间直接展示选中资产 forecast_window.description 完整内容，不解析、改写或拆分；指标 period_label 为统计周期。所有数量、顺序、文本、数值均来自报告，首页与详情资产数量无需一致。指标及资产证据继续绑定当前 reportId 与原 scope token；无 API 或持久化变更。
+
+### 地缘报告可选元数据读取（#507）
+
+地缘 v6 的 confidence、forecast_window、follow_up 允许空。BFF 按请求板块允许地缘空置信度，宏观/产业判断仍要求置信度；读取层接受可选窗口和观察项空值。小程序 v6 adapter 将无窗口映射为不适用、空描述，将空观察项映射为空数组，不显示占位预测期；不放宽有值的非法枚举。地缘详情顶部复用已有证据按钮，使用故事线 summary 的 evidence_scope_token/count，不能借资产空 scope 隐藏故事线证据。

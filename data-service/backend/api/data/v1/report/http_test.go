@@ -256,3 +256,54 @@ func (s *unifiedPublicationService) PublishReport(_ context.Context, r *Publicat
 	s.calls++
 	return &v1.Response[PublicationResult]{Status: v1.StatusCreated}, nil
 }
+
+func TestUnifiedGeopoliticalNullableFieldsDecode(t *testing.T) {
+	payload, err := os.ReadFile("testdata/unified-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var root map[string]any
+	if err = json.Unmarshal(payload, &root); err != nil {
+		t.Fatal(err)
+	}
+	unit := root["report"].(map[string]any)["geopolitical_stories"].([]any)[0].(map[string]any)
+	assessment := unit["detail"].(map[string]any)["reasonings"].([]any)[0].(map[string]any)["assessment"].(map[string]any)
+	for _, key := range []string{"confidence", "forecast_window", "follow_up"} {
+		assessment[key] = nil
+	}
+	body, _ := json.Marshal(root)
+	app := &unifiedPublicationService{}
+	server := kratoshttp.NewServer()
+	RegisterHTTPServer(server, app)
+	req := httptest.NewRequest("POST", "/api/data/v1/report-publications", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+	if rec.Code >= 400 || app.calls != 1 {
+		t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestUnifiedNonGeopoliticalMetadataRemainsRequired(t *testing.T) {
+	payload, err := os.ReadFile("testdata/unified-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, kind := range []string{"macroeconomic_stories", "concept_analyses", "industry_chain_analyses"} {
+		for _, field := range []string{"confidence", "forecast_window", "follow_up"} {
+			var root map[string]any
+			_ = json.Unmarshal(payload, &root)
+			report := root["report"].(map[string]any)
+			units := report["geopolitical_stories"].([]any)
+			report[kind] = units
+			report["geopolitical_stories"] = []any{}
+			a := units[0].(map[string]any)["detail"].(map[string]any)["reasonings"].([]any)[0].(map[string]any)["assessment"].(map[string]any)
+			delete(a, field)
+			body, _ := json.Marshal(root)
+			var req PublicationRequest
+			if v1.DecodeStrictJSON(body, requiredShape(map[string]*v1.StrictJSONShape{"publisher_report_id": v1.StrictJSONString(), "report": unifiedReportShape()}), &req) == nil {
+				t.Fatalf("%s accepted missing %s", kind, field)
+			}
+		}
+	}
+}

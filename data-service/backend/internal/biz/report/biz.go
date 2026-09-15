@@ -2134,6 +2134,10 @@ func validateV4Window(p string, v V4Window) error {
 	return nil
 }
 func validateV4Assessment(p string, v V4Assessment) error {
+	return validateAssessmentFields(p, v, false)
+}
+
+func validateAssessmentFields(p string, v V4Assessment, geopolitical bool) error {
 	if err := requiredText(p+"/conclusion", v.Conclusion, 16000); err != nil {
 		return err
 	}
@@ -2163,8 +2167,10 @@ func validateV4Assessment(p string, v V4Assessment) error {
 			return invalid(p+"/confidence", "unsupported value")
 		}
 	}
-	if err := validateV4Window(p+"/forecast_window", v.ForecastWindow); err != nil {
-		return err
+	if !geopolitical || !emptyGeopoliticalWindow(v.ForecastWindow) {
+		if err := validateV4Window(p+"/forecast_window", v.ForecastWindow); err != nil {
+			return err
+		}
 	}
 	if err := requiredText(p+"/scope", v.Scope, 16000); err != nil {
 		return err
@@ -2177,7 +2183,7 @@ func validateV4Assessment(p string, v V4Assessment) error {
 			return err
 		}
 	}
-	if v.FollowUp == nil {
+	if v.FollowUp == nil && !geopolitical {
 		return invalid(p+"/follow_up", "must be an array")
 	}
 	for i, value := range v.FollowUp {
@@ -2670,6 +2676,10 @@ func normalizedKey(key string, seen map[string]bool) error {
 }
 func validateNormalizedAssessment(a V4Assessment) error { return validateAssessmentState(a, false) }
 func validateAssessmentState(a V4Assessment, allowPending bool) error {
+	return validateAssessmentStateForKind(a, allowPending, false)
+}
+
+func validateAssessmentStateForKind(a V4Assessment, allowPending, geopolitical bool) error {
 	w := a.ForecastWindow
 	if w.StartAt != nil && w.EndAt != nil {
 		start, _ := time.Parse(time.RFC3339Nano, *w.StartAt)
@@ -2679,10 +2689,10 @@ func validateAssessmentState(a V4Assessment, allowPending bool) error {
 		}
 	}
 	if a.ConclusionBasis == "observation_only" {
-		if a.Direction != "pending" || a.ValidationStatus != "insufficient_evidence" || a.Confidence != nil || w.Kind != "not_applicable" || w.StartAt != nil || w.EndAt != nil {
+		if a.Direction != "pending" || a.ValidationStatus != "insufficient_evidence" || a.Confidence != nil || (w.Kind != "not_applicable" && !(geopolitical && emptyGeopoliticalWindow(w))) || w.StartAt != nil || w.EndAt != nil {
 			return invalid("assessment", "inconsistent observation state")
 		}
-	} else if (a.Direction == "pending" && !allowPending) || a.ValidationStatus != "pending_validation" || a.Confidence == nil || w.Kind == "not_applicable" || len(a.Conditions) == 0 || len(a.FollowUp) == 0 || len(a.EvidenceIDs) == 0 {
+	} else if (a.Direction == "pending" && !allowPending) || a.ValidationStatus != "pending_validation" || len(a.Conditions) == 0 || (!geopolitical && (a.Confidence == nil || w.Kind == "not_applicable" || len(a.FollowUp) == 0 || len(a.EvidenceIDs) == 0)) {
 		return invalid("assessment", "directional inference requires conditions, follow-up, confidence and Evidence")
 	}
 	return nil
@@ -3727,6 +3737,9 @@ func ValidateUnifiedUnit(kind string, u V4Unit) error {
 	if u.Summary.AffectedRefs == nil || u.Summary.EvidenceIDs == nil {
 		return invalid("summary", "arrays required")
 	}
+	if kind == "geopolitical_stories" && len(u.Summary.EvidenceIDs) == 0 {
+		return invalid("summary/evidence_ids", "geopolitical story requires Event-linked Evidence")
+	}
 	targets := map[string]bool{}
 	keys := map[string]bool{}
 	judgments := []signalJudgment{}
@@ -3740,7 +3753,7 @@ func ValidateUnifiedUnit(kind string, u V4Unit) error {
 		if err := requiredText("reasoning.title", r.Title, 16000); err != nil {
 			return err
 		}
-		if err := validateUnifiedAssessment(r.Assessment); err != nil {
+		if err := validateUnifiedAssessment(kind, r.Assessment); err != nil {
 			return err
 		}
 		if err := requiredText("reasoning.logic", r.ReasoningSummary.Logic, 16000); err != nil {
@@ -3789,7 +3802,7 @@ func ValidateUnifiedUnit(kind string, u V4Unit) error {
 			if err := requiredText("asset.name", a.Name, 16000); err != nil {
 				return err
 			}
-			if err := validateUnifiedAssessment(a.Assessment); err != nil {
+			if err := validateUnifiedAssessment(kind, a.Assessment); err != nil {
 				return err
 			}
 			if err := validateUnifiedObjections(a.Objections); err != nil {
@@ -3845,11 +3858,16 @@ func ValidateUnifiedUnit(kind string, u V4Unit) error {
 	}
 	return nil
 }
-func validateUnifiedAssessment(a V4Assessment) error {
-	if err := validateV4Assessment("assessment", a); err != nil {
+func emptyGeopoliticalWindow(w V4Window) bool {
+	return (w.Kind == "" || w.Kind == "not_applicable") && w.Description == "" && w.StartAt == nil && w.EndAt == nil
+}
+
+func validateUnifiedAssessment(kind string, a V4Assessment) error {
+	geopolitical := kind == "geopolitical_stories"
+	if err := validateAssessmentFields("assessment", a, geopolitical); err != nil {
 		return err
 	}
-	if err := validateAssessmentState(a, true); err != nil {
+	if err := validateAssessmentStateForKind(a, true, geopolitical); err != nil {
 		return err
 	}
 	if a.WeightDeltaPP != nil && (math.IsNaN(*a.WeightDeltaPP) || math.IsInf(*a.WeightDeltaPP, 0) || *a.WeightDeltaPP < -100 || *a.WeightDeltaPP > 100) {

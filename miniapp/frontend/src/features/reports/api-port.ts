@@ -20,14 +20,14 @@ export class APIReportPort implements ReportPort {
       `/api/miniapp/v1/reports/${encodeURIComponent(reportId)}/analyses/${kind}?limit=20${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
       'reportUnavailable'
     );
-    return parseResponse(value, parseAnalysisPage);
+    return parseResponse(value, (v) => parseAnalysisPage(v, kind));
   }
   async getAnalysis(reportId: string, kind: AnalysisKind, key: string) {
     const value = await this.get(
       `/api/miniapp/v1/reports/${encodeURIComponent(reportId)}/analyses/${kind}/${encodeURIComponent(key)}`,
       'layerUnavailable'
     );
-    return parseResponse(value, (v) => parseAnalysisDetail(v, key));
+    return parseResponse(value, (v) => parseAnalysisDetail(v, key, kind));
   }
   async getAnalysisChain(reportId: string, kind: AnalysisKind, key: string, chainKey: string) {
     const value = await this.get(

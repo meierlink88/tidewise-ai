@@ -24,13 +24,16 @@ export class MockReportPort implements ReportPort {
   async getAnalyses(reportId: string, kind: AnalysisKind, cursor?: string) {
     assertReport(reportId);
     if (cursor) throw new ReportError('invalidRequest');
-    return parseAnalysisPage(normalized.groups.find((g) => g.kind === kind));
+    return parseAnalysisPage(
+      normalized.groups.find((g) => g.kind === kind),
+      kind
+    );
   }
   async getAnalysis(reportId: string, kind: AnalysisKind, key: string) {
     assertReport(reportId);
     const value: unknown = (normalized.details as Record<string, unknown>)[`${kind}/${key}`];
     if (!value) throw new ReportError('layerUnavailable');
-    return { ...parseAnalysisDetail(value, key), published_at: report.publishedAt };
+    return { ...parseAnalysisDetail(value, key, kind), published_at: report.publishedAt };
   }
   async getAnalysisChain(reportId: string, kind: AnalysisKind, key: string, chainKey: string) {
     assertReport(reportId);
@@ -101,13 +104,16 @@ export class UnifiedMockReportPort extends MockReportPort {
   async getAnalyses(reportId: string, kind: AnalysisKind, cursor?: string) {
     assertReport(reportId);
     if (cursor) throw new ReportError('invalidRequest');
-    return parseAnalysisPage(unified.groups.find((g) => g.kind === kind));
+    return parseAnalysisPage(
+      unified.groups.find((g) => g.kind === kind),
+      kind
+    );
   }
   async getAnalysis(reportId: string, kind: AnalysisKind, key: string) {
     assertReport(reportId);
     const value = (unified.details as Record<string, unknown>)[`${kind}/${key}`];
     if (!value) throw new ReportError('layerUnavailable');
-    return { ...parseAnalysisDetail(value, key), published_at: report.publishedAt };
+    return { ...parseAnalysisDetail(value, key, kind), published_at: report.publishedAt };
   }
   async getHome(): Promise<ReportHome> {
     return {

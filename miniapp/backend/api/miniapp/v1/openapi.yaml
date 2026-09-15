@@ -1443,7 +1443,8 @@ components:
             'forecast_window': { '$ref': '#/components/schemas/UnifiedWindowRead' },
             'scope': { 'type': 'string', 'minLength': 1 },
             'conditions': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
-            'follow_up': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'follow_up':
+              { 'type': 'array', 'nullable': true, 'items': { 'type': 'string', 'minLength': 1 } },
             'transmission_logic': { 'type': 'string', 'minLength': 1 },
             'evidence_scope_token': { 'type': 'string', 'nullable': true },
             'evidence_count': { 'type': 'integer', 'minimum': 0 },
@@ -1481,9 +1482,9 @@ components:
             'kind':
               {
                 'type': 'string',
-                'enum': ['relative', 'calendar', 'stage', 'mixed', 'not_applicable']
+                'enum': ['', 'relative', 'calendar', 'stage', 'mixed', 'not_applicable']
               },
-            'description': { 'type': 'string', 'minLength': 1 },
+            'description': { 'type': 'string' },
             'start_at': { 'type': 'string', 'format': 'date-time', 'nullable': true },
             'end_at': { 'type': 'string', 'format': 'date-time', 'nullable': true }
           },

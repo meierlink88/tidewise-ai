@@ -343,3 +343,46 @@ func TestUnifiedBoundaryRejectsMalformedProviderData(t *testing.T) {
 		})
 	}
 }
+
+func TestGeopoliticalNullableProviderMetadata(t *testing.T) {
+	raw, err := os.ReadFile("../../../../frontend/src/mocks/reports/unified-v6.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		Details map[string]biz.NormalizedDetailProjection `json:"details"`
+	}
+	if err = json.Unmarshal(raw, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	p := fixture.Details["geopolitical_stories/g1"]
+	clear := func(a *biz.NormalizedAssessment) {
+		a.Confidence = nil
+		a.ForecastWindow = biz.NormalizedWindow{}
+		a.FollowUp = nil
+		a.EvidenceScopeToken = nil
+		a.EvidenceCount = 0
+	}
+	for i := range p.Summary.AffectedAnchors {
+		clear(&p.Summary.AffectedAnchors[i].Assessment)
+	}
+	for i := range p.Reasonings {
+		clear(&p.Reasonings[i].Assessment)
+		for j := range p.Reasonings[i].AffectedAssets {
+			clear(&p.Reasonings[i].AffectedAssets[j].Assessment)
+		}
+	}
+	if !validNormalizedSummaryForKind(p.Summary, "geopolitical_stories") || !validUnifiedDetail(p) {
+		t.Fatalf("preflight summary=%v detail=%v", validNormalizedSummaryForKind(p.Summary, "geopolitical_stories"), validUnifiedDetail(p))
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { writeDataResult(t, w, p) }))
+	defer server.Close()
+	repo := newTestRepository(t, server)
+	got, err := repo.GetAnalysis(context.Background(), biz.AnalysisQuery{ReportID: testReportID, Kind: "geopolitical_stories", Key: "g1"})
+	if err != nil || got.Summary.Summary.EvidenceScopeToken == nil {
+		t.Fatalf("geo read failed or lost story Evidence: %v", err)
+	}
+	if _, err = repo.GetAnalysis(context.Background(), biz.AnalysisQuery{ReportID: testReportID, Kind: "macroeconomic_stories", Key: "g1"}); err == nil {
+		t.Fatal("macro accepted relaxed geo assessment")
+	}
+}
