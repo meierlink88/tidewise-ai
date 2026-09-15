@@ -237,6 +237,12 @@ function HomeCard({
           ))}
         </View>
       </View>
+      {u.summary.judgment?.trim() ? (
+        <View className='normalized-card-boundary'>
+          <Text className='normalized-card-boundary-label'>判断边界</Text>
+          <Text>{u.summary.judgment}</Text>
+        </View>
+      ) : null}
       <View className='normalized-card-footer'>
         <Button
           className={`tidewise-button normalized-card-evidence ${!u.summary.evidence_scope_token ? 'is-disabled' : ''}`}

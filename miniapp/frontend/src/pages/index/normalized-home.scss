@@ -316,3 +316,21 @@
     color: $color-report-slate-500;
   }
 }
+
+.normalized-card-boundary {
+  margin-top: 24px;
+  padding: 18px 20px;
+  border-left: 4px solid $color-home-gold;
+  border-radius: 0 16px 16px 0;
+  background: $color-ivory-100;
+  color: $color-home-secondary;
+  font-size: 22px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.normalized-card-boundary-label {
+  margin-right: 12px;
+  color: $color-champagne-500;
+  font-weight: 700;
+}

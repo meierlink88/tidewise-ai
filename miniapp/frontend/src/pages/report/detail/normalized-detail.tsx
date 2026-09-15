@@ -16,6 +16,7 @@ import { useReportResource } from '../../../features/reports/use-report-resource
 import { ReportStatePanel } from '../../../features/reports/report-components';
 import { formatReportPublication } from '../../../features/reports/presentation';
 import './normalized-detail.scss';
+import { GeopoliticalBody } from './geopolitical-detail';
 import { reasoningTabs } from '../../../features/reports/detail-presentation';
 
 const directions = { warming: '升温', cooling: '降温', diverging: '分化', pending: '仅观察' };
@@ -63,64 +64,73 @@ export function LegacyDetailView({
           <Text>{detail.summary.summary.transmission_logic}</Text>
         </View>
       </View>
-      <View className='normalized-main'>
-        <ScrollView scrollX className='normalized-tabs'>
-          <View
-            className='normalized-tabs-row'
-            style={{ width: Taro.pxTransform(Math.max(698, tabs.length * 260)) }}
-          >
-            {tabs.map((t) => (
-              <Button
-                key={t.local_key}
-                className={`tidewise-button normalized-tab ${current?.local_key === t.local_key ? 'selected' : ''}`}
-                onClick={() => setSelected(t.local_key)}
-                ariaLabel={`${t.type === 'macro' ? '宏观经济' : '产业链'}：${t.name}`}
-              >
-                <Text className='normalized-tab-name'>{t.name}</Text>
-                <Text className='normalized-tab-type'>
-                  {t.type === 'macro' ? '宏观经济' : '产业链'}
-                </Text>
-              </Button>
-            ))}
-          </View>
-        </ScrollView>
-        <View
-          className={
-            current && current.type !== 'macro'
-              ? 'normalized-chain-content'
-              : 'normalized-tree-panel'
-          }
-        >
-          {!current ? (
-            <ReportStatePanel title='暂无因果链详情' description='' />
-          ) : current.type === 'macro' ? (
-            <View key={current.local_key}>
-              <Conclusion a={current.assessment} reportId={reportId} onEvidence={onEvidence} />
-              <Mechanism text={current.assessment.transmission_logic} />
-              <AssessmentColumns
-                support={current.assessment.conditions}
-                objections={current.objections}
-              />
+      {kind === 'geopolitical_stories' && detail.reasonings ? (
+        <GeopoliticalBody
+          key={`${reportId}:${detail.summary.local_key}`}
+          reasonings={detail.reasonings}
+          reportId={reportId}
+          onEvidence={onEvidence}
+        />
+      ) : (
+        <View className='normalized-main'>
+          <ScrollView scrollX className='normalized-tabs'>
+            <View
+              className='normalized-tabs-row'
+              style={{ width: Taro.pxTransform(Math.max(698, tabs.length * 260)) }}
+            >
+              {tabs.map((t) => (
+                <Button
+                  key={t.local_key}
+                  className={`tidewise-button normalized-tab ${current?.local_key === t.local_key ? 'selected' : ''}`}
+                  onClick={() => setSelected(t.local_key)}
+                  ariaLabel={`${t.type === 'macro' ? '宏观经济' : '产业链'}：${t.name}`}
+                >
+                  <Text className='normalized-tab-name'>{t.name}</Text>
+                  <Text className='normalized-tab-type'>
+                    {t.type === 'macro' ? '宏观经济' : '产业链'}
+                  </Text>
+                </Button>
+              ))}
             </View>
-          ) : current.type === 'inline-chain' ? (
-            <ChainContent
-              key={current.local_key}
-              c={current.chain}
-              reportId={reportId}
-              onEvidence={onEvidence}
-            />
-          ) : (
-            <LoadedChain
-              key={`${reportId}:${kind}:${detail.summary.local_key}:${current.local_key}`}
-              reportId={reportId}
-              kind={kind}
-              unitKey={detail.summary.local_key}
-              chainKey={current.local_key}
-              onEvidence={onEvidence}
-            />
-          )}
+          </ScrollView>
+          <View
+            className={
+              current && current.type !== 'macro'
+                ? 'normalized-chain-content'
+                : 'normalized-tree-panel'
+            }
+          >
+            {!current ? (
+              <ReportStatePanel title='暂无因果链详情' description='' />
+            ) : current.type === 'macro' ? (
+              <View key={current.local_key}>
+                <Conclusion a={current.assessment} reportId={reportId} onEvidence={onEvidence} />
+                <Mechanism text={current.assessment.transmission_logic} />
+                <AssessmentColumns
+                  support={current.assessment.conditions}
+                  objections={current.objections}
+                />
+              </View>
+            ) : current.type === 'inline-chain' ? (
+              <ChainContent
+                key={current.local_key}
+                c={current.chain}
+                reportId={reportId}
+                onEvidence={onEvidence}
+              />
+            ) : (
+              <LoadedChain
+                key={`${reportId}:${kind}:${detail.summary.local_key}:${current.local_key}`}
+                reportId={reportId}
+                kind={kind}
+                unitKey={detail.summary.local_key}
+                chainKey={current.local_key}
+                onEvidence={onEvidence}
+              />
+            )}
+          </View>
         </View>
-      </View>
+      )}
     </View>
   );
 }
