@@ -223,25 +223,20 @@ function HomeCard({
       <View className='normalized-anchor-area'>
         <View className='normalized-anchor-count'>
           <Text className='normalized-anchor-number'>{u.affected_anchors.length}</Text>
-          <Text className='normalized-anchor-caption'>个受影响资产</Text>
+          <Text className='normalized-anchor-caption'>个受影响锚点</Text>
         </View>
         <View className='normalized-anchor-chips'>
           {u.affected_anchors.map((a) => (
             <View
               className={`normalized-anchor-chip ${a.assessment.direction}`}
               ariaLabel={`${a.name}，${directionLabels[a.assessment.direction]}`}
-              key={`${a.reference.reasoning_local_key ?? ''}:${a.reference.local_key}`}
+              key={`${a.reference.reasoning_local_key ?? a.reference.chain_local_key ?? ''}:${a.reference.local_key}`}
             >
               <Text className='normalized-anchor-name'>{a.name}</Text>
             </View>
           ))}
         </View>
       </View>
-      {u.summary.judgment && (
-        <View className='normalized-card-judgment'>
-          <Text>判断边界：{u.summary.judgment}</Text>
-        </View>
-      )}
       <View className='normalized-card-footer'>
         <Button
           className={`tidewise-button normalized-card-evidence ${!u.summary.evidence_scope_token ? 'is-disabled' : ''}`}
@@ -250,7 +245,7 @@ function HomeCard({
           onClick={onEvidence}
         >
           <Image src={evidenceIcon} className='normalized-evidence-icon' mode='scaleToFill' />
-          <Text>{u.summary.evidence_count} 条证据</Text>
+          <Text>{u.summary.evidence_count} 条政经事件</Text>
         </Button>
         <Button
           className='tidewise-button normalized-card-path'
