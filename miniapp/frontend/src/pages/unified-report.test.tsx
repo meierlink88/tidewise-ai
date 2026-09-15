@@ -3,11 +3,10 @@ import { act, createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { normalizedMockReportPort } from '../mocks/reports/mock-port';
-import { parseAnalysisDetail } from '../features/reports/normalized-contract';
+import { parseAnalysisChain, parseAnalysisDetail } from '../features/reports/normalized-contract';
 import { NormalizedDetailView } from './report/detail/normalized-detail';
 import unified from '../mocks/reports/unified-v6.json';
 import original from '../mocks/reports/normalized-v5.json';
-import { parseAnalysisChain } from '../features/reports/normalized-contract';
 
 vi.mock('@tarojs/taro', () => ({ default: { pxTransform: (n: number) => `${n}px` } }));
 function element(tag: string) {
