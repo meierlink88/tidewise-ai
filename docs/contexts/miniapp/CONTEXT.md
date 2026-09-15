@@ -240,3 +240,11 @@ Node/Taro 依赖直接运行，并把 `dist/<platform>` 写入宿主机供微信
 #500 恢复 PR #499 前 aea4bdd4 的 UI：顶部结论、原因果链 Tab、本链结论、关键机制、支持/反证、图谱与核心分析。数据统一不授权更改页面视觉。前端 presentation 将带 graph 的推导绑定到原图谱组件，无 graph 的推导绑定到原宏观内容区；不从资产列表推测图谱，不再调用退休的单链读取接口。关键机制和支持/反证读取 reasoning_summary；节点正文、方向、信号读取 graph 对应的 affected_assets。新指标区块、配置幅度和其他额外字段保留在合同中，不新增展示区域。首页恢复原方向标签、颜色和事件文案，引用身份读取 reasoning_local_key + local_key。
 
 scope token 始终绑定所属 reportId，证据弹层交互保持。业务字段与迁移步骤见 [v6 合同](../data/report-publication-v6.md)。不回滚服务或迁移数据，不从实体数据库核验或补写报告资产内容。
+
+### 地缘政治详情原型展示（#505）
+
+三类首页共用卡片，在影响资产与底部按钮之间显示可选 `summary.judgment`，标题“判断边界”；空值隐藏。资产数量、名称和顺序沿用报告首页引用，不复制原型样例。
+
+地缘政治 v6 详情保留原顶部蓝色区域，仅主体采用 tidetell1.0 地缘原型：按顺序显示 reasoning_blocks 的结论、解释、指标卡，再显示固定标题“关键机制问题”及 reasoning_summary.logic 原文，最后为横滑资产卡与选中资产分析。多个推导本地切换，单个推导无需切换栏；无指标不填造数值。宏观经济、产业链详情继续遵循 #500 的原展示。
+
+指标来自 metrics，配置幅度来自 weight_delta_pp；配置零值显示“—”，缺省只显示报告方向，不当作零或收益率。配置幅度颜色按正负，缺省时按 direction；首页颜色仍按 direction。传导时间直接展示选中资产 forecast_window.description 完整内容，不解析、改写或拆分；指标 period_label 为统计周期。所有数量、顺序、文本、数值均来自报告，首页与详情资产数量无需一致。指标及资产证据继续绑定当前 reportId 与原 scope token；无 API 或持久化变更。

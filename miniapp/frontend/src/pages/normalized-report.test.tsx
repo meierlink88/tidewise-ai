@@ -417,3 +417,39 @@ describe('normalized report interaction', () => {
     expect(host.textContent).not.toContain(c.empty_state!.follow_up[0]);
   });
 });
+
+it('shows optional report judgment for each home category without hardcoded assets', async () => {
+  const home = await normalizedMockReportPort.getHome();
+  for (const kind of [
+    'geopolitical_stories',
+    'macroeconomic_stories',
+    'industry_chain_analyses'
+  ] as const) {
+    const group = structuredClone(home.reports[0]);
+    const item = group.analysisGroups![0].items[0];
+    group.analysisGroups = [{ kind, next_cursor: null, items: [item] }];
+    item.summary.judgment = `报告判断边界：${kind}`;
+    const render = () =>
+      act(() =>
+        root.render(
+          <NormalizedHome
+            key={kind}
+            group={group}
+            query=''
+            onDetail={vi.fn()}
+            onEvidence={vi.fn()}
+          />
+        )
+      );
+    render();
+    expect(host.querySelector('.normalized-card-boundary')!.textContent).toBe(
+      `判断边界${item.summary.judgment}`
+    );
+    expect(host.querySelectorAll('.normalized-anchor-chip')).toHaveLength(
+      item.affected_anchors.length
+    );
+    delete item.summary.judgment;
+    render();
+    expect(host.querySelector('.normalized-card-boundary')).toBeNull();
+  }
+});
