@@ -276,6 +276,7 @@ describe('geopolitical prototype with report-owned data', () => {
         })
       )
     );
+    expect(host.querySelector('.normalized-detail > .normalized-evidence')).toBeNull();
     expect(host.querySelector('.geo-detail-question')!.textContent).toBe(
       '关键机制问题这是报告提供的陈述句。'
     );
@@ -333,7 +334,7 @@ describe('geopolitical prototype with report-owned data', () => {
   });
 });
 
-it('loads geopolitical null metadata and keeps story Evidence accessible', () => {
+it('loads geopolitical null metadata without a header event entry', () => {
   const raw = JSON.parse(JSON.stringify(unified.details['geopolitical_stories/g1']));
   const clear = (assessment: Record<string, unknown>) => {
     assessment.confidence = null;
@@ -371,6 +372,6 @@ it('loads geopolitical null metadata and keeps story Evidence accessible', () =>
   expect(host.textContent).not.toContain('传导时间');
   const token = detail.summary.summary.evidence_scope_token;
   expect(token).toBeTruthy();
-  click(host.querySelector('.normalized-evidence'));
-  expect(evidence).toHaveBeenCalledWith(expect.objectContaining({ scopeToken: token, reportId }));
+  expect(host.querySelector('.normalized-evidence')).toBeNull();
+  expect(evidence).not.toHaveBeenCalled();
 });

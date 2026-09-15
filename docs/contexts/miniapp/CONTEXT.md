@@ -251,4 +251,4 @@ scope token 始终绑定所属 reportId，证据弹层交互保持。业务字�
 
 ### 地缘报告可选元数据读取（#507）
 
-地缘 v6 的 confidence、forecast_window、follow_up 允许空。BFF 按请求板块允许地缘空置信度，宏观/产业判断仍要求置信度；读取层接受可选窗口和观察项空值。小程序 v6 adapter 将无窗口映射为不适用、空描述，将空观察项映射为空数组，不显示占位预测期；不放宽有值的非法枚举。地缘详情顶部复用已有证据按钮，使用故事线 summary 的 evidence_scope_token/count，不能借资产空 scope 隐藏故事线证据。
+地缘 v6 的 confidence、forecast_window、follow_up 允许空。BFF 按请求板块允许地缘空置信度，宏观/产业判断仍要求置信度；读取层接受可选窗口和观察项空值。小程序 v6 adapter 将无窗口映射为不适用、空描述，将空观察项映射为空数组，不显示占位预测期；不放宽有值的非法枚举。按 #509 移除地缘详情顶部的故事线事件入口；首页及详情正文中的指标、资产证据入口保持，summary 的 evidence_scope_token/count 继续保留在读取合同中。
