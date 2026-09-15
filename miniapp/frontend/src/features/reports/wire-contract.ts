@@ -122,7 +122,7 @@ function parseHomeGroup(value: unknown): ReportHomeGroup {
   const report = parseSummary(root.report);
   if (
     extra !==
-    ['report-publication/v4', 'report-publication/v5'].includes(report.schemaVersion ?? '')
+    ['report-publication/v6'].includes(report.schemaVersion ?? '')
   )
     invalid();
   const cards = list(root.cards).map(parseCard);

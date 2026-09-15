@@ -39,6 +39,8 @@ export interface Provenance {
   variable_signals?: VariableSignal[];
 }
 export interface Assessment extends EvidenceScope {
+  weight_delta_pp?: number;
+  adjustment_purpose?: string;
   conclusion: string;
   direction: 'warming' | 'cooling' | 'diverging' | 'pending';
   conclusion_basis: 'reasoning_hypothesis' | 'observation_only';
@@ -100,17 +102,19 @@ export interface AnalysisChain extends ChainHeader, Provenance {
   affected_nodes: NodeImpact[];
 }
 export interface AnchorRef {
+  reasoning_local_key?: string;
   target_type: string;
   local_key: string;
   chain_local_key: string | null;
 }
 export interface AnalysisSummary {
-  schema_version: 'report-publication/v4' | 'report-publication/v5';
+  schema_version: 'report-publication/v4' | 'report-publication/v5' | 'report-publication/v6';
   judgment_origin?: JudgmentOrigin;
   local_key: string;
   source_id: string;
   title: string;
   summary: EvidenceScope & {
+    judgment?: string;
     conclusion: string;
     transmission_logic: string;
     impact_assessment: EvidenceScope & { level: string; rationale: string };
@@ -124,6 +128,7 @@ export interface AnalysisSummary {
     assessment: Assessment;
   }[];
   chain_count: number;
+  reasoning_count?: number;
 }
 export interface AnalysisPage {
   items: AnalysisSummary[];
@@ -133,6 +138,7 @@ export interface AnalysisGroup extends AnalysisPage {
   kind: AnalysisKind;
 }
 export interface AnalysisDetail extends Provenance {
+  reasonings?: UnifiedReasoning[];
   published_at?: string;
   companies?: MacroImpact[];
   summary: AnalysisSummary;
@@ -172,11 +178,16 @@ function scope(v: Record<string, unknown>): EvidenceScope {
     fail();
   return { evidence_scope_token: token, evidence_count: count };
 }
+const finite = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : fail());
 function assessment(value: unknown): Assessment {
   const v = obj(value),
     w = obj(v.forecast_window);
   return {
     ...scope(v),
+    ...(v.weight_delta_pp !== undefined ? { weight_delta_pp: finite(v.weight_delta_pp) } : {}),
+    ...(v.adjustment_purpose !== undefined
+      ? { adjustment_purpose: str(v.adjustment_purpose) }
+      : {}),
     conclusion: str(v.conclusion),
     direction: choice(v.direction, ['warming', 'cooling', 'diverging', 'pending']),
     conclusion_basis: choice(v.conclusion_basis, ['reasoning_hypothesis', 'observation_only']),
@@ -247,6 +258,15 @@ function header(value: unknown): ChainHeader {
 }
 function anchorRef(value: unknown): AnchorRef {
   const v = obj(value);
+  if (v.reasoning_local_key !== undefined) {
+    if (v.target_type || v.chain_local_key) fail();
+    return {
+      reasoning_local_key: key(v.reasoning_local_key),
+      local_key: key(v.local_key),
+      target_type: '',
+      chain_local_key: null
+    };
+  }
   return {
     target_type: choice(v.target_type, [
       'macroeconomic_story',
@@ -268,13 +288,18 @@ export function parseAnalysisSummary(value: unknown): AnalysisSummary {
   )
     fail();
   return {
-    schema_version: choice(v.schema_version, ['report-publication/v4', 'report-publication/v5']),
+    schema_version: choice(v.schema_version, [
+      'report-publication/v4',
+      'report-publication/v5',
+      'report-publication/v6'
+    ]),
     ...origin(v),
     local_key: key(v.local_key),
     source_id: str(v.source_id),
     title: str(v.title),
     summary: {
       ...scope(s),
+      ...(s.judgment !== undefined ? { judgment: str(s.judgment) } : {}),
       conclusion: str(s.conclusion),
       transmission_logic: str(s.transmission_logic),
       impact_assessment: {
@@ -294,7 +319,8 @@ export function parseAnalysisSummary(value: unknown): AnalysisSummary {
         assessment: assessment(a.assessment)
       };
     }),
-    chain_count: num(v.chain_count)
+    chain_count: num(v.chain_count ?? 0),
+    ...(v.reasoning_count !== undefined ? { reasoning_count: num(v.reasoning_count) } : {})
   };
 }
 export function parseAnalysisPage(value: unknown): AnalysisPage {
@@ -328,10 +354,21 @@ export function parseAnalysisDetail(value: unknown, expectedKey: string): Analys
       : {}),
     ...(v.companies !== undefined ? { companies: list(v.companies, macro) } : {}),
     summary: parseAnalysisSummary(v.summary),
-    macro_impacts: list(v.macro_impacts, macro),
-    industry_chains: list(v.industry_chains, header)
+    ...(v.reasonings !== undefined ? { reasonings: list(v.reasonings, unifiedReasoning) } : {}),
+    macro_impacts: list(v.macro_impacts ?? [], macro),
+    industry_chains: list(v.industry_chains ?? [], header)
   };
   if (d.summary.local_key !== expectedKey) fail();
+  if (d.summary.schema_version === 'report-publication/v6') {
+    if (!d.reasonings?.length || d.macro_impacts.length || d.industry_chains.length) fail();
+    const reasonings = d.reasonings ?? [];
+    unique(reasonings.map((r) => r.local_key));
+    for (const a of d.summary.affected_anchors) {
+      const r = reasonings.find((x) => x.local_key === a.reference.reasoning_local_key);
+      const asset = r?.affected_assets.find((x) => x.local_key === a.reference.local_key);
+      if (!asset || asset.name !== a.name) fail();
+    }
+  }
   if (
     d.summary.schema_version === 'report-publication/v5' &&
     (!d.judgment_origin ||
@@ -466,4 +503,151 @@ function provenance(v: Record<string, unknown>): Provenance {
       fail();
   });
   return { ...o, reasoning_sources: sources, variable_signals: signals };
+}
+
+export interface ReasoningMetric extends EvidenceScope {
+  name: string;
+  value?: number;
+  display_value?: string;
+  unit: string;
+  measure_type: 'level' | 'change_rate' | 'count';
+  period_label?: string;
+  as_of?: string;
+  value_nature: 'observed' | 'forecast' | 'assumption';
+}
+export interface ReasoningBlock {
+  local_key: string;
+  title: string;
+  explanation: string;
+  relation_type: 'causal' | 'comparison';
+  nodes: { local_key: string; name: string; description?: string; metrics: ReasoningMetric[] }[];
+  links?: { from_node_local_key: string; to_node_local_key: string; label?: string }[];
+}
+export interface UnifiedReasoning extends Provenance {
+  local_key: string;
+  source_id?: string;
+  title: string;
+  assessment: Assessment;
+  reasoning_summary: { logic: string; support?: Claim; objections: Objections };
+  reasoning_blocks: ReasoningBlock[];
+  graph?: AnalysisChain['graph'];
+  affected_assets: NodeImpact[];
+  empty_state?: EmptyState | null;
+}
+function unifiedReasoning(value: unknown): UnifiedReasoning {
+  const v = obj(value),
+    r = obj(v.reasoning_summary);
+  const assets = list(v.affected_assets, (x) => {
+    const a = obj(x);
+    return {
+      ...macro({ ...a, source_id: a.source_id ?? '' }),
+      node_local_key: a.node_local_key === undefined ? '' : str(a.node_local_key)
+    };
+  });
+  unique(assets.map((a) => a.local_key));
+  const blocks = list(v.reasoning_blocks, (blockValue) => {
+    const b = obj(blockValue);
+    const nodes = list(b.nodes, (nodeValue) => {
+      const n = obj(nodeValue);
+      return {
+        local_key: key(n.local_key),
+        name: str(n.name),
+        ...(n.description !== undefined ? { description: str(n.description) } : {}),
+        metrics: list(n.metrics, (x) => {
+          const m = obj(x);
+          if (m.value === undefined && !m.display_value) fail();
+          return {
+            ...scope(m),
+            name: str(m.name),
+            ...(m.value !== undefined ? { value: finite(m.value) } : {}),
+            ...(m.display_value !== undefined ? { display_value: str(m.display_value) } : {}),
+            unit: str(m.unit),
+            measure_type: choice(m.measure_type, ['level', 'change_rate', 'count'] as const),
+            value_nature: choice(m.value_nature, ['observed', 'forecast', 'assumption'] as const),
+            ...(m.period_label !== undefined ? { period_label: str(m.period_label) } : {}),
+            ...(m.as_of !== undefined ? { as_of: str(m.as_of) } : {})
+          };
+        })
+      };
+    });
+    unique(nodes.map((n) => n.local_key));
+    const links =
+      b.links === undefined
+        ? undefined
+        : list(b.links, (x) => {
+            const e = obj(x);
+            return {
+              from_node_local_key: key(e.from_node_local_key),
+              to_node_local_key: key(e.to_node_local_key),
+              ...(e.label !== undefined ? { label: str(e.label) } : {})
+            };
+          });
+    const relation = choice(b.relation_type, ['causal', 'comparison'] as const);
+    for (const e of links ?? [])
+      if (
+        relation !== 'causal' ||
+        !nodes.some((n) => n.local_key === e.from_node_local_key) ||
+        !nodes.some((n) => n.local_key === e.to_node_local_key)
+      )
+        fail();
+    return {
+      local_key: key(b.local_key),
+      title: str(b.title),
+      explanation: str(b.explanation),
+      relation_type: relation,
+      nodes,
+      ...(links ? { links } : {})
+    };
+  });
+  unique(blocks.map((b) => b.local_key));
+  let graph: AnalysisChain['graph'] | undefined;
+  if (v.graph) {
+    const g = obj(v.graph);
+    graph = {
+      nodes: list(g.nodes, (x) => {
+        const n = obj(x);
+        return { local_key: key(n.local_key), source_id: str(n.source_id), name: str(n.name) };
+      }),
+      edges: list(g.edges, (x) => {
+        const e = obj(x);
+        return {
+          from_node_local_key: key(e.from_node_local_key),
+          to_node_local_key: key(e.to_node_local_key),
+          relation_label: str(e.relation_label)
+        };
+      })
+    };
+    unique(graph.nodes.map((n) => n.local_key));
+    for (const a of assets)
+      if (
+        a.node_local_key &&
+        !graph.nodes.some(
+          (n) =>
+            n.local_key === a.node_local_key && n.name === a.name && n.source_id === a.source_id
+        )
+      )
+        fail();
+    for (const e of graph.edges)
+      if (
+        !graph.nodes.some((n) => n.local_key === e.from_node_local_key) ||
+        !graph.nodes.some((n) => n.local_key === e.to_node_local_key)
+      )
+        fail();
+  }
+  return {
+    ...provenance(v),
+    local_key: key(v.local_key),
+    ...(v.source_id !== undefined ? { source_id: str(v.source_id) } : {}),
+    title: str(v.title),
+    assessment: assessment(v.assessment),
+    reasoning_summary: {
+      logic: str(r.logic),
+      ...(r.support ? { support: claim(r.support) } : {}),
+      objections: objections(r.objections)
+    },
+    reasoning_blocks: blocks,
+    affected_assets: assets,
+    ...(graph ? { graph } : {}),
+    ...(v.empty_state ? { empty_state: empty(v.empty_state) } : {})
+  };
 }

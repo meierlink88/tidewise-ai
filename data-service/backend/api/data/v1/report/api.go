@@ -570,6 +570,7 @@ type AnalysisCollection struct {
 // V4 contracts implement the approved normalized report, independently of legacy snapshots.
 const NormalizedSchemaVersion = "report-publication/v4"
 const SignalSchemaVersion = "report-publication/v5"
+const UnifiedSchemaVersion = "report-publication/v6"
 
 type V4CodedLabel struct {
 	Code  string `json:"code"`
@@ -595,6 +596,8 @@ type V4Window struct {
 	EndAt       *string `json:"end_at"`
 }
 type V4Assessment struct {
+	WeightDeltaPP     *float64 `json:"weight_delta_pp,omitempty"`
+	AdjustmentPurpose string   `json:"adjustment_purpose,omitempty"`
 	Conclusion        string   `json:"conclusion"`
 	Direction         string   `json:"direction"`
 	ConclusionBasis   string   `json:"conclusion_basis"`
@@ -647,9 +650,10 @@ type V4Macro struct {
 	Objections       V4Objections        `json:"objections"`
 }
 type V4AnchorRef struct {
-	TargetType    string  `json:"target_type"`
-	LocalKey      string  `json:"local_key"`
-	ChainLocalKey *string `json:"chain_local_key"`
+	ReasoningLocalKey string  `json:"reasoning_local_key,omitempty"`
+	TargetType        string  `json:"target_type,omitempty"`
+	LocalKey          string  `json:"local_key"`
+	ChainLocalKey     *string `json:"chain_local_key,omitempty"`
 }
 type V4Unit struct {
 	JudgmentOrigin   string              `json:"judgment_origin,omitempty"`
@@ -695,6 +699,7 @@ type V4ChainEmptyState struct {
 	FollowUp []string `json:"follow_up"`
 }
 type V4UnitSummary struct {
+	Judgment          string                        `json:"judgment,omitempty"`
 	Conclusion        string                        `json:"conclusion"`
 	TransmissionLogic string                        `json:"transmission_logic"`
 	ImpactAssessment  V4UnitSummaryImpactAssessment `json:"impact_assessment"`
@@ -702,10 +707,11 @@ type V4UnitSummary struct {
 	EvidenceIDs       []string                      `json:"evidence_ids"`
 }
 type V4UnitDetail struct {
-	VariableSignals *[]V5Signal `json:"variable_signals,omitempty"`
-	Companies       *[]V4Macro  `json:"companies,omitempty"`
-	MacroImpacts    []V4Macro   `json:"macro_impacts"`
-	IndustryChains  []V4Chain   `json:"industry_chains"`
+	Reasonings      []UnifiedReasoning `json:"reasonings,omitempty"`
+	VariableSignals *[]V5Signal        `json:"variable_signals,omitempty"`
+	Companies       *[]V4Macro         `json:"companies,omitempty"`
+	MacroImpacts    []V4Macro          `json:"macro_impacts,omitempty"`
+	IndustryChains  []V4Chain          `json:"industry_chains,omitempty"`
 }
 type V4ReportAnalysisWindow struct {
 	Start string `json:"start"`
@@ -730,7 +736,7 @@ func (r *Report) UnmarshalJSON(payload []byte) error {
 	if err := json.Unmarshal(payload, &probe); err != nil {
 		return err
 	}
-	if probe.SchemaVersion == NormalizedSchemaVersion || probe.SchemaVersion == SignalSchemaVersion {
+	if probe.SchemaVersion == NormalizedSchemaVersion || probe.SchemaVersion == SignalSchemaVersion || probe.SchemaVersion == UnifiedSchemaVersion {
 		var parsed V4Report
 		decoder := json.NewDecoder(bytes.NewReader(payload))
 		decoder.DisallowUnknownFields()
@@ -776,6 +782,8 @@ type V4ReadWindow struct {
 	EndAt       *string `json:"end_at"`
 }
 type V4ReadAssessment struct {
+	WeightDeltaPP      *float64     `json:"weight_delta_pp,omitempty"`
+	AdjustmentPurpose  string       `json:"adjustment_purpose,omitempty"`
 	Conclusion         string       `json:"conclusion"`
 	Direction          string       `json:"direction"`
 	ConclusionBasis    string       `json:"conclusion_basis"`
@@ -829,9 +837,10 @@ type V4ReadMacro struct {
 	Objections       V4ReadObjections    `json:"objections"`
 }
 type V4ReadAnchorRef struct {
-	TargetType    string  `json:"target_type"`
-	LocalKey      string  `json:"local_key"`
-	ChainLocalKey *string `json:"chain_local_key"`
+	ReasoningLocalKey string  `json:"reasoning_local_key,omitempty"`
+	TargetType        string  `json:"target_type,omitempty"`
+	LocalKey          string  `json:"local_key"`
+	ChainLocalKey     *string `json:"chain_local_key,omitempty"`
 }
 type V4ReadUnit struct {
 	JudgmentOrigin   string              `json:"judgment_origin,omitempty"`
@@ -877,6 +886,7 @@ type V4ReadChainEmptyState struct {
 	FollowUp []string `json:"follow_up"`
 }
 type V4ReadUnitSummary struct {
+	Judgment           string                            `json:"judgment,omitempty"`
 	Conclusion         string                            `json:"conclusion"`
 	TransmissionLogic  string                            `json:"transmission_logic"`
 	ImpactAssessment   V4ReadUnitSummaryImpactAssessment `json:"impact_assessment"`
@@ -885,10 +895,11 @@ type V4ReadUnitSummary struct {
 	EvidenceCount      int                               `json:"evidence_count"`
 }
 type V4ReadUnitDetail struct {
-	VariableSignals *[]V5ReadSignal `json:"variable_signals,omitempty"`
-	Companies       *[]V4ReadMacro  `json:"companies,omitempty"`
-	MacroImpacts    []V4ReadMacro   `json:"macro_impacts"`
-	IndustryChains  []V4ReadChain   `json:"industry_chains"`
+	Reasonings      []UnifiedReadReasoning `json:"reasonings,omitempty"`
+	VariableSignals *[]V5ReadSignal        `json:"variable_signals,omitempty"`
+	Companies       *[]V4ReadMacro         `json:"companies,omitempty"`
+	MacroImpacts    []V4ReadMacro          `json:"macro_impacts,omitempty"`
+	IndustryChains  []V4ReadChain          `json:"industry_chains,omitempty"`
 }
 type V4ReadReportAnalysisWindow struct {
 	Start string `json:"start"`
@@ -916,6 +927,7 @@ type V4ResolvedAnchor struct {
 	Assessment     V4ReadAssessment `json:"assessment"`
 }
 type V4SummaryProjection struct {
+	ReasoningCount  int                `json:"reasoning_count,omitempty"`
 	JudgmentOrigin  string             `json:"judgment_origin,omitempty"`
 	SchemaVersion   string             `json:"schema_version"`
 	LocalKey        string             `json:"local_key"`
@@ -934,13 +946,14 @@ type V4ChainHeader struct {
 	EmptyState     *V4ReadChainEmptyState `json:"empty_state"`
 }
 type V4DetailProjection struct {
-	JudgmentOrigin   string              `json:"judgment_origin,omitempty"`
-	ReasoningSources *V5ReasoningSources `json:"reasoning_sources,omitempty"`
-	VariableSignals  *[]V5ReadSignal     `json:"variable_signals,omitempty"`
-	Companies        *[]V4ReadMacro      `json:"companies,omitempty"`
-	Summary          V4SummaryProjection `json:"summary"`
-	MacroImpacts     []V4ReadMacro       `json:"macro_impacts"`
-	IndustryChains   []V4ChainHeader     `json:"industry_chains"`
+	Reasonings       []UnifiedReadReasoning `json:"reasonings,omitempty"`
+	JudgmentOrigin   string                 `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources    `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]V5ReadSignal        `json:"variable_signals,omitempty"`
+	Companies        *[]V4ReadMacro         `json:"companies,omitempty"`
+	Summary          V4SummaryProjection    `json:"summary"`
+	MacroImpacts     []V4ReadMacro          `json:"macro_impacts,omitempty"`
+	IndustryChains   []V4ChainHeader        `json:"industry_chains,omitempty"`
 }
 type V4HomeProjection struct {
 	ReportType     V4ReadCodedLabel               `json:"report_type"`
@@ -987,7 +1000,7 @@ func (v *AnalysisUnitSummary) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &probe); err != nil {
 		return err
 	}
-	if probe.SchemaVersion == NormalizedSchemaVersion || probe.SchemaVersion == SignalSchemaVersion {
+	if probe.SchemaVersion == NormalizedSchemaVersion || probe.SchemaVersion == SignalSchemaVersion || probe.SchemaVersion == UnifiedSchemaVersion {
 		var n V4SummaryProjection
 		if err := json.Unmarshal(b, &n); err != nil {
 			return err
@@ -1038,7 +1051,7 @@ func (v *AnalysisUnitDetail) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &probe); err != nil {
 		return err
 	}
-	if probe.Summary.SchemaVersion == NormalizedSchemaVersion || probe.Summary.SchemaVersion == SignalSchemaVersion {
+	if probe.Summary.SchemaVersion == NormalizedSchemaVersion || probe.Summary.SchemaVersion == SignalSchemaVersion || probe.Summary.SchemaVersion == UnifiedSchemaVersion {
 		var n V4DetailProjection
 		if err := json.Unmarshal(b, &n); err != nil {
 			return err
@@ -1106,7 +1119,7 @@ func (v *Home) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &probe); err != nil {
 		return err
 	}
-	if probe.SchemaVersion == NormalizedSchemaVersion || probe.SchemaVersion == SignalSchemaVersion {
+	if probe.SchemaVersion == NormalizedSchemaVersion || probe.SchemaVersion == SignalSchemaVersion || probe.SchemaVersion == UnifiedSchemaVersion {
 		var n V4HomeProjection
 		if err := json.Unmarshal(b, &n); err != nil {
 			return err
@@ -1166,4 +1179,164 @@ type V5CompanyProjection struct {
 type EvidenceTag struct {
 	Kind string `json:"kind"`
 	Text string `json:"text"`
+}
+
+// UnifiedReasoning is the same report-local content model for every analysis collection.
+type UnifiedReasoning struct {
+	LocalKey         string                  `json:"local_key"`
+	SourceID         string                  `json:"source_id,omitempty"`
+	Title            string                  `json:"title"`
+	JudgmentOrigin   string                  `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources     `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]V5Signal             `json:"variable_signals,omitempty"`
+	Assessment       V4Assessment            `json:"assessment"`
+	ReasoningSummary UnifiedReasoningSummary `json:"reasoning_summary"`
+	ReasoningBlocks  []UnifiedBlock          `json:"reasoning_blocks"`
+	Graph            *V4Graph                `json:"graph,omitempty"`
+	AffectedAssets   []V4Node                `json:"affected_assets"`
+	EmptyState       *V4ChainEmptyState      `json:"empty_state,omitempty"`
+}
+type UnifiedReasoningSummary struct {
+	Logic      string       `json:"logic"`
+	Support    *V4Claim     `json:"support,omitempty"`
+	Objections V4Objections `json:"objections"`
+}
+type UnifiedBlock struct {
+	LocalKey     string              `json:"local_key"`
+	Title        string              `json:"title"`
+	Explanation  string              `json:"explanation"`
+	RelationType string              `json:"relation_type"`
+	Nodes        []UnifiedMetricNode `json:"nodes"`
+	Links        []UnifiedMetricLink `json:"links,omitempty"`
+}
+type UnifiedMetricNode struct {
+	LocalKey    string          `json:"local_key"`
+	Name        string          `json:"name"`
+	Description string          `json:"description,omitempty"`
+	Metrics     []UnifiedMetric `json:"metrics"`
+}
+type UnifiedMetric struct {
+	Name         string   `json:"name"`
+	Value        *float64 `json:"value,omitempty"`
+	DisplayValue string   `json:"display_value,omitempty"`
+	Unit         string   `json:"unit"`
+	MeasureType  string   `json:"measure_type"`
+	PeriodLabel  string   `json:"period_label,omitempty"`
+	AsOf         string   `json:"as_of,omitempty"`
+	ValueNature  string   `json:"value_nature"`
+	EvidenceIDs  []string `json:"evidence_ids"`
+}
+type UnifiedMetricLink struct {
+	FromNodeLocalKey string `json:"from_node_local_key"`
+	ToNodeLocalKey   string `json:"to_node_local_key"`
+	Label            string `json:"label,omitempty"`
+}
+
+// UnifiedReadReasoning is the same report-local content model for every analysis collection.
+type UnifiedReadReasoning struct {
+	LocalKey         string                      `json:"local_key"`
+	SourceID         string                      `json:"source_id,omitempty"`
+	Title            string                      `json:"title"`
+	JudgmentOrigin   string                      `json:"judgment_origin,omitempty"`
+	ReasoningSources *V5ReasoningSources         `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]V5ReadSignal             `json:"variable_signals,omitempty"`
+	Assessment       V4ReadAssessment            `json:"assessment"`
+	ReasoningSummary UnifiedReadReasoningSummary `json:"reasoning_summary"`
+	ReasoningBlocks  []UnifiedReadBlock          `json:"reasoning_blocks"`
+	Graph            *V4ReadGraph                `json:"graph,omitempty"`
+	AffectedAssets   []V4ReadNode                `json:"affected_assets"`
+	EmptyState       *V4ReadChainEmptyState      `json:"empty_state,omitempty"`
+}
+type UnifiedReadReasoningSummary struct {
+	Logic      string           `json:"logic"`
+	Support    *V4ReadClaim     `json:"support,omitempty"`
+	Objections V4ReadObjections `json:"objections"`
+}
+type UnifiedReadBlock struct {
+	LocalKey     string                  `json:"local_key"`
+	Title        string                  `json:"title"`
+	Explanation  string                  `json:"explanation"`
+	RelationType string                  `json:"relation_type"`
+	Nodes        []UnifiedReadMetricNode `json:"nodes"`
+	Links        []UnifiedReadMetricLink `json:"links,omitempty"`
+}
+type UnifiedReadMetricNode struct {
+	LocalKey    string              `json:"local_key"`
+	Name        string              `json:"name"`
+	Description string              `json:"description,omitempty"`
+	Metrics     []UnifiedReadMetric `json:"metrics"`
+}
+type UnifiedReadMetric struct {
+	Name               string   `json:"name"`
+	Value              *float64 `json:"value,omitempty"`
+	DisplayValue       string   `json:"display_value,omitempty"`
+	Unit               string   `json:"unit"`
+	MeasureType        string   `json:"measure_type"`
+	PeriodLabel        string   `json:"period_label,omitempty"`
+	AsOf               string   `json:"as_of,omitempty"`
+	ValueNature        string   `json:"value_nature"`
+	EvidenceScopeToken *string  `json:"evidence_scope_token"`
+	EvidenceCount      int      `json:"evidence_count"`
+}
+type UnifiedReadMetricLink struct {
+	FromNodeLocalKey string `json:"from_node_local_key"`
+	ToNodeLocalKey   string `json:"to_node_local_key"`
+	Label            string `json:"label,omitempty"`
+}
+
+// Preserve archived snapshot wire shape; v6 has report-local asset references.
+func (v V4AnchorRef) MarshalJSON() ([]byte, error) {
+	type plain V4AnchorRef
+	if v.ReasoningLocalKey != "" {
+		return json.Marshal(plain(v))
+	}
+	return json.Marshal(struct {
+		TargetType    string  `json:"target_type"`
+		LocalKey      string  `json:"local_key"`
+		ChainLocalKey *string `json:"chain_local_key"`
+	}{v.TargetType, v.LocalKey, v.ChainLocalKey})
+}
+func (v V4ReadAnchorRef) MarshalJSON() ([]byte, error) {
+	type plain V4ReadAnchorRef
+	if v.ReasoningLocalKey != "" {
+		return json.Marshal(plain(v))
+	}
+	return json.Marshal(struct {
+		TargetType    string  `json:"target_type"`
+		LocalKey      string  `json:"local_key"`
+		ChainLocalKey *string `json:"chain_local_key"`
+	}{v.TargetType, v.LocalKey, v.ChainLocalKey})
+}
+func (v V4UnitDetail) MarshalJSON() ([]byte, error) {
+	type plain V4UnitDetail
+	if v.Reasonings != nil {
+		return json.Marshal(plain(v))
+	}
+	return json.Marshal(struct {
+		plain
+		MacroImpacts   []V4Macro `json:"macro_impacts"`
+		IndustryChains []V4Chain `json:"industry_chains"`
+	}{plain(v), v.MacroImpacts, v.IndustryChains})
+}
+func (v V4ReadUnitDetail) MarshalJSON() ([]byte, error) {
+	type plain V4ReadUnitDetail
+	if v.Reasonings != nil {
+		return json.Marshal(plain(v))
+	}
+	return json.Marshal(struct {
+		plain
+		MacroImpacts   []V4ReadMacro `json:"macro_impacts"`
+		IndustryChains []V4ReadChain `json:"industry_chains"`
+	}{plain(v), v.MacroImpacts, v.IndustryChains})
+}
+func (v V4DetailProjection) MarshalJSON() ([]byte, error) {
+	type plain V4DetailProjection
+	if v.Reasonings != nil {
+		return json.Marshal(plain(v))
+	}
+	return json.Marshal(struct {
+		plain
+		MacroImpacts   []V4ReadMacro   `json:"macro_impacts"`
+		IndustryChains []V4ChainHeader `json:"industry_chains"`
+	}{plain(v), v.MacroImpacts, v.IndustryChains})
 }

@@ -1,0 +1,263 @@
+@use '../../../styles/tokens.scss' as *;
+.unified-detail {
+  min-height: 100vh;
+  background: $color-ivory-200;
+  color: $color-report-ink;
+  font-size: report-reading-font(24px);
+  line-height: 1.7;
+}
+.unified-body {
+  padding: 24px;
+}
+.unified-judgment {
+  display: block;
+  margin-top: 20px;
+}
+.unified-scroll {
+  width: 100%;
+  min-width: 0;
+}
+.unified-tabs {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+}
+.unified-tab {
+  flex: 0 0 auto;
+  max-width: 440px;
+  padding: 16px 24px;
+  background: $color-card;
+  border: 2px solid $color-border;
+  border-radius: 18px;
+  color: $color-report-ink;
+  font-size: report-reading-font(22px);
+  white-space: normal;
+}
+.unified-tab.selected {
+  border-color: $color-champagne-500;
+  background: $color-ivory-100;
+}
+.unified-reasoning-surface {
+  padding: 20px;
+  background: $color-card;
+  border: 2px solid $color-champagne-300;
+  border-radius: 28px;
+}
+.unified-conclusion {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  background: $color-ivory-100;
+  border: 2px solid $color-champagne-300;
+  border-left: 6px solid $color-champagne-500;
+  border-radius: 22px;
+}
+.unified-heading {
+  font-size: report-reading-font(26px);
+  font-weight: 700;
+  color: $color-report-ink;
+}
+.unified-label {
+  display: block;
+  color: $color-champagne-500;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.unified-connector {
+  width: 2px;
+  height: 30px;
+  background: $color-text-secondary;
+  margin: 0 auto;
+}
+.unified-metrics,
+.unified-asset-track {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  padding: 4px 0;
+}
+.unified-metric {
+  flex: 0 0 calc((100% - 24px) / 3);
+  min-width: 0;
+  background: $color-report-surface-subtle;
+  border: 2px solid $color-border;
+  border-radius: 18px;
+  padding: 18px 8px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.unified-metric-name {
+  display: block;
+  font-size: report-reading-font(20px);
+  font-weight: 600;
+}
+.unified-metric-value {
+  display: block;
+  font-size: report-reading-font(26px);
+  font-weight: 700;
+  margin: 10px 0;
+  color: $color-report-ink;
+}
+.unified-period {
+  display: block;
+  color: $color-text-secondary;
+  font-size: report-reading-font(16px);
+}
+.unified-link-description {
+  display: block;
+  color: $color-text-secondary;
+  font-size: report-reading-font(18px);
+}
+.unified-mechanism {
+  margin: 24px 12px;
+  padding: 28px 24px;
+  background: linear-gradient(110deg, $color-report-ink-strong, $color-report-slate-800);
+  border-radius: 22px;
+  text-align: center;
+}
+.unified-mechanism .unified-heading {
+  color: $color-card;
+}
+.unified-mechanism .unified-label {
+  color: $color-champagne-300;
+}
+.unified-proof {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+}
+.unified-proof-item {
+  flex: 1;
+  min-width: 0;
+  padding: 18px;
+  border: 2px solid $color-border;
+  border-radius: 20px;
+  background: $color-report-surface-subtle;
+}
+.unified-proof text,
+.unified-objections text {
+  display: block;
+}
+.unified-signals {
+  margin-top: 20px;
+}
+.unified-signals > text {
+  display: block;
+  margin-bottom: 10px;
+}
+.unified-assets {
+  margin-top: 24px;
+  padding: 20px;
+  border: 2px solid $color-champagne-300;
+  background: $color-ivory-100;
+  border-radius: 26px;
+}
+.unified-scroll-hint {
+  display: block;
+  text-align: right;
+  color: $color-champagne-500;
+  font-size: report-reading-font(17px);
+  margin-bottom: 12px;
+}
+.unified-asset {
+  flex: 0 0 calc((100% - 24px) / 3);
+  min-width: 0;
+  min-height: 180px;
+  padding: 20px 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  border: 2px solid $color-champagne-300;
+  border-radius: 22px;
+  background: $color-ivory-100;
+  white-space: normal;
+  line-height: 1.5;
+}
+.unified-asset.selected {
+  box-shadow: 0 0 0 4px rgba($color-champagne-500, 0.18);
+  background: $color-card;
+}
+.unified-asset-name {
+  font-size: report-reading-font(22px);
+  font-weight: 700;
+  color: $color-report-ink;
+}
+.unified-delta {
+  font-size: report-reading-font(26px);
+  font-weight: 700;
+}
+.unified-delta.warming {
+  color: $color-danger;
+}
+.unified-delta.cooling {
+  color: $color-report-chain-accent;
+}
+.unified-delta.neutral {
+  color: #111;
+}
+.unified-delta.diverging {
+  color: $color-warning;
+}
+.unified-delta.pending {
+  color: $color-text-secondary;
+}
+.unified-asset-purpose {
+  font-size: report-reading-font(16px);
+  color: $color-text-secondary;
+}
+.unified-asset-detail {
+  margin-top: 22px;
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: $color-card;
+  border: 2px solid $color-border;
+  border-radius: 22px;
+}
+.unified-asset-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 18px;
+}
+.unified-purpose {
+  font-weight: 600;
+}
+.unified-time {
+  padding: 20px;
+  background: $color-ivory-100;
+  border-radius: 16px;
+}
+.unified-conditions > text {
+  display: block;
+}
+.unified-evidence {
+  margin: 12px 0 0 auto;
+  background: transparent;
+  color: $color-champagne-500;
+  font-size: report-reading-font(20px);
+  padding: 0;
+  text-align: right;
+}
+
+.unified-metric,
+.unified-asset {
+  box-sizing: border-box;
+  position: relative;
+}
+.unified-metrics.causal .unified-metric:not(:last-child)::after {
+  content: '→';
+  position: absolute;
+  right: -13px;
+  top: 42%;
+  font-size: 14px;
+  color: $color-champagne-500;
+  z-index: 1;
+}
+.unified-asset {
+  aspect-ratio: 1;
+  min-height: 0;
+}

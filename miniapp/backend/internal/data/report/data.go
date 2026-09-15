@@ -38,6 +38,7 @@ func NewRepository(client *dataapi.HTTPClient) (*Repository, error) {
 
 func (r *Repository) ListReports(ctx context.Context, query biz.ListQuery) (biz.Page, error) {
 	values := make(url.Values)
+	values.Set("schema_version", "report-publication/v6")
 	if query.PublishedFrom != nil {
 		values.Set("published_from", query.PublishedFrom.UTC().Format(time.RFC3339Nano))
 	}
@@ -528,6 +529,36 @@ func (r *Repository) GetAnalysis(ctx context.Context, q biz.AnalysisQuery) (biz.
 	if p.Summary.LocalKey != q.Key || !validNormalizedSummary(p.Summary) {
 		return p, biz.ErrDataUnavailable
 	}
+	if p.Summary.SchemaVersion == "report-publication/v6" {
+		if len(p.Reasonings) == 0 {
+			return p, biz.ErrDataUnavailable
+		}
+		seen := map[string]bool{}
+		for _, v := range p.Reasonings {
+			if !validLocalKey(v.LocalKey) || seen[v.LocalKey] || !validText(v.Title, 16000) || !validNormalizedAssessment(v.Assessment) || !validNormalizedObjections(v.ReasoningSummary.Objections) {
+				return p, biz.ErrDataUnavailable
+			}
+			seen[v.LocalKey] = true
+			if v.ReasoningSummary.Support != nil && !validNormalizedScope(v.ReasoningSummary.Support.EvidenceScopeToken, v.ReasoningSummary.Support.EvidenceCount) {
+				return p, biz.ErrDataUnavailable
+			}
+			for _, a := range v.AffectedAssets {
+				if !validLocalKey(a.LocalKey) || !validNormalizedAssessment(a.Assessment) || !validNormalizedObjections(a.Objections) {
+					return p, biz.ErrDataUnavailable
+				}
+			}
+			for _, b := range v.ReasoningBlocks {
+				for _, n := range b.Nodes {
+					for _, m := range n.Metrics {
+						if !validNormalizedScope(m.EvidenceScopeToken, m.EvidenceCount) {
+							return p, biz.ErrDataUnavailable
+						}
+					}
+				}
+			}
+		}
+	}
+
 	if (p.Summary.SchemaVersion == "report-publication/v5" && p.Companies == nil) || !validNormalizedProvenance(p.JudgmentOrigin, p.ReasoningSources, p.VariableSignals, p.Summary.SchemaVersion == "report-publication/v5") {
 		return p, biz.ErrDataUnavailable
 	}
@@ -590,7 +621,7 @@ func validNormalizedObjections(o biz.NormalizedObjections) bool {
 	return true
 }
 func validNormalizedSummary(u biz.NormalizedSummaryProjection) bool {
-	if (u.SchemaVersion != "report-publication/v4" && u.SchemaVersion != "report-publication/v5") || !validLocalKey(u.LocalKey) || !validText(u.Title, 10000) || u.ChainCount < 0 || !validNormalizedScope(u.Summary.EvidenceScopeToken, u.Summary.EvidenceCount) || !validNormalizedScope(u.Summary.ImpactAssessment.EvidenceScopeToken, u.Summary.ImpactAssessment.EvidenceCount) {
+	if (u.SchemaVersion != "report-publication/v4" && u.SchemaVersion != "report-publication/v5" && u.SchemaVersion != "report-publication/v6") || !validLocalKey(u.LocalKey) || !validText(u.Title, 10000) || u.ChainCount < 0 || !validNormalizedScope(u.Summary.EvidenceScopeToken, u.Summary.EvidenceCount) || !validNormalizedScope(u.Summary.ImpactAssessment.EvidenceScopeToken, u.Summary.ImpactAssessment.EvidenceCount) {
 		return false
 	}
 	if !validJudgmentOrigin(u.JudgmentOrigin, u.SchemaVersion == "report-publication/v5") {

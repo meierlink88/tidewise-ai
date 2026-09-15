@@ -1142,3 +1142,143 @@ func TestPostgresSplitReportStorageReadIsolationAndMaintenance(t *testing.T) {
 		t.Fatal("maintenance failed to restore immutability")
 	}
 }
+
+func TestPostgresUnifiedPublicationPreservesContentAndEvidence(t *testing.T) {
+	db := openReportTestDatabase(t, 0)
+	ids := publishReportEvidence(t, db)
+	raw, err := os.ReadFile("../../../api/data/v1/report/testdata/unified-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw = bytes.ReplaceAll(raw, []byte("EVD11111111-1111-4111-8111-111111111111"), []byte(ids[0]))
+	var req struct {
+		PublisherReportID string           `json:"publisher_report_id"`
+		Report            reportbiz.Report `json:"report"`
+	}
+	if err = json.Unmarshal(raw, &req); err != nil {
+		t.Fatal(err)
+	}
+	store, _ := NewStore(db)
+	uc, _ := reportbiz.NewUseCase(store, time.Now)
+	ctx := context.Background()
+	first, err := uc.Publish(ctx, req.PublisherReportID, req.Report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := uc.Publish(ctx, req.PublisherReportID, req.Report)
+	if err != nil || !again.Replayed || again.Record.ID != first.Record.ID {
+		t.Fatalf("replay: %v %v", again, err)
+	}
+	page, err := uc.List(ctx, reportbiz.ListRequest{SchemaVersion: reportbiz.UnifiedSchemaVersion})
+	if err != nil || len(page.Items) != 1 {
+		t.Fatalf("list: %+v %v", page, err)
+	}
+	groups := map[string][]reportbiz.V4Unit{"geopolitical_stories": req.Report.V4.GeopoliticalStories, "macroeconomic_stories": req.Report.V4.MacroeconomicStories, "concept_analyses": req.Report.V4.ConceptAnalyses, "industry_chain_analyses": *req.Report.V4.IndustryChainAnalyses}
+	for kind, units := range groups {
+		for _, u := range units {
+			got, err := store.getNormalizedAnalysis(ctx, first.Record.ID, kind, u.LocalKey)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got.V4 == nil || got.V4.Summary.SchemaVersion != reportbiz.UnifiedSchemaVersion || len(got.V4.Reasonings) != len(u.Detail.Reasonings) {
+				t.Fatalf("lost reasonings: %+v", got)
+			}
+			a, _ := json.Marshal(u.Detail.Reasonings)
+			b, _ := json.Marshal(got.V4.Reasonings)
+			var av, bv any
+			json.Unmarshal(a, &av)
+			json.Unmarshal(b, &bv)
+			if !reflect.DeepEqual(withoutEvidenceFields(av), withoutEvidenceFields(bv)) {
+				t.Fatalf("content changed for %s/%s", kind, u.LocalKey)
+			}
+			if strings.Contains(string(b), "evidence_ids") {
+				t.Fatal("raw ids leaked")
+			}
+			for _, r := range got.V4.Reasonings {
+				for _, block := range r.ReasoningBlocks {
+					for _, node := range block.Nodes {
+						for _, m := range node.Metrics {
+							if m.EvidenceCount > 0 {
+								items, err := uc.ListEvidence(ctx, first.Record.ID, *m.EvidenceScopeToken)
+								if err != nil || len(items) != m.EvidenceCount {
+									t.Fatalf("metric scope lost: %v", err)
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// This synthetic provider fixture is also consumed by Miniapp contract and interaction tests.
+func TestUnifiedReadFixtureParity(t *testing.T) {
+	raw, err := os.ReadFile("../../../api/data/v1/report/testdata/unified-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var req struct {
+		Report reportbiz.Report `json:"report"`
+	}
+	if err = json.Unmarshal(raw, &req); err != nil {
+		t.Fatal(err)
+	}
+	tokens := map[string]*string{}
+	counts := map[string]int{}
+	for _, s := range reportbiz.NormalizedEvidenceScopes(*req.Report.V4) {
+		counts[s.Path] = len(s.IDs)
+		if len(s.IDs) > 0 {
+			v := "RPE11111111-1111-4111-8111-111111111111"
+			tokens[s.Path] = &v
+		}
+	}
+	groups := []any{}
+	details := map[string]any{}
+	for _, g := range []struct {
+		kind  string
+		units []reportbiz.V4Unit
+	}{{"geopolitical_stories", req.Report.V4.GeopoliticalStories}, {"macroeconomic_stories", req.Report.V4.MacroeconomicStories}, {"concept_analyses", req.Report.V4.ConceptAnalyses}, {"industry_chain_analyses", *req.Report.V4.IndustryChainAnalyses}} {
+		items := []any{}
+		for _, u := range g.units {
+			var read reportbiz.V4ReadUnit
+			if err = projectNormalizedEvidence(u, g.kind+"/"+u.LocalKey, tokens, counts, &read); err != nil {
+				t.Fatal(err)
+			}
+			sum, err := normalizedSummary(read, 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			items = append(items, sum.V4)
+			details[g.kind+"/"+u.LocalKey] = reportbiz.V4DetailProjection{Summary: *sum.V4, Reasonings: read.Detail.Reasonings, JudgmentOrigin: read.JudgmentOrigin, ReasoningSources: read.ReasoningSources, VariableSignals: read.Detail.VariableSignals, Companies: read.Detail.Companies}
+		}
+		groups = append(groups, map[string]any{"kind": g.kind, "items": items, "next_cursor": nil})
+	}
+	output, _ := json.MarshalIndent(map[string]any{"groups": groups, "details": details}, "", "  ")
+	output = append(output, '\n')
+	target := "../../../../../miniapp/frontend/src/mocks/reports/unified-v6.json"
+	if os.Getenv("UPDATE_UNIFIED_FIXTURE") == "1" {
+		if err = os.WriteFile(target, output, 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	expected, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var a, b any
+	json.Unmarshal(expected, &a)
+	json.Unmarshal(output, &b)
+	if !reflect.DeepEqual(a, b) {
+		t.Fatal("provider fixture drift; regenerate with UPDATE_UNIFIED_FIXTURE=1")
+	}
+	document, err := openapi3.NewLoader().LoadFromFile("../../../api/data/v1/openapi.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, d := range b.(map[string]any)["details"].(map[string]any) {
+		if err = document.Components.Schemas["UnifiedDetailProjection"].Value.VisitJSON(d); err != nil {
+			t.Fatal(err)
+		}
+	}
+}

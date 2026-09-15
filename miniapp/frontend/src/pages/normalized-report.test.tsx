@@ -8,7 +8,7 @@ import { formatReportPublication } from '../features/reports/presentation';
 import { normalizedMockReportPort } from '../mocks/reports/mock-port';
 import { parseAnalysisChain, parseAnalysisDetail } from '../features/reports/normalized-contract';
 import { NormalizedHome } from './index/normalized-home';
-import { NormalizedDetailView, ChainContent } from './report/detail/normalized-detail';
+import { LegacyDetailView as NormalizedDetailView, ChainContent } from './report/detail/normalized-detail';
 
 vi.mock('@tarojs/taro', () => ({ default: { pxTransform: (n: number) => `${n}px` } }));
 function element(tag: string) {

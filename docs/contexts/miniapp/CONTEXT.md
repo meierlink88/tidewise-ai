@@ -232,3 +232,11 @@ Miniapp Application Backend 只通过其 Docker image 和 Compose 运行。Minia
 常驻 Service，也不进入 Docker runtime；Taro H5/weapp/tt watch/build 使用仓库锁定的
 Node/Taro 依赖直接运行，并把 `dist/<platform>` 写入宿主机供微信或抖音开发者工具读取。
 该运行方式不改变页面、Adapter、平台或 Backend 边界。
+
+### 统一推导详情 v6（#498）
+
+本节取代上述按 macro_impacts / industry_chains 切换的新产品读路径。首页查询只选择 report-publication/v6；三板块共享 summary 与 detail.reasonings[]。详情一次取得各推导的指标、资产与图谱内容，单推导隐藏切换条，多推导本地切换。既有归档渲染组件仅留作历史测试，不作为新页面的运行时回退。
+
+指标卡每屏约三张，超出横滑；名称在顶部、统计周期在底部。资产卡显示名称、调整幅度、调整目的，点击切换下方资产详情；正值红色、负值绿色、明确 0 为黑色“—”，缺省幅度显示原方向而不补 0。首页资产标签颜色复用 direction。scope token 始终绑定所属 reportId，证据弹层交互保持。
+
+业务字段与迁移步骤见 [v6 合同](../data/report-publication-v6.md)。不从实体数据库核验或补写报告资产内容。

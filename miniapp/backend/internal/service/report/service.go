@@ -169,6 +169,8 @@ func mapNormalizedWindow(v biz.NormalizedWindow) api.NormalizedWindow {
 
 func mapNormalizedAssessment(v biz.NormalizedAssessment) api.NormalizedAssessment {
 	out := api.NormalizedAssessment{}
+	out.WeightDeltaPP = v.WeightDeltaPP
+	out.AdjustmentPurpose = v.AdjustmentPurpose
 	out.Conclusion = v.Conclusion
 	out.Direction = v.Direction
 	out.ConclusionBasis = v.ConclusionBasis
@@ -249,6 +251,7 @@ func mapNormalizedMacro(v biz.NormalizedMacro) api.NormalizedMacro {
 
 func mapNormalizedAnchorRef(v biz.NormalizedAnchorRef) api.NormalizedAnchorRef {
 	out := api.NormalizedAnchorRef{}
+	out.ReasoningLocalKey = v.ReasoningLocalKey
 	out.TargetType = v.TargetType
 	out.LocalKey = v.LocalKey
 	out.ChainLocalKey = v.ChainLocalKey
@@ -289,6 +292,7 @@ func mapNormalizedChainEmptyState(v biz.NormalizedChainEmptyState) api.Normalize
 
 func mapNormalizedUnitSummary(v biz.NormalizedUnitSummary) api.NormalizedUnitSummary {
 	out := api.NormalizedUnitSummary{}
+	out.Judgment = v.Judgment
 	out.Conclusion = v.Conclusion
 	out.TransmissionLogic = v.TransmissionLogic
 	out.ImpactAssessment = mapNormalizedUnitSummaryImpactAssessment(v.ImpactAssessment)
@@ -322,6 +326,7 @@ func mapNormalizedResolvedAnchor(v biz.NormalizedResolvedAnchor) api.NormalizedR
 
 func mapNormalizedSummaryProjection(v biz.NormalizedSummaryProjection) api.NormalizedSummaryProjection {
 	out := api.NormalizedSummaryProjection{}
+	out.ReasoningCount = v.ReasoningCount
 	out.JudgmentOrigin = v.JudgmentOrigin
 	out.SchemaVersion = v.SchemaVersion
 	out.LocalKey = v.LocalKey
@@ -352,6 +357,10 @@ func mapNormalizedChainHeader(v biz.NormalizedChainHeader) api.NormalizedChainHe
 
 func mapNormalizedDetailProjection(v biz.NormalizedDetailProjection) api.NormalizedDetailProjection {
 	out := api.NormalizedDetailProjection{}
+	out.Reasonings = make([]api.UnifiedReadReasoning, len(v.Reasonings))
+	for i, r := range v.Reasonings {
+		out.Reasonings[i] = mapUnifiedReasoning(r)
+	}
 	if v.PublishedAt != nil {
 		formatted := formatTime(*v.PublishedAt)
 		out.PublishedAt = &formatted
@@ -418,4 +427,38 @@ func mapNormalizedSignals(v *[]biz.NormalizedSignal) *[]api.NormalizedSignal {
 		out[i] = api.NormalizedSignal{VariableID: s.VariableID, VariableName: s.VariableName, SignalID: s.SignalID, Signal: s.Signal, SourceDirection: s.SourceDirection, Adoption: s.Adoption, Qualification: s.Qualification, EventIDs: s.EventIDs, EvidenceScopeToken: s.EvidenceScopeToken, EvidenceCount: s.EvidenceCount}
 	}
 	return &out
+}
+
+func mapUnifiedReasoning(v biz.UnifiedReadReasoning) api.UnifiedReadReasoning {
+	out := api.UnifiedReadReasoning{LocalKey: v.LocalKey, SourceID: v.SourceID, Title: v.Title, JudgmentOrigin: v.JudgmentOrigin, ReasoningSources: mapNormalizedReasoningSources(v.ReasoningSources), VariableSignals: mapNormalizedSignals(v.VariableSignals), Assessment: mapNormalizedAssessment(v.Assessment), ReasoningSummary: api.UnifiedReadReasoningSummary{Logic: v.ReasoningSummary.Logic, Objections: mapNormalizedObjections(v.ReasoningSummary.Objections)}, ReasoningBlocks: []api.UnifiedReadBlock{}, AffectedAssets: []api.NormalizedNode{}}
+	if v.ReasoningSummary.Support != nil {
+		p := mapNormalizedClaim(*v.ReasoningSummary.Support)
+		out.ReasoningSummary.Support = &p
+	}
+	if v.Graph != nil {
+		p := mapNormalizedGraph(*v.Graph)
+		out.Graph = &p
+	}
+	if v.EmptyState != nil {
+		p := mapNormalizedChainEmptyState(*v.EmptyState)
+		out.EmptyState = &p
+	}
+	for _, a := range v.AffectedAssets {
+		out.AffectedAssets = append(out.AffectedAssets, mapNormalizedNode(a))
+	}
+	for _, b := range v.ReasoningBlocks {
+		block := api.UnifiedReadBlock{LocalKey: b.LocalKey, Title: b.Title, Explanation: b.Explanation, RelationType: b.RelationType, Nodes: []api.UnifiedReadMetricNode{}}
+		for _, n := range b.Nodes {
+			node := api.UnifiedReadMetricNode{LocalKey: n.LocalKey, Name: n.Name, Description: n.Description, Metrics: []api.UnifiedReadMetric{}}
+			for _, m := range n.Metrics {
+				node.Metrics = append(node.Metrics, api.UnifiedReadMetric{Name: m.Name, Value: m.Value, DisplayValue: m.DisplayValue, Unit: m.Unit, MeasureType: m.MeasureType, PeriodLabel: m.PeriodLabel, AsOf: m.AsOf, ValueNature: m.ValueNature, EvidenceScopeToken: m.EvidenceScopeToken, EvidenceCount: m.EvidenceCount})
+			}
+			block.Nodes = append(block.Nodes, node)
+		}
+		for _, e := range b.Links {
+			block.Links = append(block.Links, api.UnifiedReadMetricLink{FromNodeLocalKey: e.FromNodeLocalKey, ToNodeLocalKey: e.ToNodeLocalKey, Label: e.Label})
+		}
+		out.ReasoningBlocks = append(out.ReasoningBlocks, block)
+	}
+	return out
 }
