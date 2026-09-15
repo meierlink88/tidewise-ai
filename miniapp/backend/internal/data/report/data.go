@@ -108,6 +108,10 @@ func (r *Repository) ListEvidences(ctx context.Context, reportID, scopeToken str
 }
 
 func (r *Repository) get(ctx context.Context, path string, target any) error {
+	return r.getWithMetadata(ctx, path, target, false)
+}
+
+func (r *Repository) getWithMetadata(ctx context.Context, path string, target any, geopolitical bool) error {
 	if r == nil || r.client == nil {
 		return biz.ErrDataUnavailable
 	}
@@ -118,7 +122,7 @@ func (r *Repository) get(ctx context.Context, path string, target any) error {
 	if !validMetadata(envelope.RequestID, 128) || len(envelope.Result) == 0 || bytes.Equal(envelope.Result, []byte("null")) {
 		return biz.ErrDataUnavailable
 	}
-	if err := decodeExact(envelope.Result, target); err != nil {
+	if err := decodeExactWithMetadata(envelope.Result, target, geopolitical); err != nil {
 		return biz.ErrDataUnavailable
 	}
 	return nil
@@ -145,7 +149,11 @@ func (e *strictEnvelope) UnmarshalJSON(payload []byte) error {
 }
 
 func decodeExact(payload []byte, target any) error {
-	if err := validateRequiredJSON(payload, reflect.TypeOf(target)); err != nil {
+	return decodeExactWithMetadata(payload, target, false)
+}
+
+func decodeExactWithMetadata(payload []byte, target any, geopolitical bool) error {
+	if err := validateRequiredJSONWithMetadata(payload, reflect.TypeOf(target), geopolitical); err != nil {
 		return err
 	}
 	decoder := json.NewDecoder(bytes.NewReader(payload))
@@ -161,6 +169,10 @@ func decodeExact(payload []byte, target any) error {
 }
 
 func validateRequiredJSON(payload json.RawMessage, targetType reflect.Type) error {
+	return validateRequiredJSONWithMetadata(payload, targetType, false)
+}
+
+func validateRequiredJSONWithMetadata(payload json.RawMessage, targetType reflect.Type, geopolitical bool) error {
 	for targetType.Kind() == reflect.Pointer {
 		if bytes.Equal(bytes.TrimSpace(payload), []byte("null")) {
 			return nil
@@ -176,6 +188,18 @@ func validateRequiredJSON(payload json.RawMessage, targetType reflect.Type) erro
 		if err := json.Unmarshal(payload, &object); err != nil || object == nil {
 			return errors.New("required Data object is invalid")
 		}
+		if targetType == reflect.TypeOf(biz.NormalizedSummaryProjection{}) {
+			geopolitical = geopolitical && string(object["schema_version"]) == `"report-publication/v6"`
+		}
+		if targetType == reflect.TypeOf(biz.NormalizedDetailProjection{}) {
+			var summary struct {
+				SchemaVersion string `json:"schema_version"`
+			}
+			if err := json.Unmarshal(object["summary"], &summary); err != nil {
+				return err
+			}
+			geopolitical = geopolitical && summary.SchemaVersion == "report-publication/v6"
+		}
 		for index := 0; index < targetType.NumField(); index++ {
 			field := targetType.Field(index)
 			if !field.IsExported() {
@@ -190,13 +214,19 @@ func validateRequiredJSON(payload json.RawMessage, targetType reflect.Type) erro
 				name = field.Name
 			}
 			value, exists := object[name]
+			// v6 geopolitical metadata may be absent; the kind-aware boundary
+			// validator below preserves confidence requirements for other sections.
+			optionalAssessment := geopolitical && targetType == reflect.TypeOf(biz.NormalizedAssessment{}) && (name == "confidence" || name == "forecast_window" || name == "follow_up")
+			if optionalAssessment && (!exists || bytes.Equal(bytes.TrimSpace(value), []byte("null"))) {
+				continue
+			}
 			if !exists {
 				if len(tag) > 1 && tag[1] == "omitempty" {
 					continue
 				}
 				return errors.New("required Data field is missing")
 			}
-			if err := validateRequiredJSON(value, field.Type); err != nil {
+			if err := validateRequiredJSONWithMetadata(value, field.Type, geopolitical); err != nil {
 				return err
 			}
 		}
@@ -206,7 +236,7 @@ func validateRequiredJSON(payload json.RawMessage, targetType reflect.Type) erro
 			return errors.New("required Data array is invalid")
 		}
 		for _, item := range items {
-			if err := validateRequiredJSON(item, targetType.Elem()); err != nil {
+			if err := validateRequiredJSONWithMetadata(item, targetType.Elem(), geopolitical); err != nil {
 				return err
 			}
 		}
@@ -506,12 +536,12 @@ func (r *Repository) ListAnalyses(ctx context.Context, q biz.AnalysisQuery) (biz
 	if q.Cursor != "" {
 		values.Set("cursor", q.Cursor)
 	}
-	if err := r.get(ctx, analysisPath(q)+"?"+values.Encode(), &p); err != nil {
+	if err := r.getWithMetadata(ctx, analysisPath(q)+"?"+values.Encode(), &p, q.Kind == "geopolitical_stories"); err != nil {
 		return p, mapReadError(err, readAnalysisPage)
 	}
 	seen := map[string]bool{}
 	for _, u := range p.Items {
-		if !validNormalizedSummary(u) || seen[u.LocalKey] {
+		if !validNormalizedSummaryForKind(u, q.Kind) || seen[u.LocalKey] {
 			return p, biz.ErrDataUnavailable
 		}
 		seen[u.LocalKey] = true
@@ -523,10 +553,10 @@ func (r *Repository) ListAnalyses(ctx context.Context, q biz.AnalysisQuery) (biz
 }
 func (r *Repository) GetAnalysis(ctx context.Context, q biz.AnalysisQuery) (biz.NormalizedDetailProjection, error) {
 	var p biz.NormalizedDetailProjection
-	if err := r.get(ctx, analysisPath(q)+"/"+url.PathEscape(q.Key), &p); err != nil {
+	if err := r.getWithMetadata(ctx, analysisPath(q)+"/"+url.PathEscape(q.Key), &p, q.Kind == "geopolitical_stories"); err != nil {
 		return p, mapReadError(err, readLayer)
 	}
-	if p.Summary.LocalKey != q.Key || !validNormalizedSummary(p.Summary) {
+	if p.Summary.LocalKey != q.Key || !validNormalizedSummaryForKind(p.Summary, q.Kind) {
 		return p, biz.ErrDataUnavailable
 	}
 	if p.Summary.SchemaVersion == "report-publication/v6" {
@@ -535,7 +565,7 @@ func (r *Repository) GetAnalysis(ctx context.Context, q biz.AnalysisQuery) (biz.
 		}
 		seen := map[string]bool{}
 		for _, v := range p.Reasonings {
-			if !validLocalKey(v.LocalKey) || seen[v.LocalKey] || !validText(v.Title, 16000) || !validNormalizedAssessment(v.Assessment) || !validNormalizedObjections(v.ReasoningSummary.Objections) {
+			if !validLocalKey(v.LocalKey) || seen[v.LocalKey] || !validText(v.Title, 16000) || !validReadAssessment(v.Assessment, q.Kind == "geopolitical_stories") || !validNormalizedObjections(v.ReasoningSummary.Objections) {
 				return p, biz.ErrDataUnavailable
 			}
 			seen[v.LocalKey] = true
@@ -543,7 +573,7 @@ func (r *Repository) GetAnalysis(ctx context.Context, q biz.AnalysisQuery) (biz.
 				return p, biz.ErrDataUnavailable
 			}
 			for _, a := range v.AffectedAssets {
-				if !validLocalKey(a.LocalKey) || !validNormalizedAssessment(a.Assessment) || !validNormalizedObjections(a.Objections) {
+				if !validLocalKey(a.LocalKey) || !validReadAssessment(a.Assessment, q.Kind == "geopolitical_stories") || !validNormalizedObjections(a.Objections) {
 					return p, biz.ErrDataUnavailable
 				}
 			}
@@ -597,6 +627,10 @@ func validNormalizedScope(token *string, count int) bool {
 	return count >= 0 && validToken(token) && ((count == 0) == (token == nil))
 }
 func validNormalizedAssessment(a biz.NormalizedAssessment) bool {
+	return validReadAssessment(a, false)
+}
+
+func validReadAssessment(a biz.NormalizedAssessment, geopolitical bool) bool {
 	if !validNormalizedScope(a.EvidenceScopeToken, a.EvidenceCount) {
 		return false
 	}
@@ -608,7 +642,7 @@ func validNormalizedAssessment(a biz.NormalizedAssessment) bool {
 	if a.ConclusionBasis == "observation_only" {
 		return a.Confidence == nil && a.Direction == "pending"
 	}
-	return a.ConclusionBasis == "reasoning_hypothesis" && a.Confidence != nil && (*a.Confidence == "low" || *a.Confidence == "medium" || *a.Confidence == "high")
+	return a.ConclusionBasis == "reasoning_hypothesis" && ((geopolitical && a.Confidence == nil) || (a.Confidence != nil && (*a.Confidence == "low" || *a.Confidence == "medium" || *a.Confidence == "high")))
 }
 func validNormalizedObjections(o biz.NormalizedObjections) bool {
 	for _, claims := range [][]biz.NormalizedClaim{o.Counterevidence, o.Buffers} {
@@ -621,6 +655,10 @@ func validNormalizedObjections(o biz.NormalizedObjections) bool {
 	return true
 }
 func validNormalizedSummary(u biz.NormalizedSummaryProjection) bool {
+	return validNormalizedSummaryForKind(u, "")
+}
+
+func validNormalizedSummaryForKind(u biz.NormalizedSummaryProjection, kind string) bool {
 	if (u.SchemaVersion != "report-publication/v4" && u.SchemaVersion != "report-publication/v5" && u.SchemaVersion != "report-publication/v6") || !validLocalKey(u.LocalKey) || !validText(u.Title, 10000) || u.ChainCount < 0 || !validNormalizedScope(u.Summary.EvidenceScopeToken, u.Summary.EvidenceCount) || !validNormalizedScope(u.Summary.ImpactAssessment.EvidenceScopeToken, u.Summary.ImpactAssessment.EvidenceCount) {
 		return false
 	}
@@ -628,7 +666,7 @@ func validNormalizedSummary(u biz.NormalizedSummaryProjection) bool {
 		return false
 	}
 	for _, a := range u.AffectedAnchors {
-		if !validNormalizedAssessment(a.Assessment) || !validJudgmentOrigin(a.JudgmentOrigin, u.SchemaVersion == "report-publication/v5") {
+		if !validReadAssessment(a.Assessment, kind == "geopolitical_stories" && u.SchemaVersion == "report-publication/v6") || !validJudgmentOrigin(a.JudgmentOrigin, u.SchemaVersion == "report-publication/v5") {
 			return false
 		}
 	}

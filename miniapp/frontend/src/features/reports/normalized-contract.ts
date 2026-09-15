@@ -159,7 +159,7 @@ const key = (v: unknown): string =>
 const num = (v: unknown): number =>
   typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 ? v : fail();
 const list = <T>(v: unknown, parse: (v: unknown) => T): T[] =>
-  Array.isArray(v) ? v.map(parse) : fail();
+  Array.isArray(v) ? v.map((item) => parse(item)) : fail();
 const nullable = <T>(v: unknown, parse: (v: unknown) => T): T | null =>
   v === null ? null : parse(v);
 const choice = <T extends string>(v: unknown, choices: readonly T[]): T =>
@@ -179,9 +179,16 @@ function scope(v: Record<string, unknown>): EvidenceScope {
   return { evidence_scope_token: token, evidence_count: count };
 }
 const finite = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : fail());
-function assessment(value: unknown): Assessment {
-  const v = obj(value),
-    w = obj(v.forecast_window);
+function assessment(value: unknown, optionalMetadata = false): Assessment {
+  const v = obj(value);
+  const rawWindow = v.forecast_window;
+  const w = optionalMetadata && rawWindow == null ? {} : obj(rawWindow);
+  const emptyWindow =
+    optionalMetadata &&
+    (w.kind === undefined || w.kind === '' || w.kind === 'not_applicable') &&
+    (w.description === undefined || w.description === '') &&
+    w.start_at == null &&
+    w.end_at == null;
   return {
     ...scope(v),
     ...(v.weight_delta_pp !== undefined ? { weight_delta_pp: finite(v.weight_delta_pp) } : {}),
@@ -192,18 +199,20 @@ function assessment(value: unknown): Assessment {
     direction: choice(v.direction, ['warming', 'cooling', 'diverging', 'pending']),
     conclusion_basis: choice(v.conclusion_basis, ['reasoning_hypothesis', 'observation_only']),
     validation_status: choice(v.validation_status, ['pending_validation', 'insufficient_evidence']),
-    confidence: nullable(v.confidence, (confidence) =>
+    confidence: nullable(optionalMetadata ? (v.confidence ?? null) : v.confidence, (confidence) =>
       choice(confidence, ['low', 'medium', 'high'])
     ),
-    forecast_window: {
-      kind: choice(w.kind, ['relative', 'calendar', 'stage', 'mixed', 'not_applicable']),
-      description: str(w.description),
-      start_at: nullable(w.start_at, str),
-      end_at: nullable(w.end_at, str)
-    },
+    forecast_window: emptyWindow
+      ? { kind: 'not_applicable', description: '', start_at: null, end_at: null }
+      : {
+          kind: choice(w.kind, ['relative', 'calendar', 'stage', 'mixed', 'not_applicable']),
+          description: str(w.description),
+          start_at: nullable(w.start_at, str),
+          end_at: nullable(w.end_at, str)
+        },
     scope: str(v.scope),
     conditions: list(v.conditions, str),
-    follow_up: list(v.follow_up, str),
+    follow_up: list(optionalMetadata ? (v.follow_up ?? []) : v.follow_up, str),
     transmission_logic: str(v.transmission_logic)
   };
 }
@@ -226,14 +235,14 @@ function objections(value: unknown): Objections {
     counterevidence_status: choice(v.counterevidence_status, ['identified', 'none_identified'])
   };
 }
-function macro(value: unknown): MacroImpact {
+function macro(value: unknown, optionalMetadata = false): MacroImpact {
   const v = obj(value);
   return {
     ...provenance(v),
     local_key: key(v.local_key),
     source_id: str(v.source_id),
     name: str(v.name),
-    assessment: assessment(v.assessment),
+    assessment: assessment(v.assessment, optionalMetadata),
     objections: objections(v.objections)
   };
 }
@@ -277,7 +286,7 @@ function anchorRef(value: unknown): AnchorRef {
     chain_local_key: nullable(v.chain_local_key, key)
   };
 }
-export function parseAnalysisSummary(value: unknown): AnalysisSummary {
+export function parseAnalysisSummary(value: unknown, kind?: AnalysisKind): AnalysisSummary {
   const v = obj(value),
     s = obj(v.summary),
     impact = obj(s.impact_assessment);
@@ -316,16 +325,19 @@ export function parseAnalysisSummary(value: unknown): AnalysisSummary {
         source_id: str(a.source_id),
         name: str(a.name),
         ...origin(a),
-        assessment: assessment(a.assessment)
+        assessment: assessment(
+          a.assessment,
+          kind === 'geopolitical_stories' && v.schema_version === 'report-publication/v6'
+        )
       };
     }),
     chain_count: num(v.chain_count ?? 0),
     ...(v.reasoning_count !== undefined ? { reasoning_count: num(v.reasoning_count) } : {})
   };
 }
-export function parseAnalysisPage(value: unknown): AnalysisPage {
+export function parseAnalysisPage(value: unknown, kind?: AnalysisKind): AnalysisPage {
   const v = obj(value);
-  const items = list(v.items, parseAnalysisSummary);
+  const items = list(v.items, (item) => parseAnalysisSummary(item, kind));
   unique(items.map((x) => x.local_key));
   const cursor = nullable(v.next_cursor, str);
   if (cursor && (!items.length || cursor.length > 2048)) fail();
@@ -333,7 +345,7 @@ export function parseAnalysisPage(value: unknown): AnalysisPage {
 }
 export function parseAnalysisGroups(value: unknown): AnalysisGroup[] {
   const groups = list(value, (v) => ({
-    ...parseAnalysisPage(v),
+    ...parseAnalysisPage(v, choice(obj(v).kind, analysisKinds)),
     kind: choice(obj(v).kind, analysisKinds)
   }));
   unique(groups.map((g) => g.kind));
@@ -345,7 +357,11 @@ export function parseAnalysisGroups(value: unknown): AnalysisGroup[] {
     fail();
   return groups;
 }
-export function parseAnalysisDetail(value: unknown, expectedKey: string): AnalysisDetail {
+export function parseAnalysisDetail(
+  value: unknown,
+  expectedKey: string,
+  kind?: AnalysisKind
+): AnalysisDetail {
   const v = obj(value);
   const d: AnalysisDetail = {
     ...provenance(v),
@@ -353,8 +369,18 @@ export function parseAnalysisDetail(value: unknown, expectedKey: string): Analys
       ? { published_at: v.published_at }
       : {}),
     ...(v.companies !== undefined ? { companies: list(v.companies, macro) } : {}),
-    summary: parseAnalysisSummary(v.summary),
-    ...(v.reasonings !== undefined ? { reasonings: list(v.reasonings, unifiedReasoning) } : {}),
+    summary: parseAnalysisSummary(v.summary, kind),
+    ...(v.reasonings !== undefined
+      ? {
+          reasonings: list(v.reasonings, (r) =>
+            unifiedReasoning(
+              r,
+              kind === 'geopolitical_stories' &&
+                obj(v.summary).schema_version === 'report-publication/v6'
+            )
+          )
+        }
+      : {}),
     macro_impacts: list(v.macro_impacts ?? [], macro),
     industry_chains: list(v.industry_chains ?? [], header)
   };
@@ -534,13 +560,13 @@ export interface UnifiedReasoning extends Provenance {
   affected_assets: NodeImpact[];
   empty_state?: EmptyState | null;
 }
-function unifiedReasoning(value: unknown): UnifiedReasoning {
+function unifiedReasoning(value: unknown, optionalMetadata = false): UnifiedReasoning {
   const v = obj(value),
     r = obj(v.reasoning_summary);
   const assets = list(v.affected_assets, (x) => {
     const a = obj(x);
     return {
-      ...macro({ ...a, source_id: a.source_id ?? '' }),
+      ...macro({ ...a, source_id: a.source_id ?? '' }, optionalMetadata),
       node_local_key: a.node_local_key === undefined ? '' : str(a.node_local_key)
     };
   });
@@ -639,7 +665,7 @@ function unifiedReasoning(value: unknown): UnifiedReasoning {
     local_key: key(v.local_key),
     ...(v.source_id !== undefined ? { source_id: str(v.source_id) } : {}),
     title: str(v.title),
-    assessment: assessment(v.assessment),
+    assessment: assessment(v.assessment, optionalMetadata),
     reasoning_summary: {
       logic: str(r.logic),
       ...(r.support ? { support: claim(r.support) } : {}),

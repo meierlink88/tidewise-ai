@@ -8471,18 +8471,20 @@ components:
     UnifiedWindow:
       {
         'type': 'object',
+        'nullable': true,
+        'description': 'For geopolitical v6 assessments only, missing or null window is unspecified. An empty object or not_applicable with empty description and null dates is also unspecified. Supplied nonempty windows must satisfy the normal kind, description and date rules. Macro and industry requirements remain strict.',
         'properties':
           {
             'kind':
               {
                 'type': 'string',
-                'enum': ['relative', 'calendar', 'stage', 'mixed', 'not_applicable']
+                'enum': ['', 'relative', 'calendar', 'stage', 'mixed', 'not_applicable']
               },
-            'description': { 'type': 'string', 'minLength': 1 },
+            'description': { 'type': 'string' },
             'start_at': { 'type': 'string', 'format': 'date-time', 'nullable': true },
             'end_at': { 'type': 'string', 'format': 'date-time', 'nullable': true }
           },
-        'required': ['kind', 'description', 'start_at', 'end_at'],
+        'required': [],
         'additionalProperties': false
       }
     UnifiedWindowRead:
@@ -8493,9 +8495,9 @@ components:
             'kind':
               {
                 'type': 'string',
-                'enum': ['relative', 'calendar', 'stage', 'mixed', 'not_applicable']
+                'enum': ['', 'relative', 'calendar', 'stage', 'mixed', 'not_applicable']
               },
-            'description': { 'type': 'string', 'minLength': 1 },
+            'description': { 'type': 'string' },
             'start_at': { 'type': 'string', 'format': 'date-time', 'nullable': true },
             'end_at': { 'type': 'string', 'format': 'date-time', 'nullable': true }
           },
@@ -8505,6 +8507,7 @@ components:
     UnifiedAssessment:
       {
         'type': 'object',
+        'description': 'Geopolitical v6: confidence, forecast_window and follow_up may be omitted or null; assessment Evidence may be empty because summary.evidence_ids carries story Event Evidence and is required. Other sections retain mandatory directional inference metadata and per-assessment Evidence. All supplied values remain validated.',
         'properties':
           {
             'conclusion': { 'type': 'string', 'minLength': 1 },
@@ -8518,7 +8521,8 @@ components:
             'forecast_window': { '$ref': '#/components/schemas/UnifiedWindow' },
             'scope': { 'type': 'string', 'minLength': 1 },
             'conditions': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
-            'follow_up': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'follow_up':
+              { 'type': 'array', 'nullable': true, 'items': { 'type': 'string', 'minLength': 1 } },
             'transmission_logic': { 'type': 'string', 'minLength': 1 },
             'evidence_ids':
               {
@@ -8541,11 +8545,9 @@ components:
             'direction',
             'conclusion_basis',
             'validation_status',
-            'confidence',
-            'forecast_window',
+
             'scope',
             'conditions',
-            'follow_up',
             'transmission_logic',
             'evidence_ids'
           ],
@@ -8567,7 +8569,8 @@ components:
             'forecast_window': { '$ref': '#/components/schemas/UnifiedWindowRead' },
             'scope': { 'type': 'string', 'minLength': 1 },
             'conditions': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
-            'follow_up': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'follow_up':
+              { 'type': 'array', 'nullable': true, 'items': { 'type': 'string', 'minLength': 1 } },
             'transmission_logic': { 'type': 'string', 'minLength': 1 },
             'evidence_scope_token': { 'type': 'string', 'nullable': true },
             'evidence_count': { 'type': 'integer', 'minimum': 0 },
