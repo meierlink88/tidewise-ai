@@ -225,27 +225,6 @@
   color: $color-home-ink;
   font-weight: 600;
 }
-.normalized-anchor-direction {
-  flex-shrink: 0;
-  padding: 2rpx 6rpx;
-  border-radius: 6rpx;
-  font-size: report-reading-font(16rpx);
-  white-space: nowrap;
-  color: $color-report-pending;
-  background: $color-report-slate-100;
-}
-.normalized-anchor-direction.warming {
-  color: $color-report-warming;
-  background: $color-report-warming-surface;
-}
-.normalized-anchor-direction.cooling {
-  color: $color-report-chain-accent;
-  background: $color-report-cooling-surface;
-}
-.normalized-anchor-direction.diverging {
-  color: $color-report-diverging;
-  background: $color-report-diverging-surface;
-}
 .normalized-card-footer {
   display: flex;
   flex-wrap: wrap;
@@ -321,6 +300,20 @@
   border-color: rgba($color-report-chain-accent, 0.2);
   .normalized-anchor-name {
     color: $color-report-chain-accent;
+  }
+}
+.normalized-anchor-chip.diverging {
+  background: $color-report-diverging-surface;
+  border-color: $color-report-warning-border;
+  .normalized-anchor-name {
+    color: $color-report-diverging;
+  }
+}
+.normalized-anchor-chip.pending {
+  background: $color-report-slate-100;
+  border-color: $color-report-slate-300;
+  .normalized-anchor-name {
+    color: $color-report-slate-500;
   }
 }
 .normalized-card-judgment {

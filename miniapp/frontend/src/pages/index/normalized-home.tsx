@@ -27,6 +27,7 @@ const allKinds: AnalysisKind[] = [
   'concept_analyses'
 ];
 
+const directionLabels = { warming: '升温', cooling: '降温', diverging: '分化', pending: '待验证' };
 const impactLabels: Record<string, string> = {
   high: '高影响',
   medium: '中影响',
@@ -228,6 +229,7 @@ function HomeCard({
           {u.affected_anchors.map((a) => (
             <View
               className={`normalized-anchor-chip ${a.assessment.direction}`}
+              ariaLabel={`${a.name}，${directionLabels[a.assessment.direction]}`}
               key={`${a.reference.reasoning_local_key ?? ''}:${a.reference.local_key}`}
             >
               <Text className='normalized-anchor-name'>{a.name}</Text>
