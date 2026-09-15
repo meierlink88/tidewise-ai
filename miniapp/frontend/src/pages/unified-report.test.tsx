@@ -4,8 +4,10 @@ import { createRoot, type Root } from 'react-dom/client';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { normalizedMockReportPort } from '../mocks/reports/mock-port';
 import { parseAnalysisDetail } from '../features/reports/normalized-contract';
-import { UnifiedDetailView } from './report/detail/unified-detail';
+import { NormalizedDetailView } from './report/detail/normalized-detail';
 import unified from '../mocks/reports/unified-v6.json';
+import original from '../mocks/reports/normalized-v5.json';
+import { parseAnalysisChain } from '../features/reports/normalized-contract';
 
 vi.mock('@tarojs/taro', () => ({ default: { pxTransform: (n: number) => `${n}px` } }));
 function element(tag: string) {
@@ -50,70 +52,134 @@ const click = (el: Element | null) => {
   act(() => el?.dispatchEvent(new MouseEvent('click', { bubbles: true })));
 };
 
-describe('unified report interactions', () => {
-  it('switches whole reasonings and assets locally while keeping evidence scoped', () => {
+describe('v6 data with the established report UI', () => {
+  it('renders the same visible structure and text as the original report before and after field migration', async () => {
+    const legacy = parseAnalysisDetail(original.details['geopolitical_stories/g1'], 'g1');
+    legacy.industry_chains = legacy.industry_chains.slice(0, 1);
+    const converted = {
+      ...legacy,
+      macro_impacts: [],
+      industry_chains: [],
+      reasonings: [
+        ...legacy.macro_impacts.map((m) => ({
+          ...m,
+          title: m.name,
+          reasoning_summary: { logic: m.assessment.transmission_logic, objections: m.objections },
+          reasoning_blocks: [],
+          affected_assets: [{ ...m, node_local_key: '' }]
+        })),
+        ...legacy.industry_chains.map((h) => {
+          const c = parseAnalysisChain(
+            original.chains['geopolitical_stories/g1/g1-2-chain'],
+            h.local_key
+          );
+          return { ...c, title: c.name, reasoning_blocks: [], affected_assets: c.affected_nodes };
+        })
+      ]
+    };
+    // Restrict this parity case to the first original chain, supplied by the fixed fixture.
+    const render = (detail: typeof legacy) =>
+      act(() =>
+        root.render(
+          createElement(NormalizedDetailView, {
+            detail,
+            reportId,
+            kind: 'geopolitical_stories',
+            onEvidence: vi.fn()
+          })
+        )
+      );
+    render(legacy);
+    const before = host.innerHTML;
+    render(converted);
+    expect(host.innerHTML).toBe(before);
+    const chain = parseAnalysisChain(
+      original.chains['geopolitical_stories/g1/g1-2-chain'],
+      legacy.industry_chains[0].local_key
+    );
+    const read = vi.spyOn(normalizedMockReportPort, 'getAnalysisChain').mockResolvedValue(chain);
+    render(legacy);
+    await act(async () =>
+      host
+        .querySelectorAll<HTMLButtonElement>('.normalized-tab')
+        [legacy.macro_impacts.length].click()
+    );
+    const originalChain = host.innerHTML;
+    render(converted);
+    expect(host.innerHTML).toBe(originalChain);
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
+  it('switches reasoning and graph nodes locally with scoped evidence', () => {
     const detail = parseAnalysisDetail(unified.details['geopolitical_stories/g1'], 'g1');
     const evidence = vi.fn();
+    const read = vi.spyOn(normalizedMockReportPort, 'getAnalysisChain');
     act(() =>
-      root.render(createElement(UnifiedDetailView, { detail, reportId, onEvidence: evidence }))
+      root.render(
+        createElement(NormalizedDetailView, {
+          detail,
+          reportId,
+          kind: 'geopolitical_stories',
+          onEvidence: evidence
+        })
+      )
     );
-    expect(host.querySelector('.unified-mechanism')?.textContent).toContain(
-      detail.reasonings![0].reasoning_summary.logic
+    const first = detail.reasonings![0];
+    expect(host.querySelector('.normalized-conclusion-text')?.textContent).toBe(
+      first.assessment.conclusion
     );
-    expect(host.querySelector('.unified-metric-value')?.textContent).toBe('+9.5%');
-    expect(host.querySelector('.unified-period')?.textContent).toContain('近一周');
-    expect(host.querySelector('.unified-asset-detail')?.textContent).toContain('↑4%');
-    click(host.querySelector('.unified-evidence'));
-    expect(evidence).toHaveBeenCalledWith(
-      expect.objectContaining({ reportId, scopeToken: 'RPE11111111-1111-4111-8111-111111111111' })
+    expect(host.querySelector('.normalized-mechanism-text')?.textContent).toContain(
+      first.reasoning_summary.logic
     );
+    expect(host.querySelector('.normalized-support')?.textContent).toContain(
+      first.assessment.conditions[0]
+    );
+    click(host.querySelector('.normalized-evidence'));
+    expect(evidence).toHaveBeenLastCalledWith({
+      reportId,
+      scopeToken: first.assessment.evidence_scope_token,
+      title: `地缘政治 · ${detail.summary.title}`
+    });
+    click(host.querySelectorAll('.normalized-tab')[1]);
     const second = detail.reasonings![1];
-    click(
-      Array.from(host.querySelectorAll('button')).find((b) => b.textContent === second.title) ??
-        null
+    expect(host.querySelector('.normalized-conclusion-text')?.textContent).toBe(
+      second.assessment.conclusion
     );
-    expect(host.querySelector('.unified-mechanism')?.textContent).toContain(
-      second.reasoning_summary.logic
+    const nodes = second.affected_assets.filter((a) => a.node_local_key);
+    click(host.querySelectorAll('.normalized-graph-node')[1]);
+    expect(host.querySelector('.normalized-node-conclusion')?.textContent).toBe(
+      nodes[1].assessment.conclusion
     );
-    expect(host.querySelector('.unified-asset-detail')?.textContent).toContain(
-      second.affected_assets[0].name
+    click(host.querySelectorAll('.normalized-tab')[0]);
+    click(host.querySelectorAll('.normalized-tab')[1]);
+    expect(host.querySelector('.normalized-node-conclusion')?.textContent).toBe(
+      nodes[0].assessment.conclusion
     );
-    if (second.affected_assets.length > 1) {
-      click(host.querySelectorAll('.unified-asset')[1]);
-      expect(host.querySelector('.unified-asset-header')?.textContent).toContain(
-        second.affected_assets[1].name
-      );
-    }
+    expect(read).not.toHaveBeenCalled();
+    expect(host.querySelector('.unified-detail')).toBeNull();
   });
-  it('does not invent a zero allocation and hides tabs for a single reasoning', () => {
+  it('keeps the original macro panel without creating a graph from assets', () => {
     const detail = parseAnalysisDetail(unified.details['geopolitical_stories/g1'], 'g1');
     detail.reasonings = [detail.reasonings![0]];
-    delete detail.reasonings[0].affected_assets[0].assessment.weight_delta_pp;
+    delete detail.reasonings[0].graph;
     act(() =>
-      root.render(createElement(UnifiedDetailView, { detail, reportId, onEvidence: vi.fn() }))
+      root.render(
+        createElement(NormalizedDetailView, {
+          detail,
+          reportId,
+          kind: 'geopolitical_stories',
+          onEvidence: vi.fn()
+        })
+      )
     );
-    expect(host.querySelector('.unified-tab')).toBeNull();
-    expect(host.querySelector('.unified-delta')?.textContent).not.toContain('0%');
+    expect(host.querySelectorAll('.normalized-tab')).toHaveLength(1);
+    expect(host.querySelector('.normalized-conclusion-text')?.textContent).toBe(
+      detail.reasonings[0].assessment.conclusion
+    );
+    expect(host.querySelector('.normalized-counter')?.textContent).toContain(
+      detail.reasonings[0].reasoning_summary.objections.summary
+    );
+    expect(host.querySelector('.normalized-graph-section')).toBeNull();
     expect(host.querySelector('.normalized-publication')).toBeNull();
-  });
-  it('keeps independent assessment, missing evidence and original graph relationships accessible', () => {
-    const detail = parseAnalysisDetail(unified.details['geopolitical_stories/g1'], 'g1');
-    detail.reasonings![0].assessment.conclusion = '独立评估结论，不等于指标区块标题';
-    detail.reasonings![0].assessment.conditions = ['通道必须保持可用'];
-    act(() =>
-      root.render(createElement(UnifiedDetailView, { detail, reportId, onEvidence: vi.fn() }))
-    );
-    expect(host.textContent).toContain(
-      detail.reasonings![0].reasoning_summary.objections.evidence_gaps[0]
-    );
-    click(host.querySelector('[aria-label="查看评估详情"]'));
-    expect(host.textContent).toContain('独立评估结论，不等于指标区块标题');
-    expect(host.textContent).toContain('通道必须保持可用');
-    click(host.querySelector('[aria-label="收起评估详情"]'));
-    expect(host.textContent).not.toContain('独立评估结论，不等于指标区块标题');
-    click(host.querySelectorAll('.unified-tab')[1]);
-    expect(host.querySelector('.unified-graph')?.textContent).toContain(
-      detail.reasonings![1].graph!.edges[0].relation_label
-    );
   });
 });

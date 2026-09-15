@@ -235,8 +235,8 @@ Node/Taro 依赖直接运行，并把 `dist/<platform>` 写入宿主机供微信
 
 ### 统一推导详情 v6（#498）
 
-本节取代上述按 macro_impacts / industry_chains 切换的新产品读路径。首页查询只选择 report-publication/v6；三板块共享 summary 与 detail.reasonings[]。详情一次取得各推导的指标、资产与图谱内容，单推导隐藏切换条，多推导本地切换。既有归档渲染组件仅留作历史测试，不作为新页面的运行时回退。
+本节取代上述按 macro_impacts / industry_chains 切换的新产品读路径。首页查询只选择 report-publication/v6；三板块共享 summary 与 detail.reasonings[]，详情一次读取并本地切换推导。
 
-指标卡每屏约三张，超出横滑；名称在顶部、统计周期在底部。资产卡显示名称、调整幅度、调整目的，点击切换下方资产详情；正值红色、负值绿色、明确 0 为黑色“—”，缺省幅度显示原方向而不补 0。首页资产标签颜色复用 direction。scope token 始终绑定所属 reportId，证据弹层交互保持。
+#500 恢复 PR #499 前 aea4bdd4 的 UI：顶部结论、原因果链 Tab、本链结论、关键机制、支持/反证、图谱与核心分析。数据统一不授权更改页面视觉。前端 presentation 将带 graph 的推导绑定到原图谱组件，无 graph 的推导绑定到原宏观内容区；不从资产列表推测图谱，不再调用退休的单链读取接口。关键机制和支持/反证读取 reasoning_summary；节点正文、方向、信号读取 graph 对应的 affected_assets。新指标区块、配置幅度和其他额外字段保留在合同中，不新增展示区域。首页恢复原方向标签、颜色和事件文案，引用身份读取 reasoning_local_key + local_key。
 
-业务字段与迁移步骤见 [v6 合同](../data/report-publication-v6.md)。不从实体数据库核验或补写报告资产内容。
+scope token 始终绑定所属 reportId，证据弹层交互保持。业务字段与迁移步骤见 [v6 合同](../data/report-publication-v6.md)。不回滚服务或迁移数据，不从实体数据库核验或补写报告资产内容。
