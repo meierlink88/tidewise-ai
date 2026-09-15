@@ -228,13 +228,11 @@ function HomeCard({
         <View className='normalized-anchor-chips'>
           {u.affected_anchors.map((a) => (
             <View
-              className='normalized-anchor-chip'
+              className={`normalized-anchor-chip ${a.assessment.direction}`}
+              ariaLabel={`${a.name}，${directionLabels[a.assessment.direction]}`}
               key={`${a.reference.reasoning_local_key ?? a.reference.chain_local_key ?? ''}:${a.reference.local_key}`}
             >
               <Text className='normalized-anchor-name'>{a.name}</Text>
-              <Text className={`normalized-anchor-direction ${a.assessment.direction}`}>
-                {directionLabels[a.assessment.direction]}
-              </Text>
             </View>
           ))}
         </View>
