@@ -289,10 +289,10 @@ func (u *UseCase) latestSummary(ctx context.Context, query ListQuery) (*Summary,
 }
 
 func (u *UseCase) readHome(ctx context.Context, summary Summary) (Home, error) {
-	if summary.SchemaVersion == "report-publication/v4" || summary.SchemaVersion == "report-publication/v5" {
+	if summary.SchemaVersion == "report-publication/v6" {
 		home := Home{Report: summary, Cards: []Card{}, AnalysisGroups: []AnalysisGroup{}}
 		kinds := []string{"geopolitical_stories", "macroeconomic_stories", "concept_analyses"}
-		if summary.SchemaVersion == "report-publication/v5" {
+		if summary.SchemaVersion == "report-publication/v6" {
 			kinds = append(kinds, "industry_chain_analyses")
 		}
 		for _, kind := range kinds {
@@ -399,6 +399,8 @@ type NormalizedWindow struct {
 	EndAt       *string `json:"end_at"`
 }
 type NormalizedAssessment struct {
+	WeightDeltaPP      *float64         `json:"weight_delta_pp,omitempty"`
+	AdjustmentPurpose  string           `json:"adjustment_purpose,omitempty"`
 	Conclusion         string           `json:"conclusion"`
 	Direction          string           `json:"direction"`
 	ConclusionBasis    string           `json:"conclusion_basis"`
@@ -452,9 +454,10 @@ type NormalizedMacro struct {
 	Objections       NormalizedObjections        `json:"objections"`
 }
 type NormalizedAnchorRef struct {
-	TargetType    string  `json:"target_type"`
-	LocalKey      string  `json:"local_key"`
-	ChainLocalKey *string `json:"chain_local_key"`
+	ReasoningLocalKey string  `json:"reasoning_local_key,omitempty"`
+	TargetType        string  `json:"target_type,omitempty"`
+	LocalKey          string  `json:"local_key"`
+	ChainLocalKey     *string `json:"chain_local_key,omitempty"`
 }
 type NormalizedGraphNodesItem struct {
 	LocalKey string `json:"local_key"`
@@ -477,6 +480,7 @@ type NormalizedChainEmptyState struct {
 	FollowUp []string `json:"follow_up"`
 }
 type NormalizedUnitSummary struct {
+	Judgment           string                                `json:"judgment,omitempty"`
 	Conclusion         string                                `json:"conclusion"`
 	TransmissionLogic  string                                `json:"transmission_logic"`
 	ImpactAssessment   NormalizedUnitSummaryImpactAssessment `json:"impact_assessment"`
@@ -499,6 +503,7 @@ type NormalizedResolvedAnchor struct {
 	Assessment     NormalizedAssessment `json:"assessment"`
 }
 type NormalizedSummaryProjection struct {
+	ReasoningCount  int                        `json:"reasoning_count,omitempty"`
 	JudgmentOrigin  string                     `json:"judgment_origin,omitempty"`
 	SchemaVersion   string                     `json:"schema_version"`
 	LocalKey        string                     `json:"local_key"`
@@ -517,14 +522,15 @@ type NormalizedChainHeader struct {
 	EmptyState     *NormalizedChainEmptyState `json:"empty_state"`
 }
 type NormalizedDetailProjection struct {
+	Reasonings       []UnifiedReadReasoning      `json:"reasonings,omitempty"`
 	PublishedAt      *time.Time                  `json:"-"`
 	JudgmentOrigin   string                      `json:"judgment_origin,omitempty"`
 	ReasoningSources *NormalizedReasoningSources `json:"reasoning_sources,omitempty"`
 	VariableSignals  *[]NormalizedSignal         `json:"variable_signals,omitempty"`
 	Companies        *[]NormalizedMacro          `json:"companies,omitempty"`
 	Summary          NormalizedSummaryProjection `json:"summary"`
-	MacroImpacts     []NormalizedMacro           `json:"macro_impacts"`
-	IndustryChains   []NormalizedChainHeader     `json:"industry_chains"`
+	MacroImpacts     []NormalizedMacro           `json:"macro_impacts,omitempty"`
+	IndustryChains   []NormalizedChainHeader     `json:"industry_chains,omitempty"`
 }
 
 type AnalysisPage struct {
@@ -552,6 +558,13 @@ func (u *UseCase) Analyses(ctx context.Context, q AnalysisQuery) (AnalysisPage, 
 		q.Limit = 20
 	}
 	p, err := u.repository.ListAnalyses(ctx, q)
+	if err == nil {
+		for _, item := range p.Items {
+			if item.SchemaVersion != "report-publication/v6" {
+				return AnalysisPage{}, ErrLayerNotFound
+			}
+		}
+	}
 	return p, normalizeRepositoryError(err)
 }
 func (u *UseCase) Analysis(ctx context.Context, q AnalysisQuery) (NormalizedDetailProjection, error) {
@@ -561,6 +574,9 @@ func (u *UseCase) Analysis(ctx context.Context, q AnalysisQuery) (NormalizedDeta
 	p, err := u.repository.GetAnalysis(ctx, q)
 	if err != nil {
 		return p, normalizeRepositoryError(err)
+	}
+	if p.Summary.SchemaVersion != "report-publication/v6" {
+		return NormalizedDetailProjection{}, ErrLayerNotFound
 	}
 	publishedAt, err := u.reportPublication(ctx, q.ReportID)
 	if err != nil {
@@ -573,8 +589,8 @@ func (u *UseCase) AnalysisChain(ctx context.Context, q AnalysisQuery) (Normalize
 	if u == nil || u.repository == nil || !validAnalysisQuery(q) || !localKeyPattern.MatchString(q.Key) || !localKeyPattern.MatchString(q.ChainKey) {
 		return NormalizedChain{}, ErrInvalidRequest
 	}
-	p, err := u.repository.GetAnalysisChain(ctx, q)
-	return p, normalizeRepositoryError(err)
+	// v6 returns all reasonings in the unit detail; retired chain reads are unavailable.
+	return NormalizedChain{}, ErrChainNotFound
 }
 
 type NormalizedReasoningSources struct {
@@ -638,4 +654,56 @@ func (u *UseCase) reportPublication(ctx context.Context, reportID string) (time.
 		seen[cursor] = true
 		query.Cursor = cursor
 	}
+}
+
+// UnifiedReadReasoning is the same report-local content model for every analysis collection.
+type UnifiedReadReasoning struct {
+	LocalKey         string                      `json:"local_key"`
+	SourceID         string                      `json:"source_id,omitempty"`
+	Title            string                      `json:"title"`
+	JudgmentOrigin   string                      `json:"judgment_origin,omitempty"`
+	ReasoningSources *NormalizedReasoningSources `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]NormalizedSignal         `json:"variable_signals,omitempty"`
+	Assessment       NormalizedAssessment        `json:"assessment"`
+	ReasoningSummary UnifiedReadReasoningSummary `json:"reasoning_summary"`
+	ReasoningBlocks  []UnifiedReadBlock          `json:"reasoning_blocks"`
+	Graph            *NormalizedGraph            `json:"graph,omitempty"`
+	AffectedAssets   []NormalizedNode            `json:"affected_assets"`
+	EmptyState       *NormalizedChainEmptyState  `json:"empty_state,omitempty"`
+}
+type UnifiedReadReasoningSummary struct {
+	Logic      string               `json:"logic"`
+	Support    *NormalizedClaim     `json:"support,omitempty"`
+	Objections NormalizedObjections `json:"objections"`
+}
+type UnifiedReadBlock struct {
+	LocalKey     string                  `json:"local_key"`
+	Title        string                  `json:"title"`
+	Explanation  string                  `json:"explanation"`
+	RelationType string                  `json:"relation_type"`
+	Nodes        []UnifiedReadMetricNode `json:"nodes"`
+	Links        []UnifiedReadMetricLink `json:"links,omitempty"`
+}
+type UnifiedReadMetricNode struct {
+	LocalKey    string              `json:"local_key"`
+	Name        string              `json:"name"`
+	Description string              `json:"description,omitempty"`
+	Metrics     []UnifiedReadMetric `json:"metrics"`
+}
+type UnifiedReadMetric struct {
+	Name               string   `json:"name"`
+	Value              *float64 `json:"value,omitempty"`
+	DisplayValue       string   `json:"display_value,omitempty"`
+	Unit               string   `json:"unit"`
+	MeasureType        string   `json:"measure_type"`
+	PeriodLabel        string   `json:"period_label,omitempty"`
+	AsOf               string   `json:"as_of,omitempty"`
+	ValueNature        string   `json:"value_nature"`
+	EvidenceScopeToken *string  `json:"evidence_scope_token"`
+	EvidenceCount      int      `json:"evidence_count"`
+}
+type UnifiedReadMetricLink struct {
+	FromNodeLocalKey string `json:"from_node_local_key"`
+	ToNodeLocalKey   string `json:"to_node_local_key"`
+	Label            string `json:"label,omitempty"`
 }

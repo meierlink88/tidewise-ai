@@ -1,7 +1,11 @@
 package report
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"strings"
@@ -199,4 +203,56 @@ func TestSignalReadFixtureMatchesProviderContract(t *testing.T) {
 	for _, c := range fixture.Chains {
 		check("SignalChainRead", c)
 	}
+}
+
+// Exercise version dispatch at the actual HTTP boundary, not only the Go decoder.
+func TestUnifiedPublicationHTTPDispatch(t *testing.T) {
+	payload, err := os.ReadFile("testdata/unified-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	app := &unifiedPublicationService{}
+	server := kratoshttp.NewServer()
+	RegisterHTTPServer(server, app)
+	send := func(body []byte) *httptest.ResponseRecorder {
+		req := httptest.NewRequest("POST", "/api/data/v1/report-publications", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		server.ServeHTTP(rec, req)
+		return rec
+	}
+	rec := send(payload)
+	if app.calls != 1 || rec.Code >= 400 {
+		t.Fatalf("calls=%d status=%d body=%s", app.calls, rec.Code, rec.Body.String())
+	}
+	for _, mutate := range []func(map[string]any){
+		func(r map[string]any) { r["unexpected"] = true },
+		func(r map[string]any) {
+			r["geopolitical_stories"].([]any)[0].(map[string]any)["detail"].(map[string]any)["industry_chains"] = []any{}
+		},
+		func(r map[string]any) {
+			r["geopolitical_stories"].([]any)[0].(map[string]any)["detail"].(map[string]any)["reasonings"].([]any)[0].(map[string]any)["affected_assets"].([]any)[0].(map[string]any)["assessment"].(map[string]any)["weight_delta_pp"] = "4"
+		},
+	} {
+		var root map[string]any
+		if err := json.Unmarshal(payload, &root); err != nil {
+			t.Fatal(err)
+		}
+		mutate(root["report"].(map[string]any))
+		changed, _ := json.Marshal(root)
+		rec = send(changed)
+		if rec.Code < 400 || app.calls != 1 {
+			t.Fatalf("invalid reached application: calls=%d status=%d", app.calls, rec.Code)
+		}
+	}
+}
+
+type unifiedPublicationService struct {
+	Service
+	calls int
+}
+
+func (s *unifiedPublicationService) PublishReport(_ context.Context, r *PublicationRequest) (*v1.Response[PublicationResult], error) {
+	s.calls++
+	return &v1.Response[PublicationResult]{Status: v1.StatusCreated}, nil
 }

@@ -708,3 +708,51 @@ func TestEvidenceSemanticTagProjectionPreservesOrderAndMetrics(t *testing.T) {
 		t.Fatal("empty semantic invented tags")
 	}
 }
+
+func unifiedFixture(t *testing.T) reportbiz.Report {
+	t.Helper()
+	raw, err := os.ReadFile("../../../api/data/v1/report/testdata/unified-publication-request.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var req struct {
+		Report reportbiz.Report `json:"report"`
+	}
+	if err = json.Unmarshal(raw, &req); err != nil {
+		t.Fatal(err)
+	}
+	return req.Report
+}
+func TestUnifiedReportRejectsBrokenReferencesAndInventedMetrics(t *testing.T) {
+	if err := reportbiz.ValidateReport(unifiedFixture(t)); err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name   string
+		change func(*reportbiz.V4Unit)
+	}{
+		{"legacy target", func(u *reportbiz.V4Unit) { u.Summary.AffectedRefs[0].TargetType = "asset" }},
+		{"foreign reasoning", func(u *reportbiz.V4Unit) { u.Summary.AffectedRefs[0].ReasoningLocalKey = "missing" }},
+		{"foreign asset", func(u *reportbiz.V4Unit) { u.Summary.AffectedRefs[0].LocalKey = "missing" }},
+		{"metric without value", func(u *reportbiz.V4Unit) { u.Detail.Reasonings[0].ReasoningBlocks[0].Nodes[0].Metrics[0].Value = nil }},
+		{"metric unknown nature", func(u *reportbiz.V4Unit) {
+			u.Detail.Reasonings[0].ReasoningBlocks[0].Nodes[0].Metrics[0].ValueNature = "estimated"
+		}},
+		{"broken metric edge", func(u *reportbiz.V4Unit) {
+			u.Detail.Reasonings[0].ReasoningBlocks[0].Links = []reportbiz.UnifiedMetricLink{{FromNodeLocalKey: "missing", ToNodeLocalKey: "brent"}}
+		}},
+		{"out of range delta", func(u *reportbiz.V4Unit) {
+			v := 101.0
+			u.Detail.Reasonings[0].AffectedAssets[0].Assessment.WeightDeltaPP = &v
+		}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := unifiedFixture(t)
+			tc.change(&r.V4.GeopoliticalStories[0])
+			if reportbiz.ValidateReport(r) == nil {
+				t.Fatal("invalid content accepted")
+			}
+		})
+	}
+}

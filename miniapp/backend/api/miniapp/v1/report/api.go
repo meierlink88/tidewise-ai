@@ -248,6 +248,8 @@ type NormalizedWindow struct {
 	EndAt       *string `json:"end_at"`
 }
 type NormalizedAssessment struct {
+	WeightDeltaPP      *float64         `json:"weight_delta_pp,omitempty"`
+	AdjustmentPurpose  string           `json:"adjustment_purpose,omitempty"`
 	Conclusion         string           `json:"conclusion"`
 	Direction          string           `json:"direction"`
 	ConclusionBasis    string           `json:"conclusion_basis"`
@@ -301,9 +303,10 @@ type NormalizedMacro struct {
 	Objections       NormalizedObjections        `json:"objections"`
 }
 type NormalizedAnchorRef struct {
-	TargetType    string  `json:"target_type"`
-	LocalKey      string  `json:"local_key"`
-	ChainLocalKey *string `json:"chain_local_key"`
+	ReasoningLocalKey string  `json:"reasoning_local_key,omitempty"`
+	TargetType        string  `json:"target_type,omitempty"`
+	LocalKey          string  `json:"local_key"`
+	ChainLocalKey     *string `json:"chain_local_key,omitempty"`
 }
 type NormalizedGraphNodesItem struct {
 	LocalKey string `json:"local_key"`
@@ -326,6 +329,7 @@ type NormalizedChainEmptyState struct {
 	FollowUp []string `json:"follow_up"`
 }
 type NormalizedUnitSummary struct {
+	Judgment           string                                `json:"judgment,omitempty"`
 	Conclusion         string                                `json:"conclusion"`
 	TransmissionLogic  string                                `json:"transmission_logic"`
 	ImpactAssessment   NormalizedUnitSummaryImpactAssessment `json:"impact_assessment"`
@@ -348,6 +352,7 @@ type NormalizedResolvedAnchor struct {
 	Assessment     NormalizedAssessment `json:"assessment"`
 }
 type NormalizedSummaryProjection struct {
+	ReasoningCount  int                        `json:"reasoning_count,omitempty"`
 	JudgmentOrigin  string                     `json:"judgment_origin,omitempty"`
 	SchemaVersion   string                     `json:"schema_version"`
 	LocalKey        string                     `json:"local_key"`
@@ -366,14 +371,15 @@ type NormalizedChainHeader struct {
 	EmptyState     *NormalizedChainEmptyState `json:"empty_state"`
 }
 type NormalizedDetailProjection struct {
+	Reasonings       []UnifiedReadReasoning      `json:"reasonings,omitempty"`
 	PublishedAt      *string                     `json:"published_at,omitempty"`
 	JudgmentOrigin   string                      `json:"judgment_origin,omitempty"`
 	ReasoningSources *NormalizedReasoningSources `json:"reasoning_sources,omitempty"`
 	VariableSignals  *[]NormalizedSignal         `json:"variable_signals,omitempty"`
 	Companies        *[]NormalizedMacro          `json:"companies,omitempty"`
 	Summary          NormalizedSummaryProjection `json:"summary"`
-	MacroImpacts     []NormalizedMacro           `json:"macro_impacts"`
-	IndustryChains   []NormalizedChainHeader     `json:"industry_chains"`
+	MacroImpacts     []NormalizedMacro           `json:"macro_impacts,omitempty"`
+	IndustryChains   []NormalizedChainHeader     `json:"industry_chains,omitempty"`
 }
 
 type AnalysisPage struct {
@@ -417,4 +423,56 @@ type NormalizedSignal struct {
 type EvidenceTag struct {
 	Kind string `json:"kind"`
 	Text string `json:"text"`
+}
+
+// UnifiedReadReasoning is the same report-local content model for every analysis collection.
+type UnifiedReadReasoning struct {
+	LocalKey         string                      `json:"local_key"`
+	SourceID         string                      `json:"source_id,omitempty"`
+	Title            string                      `json:"title"`
+	JudgmentOrigin   string                      `json:"judgment_origin,omitempty"`
+	ReasoningSources *NormalizedReasoningSources `json:"reasoning_sources,omitempty"`
+	VariableSignals  *[]NormalizedSignal         `json:"variable_signals,omitempty"`
+	Assessment       NormalizedAssessment        `json:"assessment"`
+	ReasoningSummary UnifiedReadReasoningSummary `json:"reasoning_summary"`
+	ReasoningBlocks  []UnifiedReadBlock          `json:"reasoning_blocks"`
+	Graph            *NormalizedGraph            `json:"graph,omitempty"`
+	AffectedAssets   []NormalizedNode            `json:"affected_assets"`
+	EmptyState       *NormalizedChainEmptyState  `json:"empty_state,omitempty"`
+}
+type UnifiedReadReasoningSummary struct {
+	Logic      string               `json:"logic"`
+	Support    *NormalizedClaim     `json:"support,omitempty"`
+	Objections NormalizedObjections `json:"objections"`
+}
+type UnifiedReadBlock struct {
+	LocalKey     string                  `json:"local_key"`
+	Title        string                  `json:"title"`
+	Explanation  string                  `json:"explanation"`
+	RelationType string                  `json:"relation_type"`
+	Nodes        []UnifiedReadMetricNode `json:"nodes"`
+	Links        []UnifiedReadMetricLink `json:"links,omitempty"`
+}
+type UnifiedReadMetricNode struct {
+	LocalKey    string              `json:"local_key"`
+	Name        string              `json:"name"`
+	Description string              `json:"description,omitempty"`
+	Metrics     []UnifiedReadMetric `json:"metrics"`
+}
+type UnifiedReadMetric struct {
+	Name               string   `json:"name"`
+	Value              *float64 `json:"value,omitempty"`
+	DisplayValue       string   `json:"display_value,omitempty"`
+	Unit               string   `json:"unit"`
+	MeasureType        string   `json:"measure_type"`
+	PeriodLabel        string   `json:"period_label,omitempty"`
+	AsOf               string   `json:"as_of,omitempty"`
+	ValueNature        string   `json:"value_nature"`
+	EvidenceScopeToken *string  `json:"evidence_scope_token"`
+	EvidenceCount      int      `json:"evidence_count"`
+}
+type UnifiedReadMetricLink struct {
+	FromNodeLocalKey string `json:"from_node_local_key"`
+	ToNodeLocalKey   string `json:"to_node_local_key"`
+	Label            string `json:"label,omitempty"`
 }

@@ -1,3 +1,4 @@
+import unified from './unified-v6.json';
 import semanticFixture from './evidence-semantic.json';
 import { parseReportEvidenceListWire } from '../../features/reports/wire-contract';
 import normalized from './normalized.json';
@@ -84,3 +85,42 @@ export const normalizedMockReportPort = mockReportPort;
 function assertReport(reportId: string): void {
   if (reportId !== REPORT_ID) throw new ReportError('reportUnavailable');
 }
+
+export class UnifiedMockReportPort extends MockReportPort {
+  async getEvidences(reportId: string, scopeToken: string) {
+    assertReport(reportId);
+    if (scopeToken !== semanticFixture.scope_token)
+      throw new ReportError('evidenceScopeUnavailable');
+    return parseReportEvidenceListWire(
+      { ...semanticFixture, items: semanticFixture.items.slice(0, 1) },
+      reportId,
+      scopeToken
+    );
+  }
+
+  async getAnalyses(reportId: string, kind: AnalysisKind, cursor?: string) {
+    assertReport(reportId);
+    if (cursor) throw new ReportError('invalidRequest');
+    return parseAnalysisPage(unified.groups.find((g) => g.kind === kind));
+  }
+  async getAnalysis(reportId: string, kind: AnalysisKind, key: string) {
+    assertReport(reportId);
+    const value = (unified.details as Record<string, unknown>)[`${kind}/${key}`];
+    if (!value) throw new ReportError('layerUnavailable');
+    return { ...parseAnalysisDetail(value, key), published_at: report.publishedAt };
+  }
+  async getHome(): Promise<ReportHome> {
+    return {
+      selection: { mode: 'today', date: '2026-09-01', timezone: 'Asia/Shanghai' },
+      reports: [
+        {
+          report: { ...report, schemaVersion: 'report-publication/v6' },
+          cards: [],
+          nextCursor: null,
+          analysisGroups: parseAnalysisGroups(unified.groups)
+        }
+      ]
+    };
+  }
+}
+export const unifiedMockReportPort = new UnifiedMockReportPort();

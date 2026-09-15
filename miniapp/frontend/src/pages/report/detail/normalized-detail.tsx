@@ -16,6 +16,7 @@ import { useReportResource } from '../../../features/reports/use-report-resource
 import { ReportStatePanel } from '../../../features/reports/report-components';
 import { formatReportPublication } from '../../../features/reports/presentation';
 import './normalized-detail.scss';
+import { UnifiedDetailView } from './unified-detail';
 
 const directions = { warming: '升温', cooling: '降温', diverging: '分化', pending: '仅观察' };
 const signalDirections = {
@@ -25,7 +26,7 @@ const signalDirections = {
   MIXED: '分化',
   UNKNOWN: '未知'
 };
-export function NormalizedDetailView({
+export function LegacyDetailView({
   detail,
   reportId,
   kind,
@@ -365,5 +366,16 @@ function HorizontalGraph({
         })}
       </View>
     </ScrollView>
+  );
+}
+
+export function NormalizedDetailView(props: Parameters<typeof LegacyDetailView>[0]) {
+  return (
+    <UnifiedDetailView
+      key={`${props.reportId}:${props.detail.summary.local_key}`}
+      detail={props.detail}
+      reportId={props.reportId}
+      onEvidence={props.onEvidence}
+    />
   );
 }

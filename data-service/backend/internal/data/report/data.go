@@ -27,11 +27,11 @@ func NewStore(db *sql.DB) (Store, error) {
 
 const summaryColumns = `id, publisher_report_id, report ->> 'generated_at',
        (report ? 'geopolitics' OR jsonb_array_length(COALESCE(report->'geopolitical_stories','[]'::jsonb))>0), (report ? 'macroeconomics' OR jsonb_array_length(COALESCE(report->'macroeconomic_stories','[]'::jsonb))>0),
-       CASE WHEN report->>'schema_version' IN ('report-publication/v3','report-publication/v4','report-publication/v5') THEN (SELECT COALESCE(sum(jsonb_array_length(u#>'{detail,industry_chains}')),0) FROM jsonb_array_elements((report->'concept_analyses') || COALESCE(report->'industry_chain_analyses','[]'::jsonb)) u) ELSE jsonb_array_length(report -> 'industry_chains') END, published_at, COALESCE(report->>'schema_version',''), COALESCE(report#>>'{analysis_window,start}',''), COALESCE(report#>>'{analysis_window,end}','')`
+       CASE WHEN report->>'schema_version'='report-publication/v6' THEN (SELECT count(*) FROM jsonb_array_elements(COALESCE(report->'concept_analyses','[]'::jsonb) || COALESCE(report->'industry_chain_analyses','[]'::jsonb)) u CROSS JOIN LATERAL jsonb_array_elements(u#>'{detail,reasonings}') r WHERE r ? 'graph') WHEN report->>'schema_version' IN ('report-publication/v3','report-publication/v4','report-publication/v5') THEN (SELECT COALESCE(sum(jsonb_array_length(u#>'{detail,industry_chains}')),0) FROM jsonb_array_elements((report->'concept_analyses') || COALESCE(report->'industry_chain_analyses','[]'::jsonb)) u) ELSE jsonb_array_length(report -> 'industry_chains') END, published_at, COALESCE(report->>'schema_version',''), COALESCE(report#>>'{analysis_window,start}',''), COALESCE(report#>>'{analysis_window,end}','')`
 
 func (s Store) ListReports(ctx context.Context, filter reportbiz.ListFilter) (reportbiz.StorePage, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT `+publicationSummaryColumns+` FROM report_publications
-WHERE (($6='all' AND COALESCE(report->>'schema_version','') IN ('','report-publication/v3','report-publication/v4','report-publication/v5')) OR ($6='legacy' AND COALESCE(report->>'schema_version','')='') OR ($6 NOT IN ('all','legacy') AND COALESCE(report->>'schema_version','')=$6)) AND ($1::timestamptz IS NULL OR published_at >= $1)
+WHERE (($6='all' AND COALESCE(report->>'schema_version','') IN ('','report-publication/v3','report-publication/v4','report-publication/v5','report-publication/v6')) OR ($6='legacy' AND COALESCE(report->>'schema_version','')='') OR ($6 NOT IN ('all','legacy') AND COALESCE(report->>'schema_version','')=$6)) AND ($1::timestamptz IS NULL OR published_at >= $1)
   AND ($2::timestamptz IS NULL OR published_at < $2)
   AND ($3::timestamptz IS NULL OR published_at < $3 OR (published_at = $3 AND id > $4))
 ORDER BY published_at DESC, id ASC
@@ -440,7 +440,7 @@ func finishSummary(result *reportbiz.Summary, generatedAt string) error {
 	if result.SchemaVersion != "" {
 		start, e1 := time.Parse(time.RFC3339Nano, result.AnalysisWindowStart)
 		end, e2 := time.Parse(time.RFC3339Nano, result.AnalysisWindowEnd)
-		if (result.SchemaVersion != reportbiz.AnalysisSchemaVersion && result.SchemaVersion != reportbiz.NormalizedSchemaVersion && result.SchemaVersion != reportbiz.SignalSchemaVersion) || e1 != nil || e2 != nil || !start.Before(end) {
+		if (result.SchemaVersion != reportbiz.AnalysisSchemaVersion && result.SchemaVersion != reportbiz.NormalizedSchemaVersion && result.SchemaVersion != reportbiz.SignalSchemaVersion && result.SchemaVersion != reportbiz.UnifiedSchemaVersion) || e1 != nil || e2 != nil || !start.Before(end) {
 			return persistedInvariant("Report summary", "version/window", "invalid analysis metadata")
 		}
 	} else if result.IndustryChainCount < 1 {
@@ -700,7 +700,7 @@ func (s Store) isNormalizedReport(ctx context.Context, id string) (bool, error) 
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, reportbiz.ErrReportNotFound
 	}
-	return v == reportbiz.NormalizedSchemaVersion || v == reportbiz.SignalSchemaVersion, err
+	return v == reportbiz.NormalizedSchemaVersion || v == reportbiz.SignalSchemaVersion || v == reportbiz.UnifiedSchemaVersion, err
 }
 
 // The JSON walk is a projection of an already typed and validated snapshot, not
@@ -769,6 +769,28 @@ func projectNormalizedEvidence(value any, prefix string, tokens map[string]*stri
 	return decodeStoredJSON(raw, target)
 }
 func normalizedSummary(u reportbiz.V4ReadUnit, ordinal int) (reportbiz.AnalysisUnitSummary, error) {
+	if u.Detail.Reasonings != nil {
+		p := reportbiz.V4SummaryProjection{SchemaVersion: reportbiz.UnifiedSchemaVersion, JudgmentOrigin: u.JudgmentOrigin, LocalKey: u.LocalKey, SourceID: u.SourceID, Title: u.Title, Summary: u.Summary, ReasoningCount: len(u.Detail.Reasonings), AffectedAnchors: []reportbiz.V4ResolvedAnchor{}}
+		for _, ref := range u.Summary.AffectedRefs {
+			found := false
+			for _, r := range u.Detail.Reasonings {
+				if r.LocalKey != ref.ReasoningLocalKey {
+					continue
+				}
+				for _, a := range r.AffectedAssets {
+					if a.LocalKey == ref.LocalKey {
+						p.AffectedAnchors = append(p.AffectedAnchors, reportbiz.V4ResolvedAnchor{Reference: reportbiz.V4AnchorRef{LocalKey: ref.LocalKey, ReasoningLocalKey: ref.ReasoningLocalKey}, SourceID: a.SourceID, Name: a.Name, Assessment: a.Assessment, JudgmentOrigin: a.JudgmentOrigin})
+						found = true
+					}
+				}
+			}
+			if !found {
+				return reportbiz.AnalysisUnitSummary{}, errors.New("unified asset reference does not close")
+			}
+		}
+		return reportbiz.AnalysisUnitSummary{V4: &p, LocalKey: u.LocalKey, Ordinal: ordinal}, nil
+	}
+
 	p := reportbiz.V4SummaryProjection{JudgmentOrigin: u.JudgmentOrigin, SchemaVersion: reportbiz.NormalizedSchemaVersion, LocalKey: u.LocalKey, SourceID: u.SourceID, Title: u.Title, Summary: u.Summary, ChainCount: len(u.Detail.IndustryChains), AffectedAnchors: []reportbiz.V4ResolvedAnchor{}}
 	if u.JudgmentOrigin != "" {
 		p.SchemaVersion = reportbiz.SignalSchemaVersion
@@ -835,10 +857,10 @@ func (s Store) listNormalizedAnalyses(ctx context.Context, f reportbiz.AnalysisL
 		if err != nil {
 			return page, err
 		}
-		if item.V4 != nil && (item.V4.LocalKey != item.LocalKey || strings.TrimSpace(item.V4.SourceID) == "" || strings.TrimSpace(item.V4.Title) == "" || (item.V4.SchemaVersion != reportbiz.SignalSchemaVersion && item.V4.SchemaVersion != reportbiz.NormalizedSchemaVersion)) {
+		if item.V4 != nil && (item.V4.LocalKey != item.LocalKey || strings.TrimSpace(item.V4.SourceID) == "" || strings.TrimSpace(item.V4.Title) == "" || (item.V4.SchemaVersion != reportbiz.SignalSchemaVersion && item.V4.SchemaVersion != reportbiz.NormalizedSchemaVersion && item.V4.SchemaVersion != reportbiz.UnifiedSchemaVersion)) {
 			return page, persistedInvariant("Report summary", "identity", "invalid stored summary identity/version")
 		}
-		if item.Company != nil && (item.Company.Company.LocalKey != item.LocalKey || strings.TrimSpace(item.Company.Company.SourceID) == "" || item.Company.SchemaVersion != reportbiz.SignalSchemaVersion) {
+		if item.Company != nil && (item.Company.Company.LocalKey != item.LocalKey || strings.TrimSpace(item.Company.Company.SourceID) == "" || (item.Company.SchemaVersion != reportbiz.SignalSchemaVersion && item.Company.SchemaVersion != reportbiz.UnifiedSchemaVersion)) {
 			return page, persistedInvariant("Report company summary", "identity", "invalid stored company summary")
 		}
 		page.Items = append(page.Items, item)
@@ -893,7 +915,7 @@ func (s Store) getNormalizedAnalysis(ctx context.Context, id, kind, key string) 
 	if err != nil {
 		return reportbiz.AnalysisUnitDetail{}, err
 	}
-	d := reportbiz.V4DetailProjection{JudgmentOrigin: u.JudgmentOrigin, ReasoningSources: u.ReasoningSources, VariableSignals: u.Detail.VariableSignals, Companies: u.Detail.Companies, Summary: *summary.V4, MacroImpacts: u.Detail.MacroImpacts, IndustryChains: []reportbiz.V4ChainHeader{}}
+	d := reportbiz.V4DetailProjection{Reasonings: u.Detail.Reasonings, JudgmentOrigin: u.JudgmentOrigin, ReasoningSources: u.ReasoningSources, VariableSignals: u.Detail.VariableSignals, Companies: u.Detail.Companies, Summary: *summary.V4, MacroImpacts: u.Detail.MacroImpacts, IndustryChains: []reportbiz.V4ChainHeader{}}
 	for _, c := range u.Detail.IndustryChains {
 		d.IndustryChains = append(d.IndustryChains, reportbiz.V4ChainHeader{JudgmentOrigin: c.JudgmentOrigin, LocalKey: c.LocalKey, SourceID: c.SourceID, Name: c.Name, Assessment: c.Assessment, EmptyState: c.EmptyState})
 	}
@@ -969,6 +991,9 @@ func (s Store) evidenceCounts(ctx context.Context, id string) (map[string]int, e
 }
 
 func validateVersionedUnit(version, kind string, u reportbiz.V4Unit) error {
+	if version == reportbiz.UnifiedSchemaVersion {
+		return reportbiz.ValidateUnifiedUnit(kind, u)
+	}
 	if version == reportbiz.SignalSchemaVersion {
 		return reportbiz.ValidateSignalUnit(kind, u)
 	}
@@ -1004,6 +1029,9 @@ func (s Store) getSignalCompany(ctx context.Context, id, key string) (reportbiz.
 		return reportbiz.AnalysisUnitDetail{}, err
 	}
 	projected, err := projectSignalCompany(c, tokens, counts)
+	if err == nil {
+		err = s.db.QueryRowContext(ctx, `SELECT report->>'schema_version' FROM report_publications WHERE id=$1`, id).Scan(&projected.SchemaVersion)
+	}
 	return reportbiz.AnalysisUnitDetail{Company: &projected}, err
 }
 

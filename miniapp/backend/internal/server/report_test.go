@@ -95,7 +95,7 @@ func (*reportAPIStub) GetAnalysisChain(context.Context, *api.AnalysisQuery) (*ap
 
 // The same synthetic wire fixture is consumed by the frontend parser and all BFF layers.
 func TestNormalizedReportHTTPTraversesDataAndPreservesProjection(t *testing.T) {
-	for _, version := range []string{"v4", "v5", "v5-industry"} {
+	for _, version := range []string{"v6"} {
 		t.Run(version, func(t *testing.T) { testNormalizedHTTP(t, version) })
 	}
 }
@@ -104,10 +104,7 @@ func testNormalizedHTTP(t *testing.T, version string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	filename := "normalized.json"
-	if strings.HasPrefix(version, "v5") {
-		filename = "normalized-v5.json"
-	}
+	filename := "unified-v6.json"
 	raw, err := os.ReadFile("../../../frontend/src/mocks/reports/" + filename)
 	if err != nil {
 		t.Fatal(err)
@@ -119,26 +116,6 @@ func testNormalizedHTTP(t *testing.T, version string) {
 	}
 	if err = json.Unmarshal(raw, &fixture); err != nil {
 		t.Fatal(err)
-	}
-	if version == "v5-industry" {
-		// Exercise the same projection shape under the independent industry route.
-		fixture.Groups[2]["kind"] = "industry_chain_analyses"
-		for key, value := range fixture.Details {
-			if strings.HasPrefix(key, "concept_analyses/") {
-				fixture.Details[strings.Replace(key, "concept_analyses/", "industry_chain_analyses/", 1)] = value
-				delete(fixture.Details, key)
-			}
-		}
-		for key, value := range fixture.Chains {
-			if strings.HasPrefix(key, "concept_analyses/") {
-				fixture.Chains[strings.Replace(key, "concept_analyses/", "industry_chain_analyses/", 1)] = value
-				delete(fixture.Chains, key)
-			}
-		}
-		fixture.Groups = append(fixture.Groups[:2], map[string]any{"kind": "concept_analyses", "items": []any{}, "next_cursor": nil}, fixture.Groups[2])
-		version = "v5"
-	} else if version == "v5" {
-		fixture.Groups = append(fixture.Groups, map[string]any{"kind": "industry_chain_analyses", "items": []any{}, "next_cursor": nil})
 	}
 	downstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		prefix := dataapi.DataAPIPrefix + "/reports"
@@ -204,7 +181,7 @@ func testNormalizedHTTP(t *testing.T, version string) {
 			t.Fatal("Evidence IDs leaked")
 		}
 		result := envelope["result"]
-		schema := "NormalizedDetailProjection"
+		schema := "UnifiedDetailProjection"
 		if strings.HasSuffix(path, "/home") {
 			schema = "HomeResponse"
 		} else if strings.Contains(path, "?limit=") {

@@ -657,3 +657,7 @@ ADR-0064 / Issue #488：`chain_node` 物理表无损更名为 `industry_chain_no
 全部退役，不再有通用 Entity/Profile 读写或 ENT 研究图身份。研究图保留独立对象、Organization 成员关系及 typed IndustryChain Links；不从其他表重建退役通用数据。
 旧迁移只作历史账本保留，新增 000091 删除旧表和数据，更新函数及触发器。
 迁移前备份并停止 Data 流量，迁移与新版服务协调切换；不能仅回滚应用，恢复需匹配的数据库备份。其他业务表内容保留。
+
+### Report v6 统一推导（#498）
+
+当前三板块新合同使用相同的 `detail.reasonings[]`，支持多套推导、指标区块及报告内影响资产。Evidence 继续由 Data 验证并投影。不可变归档与分拆存储保持；旧报告仅离线转换，Miniapp 选择 v6 报告。详见 [v6 合同](report-publication-v6.md) 与 [ADR-0066](../../adr/0066-unify-report-reasonings.md)。部署状态不由本文推断。

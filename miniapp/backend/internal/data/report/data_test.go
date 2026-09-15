@@ -254,3 +254,92 @@ func TestV5ReadsRejectInvalidProvenance(t *testing.T) {
 		})
 	}
 }
+
+func TestRepositoryReadsUnifiedProviderFixture(t *testing.T) {
+	raw, err := os.ReadFile("../../../../frontend/src/mocks/reports/unified-v6.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		Details map[string]json.RawMessage `json:"details"`
+	}
+	if err = json.Unmarshal(raw, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key := strings.TrimPrefix(r.URL.Path, reportsPath+"/"+testReportID+"/analyses/")
+		if value, ok := fixture.Details[key]; ok {
+			writeDataResult(t, w, value)
+		} else {
+			t.Fatalf("unexpected %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	repo := newTestRepository(t, server)
+	for key := range fixture.Details {
+		parts := strings.Split(key, "/")
+		value, err := repo.GetAnalysis(context.Background(), biz.AnalysisQuery{ReportID: testReportID, Kind: parts[0], Key: parts[1]})
+		if err != nil || len(value.Reasonings) == 0 {
+			t.Fatalf("%s: %v", key, err)
+		}
+	}
+}
+
+func TestRepositorySelectsOnlyV6Reports(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("schema_version") != "report-publication/v6" {
+			t.Fatal("missing version filter")
+		}
+		writeDataResult(t, w, wirePage{Items: []wireSummary{}})
+	}))
+	defer server.Close()
+	if _, err := newTestRepository(t, server).ListReports(context.Background(), biz.ListQuery{Limit: 1}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUnifiedBoundaryRejectsMalformedProviderData(t *testing.T) {
+	raw, err := os.ReadFile("../../../../frontend/src/mocks/reports/unified-v6.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		Details map[string]json.RawMessage `json:"details"`
+	}
+	json.Unmarshal(raw, &fixture)
+	for _, tc := range []struct {
+		name   string
+		mutate func(*biz.NormalizedDetailProjection)
+	}{
+		{"metric nature", func(p *biz.NormalizedDetailProjection) {
+			p.Reasonings[0].ReasoningBlocks[0].Nodes[0].Metrics[0].ValueNature = "unexpected"
+		}},
+		{"missing metric value", func(p *biz.NormalizedDetailProjection) {
+			p.Reasonings[0].ReasoningBlocks[0].Nodes[0].Metrics[0].Value = nil
+		}},
+		{"duplicate asset", func(p *biz.NormalizedDetailProjection) {
+			r := &p.Reasonings[0]
+			r.AffectedAssets = append(r.AffectedAssets, r.AffectedAssets[0])
+		}},
+		{"foreign home ref", func(p *biz.NormalizedDetailProjection) {
+			p.Summary.Summary.AffectedRefs[0].ReasoningLocalKey = "missing"
+		}},
+		{"foreign metric edge", func(p *biz.NormalizedDetailProjection) {
+			p.Reasonings[0].ReasoningBlocks[0].Links = []biz.UnifiedReadMetricLink{{FromNodeLocalKey: "missing", ToNodeLocalKey: "brent"}}
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var p biz.NormalizedDetailProjection
+			if err := json.Unmarshal(fixture.Details["geopolitical_stories/g1"], &p); err != nil {
+				t.Fatal(err)
+			}
+			if !validUnifiedDetail(p) {
+				t.Fatal("valid baseline failed")
+			}
+			tc.mutate(&p)
+			if validUnifiedDetail(p) {
+				t.Fatal("malformed provider data accepted")
+			}
+		})
+	}
+}

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import unified from '../../mocks/reports/unified-v6.json';
 import fixture from '../../mocks/reports/normalized.json';
 import v5 from '../../mocks/reports/normalized-v5.json';
 import {
@@ -76,4 +77,25 @@ it('accepts additive publication metadata and preserves older detail responses',
   expect(
     parseAnalysisDetail({ ...detail, published_at: 'invalid' }, 'g1').published_at
   ).toBeUndefined();
+});
+
+it('reads the v6 provider fixture for all three reasoning domains', () => {
+  expect(parseAnalysisGroups(unified.groups)).toHaveLength(4);
+  Object.values(unified.details).forEach((value) => {
+    const detail = parseAnalysisDetail(value, value.summary.local_key);
+    expect(detail.reasonings?.length).toBe(value.reasonings.length);
+    value.reasonings.forEach((reasoning, i) => {
+      expect(detail.reasonings?.[i].assessment).toEqual(reasoning.assessment);
+      expect(detail.reasonings?.[i].reasoning_summary).toEqual(reasoning.reasoning_summary);
+    });
+  });
+});
+
+it('keeps missing allocation distinct from unchanged and checks reasoning-local references', () => {
+  const value = structuredClone(unified.details['geopolitical_stories/g1']);
+  const parsed = parseAnalysisDetail(value, 'g1');
+  expect(parsed.reasonings?.[0].affected_assets[0].assessment.weight_delta_pp).toBe(4);
+  expect(parsed.reasonings?.[1].affected_assets[0].assessment.weight_delta_pp).toBeUndefined();
+  value.summary.affected_anchors[0].reference.reasoning_local_key = 'missing';
+  expect(() => parseAnalysisDetail(value, 'g1')).toThrow();
 });

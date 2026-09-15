@@ -78,7 +78,7 @@ func TestEvidenceRequiresOpaqueScopeToken(t *testing.T) {
 }
 
 func validSummary() Summary {
-	return Summary{SchemaVersion: "report-publication/v5", ID: testReportID, PublisherReportID: "publisher", GeneratedAt: time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC), PublishedAt: time.Date(2026, 9, 2, 1, 0, 0, 0, time.UTC), IndustryChainCount: 54}
+	return Summary{SchemaVersion: "report-publication/v6", ID: testReportID, PublisherReportID: "publisher", GeneratedAt: time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC), PublishedAt: time.Date(2026, 9, 2, 1, 0, 0, 0, time.UTC), IndustryChainCount: 54}
 }
 func sampleLayer() Layer {
 	return Layer{Key: LayerGeopolitics, Title: "地缘政治", Conclusion: "地缘风险升温", Result: CodedLabel{Code: "warming", Label: "升温"}, Confidence: Confidence{Code: "high", Label: "高"}, TimeWindow: TimeWindow{Code: "short", Label: "短期"}, Anchors: []Anchor{{LocalKey: "anchor-01", Name: "锚点", CurrentState: "UP", Result: CodedLabel{Code: "warming", Label: "升温"}, ConclusionBasis: CodedLabel{Code: "direct_evidence", Label: "直接证据"}, ValidationStatus: CodedLabel{Code: "confirmed", Label: "已确认"}, Reasoning: "逻辑", TimeWindow: TimeWindow{Code: "short", Label: "短期"}, Confidence: Confidence{Code: "high", Label: "高"}, EvidenceScopeToken: stringPointer(testScopeToken)}}, ReasoningSteps: []ReasoningStep{}, Transmissions: []Transmission{}, Uncertainty: LayerUncertainty{}, EvidenceScopeToken: stringPointer(testScopeToken)}
@@ -154,7 +154,11 @@ func (f *fakeRepository) ListAnalyses(_ context.Context, q AnalysisQuery) (Analy
 }
 
 func (f *fakeRepository) GetAnalysis(context.Context, AnalysisQuery) (NormalizedDetailProjection, error) {
-	return f.analysisDetail, f.analysisErr
+	p := f.analysisDetail
+	if p.Summary.SchemaVersion == "" {
+		p.Summary.SchemaVersion = "report-publication/v6"
+	}
+	return p, f.analysisErr
 }
 
 func (*fakeRepository) GetAnalysisChain(context.Context, AnalysisQuery) (NormalizedChain, error) {
@@ -163,7 +167,7 @@ func (*fakeRepository) GetAnalysisChain(context.Context, AnalysisQuery) (Normali
 
 func TestNormalizedHomeUsesSelectedReportAndIndependentGroupPages(t *testing.T) {
 	s := validSummary()
-	s.SchemaVersion = "report-publication/v4"
+	s.SchemaVersion = "report-publication/v6"
 	s.IndustryChainCount = 0
 	cursor := "opaque-first-page"
 	r := &fakeRepository{listPage: Page{Items: []Summary{s}}, analysisPage: AnalysisPage{Items: []NormalizedSummaryProjection{}, NextCursor: &cursor}}
@@ -171,10 +175,10 @@ func TestNormalizedHomeUsesSelectedReportAndIndependentGroupPages(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(home.Reports) != 1 || len(home.Reports[0].AnalysisGroups) != 3 || len(home.Reports[0].Cards) != 0 || r.homeCalls != 0 || len(r.chainQueries) != 0 {
+	if len(home.Reports) != 1 || len(home.Reports[0].AnalysisGroups) != 4 || len(home.Reports[0].Cards) != 0 || r.homeCalls != 0 || len(r.chainQueries) != 0 {
 		t.Fatalf("home=%+v", home)
 	}
-	for i, k := range []string{"geopolitical_stories", "macroeconomic_stories", "concept_analyses"} {
+	for i, k := range []string{"geopolitical_stories", "macroeconomic_stories", "concept_analyses", "industry_chain_analyses"} {
 		q := r.analysisQueries[i]
 		if q.Kind != k || q.ReportID != s.ID || q.Limit != 20 || q.Cursor != "" || *home.Reports[0].AnalysisGroups[i].NextCursor != cursor {
 			t.Fatalf("query=%+v", q)
@@ -184,7 +188,7 @@ func TestNormalizedHomeUsesSelectedReportAndIndependentGroupPages(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if q := r.analysisQueries[3]; q.Cursor != cursor || q.Limit != 13 {
+	if q := r.analysisQueries[4]; q.Cursor != cursor || q.Limit != 13 {
 		t.Fatalf("query=%+v", q)
 	}
 	r.analysisErr = ErrDataUnavailable
@@ -196,13 +200,13 @@ func TestNormalizedHomeUsesSelectedReportAndIndependentGroupPages(t *testing.T) 
 	}
 }
 
-func TestV5HomeUsesNormalizedGroups(t *testing.T) {
+func TestV6HomeUsesUnifiedGroups(t *testing.T) {
 	s := validSummary()
-	s.SchemaVersion = "report-publication/v5"
+	s.SchemaVersion = "report-publication/v6"
 	r := &fakeRepository{listPage: Page{Items: []Summary{s}}, analysisPage: AnalysisPage{Items: []NormalizedSummaryProjection{}}}
 	home, err := NewUseCase(r).Home(context.Background())
 	if err != nil || len(home.Reports) != 1 || len(home.Reports[0].AnalysisGroups) != 4 || r.homeCalls != 0 {
-		t.Fatalf("v5 home failed: %+v %v", home, err)
+		t.Fatalf("v6 home failed: %+v %v", home, err)
 	}
 	if q := r.analysisQueries[3]; q.Kind != "industry_chain_analyses" || q.ReportID != s.ID || q.Limit != 20 {
 		t.Fatalf("industry query=%+v", q)
@@ -259,5 +263,22 @@ func TestAnalysisPublicationLookupFailsExplicitly(t *testing.T) {
 	_, err := NewUseCase(repo).Analysis(ctx, AnalysisQuery{ReportID: testReportID, Kind: "geopolitical_stories", Key: "story"})
 	if err != ErrDataUnavailable || len(repo.listQueries) != 0 {
 		t.Fatalf("err=%v queries=%v", err, repo.listQueries)
+	}
+}
+
+func TestProductReadsRejectArchivedVersions(t *testing.T) {
+	for _, version := range []string{"report-publication/v4", "report-publication/v5"} {
+		r := &fakeRepository{analysisDetail: NormalizedDetailProjection{Summary: NormalizedSummaryProjection{SchemaVersion: version}}, analysisPage: AnalysisPage{Items: []NormalizedSummaryProjection{{SchemaVersion: version}}}}
+		u := NewUseCase(r)
+		q := AnalysisQuery{ReportID: testReportID, Kind: "geopolitical_stories", Key: "story", ChainKey: "chain"}
+		if _, err := u.Analysis(context.Background(), q); err != ErrLayerNotFound {
+			t.Fatalf("old detail accepted: %v", err)
+		}
+		if _, err := u.Analyses(context.Background(), q); err != ErrLayerNotFound {
+			t.Fatalf("old cards accepted: %v", err)
+		}
+		if _, err := u.AnalysisChain(context.Background(), q); err != ErrChainNotFound {
+			t.Fatalf("old chain accepted: %v", err)
+		}
 	}
 }

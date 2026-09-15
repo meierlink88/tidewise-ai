@@ -221,6 +221,7 @@ func writeReportStorage(ctx context.Context, tx *sql.Tx, record reportbiz.Record
 				if e != nil {
 					return e
 				}
+				p.SchemaVersion = record.Report.SchemaVersion
 				p.Company.VariableSignals = nil
 				p.Company.ReasoningSources = nil
 				key, source, title, projected = c.LocalKey, c.SourceID, c.Name, p

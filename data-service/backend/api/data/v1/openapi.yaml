@@ -5191,6 +5191,7 @@ components:
             - $ref: '#/components/schemas/ReportAnalysisSnapshot'
             - $ref: '#/components/schemas/NormalizedReport'
             - $ref: '#/components/schemas/SignalReport'
+            - $ref: '#/components/schemas/UnifiedReport'
 
     ReportPublicationResult:
       type: object
@@ -5289,6 +5290,7 @@ components:
         - $ref: '#/components/schemas/ReportHomeV3'
         - $ref: '#/components/schemas/NormalizedHomeProjection'
         - $ref: '#/components/schemas/SignalHomeProjection'
+        - $ref: '#/components/schemas/UnifiedHomeProjection'
 
     ReportHomeV3:
       type: object
@@ -5839,6 +5841,7 @@ components:
         - $ref: '#/components/schemas/ReportAnalysisUnitSummaryV3'
         - $ref: '#/components/schemas/NormalizedSummaryProjection'
         - $ref: '#/components/schemas/SignalSummaryProjection'
+        - $ref: '#/components/schemas/UnifiedSummaryProjection'
         - $ref: '#/components/schemas/SignalCompanySummary'
 
     ReportAnalysisUnitSummaryV3:
@@ -5894,6 +5897,7 @@ components:
         - $ref: '#/components/schemas/ReportAnalysisUnitDetailV3'
         - $ref: '#/components/schemas/NormalizedDetailProjection'
         - $ref: '#/components/schemas/SignalDetailProjection'
+        - $ref: '#/components/schemas/UnifiedDetailProjection'
         - $ref: '#/components/schemas/SignalCompanyProjection'
 
     ReportAnalysisUnitDetailV3:
@@ -8355,4 +8359,1488 @@ components:
             'limitations': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
             'report_type': { '$ref': '#/components/schemas/NormalizedReadCodedLabel' }
           }
+      }
+
+    # v6: same reasoning shape for geopolitical, macroeconomic and industry stories.
+    UnifiedCodedLabel:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'code': { 'type': 'string', 'minLength': 1 },
+            'label': { 'type': 'string', 'minLength': 1 }
+          },
+        'required': ['code', 'label'],
+        'additionalProperties': false
+      }
+    UnifiedCodedLabelRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'code': { 'type': 'string', 'minLength': 1 },
+            'label': { 'type': 'string', 'minLength': 1 }
+          },
+        'required': ['code', 'label'],
+        'additionalProperties': false
+      }
+    UnifiedClaim:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'text': { 'type': 'string', 'minLength': 1 },
+            'basis':
+              { 'type': 'string', 'enum': ['source_fact', 'inference', 'hypothetical_buffer'] },
+            'evidence_ids':
+              {
+                'type': 'array',
+                'uniqueItems': true,
+                'items': { 'type': 'string', 'pattern': '^EVD[0-9a-f-]{36}$' }
+              }
+          },
+        'required': ['text', 'basis', 'evidence_ids'],
+        'additionalProperties': false
+      }
+    UnifiedClaimRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'text': { 'type': 'string', 'minLength': 1 },
+            'basis':
+              { 'type': 'string', 'enum': ['source_fact', 'inference', 'hypothetical_buffer'] },
+            'evidence_scope_token': { 'type': 'string', 'nullable': true },
+            'evidence_count': { 'type': 'integer', 'minimum': 0 }
+          },
+        'required': ['text', 'basis', 'evidence_scope_token', 'evidence_count'],
+        'additionalProperties': false
+      }
+    UnifiedObjections:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'summary': { 'type': 'string', 'minLength': 1 },
+            'counterevidence':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedClaim' } },
+            'buffers':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedClaim' } },
+            'counterevidence_status':
+              { 'type': 'string', 'enum': ['identified', 'none_identified'] },
+            'evidence_gaps': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'scope_limits': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } }
+          },
+        'required':
+          [
+            'summary',
+            'counterevidence',
+            'buffers',
+            'counterevidence_status',
+            'evidence_gaps',
+            'scope_limits'
+          ],
+        'additionalProperties': false
+      }
+    UnifiedObjectionsRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'summary': { 'type': 'string', 'minLength': 1 },
+            'counterevidence':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedClaimRead' } },
+            'buffers':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedClaimRead' } },
+            'counterevidence_status':
+              { 'type': 'string', 'enum': ['identified', 'none_identified'] },
+            'evidence_gaps': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'scope_limits': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } }
+          },
+        'required':
+          [
+            'summary',
+            'counterevidence',
+            'buffers',
+            'counterevidence_status',
+            'evidence_gaps',
+            'scope_limits'
+          ],
+        'additionalProperties': false
+      }
+    UnifiedWindow:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'kind':
+              {
+                'type': 'string',
+                'enum': ['relative', 'calendar', 'stage', 'mixed', 'not_applicable']
+              },
+            'description': { 'type': 'string', 'minLength': 1 },
+            'start_at': { 'type': 'string', 'format': 'date-time', 'nullable': true },
+            'end_at': { 'type': 'string', 'format': 'date-time', 'nullable': true }
+          },
+        'required': ['kind', 'description', 'start_at', 'end_at'],
+        'additionalProperties': false
+      }
+    UnifiedWindowRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'kind':
+              {
+                'type': 'string',
+                'enum': ['relative', 'calendar', 'stage', 'mixed', 'not_applicable']
+              },
+            'description': { 'type': 'string', 'minLength': 1 },
+            'start_at': { 'type': 'string', 'format': 'date-time', 'nullable': true },
+            'end_at': { 'type': 'string', 'format': 'date-time', 'nullable': true }
+          },
+        'required': ['kind', 'description', 'start_at', 'end_at'],
+        'additionalProperties': false
+      }
+    UnifiedAssessment:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'conclusion': { 'type': 'string', 'minLength': 1 },
+            'direction':
+              { 'type': 'string', 'enum': ['warming', 'cooling', 'diverging', 'pending'] },
+            'conclusion_basis':
+              { 'type': 'string', 'enum': ['reasoning_hypothesis', 'observation_only'] },
+            'validation_status':
+              { 'type': 'string', 'enum': ['pending_validation', 'insufficient_evidence'] },
+            'confidence': { 'type': 'string', 'enum': ['low', 'medium', 'high'], 'nullable': true },
+            'forecast_window': { '$ref': '#/components/schemas/UnifiedWindow' },
+            'scope': { 'type': 'string', 'minLength': 1 },
+            'conditions': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'follow_up': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'transmission_logic': { 'type': 'string', 'minLength': 1 },
+            'evidence_ids':
+              {
+                'type': 'array',
+                'uniqueItems': true,
+                'items': { 'type': 'string', 'pattern': '^EVD[0-9a-f-]{36}$' }
+              },
+            'weight_delta_pp':
+              {
+                'type': 'number',
+                'minimum': -100,
+                'maximum': 100,
+                'description': 'Allocation change in percentage points. Absent means unspecified, not zero.'
+              },
+            'adjustment_purpose': { 'type': 'string', 'minLength': 1 }
+          },
+        'required':
+          [
+            'conclusion',
+            'direction',
+            'conclusion_basis',
+            'validation_status',
+            'confidence',
+            'forecast_window',
+            'scope',
+            'conditions',
+            'follow_up',
+            'transmission_logic',
+            'evidence_ids'
+          ],
+        'additionalProperties': false
+      }
+    UnifiedAssessmentRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'conclusion': { 'type': 'string', 'minLength': 1 },
+            'direction':
+              { 'type': 'string', 'enum': ['warming', 'cooling', 'diverging', 'pending'] },
+            'conclusion_basis':
+              { 'type': 'string', 'enum': ['reasoning_hypothesis', 'observation_only'] },
+            'validation_status':
+              { 'type': 'string', 'enum': ['pending_validation', 'insufficient_evidence'] },
+            'confidence': { 'type': 'string', 'enum': ['low', 'medium', 'high'], 'nullable': true },
+            'forecast_window': { '$ref': '#/components/schemas/UnifiedWindowRead' },
+            'scope': { 'type': 'string', 'minLength': 1 },
+            'conditions': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'follow_up': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'transmission_logic': { 'type': 'string', 'minLength': 1 },
+            'evidence_scope_token': { 'type': 'string', 'nullable': true },
+            'evidence_count': { 'type': 'integer', 'minimum': 0 },
+            'weight_delta_pp':
+              {
+                'type': 'number',
+                'minimum': -100,
+                'maximum': 100,
+                'description': 'Allocation change in percentage points. Absent means unspecified, not zero.'
+              },
+            'adjustment_purpose': { 'type': 'string', 'minLength': 1 }
+          },
+        'required':
+          [
+            'conclusion',
+            'direction',
+            'conclusion_basis',
+            'validation_status',
+            'confidence',
+            'forecast_window',
+            'scope',
+            'conditions',
+            'follow_up',
+            'transmission_logic',
+            'evidence_scope_token',
+            'evidence_count'
+          ],
+        'additionalProperties': false
+      }
+    UnifiedNode:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string' },
+            'node_local_key':
+              {
+                'type': 'string',
+                'description': 'Optional binding to a graph node within the same reasoning; empty for a standalone asset.'
+              },
+            'name': { 'type': 'string', 'minLength': 1 },
+            'assessment': { '$ref': '#/components/schemas/UnifiedAssessment' },
+            'objections': { '$ref': '#/components/schemas/UnifiedObjections' },
+            'judgment_origin': { 'enum': ['direct', 'inferred'] },
+            'reasoning_sources': { '$ref': '#/components/schemas/UnifiedReasoningSources' },
+            'variable_signals':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedSignal' } }
+          },
+        'required':
+          ['local_key', 'source_id', 'node_local_key', 'name', 'assessment', 'objections'],
+        'additionalProperties': false
+      }
+    UnifiedNodeRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string' },
+            'node_local_key':
+              {
+                'type': 'string',
+                'description': 'Optional binding to a graph node within the same reasoning; empty for a standalone asset.'
+              },
+            'name': { 'type': 'string', 'minLength': 1 },
+            'assessment': { '$ref': '#/components/schemas/UnifiedAssessmentRead' },
+            'objections': { '$ref': '#/components/schemas/UnifiedObjectionsRead' },
+            'judgment_origin': { 'enum': ['direct', 'inferred'] },
+            'reasoning_sources': { '$ref': '#/components/schemas/UnifiedReasoningSourcesRead' },
+            'variable_signals':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedSignalRead' } }
+          },
+        'required':
+          ['local_key', 'source_id', 'node_local_key', 'name', 'assessment', 'objections'],
+        'additionalProperties': false
+      }
+    UnifiedGraph:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'nodes':
+              {
+                'type': 'array',
+                'items':
+                  {
+                    'type': 'object',
+                    'properties':
+                      {
+                        'local_key': { 'type': 'string', 'minLength': 1 },
+                        'source_id': { 'type': 'string', 'pattern': '^CND[0-9a-f-]{36}$' },
+                        'name': { 'type': 'string', 'minLength': 1 }
+                      },
+                    'required': ['local_key', 'source_id', 'name'],
+                    'additionalProperties': false
+                  }
+              },
+            'edges':
+              {
+                'type': 'array',
+                'items':
+                  {
+                    'type': 'object',
+                    'properties':
+                      {
+                        'from_node_local_key': { 'type': 'string', 'minLength': 1 },
+                        'to_node_local_key': { 'type': 'string', 'minLength': 1 },
+                        'relation_label': { 'type': 'string', 'minLength': 1 }
+                      },
+                    'required': ['from_node_local_key', 'to_node_local_key', 'relation_label'],
+                    'additionalProperties': false
+                  }
+              },
+            'scope': { 'enum': ['assessed_nodes_only'] }
+          },
+        'required': ['nodes', 'edges', 'scope'],
+        'additionalProperties': false
+      }
+    UnifiedGraphRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'nodes':
+              {
+                'type': 'array',
+                'items':
+                  {
+                    'type': 'object',
+                    'properties':
+                      {
+                        'local_key': { 'type': 'string', 'minLength': 1 },
+                        'source_id': { 'type': 'string', 'pattern': '^CND[0-9a-f-]{36}$' },
+                        'name': { 'type': 'string', 'minLength': 1 }
+                      },
+                    'required': ['local_key', 'source_id', 'name'],
+                    'additionalProperties': false
+                  }
+              },
+            'edges':
+              {
+                'type': 'array',
+                'items':
+                  {
+                    'type': 'object',
+                    'properties':
+                      {
+                        'from_node_local_key': { 'type': 'string', 'minLength': 1 },
+                        'to_node_local_key': { 'type': 'string', 'minLength': 1 },
+                        'relation_label': { 'type': 'string', 'minLength': 1 }
+                      },
+                    'required': ['from_node_local_key', 'to_node_local_key', 'relation_label'],
+                    'additionalProperties': false
+                  }
+              },
+            'scope': { 'enum': ['assessed_nodes_only'] }
+          },
+        'required': ['nodes', 'edges', 'scope'],
+        'additionalProperties': false
+      }
+    UnifiedChain:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string', 'pattern': '^ICH[0-9a-f-]{36}$' },
+            'name': { 'type': 'string', 'minLength': 1 },
+            'assessment': { '$ref': '#/components/schemas/UnifiedAssessment' },
+            'reasoning_summary':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'logic': { 'type': 'string', 'minLength': 1 },
+                    'support': { '$ref': '#/components/schemas/UnifiedClaim' },
+                    'objections': { '$ref': '#/components/schemas/UnifiedObjections' }
+                  },
+                'required': ['logic', 'support', 'objections'],
+                'additionalProperties': false
+              },
+            'graph': { '$ref': '#/components/schemas/UnifiedGraph' },
+            'affected_nodes':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedNode' } },
+            'empty_state':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'code': { 'type': 'string', 'enum': ['observation_only'] },
+                    'reason': { 'type': 'string', 'minLength': 1 },
+                    'follow_up': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } }
+                  },
+                'required': ['code', 'reason', 'follow_up'],
+                'additionalProperties': false,
+                'nullable': true
+              },
+            'judgment_origin': { 'enum': ['direct', 'inferred'] },
+            'reasoning_sources': { '$ref': '#/components/schemas/UnifiedReasoningSources' },
+            'variable_signals':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedSignal' } }
+          },
+        'required':
+          [
+            'local_key',
+            'source_id',
+            'name',
+            'assessment',
+            'reasoning_summary',
+            'graph',
+            'affected_nodes',
+            'empty_state'
+          ],
+        'additionalProperties': false
+      }
+    UnifiedChainRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string', 'pattern': '^ICH[0-9a-f-]{36}$' },
+            'name': { 'type': 'string', 'minLength': 1 },
+            'assessment': { '$ref': '#/components/schemas/UnifiedAssessmentRead' },
+            'reasoning_summary':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'logic': { 'type': 'string', 'minLength': 1 },
+                    'support': { '$ref': '#/components/schemas/UnifiedClaimRead' },
+                    'objections': { '$ref': '#/components/schemas/UnifiedObjectionsRead' }
+                  },
+                'required': ['logic', 'support', 'objections'],
+                'additionalProperties': false
+              },
+            'graph': { '$ref': '#/components/schemas/UnifiedGraphRead' },
+            'affected_nodes':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedNodeRead' } },
+            'empty_state':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'code': { 'type': 'string', 'enum': ['observation_only'] },
+                    'reason': { 'type': 'string', 'minLength': 1 },
+                    'follow_up': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } }
+                  },
+                'required': ['code', 'reason', 'follow_up'],
+                'additionalProperties': false,
+                'nullable': true
+              },
+            'judgment_origin': { 'enum': ['direct', 'inferred'] },
+            'reasoning_sources': { '$ref': '#/components/schemas/UnifiedReasoningSourcesRead' },
+            'variable_signals':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedSignalRead' } }
+          },
+        'required':
+          [
+            'local_key',
+            'source_id',
+            'name',
+            'assessment',
+            'reasoning_summary',
+            'graph',
+            'affected_nodes',
+            'empty_state'
+          ],
+        'additionalProperties': false
+      }
+    UnifiedMacro:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string', 'pattern': '^MEC[0-9a-f-]{36}$' },
+            'name': { 'type': 'string', 'minLength': 1 },
+            'assessment': { '$ref': '#/components/schemas/UnifiedAssessment' },
+            'objections': { '$ref': '#/components/schemas/UnifiedObjections' },
+            'judgment_origin': { 'enum': ['direct', 'inferred'] },
+            'reasoning_sources': { '$ref': '#/components/schemas/UnifiedReasoningSources' },
+            'variable_signals':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedSignal' } }
+          },
+        'required': ['local_key', 'source_id', 'name', 'assessment', 'objections'],
+        'additionalProperties': false
+      }
+    UnifiedMacroRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string', 'pattern': '^MEC[0-9a-f-]{36}$' },
+            'name': { 'type': 'string', 'minLength': 1 },
+            'assessment': { '$ref': '#/components/schemas/UnifiedAssessmentRead' },
+            'objections': { '$ref': '#/components/schemas/UnifiedObjectionsRead' },
+            'judgment_origin': { 'enum': ['direct', 'inferred'] },
+            'reasoning_sources': { '$ref': '#/components/schemas/UnifiedReasoningSourcesRead' },
+            'variable_signals':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedSignalRead' } }
+          },
+        'required': ['local_key', 'source_id', 'name', 'assessment', 'objections'],
+        'additionalProperties': false
+      }
+    UnifiedAnchorRef:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'reasoning_local_key': { 'type': 'string', 'minLength': 1 },
+            'local_key': { 'type': 'string', 'minLength': 1 }
+          },
+        'required': ['reasoning_local_key', 'local_key'],
+        'additionalProperties': false
+      }
+    UnifiedAnchorRefRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'reasoning_local_key': { 'type': 'string', 'minLength': 1 },
+            'local_key': { 'type': 'string', 'minLength': 1 }
+          },
+        'required': ['reasoning_local_key', 'local_key'],
+        'additionalProperties': false
+      }
+    UnifiedUnit:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string', 'minLength': 1 },
+            'title': { 'type': 'string', 'minLength': 1 },
+            'summary':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'conclusion': { 'type': 'string', 'minLength': 1 },
+                    'transmission_logic': { 'type': 'string', 'minLength': 1 },
+                    'impact_assessment':
+                      {
+                        'type': 'object',
+                        'properties':
+                          {
+                            'level':
+                              { 'type': 'string', 'enum': ['high', 'medium', 'low', 'pending'] },
+                            'rationale': { 'type': 'string', 'minLength': 1 },
+                            'evidence_ids':
+                              {
+                                'type': 'array',
+                                'uniqueItems': true,
+                                'items': { 'type': 'string', 'pattern': '^EVD[0-9a-f-]{36}$' }
+                              }
+                          },
+                        'required': ['level', 'rationale', 'evidence_ids'],
+                        'additionalProperties': false
+                      },
+                    'affected_refs':
+                      {
+                        'type': 'array',
+                        'items': { '$ref': '#/components/schemas/UnifiedAnchorRef' }
+                      },
+                    'evidence_ids':
+                      {
+                        'type': 'array',
+                        'uniqueItems': true,
+                        'items': { 'type': 'string', 'pattern': '^EVD[0-9a-f-]{36}$' }
+                      },
+                    'judgment': { 'type': 'string', 'minLength': 1 }
+                  },
+                'required':
+                  [
+                    'conclusion',
+                    'transmission_logic',
+                    'impact_assessment',
+                    'affected_refs',
+                    'evidence_ids'
+                  ],
+                'additionalProperties': false
+              },
+            'detail':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'variable_signals':
+                      {
+                        'type': 'array',
+                        'items': { '$ref': '#/components/schemas/UnifiedSignal' }
+                      },
+                    'companies':
+                      {
+                        'type': 'array',
+                        'items': { '$ref': '#/components/schemas/UnifiedCompany' }
+                      },
+                    'reasonings':
+                      {
+                        'type': 'array',
+                        'items': { '$ref': '#/components/schemas/UnifiedReasoning' },
+                        'minItems': 1
+                      }
+                  },
+                'required': ['reasonings'],
+                'additionalProperties': false
+              },
+            'judgment_origin': { 'enum': ['direct', 'inferred'] },
+            'reasoning_sources': { '$ref': '#/components/schemas/UnifiedReasoningSources' }
+          },
+        'required': ['local_key', 'source_id', 'title', 'summary', 'detail'],
+        'additionalProperties': false
+      }
+    UnifiedUnitRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string', 'minLength': 1 },
+            'title': { 'type': 'string', 'minLength': 1 },
+            'summary':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'conclusion': { 'type': 'string', 'minLength': 1 },
+                    'transmission_logic': { 'type': 'string', 'minLength': 1 },
+                    'impact_assessment':
+                      {
+                        'type': 'object',
+                        'properties':
+                          {
+                            'level':
+                              { 'type': 'string', 'enum': ['high', 'medium', 'low', 'pending'] },
+                            'rationale': { 'type': 'string', 'minLength': 1 },
+                            'evidence_scope_token': { 'type': 'string', 'nullable': true },
+                            'evidence_count': { 'type': 'integer', 'minimum': 0 }
+                          },
+                        'required':
+                          ['level', 'rationale', 'evidence_scope_token', 'evidence_count'],
+                        'additionalProperties': false
+                      },
+                    'affected_refs':
+                      {
+                        'type': 'array',
+                        'items': { '$ref': '#/components/schemas/UnifiedAnchorRef' }
+                      },
+                    'evidence_scope_token': { 'type': 'string', 'nullable': true },
+                    'evidence_count': { 'type': 'integer', 'minimum': 0 },
+                    'judgment': { 'type': 'string', 'minLength': 1 }
+                  },
+                'required':
+                  [
+                    'conclusion',
+                    'transmission_logic',
+                    'impact_assessment',
+                    'affected_refs',
+                    'evidence_scope_token',
+                    'evidence_count'
+                  ],
+                'additionalProperties': false
+              },
+            'detail':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'variable_signals':
+                      {
+                        'type': 'array',
+                        'items': { '$ref': '#/components/schemas/UnifiedSignalRead' }
+                      },
+                    'companies':
+                      {
+                        'type': 'array',
+                        'items': { '$ref': '#/components/schemas/UnifiedCompanyRead' }
+                      },
+                    'reasonings':
+                      {
+                        'type': 'array',
+                        'items': { '$ref': '#/components/schemas/UnifiedReasoningRead' },
+                        'minItems': 1
+                      }
+                  },
+                'required': ['reasonings'],
+                'additionalProperties': false
+              },
+            'judgment_origin': { 'enum': ['direct', 'inferred'] },
+            'reasoning_sources': { '$ref': '#/components/schemas/UnifiedReasoningSourcesRead' }
+          },
+        'required': ['local_key', 'source_id', 'title', 'summary', 'detail'],
+        'additionalProperties': false
+      }
+    UnifiedSignal:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'variable_id': { 'type': 'string', 'minLength': 1 },
+            'variable_name': { 'type': 'string', 'minLength': 1 },
+            'signal_id': { 'type': 'string', 'minLength': 1 },
+            'signal': { 'type': 'string', 'minLength': 1 },
+            'source_direction': { 'enum': ['UP', 'DOWN', 'MIXED', 'STABLE', 'UNKNOWN'] },
+            'adoption': { 'enum': ['qualified', 'adopted'] },
+            'qualification': { 'type': 'string', 'minLength': 1 },
+            'event_ids': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'evidence_ids': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } }
+          },
+        'required':
+          [
+            'variable_id',
+            'variable_name',
+            'signal_id',
+            'signal',
+            'source_direction',
+            'adoption',
+            'qualification',
+            'event_ids',
+            'evidence_ids'
+          ],
+        'additionalProperties': false
+      }
+    UnifiedSignalRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'variable_id': { 'type': 'string', 'minLength': 1 },
+            'variable_name': { 'type': 'string', 'minLength': 1 },
+            'signal_id': { 'type': 'string', 'minLength': 1 },
+            'signal': { 'type': 'string', 'minLength': 1 },
+            'source_direction': { 'enum': ['UP', 'DOWN', 'MIXED', 'STABLE', 'UNKNOWN'] },
+            'adoption': { 'enum': ['qualified', 'adopted'] },
+            'qualification': { 'type': 'string', 'minLength': 1 },
+            'event_ids': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'evidence_scope_token': { 'type': 'string', 'nullable': true },
+            'evidence_count': { 'type': 'integer', 'minimum': 0 }
+          },
+        'required':
+          [
+            'variable_id',
+            'variable_name',
+            'signal_id',
+            'signal',
+            'source_direction',
+            'adoption',
+            'qualification',
+            'event_ids',
+            'evidence_scope_token',
+            'evidence_count'
+          ],
+        'additionalProperties': false
+      }
+    UnifiedReasoningSources:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'signal_ids': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'event_ids': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'upstream_refs':
+              {
+                'type': 'array',
+                'items':
+                  {
+                    'type': 'object',
+                    'properties':
+                      {
+                        'entity_id': { 'type': 'string', 'minLength': 1 },
+                        'local_key': { 'type': 'string', 'minLength': 1 },
+                        'mechanism': { 'type': 'string', 'minLength': 1 },
+                        'condition': { 'type': 'string', 'minLength': 1 }
+                      },
+                    'required': ['entity_id', 'local_key'],
+                    'additionalProperties': false
+                  }
+              }
+          },
+        'required': ['signal_ids', 'event_ids', 'upstream_refs'],
+        'additionalProperties': false
+      }
+    UnifiedReasoningSourcesRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'signal_ids': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'event_ids': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'upstream_refs':
+              {
+                'type': 'array',
+                'items':
+                  {
+                    'type': 'object',
+                    'properties':
+                      {
+                        'entity_id': { 'type': 'string', 'minLength': 1 },
+                        'local_key': { 'type': 'string', 'minLength': 1 },
+                        'mechanism': { 'type': 'string', 'minLength': 1 },
+                        'condition': { 'type': 'string', 'minLength': 1 }
+                      },
+                    'required': ['entity_id', 'local_key'],
+                    'additionalProperties': false
+                  }
+              }
+          },
+        'required': ['signal_ids', 'event_ids', 'upstream_refs'],
+        'additionalProperties': false
+      }
+    UnifiedCompany:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string', 'pattern': '^COM[0-9a-f-]{36}$' },
+            'name': { 'type': 'string', 'minLength': 1 },
+            'assessment': { '$ref': '#/components/schemas/UnifiedAssessment' },
+            'objections': { '$ref': '#/components/schemas/UnifiedObjections' },
+            'judgment_origin': { 'enum': ['direct', 'inferred'] },
+            'reasoning_sources': { '$ref': '#/components/schemas/UnifiedReasoningSources' },
+            'variable_signals':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedSignal' } }
+          },
+        'required': ['local_key', 'source_id', 'name', 'assessment', 'objections'],
+        'additionalProperties': false
+      }
+    UnifiedCompanyRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string', 'pattern': '^COM[0-9a-f-]{36}$' },
+            'name': { 'type': 'string', 'minLength': 1 },
+            'assessment': { '$ref': '#/components/schemas/UnifiedAssessmentRead' },
+            'objections': { '$ref': '#/components/schemas/UnifiedObjectionsRead' },
+            'judgment_origin': { 'enum': ['direct', 'inferred'] },
+            'reasoning_sources': { '$ref': '#/components/schemas/UnifiedReasoningSourcesRead' },
+            'variable_signals':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedSignalRead' } }
+          },
+        'required': ['local_key', 'source_id', 'name', 'assessment', 'objections'],
+        'additionalProperties': false
+      }
+    UnifiedReport:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'schema_version': { 'enum': ['report-publication/v6'] },
+            'report_type': { '$ref': '#/components/schemas/UnifiedCodedLabel' },
+            'generated_at': { 'type': 'string', 'format': 'date-time' },
+            'timezone': { 'enum': ['Asia/Shanghai'] },
+            'analysis_window':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'start': { 'type': 'string', 'format': 'date-time' },
+                    'end': { 'type': 'string', 'format': 'date-time' }
+                  },
+                'required': ['start', 'end'],
+                'additionalProperties': false
+              },
+            'geopolitical_stories':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedUnit' } },
+            'macroeconomic_stories':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedUnit' } },
+            'concept_analyses':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedUnit' } },
+            'observations':
+              {
+                'type': 'array',
+                'items':
+                  {
+                    'type': 'object',
+                    'properties':
+                      {
+                        'local_key': { 'type': 'string', 'minLength': 1 },
+                        'title': { 'type': 'string', 'minLength': 1 },
+                        'text': { 'type': 'string', 'minLength': 1 },
+                        'evidence_ids':
+                          {
+                            'type': 'array',
+                            'uniqueItems': true,
+                            'items': { 'type': 'string', 'pattern': '^EVD[0-9a-f-]{36}$' }
+                          }
+                      },
+                    'required': ['local_key', 'title', 'text', 'evidence_ids'],
+                    'additionalProperties': false
+                  }
+              },
+            'limitations': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'industry_chain_analyses':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedUnit' } },
+            'company_analyses':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedCompany' } }
+          },
+        'required':
+          [
+            'schema_version',
+            'report_type',
+            'generated_at',
+            'timezone',
+            'analysis_window',
+            'geopolitical_stories',
+            'macroeconomic_stories',
+            'concept_analyses',
+            'observations',
+            'limitations'
+          ],
+        'additionalProperties': false
+      }
+    UnifiedReportRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'schema_version': { 'enum': ['report-publication/v6'] },
+            'report_type': { '$ref': '#/components/schemas/UnifiedCodedLabelRead' },
+            'generated_at': { 'type': 'string', 'format': 'date-time' },
+            'timezone': { 'enum': ['Asia/Shanghai'] },
+            'analysis_window':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'start': { 'type': 'string', 'format': 'date-time' },
+                    'end': { 'type': 'string', 'format': 'date-time' }
+                  },
+                'required': ['start', 'end'],
+                'additionalProperties': false
+              },
+            'geopolitical_stories':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedUnitRead' } },
+            'macroeconomic_stories':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedUnitRead' } },
+            'concept_analyses':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedUnitRead' } },
+            'observations':
+              {
+                'type': 'array',
+                'items':
+                  {
+                    'type': 'object',
+                    'properties':
+                      {
+                        'local_key': { 'type': 'string', 'minLength': 1 },
+                        'title': { 'type': 'string', 'minLength': 1 },
+                        'text': { 'type': 'string', 'minLength': 1 },
+                        'evidence_scope_token': { 'type': 'string', 'nullable': true },
+                        'evidence_count': { 'type': 'integer', 'minimum': 0 }
+                      },
+                    'required':
+                      ['local_key', 'title', 'text', 'evidence_scope_token', 'evidence_count'],
+                    'additionalProperties': false
+                  }
+              },
+            'limitations': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'industry_chain_analyses':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedUnitRead' } },
+            'company_analyses':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedCompanyRead' } }
+          },
+        'required':
+          [
+            'schema_version',
+            'report_type',
+            'generated_at',
+            'timezone',
+            'analysis_window',
+            'geopolitical_stories',
+            'macroeconomic_stories',
+            'concept_analyses',
+            'observations',
+            'limitations'
+          ],
+        'additionalProperties': false
+      }
+    UnifiedResolvedAnchor:
+      {
+        'type': 'object',
+        'additionalProperties': false,
+        'required': ['reference', 'source_id', 'name', 'assessment'],
+        'properties':
+          {
+            'reference': { '$ref': '#/components/schemas/UnifiedAnchorRef' },
+            'source_id': { 'type': 'string' },
+            'name': { 'type': 'string' },
+            'assessment': { '$ref': '#/components/schemas/UnifiedAssessmentRead' },
+            'judgment_origin': { 'type': 'string', 'enum': ['direct', 'inferred'] }
+          }
+      }
+    UnifiedSummaryProjection:
+      {
+        'type': 'object',
+        'additionalProperties': false,
+        'required':
+          [
+            'schema_version',
+            'local_key',
+            'source_id',
+            'title',
+            'summary',
+            'affected_anchors',
+            'chain_count',
+            'reasoning_count'
+          ],
+        'properties':
+          {
+            'schema_version': { 'type': 'string', 'enum': ['report-publication/v6'] },
+            'local_key': { 'type': 'string' },
+            'source_id': { 'type': 'string' },
+            'title': { 'type': 'string' },
+            'summary':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'conclusion': { 'type': 'string', 'minLength': 1 },
+                    'transmission_logic': { 'type': 'string', 'minLength': 1 },
+                    'impact_assessment':
+                      {
+                        'type': 'object',
+                        'properties':
+                          {
+                            'level':
+                              { 'type': 'string', 'enum': ['high', 'medium', 'low', 'pending'] },
+                            'rationale': { 'type': 'string', 'minLength': 1 },
+                            'evidence_count':
+                              {
+                                'type': 'integer',
+                                'minimum': 0,
+                                'description': 'Server-computed distinct Evidence count in this scope.'
+                              },
+                            'evidence_scope_token':
+                              {
+                                'type': 'string',
+                                'nullable': true,
+                                'pattern': '^RPE[0-9a-f-]{36}$'
+                              }
+                          },
+                        'required':
+                          ['level', 'rationale', 'evidence_count', 'evidence_scope_token'],
+                        'additionalProperties': false
+                      },
+                    'affected_refs':
+                      {
+                        'type': 'array',
+                        'items': { '$ref': '#/components/schemas/UnifiedAnchorRef' }
+                      },
+                    'evidence_count':
+                      {
+                        'type': 'integer',
+                        'minimum': 0,
+                        'description': 'Server-computed distinct Evidence count in this scope.'
+                      },
+                    'evidence_scope_token':
+                      { 'type': 'string', 'nullable': true, 'pattern': '^RPE[0-9a-f-]{36}$' },
+                    'judgment': { 'type': 'string', 'minLength': 1 }
+                  },
+                'required':
+                  [
+                    'conclusion',
+                    'transmission_logic',
+                    'impact_assessment',
+                    'affected_refs',
+                    'evidence_count',
+                    'evidence_scope_token'
+                  ],
+                'additionalProperties': false
+              },
+            'affected_anchors':
+              {
+                'type': 'array',
+                'items': { '$ref': '#/components/schemas/UnifiedResolvedAnchor' }
+              },
+            'chain_count': { 'type': 'integer', 'minimum': 0 },
+            'judgment_origin': { 'type': 'string', 'enum': ['direct', 'inferred'] },
+            'reasoning_count': { 'type': 'integer', 'minimum': 1 }
+          }
+      }
+    UnifiedChainHeader:
+      {
+        'type': 'object',
+        'additionalProperties': false,
+        'required': ['local_key', 'source_id', 'name', 'assessment', 'empty_state'],
+        'properties':
+          {
+            'judgment_origin': { 'type': 'string', 'enum': ['direct', 'inferred'] },
+            'local_key': { 'type': 'string' },
+            'source_id': { 'type': 'string' },
+            'name': { 'type': 'string' },
+            'assessment': { '$ref': '#/components/schemas/UnifiedAssessmentRead' },
+            'empty_state': { 'type': 'object', 'nullable': true }
+          }
+      }
+    UnifiedDetailProjection:
+      {
+        'type': 'object',
+        'additionalProperties': false,
+        'required': ['summary', 'reasonings'],
+        'properties':
+          {
+            'judgment_origin': { 'type': 'string', 'enum': ['direct', 'inferred'] },
+            'reasoning_sources': { '$ref': '#/components/schemas/UnifiedReasoningSources' },
+            'variable_signals':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedSignalRead' } },
+            'companies':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedCompanyRead' } },
+            'summary': { '$ref': '#/components/schemas/UnifiedSummaryProjection' },
+            'reasonings':
+              {
+                'type': 'array',
+                'items': { '$ref': '#/components/schemas/UnifiedReasoningRead' },
+                'minItems': 1
+              },
+            'published_at': { 'type': 'string', 'format': 'date-time' }
+          }
+      }
+    UnifiedCompanyProjection:
+      {
+        'type': 'object',
+        'additionalProperties': false,
+        'required': ['schema_version', 'company'],
+        'properties':
+          {
+            'schema_version': { 'type': 'string', 'enum': ['report-publication/v6'] },
+            'company': { '$ref': '#/components/schemas/UnifiedCompanyRead' }
+          }
+      }
+    UnifiedCompanySummary:
+      {
+        'type': 'object',
+        'additionalProperties': false,
+        'required': ['schema_version', 'company'],
+        'properties':
+          {
+            'schema_version': { 'type': 'string', 'enum': ['report-publication/v6'] },
+            'company':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'local_key': { 'type': 'string', 'minLength': 1 },
+                    'source_id': { 'type': 'string', 'pattern': '^COM[0-9a-f-]{36}$' },
+                    'name': { 'type': 'string', 'minLength': 1 },
+                    'assessment': { '$ref': '#/components/schemas/UnifiedAssessmentRead' },
+                    'objections': { '$ref': '#/components/schemas/UnifiedObjectionsRead' },
+                    'judgment_origin': { 'enum': ['direct', 'inferred'] }
+                  },
+                'required':
+                  ['local_key', 'source_id', 'name', 'assessment', 'objections', 'judgment_origin'],
+                'additionalProperties': false
+              }
+          }
+      }
+    UnifiedHomeProjection:
+      {
+        'type': 'object',
+        'additionalProperties': false,
+        'required':
+          [
+            'schema_version',
+            'generated_at',
+            'timezone',
+            'analysis_window',
+            'observations',
+            'limitations',
+            'report_type'
+          ],
+        'properties':
+          {
+            'schema_version': { 'type': 'string', 'enum': ['report-publication/v6'] },
+            'generated_at': { 'type': 'string', 'format': 'date-time' },
+            'timezone': { 'type': 'string', 'enum': ['Asia/Shanghai'] },
+            'analysis_window':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'start': { 'type': 'string', 'format': 'date-time' },
+                    'end': { 'type': 'string', 'format': 'date-time' }
+                  },
+                'required': ['start', 'end'],
+                'additionalProperties': false
+              },
+            'observations':
+              {
+                'type': 'array',
+                'items':
+                  {
+                    'type': 'object',
+                    'properties':
+                      {
+                        'local_key': { 'type': 'string', 'minLength': 1 },
+                        'title': { 'type': 'string', 'minLength': 1 },
+                        'text': { 'type': 'string', 'minLength': 1 },
+                        'evidence_count':
+                          {
+                            'type': 'integer',
+                            'minimum': 0,
+                            'description': 'Server-computed distinct Evidence count in this scope.'
+                          },
+                        'evidence_scope_token':
+                          { 'type': 'string', 'nullable': true, 'pattern': '^RPE[0-9a-f-]{36}$' }
+                      },
+                    'required':
+                      ['local_key', 'title', 'text', 'evidence_count', 'evidence_scope_token'],
+                    'additionalProperties': false
+                  }
+              },
+            'limitations': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } },
+            'report_type': { '$ref': '#/components/schemas/NormalizedReadCodedLabel' }
+          }
+      }
+    UnifiedMetric:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'name': { 'type': 'string', 'minLength': 1 },
+            'value': { 'type': 'number' },
+            'display_value': { 'type': 'string', 'minLength': 1 },
+            'unit': { 'type': 'string' },
+            'measure_type': { 'enum': ['level', 'change_rate', 'count'] },
+            'period_label': { 'type': 'string', 'minLength': 1 },
+            'as_of':
+              { 'type': 'string', 'anyOf': [{ 'format': 'date' }, { 'format': 'date-time' }] },
+            'value_nature': { 'enum': ['observed', 'forecast', 'assumption'] },
+            'evidence_ids':
+              {
+                'type': 'array',
+                'uniqueItems': true,
+                'items': { 'type': 'string', 'pattern': '^EVD[0-9a-f-]{36}$' }
+              }
+          },
+        'required': ['name', 'unit', 'measure_type', 'value_nature', 'evidence_ids'],
+        'additionalProperties': false,
+        'anyOf': [{ 'required': ['value'] }, { 'required': ['display_value'] }]
+      }
+    UnifiedMetricNode:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'name': { 'type': 'string', 'minLength': 1 },
+            'description': { 'type': 'string', 'minLength': 1 },
+            'metrics':
+              {
+                'type': 'array',
+                'items': { '$ref': '#/components/schemas/UnifiedMetric' },
+                'minItems': 1
+              }
+          },
+        'required': ['local_key', 'name', 'metrics'],
+        'additionalProperties': false
+      }
+    UnifiedMetricLink:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'from_node_local_key': { 'type': 'string', 'minLength': 1 },
+            'to_node_local_key': { 'type': 'string', 'minLength': 1 },
+            'label': { 'type': 'string', 'minLength': 1 }
+          },
+        'required': ['from_node_local_key', 'to_node_local_key'],
+        'additionalProperties': false
+      }
+    UnifiedBlock:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'title': { 'type': 'string', 'minLength': 1 },
+            'explanation': { 'type': 'string', 'minLength': 1 },
+            'relation_type': { 'enum': ['causal', 'comparison'] },
+            'nodes':
+              {
+                'type': 'array',
+                'items': { '$ref': '#/components/schemas/UnifiedMetricNode' },
+                'minItems': 1
+              },
+            'links':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedMetricLink' } }
+          },
+        'required': ['local_key', 'title', 'explanation', 'relation_type', 'nodes'],
+        'additionalProperties': false
+      }
+    UnifiedReasoning:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string' },
+            'assessment': { '$ref': '#/components/schemas/UnifiedAssessment' },
+            'reasoning_summary':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'logic': { 'type': 'string', 'minLength': 1 },
+                    'support': { '$ref': '#/components/schemas/UnifiedClaim' },
+                    'objections': { '$ref': '#/components/schemas/UnifiedObjections' }
+                  },
+                'required': ['logic', 'objections'],
+                'additionalProperties': false
+              },
+            'graph': { '$ref': '#/components/schemas/UnifiedGraph' },
+            'empty_state':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'code': { 'type': 'string', 'enum': ['observation_only'] },
+                    'reason': { 'type': 'string', 'minLength': 1 },
+                    'follow_up': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } }
+                  },
+                'required': ['code', 'reason', 'follow_up'],
+                'additionalProperties': false,
+                'nullable': true
+              },
+            'judgment_origin': { 'enum': ['direct', 'inferred'] },
+            'reasoning_sources': { '$ref': '#/components/schemas/UnifiedReasoningSources' },
+            'variable_signals':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedSignal' } },
+            'title': { 'type': 'string', 'minLength': 1 },
+            'affected_assets':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedNode' } },
+            'reasoning_blocks':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedBlock' } }
+          },
+        'required':
+          [
+            'local_key',
+            'title',
+            'assessment',
+            'reasoning_summary',
+            'reasoning_blocks',
+            'affected_assets'
+          ],
+        'additionalProperties': false
+      }
+    UnifiedMetricRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'name': { 'type': 'string', 'minLength': 1 },
+            'value': { 'type': 'number' },
+            'display_value': { 'type': 'string', 'minLength': 1 },
+            'unit': { 'type': 'string' },
+            'measure_type': { 'enum': ['level', 'change_rate', 'count'] },
+            'period_label': { 'type': 'string', 'minLength': 1 },
+            'as_of':
+              { 'type': 'string', 'anyOf': [{ 'format': 'date' }, { 'format': 'date-time' }] },
+            'value_nature': { 'enum': ['observed', 'forecast', 'assumption'] },
+            'evidence_count': { 'type': 'integer', 'minimum': 0 },
+            'evidence_scope_token':
+              { 'type': 'string', 'nullable': true, 'pattern': '^RPE[0-9a-f-]{36}$' }
+          },
+        'required':
+          [
+            'name',
+            'unit',
+            'measure_type',
+            'value_nature',
+            'evidence_count',
+            'evidence_scope_token'
+          ],
+        'additionalProperties': false,
+        'anyOf': [{ 'required': ['value'] }, { 'required': ['display_value'] }]
+      }
+    UnifiedMetricNodeRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'name': { 'type': 'string', 'minLength': 1 },
+            'description': { 'type': 'string', 'minLength': 1 },
+            'metrics':
+              {
+                'type': 'array',
+                'items': { '$ref': '#/components/schemas/UnifiedMetricRead' },
+                'minItems': 1
+              }
+          },
+        'required': ['local_key', 'name', 'metrics'],
+        'additionalProperties': false
+      }
+    UnifiedBlockRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'title': { 'type': 'string', 'minLength': 1 },
+            'explanation': { 'type': 'string', 'minLength': 1 },
+            'relation_type': { 'enum': ['causal', 'comparison'] },
+            'nodes':
+              {
+                'type': 'array',
+                'items': { '$ref': '#/components/schemas/UnifiedMetricNodeRead' },
+                'minItems': 1
+              },
+            'links':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedMetricLink' } }
+          },
+        'required': ['local_key', 'title', 'explanation', 'relation_type', 'nodes'],
+        'additionalProperties': false
+      }
+    UnifiedReasoningRead:
+      {
+        'type': 'object',
+        'properties':
+          {
+            'local_key': { 'type': 'string', 'minLength': 1 },
+            'source_id': { 'type': 'string' },
+            'assessment': { '$ref': '#/components/schemas/UnifiedAssessmentRead' },
+            'reasoning_summary':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'logic': { 'type': 'string', 'minLength': 1 },
+                    'support': { '$ref': '#/components/schemas/UnifiedClaimRead' },
+                    'objections': { '$ref': '#/components/schemas/UnifiedObjectionsRead' }
+                  },
+                'required': ['logic', 'objections'],
+                'additionalProperties': false
+              },
+            'graph': { '$ref': '#/components/schemas/UnifiedGraphRead' },
+            'empty_state':
+              {
+                'type': 'object',
+                'properties':
+                  {
+                    'code': { 'type': 'string', 'enum': ['observation_only'] },
+                    'reason': { 'type': 'string', 'minLength': 1 },
+                    'follow_up': { 'type': 'array', 'items': { 'type': 'string', 'minLength': 1 } }
+                  },
+                'required': ['code', 'reason', 'follow_up'],
+                'additionalProperties': false,
+                'nullable': true
+              },
+            'judgment_origin': { 'enum': ['direct', 'inferred'] },
+            'reasoning_sources': { '$ref': '#/components/schemas/UnifiedReasoningSourcesRead' },
+            'variable_signals':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedSignalRead' } },
+            'title': { 'type': 'string', 'minLength': 1 },
+            'affected_assets':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedNodeRead' } },
+            'reasoning_blocks':
+              { 'type': 'array', 'items': { '$ref': '#/components/schemas/UnifiedBlockRead' } }
+          },
+        'required':
+          [
+            'local_key',
+            'title',
+            'assessment',
+            'reasoning_summary',
+            'reasoning_blocks',
+            'affected_assets'
+          ],
+        'additionalProperties': false
       }

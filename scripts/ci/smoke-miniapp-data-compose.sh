@@ -91,11 +91,16 @@ evidence_response="$(
 evidence_one="$(jq -er '.result.items | map(select(.input_index == 0)) | .[0].id' <<<"$evidence_response")"
 evidence_two="$(jq -er '.result.items | map(select(.input_index == 1)) | .[0].id' <<<"$evidence_response")"
 
+# Keep one representative per product group; full fixture coverage belongs to report contract tests.
 echo "Publishing smoke Report fixture"
 if ! report_response="$(
   jq --arg evidence_one "$evidence_one" --arg evidence_two "$evidence_two" \
     --arg publisher_report_id "report-smoke-${run_suffix}" '
       .publisher_report_id = $publisher_report_id
+      | .report.geopolitical_stories |= .[:1]
+      | .report.macroeconomic_stories |= .[:1]
+      | .report.concept_analyses |= .[:1]
+      | del(.report.industry_chain_analyses, .report.company_analyses)
       | walk(
           if type == "string" and . == "EVD11111111-1111-4111-8111-111111111111" then
             $evidence_one
@@ -103,7 +108,7 @@ if ! report_response="$(
             $evidence_two
           else . end
         )
-    ' "$repo_root/data-service/backend/api/data/v1/report/testdata/normalized-publication-request.json" | \
+    ' "$repo_root/data-service/backend/api/data/v1/report/testdata/unified-publication-request.json" | \
     curl --fail-with-body --silent --show-error \
       -H "$auth_header" -H 'Content-Type: application/json' \
       --data-binary @- "$data_api/report-publications"
@@ -124,10 +129,11 @@ jq -e --arg report_id "$report_id" '
   .result.selection.timezone == "Asia/Shanghai"
   and (.result.reports | length == 1)
   and .result.reports[0].report.id == $report_id
-  and .result.reports[0].report.schema_version == "report-publication/v4"
+  and .result.reports[0].report.schema_version == "report-publication/v6"
   and (.result.reports[0].analysis_groups | map(.kind) ==
-    ["geopolitical_stories", "macroeconomic_stories", "concept_analyses"])
-  and all(.result.reports[0].analysis_groups[]; (.items | length == 1) and .next_cursor == null)
+    ["geopolitical_stories", "macroeconomic_stories", "concept_analyses", "industry_chain_analyses"])
+  and all(.result.reports[0].analysis_groups[:3][]; (.items | length == 1) and .next_cursor == null)
+  and (.result.reports[0].analysis_groups[3].items | length == 0)
 ' <<<"$home_response" >/dev/null
 
 for kind in geopolitical_stories macroeconomic_stories concept_analyses; do
@@ -139,23 +145,27 @@ for kind in geopolitical_stories macroeconomic_stories concept_analyses; do
   ' <<<"$page_response" >/dev/null
   analysis_key="$(jq -er '.result.items[0].local_key' <<<"$page_response")"
   detail_response="$(curl --fail --silent --show-error "$miniapp_api/reports/$report_id/analyses/$kind/$analysis_key")"
-  jq -e --argjson expected "$expected_items" '
-    .result.summary == $expected[0] and (.result.industry_chains | length > 0)
+  expected_reasonings="$(jq -c --arg kind "$kind" --arg analysis_key "$analysis_key" '
+    .report[$kind][] | select(.local_key == $analysis_key) | .detail.reasonings
+  ' "$repo_root/data-service/backend/api/data/v1/report/testdata/unified-publication-request.json")"
+  jq -e --argjson expected "$expected_items" --argjson reasonings "$expected_reasonings" '
+    def business_block:
+      walk(if type == "object" then del(.evidence_ids, .evidence_scope_token, .evidence_count) else . end);
+    .result.summary == $expected[0]
+    and (.result.reasonings | length > 0)
+    and (.result.reasonings | map(.local_key)) == ($reasonings | map(.local_key))
+    and all(.result.reasonings[];
+      . as $actual
+      | ($reasonings[] | select(.local_key == $actual.local_key)) as $source
+      | .graph == $source.graph
+        and .empty_state == $source.empty_state
+        and .reasoning_summary.logic == $source.reasoning_summary.logic
+        and (.affected_assets | map({local_key, name, delta: .assessment.weight_delta_pp}))
+          == ($source.affected_assets | map({local_key, name, delta: .assessment.weight_delta_pp}))
+        and (.reasoning_blocks | business_block)
+          == ($source.reasoning_blocks | business_block)
+    )
   ' <<<"$detail_response" >/dev/null
-  chain_keys="$(jq -er '.result.industry_chains[].local_key' <<<"$detail_response")"
-  while IFS= read -r chain_key; do
-    chain_response="$(curl --fail --silent --show-error "$miniapp_api/reports/$report_id/analyses/$kind/$analysis_key/industry-chains/$chain_key")"
-    expected_chain="$(jq -c --arg kind "$kind" --arg analysis_key "$analysis_key" --arg chain_key "$chain_key" '
-      .report[$kind][] | select(.local_key == $analysis_key)
-      | .detail.industry_chains[] | select(.local_key == $chain_key)
-    ' "$repo_root/data-service/backend/api/data/v1/report/testdata/normalized-publication-request.json")"
-    jq -e --argjson expected "$expected_chain" '
-      .result.local_key == $expected.local_key
-      and .result.graph == $expected.graph
-      and (.result.affected_nodes | map(.local_key)) == ($expected.affected_nodes | map(.local_key))
-      and .result.empty_state == $expected.empty_state
-    ' <<<"$chain_response" >/dev/null
-  done <<<"$chain_keys"
 done
 scope_token="$(jq -er '.result.reports[0].analysis_groups[0].items[0].summary.evidence_scope_token' <<<"$home_response")"
 
