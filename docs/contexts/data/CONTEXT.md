@@ -1,5 +1,16 @@
 # Data Context
 
+## 已确认的下一版文档 Event 合同（#513，尚未激活）
+
+一篇 Raw Evidence 对应一个 Event，title/summary 为整篇事实，keywords 为最多五条量化事实。
+Event 使用 collected_at（提取完成）和 published_at（原新闻时间）；semantic 改存 event_semantics
+子表，无 position，四类时间为原文文本，三个分类为 POLICY/GENERAL、PLANNED/OCCURRED、
+CONFIRMED/UNCONFIRMED。event_evidence_links 直接引用 Raw，报告改为引用 Event 再追溯 Raw。
+目标删除 Atomic Evidence 表及 Event Actor/Asset 表；现有消费者和历史数据不可直接混用。
+
+数据库候选及生效条件见 [候选说明](../../../data-service/backend/migrations/candidates/README.md)。
+下面章节仍描述尚在运行的旧合同，配套接口完成后才整体替换；本次不把目标伪装成当前行为。
+
 ## Purpose
 
 Data Domain Service 是当前唯一 Domain Service，负责稳定的数据事实、领域规则、持久化、受控导入和查询 API。
