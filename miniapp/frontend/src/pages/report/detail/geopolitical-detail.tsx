@@ -92,7 +92,7 @@ function Block({ block, ...evidence }: { block: ReasoningBlock } & EvidenceProps
       </View>
       {!!block.nodes.length && (
         <ScrollView scrollX className='geo-detail-scroll'>
-          <View className='geo-detail-metric-row'>
+          <View className={`geo-detail-metric-row ${block.nodes.length <= 3 ? 'is-centered' : ''}`}>
             {block.nodes.map((node) => (
               <View className='geo-detail-metric-node' key={node.local_key}>
                 {block.relation_type === 'comparison' && (
@@ -170,7 +170,7 @@ function Assets({ assets, ...evidence }: { assets: NodeImpact[] } & EvidenceProp
     <View className='geo-detail-assets-surface'>
       {assets.length > 3 && <Text className='geo-detail-scroll-hint'>向右滑动查看更多资产 →</Text>}
       <ScrollView scrollX className='geo-detail-scroll'>
-        <View className='geo-detail-asset-row'>
+        <View className={`geo-detail-asset-row ${assets.length <= 3 ? 'is-centered' : ''}`}>
           {assets.map((asset) => (
             <Button
               key={asset.local_key}

@@ -78,6 +78,9 @@
   display: flex;
   align-items: stretch;
   gap: 14px;
+  &.is-centered {
+    justify-content: center;
+  }
 }
 .geo-detail-metric-node {
   flex: 0 0 calc((100% - 28px) / 3);
