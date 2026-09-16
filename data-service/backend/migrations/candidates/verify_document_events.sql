@@ -3,6 +3,9 @@
 \set ON_ERROR_STOP on
 BEGIN;
 SET LOCAL tidewise.document_event_cutover = 'issue-513-reviewed';
+INSERT INTO raw_evidences(id, source_id, source_name, source_level, source_url, is_original, raw_text, collected_at)
+VALUES ('RAW11111111-1111-4111-8111-111111111111', 'test-source', 'Test source', 'L1_OFFICIAL',
+        'https://example.invalid/article', true, '/raw-evidence/test.md', '2026-09-16T00:00:00Z');
 \ir document_events.sql
 
 CREATE FUNCTION pg_temp.expect_error(statement TEXT, expected_state TEXT) RETURNS VOID LANGUAGE plpgsql AS $$
@@ -16,9 +19,6 @@ BEGIN
     RAISE EXCEPTION 'Expected SQLSTATE %, statement succeeded: %', expected_state, statement;
 END $$;
 
-INSERT INTO raw_evidences(id, source_id, source_name, source_level, source_url, is_original, raw_text, collected_at)
-VALUES ('RAW11111111-1111-4111-8111-111111111111', 'test-source', 'Test source', 'L1_OFFICIAL',
-        'https://example.invalid/article', true, '/raw-evidence/test.md', '2026-09-16T00:00:00Z');
 INSERT INTO events(id,title,summary,collected_at,keywords)
 VALUES ('EVT11111111-1111-4111-8111-111111111111', repeat('原文事实',100), '完整摘要',
         '2026-09-16T01:00:00Z', ARRAY['12人死亡','上涨1.2%','税率249.13%','约两成','2026年收入100亿元']);
