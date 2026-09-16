@@ -27,13 +27,12 @@ BEGIN
        OR EXISTS (SELECT 1 FROM event_actor_links)
        OR EXISTS (SELECT 1 FROM event_asset_links)
        OR EXISTS (SELECT 1 FROM event_publication_receipts)
-       OR EXISTS (SELECT 1 FROM evidences)
        OR EXISTS (SELECT 1 FROM report_evidence_links)
        OR EXISTS (SELECT 1 FROM report_archive)
        OR EXISTS (SELECT 1 FROM report_publications)
        OR EXISTS (SELECT 1 FROM report_summary)
        OR EXISTS (SELECT 1 FROM report_detail) THEN
-        RAISE EXCEPTION USING ERRCODE = '55000', MESSAGE = 'legacy Event/Evidence/Report data requires an explicit archival or rebuild plan; no automatic deletion or conversion';
+        RAISE EXCEPTION USING ERRCODE = '55000', MESSAGE = 'legacy Event/Report data requires an explicit archival or rebuild plan; Evidence-only discard is authorized';
     END IF;
 END $$;
 
@@ -98,6 +97,13 @@ CREATE TABLE event_evidence_links (
 );
 COMMENT ON TABLE event_evidence_links IS 'Exactly one Raw document version per Event and at most one Event per Raw; table name retained deliberately.';
 
+CREATE FUNCTION prevent_event_raw_link_mutation() RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION USING ERRCODE = '55000', MESSAGE = 'Event Raw provenance is immutable';
+END $$;
+CREATE TRIGGER trg_event_raw_links_immutable BEFORE UPDATE OR DELETE ON event_evidence_links
+FOR EACH ROW EXECUTE FUNCTION prevent_event_raw_link_mutation();
+
 CREATE FUNCTION enforce_event_raw_link() RETURNS TRIGGER LANGUAGE plpgsql AS $$
 DECLARE affected_event_id TEXT;
 BEGIN
@@ -153,6 +159,12 @@ ALTER TABLE report_event_links ADD CONSTRAINT report_event_links_event_id_fkey
 ALTER TABLE report_event_links ADD CONSTRAINT chk_report_event_links_event_id CHECK (
     event_id ~ '^EVT[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
 );
+ALTER TABLE report_event_links RENAME CONSTRAINT report_evidence_links_pkey TO report_event_links_pkey;
+ALTER TABLE report_event_links RENAME CONSTRAINT report_evidence_links_report_id_fkey TO report_event_links_report_id_fkey;
+ALTER TABLE report_event_links RENAME CONSTRAINT chk_report_evidence_links_id TO chk_report_event_links_id;
+ALTER TABLE report_event_links RENAME CONSTRAINT chk_report_evidence_links_report_id TO chk_report_event_links_report_id;
+ALTER TABLE report_event_links RENAME CONSTRAINT chk_report_evidence_links_scope_path TO chk_report_event_links_scope_path;
+ALTER TABLE report_event_links RENAME CONSTRAINT chk_report_evidence_links_position TO chk_report_event_links_position;
 ALTER TABLE report_event_links RENAME CONSTRAINT uq_report_evidence_links_scope_evidence TO uq_report_event_links_scope_event;
 ALTER TABLE report_event_links RENAME CONSTRAINT uq_report_evidence_links_scope_position TO uq_report_event_links_scope_position;
 ALTER INDEX idx_report_evidence_links_evidence_id RENAME TO idx_report_event_links_event_id;
@@ -166,5 +178,6 @@ COMMENT ON COLUMN report_event_links.position IS 'Report citation presentation o
 COMMENT ON COLUMN report_archive.event_counts IS 'Distinct Event counts by report scope, computed at publication.';
 COMMENT ON COLUMN report_publications.event_counts IS 'Distinct Event counts by report scope, computed at publication.';
 
+-- User explicitly authorized discarding existing Atomic Evidence rows (#513).
 -- No CASCADE: unexpected dependants must stop the entire transaction.
 DROP TABLE evidences;

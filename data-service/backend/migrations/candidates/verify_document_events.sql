@@ -6,6 +6,10 @@ SET LOCAL tidewise.document_event_cutover = 'issue-513-reviewed';
 INSERT INTO raw_evidences(id, source_id, source_name, source_level, source_url, is_original, raw_text, collected_at)
 VALUES ('RAW11111111-1111-4111-8111-111111111111', 'test-source', 'Test source', 'L1_OFFICIAL',
         'https://example.invalid/article', true, '/raw-evidence/test.md', '2026-09-16T00:00:00Z');
+-- Existing Atomic Evidence may be discarded; its Raw document must survive.
+INSERT INTO evidences(id,raw_evidence_id,is_split,summary,semantic,keywords)
+VALUES ('EVD11111111-1111-4111-8111-111111111111','RAW11111111-1111-4111-8111-111111111111',false,'可丢弃旧证据',
+'{"actors":["公司"],"action":"公告","objects":["项目"],"stage":"ANNOUNCED","modality":"FACT","time":{"raw":null,"start_at":null,"end_at":null,"precision":"UNKNOWN"},"jurisdictions":[],"reason":null,"method":null,"metrics":[],"attribution":{"reported_by":null,"claimed_by":null}}',ARRAY['公告']);
 \ir document_events.sql
 
 CREATE FUNCTION pg_temp.expect_error(statement TEXT, expected_state TEXT) RETURNS VOID LANGUAGE plpgsql AS $$
@@ -32,10 +36,14 @@ VALUES ('ESM11111111-1111-4111-8111-111111111111','EVT11111111-1111-4111-8111-11
        ('ESM22222222-2222-4222-8222-222222222222','EVT11111111-1111-4111-8111-111111111111','政府','公布终裁',NULL,'9月11日','10月1日',NULL,NULL,'POLICY','OCCURRED','CONFIRMED'),
        ('ESM33333333-3333-4333-8333-333333333333','EVT11111111-1111-4111-8111-111111111111','某公司','完成收购','另一公司',NULL,NULL,'原定10月1日','实际10月3日','GENERAL','OCCURRED','UNCONFIRMED');
 
+INSERT INTO raw_evidences(id,source_id,source_name,source_level,source_url,is_original,raw_text,collected_at)
+VALUES ('RAW22222222-2222-4222-8222-222222222222','test-source','Test source','L1_OFFICIAL','https://example.invalid/other',true,'/raw-evidence/other.md',now());
+-- A valid alternate source still cannot rewrite a published Event's provenance.
+SELECT pg_temp.expect_error($q$UPDATE event_evidence_links SET raw_evidence_id='RAW22222222-2222-4222-8222-222222222222'$q$,'55000');
 SELECT pg_temp.expect_error($q$UPDATE events SET keywords=ARRAY['1','2','3','4','5','6']$q$,'23514');
 SELECT pg_temp.expect_error($q$UPDATE events SET keywords=ARRAY[NULL::text]$q$,'23514');
 SELECT pg_temp.expect_error($q$UPDATE event_semantics SET assertion_status='RUMOR'$q$,'23514');
-SELECT pg_temp.expect_error($q$UPDATE event_evidence_links SET raw_evidence_id='RAW22222222-2222-4222-8222-222222222222'$q$,'23503');
+SELECT pg_temp.expect_error($q$UPDATE event_evidence_links SET raw_evidence_id='RAW22222222-2222-4222-8222-222222222222'$q$,'55000');
 SELECT pg_temp.expect_error($q$DELETE FROM raw_evidences$q$,'23503');
 SELECT pg_temp.expect_error($q$TRUNCATE event_evidence_links$q$,'23514');
 SELECT pg_temp.expect_error($q$
@@ -45,7 +53,7 @@ $q$,'23505');
 SELECT pg_temp.expect_error($q$
  DELETE FROM event_evidence_links;
  SET CONSTRAINTS ALL IMMEDIATE;
-$q$,'23514');
+$q$,'55000');
 SELECT pg_temp.expect_error($q$
  INSERT INTO events(id,title,summary,collected_at) VALUES ('EVT33333333-3333-4333-8333-333333333333','无来源','摘要',now());
  SET CONSTRAINTS ALL IMMEDIATE;
@@ -63,6 +71,11 @@ BEGIN
     IF (SELECT count(*) FROM report_event_links r JOIN events e ON e.id=r.event_id
         JOIN event_evidence_links l ON l.event_id=e.id JOIN raw_evidences raw ON raw.id=l.raw_evidence_id) <> 1 THEN
         RAISE EXCEPTION 'Report -> Event -> Raw provenance failed';
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='report_event_links'::regclass AND conname LIKE '%report_evidence_links%')
+       OR EXISTS (SELECT 1 FROM pg_indexes WHERE tablename='report_event_links' AND indexname LIKE '%report_evidence_links%')
+       OR EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='report_event_links'::regclass AND tgname LIKE '%report_evidence_links%') THEN
+        RAISE EXCEPTION 'retired report Evidence object names remain';
     END IF;
     IF (SELECT published_at IS NOT NULL FROM events LIMIT 1) THEN RAISE EXCEPTION 'unknown news date was invented'; END IF;
     IF to_regclass('evidences') IS NOT NULL OR to_regclass('event_actor_links') IS NOT NULL

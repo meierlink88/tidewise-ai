@@ -11,7 +11,7 @@
 
 - events: title TEXT、summary、keywords TEXT[]（0–5）、collected_at、可空 published_at、status。
 - event_semantics: ESM ID/Event FK；actor/action/target、四类文本时间、三个枚举；无 position。
-- event_evidence_links: EEL ID，Event/Raw 两端各自唯一；事务提交时 Event 必须恰有一个来源。
+- event_evidence_links: EEL ID，Event/Raw 两端各自唯一；事务提交时 Event 必须恰有一个来源，已建立的来源关系不可改写或删除。
 - report_event_links: 报告 scope 引用 EVT，通过 Event 来源关系追溯 RAW；保留报告引用的 position
   和不可变约束，不是给 event_semantics 增加 position。RPE 前缀复用于 Report Event link。
 - event_publication_receipts: 保留幂等键/摘要/唯一约束，Data 写入时间改名 recorded_at。
@@ -32,7 +32,8 @@
    Admin/Miniapp/Research/AgentOS consumers。不得把 EVT 冒充 EVD 或静默重写旧 immutable snapshot。
 4. 改 Event 提取和图谱投影，启停旧 schedules、确认 pending 队列处置；不是本候选自动完成的动作。
 5. 确认历史数据策略和环境，备份、停写、核验恢复点，重新审阅基线及无新引用后晋升正式 ledger。
-   现有非空 Event/Evidence/Report 会被拒绝；本候选没有 TRUNCATE/DELETE/CASCADE，也没有自动迁移历史。
+   用户已授权丢弃现有 Atomic Evidence，不迁移其内容；DROP evidences 会移除其行。
+   现有非空 Event/Report 仍被拒绝，不推导为允许删除这些事实。本候选没有 TRUNCATE/DELETE/CASCADE。
 
 ## 临时库验证
 
@@ -44,14 +45,16 @@ psql "$EMPTY_TEST_DATABASE_URL" -X -v ON_ERROR_STOP=1 \
   -f data-service/backend/migrations/candidates/verify_document_events.sql
 ```
 
-验证脚本单事务应用候选和合成数据，最终 ROLLBACK；发生错误连接关闭也回滚。验证包含空 semantic、
+验证脚本单事务应用候选和合成数据，最终 ROLLBACK；发生错误连接关闭也回滚。验证包含已有 Evidence 的授权丢弃及 Raw 保留、空 semantic、
 三个正交枚举、模糊计划/实际时间、长标题、五条量化标签、错误枚举/第六标签、Raw一对一、
-无来源提交、删除/截断来源保护，以及报告→Event→Raw关联和报告不可变性。
+来源改写阻断、无来源提交、删除/截断来源保护，以及报告→Event→Raw关联和报告不可变性。
 
 `document_events.sql` 本身需要外层事务和显式 `SET LOCAL tidewise.document_event_cutover =
 'issue-513-reviewed'`，没有该标记或基线不是93则拒绝。该标记不替代用户对实际环境和恢复点的确认。
 
-SQL未转换任意历史事实；旧 Event/Evidence/Report 非空即原子失败。完整回滚是恢复已审阅的数据库
+SQL 不转换历史 Evidence，按授权直接退役该表和内容；旧 Event/Report 非空仍原子失败。完整回滚是恢复已审阅的数据库
 备份并回退匹配的所有消费者，不提供把文档 Event 伪装成原子 Evidence 的 down migration。
 
 本轮仅证明数据库候选结构，不证明新 API、提取模型效果或线上升级成功。
+
+新闻发布时间由后续 Data 写入路径从 Raw 复制并冻结，须在持久化边界测试中覆盖非空与未知时间；本候选不新增跨表时间同步触发器。
