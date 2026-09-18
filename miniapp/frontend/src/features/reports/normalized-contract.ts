@@ -156,6 +156,15 @@ const fail = (): never => {
 const str = (v: unknown): string => (typeof v === 'string' && v.length <= 16000 ? v : fail());
 const key = (v: unknown): string =>
   /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(str(v)) ? str(v) : fail();
+// A v6 graph reference is Data-owned text, not a route LocalKey.
+const graphKey = (v: unknown): string =>
+  typeof v === 'string' &&
+  v !== '' &&
+  v === v.trim() &&
+  [...v].length <= 16000 &&
+  !/[\uD800-\uDFFF]/u.test(v)
+    ? v
+    : fail();
 const num = (v: unknown): number =>
   typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 ? v : fail();
 const list = <T>(v: unknown, parse: (v: unknown) => T): T[] =>
@@ -567,7 +576,8 @@ function unifiedReasoning(value: unknown, optionalMetadata = false): UnifiedReas
     const a = obj(x);
     return {
       ...macro({ ...a, source_id: a.source_id ?? '' }, optionalMetadata),
-      node_local_key: a.node_local_key === undefined ? '' : str(a.node_local_key)
+      node_local_key:
+        a.node_local_key === undefined || a.node_local_key === '' ? '' : graphKey(a.node_local_key)
     };
   });
   unique(assets.map((a) => a.local_key));
@@ -632,13 +642,13 @@ function unifiedReasoning(value: unknown, optionalMetadata = false): UnifiedReas
     graph = {
       nodes: list(g.nodes, (x) => {
         const n = obj(x);
-        return { local_key: key(n.local_key), source_id: str(n.source_id), name: str(n.name) };
+        return { local_key: graphKey(n.local_key), source_id: str(n.source_id), name: str(n.name) };
       }),
       edges: list(g.edges, (x) => {
         const e = obj(x);
         return {
-          from_node_local_key: key(e.from_node_local_key),
-          to_node_local_key: key(e.to_node_local_key),
+          from_node_local_key: graphKey(e.from_node_local_key),
+          to_node_local_key: graphKey(e.to_node_local_key),
           relation_label: str(e.relation_label)
         };
       })

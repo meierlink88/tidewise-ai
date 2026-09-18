@@ -79,6 +79,52 @@ it('accepts additive publication metadata and preserves older detail responses',
   ).toBeUndefined();
 });
 
+function detailWithGraphKey(newKey: string) {
+  const value = structuredClone(unified.details['concept_analyses/c1']);
+  const reasoning = value.reasonings[0];
+  const oldKey = reasoning.graph.nodes[0].local_key;
+  reasoning.graph.nodes[0].local_key = newKey;
+  reasoning.graph.edges.forEach((edge) => {
+    if (edge.from_node_local_key === oldKey) edge.from_node_local_key = newKey;
+    if (edge.to_node_local_key === oldKey) edge.to_node_local_key = newKey;
+  });
+  reasoning.affected_assets.forEach((asset) => {
+    if (asset.node_local_key === oldKey) asset.node_local_key = newKey;
+  });
+  return value;
+}
+
+it.each([128, 134, 16000])(
+  'preserves v6 graph references with %i-character node keys',
+  (length) => {
+    const value = detailWithGraphKey('n'.repeat(length));
+    const reasoning = value.reasonings[0];
+    const detail = parseAnalysisDetail(value, value.summary.local_key);
+    expect(detail.reasonings?.[0].graph?.nodes).toEqual(reasoning.graph.nodes);
+    expect(detail.reasonings?.[0].graph?.edges).toEqual(reasoning.graph.edges);
+    expect(detail.reasonings?.[0].affected_assets.map((a) => a.node_local_key)).toEqual(
+      reasoning.affected_assets.map((a) => a.node_local_key)
+    );
+    reasoning.graph.edges[0].from_node_local_key = 'missing';
+    expect(() => parseAnalysisDetail(value, value.summary.local_key)).toThrow();
+  }
+);
+
+it.each(['', ' node ', 'n'.repeat(16001), '\ud800'])(
+  'rejects invalid v6 graph node text',
+  (key) => {
+    const value = detailWithGraphKey(key);
+    expect(() => parseAnalysisDetail(value, value.summary.local_key)).toThrow();
+  }
+);
+
+it('counts graph key characters consistently with the provider', () => {
+  const value = detailWithGraphKey('𠮷'.repeat(16000));
+  expect(
+    parseAnalysisDetail(value, value.summary.local_key).reasonings?.[0].graph?.nodes[0].local_key
+  ).toBe(value.reasonings[0].graph.nodes[0].local_key);
+});
+
 it('reads the v6 provider fixture for all three reasoning domains', () => {
   expect(parseAnalysisGroups(unified.groups)).toHaveLength(4);
   Object.values(unified.details).forEach((value) => {
