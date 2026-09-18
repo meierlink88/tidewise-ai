@@ -237,6 +237,8 @@ Node/Taro 依赖直接运行，并把 `dist/<platform>` 写入宿主机供微信
 
 本节取代上述按 macro_impacts / industry_chains 切换的新产品读路径。首页查询只选择 report-publication/v6；三板块共享 summary 与 detail.reasonings[]，详情一次读取并本地切换推导。
 
+v6 图节点 `graph.nodes[].local_key` 是报告内引用，遵循 Data 的非空、无首尾空白、最多 16000 个有效 UTF-8 字符的文本合同，不套用 API 路由 LocalKey 的 128 字符限制。BFF 原样保留节点键及边、资产引用，并继续校验图内唯一性与引用完整性；顶层分析与路由键规则不变。
+
 #500 恢复 PR #499 前 aea4bdd4 的 UI：顶部结论、原因果链 Tab、本链结论、关键机制、支持/反证、图谱与核心分析。数据统一不授权更改页面视觉。前端 presentation 将带 graph 的推导绑定到原图谱组件，无 graph 的推导绑定到原宏观内容区；不从资产列表推测图谱，不再调用退休的单链读取接口。关键机制和支持/反证读取 reasoning_summary；节点正文、方向、信号读取 graph 对应的 affected_assets。新指标区块、配置幅度和其他额外字段保留在合同中，不新增展示区域。首页恢复原方向标签、颜色和事件文案，引用身份读取 reasoning_local_key + local_key。
 
 scope token 始终绑定所属 reportId，证据弹层交互保持。业务字段与迁移步骤见 [v6 合同](../data/report-publication-v6.md)。不回滚服务或迁移数据，不从实体数据库核验或补写报告资产内容。

@@ -344,6 +344,87 @@ func TestUnifiedBoundaryRejectsMalformedProviderData(t *testing.T) {
 	}
 }
 
+func TestUnifiedGraphNodeKeysFollowProviderTextContract(t *testing.T) {
+	raw, err := os.ReadFile("../../../../frontend/src/mocks/reports/unified-v6.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fixture struct {
+		Details map[string]json.RawMessage `json:"details"`
+	}
+	if err := json.Unmarshal(raw, &fixture); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name, key, mutation string
+		wantError           bool
+	}{
+		{"route length", strings.Repeat("n", 128), "", false},
+		{"published graph length", strings.Repeat("n", 134), "", false},
+		{"provider maximum", strings.Repeat("节", 16000), "", false},
+		{"too long", strings.Repeat("n", 16001), "", true},
+		{"blank", "", "", true},
+		{"padded", " node ", "", true},
+		{"duplicate", strings.Repeat("n", 134), "duplicate", true},
+		{"foreign edge", strings.Repeat("n", 134), "edge", true},
+		{"foreign asset", strings.Repeat("n", 134), "asset", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var p biz.NormalizedDetailProjection
+			if err := json.Unmarshal(fixture.Details["concept_analyses/c1"], &p); err != nil {
+				t.Fatal(err)
+			}
+			r := &p.Reasonings[0]
+			oldKey := r.Graph.Nodes[0].LocalKey
+			r.Graph.Nodes[0].LocalKey = tc.key
+			for i := range r.Graph.Edges {
+				e := &r.Graph.Edges[i]
+				if e.FromNodeLocalKey == oldKey {
+					e.FromNodeLocalKey = tc.key
+				}
+				if e.ToNodeLocalKey == oldKey {
+					e.ToNodeLocalKey = tc.key
+				}
+			}
+			matched := false
+			for i := range r.AffectedAssets {
+				if r.AffectedAssets[i].NodeLocalKey == oldKey {
+					r.AffectedAssets[i].NodeLocalKey = tc.key
+					matched = true
+				}
+			}
+			if !matched || len(r.Graph.Edges) == 0 {
+				t.Fatal("fixture must exercise graph references")
+			}
+			switch tc.mutation {
+			case "duplicate":
+				r.Graph.Nodes = append(r.Graph.Nodes, r.Graph.Nodes[0])
+			case "edge":
+				r.Graph.Edges[0].FromNodeLocalKey = "missing"
+			case "asset":
+				r.AffectedAssets[0].NodeLocalKey = "missing"
+			}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) { writeDataResult(t, w, p) }))
+			defer server.Close()
+			got, err := newTestRepository(t, server).GetAnalysis(context.Background(), biz.AnalysisQuery{ReportID: testReportID, Kind: "concept_analyses", Key: "c1"})
+			if tc.wantError {
+				if !errors.Is(err, biz.ErrDataUnavailable) {
+					t.Fatalf("expected provider rejection, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("valid provider graph rejected: %v", err)
+			}
+			want, _ := json.Marshal(p.Reasonings)
+			actual, _ := json.Marshal(got.Reasonings)
+			if string(want) != string(actual) {
+				t.Fatal("graph or asset references changed")
+			}
+		})
+	}
+}
+
 func TestGeopoliticalNullableProviderMetadata(t *testing.T) {
 	raw, err := os.ReadFile("../../../../frontend/src/mocks/reports/unified-v6.json")
 	if err != nil {

@@ -782,7 +782,8 @@ func validUnifiedDetail(p biz.NormalizedDetailProjection) bool {
 				return false
 			}
 			for _, n := range r.Graph.Nodes {
-				if !validLocalKey(n.LocalKey) || !validText(n.Name, 16000) {
+				// Graph node references follow Data's text contract, not route LocalKey limits.
+				if !validText(n.LocalKey, 16000) || !validText(n.Name, 16000) {
 					return false
 				}
 				if _, ok := graphNodes[n.LocalKey]; ok {
