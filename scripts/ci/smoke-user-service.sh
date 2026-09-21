@@ -14,10 +14,20 @@ trap cleanup EXIT
 docker network create "$network" >/dev/null
 docker run -d --name "$db" --network "$network" \
   -e POSTGRES_PASSWORD=user-smoke-password -e POSTGRES_DB=tidewise_user_test postgres:16 >/dev/null
+# The image runs a temporary Unix-socket-only server during initialization.
+# Probe the same TCP listener used by the migration container, not that socket.
+database_ready=false
 for attempt in {1..30}; do
-  if docker exec "$db" pg_isready -U postgres -d tidewise_user_test >/dev/null 2>&1; then break; fi
+  if docker exec "$db" pg_isready -h "$db" -U postgres -d tidewise_user_test >/dev/null 2>&1; then
+    database_ready=true
+    break
+  fi
   sleep 1
 done
+if [[ "$database_ready" != true ]]; then
+  echo 'User smoke PostgreSQL TCP listener did not become ready' >&2
+  exit 1
+fi
 dsn="postgres://postgres:user-smoke-password@${db}:5432/tidewise_user_test?sslmode=disable"
 for attempt in 1 2; do
   docker run --rm --network "$network" --entrypoint /app/dbmigrate \
