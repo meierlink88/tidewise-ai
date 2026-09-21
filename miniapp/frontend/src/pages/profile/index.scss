@@ -357,7 +357,7 @@
 
 .profile-page--personal {
   position: relative;
-  background: #f6f4eb;
+  background: $color-home-paper;
   .profile-page__header {
     background: transparent;
     padding-bottom: 0;
@@ -365,7 +365,7 @@
     z-index: 1;
   }
   .navigation-bar {
-    color: #163244;
+    color: $color-home-ink;
   }
   .profile-page__body {
     background: transparent;
@@ -376,7 +376,7 @@
     flex-direction: column;
   }
   .profile-page__body--account {
-    background: rgba(248, 246, 238, 0.95);
+    background: $color-home-paper;
   }
   .profile-page__footer {
     margin-top: auto;
@@ -411,7 +411,7 @@
   border: 0;
   background: transparent;
   line-height: 1.4;
-  color: #153244;
+  color: $color-home-ink;
   border-radius: 0;
 }
 .profile-page__identity-button::after {
@@ -424,7 +424,7 @@
 }
 
 .profile-page--personal {
-  background: #f1f5f6;
+  background: $color-home-paper;
   .profile-page__body--landing {
     padding: 100rpx 40rpx 64rpx;
   }
@@ -439,12 +439,12 @@
   .profile-page__portrait {
     width: 148rpx;
     height: 148rpx;
-    border: 8rpx solid #fff;
-    background: #e7edef;
+    border: 8rpx solid $color-home-card;
+    background: $color-home-gold-soft;
     box-shadow:
-      0 0 0 20rpx #edf2f3,
-      0 0 0 22rpx #e4ebed,
-      0 0 0 44rpx #eff4f5;
+      0 0 0 20rpx $color-home-paper,
+      0 0 0 22rpx $color-home-border,
+      0 0 0 44rpx $color-home-paper;
   }
   .profile-page__identity-copy {
     margin: 0;
@@ -457,8 +457,8 @@
     margin: 0;
     width: 100%;
     border-radius: 20rpx;
-    background: #fff;
-    color: #163244;
+    background: $color-home-card;
+    color: $color-home-ink;
     font-size: 32rpx;
     font-weight: 600;
     line-height: 1.7;
@@ -468,17 +468,17 @@
     }
   }
   .profile-page__about-mark {
-    color: #a7813c;
+    color: $color-home-gold;
   }
   .profile-page__about-arrow {
     margin-left: auto;
-    color: #b8c1c5;
+    color: $color-home-muted;
     font-size: 40rpx;
   }
 }
 .profile-page--personal {
   .profile-page__name {
-    color: #163244;
+    color: $color-home-ink;
   }
   .profile-page__identity-button[disabled] {
     opacity: 0.65;
@@ -502,7 +502,7 @@
   left: 20rpx;
   width: 24rpx;
   height: 24rpx;
-  border: 4rpx solid #163244;
+  border: 4rpx solid $color-home-ink;
   border-radius: 50%;
   box-sizing: border-box;
 }
@@ -512,7 +512,7 @@
   left: 8rpx;
   width: 48rpx;
   height: 34rpx;
-  border: 4rpx solid #163244;
+  border: 4rpx solid $color-home-ink;
   border-bottom: 0;
   border-radius: 28rpx 28rpx 0 0;
   box-sizing: border-box;

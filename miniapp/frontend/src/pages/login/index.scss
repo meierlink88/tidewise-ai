@@ -1,9 +1,11 @@
+@use '../../styles/tokens' as *;
+
 .login-page {
   min-height: 100vh;
-  background: #fffefa;
-  color: #112c3d;
+  background: $color-home-paper;
+  color: $color-home-ink;
   .navigation-bar {
-    color: #112c3d;
+    color: $color-home-ink;
   }
   &__body {
     padding: 80rpx 48rpx 80rpx;
@@ -22,9 +24,9 @@
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    background: #123343;
-    border: 2rpx solid #c9a65b;
-    color: #ead7a9;
+    background: $color-home-ink;
+    border: 2rpx solid $color-home-gold;
+    color: $color-home-gold-soft;
     font-size: 96rpx;
     font-family: serif;
   }
@@ -49,16 +51,16 @@
     border-radius: 999rpx;
     min-height: 96rpx;
     font-size: 32rpx;
-    background: #123343;
-    border-color: #123343;
+    background: $color-home-ink;
+    border-color: $color-home-ink;
   }
   .profile-page__phone-login {
     margin-top: 28rpx;
-    color: #73766f;
+    color: $color-home-secondary;
   }
   .profile-page__button[disabled] {
-    background: #e8e4da;
-    border-color: #e8e4da;
-    color: #77746b;
+    background: $color-ivory-200;
+    border-color: $color-ivory-200;
+    color: $color-home-secondary;
   }
 }
