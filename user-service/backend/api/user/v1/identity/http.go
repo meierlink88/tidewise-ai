@@ -51,6 +51,17 @@ func bind(ctx kratoshttp.Context, target any) error {
 }
 func RegisterHTTPServer(server *kratoshttp.Server, service Service) {
 	route := server.Route("/api/user/v1")
+	route.POST("/profiles/nickname", func(ctx kratoshttp.Context) error {
+		var r NicknameRequest
+		if err := bind(ctx, &r); err != nil {
+			return err
+		}
+		v, e := service.UpdateNickname(ctx, r)
+		if e != nil {
+			return e
+		}
+		return ctx.Result(200, v)
+	})
 	route.POST("/wechat/logins", func(ctx kratoshttp.Context) error {
 		var r LoginRequest
 		if err := bind(ctx, &r); err != nil {

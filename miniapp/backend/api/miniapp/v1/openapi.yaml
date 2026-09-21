@@ -9,7 +9,138 @@ servers:
 tags:
   - name: Operations
   - name: Reports
+  - name: Identity
 paths:
+  /api/miniapp/v1/auth/wechat/login:
+    post:
+      tags:
+        - Identity
+      operationId: loginMiniappWechat
+      summary: 微信登录
+      security:
+        - {}
+        - UserSession: []
+      responses:
+        '200':
+          description: '成功；Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityEnvelope'
+        '400':
+          description: INVALID_REQUEST / WECHAT_CODE_INVALID
+        '401':
+          description: UNAUTHENTICATED
+        '403':
+          description: USER_DISABLED / WECHAT_LOGIN_REJECTED
+        '429':
+          description: LOGIN_RATE_LIMITED
+        '503':
+          description: AUTH_SERVICE_UNAVAILABLE
+      description: 可携带旧会话，同一微信身份成功登录后撤销旧会话。code 不自动重试。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - code
+              properties:
+                code:
+                  type: string
+                  minLength: 1
+                  maxLength: 512
+  /api/miniapp/v1/auth/me:
+    get:
+      tags:
+        - Identity
+      operationId: getMiniappUser
+      summary: 验证会话并读取用户
+      security:
+        - UserSession: []
+      responses:
+        '200':
+          description: '成功；Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityEnvelope'
+        '400':
+          description: INVALID_REQUEST / WECHAT_CODE_INVALID
+        '401':
+          description: UNAUTHENTICATED
+        '403':
+          description: USER_DISABLED / WECHAT_LOGIN_REJECTED
+        '429':
+          description: LOGIN_RATE_LIMITED
+        '503':
+          description: AUTH_SERVICE_UNAVAILABLE
+  /api/miniapp/v1/auth/logout:
+    post:
+      tags:
+        - Identity
+      operationId: logoutMiniappUser
+      summary: 撤销当前会话
+      security:
+        - UserSession: []
+      responses:
+        '200':
+          description: '成功；Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutEnvelope'
+        '400':
+          description: INVALID_REQUEST / WECHAT_CODE_INVALID
+        '401':
+          description: UNAUTHENTICATED
+        '403':
+          description: USER_DISABLED / WECHAT_LOGIN_REJECTED
+        '429':
+          description: LOGIN_RATE_LIMITED
+        '503':
+          description: AUTH_SERVICE_UNAVAILABLE
+  /api/miniapp/v1/auth/profile:
+    patch:
+      tags:
+        - Identity
+      operationId: updateMiniappNickname
+      summary: 更新当前用户昵称
+      security:
+        - UserSession: []
+      responses:
+        '200':
+          description: '成功；Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdentityEnvelope'
+        '400':
+          description: INVALID_REQUEST / WECHAT_CODE_INVALID
+        '401':
+          description: UNAUTHENTICATED
+        '403':
+          description: USER_DISABLED / WECHAT_LOGIN_REJECTED
+        '429':
+          description: LOGIN_RATE_LIMITED
+        '503':
+          description: AUTH_SERVICE_UNAVAILABLE
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - nickname
+              properties:
+                nickname:
+                  type: string
+                  minLength: 1
+                  maxLength: 32
   /healthz:
     get:
       tags: [Operations]
@@ -179,6 +310,11 @@ paths:
         '503':
           $ref: '#/components/responses/ReportServiceUnavailable'
 components:
+  securitySchemes:
+    UserSession:
+      type: http
+      scheme: bearer
+      description: User Service 签发的用户会话，不是服务调用 token。
   parameters:
     ReportID:
       name: report_id
@@ -206,6 +342,59 @@ components:
       description: Data Report 服务暂不可用或返回无效合同
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
   schemas:
+    IdentityProfile:
+      type: object
+      required:
+        - user_id
+        - nickname
+        - status
+        - expires_at
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        nickname:
+          type: string
+          maxLength: 32
+        status:
+          type: string
+          enum:
+            - active
+        expires_at:
+          type: string
+          format: date-time
+        session_token:
+          type: string
+          description: 仅登录成功时返回
+          minLength: 43
+          maxLength: 43
+    IdentityEnvelope:
+      type: object
+      required:
+        - request_id
+        - result
+      properties:
+        request_id:
+          type: string
+        result:
+          $ref: '#/components/schemas/IdentityProfile'
+    LogoutEnvelope:
+      type: object
+      required:
+        - request_id
+        - result
+      properties:
+        request_id:
+          type: string
+        result:
+          type: object
+          required:
+            - revoked
+          properties:
+            revoked:
+              type: boolean
+              enum:
+                - true
     HealthResponse:
       type: object
       additionalProperties: false

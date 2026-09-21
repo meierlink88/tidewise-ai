@@ -10,11 +10,14 @@ import (
 	kratos "github.com/go-kratos/kratos/v3"
 	"github.com/go-kratos/kratos/v3/transport"
 
+	identitybiz "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/biz/identity"
 	reportbiz "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/biz/report"
 	"github.com/meierlink88/tidewise-ai/miniapp/backend/internal/conf"
 	"github.com/meierlink88/tidewise-ai/miniapp/backend/internal/data"
+	identitydata "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/data/identity"
 	reportdata "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/data/report"
 	"github.com/meierlink88/tidewise-ai/miniapp/backend/internal/server"
+	identityservice "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/service/identity"
 	reportservice "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/service/report"
 )
 
@@ -39,7 +42,13 @@ func buildApp(config conf.RuntimeConfig, logger *slog.Logger) (*kratos.App, func
 		_ = dataClient.Close()
 		return nil, nil, fmt.Errorf("create Report service: %w", err)
 	}
-	httpServer := server.NewHTTPServer(config, logger, application)
+	userClient, err := identitydata.New(config.UserService.BaseURL, config.UserService.IdentityToken)
+	if err != nil {
+		_ = dataClient.Close()
+		return nil, nil, err
+	}
+	identity := identityservice.New(identitybiz.New(userClient))
+	httpServer := server.NewHTTPServer(config, logger, application, identity)
 	cleanup := func(context.Context) error { return dataClient.Close() }
 	return newApp(httpServer, logger), cleanup, nil
 }

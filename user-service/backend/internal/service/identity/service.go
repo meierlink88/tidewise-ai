@@ -24,7 +24,7 @@ func wireError(err error) error {
 	for _, item := range []struct {
 		err    error
 		status int
-	}{{biz.ErrUnauthenticated, 401}, {biz.ErrDisabled, 403}, {biz.ErrRejected, 403}, {biz.ErrCodeInvalid, 400}, {biz.ErrRateLimited, 429}, {biz.ErrProvider, 503}} {
+	}{{biz.ErrInvalidNickname, 400}, {biz.ErrUnauthenticated, 401}, {biz.ErrDisabled, 403}, {biz.ErrRejected, 403}, {biz.ErrCodeInvalid, 400}, {biz.ErrRateLimited, 429}, {biz.ErrProvider, 503}} {
 		if errors.Is(err, item.err) {
 			return &api.Error{Status: item.status, Code: item.err.Error()}
 		}
@@ -53,4 +53,12 @@ func (s *Service) Revoke(ctx context.Context, r api.SessionRequest) (api.RevokeR
 		return api.RevokeResponse{}, wireError(err)
 	}
 	return api.RevokeResponse{Revoked: true}, nil
+}
+
+func (s *Service) UpdateNickname(ctx context.Context, r api.NicknameRequest) (api.UserResponse, error) {
+	result, err := s.usecase.UpdateNickname(ctx, r.SessionToken, r.Nickname)
+	if err != nil {
+		return api.UserResponse{}, wireError(err)
+	}
+	return api.UserResponse{UserID: result.UserID, Nickname: result.Nickname, Status: result.Status, ExpiresAt: result.ExpiresAt}, nil
 }

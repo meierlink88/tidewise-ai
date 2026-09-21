@@ -2,7 +2,7 @@
   "miniprogramRoot": "./dist/weapp",
   "projectname": "tidewise-ai-miniapp",
   "description": "观潮家 Miniapp 本地预览",
-  "appid": "touristappid",
+  "appid": "wx09443b2b7bff598c",
   "setting": {
     "urlCheck": false,
     "es6": false,

@@ -1,0 +1,109 @@
+.profile-page {
+  min-height: 100vh;
+  background: #102b3d;
+  color: #142d40;
+  &__body {
+    min-height: calc(100vh - 180rpx);
+    box-sizing: border-box;
+    border-radius: 48rpx 48rpx 0 0;
+    padding: 60rpx 44rpx 48rpx;
+    background: #f7f4ed;
+  }
+  &__identity {
+    display: flex;
+    align-items: center;
+    gap: 32rpx;
+    padding: 16rpx 0 54rpx;
+  }
+  &__avatar {
+    box-sizing: border-box;
+    padding: 26rpx;
+    background: #f1ebdb;
+    width: 120rpx;
+    height: 120rpx;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 2rpx solid #c5a55c;
+  }
+  &__name {
+    display: block;
+    font-size: 44rpx;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+  }
+  &__state {
+    display: block;
+    font-size: 24rpx;
+    color: #85857e;
+    margin-top: 12rpx;
+  }
+  &__card {
+    padding: 46rpx 36rpx;
+    border: 2rpx solid #eadcbb;
+    border-radius: 30rpx;
+    background: #fffdf8;
+  }
+  &__heading {
+    display: block;
+    font-size: 32rpx;
+    font-weight: 600;
+  }
+  &__description {
+    display: block;
+    margin: 20rpx 0 36rpx;
+    font-size: 26rpx;
+    line-height: 1.8;
+    color: #85857e;
+  }
+  &__button {
+    display: block;
+    margin-top: 24rpx;
+    width: 100%;
+    min-height: 96rpx;
+    border-radius: 48rpx;
+    border: 2rpx solid #c5a55c;
+    background: linear-gradient(135deg, #102b3d, #243841);
+    color: #fffdf8;
+    font-size: 28rpx;
+  }
+  &__button::after,
+  &__retry::after {
+    border: 0;
+  }
+  &__button[disabled] {
+    opacity: 0.5;
+  }
+  &__button--secondary {
+    background: transparent;
+    color: #142d40;
+  }
+  &__label {
+    display: block;
+    font-size: 26rpx;
+    margin-bottom: 16rpx;
+  }
+  &__input {
+    height: 88rpx;
+    padding: 0 24rpx;
+    border: 2rpx solid #eadcbb;
+    border-radius: 16rpx;
+    font-size: 30rpx;
+  }
+  &__error {
+    margin-top: 24rpx;
+    color: #a83d3a;
+    font-size: 24rpx;
+  }
+  &__retry {
+    background: transparent;
+    color: #866f3b;
+    font-size: 24rpx;
+  }
+  &__footer {
+    display: block;
+    text-align: center;
+    margin-top: 56rpx;
+    color: #94938b;
+    font-size: 24rpx;
+  }
+}

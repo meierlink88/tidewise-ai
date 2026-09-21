@@ -6,12 +6,16 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
 
 var (
+	ErrInvalidNickname = errors.New("INVALID_NICKNAME")
 	ErrUnavailable     = errors.New("USER_SERVICE_UNAVAILABLE")
 	ErrConflict        = errors.New("IDENTITY_CONFLICT")
 	ErrUnauthenticated = errors.New("UNAUTHENTICATED")
@@ -142,4 +146,36 @@ func (u *UseCase) Revoke(ctx context.Context, token string) error {
 		return err
 	}
 	return u.repository.Revoke(ctx, hash, u.appID, u.now().UTC())
+}
+
+// Nickname changes are authorized and applied in the same locked transaction.
+func (u *UseCase) UpdateNickname(ctx context.Context, token, nickname string) (Session, error) {
+	nickname = strings.TrimSpace(nickname)
+	if !utf8.ValidString(nickname) || utf8.RuneCountInString(nickname) < 1 || utf8.RuneCountInString(nickname) > 32 || strings.IndexFunc(nickname, unicode.IsControl) >= 0 {
+		return Session{}, ErrInvalidNickname
+	}
+	hash, err := tokenHash(token)
+	if err != nil {
+		return Session{}, err
+	}
+	var result Session
+	err = u.repository.Within(ctx, func(tx Transaction) error {
+		s, err := tx.LookupSession(ctx, hash)
+		if err != nil {
+			return err
+		}
+		if s.UserID == "" || s.Revoked || s.AppID != u.appID || !s.ExpiresAt.After(u.now()) {
+			return ErrUnauthenticated
+		}
+		if s.Status != "active" {
+			return ErrDisabled
+		}
+		if err = tx.SetNickname(ctx, s.UserID, nickname, u.now().UTC()); err != nil {
+			return err
+		}
+		s.Nickname = nickname
+		result = s
+		return nil
+	})
+	return result, err
 }

@@ -152,8 +152,9 @@ func TestPostgresLoginLifecycleAndConcurrency(t *testing.T) {
 	if first.Nickname != "" {
 		t.Fatal("new user nickname must be unset")
 	}
-	if _, err = db.Exec("UPDATE users SET nickname=$2 WHERE id=$1", first.UserID, "观潮用户"); err != nil {
-		t.Fatal(err)
+	nicknameBody, _ := json.Marshal(api.NicknameRequest{SessionToken: first.SessionToken, Nickname: "  观潮用户  "})
+	if status, result := request(t, h, "/api/user/v1/profiles/nickname", string(nicknameBody), "Bearer "+serviceToken); status != 200 || result.Result.Nickname != "观潮用户" || result.Result.SessionToken != "" {
+		t.Fatal("nickname HTTP update failed", status)
 	}
 	status, profile := request(t, h, "/api/user/v1/sessions/verify", sessionBody(first.SessionToken), "Bearer "+serviceToken)
 	if status != 200 || profile.Result.Nickname != "观潮用户" {
@@ -173,6 +174,9 @@ func TestPostgresLoginLifecycleAndConcurrency(t *testing.T) {
 	code, _ = request(t, h, "/api/user/v1/sessions/verify", sessionBody(first.SessionToken), "Bearer "+serviceToken)
 	if code != 401 {
 		t.Fatal("old session not revoked")
+	}
+	if status, _ := request(t, h, "/api/user/v1/profiles/nickname", string(nicknameBody), "Bearer "+serviceToken); status != 401 {
+		t.Fatal("revoked session changed nickname")
 	}
 	// A failed new-session insert must roll back revocation of the previous one.
 	previousHash := sha256.Sum256([]byte(second.SessionToken))
@@ -223,6 +227,10 @@ func TestPostgresLoginLifecycleAndConcurrency(t *testing.T) {
 	if code != 403 {
 		t.Fatal("disabled user logged in")
 	}
+	nicknameBody, _ = json.Marshal(api.NicknameRequest{SessionToken: second.SessionToken, Nickname: "不允许"})
+	if status, _ := request(t, h, "/api/user/v1/profiles/nickname", string(nicknameBody), "Bearer "+serviceToken); status != 403 {
+		t.Fatal("disabled user changed nickname")
+	}
 	other := biz.New(repository, provider, "other-app", time.Hour, time.Now)
 	if _, err = other.Verify(context.Background(), second.SessionToken); err != biz.ErrUnauthenticated {
 		t.Fatal("appid isolation", err)
@@ -269,4 +277,8 @@ func TestPostgresLoginLifecycleAndConcurrency(t *testing.T) {
 	if err = db.QueryRow("SELECT count(*) FROM user_sessions WHERE octet_length(token_hash)=32").Scan(&hashes); err != nil || hashes != sessions {
 		t.Fatal("token storage constraint")
 	}
+}
+
+func (stub) UpdateNickname(context.Context, api.NicknameRequest) (api.UserResponse, error) {
+	return api.UserResponse{}, nil
 }

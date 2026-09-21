@@ -55,3 +55,8 @@ func PublicError(err error) (*HTTPError, bool) {
 	}
 	return public, true
 }
+
+// IdentityError accepts only service-owned stable codes; no upstream messages.
+func IdentityError(status int, code string) *HTTPError {
+	return &HTTPError{status: status, code: code, message: code}
+}

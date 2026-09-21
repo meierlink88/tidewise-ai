@@ -22,3 +22,10 @@ User Domain Service 拥有用户身份、微信身份与业务会话，源码在
 
 微信应用凭据改由 User 私有 `configuration` 字典表保存，见 [ADR-0068](../../adr/0068-user-wechat-configuration-dictionary.md)。
 `wechat_miniapp` 配置在服务启动时读取，修改后重启；不再读取微信环境变量，不提供公开字典查询接口。
+
+## Miniapp 昵称更新（#521）
+
+新增私有 POST `/api/user/v1/profiles/nickname`，服务身份鉴权后按 session_token 查找当前用户。
+事务内锁定会话及用户，验证有效期、撤销状态、AppID 和用户状态，再更新 users.nickname；
+不接收目标 user_id。昵称去首尾空白后为 1–32 个 Unicode 字符，禁止控制字符。
+数据库结构沿用 schema 4，无新迁移；响应不含 session_token。详见 ADR 0069。
