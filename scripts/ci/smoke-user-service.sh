@@ -34,14 +34,18 @@ for attempt in 1 2; do
     -e USER_DATABASE_URL="$dsn" -e USER_DATABASE_NAME=tidewise_user_test \
     "$image" -dir /app/migrations
 done
-# Runtime role cannot create or alter tables.
+# Configuration is not seed data: install the test pair through the real stdin
+# operation after schema migration. Neither credential is an environment variable.
+printf '%s' '{"app_id":"smoke-app","app_secret":"smoke-secret"}' |
+  docker run --rm -i --network "$network" --entrypoint /app/configure-wechat \
+    -e USER_DATABASE_URL="$dsn" -e USER_DATABASE_NAME=tidewise_user_test "$image"
+# Runtime role cannot create or alter tables, or modify private configuration.
 docker exec "$db" psql -U postgres -d tidewise_user_test -v ON_ERROR_STOP=1 -c \
-  "CREATE ROLE user_runtime LOGIN PASSWORD 'user-runtime-test'; GRANT CONNECT ON DATABASE tidewise_user_test TO user_runtime; GRANT USAGE ON SCHEMA public TO user_runtime; GRANT SELECT,INSERT,UPDATE ON users,wechat_identities,user_sessions TO user_runtime; GRANT SELECT ON goose_db_version TO user_runtime;" >/dev/null
+  "CREATE ROLE user_runtime LOGIN PASSWORD 'user-runtime-test'; GRANT CONNECT ON DATABASE tidewise_user_test TO user_runtime; GRANT USAGE ON SCHEMA public TO user_runtime; GRANT SELECT,INSERT,UPDATE ON users,wechat_identities,user_sessions TO user_runtime; GRANT SELECT ON goose_db_version,configuration TO user_runtime;" >/dev/null
 runtime_dsn="postgres://user_runtime:user-runtime-test@${db}:5432/tidewise_user_test?sslmode=disable"
 docker run -d --name "$service" --network "$network" \
   -e USER_DATABASE_URL="$runtime_dsn" -e USER_DATABASE_NAME=tidewise_user_test \
   -e USER_SERVICE_TOKEN=user-service-smoke-01234567890123456789 \
-  -e WECHAT_APP_ID=smoke-app -e WECHAT_APP_SECRET=smoke-secret \
   "$image" >/dev/null
 ready=false
 for attempt in {1..30}; do

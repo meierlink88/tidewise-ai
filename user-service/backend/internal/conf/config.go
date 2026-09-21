@@ -17,8 +17,6 @@ type Config struct {
 	DatabaseURL     string `yaml:"-"`
 	DatabaseName    string `yaml:"-"`
 	ServiceToken    string `yaml:"-"`
-	WechatAppID     string `yaml:"-"`
-	WechatAppSecret string `yaml:"-"`
 }
 
 func Load(path string, server bool) (Config, error) { return load(path, server, os.Getenv) }
@@ -54,15 +52,13 @@ func load(path string, server bool, env func(string) string) (Config, error) {
 		return c, nil
 	}
 	c.ServiceToken = env("USER_SERVICE_TOKEN")
-	c.WechatAppID = env("WECHAT_APP_ID")
-	c.WechatAppSecret = env("WECHAT_APP_SECRET")
 	if address := env("USER_HTTP_ADDRESS"); address != "" {
 		c.Address = address
 	}
 	if _, _, err = net.SplitHostPort(c.Address); err != nil || c.SessionTTLHours < 1 || c.SessionTTLHours > 720 {
 		return c, errors.New("invalid user address or session TTL")
 	}
-	if len(c.ServiceToken) < 32 || strings.TrimSpace(c.ServiceToken) != c.ServiceToken || strings.ContainsAny(c.ServiceToken, "\r\n") || strings.TrimSpace(c.WechatAppID) == "" || strings.TrimSpace(c.WechatAppSecret) == "" {
+	if len(c.ServiceToken) < 32 || strings.TrimSpace(c.ServiceToken) != c.ServiceToken || strings.ContainsAny(c.ServiceToken, "\r\n") {
 		return c, errors.New("missing or invalid User Service credentials")
 	}
 	return c, nil
