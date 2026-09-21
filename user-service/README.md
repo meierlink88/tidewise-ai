@@ -27,7 +27,7 @@ go build -o /tmp/tidewise-user-migrate ./user-service/backend/cmd/dbmigrate
 ```
 
 迁移账号独占 DDL。runtime 账号授予 CONNECT、public schema USAGE、三张业务表 SELECT/INSERT/UPDATE
-与 goose_db_version、user_configurations SELECT；不需要 DDL 或 DELETE。当前没有用户清理命令，过期会话校验立即失效，
+与 goose_db_version、configuration SELECT；不需要 DDL 或 DELETE。当前没有用户清理命令，过期会话校验立即失效，
 历史记录保留。生产清理策略单独设计。
 
 `/healthz` 表示进程可访问，`/readyz` 校验连接、账本版本和三表。启动时也执行 readiness。
@@ -82,7 +82,7 @@ HTTP 测试使用真实 PostgreSQL 和 fake 微信 transport；没有真实微�
 
 ## 微信配置字典
 
-AppID/AppSecret 保存在 User 库 `user_configurations` 的 `wechat_miniapp` 条目，JSON 值为
+AppID/AppSecret 保存在 User 库 `configuration` 的 `wechat_miniapp` 条目，JSON 值为
 `{"app_id":"你的小程序AppID","app_secret":"你的小程序AppSecret"}`。Secret 存原值，表只供服务端读取，
 不暴露查询接口、不打印配置内容。数据库和备份需按敏感配置管理，runtime 对配置表仅 SELECT。
 不再维护 WECHAT_APP_ID / WECHAT_APP_SECRET 环境变量。
@@ -100,3 +100,6 @@ docker compose -f user-service/docker-compose.yaml --profile operations run --rm
 导入后清理临时文件。再次导入会原子替换同一条配置，修改后重启服务。缺失或无效配置会阻止启动。
 切换 AppID 等于切换微信身份作用域，旧 AppID 会话不再被新进程接受，不自动迁移用户。
 三个用户业务表以外新增一个配置字典表；migration 3 不预置真实或占位凭据。
+
+按用户要求，migration 4 将原 user_configurations 表及约束重命名为 configuration，保留配置与权限。
+部署时先停止 User Service，执行完整迁移账本，再启动新版；旧代码不兼容新表名，不运行 down。

@@ -20,7 +20,7 @@ func New(db *sql.DB) *Repository {
 }
 func (r *Repository) Load(ctx context.Context) (biz.Credentials, error) {
 	var raw []byte
-	if err := r.db.QueryRowContext(ctx, `SELECT value FROM user_configurations WHERE code=$1`, biz.WechatCode).Scan(&raw); err != nil {
+	if err := r.db.QueryRowContext(ctx, `SELECT value FROM configuration WHERE code=$1`, biz.WechatCode).Scan(&raw); err != nil {
 		return biz.Credentials{}, biz.ErrUnavailable
 	}
 	var c biz.Credentials
@@ -41,7 +41,7 @@ func (r *Repository) Save(ctx context.Context, e biz.Entry) error {
 	if err != nil {
 		return biz.ErrUnavailable
 	}
-	_, err = r.db.ExecContext(ctx, `INSERT INTO user_configurations(id,code,value,updated_at) VALUES($1,$2,$3,$4) ON CONFLICT(code) DO UPDATE SET value=EXCLUDED.value,updated_at=EXCLUDED.updated_at`, e.ID, biz.WechatCode, raw, e.UpdatedAt)
+	_, err = r.db.ExecContext(ctx, `INSERT INTO configuration(id,code,value,updated_at) VALUES($1,$2,$3,$4) ON CONFLICT(code) DO UPDATE SET value=EXCLUDED.value,updated_at=EXCLUDED.updated_at`, e.ID, biz.WechatCode, raw, e.UpdatedAt)
 	if err != nil {
 		return biz.ErrUnavailable
 	}

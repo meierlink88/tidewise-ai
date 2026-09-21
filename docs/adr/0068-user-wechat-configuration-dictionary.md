@@ -9,7 +9,7 @@ status: accepted
 
 ## 所有权与合同
 
-User 独占 user_configurations 表。每条配置含 Biz 生成 UUID 主键、唯一 code、JSONB value、
+User 独占 configuration 表。每条配置含 Biz 生成 UUID 主键、唯一 code、JSONB value、
 updated_at。当前仅支持 code=wechat_miniapp；value 含 app_id、app_secret，作为一条记录原子写入。
 配置更新保留既有行 ID。Configuration 是 User 内部配置领域，没有面向前端或 BFF 的字典 API。
 
@@ -37,3 +37,6 @@ schema 可与旧表共存，但此前 binary 的 readiness 固定账本版本，
 真实 PostgreSQL 验证配置缺失、写入、读取、原子替换、稳定 ID 与非法值拒绝；配置加载测试证明
 微信环境变量不再需要。容器 smoke 使用正式 migration/import/server 命令，runtime 只读配置表，
 不传入微信环境变量，并验证 readiness 与优雅停机。真实微信 API 联调待真实凭据和有效 code。
+
+按用户要求，migration 4 将原 user_configurations 表及约束重命名为 configuration，保留配置与权限。
+部署时先停止 User Service，执行完整迁移账本，再启动新版；旧代码不兼容新表名，不运行 down。

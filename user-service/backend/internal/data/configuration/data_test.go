@@ -25,7 +25,7 @@ func TestPrivateConfigurationLifecycle(t *testing.T) {
 	if db.QueryRow("SELECT current_database()").Scan(&database) != nil || database != "tidewise_user_test" {
 		t.Fatal("requires disposable tidewise_user_test")
 	}
-	if _, err = db.Exec("DELETE FROM user_configurations WHERE code='wechat_miniapp'"); err != nil {
+	if _, err = db.Exec("DELETE FROM configuration WHERE code='wechat_miniapp'"); err != nil {
 		t.Fatal("cannot reset configuration")
 	}
 	repo := New(db)
@@ -53,16 +53,16 @@ func TestPrivateConfigurationLifecycle(t *testing.T) {
 		t.Fatal("configuration replacement mismatch")
 	}
 	var id string
-	if db.QueryRow("SELECT id FROM user_configurations WHERE code='wechat_miniapp'").Scan(&id) != nil || id != first.ID {
+	if db.QueryRow("SELECT id FROM configuration WHERE code='wechat_miniapp'").Scan(&id) != nil || id != first.ID {
 		t.Fatal("stable dictionary ID changed")
 	}
-	if _, err = db.Exec(`UPDATE user_configurations SET value='{"app_id":"bad","app_secret":""}' WHERE code='wechat_miniapp'`); err != nil {
+	if _, err = db.Exec(`UPDATE configuration SET value='{"app_id":"bad","app_secret":""}' WHERE code='wechat_miniapp'`); err != nil {
 		t.Fatal("failed to arrange corrupt config")
 	}
 	if _, err = repo.Load(ctx); err != biz.ErrUnavailable {
 		t.Fatal("corrupt configuration accepted")
 	}
-	if _, err = db.Exec("DELETE FROM user_configurations WHERE code='wechat_miniapp'"); err != nil {
+	if _, err = db.Exec("DELETE FROM configuration WHERE code='wechat_miniapp'"); err != nil {
 		t.Fatal("cleanup failed")
 	}
 }
