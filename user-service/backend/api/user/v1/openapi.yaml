@@ -1,0 +1,298 @@
+openapi: 3.0.3
+info:
+  title: User Service
+  version: 1.0.0
+  description: Private service API. Caller Bearer identity is distinct from the user
+    session token in JSON. Login tokens expire absolutely; no implicit refresh.
+security:
+  - serviceIdentity: []
+paths:
+  /api/user/v1/wechat/logins:
+    post:
+      operationId: wechat_logins
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: 'Success; Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request_id
+                  - result
+                properties:
+                  request_id:
+                    type: string
+                    format: uuid
+                  result:
+                    $ref: '#/components/schemas/LoginResult'
+        '400':
+          description: INVALID_REQUEST or WECHAT_CODE_INVALID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: SERVICE_UNAUTHENTICATED or UNAUTHENTICATED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: USER_DISABLED or WECHAT_LOGIN_REJECTED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: LOGIN_RATE_LIMITED (login only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: LOGIN_PROVIDER_UNAVAILABLE or USER_SERVICE_UNAVAILABLE
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: INTERNAL_ERROR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/user/v1/sessions/verify:
+    post:
+      operationId: sessions_verify
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionRequest'
+      responses:
+        '200':
+          description: 'Success; Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request_id
+                  - result
+                properties:
+                  request_id:
+                    type: string
+                    format: uuid
+                  result:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: INVALID_REQUEST or WECHAT_CODE_INVALID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: SERVICE_UNAUTHENTICATED or UNAUTHENTICATED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: USER_DISABLED or WECHAT_LOGIN_REJECTED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: LOGIN_RATE_LIMITED (login only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: LOGIN_PROVIDER_UNAVAILABLE or USER_SERVICE_UNAVAILABLE
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: INTERNAL_ERROR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /api/user/v1/sessions/revoke:
+    post:
+      operationId: sessions_revoke
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionRequest'
+      responses:
+        '200':
+          description: 'Success; Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request_id
+                  - result
+                properties:
+                  request_id:
+                    type: string
+                    format: uuid
+                  result:
+                    type: object
+                    required:
+                      - revoked
+                    properties:
+                      revoked:
+                        type: boolean
+                        enum:
+                          - true
+        '400':
+          description: INVALID_REQUEST or WECHAT_CODE_INVALID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: SERVICE_UNAUTHENTICATED or UNAUTHENTICATED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: USER_DISABLED or WECHAT_LOGIN_REJECTED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: LOGIN_RATE_LIMITED (login only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: LOGIN_PROVIDER_UNAVAILABLE or USER_SERVICE_UNAVAILABLE
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: INTERNAL_ERROR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /healthz:
+    get:
+      operationId: healthz
+      security: []
+      responses:
+        '200':
+          description: Healthy
+        '503':
+          description: Schema or database unavailable
+  /readyz:
+    get:
+      operationId: readyz
+      security: []
+      responses:
+        '200':
+          description: Healthy
+        '503':
+          description: Schema or database unavailable
+components:
+  securitySchemes:
+    serviceIdentity:
+      type: http
+      scheme: bearer
+  schemas:
+    User:
+      type: object
+      additionalProperties: false
+      required:
+        - user_id
+        - status
+        - expires_at
+        - nickname
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - active
+        expires_at:
+          type: string
+          format: date-time
+        session_token:
+          type: string
+          minLength: 43
+          maxLength: 43
+        nickname:
+          type: string
+          maxLength: 32
+          description: 用户昵称，未设置时为空字符串；微信 code 登录不自动获取昵称。
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 512
+        previous_session_token:
+          type: string
+          minLength: 43
+          maxLength: 43
+    SessionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - session_token
+      properties:
+        session_token:
+          type: string
+          minLength: 43
+          maxLength: 43
+    Error:
+      type: object
+      required:
+        - request_id
+        - error
+      properties:
+        request_id:
+          type: string
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+    LoginResult:
+      allOf:
+        - $ref: '#/components/schemas/User'
+        - type: object
+          required:
+            - session_token
