@@ -103,3 +103,15 @@ docker compose -f user-service/docker-compose.yaml --profile operations run --rm
 
 按用户要求，migration 4 将原 user_configurations 表及约束重命名为 configuration，保留配置与权限。
 部署时先停止 User Service，执行完整迁移账本，再启动新版；旧代码不兼容新表名，不运行 down。
+
+### Miniapp 本地接入
+
+Miniapp Backend 的 `USER_SERVICE_BASE_URL` 指向独立 User Service，`USER_SERVICE_TOKEN`
+使用同一私有服务调用凭据。默认两项为空时只关闭用户登录，不影响报告读取；本地 Compose
+可从 `infra/local/.env.local` 注入。微信 AppID / AppSecret 仍从用户库 `configuration` 读取。
+
+小程序在「我的」主动调用微信登录，昵称保存使用新增私有
+`POST /api/user/v1/profiles/nickname`；数据库沿用当前迁移版本，无新增 DDL。
+微信开发者工具项目 AppID 必须与配置表一致，游客 AppID 不能完成真实微信身份兑换。
+真机需要可访问的 HTTPS Miniapp Backend 地址，并配置微信 request 合法域名；本机
+`127.0.0.1:9012` 构建只用于同机开发者工具，不能作为真机服务地址。

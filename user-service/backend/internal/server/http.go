@@ -76,6 +76,8 @@ func operation(path string) string {
 		return "login"
 	case "/api/user/v1/sessions/verify":
 		return "verify"
+	case "/api/user/v1/profiles/nickname":
+		return "nickname"
 	case "/api/user/v1/sessions/revoke":
 		return "revoke"
 	default:

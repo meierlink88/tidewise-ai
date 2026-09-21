@@ -41,12 +41,13 @@ type DataServiceRuntimeConfig struct {
 	Timeout       time.Duration
 }
 
-// RuntimeConfig contains only the Miniapp process and Data API settings. It
+// RuntimeConfig contains the Miniapp process, Data API and User API settings. It
 // intentionally cannot carry PostgreSQL connection or migration settings.
 type RuntimeConfig struct {
 	App         AppConfig
 	Server      ServerConfig
 	DataService DataServiceRuntimeConfig
+	UserService DataServiceRuntimeConfig
 }
 
 func LoadRuntimeConfig() (RuntimeConfig, error) {
@@ -82,7 +83,11 @@ func LoadRuntimeConfig() (RuntimeConfig, error) {
 	if dataService.IdentityToken == "" {
 		return RuntimeConfig{}, fmt.Errorf("DATA_SERVICE_TOKEN is required")
 	}
-	return RuntimeConfig{App: fileConfig.App, Server: fileConfig.Server, DataService: dataService}, nil
+	userService := DataServiceRuntimeConfig{BaseURL: strings.TrimSpace(os.Getenv("USER_SERVICE_BASE_URL")), IdentityToken: strings.TrimSpace(os.Getenv("USER_SERVICE_TOKEN")), Timeout: 8 * time.Second}
+	if (userService.BaseURL == "") != (userService.IdentityToken == "") {
+		return RuntimeConfig{}, fmt.Errorf("User Service URL and token must be configured together")
+	}
+	return RuntimeConfig{App: fileConfig.App, Server: fileConfig.Server, DataService: dataService, UserService: userService}, nil
 }
 
 func resolveEnvironment(value string) (Environment, error) {

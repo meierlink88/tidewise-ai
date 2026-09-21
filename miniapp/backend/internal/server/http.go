@@ -15,6 +15,7 @@ import (
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 
 	v1 "github.com/meierlink88/tidewise-ai/miniapp/backend/api/miniapp/v1"
+	identityapi "github.com/meierlink88/tidewise-ai/miniapp/backend/api/miniapp/v1/identity"
 	reportapi "github.com/meierlink88/tidewise-ai/miniapp/backend/api/miniapp/v1/report"
 	"github.com/meierlink88/tidewise-ai/miniapp/backend/internal/conf"
 )
@@ -32,7 +33,7 @@ type ReadyResponse struct {
 	Checks      map[string]string `json:"checks"`
 }
 
-func NewHTTPServer(config conf.RuntimeConfig, logger *slog.Logger, reportService reportapi.Service) *kratoshttp.Server {
+func NewHTTPServer(config conf.RuntimeConfig, logger *slog.Logger, reportService reportapi.Service, identityServices ...identityapi.Service) *kratoshttp.Server {
 	server := kratoshttp.NewServer(
 		kratoshttp.Address(config.Server.Address()),
 		kratoshttp.Timeout(0),
@@ -53,6 +54,9 @@ func NewHTTPServer(config conf.RuntimeConfig, logger *slog.Logger, reportService
 
 	registerHealthRoutes(server, config.App)
 	reportapi.RegisterHTTPServer(server, reportService)
+	for _, s := range identityServices {
+		identityapi.RegisterHTTPServer(server, s)
+	}
 
 	application := server.Server.Handler
 	documentedApplication := wrapAPIDocs(config.App.Env, application, apiDocsConfig{
@@ -176,6 +180,9 @@ func operationForRequest(request *http.Request) string {
 		return "miniapp.ready"
 	case "/docs", "/openapi.yaml":
 		return "miniapp.docs"
+	}
+	if strings.HasPrefix(request.URL.Path, v1.APIPrefix+"/auth/") {
+		return "miniapp.identity"
 	}
 	if strings.HasPrefix(request.URL.Path, v1.APIPrefix+"/reports/") {
 		return "miniapp.report"

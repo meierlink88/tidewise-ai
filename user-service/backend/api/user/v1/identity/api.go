@@ -12,6 +12,10 @@ type LoginRequest struct {
 type SessionRequest struct {
 	SessionToken string `json:"session_token"`
 }
+type NicknameRequest struct {
+	SessionToken string `json:"session_token"`
+	Nickname     string `json:"nickname"`
+}
 type UserResponse struct {
 	Nickname     string    `json:"nickname"`
 	UserID       string    `json:"user_id"`
@@ -30,6 +34,7 @@ type Error struct {
 func (e *Error) Error() string { return e.Code }
 
 type Service interface {
+	UpdateNickname(context.Context, NicknameRequest) (UserResponse, error)
 	Login(context.Context, LoginRequest) (UserResponse, error)
 	Verify(context.Context, SessionRequest) (UserResponse, error)
 	Revoke(context.Context, SessionRequest) (RevokeResponse, error)

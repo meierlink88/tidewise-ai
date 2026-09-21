@@ -3,6 +3,7 @@ import { useDidShow } from '@tarojs/taro';
 import { Button, Image, Input, Text, View } from '@tarojs/components';
 import { NavigationBar } from '../../../platform/navigation-bar';
 import type { HomeChromeMetrics } from '../../../platform/system-ui';
+import { openProfile } from '../../../platform/identity';
 import avatarImage from '../../../assets/nav-avatar.png';
 import searchIcon from '../../../assets/icons/search.svg';
 import sendIcon from '../../../assets/icons/send.svg';
@@ -50,7 +51,7 @@ export function HomeHeader({
               className='tidewise-button home-nav__avatar-button'
               hoverClass='none'
               aria-label='个人中心'
-              disabled
+              onClick={() => void openProfile()}
             >
               <Image className='home-nav__avatar' src={avatarImage} mode='aspectFill' />
             </Button>

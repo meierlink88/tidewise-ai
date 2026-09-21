@@ -68,3 +68,26 @@ func TestSessionRejectionMatrix(t *testing.T) {
 		})
 	}
 }
+
+func (f *fakeStore) LookupSession(context.Context, []byte) (Session, error) { return f.session, nil }
+func (f *fakeStore) SetNickname(_ context.Context, _ string, nickname string, _ time.Time) error {
+	f.session.Nickname = nickname
+	return nil
+}
+func TestNicknameAuthorization(t *testing.T) {
+	now := time.Now()
+	f := &fakeStore{session: Session{UserID: "u", AppID: "app", Status: "active", ExpiresAt: now.Add(time.Hour)}}
+	u := New(f, fakeProvider{}, "app", time.Hour, func() time.Time { return now })
+	token := "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+	s, err := u.UpdateNickname(context.Background(), token, "  观潮用户  ")
+	if err != nil || s.Nickname != "观潮用户" {
+		t.Fatal("nickname update failed")
+	}
+	f.session.Revoked = true
+	if _, err = u.UpdateNickname(context.Background(), token, "新名字"); !errors.Is(err, ErrUnauthenticated) {
+		t.Fatal("revoked session updated profile")
+	}
+	if _, err = u.UpdateNickname(context.Background(), token, " "); !errors.Is(err, ErrInvalidNickname) {
+		t.Fatal("empty nickname accepted")
+	}
+}

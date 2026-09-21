@@ -62,3 +62,11 @@ func (t *transaction) Save(ctx context.Context, s biz.Session, unionid string, n
 	_, err = t.tx.ExecContext(ctx, `INSERT INTO user_sessions(id,wechat_identity_id,token_hash,created_at,expires_at) VALUES($1,$2,$3,$4,$5)`, s.ID, s.IdentityID, s.Hash, s.CreatedAt, s.ExpiresAt)
 	return databaseError(err)
 }
+
+func (t *transaction) LookupSession(ctx context.Context, hash []byte) (biz.Session, error) {
+	return scanSession(t.tx.QueryRowContext(ctx, `SELECT s.id,s.wechat_identity_id,i.user_id,u.status,i.appid,s.created_at,s.expires_at,s.revoked_at,u.nickname FROM user_sessions s JOIN wechat_identities i ON i.id=s.wechat_identity_id JOIN users u ON u.id=i.user_id WHERE s.token_hash=$1 FOR UPDATE OF u,s`, hash))
+}
+func (t *transaction) SetNickname(ctx context.Context, userID, nickname string, now time.Time) error {
+	_, err := t.tx.ExecContext(ctx, `UPDATE users SET nickname=$2,updated_at=$3 WHERE id=$1`, userID, nickname, now)
+	return databaseError(err)
+}

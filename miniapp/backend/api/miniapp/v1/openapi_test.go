@@ -31,8 +31,14 @@ func TestOpenAPIContractExposesOperationsAndReportRoutes(t *testing.T) {
 		"/api/miniapp/v1/reports/home": "getReportHome",
 		"/api/miniapp/v1/reports/{report_id}/evidences": "listReportEvidences",
 	}
-	if len(paths) != len(want) {
+	if len(paths) != len(want)+4 {
 		t.Fatalf("paths = %v, want %v", sortedKeys(paths), sortedKeys(want))
+	}
+	for path, method := range map[string]string{"wechat/login": "post", "me": "get", "logout": "post", "profile": "patch"} {
+		op := object(t, object(t, paths["/api/miniapp/v1/auth/"+path], path)[method], method)
+		if _, ok := op["security"]; !ok {
+			t.Fatal("identity route missing explicit security", path)
+		}
 	}
 	seenOperations := map[string]bool{}
 	for path, expectedOperation := range want {

@@ -215,6 +215,67 @@ paths:
           description: Healthy
         '503':
           description: Schema or database unavailable
+  /api/user/v1/profiles/nickname:
+    post:
+      operationId: profiles_nickname
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NicknameRequest'
+      responses:
+        '200':
+          description: 'Success; Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - request_id
+                  - result
+                properties:
+                  request_id:
+                    type: string
+                    format: uuid
+                  result:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: INVALID_REQUEST or INVALID_NICKNAME
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: SERVICE_UNAUTHENTICATED or UNAUTHENTICATED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: USER_DISABLED or WECHAT_LOGIN_REJECTED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: LOGIN_RATE_LIMITED (login only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: LOGIN_PROVIDER_UNAVAILABLE or USER_SERVICE_UNAVAILABLE
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: INTERNAL_ERROR
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   securitySchemes:
     serviceIdentity:
@@ -296,3 +357,18 @@ components:
         - type: object
           required:
             - session_token
+    NicknameRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - session_token
+        - nickname
+      properties:
+        session_token:
+          type: string
+          minLength: 43
+          maxLength: 43
+        nickname:
+          type: string
+          minLength: 1
+          maxLength: 32

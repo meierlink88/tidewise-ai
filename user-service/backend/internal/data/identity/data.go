@@ -44,9 +44,12 @@ func validText(s string) bool {
 	return len(s) > 0 && len(s) <= 256 && strings.TrimSpace(s) == s && !strings.ContainsAny(s, "\x00\r\n")
 }
 func (r *Repository) Lookup(ctx context.Context, hash []byte) (biz.Session, error) {
+	return scanSession(r.db.QueryRowContext(ctx, `SELECT s.id,s.wechat_identity_id,i.user_id,u.status,i.appid,s.created_at,s.expires_at,s.revoked_at,u.nickname FROM user_sessions s JOIN wechat_identities i ON i.id=s.wechat_identity_id JOIN users u ON u.id=i.user_id WHERE s.token_hash=$1`, hash))
+}
+func scanSession(row *sql.Row) (biz.Session, error) {
 	var s biz.Session
 	var revoked sql.NullTime
-	err := r.db.QueryRowContext(ctx, `SELECT s.id,s.wechat_identity_id,i.user_id,u.status,i.appid,s.created_at,s.expires_at,s.revoked_at,u.nickname FROM user_sessions s JOIN wechat_identities i ON i.id=s.wechat_identity_id JOIN users u ON u.id=i.user_id WHERE s.token_hash=$1`, hash).Scan(&s.ID, &s.IdentityID, &s.UserID, &s.Status, &s.AppID, &s.CreatedAt, &s.ExpiresAt, &revoked, &s.Nickname)
+	err := row.Scan(&s.ID, &s.IdentityID, &s.UserID, &s.Status, &s.AppID, &s.CreatedAt, &s.ExpiresAt, &revoked, &s.Nickname)
 	if errors.Is(err, sql.ErrNoRows) {
 		return s, nil
 	}

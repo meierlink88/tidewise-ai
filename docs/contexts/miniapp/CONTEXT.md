@@ -254,3 +254,10 @@ scope token 始终绑定所属 reportId，证据弹层交互保持。业务字�
 ### 地缘报告可选元数据读取（#507）
 
 地缘 v6 的 confidence、forecast_window、follow_up 允许空。BFF 按请求板块允许地缘空置信度，宏观/产业判断仍要求置信度；读取层接受可选窗口和观察项空值。小程序 v6 adapter 将无窗口映射为不适用、空描述，将空观察项映射为空数组，不显示占位预测期；不放宽有值的非法枚举。按 #509 移除地缘详情顶部的故事线事件入口；首页及详情正文中的指标、资产证据入口保持，summary 的 evidence_scope_token/count 继续保留在读取合同中。
+
+## 用户入口（#521）
+
+原生底部 Tab 为「推理 / 我的」，首页头像通过 switchTab 进入「我的」。报告继续游客可读。
+微信登录、会话恢复、昵称保存、退出走 Miniapp Backend 的 `/api/miniapp/v1/auth/*`，
+由 User Service 管理身份、会话和昵称；Miniapp Backend 无用户数据库访问权。
+仅微信端调用 Taro.login，抖音/H5 保留浏览并提示到微信登录。详见 ADR 0069 与 OpenAPI。
