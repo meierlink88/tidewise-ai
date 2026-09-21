@@ -29,3 +29,10 @@ User Domain Service 拥有用户身份、微信身份与业务会话，源码在
 事务内锁定会话及用户，验证有效期、撤销状态、AppID 和用户状态，再更新 users.nickname；
 不接收目标 user_id。昵称去首尾空白后为 1–32 个 Unicode 字符，禁止控制字符。
 数据库结构沿用 schema 4，无新迁移；响应不含 session_token。详见 ADR 0069。
+
+## UAT（#524）
+
+User 显式部署到 UAT 独立 Compose 项目，使用 RDS `tidewise_user_uat` 与独立迁移/运行角色。
+Miniapp Backend 通过同一 Docker 私网消费 User API；前端继续只访问 Miniapp HTTPS API。
+User 不纳入既有四服务镜像/迁移流水线，四服务发布通过受保护的可选 env 文件保留接入。
+默认会话有效期仍为 7 天，不增加自动续期或复制本地用户。

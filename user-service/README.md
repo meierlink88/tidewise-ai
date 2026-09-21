@@ -115,3 +115,28 @@ Miniapp Backend 的 `USER_SERVICE_BASE_URL` 指向独立 User Service，`USER_SE
 微信开发者工具项目 AppID 必须与配置表一致，游客 AppID 不能完成真实微信身份兑换。
 真机需要可访问的 HTTPS Miniapp Backend 地址，并配置微信 request 合法域名；本机
 `127.0.0.1:9012` 构建只用于同机开发者工具，不能作为真机服务地址。
+
+## UAT 独立部署（#524）
+
+User 仍使用独立发布单元；四服务 `Deploy UAT` 不构建或迁移 User。UAT 使用独立 RDS
+`tidewise_user_uat`，migration owner 与 runtime 分离，TLS 连接，按上述顺序执行完整账本、
+导入微信字典、授予权限后启动。不得复制本地 users、wechat_identities 或 user_sessions。
+
+ECS `/opt/tidewise/uat/user-service/` 保存受保护的 `runtime.env`、`migration.env` 与
+`miniapp.env`。前两者仅 root 可读；目录允许部署账号穿越，`miniapp.env` 由
+`tidewise-deploy` 持有且权限 0600，只包含：
+
+```dotenv
+USER_SERVICE_BASE_URL=http://user-service:9015
+USER_SERVICE_TOKEN=<与 User Service 相同的私有调用凭据>
+```
+
+使用 `docker-compose.uat.yaml`，显式传入不可变 `USER_SERVICE_IMAGE` 后启动。该 Compose
+以独立项目 `tidewise-user-uat` 加入现有 external `tidewise-uat` 网络，提供私网别名
+`user-service`，9015 仅映射 loopback，不配置公网 User API。
+
+四服务 Compose 可选加载上述 `miniapp.env`（Docker Compose >=2.24）。文件缺失保持
+登录功能关闭；文件存在时每次四服务发布保留 User 接入。接入失败不得影响游客报告读取。
+回退时移走 `miniapp.env` 并重建 miniapp，再停止独立 User 项目；保留用户库，不运行 down。
+上线验收分别检查 User readiness、私有鉴权、公网 BFF 登录路由及报告读取，真实登录还需
+微信体验版返回的新 code，健康检查或无效 code 测试不能代替真实登录。

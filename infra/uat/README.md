@@ -440,3 +440,12 @@ PR493 的两步 Schema migration 必须使用 `data_93_cutover`；`normal` 在 p
 93恢复只核验，不运行仅适用于92的回填命令。原始备份缺失或校验失败时拒绝继续；
 迁移开始后不自动恢复旧应用。恢复必须沿用同一SHA或还原已验证的数据库恢复点和对应旧应用。
 本模式不启用空库重建，也不改变旧91/88等切换路径。
+
+## 独立 User Service 接入
+
+User 的数据库、镜像和迁移独立于上述四服务发布，见
+[`user-service/README.md`](../../user-service/README.md#uat-独立部署524)。Miniapp 可选加载
+ECS `/opt/tidewise/uat/user-service/miniapp.env`，要求 Compose >=2.24；仅包含 User 私网
+地址与服务调用凭据，文件由部署账号持有且权限为 0600。缺失文件时保持登录关闭。
+四服务正常发布和镜像回退都保留此独立连接配置；若需关闭登录，移走文件并重建 miniapp。
+User Compose 项目独立，不受四服务 `--remove-orphans` 清理影响。

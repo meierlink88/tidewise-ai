@@ -1,0 +1,26 @@
+name: tidewise-user-uat
+
+services:
+  user:
+    image: ${USER_SERVICE_IMAGE:?set an immutable User Service image}
+    restart: unless-stopped
+    env_file: /opt/tidewise/uat/user-service/runtime.env
+    ports:
+      - '127.0.0.1:9015:9015'
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    logging:
+      driver: json-file
+      options:
+        max-size: '20m'
+        max-file: '5'
+    networks:
+      tidewise-uat:
+        aliases: [user-service]
+
+networks:
+  tidewise-uat:
+    external: true
+    name: tidewise-uat
