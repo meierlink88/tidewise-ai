@@ -559,3 +559,45 @@ jobs:
       - name: Review dependency changes
         if: github.event_name == 'pull_request'
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+
+  user:
+    name: User Service
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: user-ci-password
+          POSTGRES_DB: tidewise_user_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tidewise_user_test"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      USER_DATABASE_URL: postgres://postgres:user-ci-password@127.0.0.1:5432/tidewise_user_test?sslmode=disable
+      USER_DATABASE_NAME: tidewise_user_test
+      USER_TEST_DATABASE_URL: postgres://postgres:user-ci-password@127.0.0.1:5432/tidewise_user_test?sslmode=disable
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Check User formatting and vet
+        run: |
+          test -z "$(gofmt -l user-service/backend)"
+          go vet ./user-service/backend/...
+      - name: Smoke User forward migration chain and no-op replay
+        run: |
+          go run ./user-service/backend/cmd/dbmigrate
+          go run ./user-service/backend/cmd/dbmigrate
+      - name: Test User authentication and PostgreSQL boundaries
+        run: go test -race ./user-service/backend/... -count=1
+      - name: Build User image
+        run: docker build -f user-service/backend/Dockerfile -t tidewise-user:ci .
+      - name: Smoke User container lifecycle and restricted runtime role
+        run: bash scripts/ci/smoke-user-service.sh tidewise-user:ci

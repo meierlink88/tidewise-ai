@@ -15,6 +15,8 @@ import (
 func TestServiceOwnedPackagesAndCommandsExist(t *testing.T) {
 	packages := listServicePackages(t)
 	for _, suffix := range []string{
+		"user-service/backend/api/user/v1",
+		"user-service/backend/cmd/server",
 		"data-service/backend/api/data/v1",
 		"data-service/backend/cmd/server",
 		"data-service/backend/internal/conf",
@@ -40,6 +42,7 @@ func TestServiceOwnedPackagesAndCommandsExist(t *testing.T) {
 	}
 
 	for _, service := range []string{
+		"user-service/backend",
 		"data-service/backend",
 		"miniapp/backend",
 		"admin-portal/backend",
@@ -72,6 +75,7 @@ func TestDeployableServicesDoNotImportEachOther(t *testing.T) {
 
 func TestCurrentServiceBinariesExcludeAgentRuntimeDependencies(t *testing.T) {
 	commands := map[string]string{
+		"user":         "./user-service/backend/cmd/server",
 		"data":         "./data-service/backend/cmd/server",
 		"miniapp":      "./miniapp/backend/cmd/server",
 		"admin-portal": "./admin-portal/backend/cmd/server",
@@ -159,6 +163,7 @@ func TestKratosLayersFollowOneCentralDependencyPolicy(t *testing.T) {
 func TestDeployableServicesUseExplicitConstructionWithoutWire(t *testing.T) {
 	root := repositoryRoot()
 	for _, service := range []string{
+		"user-service/backend",
 		"data-service/backend",
 		"miniapp/backend",
 		"admin-portal/backend",
@@ -190,6 +195,8 @@ func assertImportOutside(t *testing.T, owner, imported string, forbidden ...stri
 
 func serviceRoot(service string) string {
 	switch service {
+	case "user-service":
+		return "user-service/backend"
 	case "data-service":
 		return "data-service/backend"
 	case "miniapp":
@@ -203,6 +210,7 @@ func serviceRoot(service string) string {
 
 func deployableService(packageName string) string {
 	services := map[string]string{
+		"user-service/backend": "user-service",
 		"data-service/backend": "data-service",
 		"miniapp/backend":      "miniapp",
 		"admin-portal/backend": "admin-portal",
@@ -256,6 +264,7 @@ func listServicePackages(t *testing.T) []packageInfo {
 
 	command := exec.Command(
 		"go", "list", "-json",
+		"./user-service/backend/...",
 		"./data-service/backend/...",
 		"./miniapp/backend/...",
 		"./admin-portal/backend/...",

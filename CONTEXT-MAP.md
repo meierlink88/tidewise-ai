@@ -1,6 +1,6 @@
 # Context Map
 
-观潮家当前使用一个 repository 和一个根 Go module，按应用垂直组织三个 Context、四个可
+观潮家当前使用一个 repository 和一个根 Go module，按应用垂直组织四个 Context、五个可
 独立构建和启动的应用服务。源码是否在同一仓库，不改变 Service 之间只能通过远程 API
 协作的边界。
 
@@ -10,6 +10,7 @@
 | ------------ | -------- | ------------------------------------------------- | -------------------------------------- |
 | Miniapp      | 产品系统 | `miniapp/frontend` 与 `miniapp/backend`           | `docs/contexts/miniapp/CONTEXT.md`     |
 | Admin Portal | 产品系统 | `admin-portal/frontend` 与 `admin-portal/backend` | `docs/contexts/adminportal/CONTEXT.md` |
+| User         | 领域系统 | `user-service/backend`、用户身份与会话            | `docs/contexts/user/CONTEXT.md`        |
 | Data         | 领域系统 | `data-service/backend`、正式事实与查询            | `docs/contexts/data/CONTEXT.md`        |
 
 `data-service` 是工程应用名，领域术语仍为 Data Domain Service。Agent OS 位于本仓库之外，
@@ -22,6 +23,7 @@
 Miniapp Frontend
   -> Miniapp Application Backend Service
       -> Data Domain Service REST API
+      -> User Domain Service REST API（服务已实现，Miniapp consumer 待接入）
 
 Admin Portal Frontend
   -> Admin Application Backend Service
@@ -39,10 +41,10 @@ Data Domain Service
 
 ## Runtime
 
-四个应用服务为 Data Service、Miniapp Backend、Admin Backend 与 Admin Web。它们通过
+五个应用服务为 Data Service、Miniapp Backend、Admin Backend、Admin Web 与 User Service。它们通过
 Docker image 和 Compose 运行。本地共享 PostgreSQL 与 MinIO 属于独立基础设施项目，
 不属于应用发布单元。本地推理专用 Neo4j 由外部 `tidewise-reason`
-repository 独立拥有，四个应用服务不依赖它。Admin Web 是浏览器唯一 Admin origin，并把相对
+repository 独立拥有，应用服务不依赖它。Admin Web 是浏览器唯一 Admin origin，并把相对
 `/api/admin/*` 请求代理到内部 Admin Backend。
 
 系统级退役决策见 `docs/adr/0027-retire-agent-run.md`。Source 所有权、Admin Backend 管理边界与
@@ -56,3 +58,6 @@ UAT ECS 只保留四个应用服务与历史 `tidewise-infra-uat` MinIO/raw-evid
 Admin Portal 合同。
 AgentOS、Reason/OpenSPG、KAG、MySQL、Neo4j 与 Qdrant 已迁出或退役，不属于当前 ECS、RDS
 或本仓库 UAT 生命周期；详见 `docs/adr/0055-retire-uat-reasoning-runtime.md`。
+
+User Service 的独立数据库和显式部署顺序见 `docs/adr/0067-user-service-wechat-identity.md`。
+User 当前未加入 UAT 运行编排；上文四服务 ECS 现状保持不变。
