@@ -164,3 +164,77 @@ func TestPhoneAndConsentPersistence(t *testing.T) {
 		t.Fatal("phone update escaped failed transaction")
 	}
 }
+
+func TestAvatarTransaction(t *testing.T) {
+	dsn := os.Getenv("USER_DATABASE_URL")
+	if dsn == "" || os.Getenv("USER_DATABASE_NAME") != "tidewise_user_test" {
+		t.Skip("requires isolated migrated test db")
+	}
+	db, e := sql.Open("pgx", dsn)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer db.Close()
+	var name string
+	if db.QueryRow("SELECT current_database()").Scan(&name) != nil || name != "tidewise_user_test" {
+		t.Fatal("wrong database")
+	}
+	lock, e := db.Conn(context.Background())
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer lock.Close()
+	if _, e = lock.ExecContext(context.Background(), "SELECT pg_advisory_lock(20260921528)"); e != nil {
+		t.Fatal(e)
+	}
+	defer lock.ExecContext(context.Background(), "SELECT pg_advisory_unlock(20260921528)")
+	id := uuid.NewString()
+	now := time.Now()
+	ctx := context.Background()
+	if _, e = db.Exec(`INSERT INTO users(id,status,created_at,updated_at,last_login_at,nickname) VALUES($1,'active',$2,$2,$2,'original')`, id, now); e != nil {
+		t.Fatal(e)
+	}
+	defer db.Exec(`DELETE FROM users WHERE id=$1`, id)
+	repo := NewRepository(db)
+	e = repo.Within(ctx, func(tx biz.Transaction) error { return tx.SetAvatar(ctx, id, []byte("first"), now, biz.PrivacyVersion) })
+	if e != nil {
+		t.Fatal(e)
+	}
+	e = repo.Within(ctx, func(tx biz.Transaction) error {
+		if e := tx.SetNickname(ctx, id, "changed", now); e != nil {
+			return e
+		}
+		return tx.SetAvatar(ctx, id, make([]byte, 131073), now, biz.PrivacyVersion)
+	})
+	if e == nil {
+		t.Fatal("oversized database avatar accepted")
+	}
+	var nick string
+	if db.QueryRow(`SELECT nickname FROM users WHERE id=$1`, id).Scan(&nick) != nil || nick != "original" {
+		t.Fatal("nickname did not roll back")
+	}
+	e = repo.Within(ctx, func(tx biz.Transaction) error {
+		a, e := tx.Avatar(ctx, id)
+		if e != nil {
+			return e
+		}
+		if string(a) != "first" {
+			t.Fatal("old avatar changed")
+		}
+		other, e := tx.Avatar(ctx, uuid.NewString())
+		if e != nil {
+			return e
+		}
+		if len(other) != 0 {
+			t.Fatal("cross-user avatar leak")
+		}
+		return tx.SetAvatar(ctx, id, []byte("replacement"), now, biz.PrivacyVersion)
+	})
+	if e != nil {
+		t.Fatal(e)
+	}
+	var count int
+	if db.QueryRow(`SELECT count(*) FROM user_avatars WHERE user_id=$1`, id).Scan(&count) != nil || count != 1 {
+		t.Fatal("replacement inserted another avatar")
+	}
+}

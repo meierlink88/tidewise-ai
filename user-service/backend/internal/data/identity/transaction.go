@@ -70,3 +70,23 @@ func (t *transaction) SetNickname(ctx context.Context, userID, nickname string, 
 	_, err := t.tx.ExecContext(ctx, `UPDATE users SET nickname=$2,updated_at=$3 WHERE id=$1`, userID, nickname, now)
 	return databaseError(err)
 }
+
+func (t *transaction) SetAvatar(ctx context.Context, userID string, data []byte, now time.Time, version string) error {
+	_, err := t.tx.ExecContext(ctx, `INSERT INTO user_avatars(user_id,image_data,content_type,updated_at,privacy_version) VALUES($1,$2,'image/jpeg',$3,$4) ON CONFLICT(user_id) DO UPDATE SET image_data=EXCLUDED.image_data,updated_at=EXCLUDED.updated_at,privacy_version=EXCLUDED.privacy_version`, userID, data, now, version)
+	return databaseError(err)
+}
+func (t *transaction) Avatar(ctx context.Context, userID string) ([]byte, error) {
+	var data []byte
+	var contentType string
+	err := t.tx.QueryRowContext(ctx, `SELECT image_data,content_type FROM user_avatars WHERE user_id=$1`, userID).Scan(&data, &contentType)
+	if errors.Is(err, sql.ErrNoRows) {
+		return []byte{}, nil
+	}
+	if err != nil {
+		return nil, databaseError(err)
+	}
+	if contentType != "image/jpeg" || len(data) == 0 || len(data) > 128*1024 {
+		return nil, biz.ErrUnavailable
+	}
+	return data, nil
+}

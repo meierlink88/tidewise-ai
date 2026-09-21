@@ -24,8 +24,8 @@ export default function InformationPage() {
     }
   }, []);
   return (
-    <View className={`profile-page${about ? ' profile-page--about' : ''}`}>
-      <View className='profile-page__header'>
+    <View className={`profile-page account-page${about ? ' profile-page--about' : ''}`}>
+      <View className='profile-page__header account-header'>
         <NavigationBar
           title={about ? '关于观潮家' : '隐私政策'}
           chrome={chrome}

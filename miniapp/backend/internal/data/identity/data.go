@@ -36,12 +36,14 @@ func New(base, token string) (*Client, error) {
 type response struct {
 	RequestID string `json:"request_id"`
 	Result    struct {
-		UserID    string    `json:"user_id"`
-		Nickname  string    `json:"nickname"`
-		Status    string    `json:"status"`
-		Token     string    `json:"session_token"`
-		ExpiresAt time.Time `json:"expires_at"`
-		Revoked   bool      `json:"revoked"`
+		Data        []byte    `json:"data"`
+		ContentType string    `json:"content_type"`
+		UserID      string    `json:"user_id"`
+		Nickname    string    `json:"nickname"`
+		Status      string    `json:"status"`
+		Token       string    `json:"session_token"`
+		ExpiresAt   time.Time `json:"expires_at"`
+		Revoked     bool      `json:"revoked"`
 	} `json:"result"`
 	Error struct {
 		Code string `json:"code"`
@@ -69,8 +71,12 @@ func (c *Client) call(ctx context.Context, path string, input any) (response, er
 		return result, biz.ErrUnavailable
 	}
 	defer res.Body.Close()
-	raw, err := io.ReadAll(io.LimitReader(res.Body, 65537))
-	if err != nil || len(raw) > 65536 || json.Unmarshal(raw, &result) != nil || result.RequestID == "" {
+	limit := int64(65536)
+	if path == "profiles/avatar" {
+		limit = 192 * 1024
+	}
+	raw, err := io.ReadAll(io.LimitReader(res.Body, limit+1))
+	if err != nil || int64(len(raw)) > limit || json.Unmarshal(raw, &result) != nil || result.RequestID == "" {
 		return response{}, biz.ErrUnavailable
 	}
 	if res.StatusCode != 200 {
@@ -83,7 +89,7 @@ func (c *Client) call(ctx context.Context, path string, input any) (response, er
 			return response{}, biz.ErrLoginRejected
 		case res.StatusCode == 400 && result.Error.Code == "WECHAT_CODE_INVALID":
 			return response{}, biz.ErrCodeInvalid
-		case res.StatusCode == 400 && (result.Error.Code == "INVALID_NICKNAME" || result.Error.Code == "INVALID_REQUEST"):
+		case res.StatusCode == 400 && (result.Error.Code == "INVALID_AVATAR" || result.Error.Code == "INVALID_NICKNAME" || result.Error.Code == "INVALID_REQUEST"):
 			return response{}, biz.ErrInvalid
 		case res.StatusCode == 429:
 			return response{}, biz.ErrRateLimited
@@ -143,10 +149,25 @@ func (c *Client) Logout(ctx context.Context, token string) error {
 	}
 	return nil
 }
-func (c *Client) Nickname(ctx context.Context, token, nickname string) (biz.Profile, error) {
-	r, e := c.call(ctx, "profiles/nickname", map[string]string{"session_token": token, "nickname": nickname})
+func (c *Client) Nickname(ctx context.Context, token, nickname string, avatar []byte) (biz.Profile, error) {
+	input := map[string]any{"session_token": token, "nickname": nickname}
+	if avatar != nil {
+		input["avatar_data"] = avatar
+	}
+	r, e := c.call(ctx, "profiles/nickname", input)
 	if e != nil {
 		return biz.Profile{}, e
 	}
 	return profile(r, false)
+}
+
+func (c *Client) Avatar(ctx context.Context, token string) ([]byte, error) {
+	r, e := c.call(ctx, "profiles/avatar", map[string]string{"session_token": token})
+	if e != nil {
+		return nil, e
+	}
+	if r.Result.ContentType != "image/jpeg" || r.Result.Data == nil || len(r.Result.Data) > 128*1024 {
+		return nil, biz.ErrUnavailable
+	}
+	return r.Result.Data, nil
 }

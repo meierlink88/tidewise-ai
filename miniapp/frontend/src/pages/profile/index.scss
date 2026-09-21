@@ -355,114 +355,80 @@
   }
 }
 
-.profile-page--personal {
-  position: relative;
-  background: $color-home-paper;
-  .profile-page__header {
-    background: transparent;
-    padding-bottom: 0;
-    position: relative;
-    z-index: 1;
-  }
-  .navigation-bar {
-    color: $color-home-ink;
-  }
-  .profile-page__body {
-    background: transparent;
-    margin-top: 0;
-    border-radius: 0;
-    padding: 44rpx 40rpx 40rpx;
-    display: flex;
-    flex-direction: column;
-  }
-  .profile-page__body--account {
-    background: $color-home-paper;
-  }
-  .profile-page__footer {
-    margin-top: auto;
-    padding-top: 64rpx;
-    padding-bottom: env(safe-area-inset-bottom);
-    color: #576770;
-  }
-  .profile-page__portrait {
-    width: 124rpx;
-    height: 124rpx;
-    background: rgba(255, 255, 255, 0.35);
-    border: 4rpx solid rgba(255, 255, 255, 0.9);
-  }
-  .profile-page__name {
-    font-size: 40rpx;
-  }
-}
-.profile-page__backdrop {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-.profile-page__identity-button {
-  display: flex;
-  width: 100%;
-  padding: 0;
-  margin: 0 0 48rpx;
-  text-align: left;
-  border: 0;
-  background: transparent;
-  line-height: 1.4;
+.account-page,
+.login-page {
+  min-height: 100vh;
+  background: $background-home-hero;
   color: $color-home-ink;
-  border-radius: 0;
+  .account-header {
+    background: transparent;
+    padding-bottom: 48rpx;
+    .navigation-bar {
+      color: $color-home-card;
+    }
+  }
 }
-.profile-page__identity-button::after {
-  border: 0;
-}
-.profile-page__identity-arrow {
-  margin-left: auto;
-  color: #7a888c;
-  font-size: 44rpx;
-}
-
 .profile-page--personal {
-  background: $color-home-paper;
+  .profile-page__body {
+    margin-top: -32rpx;
+    border-radius: 36rpx 36rpx 0 0;
+    background: $color-home-paper;
+    padding: 64rpx 40rpx calc(48rpx + env(safe-area-inset-bottom));
+  }
   .profile-page__body--landing {
-    padding: 100rpx 40rpx 64rpx;
+    padding-top: 96rpx;
   }
   .profile-page__identity-button {
+    display: flex;
     flex-direction: column;
     align-items: center;
+    width: 100%;
     text-align: center;
-    gap: 40rpx;
-    margin: 0 0 80rpx;
-    padding: 32rpx 0;
+    gap: 32rpx;
+    margin: 0 0 64rpx;
+    padding: 24rpx 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: $color-home-ink;
+    line-height: 1.4;
+    &::after {
+      border: 0;
+    }
+    &[disabled] {
+      background: transparent;
+      opacity: 0.65;
+    }
   }
   .profile-page__portrait {
     width: 148rpx;
     height: 148rpx;
-    border: 8rpx solid $color-home-card;
+    border: 6rpx solid $color-home-card;
     background: $color-home-gold-soft;
     box-shadow:
-      0 0 0 20rpx $color-home-paper,
-      0 0 0 22rpx $color-home-border,
-      0 0 0 44rpx $color-home-paper;
+      0 0 0 2rpx rgba($color-home-gold, 0.4),
+      0 0 0 18rpx rgba($color-home-gold, 0.06);
+    overflow: hidden;
   }
-  .profile-page__identity-copy {
-    margin: 0;
+  .profile-page__name {
+    color: $color-home-ink;
+    font-size: 40rpx;
   }
   .profile-page__about-row {
     display: flex;
     align-items: center;
     gap: 24rpx;
-    padding: 32rpx;
-    margin: 0;
+    padding: 28rpx 32rpx;
     width: 100%;
-    border-radius: 20rpx;
+    margin: 0;
     background: $color-home-card;
     color: $color-home-ink;
-    font-size: 32rpx;
-    font-weight: 600;
-    line-height: 1.7;
+    border: 1rpx solid $color-home-border;
+    border-radius: $radius-home-card;
+    font-size: 30rpx;
+    font-weight: 500;
     text-align: left;
+    box-shadow: $shadow-home-card;
     &::after {
       border: 0;
     }
@@ -473,21 +439,30 @@
   .profile-page__about-arrow {
     margin-left: auto;
     color: $color-home-muted;
-    font-size: 40rpx;
+    font-size: 36rpx;
   }
 }
-.profile-page--personal {
-  .profile-page__name {
-    color: $color-home-ink;
+.profile-page__saved-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+.profile-page__avatar-picker {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 20rpx 0;
+  background: transparent;
+  color: $color-home-ink;
+  font-size: 28rpx;
+  text-align: left;
+  .profile-page__saved-avatar {
+    width: 96rpx;
+    height: 96rpx;
+    flex-shrink: 0;
   }
-  .profile-page__identity-button[disabled] {
-    opacity: 0.65;
-    background: transparent;
-  }
-  .profile-page__avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
+  &::after {
+    border: 0;
   }
 }
 

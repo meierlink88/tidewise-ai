@@ -1,11 +1,14 @@
 package server_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"image"
+	"image/png"
 	"io"
 	"log/slog"
 	"net/http"
@@ -129,7 +132,7 @@ func TestPostgresLoginLifecycleAndConcurrency(t *testing.T) {
 	if err = data.Ready(context.Background(), db); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.Exec("TRUNCATE user_sessions,wechat_identities,users"); err != nil {
+	if _, err = db.Exec("TRUNCATE user_avatars,user_sessions,wechat_identities,users"); err != nil {
 		t.Fatal(err)
 	}
 	provider := adapter.NewWechat("app", "secret", transport(func(r *http.Request) (*http.Response, error) {
@@ -163,13 +166,32 @@ func TestPostgresLoginLifecycleAndConcurrency(t *testing.T) {
 	if first.Nickname != "" {
 		t.Fatal("new user nickname must be unset")
 	}
-	nicknameBody, _ := json.Marshal(api.NicknameRequest{SessionToken: first.SessionToken, Nickname: "  观潮用户  "})
+	var imageInput bytes.Buffer
+	if err := png.Encode(&imageInput, image.NewRGBA(image.Rect(0, 0, 400, 300))); err != nil {
+		t.Fatal(err)
+	}
+	nicknameBody, _ := json.Marshal(api.NicknameRequest{SessionToken: first.SessionToken, Nickname: "  观潮用户  ", AvatarData: imageInput.Bytes()})
 	if status, result := request(t, h, "/api/user/v1/profiles/nickname", string(nicknameBody), "Bearer "+serviceToken); status != 200 || result.Result.Nickname != "观潮用户" || result.Result.SessionToken != "" {
 		t.Fatal("nickname HTTP update failed", status)
 	}
 	status, profile := request(t, h, "/api/user/v1/sessions/verify", sessionBody(first.SessionToken), "Bearer "+serviceToken)
 	if status != 200 || profile.Result.Nickname != "观潮用户" {
 		t.Fatal("verify lost nickname")
+	}
+	avatarReq := httptest.NewRequest("POST", "/api/user/v1/profiles/avatar", strings.NewReader(sessionBody(first.SessionToken)))
+	avatarReq.Header.Set("Content-Type", "application/json")
+	avatarReq.Header.Set("Authorization", "Bearer "+serviceToken)
+	avatarWriter := httptest.NewRecorder()
+	h.ServeHTTP(avatarWriter, avatarReq)
+	var avatarEnvelope struct {
+		Result api.AvatarResponse `json:"result"`
+	}
+	if json.Unmarshal(avatarWriter.Body.Bytes(), &avatarEnvelope) != nil || avatarWriter.Code != 200 {
+		t.Fatal("avatar HTTP read failed")
+	}
+	cfg, format, e := image.DecodeConfig(bytes.NewReader(avatarEnvelope.Result.Data))
+	if e != nil || format != "jpeg" || cfg.Width != 256 || cfg.Height != 192 {
+		t.Fatal("persisted avatar mismatch")
 	}
 	second := login("alice", first.SessionToken)
 	if second.Nickname != "观潮用户" {
@@ -185,6 +207,9 @@ func TestPostgresLoginLifecycleAndConcurrency(t *testing.T) {
 	code, _ = request(t, h, "/api/user/v1/sessions/verify", sessionBody(first.SessionToken), "Bearer "+serviceToken)
 	if code != 401 {
 		t.Fatal("old session not revoked")
+	}
+	if status, _ := request(t, h, "/api/user/v1/profiles/avatar", sessionBody(first.SessionToken), "Bearer "+serviceToken); status != 401 {
+		t.Fatal("revoked session read avatar")
 	}
 	if status, _ := request(t, h, "/api/user/v1/profiles/nickname", string(nicknameBody), "Bearer "+serviceToken); status != 401 {
 		t.Fatal("revoked session changed nickname")
@@ -292,4 +317,8 @@ func TestPostgresLoginLifecycleAndConcurrency(t *testing.T) {
 
 func (stub) UpdateNickname(context.Context, api.NicknameRequest) (api.UserResponse, error) {
 	return api.UserResponse{}, nil
+}
+
+func (stub) Avatar(context.Context, api.SessionRequest) (api.AvatarResponse, error) {
+	return api.AvatarResponse{Data: []byte{}, ContentType: "image/jpeg"}, nil
 }

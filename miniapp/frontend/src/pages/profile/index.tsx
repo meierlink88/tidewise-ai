@@ -33,8 +33,8 @@ export default function ProfilePage() {
     }
   }
   return (
-    <View className='profile-page profile-page--personal'>
-      <View className='profile-page__header'>
+    <View className='profile-page profile-page--personal account-page'>
+      <View className='profile-page__header account-header'>
         <NavigationBar
           title='我的'
           chrome={chrome}

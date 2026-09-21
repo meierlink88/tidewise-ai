@@ -34,7 +34,11 @@ func bind(ctx kratoshttp.Context, value any) error {
 	if e != nil || media != "application/json" {
 		return v1.ErrInvalidRequest
 	}
-	raw, e := io.ReadAll(http.MaxBytesReader(ctx.Response(), ctx.Request().Body, 4096))
+	limit := int64(4096)
+	if ctx.Request().URL.Path == v1.APIPrefix+"/auth/profile" {
+		limit = 3 * 1024 * 1024
+	}
+	raw, e := io.ReadAll(http.MaxBytesReader(ctx.Response(), ctx.Request().Body, limit))
 	if e != nil {
 		return v1.ErrInvalidRequest
 	}
@@ -82,6 +86,15 @@ func RegisterHTTPServer(server *kratoshttp.Server, s Service) {
 		return
 	}
 	router := server.Route(v1.APIPrefix + "/auth")
+	router.GET("/avatar", func(ctx kratoshttp.Context) error {
+		return call(ctx, "avatar", func(c context.Context) (any, error) {
+			t, e := token(ctx, false)
+			if e != nil {
+				return nil, e
+			}
+			return s.Avatar(c, t)
+		})
+	})
 	router.POST("/wechat/login", func(ctx kratoshttp.Context) error {
 		return call(ctx, "login", func(c context.Context) (any, error) {
 			var r LoginRequest

@@ -26,19 +26,21 @@ export default function LoginPage() {
   }
   return (
     <View className='login-page'>
-      <NavigationBar
-        title='欢迎登录观潮家'
-        chrome={chrome}
-        leading={
-          <Button
-            className='tidewise-button profile-page__back'
-            aria-label='返回我的'
-            onClick={() => void leaveLogin()}
-          >
-            <View className='profile-page__chevron' />
-          </Button>
-        }
-      />
+      <View className='account-header'>
+        <NavigationBar
+          title='欢迎登录观潮家'
+          chrome={chrome}
+          leading={
+            <Button
+              className='tidewise-button profile-page__back'
+              aria-label='返回我的'
+              onClick={() => void leaveLogin()}
+            >
+              <View className='profile-page__chevron' />
+            </Button>
+          }
+        />
+      </View>
       <LoginView
         pendingAction={identity.pendingAction}
         error={identity.error}

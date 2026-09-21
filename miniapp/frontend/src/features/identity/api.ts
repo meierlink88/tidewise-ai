@@ -75,11 +75,36 @@ export async function login(
 export async function me(token: string): Promise<Profile> {
   return profile(await request('me', 'GET', token));
 }
-export async function updateNickname(token: string, nickname: string): Promise<Profile> {
-  return profile(await request('profile', 'PATCH', token, { nickname }));
+export async function updateNickname(
+  token: string,
+  nickname: string,
+  avatarData?: string
+): Promise<Profile> {
+  return profile(
+    await request('profile', 'PATCH', token, {
+      nickname,
+      ...(avatarData ? { avatar_data: avatarData } : {})
+    })
+  );
 }
 export async function logout(token: string): Promise<void> {
   const result = await request('logout', 'POST', token);
   if (!result || typeof result !== 'object' || !('revoked' in result) || result.revoked !== true)
     throw new IdentityError('退出未完成，请重试');
+}
+
+export async function avatar(token: string): Promise<string> {
+  const value = await request('avatar', 'GET', token);
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    !('data' in value) ||
+    typeof value.data !== 'string' ||
+    !('content_type' in value) ||
+    value.content_type !== 'image/jpeg' ||
+    value.data.length > 174764 ||
+    !/^[A-Za-z0-9+/]*={0,2}$/.test(value.data)
+  )
+    throw new IdentityError('头像响应异常，请重试');
+  return value.data;
 }

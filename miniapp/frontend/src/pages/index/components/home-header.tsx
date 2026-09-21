@@ -4,6 +4,7 @@ import { Button, Image, Input, Text, View } from '@tarojs/components';
 import { NavigationBar } from '../../../platform/navigation-bar';
 import type { HomeChromeMetrics } from '../../../platform/system-ui';
 import { openProfile } from '../../../platform/identity';
+import { useIdentity } from '../../../features/identity/use-identity';
 import avatarImage from '../../../assets/nav-avatar.png';
 import searchIcon from '../../../assets/icons/search.svg';
 import sendIcon from '../../../assets/icons/send.svg';
@@ -25,6 +26,7 @@ export function HomeHeader({
   onQueryChange,
   isSinglePage = false
 }: HomeHeaderProps) {
+  const identity = useIdentity();
   const openingProfile = useRef(false);
   async function enterProfile() {
     if (openingProfile.current) return;
@@ -63,7 +65,11 @@ export function HomeHeader({
               aria-label='个人中心'
               onClick={() => void enterProfile()}
             >
-              <Image className='home-nav__avatar' src={avatarImage} mode='aspectFill' />
+              <Image
+                className='home-nav__avatar'
+                src={identity.profile?.avatarSource || avatarImage}
+                mode='aspectFill'
+              />
             </Button>
           }
         />

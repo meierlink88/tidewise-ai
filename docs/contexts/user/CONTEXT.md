@@ -49,3 +49,13 @@ User Provider 使用 stable_token 的内存缓存取得接口凭据；手机号 
 schema 5 在 users 增加 phone_number/phone_verified_at，在 user_sessions 增加 privacy_version/
 privacy_accepted_at。完整手机号仅在 User 私库保存，不返回公开 Profile DTO，不记录日志。
 用户的删除、注销、撤回同意请求通过公开邮箱人工处理，不宣称有自动注销 API。
+
+## 头像与微信资料填写（#530）
+
+头像为 User 所有的可选私有资料，独立 user_avatars 表以 user_id 主键/外键保存一张
+JPEG bytea、content_type、updated_at 和提交时的 privacy_version。普通身份读取不携带图片。
+当前用户通过 session 授权的头像专用接口读取 base64，未设置返回空字符串；无公开链接或
+用户ID查询参数。资料写入扩展可选 avatar_data，与昵称共用同一会话/用户锁和事务；省略
+保留旧头像，不接受远程 URL。原图限2MiB且宽高各不超过2048，User解码重采样至最长边256、
+JPEG85且不超过128KiB，清除源元数据。微信 chooseAvatar/nickname 为主动填写，不是持续同步。
+迁移6先应用并授权runtime表DML，再部署User、BFF、前端；v5服务可回退并保留头像表。

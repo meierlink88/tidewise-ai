@@ -1,3 +1,5 @@
+@use '../../../styles/tokens' as *;
+
 .profile-information {
   padding-bottom: calc(64rpx + env(safe-area-inset-bottom));
   &__title {
@@ -39,18 +41,13 @@
   }
 }
 
-.profile-page--about {
-  background: #fff;
-  .profile-page__header {
-    background: #fff;
-    padding-bottom: 0;
-  }
-  .navigation-bar {
-    color: #163244;
-  }
-}
 .about-page__body {
-  min-height: calc(100vh - 180rpx);
+  flex: 1;
+  position: relative;
+  margin-top: -32rpx;
+  border-radius: 36rpx 36rpx 0 0;
+  background: $color-home-paper;
+  min-height: calc(100vh - 200rpx);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -61,39 +58,42 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 160rpx;
+  padding-top: 104rpx;
   gap: 28rpx;
 }
 .about-page__mark {
-  width: 132rpx;
-  height: 132rpx;
+  width: 148rpx;
+  height: 148rpx;
   border-radius: 50%;
-  background: #102e3e;
-  color: #dfc483;
+  background: $color-home-ink;
+  border: 2rpx solid $color-home-gold;
+  font-family: serif;
+  color: $color-home-gold-soft;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 64rpx;
+  font-size: 76rpx;
 }
 .about-page__name {
   margin-top: 20rpx;
-  font-size: 52rpx;
-  font-weight: 600;
-  color: #163244;
+  font-size: 42rpx;
+  font-weight: 500;
+  letter-spacing: 6rpx;
+  color: $color-home-ink;
 }
 .about-page__tagline {
   font-size: 26rpx;
-  color: #78868b;
+  color: $color-home-muted;
 }
 .about-page__version {
   font-size: 28rpx;
-  color: #53636b;
+  color: $color-home-secondary;
 }
 .about-page__privacy {
   margin: auto 0 0;
   padding: 24rpx;
   background: transparent;
-  color: #527584;
+  color: $color-home-secondary;
   font-size: 28rpx;
   &::after {
     border: 0;

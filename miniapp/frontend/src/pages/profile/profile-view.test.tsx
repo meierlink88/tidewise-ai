@@ -4,8 +4,36 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ProfileView, type ProfileViewProps } from './profile-view';
 
+const capabilities = vi.hoisted(() => ({
+  supported: false,
+  choose: undefined as undefined | ((e: { detail: { avatarUrl: string } }) => void)
+}));
+vi.mock('../../platform/identity', () => ({
+  get supportsWechatLogin() {
+    return capabilities.supported;
+  }
+}));
+
 vi.mock('@tarojs/components', () => ({
   View: ({ children, ...props }: { children?: ReactNode }) => createElement('div', props, children),
+  Form: ({
+    children,
+    onSubmit
+  }: {
+    children?: ReactNode;
+    onSubmit: (e: { detail: { value: Record<string, string> } }) => void;
+  }) =>
+    createElement(
+      'form',
+      {
+        onSubmit: (e: React.FormEvent<HTMLFormElement>) => {
+          e.preventDefault();
+          const data = new FormData(e.currentTarget);
+          onSubmit({ detail: { value: Object.fromEntries(data) as Record<string, string> } });
+        }
+      },
+      children
+    ),
   Text: 'span',
   Checkbox: ({ children }: { children?: ReactNode }) => createElement('span', {}, children),
   CheckboxGroup: ({
@@ -31,14 +59,23 @@ vi.mock('@tarojs/components', () => ({
     hoverClass: _hover,
     openType: _openType,
     onGetPhoneNumber,
+    formType,
+    onChooseAvatar,
     ...props
   }: {
+    formType?: string;
+    onChooseAvatar?: (e: { detail: { avatarUrl: string } }) => void;
     children?: ReactNode;
     hoverClass?: string;
     openType?: string;
     onGetPhoneNumber?: (e: { detail: { code?: string } }) => void;
   }) => {
-    return createElement('button', props, children);
+    if (onChooseAvatar) capabilities.choose = onChooseAvatar;
+    return createElement(
+      'button',
+      { ...props, type: formType === 'submit' ? 'submit' : 'button' },
+      children
+    );
   },
   Input: ({
     onInput,
@@ -66,6 +103,8 @@ let root: Root;
 let host: HTMLDivElement;
 let props: ProfileViewProps;
 beforeEach(async () => {
+  capabilities.supported = false;
+  capabilities.choose = undefined;
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   host = document.createElement('div');
   document.body.appendChild(host);
@@ -133,7 +172,7 @@ it('keeps failed edits and closes with feedback after successful save', async ()
   await click('保存修改');
   expect(host.querySelector('input')?.value).toBe(' 新昵称 ');
   await click('保存修改');
-  expect(props.onSaveNickname).toHaveBeenLastCalledWith('新昵称');
+  expect(props.onSaveNickname).toHaveBeenLastCalledWith('新昵称', undefined);
   expect(host.querySelector('input')).toBeNull();
   expect(host.textContent).toContain('个人资料已更新');
 });
@@ -168,4 +207,26 @@ it('opens about from the landing page', async () => {
   const entry = host.querySelector<HTMLButtonElement>('.profile-page__about-row');
   await act(async () => entry!.click());
   expect(props.onOpenInformation).toHaveBeenCalledWith('about');
+});
+
+it('keeps chosen avatar local until saving and preserves it after failure', async () => {
+  capabilities.supported = true;
+  await click('编辑资料');
+  await act(async () => capabilities.choose!({ detail: { avatarUrl: 'wxfile://tmp/avatar.jpg' } }));
+  expect(props.onSaveNickname).not.toHaveBeenCalled();
+  vi.mocked(props.onSaveNickname).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+  await click('保存修改');
+  expect(props.onSaveNickname).toHaveBeenLastCalledWith('david', 'wxfile://tmp/avatar.jpg');
+  expect(host.querySelector('img')?.getAttribute('src')).toBe('wxfile://tmp/avatar.jpg');
+  await click('保存修改');
+  expect(host.textContent).toContain('个人资料已更新');
+});
+it('canceling discards the selected avatar without a write', async () => {
+  capabilities.supported = true;
+  await click('编辑资料');
+  await act(async () => capabilities.choose!({ detail: { avatarUrl: 'wxfile://tmp/avatar.jpg' } }));
+  await click('取消');
+  await click('编辑资料');
+  expect(host.querySelector('img')).toBeNull();
+  expect(props.onSaveNickname).not.toHaveBeenCalled();
 });

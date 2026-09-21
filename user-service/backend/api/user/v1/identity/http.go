@@ -15,7 +15,11 @@ func bind(ctx kratoshttp.Context, target any) error {
 	if err != nil || mediaType != "application/json" {
 		return &Error{400, "INVALID_REQUEST"}
 	}
-	body, err := io.ReadAll(http.MaxBytesReader(ctx.Response(), ctx.Request().Body, 4096))
+	limit := int64(4096)
+	if ctx.Request().URL.Path == "/api/user/v1/profiles/nickname" {
+		limit = 3 * 1024 * 1024
+	}
+	body, err := io.ReadAll(http.MaxBytesReader(ctx.Response(), ctx.Request().Body, limit))
 	if err != nil {
 		return &Error{400, "INVALID_REQUEST"}
 	}
@@ -51,6 +55,17 @@ func bind(ctx kratoshttp.Context, target any) error {
 }
 func RegisterHTTPServer(server *kratoshttp.Server, service Service) {
 	route := server.Route("/api/user/v1")
+	route.POST("/profiles/avatar", func(ctx kratoshttp.Context) error {
+		var r SessionRequest
+		if err := bind(ctx, &r); err != nil {
+			return err
+		}
+		v, err := service.Avatar(ctx, r)
+		if err != nil {
+			return err
+		}
+		return ctx.Result(200, v)
+	})
 	route.POST("/profiles/nickname", func(ctx kratoshttp.Context) error {
 		var r NicknameRequest
 		if err := bind(ctx, &r); err != nil {

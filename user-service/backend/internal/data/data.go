@@ -27,7 +27,7 @@ func Open(ctx context.Context, dsn string) (*sql.DB, error) {
 // Readiness never applies DDL, and therefore works with a DML-only runtime role.
 func Ready(ctx context.Context, db *sql.DB) error {
 	var version int
-	if err := db.QueryRowContext(ctx, `SELECT version_id FROM goose_db_version WHERE is_applied ORDER BY id DESC LIMIT 1`).Scan(&version); err != nil || version < 5 {
+	if err := db.QueryRowContext(ctx, `SELECT version_id FROM goose_db_version WHERE is_applied ORDER BY id DESC LIMIT 1`).Scan(&version); err != nil || version < 6 {
 		return errors.New("user schema unavailable")
 	}
 	rows, err := db.QueryContext(ctx, `SELECT s.token_hash,s.privacy_version,s.privacy_accepted_at,i.openid,u.status,u.nickname,u.phone_number,u.phone_verified_at FROM user_sessions s JOIN wechat_identities i ON i.id=s.wechat_identity_id JOIN users u ON u.id=i.user_id LIMIT 0`)
@@ -37,7 +37,7 @@ func Ready(ctx context.Context, db *sql.DB) error {
 	if err = rows.Close(); err != nil {
 		return err
 	}
-	rows, err = db.QueryContext(ctx, `SELECT code,value FROM configuration LIMIT 0`)
+	rows, err = db.QueryContext(ctx, `SELECT c.code,c.value,a.image_data,a.content_type,a.updated_at,a.privacy_version FROM configuration c LEFT JOIN user_avatars a ON false LIMIT 0`)
 	if err != nil {
 		return errors.New("user configuration schema unavailable")
 	}

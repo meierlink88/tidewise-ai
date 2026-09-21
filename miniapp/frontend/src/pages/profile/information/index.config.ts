@@ -1,1 +1,5 @@
-export default definePageConfig({ navigationStyle: 'custom', navigationBarTitleText: '观潮家' });
+export default definePageConfig({
+  navigationStyle: 'custom',
+  navigationBarTextStyle: 'white',
+  navigationBarTitleText: '观潮家'
+});

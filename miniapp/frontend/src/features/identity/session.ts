@@ -3,6 +3,7 @@ export interface Session {
   expires_at: string;
 }
 export interface Profile {
+  avatarSource?: string;
   user_id: string;
   nickname: string;
   status: 'active';

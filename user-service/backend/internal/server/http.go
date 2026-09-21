@@ -76,6 +76,8 @@ func operation(path string) string {
 		return "login"
 	case "/api/user/v1/sessions/verify":
 		return "verify"
+	case "/api/user/v1/profiles/avatar":
+		return "avatar"
 	case "/api/user/v1/profiles/nickname":
 		return "nickname"
 	case "/api/user/v1/sessions/revoke":
@@ -135,7 +137,7 @@ func New(address, token string, service api.Service, ready func(context.Context)
 				failure(w, 401, "SERVICE_UNAUTHENTICATED")
 				return
 			}
-			if r.URL.Path == "/api/user/v1/wechat/logins" && !budget.allow() {
+			if (r.URL.Path == "/api/user/v1/wechat/logins" || r.URL.Path == "/api/user/v1/profiles/nickname") && !budget.allow() {
 				w.Header().Set("Retry-After", "60")
 				failure(w, 429, "LOGIN_RATE_LIMITED")
 				return

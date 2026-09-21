@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDidShow } from '@tarojs/taro';
 import { clearSession, readSession, requestWechatCode, saveSession } from '../../platform/identity';
+import { readChosenAvatar, displayAvatar } from '../../platform/avatar';
 import * as api from './api';
 import type { Profile, Session } from './session';
 
@@ -14,6 +15,11 @@ export function useIdentity() {
   const session = useRef<Session | null>(null);
   const pending = useRef(false);
   const mounted = useRef(true);
+  const avatarSlot = useRef(0);
+  async function withAvatar(p: Profile, token: string): Promise<Profile> {
+    const data = await api.avatar(token);
+    return { ...p, avatarSource: await displayAvatar(data, p.user_id, ++avatarSlot.current) };
+  }
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -54,6 +60,8 @@ export function useIdentity() {
       }
       const result = await api.me(session.current.session_token);
       if (mounted.current) setProfile(result);
+      const complete = await withAvatar(result, session.current.session_token);
+      if (mounted.current) setProfile(complete);
     });
   }
   useDidShow(() => {
@@ -86,11 +94,17 @@ export function useIdentity() {
         if (mounted.current) setProfile(null);
         clearSession();
       }),
-    saveNickname: (nickname: string) =>
+    saveNickname: (nickname: string, avatarPath?: string) =>
       run('nickname', async () => {
         if (!session.current) throw new api.IdentityError('请先登录', true);
-        const result = await api.updateNickname(session.current.session_token, nickname.trim());
-        if (mounted.current) setProfile(result);
+        const data = avatarPath ? await readChosenAvatar(avatarPath) : undefined;
+        const result = await api.updateNickname(
+          session.current.session_token,
+          nickname.trim(),
+          data
+        );
+        if (mounted.current)
+          setProfile({ ...result, avatarSource: avatarPath || profile?.avatarSource });
       })
   };
 }

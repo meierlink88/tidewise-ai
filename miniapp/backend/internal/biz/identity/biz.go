@@ -22,10 +22,11 @@ type Profile struct {
 }
 type LoginOptions struct{ PhoneCode, PrivacyVersion string }
 type Port interface {
+	Avatar(context.Context, string) ([]byte, error)
 	Login(context.Context, string, string, LoginOptions) (Profile, error)
 	Me(context.Context, string) (Profile, error)
 	Logout(context.Context, string) error
-	Nickname(context.Context, string, string) (Profile, error)
+	Nickname(context.Context, string, string, []byte) (Profile, error)
 }
 type UseCase struct{ port Port }
 
@@ -42,6 +43,10 @@ func (u *UseCase) Me(ctx context.Context, token string) (Profile, error) {
 	return u.port.Me(ctx, token)
 }
 func (u *UseCase) Logout(ctx context.Context, token string) error { return u.port.Logout(ctx, token) }
-func (u *UseCase) Nickname(ctx context.Context, token, nickname string) (Profile, error) {
-	return u.port.Nickname(ctx, token, nickname)
+func (u *UseCase) Nickname(ctx context.Context, token, nickname string, avatar []byte) (Profile, error) {
+	return u.port.Nickname(ctx, token, nickname, avatar)
+}
+
+func (u *UseCase) Avatar(ctx context.Context, token string) ([]byte, error) {
+	return u.port.Avatar(ctx, token)
 }

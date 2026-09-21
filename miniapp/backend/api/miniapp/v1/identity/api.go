@@ -10,8 +10,13 @@ type LoginRequest struct {
 	PrivacyVersion string `json:"privacy_version,omitempty"`
 	Code           string `json:"code"`
 }
+type AvatarResponse struct {
+	Data        []byte `json:"data"`
+	ContentType string `json:"content_type"`
+}
 type NicknameRequest struct {
-	Nickname string `json:"nickname"`
+	AvatarData []byte `json:"avatar_data,omitempty"`
+	Nickname   string `json:"nickname"`
 }
 type Profile struct {
 	UserID    string    `json:"user_id"`
@@ -24,6 +29,7 @@ type LogoutResult struct {
 	Revoked bool `json:"revoked"`
 }
 type Service interface {
+	Avatar(context.Context, string) (AvatarResponse, error)
 	Login(context.Context, LoginRequest, string) (Profile, error)
 	Me(context.Context, string) (Profile, error)
 	Logout(context.Context, string) (LogoutResult, error)

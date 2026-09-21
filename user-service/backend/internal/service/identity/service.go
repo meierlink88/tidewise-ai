@@ -24,7 +24,7 @@ func wireError(err error) error {
 	for _, item := range []struct {
 		err    error
 		status int
-	}{{biz.ErrInvalidNickname, 400}, {biz.ErrUnauthenticated, 401}, {biz.ErrDisabled, 403}, {biz.ErrRejected, 403}, {biz.ErrCodeInvalid, 400}, {biz.ErrRateLimited, 429}, {biz.ErrProvider, 503}} {
+	}{{biz.ErrInvalidNickname, 400}, {biz.ErrInvalidAvatar, 400}, {biz.ErrUnauthenticated, 401}, {biz.ErrDisabled, 403}, {biz.ErrRejected, 403}, {biz.ErrCodeInvalid, 400}, {biz.ErrRateLimited, 429}, {biz.ErrProvider, 503}} {
 		if errors.Is(err, item.err) {
 			return &api.Error{Status: item.status, Code: item.err.Error()}
 		}
@@ -56,9 +56,17 @@ func (s *Service) Revoke(ctx context.Context, r api.SessionRequest) (api.RevokeR
 }
 
 func (s *Service) UpdateNickname(ctx context.Context, r api.NicknameRequest) (api.UserResponse, error) {
-	result, err := s.usecase.UpdateNickname(ctx, r.SessionToken, r.Nickname)
+	result, err := s.usecase.UpdateNickname(ctx, r.SessionToken, r.Nickname, r.AvatarData)
 	if err != nil {
 		return api.UserResponse{}, wireError(err)
 	}
 	return api.UserResponse{UserID: result.UserID, Nickname: result.Nickname, Status: result.Status, ExpiresAt: result.ExpiresAt}, nil
+}
+
+func (s *Service) Avatar(ctx context.Context, r api.SessionRequest) (api.AvatarResponse, error) {
+	data, err := s.usecase.Avatar(ctx, r.SessionToken)
+	if err != nil {
+		return api.AvatarResponse{}, wireError(err)
+	}
+	return api.AvatarResponse{Data: data, ContentType: "image/jpeg"}, nil
 }

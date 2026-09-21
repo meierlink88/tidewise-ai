@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Button, Input, Text, View } from '@tarojs/components';
+import { Button, Form, Image, Input, Text, View } from '@tarojs/components';
+import { supportsWechatLogin } from '../../platform/identity';
 import type { Profile } from '../../features/identity/session';
 import type { IdentityAction } from '../../features/identity/use-identity';
 
@@ -9,7 +10,7 @@ export interface ProfileViewProps {
   error: string;
   onOpenLogin: () => void;
   onOpenInformation: (section: 'privacy' | 'about') => void;
-  onSaveNickname: (nickname: string) => Promise<boolean>;
+  onSaveNickname: (nickname: string, avatarPath?: string) => Promise<boolean>;
   onLogout: () => Promise<boolean>;
   onRetry: () => Promise<boolean>;
 }
@@ -19,6 +20,7 @@ export function ProfileView(props: Readonly<ProfileViewProps>) {
   const [editing, setEditing] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [draft, setDraft] = useState('');
+  const [avatarDraft, setAvatarDraft] = useState('');
   const [notice, setNotice] = useState('');
   const busy = pendingAction !== null;
   const name = profile?.nickname || '观潮家用户';
@@ -27,12 +29,22 @@ export function ProfileView(props: Readonly<ProfileViewProps>) {
     !trimmed || [...trimmed].length > 32 || /[\u0000-\u001f\u007f-\u009f]/.test(trimmed);
   function edit() {
     setDraft(profile?.nickname || '');
+    setAvatarDraft('');
     setNotice('');
     setEditing(true);
   }
-  async function save() {
-    if (busy || invalid) return;
-    const saved = await props.onSaveNickname(trimmed);
+  async function save(submitted?: string) {
+    const nameToSave = (submitted ?? draft).trim();
+    if (
+      busy ||
+      !nameToSave ||
+      [...nameToSave].length > 32 ||
+      /[\u0000-\u001f\u007f-\u009f]/.test(nameToSave)
+    ) {
+      setNotice('请填写有效昵称，最多 32 个字符');
+      return;
+    }
+    const saved = await props.onSaveNickname(nameToSave, avatarDraft || undefined);
     if (saved) {
       setEditing(false);
       setNotice('个人资料已更新');
@@ -58,10 +70,18 @@ export function ProfileView(props: Readonly<ProfileViewProps>) {
         }}
       >
         <View className='profile-page__portrait'>
-          <View className='profile-page__person' aria-hidden>
-            <View className='profile-page__person-head' />
-            <View className='profile-page__person-body' />
-          </View>
+          {profile?.avatarSource ? (
+            <Image
+              className='profile-page__saved-avatar'
+              src={profile.avatarSource}
+              mode='aspectFill'
+            />
+          ) : (
+            <View className='profile-page__person' aria-hidden>
+              <View className='profile-page__person-head' />
+              <View className='profile-page__person-body' />
+            </View>
+          )}
         </View>
         <View className='profile-page__identity-copy'>
           <Text className='profile-page__name'>{profile ? name : '登录/注册'}</Text>
@@ -84,12 +104,42 @@ export function ProfileView(props: Readonly<ProfileViewProps>) {
               )}
             </View>
             {editing ? (
-              <>
+              <Form onSubmit={(event) => void save(String(event.detail.value?.nickname ?? ''))}>
+                {supportsWechatLogin && (
+                  <>
+                    <Button
+                      className='profile-page__avatar-picker'
+                      openType='chooseAvatar'
+                      disabled={busy}
+                      onChooseAvatar={(event) => {
+                        const detail = event.detail as { avatarUrl?: string };
+                        if (detail.avatarUrl) {
+                          setAvatarDraft(detail.avatarUrl);
+                          setNotice('');
+                        }
+                      }}
+                    >
+                      {(avatarDraft || profile.avatarSource) && (
+                        <Image
+                          className='profile-page__saved-avatar'
+                          src={avatarDraft || profile.avatarSource || ''}
+                          mode='aspectFill'
+                        />
+                      )}
+                      <Text>{avatarDraft ? '重新选择头像' : '选择微信头像'}</Text>
+                    </Button>
+                    <Text className='profile-page__hint'>
+                      头像和昵称仅用于观潮家个人资料展示，选择后点击保存。可从关于页查看隐私政策。
+                    </Text>
+                  </>
+                )}
+
                 <Text className='profile-page__label'>昵称</Text>
                 <Input
                   className='profile-page__input'
                   aria-label='昵称'
-                  type='text'
+                  name='nickname'
+                  type={supportsWechatLogin ? 'nickname' : 'text'}
                   value={draft}
                   maxlength={32}
                   placeholder='输入你的昵称'
@@ -97,9 +147,9 @@ export function ProfileView(props: Readonly<ProfileViewProps>) {
                   focus
                   onInput={(event) => setDraft(event.detail.value)}
                   confirmType='done'
-                  onConfirm={() => void save()}
+                  onBlur={(event) => setDraft(event.detail.value)}
                 />
-                <Text className='profile-page__hint'>昵称最多 32 个字符</Text>
+                <Text className='profile-page__hint'>可选用微信昵称或自行填写，最多 32 个字符</Text>
                 <View className='profile-page__actions'>
                   <Button
                     className='profile-page__button profile-page__button--quiet'
@@ -114,13 +164,17 @@ export function ProfileView(props: Readonly<ProfileViewProps>) {
                   <Button
                     className='profile-page__button'
                     hoverClass='profile-page__pressed'
-                    disabled={busy || invalid || trimmed === profile.nickname}
-                    onClick={() => void save()}
+                    disabled={
+                      busy ||
+                      (!supportsWechatLogin && invalid) ||
+                      (!supportsWechatLogin && trimmed === profile.nickname && !avatarDraft)
+                    }
+                    formType='submit'
                   >
                     {pendingAction === 'nickname' ? '保存中…' : '保存修改'}
                   </Button>
                 </View>
-              </>
+              </Form>
             ) : (
               <View className='profile-page__detail-row'>
                 <Text className='profile-page__detail-label'>昵称</Text>
