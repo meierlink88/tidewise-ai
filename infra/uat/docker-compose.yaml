@@ -34,6 +34,9 @@ services:
   miniapp:
     image: ${MINIAPP_IMAGE:?MINIAPP_IMAGE is required}
     restart: unless-stopped
+    env_file:
+      - path: /opt/tidewise/uat/user-service/miniapp.env
+        required: false
     environment:
       APP_ENV: uat
       TIDEWISE_CONFIG_DIR: /app/configs

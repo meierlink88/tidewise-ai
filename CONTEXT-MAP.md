@@ -60,4 +60,6 @@ AgentOS、Reason/OpenSPG、KAG、MySQL、Neo4j 与 Qdrant 已迁出或退役，�
 或本仓库 UAT 生命周期；详见 `docs/adr/0055-retire-uat-reasoning-runtime.md`。
 
 User Service 的独立数据库和显式部署顺序见 `docs/adr/0067-user-service-wechat-identity.md`。
-User 当前未加入 UAT 运行编排；上文四服务 ECS 现状保持不变。
+User 通过独立 `tidewise-user-uat` Compose 项目显式部署到 UAT，使用独立 RDS 用户库；
+既有四服务流水线仍不构建或迁移 User。Miniapp 通过受保护的可选配置文件连接 User 私网 API，
+部署与回退边界见 `user-service/README.md`（#524）。
