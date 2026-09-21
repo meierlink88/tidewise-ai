@@ -52,3 +52,6 @@ DML 与账本 SELECT 权限，然后启动 User Service。server 不运行 DDL�
 - [wx.login](https://developers.weixin.qq.com/miniprogram/dev/api/open-api/login/wx.login.html)
 
 核对日期 2026-09-21；openid 作用域为 AppID，unionid 可缺省。登录不自动取得手机号或头像昵称。
+
+用户资料增加 nickname：最多 32 个 Unicode 字符，未设置为空字符串，既有用户通过 migration 2 补列。
+登录与验票返回当前昵称，重复登录保留已有昵称。微信 code 登录不自动获取昵称；本次不新增昵称编辑接口。

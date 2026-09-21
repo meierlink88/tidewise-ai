@@ -23,12 +23,12 @@ var (
 )
 
 type Wechat struct{ OpenID, UnionID string }
-type State struct{ UserID, IdentityID, Status, AppID, OpenID, UnionID string }
+type State struct{ UserID, IdentityID, Status, AppID, OpenID, UnionID, Nickname string }
 type Session struct {
-	ID, IdentityID, UserID, Status, AppID string
-	Hash                                  []byte
-	CreatedAt, ExpiresAt                  time.Time
-	Revoked                               bool
+	ID, IdentityID, UserID, Status, AppID, Nickname string
+	Hash                                            []byte
+	CreatedAt, ExpiresAt                            time.Time
+	Revoked                                         bool
 }
 type LoginResult struct {
 	Session Session
@@ -104,7 +104,7 @@ func (u *UseCase) Login(ctx context.Context, code, previous string) (LoginResult
 			if state.UnionID != "" && identity.UnionID != "" && state.UnionID != identity.UnionID {
 				return ErrRejected
 			}
-			session = Session{ID: uuid.NewString(), IdentityID: state.IdentityID, UserID: state.UserID, Status: state.Status, AppID: u.appID, Hash: hash, CreatedAt: now, ExpiresAt: now.Add(u.ttl)}
+			session = Session{ID: uuid.NewString(), IdentityID: state.IdentityID, UserID: state.UserID, Status: state.Status, Nickname: state.Nickname, AppID: u.appID, Hash: hash, CreatedAt: now, ExpiresAt: now.Add(u.ttl)}
 			return tx.Save(ctx, session, identity.UnionID, now, previousHash)
 		})
 		if !errors.Is(err, ErrConflict) {

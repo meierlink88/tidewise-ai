@@ -13,6 +13,7 @@ type SessionRequest struct {
 	SessionToken string `json:"session_token"`
 }
 type UserResponse struct {
+	Nickname     string    `json:"nickname"`
 	UserID       string    `json:"user_id"`
 	Status       string    `json:"status"`
 	ExpiresAt    time.Time `json:"expires_at"`

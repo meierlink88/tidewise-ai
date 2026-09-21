@@ -149,7 +149,24 @@ func TestPostgresLoginLifecycleAndConcurrency(t *testing.T) {
 	if code != 200 || r.Result.UserID != first.UserID || r.Result.SessionToken != "" {
 		t.Fatal("verify mismatch")
 	}
+	if first.Nickname != "" {
+		t.Fatal("new user nickname must be unset")
+	}
+	if _, err = db.Exec("UPDATE users SET nickname=$2 WHERE id=$1", first.UserID, "观潮用户"); err != nil {
+		t.Fatal(err)
+	}
+	status, profile := request(t, h, "/api/user/v1/sessions/verify", sessionBody(first.SessionToken), "Bearer "+serviceToken)
+	if status != 200 || profile.Result.Nickname != "观潮用户" {
+		t.Fatal("verify lost nickname")
+	}
 	second := login("alice", first.SessionToken)
+	if second.Nickname != "观潮用户" {
+		t.Fatal("login overwrote nickname")
+	}
+	if _, err = db.Exec("UPDATE users SET nickname=$2 WHERE id=$1", first.UserID, strings.Repeat("潮", 33)); err == nil {
+		t.Fatal("nickname length constraint missing")
+	}
+
 	if second.UserID != first.UserID {
 		t.Fatal("duplicate user")
 	}

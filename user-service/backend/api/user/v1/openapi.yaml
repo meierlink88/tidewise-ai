@@ -228,6 +228,7 @@ components:
         - user_id
         - status
         - expires_at
+        - nickname
       properties:
         user_id:
           type: string
@@ -243,6 +244,10 @@ components:
           type: string
           minLength: 43
           maxLength: 43
+        nickname:
+          type: string
+          maxLength: 32
+          description: 用户昵称，未设置时为空字符串；微信 code 登录不自动获取昵称。
     LoginRequest:
       type: object
       additionalProperties: false

@@ -12,7 +12,10 @@ User Domain Service 拥有用户身份、微信身份与业务会话，源码在
 - 用户状态 active/disabled；禁用立即影响后续登录与验票，不缓存用户状态。
 - 会话是随机 32 字节 base64url 不透明令牌，仅存 SHA-256。会话属于微信身份；默认绝对有效期 7 天，不滑动延期。
 - 登录时可撤销同一身份的旧令牌，多设备其他会话继续有效。注销幂等，身份不一致的旧令牌不会被撤销。
-- 无头像、昵称、手机号、会员、RBAC、支付、重绑或管理端状态变更 API。
+- 无头像、手机号、会员、RBAC、支付、重绑或管理端状态变更 API。
 
 正式线协议见 `user-service/backend/api/user/v1/openapi.yaml`；部署与验证见
 [user-service/README.md](../../../user-service/README.md)。
+
+用户资料增加 nickname：最多 32 个 Unicode 字符，未设置为空字符串，既有用户通过 migration 2 补列。
+登录与验票返回当前昵称，重复登录保留已有昵称。微信 code 登录不自动获取昵称；本次不新增昵称编辑接口。

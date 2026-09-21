@@ -38,11 +38,11 @@ go build -o /tmp/tidewise-user-migrate ./user-service/backend/cmd/dbmigrate
 
 所有业务接口要求 `Authorization: Bearer <USER_SERVICE_TOKEN>`，JSON 正文，不允许前端直连。
 
-| 路径（POST）                 | 请求                              | 成功 result                                |
-| ---------------------------- | --------------------------------- | ------------------------------------------ |
-| /api/user/v1/wechat/logins   | code，previous_session_token 可选 | user_id、status、expires_at、session_token |
-| /api/user/v1/sessions/verify | session_token                     | user_id、status、expires_at                |
-| /api/user/v1/sessions/revoke | session_token                     | revoked: true                              |
+| 路径（POST）                 | 请求                              | 成功 result                                          |
+| ---------------------------- | --------------------------------- | ---------------------------------------------------- |
+| /api/user/v1/wechat/logins   | code，previous_session_token 可选 | user_id、nickname、status、expires_at、session_token |
+| /api/user/v1/sessions/verify | session_token                     | user_id、nickname、status、expires_at                |
+| /api/user/v1/sessions/revoke | session_token                     | revoked: true                                        |
 
 所有成功响应 `{request_id,result}`，失败 `{request_id,error:{code,message}}`；均 no-store。
 格式错误返回 INVALID_REQUEST；无效/过期/已撤销会话 UNAUTHENTICATED；禁用用户 USER_DISABLED。
@@ -76,3 +76,7 @@ HTTP 测试使用真实 PostgreSQL 和 fake 微信 transport；没有真实微�
 
 迁移风险登记位于 `backend/migrations/migration-risk.tsv`。本次不改现有 UAT 四服务发布脚本，
 不自动创建 RDS 库。发布时单独确认目标、角色、备份和网络。回退停止 User 镜像，保留数据库。
+
+`nickname` 为用户资料字段，最多 32 个字符，未设置时返回空字符串。微信 code 登录不提供昵称，
+不会伪造微信昵称或覆盖已保存昵称；昵称填写/编辑接口留待小程序资料功能接入时实现。
+本次 migration 2 为既有 users 补列，应先迁移再升级服务。

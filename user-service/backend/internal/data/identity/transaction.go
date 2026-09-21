@@ -24,20 +24,20 @@ func (r *Repository) Within(ctx context.Context, fn func(biz.Transaction) error)
 }
 func (t *transaction) Find(ctx context.Context, appid, openid string) (biz.State, error) {
 	var s biz.State
-	err := t.tx.QueryRowContext(ctx, `SELECT u.id,i.id,u.status,i.appid,i.openid,COALESCE(i.unionid,'') FROM wechat_identities i JOIN users u ON u.id=i.user_id WHERE i.appid=$1 AND i.openid=$2 FOR UPDATE OF u,i`, appid, openid).Scan(&s.UserID, &s.IdentityID, &s.Status, &s.AppID, &s.OpenID, &s.UnionID)
+	err := t.tx.QueryRowContext(ctx, `SELECT u.id,i.id,u.status,i.appid,i.openid,COALESCE(i.unionid,''),u.nickname FROM wechat_identities i JOIN users u ON u.id=i.user_id WHERE i.appid=$1 AND i.openid=$2 FOR UPDATE OF u,i`, appid, openid).Scan(&s.UserID, &s.IdentityID, &s.Status, &s.AppID, &s.OpenID, &s.UnionID, &s.Nickname)
 	if errors.Is(err, sql.ErrNoRows) {
 		return s, nil
 	}
 	if err != nil {
 		return s, databaseError(err)
 	}
-	if !validID(s.UserID) || !validID(s.IdentityID) || (s.Status != "active" && s.Status != "disabled") || !validText(s.AppID) || !validText(s.OpenID) || (s.UnionID != "" && !validText(s.UnionID)) {
+	if !validNickname(s.Nickname) || !validID(s.UserID) || !validID(s.IdentityID) || (s.Status != "active" && s.Status != "disabled") || !validText(s.AppID) || !validText(s.OpenID) || (s.UnionID != "" && !validText(s.UnionID)) {
 		return biz.State{}, biz.ErrUnavailable
 	}
 	return s, nil
 }
 func (t *transaction) Create(ctx context.Context, s biz.State, now time.Time) error {
-	_, err := t.tx.ExecContext(ctx, `INSERT INTO users(id,status,created_at,updated_at,last_login_at) VALUES($1,$2,$3,$3,$3)`, s.UserID, s.Status, now)
+	_, err := t.tx.ExecContext(ctx, `INSERT INTO users(id,status,created_at,updated_at,last_login_at,nickname) VALUES($1,$2,$3,$3,$3,$4)`, s.UserID, s.Status, now, s.Nickname)
 	if err != nil {
 		return databaseError(err)
 	}

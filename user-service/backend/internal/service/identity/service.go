@@ -39,14 +39,14 @@ func (s *Service) Login(ctx context.Context, r api.LoginRequest) (api.UserRespon
 	if err != nil {
 		return api.UserResponse{}, wireError(err)
 	}
-	return api.UserResponse{UserID: result.Session.UserID, Status: result.Session.Status, ExpiresAt: result.Session.ExpiresAt, SessionToken: result.Token}, nil
+	return api.UserResponse{UserID: result.Session.UserID, Nickname: result.Session.Nickname, Status: result.Session.Status, ExpiresAt: result.Session.ExpiresAt, SessionToken: result.Token}, nil
 }
 func (s *Service) Verify(ctx context.Context, r api.SessionRequest) (api.UserResponse, error) {
 	result, err := s.usecase.Verify(ctx, r.SessionToken)
 	if err != nil {
 		return api.UserResponse{}, wireError(err)
 	}
-	return api.UserResponse{UserID: result.UserID, Status: result.Status, ExpiresAt: result.ExpiresAt}, nil
+	return api.UserResponse{UserID: result.UserID, Nickname: result.Nickname, Status: result.Status, ExpiresAt: result.ExpiresAt}, nil
 }
 func (s *Service) Revoke(ctx context.Context, r api.SessionRequest) (api.RevokeResponse, error) {
 	if err := s.usecase.Revoke(ctx, r.SessionToken); err != nil {

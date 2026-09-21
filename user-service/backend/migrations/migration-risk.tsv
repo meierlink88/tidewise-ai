@@ -1,2 +1,3 @@
 version	risk	rollout	rollback
 1	additive-new-private-database	create-user-database-then-migrate-before-service	stop-service-retain-database-no-down
+2	additive-user-nickname	migrate-before-upgrading-user-service	retain-column-no-down
