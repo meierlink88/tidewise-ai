@@ -60,16 +60,23 @@ export function HomeHeader({
           chrome={chrome}
           leading={
             <Button
-              className='tidewise-button home-nav__avatar-button'
+              className='tidewise-button home-nav__identity-button'
               hoverClass='none'
               aria-label='个人中心'
               onClick={() => void enterProfile()}
             >
-              <Image
-                className='home-nav__avatar'
-                src={identity.profile?.avatarSource || avatarImage}
-                mode='aspectFill'
-              />
+              <View className='home-nav__avatar-frame'>
+                <Image
+                  className='home-nav__avatar'
+                  src={identity.profile?.avatarSource || avatarImage}
+                  mode='aspectFill'
+                />
+              </View>
+              {identity.profile && (
+                <Text className='home-nav__nickname'>
+                  {identity.profile.nickname || '观潮家用户'}
+                </Text>
+              )}
             </Button>
           }
         />
