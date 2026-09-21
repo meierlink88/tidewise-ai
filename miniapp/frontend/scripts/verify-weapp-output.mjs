@@ -62,14 +62,9 @@ if (JSON.stringify(appConfig.pages) !== JSON.stringify(expectedPages)) {
 if (appConfig.pages.some((page) => page.includes('research-theme'))) {
   throw new Error(`${platform} 构建不得包含已退役页面`);
 }
-if (
-  JSON.stringify(appConfig.tabBar?.list?.map(({ pagePath, text }) => ({ pagePath, text }))) !==
-  JSON.stringify([
-    { pagePath: 'pages/index/index', text: '推理' },
-    { pagePath: 'pages/profile/index', text: '我的' }
-  ])
-)
-  throw new Error(`${platform} 必须包含推理 / 我的原生双 Tab`);
+if (appConfig.tabBar !== undefined) {
+  throw new Error(`${platform} 不得包含底部 Tab，我的页面统一从首页头像进入`);
+}
 if (appConfig.window?.navigationStyle !== 'custom') {
   throw new Error(`${platform} 首页必须使用自定义导航以适配原生状态栏`);
 }

@@ -261,3 +261,10 @@ scope token 始终绑定所属 reportId，证据弹层交互保持。业务字�
 微信登录、会话恢复、昵称保存、退出走 Miniapp Backend 的 `/api/miniapp/v1/auth/*`，
 由 User Service 管理身份、会话和昵称；Miniapp Backend 无用户数据库访问权。
 仅微信端调用 Taro.login，抖音/H5 保留浏览并提示到微信登录。详见 ADR 0069 与 OpenAPI。
+
+## 我的入口与个人资料（#526，替代底部双菜单）
+
+首页左上角头像为“我的”入口，使用普通页面 navigateTo；移除整个底部 tabBar。
+我的顶部返回按钮优先 navigateBack 保留首页浏览位置，独立打开无历史页时 reLaunch 首页。
+个人资料独立展示并按需编辑昵称，保存成功收起、失败保留输入；退出登录位于资料卡外且编辑中隐藏，
+退出需原生确认。游客显示微信登录。身份协议和7天会话期限不变。

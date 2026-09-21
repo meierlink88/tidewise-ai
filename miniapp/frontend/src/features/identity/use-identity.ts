@@ -4,9 +4,12 @@ import { clearSession, readSession, requestWechatCode, saveSession } from '../..
 import * as api from './api';
 import type { Profile, Session } from './session';
 
+export type IdentityAction = 'refresh' | 'login' | 'nickname' | 'logout';
+
 export function useIdentity() {
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [pendingAction, setPendingAction] = useState<IdentityAction | null>(null);
+  const busy = pendingAction !== null;
   const [error, setError] = useState('');
   const session = useRef<Session | null>(null);
   const pending = useRef(false);
@@ -17,13 +20,14 @@ export function useIdentity() {
       mounted.current = false;
     };
   }, []);
-  async function run(action: () => Promise<void>) {
-    if (pending.current) return;
+  async function run(kind: IdentityAction, action: () => Promise<void>): Promise<boolean> {
+    if (pending.current) return false;
     pending.current = true;
-    setBusy(true);
+    setPendingAction(kind);
     setError('');
     try {
       await action();
+      return true;
     } catch (e) {
       if (e instanceof api.IdentityError && e.expired) {
         session.current = null;
@@ -35,13 +39,14 @@ export function useIdentity() {
         if (mounted.current) setProfile(null);
       }
       if (mounted.current) setError(e instanceof Error ? e.message : '操作未完成，请重试');
+      return false;
     } finally {
       pending.current = false;
-      if (mounted.current) setBusy(false);
+      if (mounted.current) setPendingAction(null);
     }
   }
   function refresh() {
-    return run(async () => {
+    return run('refresh', async () => {
       session.current = readSession();
       if (!session.current) {
         if (mounted.current) setProfile(null);
@@ -57,10 +62,11 @@ export function useIdentity() {
   return {
     profile,
     busy,
+    pendingAction,
     error,
     refresh,
     login: () =>
-      run(async () => {
+      run('login', async () => {
         const code = await requestWechatCode();
         const result = await api.login(code, session.current?.session_token);
         const next = { session_token: result.session_token, expires_at: result.expires_at };
@@ -74,14 +80,14 @@ export function useIdentity() {
         if (mounted.current) setProfile(result);
       }),
     logout: () =>
-      run(async () => {
+      run('logout', async () => {
         if (session.current) await api.logout(session.current.session_token);
         session.current = null;
         if (mounted.current) setProfile(null);
         clearSession();
       }),
     saveNickname: (nickname: string) =>
-      run(async () => {
+      run('nickname', async () => {
         if (!session.current) throw new api.IdentityError('请先登录', true);
         const result = await api.updateNickname(session.current.session_token, nickname.trim());
         if (mounted.current) setProfile(result);
