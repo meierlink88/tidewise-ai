@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDidShow } from '@tarojs/taro';
 import { Button, Image, Input, Text, View } from '@tarojs/components';
 import { NavigationBar } from '../../../platform/navigation-bar';
@@ -25,6 +25,16 @@ export function HomeHeader({
   onQueryChange,
   isSinglePage = false
 }: HomeHeaderProps) {
+  const openingProfile = useRef(false);
+  async function enterProfile() {
+    if (openingProfile.current) return;
+    openingProfile.current = true;
+    try {
+      await openProfile();
+    } finally {
+      openingProfile.current = false;
+    }
+  }
   const [day, setDay] = useState(currentShanghaiDay);
   useDidShow(() => setDay(currentShanghaiDay()));
   useEffect(() => {
@@ -51,7 +61,7 @@ export function HomeHeader({
               className='tidewise-button home-nav__avatar-button'
               hoverClass='none'
               aria-label='个人中心'
-              onClick={() => void openProfile()}
+              onClick={() => void enterProfile()}
             >
               <Image className='home-nav__avatar' src={avatarImage} mode='aspectFill' />
             </Button>
