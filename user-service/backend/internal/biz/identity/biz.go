@@ -32,13 +32,20 @@ type Session struct {
 	ID, IdentityID, UserID, Status, AppID, Nickname string
 	Hash                                            []byte
 	CreatedAt, ExpiresAt                            time.Time
+	Phone, PrivacyVersion                           string
 	Revoked                                         bool
 }
 type LoginResult struct {
 	Session Session
 	Token   string
 }
+
+const PrivacyVersion = "2026-09-21"
+
+type LoginOptions struct{ PhoneCode, PrivacyVersion string }
+
 type Provider interface {
+	Phone(context.Context, string) (string, error)
 	Exchange(context.Context, string) (Wechat, error)
 }
 type Repository interface {
@@ -68,7 +75,10 @@ func tokenHash(token string) ([]byte, error) {
 	hash := sha256.Sum256([]byte(token))
 	return hash[:], nil
 }
-func (u *UseCase) Login(ctx context.Context, code, previous string) (LoginResult, error) {
+func (u *UseCase) Login(ctx context.Context, code, previous string, opt LoginOptions) (LoginResult, error) {
+	if (opt.PrivacyVersion != "" && opt.PrivacyVersion != PrivacyVersion) || (opt.PhoneCode != "" && opt.PrivacyVersion != PrivacyVersion) {
+		return LoginResult{}, ErrRejected
+	}
 	var previousHash []byte
 	if previous != "" {
 		var err error
@@ -80,6 +90,13 @@ func (u *UseCase) Login(ctx context.Context, code, previous string) (LoginResult
 	identity, err := u.provider.Exchange(ctx, code)
 	if err != nil {
 		return LoginResult{}, err
+	}
+	phone := ""
+	if opt.PhoneCode != "" {
+		phone, err = u.provider.Phone(ctx, opt.PhoneCode)
+		if err != nil {
+			return LoginResult{}, err
+		}
 	}
 	bytes := make([]byte, 32)
 	if _, err = rand.Read(bytes); err != nil {
@@ -108,7 +125,7 @@ func (u *UseCase) Login(ctx context.Context, code, previous string) (LoginResult
 			if state.UnionID != "" && identity.UnionID != "" && state.UnionID != identity.UnionID {
 				return ErrRejected
 			}
-			session = Session{ID: uuid.NewString(), IdentityID: state.IdentityID, UserID: state.UserID, Status: state.Status, Nickname: state.Nickname, AppID: u.appID, Hash: hash, CreatedAt: now, ExpiresAt: now.Add(u.ttl)}
+			session = Session{Phone: phone, PrivacyVersion: opt.PrivacyVersion, ID: uuid.NewString(), IdentityID: state.IdentityID, UserID: state.UserID, Status: state.Status, Nickname: state.Nickname, AppID: u.appID, Hash: hash, CreatedAt: now, ExpiresAt: now.Add(u.ttl)}
 			return tx.Save(ctx, session, identity.UnionID, now, previousHash)
 		})
 		if !errors.Is(err, ErrConflict) {

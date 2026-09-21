@@ -6,7 +6,9 @@ import (
 )
 
 type LoginRequest struct {
-	Code string `json:"code"`
+	PhoneCode      string `json:"phone_code,omitempty"`
+	PrivacyVersion string `json:"privacy_version,omitempty"`
+	Code           string `json:"code"`
 }
 type NicknameRequest struct {
 	Nickname string `json:"nickname"`

@@ -111,6 +111,17 @@ func TestPostgresLoginLifecycleAndConcurrency(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer db.Close()
+	// Serialize destructive test fixtures across Go packages sharing the CI database.
+	lock, err := db.Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer lock.Close()
+	if _, err = lock.ExecContext(context.Background(), "SELECT pg_advisory_lock(20260921528)"); err != nil {
+		t.Fatal(err)
+	}
+	defer lock.ExecContext(context.Background(), "SELECT pg_advisory_unlock(20260921528)")
+
 	var name string
 	if err = db.QueryRow("SELECT current_database()").Scan(&name); err != nil || name != "tidewise_user_test" {
 		t.Fatal("requires isolated tidewise_user_test database")
@@ -242,7 +253,7 @@ func TestPostgresLoginLifecycleAndConcurrency(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			r, e := usecase.Login(context.Background(), "concurrent", "")
+			r, e := usecase.Login(context.Background(), "concurrent", "", biz.LoginOptions{})
 			if e != nil {
 				failures <- e
 			} else {

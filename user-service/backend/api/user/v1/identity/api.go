@@ -6,6 +6,8 @@ import (
 )
 
 type LoginRequest struct {
+	PhoneCode            string `json:"phone_code,omitempty"`
+	PrivacyVersion       string `json:"privacy_version,omitempty"`
 	Code                 string `json:"code"`
 	PreviousSessionToken string `json:"previous_session_token,omitempty"`
 }

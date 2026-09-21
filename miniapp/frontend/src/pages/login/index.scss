@@ -1,0 +1,64 @@
+.login-page {
+  min-height: 100vh;
+  background: #fffefa;
+  color: #112c3d;
+  .navigation-bar {
+    color: #112c3d;
+  }
+  &__body {
+    padding: 80rpx 48rpx 80rpx;
+  }
+  &__brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24rpx;
+    margin-bottom: 112rpx;
+  }
+  &__mark {
+    width: 184rpx;
+    height: 184rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #123343;
+    border: 2rpx solid #c9a65b;
+    color: #ead7a9;
+    font-size: 96rpx;
+    font-family: serif;
+  }
+  &__name {
+    font-size: 42rpx;
+    font-weight: 500;
+    letter-spacing: 6rpx;
+  }
+  .profile-page__card--login {
+    margin: 0;
+    padding: 0;
+  }
+  .profile-page__consent {
+    margin: 0 0 36rpx;
+    font-size: 26rpx;
+    gap: 4rpx;
+  }
+  .profile-page__policy-link {
+    font-size: 26rpx;
+  }
+  .profile-page__button {
+    border-radius: 999rpx;
+    min-height: 96rpx;
+    font-size: 32rpx;
+    background: #123343;
+    border-color: #123343;
+  }
+  .profile-page__phone-login {
+    margin-top: 28rpx;
+    color: #73766f;
+  }
+  .profile-page__button[disabled] {
+    background: #e8e4da;
+    border-color: #e8e4da;
+    color: #77746b;
+  }
+}

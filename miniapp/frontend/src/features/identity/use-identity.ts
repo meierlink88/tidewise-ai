@@ -65,10 +65,10 @@ export function useIdentity() {
     pendingAction,
     error,
     refresh,
-    login: () =>
+    login: (phoneCode?: string) =>
       run('login', async () => {
         const code = await requestWechatCode();
-        const result = await api.login(code, session.current?.session_token);
+        const result = await api.login(code, session.current?.session_token, phoneCode);
         const next = { session_token: result.session_token, expires_at: result.expires_at };
         try {
           saveSession(next);

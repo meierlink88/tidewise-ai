@@ -38,6 +38,9 @@ func TestIdentityHTTPBoundary(t *testing.T) {
 			if input["code"] != "wx-code" {
 				t.Error("code missing")
 			}
+			if input["phone_code"] != "" && (input["phone_code"] != "phone-code" || input["privacy_version"] != "2026-09-21") {
+				t.Error("phone or consent lost")
+			}
 			result["session_token"] = token
 		case "/api/user/v1/sessions/verify":
 			if input["session_token"] != token {
@@ -66,6 +69,8 @@ func TestIdentityHTTPBoundary(t *testing.T) {
 		forwards                 bool
 	}{
 		{"POST", "wechat/login", `{"code":"wx-code"}`, "", 200, true},
+		{"POST", "wechat/login", `{ "code":"wx-code", "phone_code":"phone-code", "privacy_version":"2026-09-21" }`, "", 200, true},
+		{"POST", "wechat/login", `{ "code":"wx-code", "phone_code":"phone-code" }`, "", 400, false},
 		{"GET", "me", "", token, 200, true},
 		{"PATCH", "profile", `{"nickname":"新昵称"}`, token, 200, true},
 		{"POST", "logout", "", token, 200, true},

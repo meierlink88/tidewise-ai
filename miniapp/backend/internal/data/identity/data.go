@@ -109,8 +109,18 @@ func profile(r response, login bool) (biz.Profile, error) {
 	}
 	return biz.Profile{UserID: v.UserID, Nickname: v.Nickname, Status: v.Status, ExpiresAt: v.ExpiresAt, Token: v.Token}, nil
 }
-func (c *Client) Login(ctx context.Context, code, old string) (biz.Profile, error) {
-	r, e := c.call(ctx, "wechat/logins", map[string]string{"code": code, "previous_session_token": old})
+func (c *Client) Login(ctx context.Context, code, old string, options biz.LoginOptions) (biz.Profile, error) {
+	input := map[string]string{"code": code}
+	if old != "" {
+		input["previous_session_token"] = old
+	}
+	if options.PhoneCode != "" {
+		input["phone_code"] = options.PhoneCode
+	}
+	if options.PrivacyVersion != "" {
+		input["privacy_version"] = options.PrivacyVersion
+	}
+	r, e := c.call(ctx, "wechat/logins", input)
 	if e != nil {
 		return biz.Profile{}, e
 	}

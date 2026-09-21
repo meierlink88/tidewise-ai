@@ -7,15 +7,39 @@ import { ProfileView, type ProfileViewProps } from './profile-view';
 vi.mock('@tarojs/components', () => ({
   View: ({ children, ...props }: { children?: ReactNode }) => createElement('div', props, children),
   Text: 'span',
+  Checkbox: ({ children }: { children?: ReactNode }) => createElement('span', {}, children),
+  CheckboxGroup: ({
+    children,
+    onChange
+  }: {
+    children?: ReactNode;
+    onChange: (e: { detail: { value: string[] } }) => void;
+  }) =>
+    createElement(
+      'label',
+      {},
+      createElement('input', {
+        type: 'checkbox',
+        onChange: (e: { target: HTMLInputElement }) =>
+          onChange({ detail: { value: e.target.checked ? ['privacy'] : [] } })
+      }),
+      children
+    ),
   Image: 'img',
   Button: ({
     children,
     hoverClass: _hover,
+    openType: _openType,
+    onGetPhoneNumber,
     ...props
   }: {
     children?: ReactNode;
     hoverClass?: string;
-  }) => createElement('button', props, children),
+    openType?: string;
+    onGetPhoneNumber?: (e: { detail: { code?: string } }) => void;
+  }) => {
+    return createElement('button', props, children);
+  },
   Input: ({
     onInput,
     maxlength,
@@ -55,13 +79,16 @@ beforeEach(async () => {
     },
     pendingAction: null,
     error: '',
-    canLogin: true,
-    onLogin: vi.fn().mockResolvedValue(true),
+    onOpenLogin: vi.fn(),
+    onOpenInformation: vi.fn(),
     onSaveNickname: vi.fn().mockResolvedValue(true),
     onLogout: vi.fn().mockResolvedValue(false),
     onRetry: vi.fn().mockResolvedValue(true)
   };
   await render();
+  await act(async () =>
+    host.querySelector<HTMLButtonElement>('.profile-page__identity-button')!.click()
+  );
 });
 afterEach(async () => {
   await act(async () => root.unmount());
@@ -110,16 +137,14 @@ it('keeps failed edits and closes with feedback after successful save', async ()
   expect(host.querySelector('input')).toBeNull();
   expect(host.textContent).toContain('个人资料已更新');
 });
-it('shows only login for guests and gives action-specific pending feedback', async () => {
+it('opens the separate login page from the guest identity header', async () => {
   props.profile = null;
   await render();
-  expect(host.textContent).not.toContain('退出登录');
-  await click('微信登录');
-  expect(props.onLogin).toHaveBeenCalledOnce();
-  props.pendingAction = 'login';
-  await render();
-  expect(host.textContent).toContain('正在登录');
-  expect(host.querySelector('button')?.disabled).toBe(true);
+  await click('登录/注册');
+  expect(props.onOpenLogin).toHaveBeenCalledOnce();
+  expect(host.textContent).not.toContain('我的服务');
+  expect(host.textContent).not.toContain('余额');
+  expect(host.textContent).not.toContain('手机号快捷登录');
 });
 
 it('keeps editing focused on personal details and disables invalid submissions', async () => {
@@ -136,4 +161,11 @@ it('keeps editing focused on personal details and disables invalid submissions',
   await render();
   expect(host.textContent).toContain('保存中…');
   expect(host.querySelector('input')?.disabled).toBe(true);
+});
+
+it('opens about from the landing page', async () => {
+  await click('返回我的');
+  const entry = host.querySelector<HTMLButtonElement>('.profile-page__about-row');
+  await act(async () => entry!.click());
+  expect(props.onOpenInformation).toHaveBeenCalledWith('about');
 });

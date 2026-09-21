@@ -89,3 +89,8 @@ it('prevents duplicate login calls', async () => {
   expect(mock.login).toHaveBeenCalledOnce();
   expect(mock.saveSession).toHaveBeenCalledWith(session);
 });
+
+it('passes the separate phone authorization code with the WeChat identity code', async () => {
+  await act(async () => state.login('phone-code'));
+  expect(mock.login).toHaveBeenCalledWith('code', undefined, 'phone-code');
+});

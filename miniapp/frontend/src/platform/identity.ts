@@ -51,3 +51,34 @@ export async function confirmLogout(): Promise<boolean> {
   });
   return result.confirm === true;
 }
+
+export async function openProfileInformation(section: 'privacy' | 'about') {
+  try {
+    await Taro.navigateTo({ url: `/pages/profile/information/index?section=${section}` });
+  } catch {
+    void Taro.showToast({ title: '打开失败，请重试', icon: 'none' });
+  }
+}
+export async function copyPrivacyContact() {
+  try {
+    await Taro.setClipboardData({ data: 'media22@tidetell.cn' });
+  } catch {
+    void Taro.showToast({ title: '复制失败，请重试', icon: 'none' });
+  }
+}
+
+export async function openLogin() {
+  try {
+    await Taro.navigateTo({ url: '/pages/login/index' });
+  } catch {
+    void Taro.showToast({ title: '打开失败，请重试', icon: 'none' });
+  }
+}
+export async function leaveLogin() {
+  try {
+    if (Taro.getCurrentPages().length > 1) await Taro.navigateBack({ delta: 1 });
+    else await Taro.redirectTo({ url: '/pages/profile/index' });
+  } catch {
+    void Taro.showToast({ title: '返回失败，请重试', icon: 'none' });
+  }
+}

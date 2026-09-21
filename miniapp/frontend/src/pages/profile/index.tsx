@@ -3,7 +3,12 @@ import Taro from '@tarojs/taro';
 import { Button, View } from '@tarojs/components';
 import { NavigationBar } from '../../platform/navigation-bar';
 import { getHomeChromeMetrics } from '../../platform/system-ui';
-import { confirmLogout, leaveProfile, supportsWechatLogin } from '../../platform/identity';
+import {
+  confirmLogout,
+  leaveProfile,
+  openLogin,
+  openProfileInformation
+} from '../../platform/identity';
 import { useIdentity } from '../../features/identity/use-identity';
 import { ProfileView } from './profile-view';
 import './index.scss';
@@ -28,7 +33,7 @@ export default function ProfilePage() {
     }
   }
   return (
-    <View className='profile-page'>
+    <View className='profile-page profile-page--personal'>
       <View className='profile-page__header'>
         <NavigationBar
           title='我的'
@@ -50,8 +55,8 @@ export default function ProfilePage() {
         profile={identity.profile}
         pendingAction={identity.pendingAction}
         error={confirmationError || identity.error}
-        canLogin={supportsWechatLogin}
-        onLogin={identity.login}
+        onOpenLogin={() => void openLogin()}
+        onOpenInformation={(section) => void openProfileInformation(section)}
         onSaveNickname={identity.saveNickname}
         onLogout={logout}
         onRetry={identity.refresh}

@@ -3,8 +3,8 @@
 User Domain Service 拥有用户身份、微信身份与业务会话，源码在 `user-service/backend/`。
 决策见 [ADR-0067](../../adr/0067-user-service-wechat-identity.md)，实施事项 #517。
 
-- Miniapp Frontend 只调用 Miniapp Backend；后者未来通过 User v1 私有 HTTP API 登录、验票和注销。
-- 当前仅落地服务。Miniapp consumer、登录 UI 接入和环境发布为后续步骤，游客报告读取保持原样。
+- Miniapp Frontend 只调用 Miniapp Backend；后者通过 User v1 私有 HTTP API 登录、验票和注销。
+- Miniapp consumer、登录 UI 和独立 UAT 服务已接入，游客报告读取保持原样。
 - User 私有 PostgreSQL 与 Data 逻辑数据库隔离；不共享数据库表、Go 实现或事务。
 - User 内的 Identity 领域统一拥有 user、WeChat identity、session 生命周期，本期不另建 Auth Service。
 - User ID 为本领域 Biz 生成的 UUID v4；Data Service 对象前缀规则不扩展到 User 数据库。
@@ -12,7 +12,7 @@ User Domain Service 拥有用户身份、微信身份与业务会话，源码在
 - 用户状态 active/disabled；禁用立即影响后续登录与验票，不缓存用户状态。
 - 会话是随机 32 字节 base64url 不透明令牌，仅存 SHA-256。会话属于微信身份；默认绝对有效期 7 天，不滑动延期。
 - 登录时可撤销同一身份的旧令牌，多设备其他会话继续有效。注销幂等，身份不一致的旧令牌不会被撤销。
-- 无头像、手机号、会员、RBAC、支付、重绑或管理端状态变更 API。
+- 无头像上传、会员、RBAC、支付、账号合并、重绑或管理端状态变更 API。
 
 正式线协议见 `user-service/backend/api/user/v1/openapi.yaml`；部署与验证见
 [user-service/README.md](../../../user-service/README.md)。
@@ -36,3 +36,16 @@ User 显式部署到 UAT 独立 Compose 项目，使用 RDS `tidewise_user_uat` 
 Miniapp Backend 通过同一 Docker 私网消费 User API；前端继续只访问 Miniapp HTTPS API。
 User 不纳入既有四服务镜像/迁移流水线，四服务发布通过受保护的可选 env 文件保留接入。
 默认会话有效期仍为 7 天，不增加自动续期或复制本地用户。
+
+## 双入口登录与隐私同意（#528）
+
+登录请求新增可选 phone_code、privacy_version。phone_code 来自微信 getPhoneNumber，必须携带当前
+隐私版本 2026-09-21，与 wx.login code 分别验证。身份仍以 appid/openid 为准，不以手机号合并用户。
+普通登录可不提供手机号；历史请求省略两个新字段仍受支持，不给历史客户端伪造同意记录。
+User Provider 使用 stable_token 的内存缓存取得接口凭据；手机号 code 只消费一次，不自动重试。
+手机号水印 AppID 必须匹配，失败不创建会话。User Biz 的同一事务保存手机号、验证时间、
+隐私版本/服务器收到同意的时间和会话；普通登录不覆盖已有手机号。
+
+schema 5 在 users 增加 phone_number/phone_verified_at，在 user_sessions 增加 privacy_version/
+privacy_accepted_at。完整手机号仅在 User 私库保存，不返回公开 Profile DTO，不记录日志。
+用户的删除、注销、撤回同意请求通过公开邮箱人工处理，不宣称有自动注销 API。

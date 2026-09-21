@@ -1,4 +1,5 @@
 import Taro from '@tarojs/taro';
+import { privacyVersion } from './privacy';
 import { normalizeMiniappAPIBaseURL, unwrapMiniappAPIEnvelope } from '../../platform/miniapp-api';
 import { isProfile, isSession, type Profile, type Session } from './session';
 
@@ -58,8 +59,16 @@ function profile(value: unknown): Profile {
   if (!isProfile(value)) throw new IdentityError('用户信息异常，请稍后重试');
   return value;
 }
-export async function login(code: string, previous?: string): Promise<Profile & Session> {
-  const value = await request('wechat/login', 'POST', previous, { code });
+export async function login(
+  code: string,
+  previous?: string,
+  phoneCode?: string
+): Promise<Profile & Session> {
+  const value = await request('wechat/login', 'POST', previous, {
+    code,
+    privacy_version: privacyVersion,
+    ...(phoneCode ? { phone_code: phoneCode } : {})
+  });
   if (!isSession(value)) throw new IdentityError('登录响应异常，请重试');
   return { ...profile(value), ...value };
 }

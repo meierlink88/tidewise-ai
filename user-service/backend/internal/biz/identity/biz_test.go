@@ -9,6 +9,8 @@ import (
 
 type fakeProvider struct{}
 
+func (fakeProvider) Phone(context.Context, string) (string, error) { return "+8613800000000", nil }
+
 func (fakeProvider) Exchange(context.Context, string) (Wechat, error) {
 	return Wechat{OpenID: "openid"}, nil
 }
@@ -32,7 +34,7 @@ func (f *fakeStore) Revoke(context.Context, []byte, string, time.Time) error { r
 func TestDisabledIdentityCannotLogin(t *testing.T) {
 	f := &fakeStore{state: State{UserID: "u", IdentityID: "i", Status: "disabled"}}
 	u := New(f, fakeProvider{}, "app", time.Hour, time.Now)
-	_, err := u.Login(context.Background(), "code", "")
+	_, err := u.Login(context.Background(), "code", "", LoginOptions{})
 	if !errors.Is(err, ErrDisabled) || f.inserts != 0 {
 		t.Fatalf("disabled login: %v, writes %d", err, f.inserts)
 	}
@@ -89,5 +91,31 @@ func TestNicknameAuthorization(t *testing.T) {
 	}
 	if _, err = u.UpdateNickname(context.Background(), token, " "); !errors.Is(err, ErrInvalidNickname) {
 		t.Fatal("empty nickname accepted")
+	}
+}
+
+func TestPhoneLoginPreservesIdentityAndConsent(t *testing.T) {
+	f := &fakeStore{state: State{UserID: "existing", IdentityID: "identity", Status: "active"}}
+	u := New(f, fakeProvider{}, "app", time.Hour, time.Now)
+	r, err := u.Login(context.Background(), "code", "", LoginOptions{PhoneCode: "phone", PrivacyVersion: PrivacyVersion})
+	if err != nil || r.Session.UserID != "existing" || f.session.Phone != "+8613800000000" || f.session.PrivacyVersion != PrivacyVersion {
+		t.Fatal("phone login changed identity or lost consent", err)
+	}
+	before := f.inserts
+	_, err = u.Login(context.Background(), "code", "", LoginOptions{PhoneCode: "phone"})
+	if !errors.Is(err, ErrRejected) || f.inserts != before {
+		t.Fatal("missing consent accepted")
+	}
+}
+
+type failedPhoneProvider struct{ fakeProvider }
+
+func (failedPhoneProvider) Phone(context.Context, string) (string, error) { return "", ErrProvider }
+func TestPhoneFailureCreatesNoSession(t *testing.T) {
+	f := &fakeStore{}
+	u := New(f, failedPhoneProvider{}, "app", time.Hour, time.Now)
+	_, err := u.Login(context.Background(), "code", "", LoginOptions{PhoneCode: "phone", PrivacyVersion: PrivacyVersion})
+	if !errors.Is(err, ErrProvider) || f.inserts != 0 {
+		t.Fatal("failed phone exchange created session")
 	}
 }

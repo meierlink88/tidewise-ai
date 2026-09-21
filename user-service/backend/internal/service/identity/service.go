@@ -32,10 +32,10 @@ func wireError(err error) error {
 	return &api.Error{Status: 503, Code: "USER_SERVICE_UNAVAILABLE"}
 }
 func (s *Service) Login(ctx context.Context, r api.LoginRequest) (api.UserResponse, error) {
-	if len(r.Code) == 0 || len(r.Code) > 512 || strings.TrimSpace(r.Code) != r.Code || strings.ContainsAny(r.Code, "\r\n\x00") {
+	if len(r.PhoneCode) > 512 || strings.TrimSpace(r.PhoneCode) != r.PhoneCode || strings.ContainsAny(r.PhoneCode, "\r\n\x00") || len(r.Code) == 0 || len(r.Code) > 512 || strings.TrimSpace(r.Code) != r.Code || strings.ContainsAny(r.Code, "\r\n\x00") {
 		return api.UserResponse{}, &api.Error{Status: 400, Code: "INVALID_REQUEST"}
 	}
-	result, err := s.usecase.Login(ctx, r.Code, r.PreviousSessionToken)
+	result, err := s.usecase.Login(ctx, r.Code, r.PreviousSessionToken, biz.LoginOptions{PhoneCode: r.PhoneCode, PrivacyVersion: r.PrivacyVersion})
 	if err != nil {
 		return api.UserResponse{}, wireError(err)
 	}

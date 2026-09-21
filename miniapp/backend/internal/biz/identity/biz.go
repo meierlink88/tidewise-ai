@@ -20,8 +20,9 @@ type Profile struct {
 	UserID, Nickname, Status, Token string
 	ExpiresAt                       time.Time
 }
+type LoginOptions struct{ PhoneCode, PrivacyVersion string }
 type Port interface {
-	Login(context.Context, string, string) (Profile, error)
+	Login(context.Context, string, string, LoginOptions) (Profile, error)
 	Me(context.Context, string) (Profile, error)
 	Logout(context.Context, string) error
 	Nickname(context.Context, string, string) (Profile, error)
@@ -34,8 +35,8 @@ func New(port Port) *UseCase {
 	}
 	return &UseCase{port}
 }
-func (u *UseCase) Login(ctx context.Context, code, old string) (Profile, error) {
-	return u.port.Login(ctx, code, old)
+func (u *UseCase) Login(ctx context.Context, code, old string, options LoginOptions) (Profile, error) {
+	return u.port.Login(ctx, code, old, options)
 }
 func (u *UseCase) Me(ctx context.Context, token string) (Profile, error) {
 	return u.port.Me(ctx, token)

@@ -38,10 +38,10 @@ func profile(p biz.Profile, e error) (api.Profile, error) {
 	return api.Profile{UserID: p.UserID, Nickname: p.Nickname, Status: p.Status, ExpiresAt: p.ExpiresAt, Token: p.Token}, nil
 }
 func (s *Service) Login(ctx context.Context, r api.LoginRequest, old string) (api.Profile, error) {
-	if len(r.Code) == 0 || len(r.Code) > 512 || strings.TrimSpace(r.Code) != r.Code || strings.ContainsAny(r.Code, "\r\n\x00") {
+	if len(r.PhoneCode) > 512 || strings.TrimSpace(r.PhoneCode) != r.PhoneCode || strings.ContainsAny(r.PhoneCode, "\r\n\x00") || (r.PrivacyVersion != "" && r.PrivacyVersion != "2026-09-21") || (r.PhoneCode != "" && r.PrivacyVersion == "") || len(r.Code) == 0 || len(r.Code) > 512 || strings.TrimSpace(r.Code) != r.Code || strings.ContainsAny(r.Code, "\r\n\x00") {
 		return api.Profile{}, v1.ErrInvalidRequest
 	}
-	return profile(s.u.Login(ctx, r.Code, old))
+	return profile(s.u.Login(ctx, r.Code, old, biz.LoginOptions{PhoneCode: r.PhoneCode, PrivacyVersion: r.PrivacyVersion}))
 }
 func (s *Service) Me(ctx context.Context, token string) (api.Profile, error) {
 	return profile(s.u.Me(ctx, token))

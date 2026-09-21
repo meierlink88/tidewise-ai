@@ -1,6 +1,7 @@
 package identity
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"database/sql"
@@ -9,7 +10,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -68,6 +71,9 @@ func (r *Repository) Revoke(ctx context.Context, hash []byte, appid string, now 
 }
 
 type Wechat struct {
+	mu            sync.Mutex
+	accessToken   string
+	tokenExpires  time.Time
 	client        *http.Client
 	appID, secret string
 }
@@ -130,4 +136,87 @@ func (w *Wechat) Exchange(ctx context.Context, code string) (biz.Wechat, error) 
 		return biz.Wechat{}, biz.ErrProvider
 	}
 	return biz.Wechat{OpenID: result.OpenID, UnionID: result.UnionID}, nil
+}
+
+// postWechat never retries one-use phone codes and never exposes provider bodies.
+func (w *Wechat) postWechat(ctx context.Context, endpoint string, input, output any) error {
+	body, err := json.Marshal(input)
+	if err != nil {
+		return biz.ErrProvider
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return biz.ErrProvider
+	}
+	req.Header.Set("Content-Type", "application/json")
+	res, err := w.client.Do(req)
+	if err != nil {
+		return biz.ErrProvider
+	}
+	defer res.Body.Close()
+	raw, err := io.ReadAll(io.LimitReader(res.Body, 16385))
+	if err != nil || res.StatusCode != 200 || len(raw) > 16384 || json.Unmarshal(raw, output) != nil {
+		return biz.ErrProvider
+	}
+	return nil
+}
+func (w *Wechat) token(ctx context.Context) (string, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return "", biz.ErrProvider
+	}
+	if w.accessToken != "" && time.Now().Before(w.tokenExpires) {
+		return w.accessToken, nil
+	}
+	var r struct {
+		AccessToken string `json:"access_token"`
+		ExpiresIn   int    `json:"expires_in"`
+		ErrCode     int    `json:"errcode"`
+	}
+	err := w.postWechat(ctx, "https://api.weixin.qq.com/cgi-bin/stable_token", map[string]any{"grant_type": "client_credential", "appid": w.appID, "secret": w.secret, "force_refresh": false}, &r)
+	if err != nil || r.ErrCode != 0 || r.AccessToken == "" || r.ExpiresIn <= 60 {
+		return "", biz.ErrProvider
+	}
+	w.accessToken = r.AccessToken
+	w.tokenExpires = time.Now().Add(time.Duration(r.ExpiresIn-60) * time.Second)
+	return r.AccessToken, nil
+}
+func (w *Wechat) Phone(ctx context.Context, code string) (string, error) {
+	token, err := w.token(ctx)
+	if err != nil {
+		return "", err
+	}
+	var r struct {
+		ErrCode   int `json:"errcode"`
+		PhoneInfo struct {
+			PurePhoneNumber string `json:"purePhoneNumber"`
+			CountryCode     string `json:"countryCode"`
+			Watermark       struct {
+				AppID string `json:"appid"`
+			} `json:"watermark"`
+		} `json:"phone_info"`
+	}
+	err = w.postWechat(ctx, "https://api.weixin.qq.com/wxa/business/getuserphonenumber?"+url.Values{"access_token": {token}}.Encode(), map[string]string{"code": code}, &r)
+	if err != nil {
+		return "", err
+	}
+	if r.ErrCode == 40029 {
+		return "", biz.ErrCodeInvalid
+	}
+	if r.ErrCode != 0 {
+		if r.ErrCode == 40001 || r.ErrCode == 40014 || r.ErrCode == 42001 {
+			w.mu.Lock()
+			if w.accessToken == token {
+				w.accessToken = ""
+			}
+			w.mu.Unlock()
+		}
+		return "", biz.ErrProvider
+	}
+	phone := "+" + r.PhoneInfo.CountryCode + r.PhoneInfo.PurePhoneNumber
+	if !regexp.MustCompile(`^[0-9]{1,4}$`).MatchString(r.PhoneInfo.CountryCode) || r.PhoneInfo.Watermark.AppID != w.appID || !regexp.MustCompile(`^\+[0-9]{7,15}$`).MatchString(phone) {
+		return "", biz.ErrProvider
+	}
+	return phone, nil
 }
