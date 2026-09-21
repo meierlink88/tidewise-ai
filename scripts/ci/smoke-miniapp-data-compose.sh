@@ -44,13 +44,19 @@ docker run -d --name "$postgres_fixture" --network "$COMPOSE_NETWORK_NAME" \
   -e "POSTGRES_PASSWORD=${TIDEWISW_DB_PASSWORD}" \
   -e POSTGRES_DB=tidewise_local \
   postgres:16 >/dev/null
+# The initialization server accepts Unix sockets before the final TCP server starts.
+# Consumers connect over TCP, so a socket-only probe can race the initialization restart.
 for _ in $(seq 1 60); do
-  if docker exec "$postgres_fixture" pg_isready -U tidewise -d tidewise_local >/dev/null; then
+  if docker exec "$postgres_fixture" pg_isready -h "$postgres_fixture" -U tidewise -d tidewise_local >/dev/null 2>&1; then
     break
   fi
   sleep 1
 done
-docker exec "$postgres_fixture" pg_isready -U tidewise -d tidewise_local >/dev/null
+if ! docker exec "$postgres_fixture" pg_isready -h "$postgres_fixture" -U tidewise -d tidewise_local; then
+  echo "PostgreSQL fixture did not become ready over TCP" >&2
+  docker logs --tail 40 "$postgres_fixture" >&2
+  exit 1
+fi
 "${compose[@]}" run --rm --no-deps \
   -e "PGOPTIONS=-c tidewise.phase_a_cleanup_write_authorized=reviewed_backup_verified -c tidewise.external_identifier_schema_write_authorized=reviewed_backup_verified -c tidewise.alliance_economy_schema_write_authorized=reviewed_local_cleanup_verified" \
   data-migrate >/dev/null
