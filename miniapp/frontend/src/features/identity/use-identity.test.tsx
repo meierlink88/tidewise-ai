@@ -11,10 +11,15 @@ const mock = vi.hoisted(() => ({
   login: vi.fn(),
   logout: vi.fn(),
   updateNickname: vi.fn(),
+  avatar: vi.fn().mockResolvedValue(''),
   readSession: vi.fn(),
   saveSession: vi.fn(),
   clearSession: vi.fn(),
   requestWechatCode: vi.fn()
+}));
+vi.mock('../../platform/avatar', () => ({
+  readChosenAvatar: vi.fn().mockResolvedValue('aW1hZ2U='),
+  displayAvatar: vi.fn().mockResolvedValue('wxfile://saved.jpg')
 }));
 vi.mock('@tarojs/taro', () => ({
   useDidShow: (fn: () => void) => {
@@ -27,7 +32,8 @@ vi.mock('./api', async (importOriginal) => ({
   me: mock.me,
   login: mock.login,
   logout: mock.logout,
-  updateNickname: mock.updateNickname
+  updateNickname: mock.updateNickname,
+  avatar: mock.avatar
 }));
 let state: ReturnType<typeof useIdentity>;
 let root: Root;
@@ -88,4 +94,21 @@ it('prevents duplicate login calls', async () => {
   expect(mock.requestWechatCode).toHaveBeenCalledOnce();
   expect(mock.login).toHaveBeenCalledOnce();
   expect(mock.saveSession).toHaveBeenCalledWith(session);
+});
+
+it('passes the separate phone authorization code with the WeChat identity code', async () => {
+  await act(async () => state.login('phone-code'));
+  expect(mock.login).toHaveBeenCalledWith('code', undefined, 'phone-code');
+});
+
+it('uploads the selected image together with nickname and retains profile on failure', async () => {
+  await act(async () => mock.show());
+  mock.updateNickname
+    .mockRejectedValueOnce(new IdentityError('保存失败'))
+    .mockResolvedValueOnce(profile);
+  await act(async () => state.saveNickname('新昵称', 'wxfile://tmp/avatar.jpg'));
+  expect(mock.updateNickname).toHaveBeenLastCalledWith(session.session_token, '新昵称', 'aW1hZ2U=');
+  expect(state.profile?.nickname).toBe('昵称');
+  await act(async () => state.saveNickname('新昵称', 'wxfile://tmp/avatar.jpg'));
+  expect(state.profile?.avatarSource).toBe('wxfile://tmp/avatar.jpg');
 });

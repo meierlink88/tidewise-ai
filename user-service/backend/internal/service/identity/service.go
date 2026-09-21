@@ -24,7 +24,7 @@ func wireError(err error) error {
 	for _, item := range []struct {
 		err    error
 		status int
-	}{{biz.ErrInvalidNickname, 400}, {biz.ErrUnauthenticated, 401}, {biz.ErrDisabled, 403}, {biz.ErrRejected, 403}, {biz.ErrCodeInvalid, 400}, {biz.ErrRateLimited, 429}, {biz.ErrProvider, 503}} {
+	}{{biz.ErrInvalidNickname, 400}, {biz.ErrInvalidAvatar, 400}, {biz.ErrUnauthenticated, 401}, {biz.ErrDisabled, 403}, {biz.ErrRejected, 403}, {biz.ErrCodeInvalid, 400}, {biz.ErrRateLimited, 429}, {biz.ErrProvider, 503}} {
 		if errors.Is(err, item.err) {
 			return &api.Error{Status: item.status, Code: item.err.Error()}
 		}
@@ -32,10 +32,10 @@ func wireError(err error) error {
 	return &api.Error{Status: 503, Code: "USER_SERVICE_UNAVAILABLE"}
 }
 func (s *Service) Login(ctx context.Context, r api.LoginRequest) (api.UserResponse, error) {
-	if len(r.Code) == 0 || len(r.Code) > 512 || strings.TrimSpace(r.Code) != r.Code || strings.ContainsAny(r.Code, "\r\n\x00") {
+	if len(r.PhoneCode) > 512 || strings.TrimSpace(r.PhoneCode) != r.PhoneCode || strings.ContainsAny(r.PhoneCode, "\r\n\x00") || len(r.Code) == 0 || len(r.Code) > 512 || strings.TrimSpace(r.Code) != r.Code || strings.ContainsAny(r.Code, "\r\n\x00") {
 		return api.UserResponse{}, &api.Error{Status: 400, Code: "INVALID_REQUEST"}
 	}
-	result, err := s.usecase.Login(ctx, r.Code, r.PreviousSessionToken)
+	result, err := s.usecase.Login(ctx, r.Code, r.PreviousSessionToken, biz.LoginOptions{PhoneCode: r.PhoneCode, PrivacyVersion: r.PrivacyVersion})
 	if err != nil {
 		return api.UserResponse{}, wireError(err)
 	}
@@ -56,9 +56,17 @@ func (s *Service) Revoke(ctx context.Context, r api.SessionRequest) (api.RevokeR
 }
 
 func (s *Service) UpdateNickname(ctx context.Context, r api.NicknameRequest) (api.UserResponse, error) {
-	result, err := s.usecase.UpdateNickname(ctx, r.SessionToken, r.Nickname)
+	result, err := s.usecase.UpdateNickname(ctx, r.SessionToken, r.Nickname, r.AvatarData)
 	if err != nil {
 		return api.UserResponse{}, wireError(err)
 	}
 	return api.UserResponse{UserID: result.UserID, Nickname: result.Nickname, Status: result.Status, ExpiresAt: result.ExpiresAt}, nil
+}
+
+func (s *Service) Avatar(ctx context.Context, r api.SessionRequest) (api.AvatarResponse, error) {
+	data, err := s.usecase.Avatar(ctx, r.SessionToken)
+	if err != nil {
+		return api.AvatarResponse{}, wireError(err)
+	}
+	return api.AvatarResponse{Data: data, ContentType: "image/jpeg"}, nil
 }

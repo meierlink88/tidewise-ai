@@ -23,7 +23,7 @@
 Miniapp Frontend
   -> Miniapp Application Backend Service
       -> Data Domain Service REST API
-      -> User Domain Service REST API（服务已实现，Miniapp consumer 待接入）
+      -> User Domain Service REST API（身份与会话已接入）
 
 Admin Portal Frontend
   -> Admin Application Backend Service

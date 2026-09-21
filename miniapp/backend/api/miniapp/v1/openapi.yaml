@@ -48,6 +48,14 @@ paths:
               required:
                 - code
               properties:
+                phone_code:
+                  type: string
+                  maxLength: 512
+                  description: 可选微信手机号授权 code；提供时必须附 privacy_version。与 wx.login code 不同。
+                privacy_version:
+                  type: string
+                  enum: ['2026-09-21', '2026-09-21.1']
+                  description: 用户明确同意的隐私政策版本；历史客户端可省略。
                 code:
                   type: string
                   minLength: 1
@@ -107,7 +115,7 @@ paths:
       tags:
         - Identity
       operationId: updateMiniappNickname
-      summary: 更新当前用户昵称
+      summary: 更新当前用户昵称及可选头像
       security:
         - UserSession: []
       responses:
@@ -137,6 +145,11 @@ paths:
               required:
                 - nickname
               properties:
+                avatar_data:
+                  type: string
+                  format: byte
+                  maxLength: 2796204
+                  description: 可选JPEG/PNG base64，最多2MiB和2048x2048，省略保留原头像；与昵称原子保存。
                 nickname:
                   type: string
                   minLength: 1
@@ -309,6 +322,37 @@ paths:
           $ref: '#/components/responses/NotFound'
         '503':
           $ref: '#/components/responses/ReportServiceUnavailable'
+  /api/miniapp/v1/auth/avatar:
+    get:
+      operationId: getCurrentUserAvatar
+      summary: 读取当前登录用户头像，空字符串表示尚未设置
+      security:
+        - UserSession: []
+      responses:
+        '200':
+          description: '私有头像；Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [request_id, result]
+                properties:
+                  request_id: { type: string }
+                  result:
+                    type: object
+                    required: [data, content_type]
+                    properties:
+                      data:
+                        {
+                          type: string,
+                          format: byte,
+                          maxLength: 174764,
+                          description: 'JPEG base64，不含data URL前缀；未设置为空字符串'
+                        }
+                      content_type: { type: string, enum: ['image/jpeg'] }
+        '401': { description: '未登录或会话无效' }
+        '403': { description: '账号不可用' }
+        '503': { description: '服务不可用' }
 components:
   securitySchemes:
     UserSession:

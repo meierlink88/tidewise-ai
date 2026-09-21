@@ -38,6 +38,9 @@ func TestIdentityHTTPBoundary(t *testing.T) {
 			if input["code"] != "wx-code" {
 				t.Error("code missing")
 			}
+			if input["phone_code"] != "" && (input["phone_code"] != "phone-code" || input["privacy_version"] != "2026-09-21") {
+				t.Error("phone or consent lost")
+			}
 			result["session_token"] = token
 		case "/api/user/v1/sessions/verify":
 			if input["session_token"] != token {
@@ -45,6 +48,11 @@ func TestIdentityHTTPBoundary(t *testing.T) {
 			}
 		case "/api/user/v1/sessions/revoke":
 			result = map[string]any{"revoked": true}
+		case "/api/user/v1/profiles/avatar":
+			if input["session_token"] != token {
+				t.Error("avatar identity missing")
+			}
+			result = map[string]any{"data": "", "content_type": "image/jpeg"}
 		case "/api/user/v1/profiles/nickname":
 			if input["nickname"] != "新昵称" {
 				t.Error("nickname missing")
@@ -66,7 +74,14 @@ func TestIdentityHTTPBoundary(t *testing.T) {
 		forwards                 bool
 	}{
 		{"POST", "wechat/login", `{"code":"wx-code"}`, "", 200, true},
+		{"POST", "wechat/login", `{ "code":"wx-code", "phone_code":"phone-code", "privacy_version":"2026-09-21" }`, "", 200, true},
+		{"POST", "wechat/login", `{ "code":"wx-code", "phone_code":"phone-code" }`, "", 400, false},
 		{"GET", "me", "", token, 200, true},
+		{"GET", "avatar", "", token, 200, true},
+		{"GET", "avatar", "", "", 401, false},
+		{"GET", "avatar?user_id=other", "", token, 400, false},
+		{"PATCH", "profile", `{"nickname":"新昵称","avatar_data":"aW1hZ2U="}`, token, 200, true},
+		{"PATCH", "profile", `{"nickname":"新昵称","avatar_data":"not-base64!"}`, token, 400, false},
 		{"PATCH", "profile", `{"nickname":"新昵称"}`, token, 200, true},
 		{"POST", "logout", "", token, 200, true},
 		{"GET", "me", "", "", 401, false},

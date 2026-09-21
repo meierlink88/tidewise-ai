@@ -55,15 +55,28 @@ if (totalMediaSizeBytes > mediaSizeLimitBytes) {
   );
 }
 
-const expectedPages = ['pages/index/index', 'pages/report/detail/index', 'pages/profile/index'];
+const expectedPages = [
+  'pages/index/index',
+  'pages/report/detail/index',
+  'pages/profile/index',
+  'pages/profile/information/index',
+  'pages/login/index',
+  'pages/tracking/index'
+];
 if (JSON.stringify(appConfig.pages) !== JSON.stringify(expectedPages)) {
-  throw new Error(`${platform} 构建必须注册推理首页、详情与我的`);
+  throw new Error(`${platform} 构建必须注册推理首页、详情、我的与资料说明页面`);
 }
 if (appConfig.pages.some((page) => page.includes('research-theme'))) {
   throw new Error(`${platform} 构建不得包含已退役页面`);
 }
-if (appConfig.tabBar !== undefined) {
-  throw new Error(`${platform} 不得包含底部 Tab，我的页面统一从首页头像进入`);
+if (
+  JSON.stringify(appConfig.tabBar?.list?.map(({ pagePath, text }) => ({ pagePath, text }))) !==
+  JSON.stringify([
+    { pagePath: 'pages/index/index', text: '推理' },
+    { pagePath: 'pages/tracking/index', text: '跟踪' }
+  ])
+) {
+  throw new Error(`${platform} 底部菜单必须为推理/跟踪，我的从头像进入`);
 }
 if (appConfig.window?.navigationStyle !== 'custom') {
   throw new Error(`${platform} 首页必须使用自定义导航以适配原生状态栏`);

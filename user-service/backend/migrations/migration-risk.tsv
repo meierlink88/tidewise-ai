@@ -3,3 +3,5 @@ version	risk	rollout	rollback
 2	additive-user-nickname	migrate-before-upgrading-user-service	retain-column-no-down
 3	additive-private-configuration-table	migrate-import-credentials-grant-select-restart	retain-table-no-down
 4	table-rename	stop-user-migrate-restart-new-image	retain-configuration-no-down
+5	additive-phone-and-consent	stop-old-user-migrate-restart-user-then-bff-frontend	keep-v5-compatible-user-retain-columns-no-down
+6	additive-private-avatar-table	migrate-grant-runtime-avatar-dml-then-user-bff-frontend	retain-table-rollback-to-v5-compatible-user-no-down

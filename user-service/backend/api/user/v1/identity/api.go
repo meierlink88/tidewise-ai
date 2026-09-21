@@ -6,13 +6,20 @@ import (
 )
 
 type LoginRequest struct {
+	PhoneCode            string `json:"phone_code,omitempty"`
+	PrivacyVersion       string `json:"privacy_version,omitempty"`
 	Code                 string `json:"code"`
 	PreviousSessionToken string `json:"previous_session_token,omitempty"`
 }
 type SessionRequest struct {
 	SessionToken string `json:"session_token"`
 }
+type AvatarResponse struct {
+	Data        []byte `json:"data"`
+	ContentType string `json:"content_type"`
+}
 type NicknameRequest struct {
+	AvatarData   []byte `json:"avatar_data,omitempty"`
 	SessionToken string `json:"session_token"`
 	Nickname     string `json:"nickname"`
 }
@@ -34,6 +41,7 @@ type Error struct {
 func (e *Error) Error() string { return e.Code }
 
 type Service interface {
+	Avatar(context.Context, SessionRequest) (AvatarResponse, error)
 	UpdateNickname(context.Context, NicknameRequest) (UserResponse, error)
 	Login(context.Context, LoginRequest) (UserResponse, error)
 	Verify(context.Context, SessionRequest) (UserResponse, error)

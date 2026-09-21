@@ -45,7 +45,7 @@ func (t *transaction) Create(ctx context.Context, s biz.State, now time.Time) er
 	return databaseError(err)
 }
 func (t *transaction) Save(ctx context.Context, s biz.Session, unionid string, now time.Time, previous []byte) error {
-	_, err := t.tx.ExecContext(ctx, `UPDATE users SET updated_at=$2,last_login_at=$2 WHERE id=$1`, s.UserID, now)
+	_, err := t.tx.ExecContext(ctx, `UPDATE users SET updated_at=$2,last_login_at=$2,phone_number=COALESCE(NULLIF($3,''),phone_number),phone_verified_at=CASE WHEN $3<>'' THEN $2 ELSE phone_verified_at END WHERE id=$1`, s.UserID, now, s.Phone)
 	if err != nil {
 		return databaseError(err)
 	}
@@ -59,7 +59,7 @@ func (t *transaction) Save(ctx context.Context, s biz.Session, unionid string, n
 			return databaseError(err)
 		}
 	}
-	_, err = t.tx.ExecContext(ctx, `INSERT INTO user_sessions(id,wechat_identity_id,token_hash,created_at,expires_at) VALUES($1,$2,$3,$4,$5)`, s.ID, s.IdentityID, s.Hash, s.CreatedAt, s.ExpiresAt)
+	_, err = t.tx.ExecContext(ctx, `INSERT INTO user_sessions(id,wechat_identity_id,token_hash,created_at,expires_at,privacy_version,privacy_accepted_at) VALUES($1,$2,$3,$4,$5,NULLIF($6,''),CASE WHEN $6<>'' THEN $4::timestamptz ELSE NULL END)`, s.ID, s.IdentityID, s.Hash, s.CreatedAt, s.ExpiresAt, s.PrivacyVersion)
 	return databaseError(err)
 }
 
@@ -69,4 +69,24 @@ func (t *transaction) LookupSession(ctx context.Context, hash []byte) (biz.Sessi
 func (t *transaction) SetNickname(ctx context.Context, userID, nickname string, now time.Time) error {
 	_, err := t.tx.ExecContext(ctx, `UPDATE users SET nickname=$2,updated_at=$3 WHERE id=$1`, userID, nickname, now)
 	return databaseError(err)
+}
+
+func (t *transaction) SetAvatar(ctx context.Context, userID string, data []byte, now time.Time, version string) error {
+	_, err := t.tx.ExecContext(ctx, `INSERT INTO user_avatars(user_id,image_data,content_type,updated_at,privacy_version) VALUES($1,$2,'image/jpeg',$3,$4) ON CONFLICT(user_id) DO UPDATE SET image_data=EXCLUDED.image_data,updated_at=EXCLUDED.updated_at,privacy_version=EXCLUDED.privacy_version`, userID, data, now, version)
+	return databaseError(err)
+}
+func (t *transaction) Avatar(ctx context.Context, userID string) ([]byte, error) {
+	var data []byte
+	var contentType string
+	err := t.tx.QueryRowContext(ctx, `SELECT image_data,content_type FROM user_avatars WHERE user_id=$1`, userID).Scan(&data, &contentType)
+	if errors.Is(err, sql.ErrNoRows) {
+		return []byte{}, nil
+	}
+	if err != nil {
+		return nil, databaseError(err)
+	}
+	if contentType != "image/jpeg" || len(data) == 0 || len(data) > 128*1024 {
+		return nil, biz.ErrUnavailable
+	}
+	return data, nil
 }

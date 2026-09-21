@@ -1,0 +1,76 @@
+@use '../../styles/tokens' as *;
+
+.login-page {
+  min-height: 100vh;
+  background: $background-home-hero;
+  display: flex;
+  flex-direction: column;
+  color: $color-home-ink;
+  .navigation-bar {
+    color: $color-home-card;
+  }
+  &__body {
+    flex: 1;
+    margin-top: -32rpx;
+    border-radius: 36rpx 36rpx 0 0;
+    background: $color-home-paper;
+    padding: 72rpx 40rpx calc(64rpx + env(safe-area-inset-bottom));
+  }
+  &__brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24rpx;
+    margin-bottom: 72rpx;
+  }
+  &__mark {
+    width: 148rpx;
+    height: 148rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: $color-home-ink;
+    border: 2rpx solid $color-home-gold;
+    color: $color-home-gold-soft;
+    font-size: 76rpx;
+    font-family: serif;
+  }
+  &__name {
+    font-size: 42rpx;
+    font-weight: 500;
+    letter-spacing: 6rpx;
+  }
+  .profile-page__card--login {
+    margin: 0;
+    padding: 32rpx;
+    border: 1rpx solid $color-home-border;
+    border-radius: $radius-home-card;
+    background: $color-home-card;
+    box-shadow: $shadow-home-card;
+  }
+  .profile-page__consent {
+    margin: 0 0 36rpx;
+    font-size: 26rpx;
+    gap: 4rpx;
+  }
+  .profile-page__policy-link {
+    font-size: 26rpx;
+  }
+  .profile-page__button {
+    border-radius: 20rpx;
+    min-height: 96rpx;
+    font-size: 30rpx;
+    background: $color-home-ink;
+    border-color: $color-home-ink;
+  }
+  .profile-page__phone-login {
+    margin-top: 28rpx;
+    color: $color-home-secondary;
+  }
+  .profile-page__button[disabled] {
+    background: $color-ivory-200;
+    border-color: $color-ivory-200;
+    color: $color-home-secondary;
+  }
+}

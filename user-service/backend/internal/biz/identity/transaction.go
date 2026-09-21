@@ -8,6 +8,8 @@ import (
 // Transaction executes the login decision and all writes atomically. A uniqueness
 // conflict rolls back before Biz retries with the already verified WeChat identity.
 type Transaction interface {
+	SetAvatar(context.Context, string, []byte, time.Time, string) error
+	Avatar(context.Context, string) ([]byte, error)
 	LookupSession(context.Context, []byte) (Session, error)
 	SetNickname(context.Context, string, string, time.Time) error
 	Find(context.Context, string, string) (State, error)

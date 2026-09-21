@@ -1,0 +1,101 @@
+@use '../../../styles/tokens' as *;
+
+.profile-information {
+  padding-bottom: calc(64rpx + env(safe-area-inset-bottom));
+  &__title {
+    display: block;
+    font-size: 44rpx;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+  &__lead {
+    display: block;
+    margin: 20rpx 0 36rpx;
+    color: #706d64;
+    font-size: 26rpx;
+    line-height: 1.8;
+  }
+  &__section {
+    margin: 32rpx 0;
+  }
+  &__heading {
+    display: block;
+    margin-bottom: 16rpx;
+    font-size: 30rpx;
+    font-weight: 600;
+    line-height: 1.6;
+  }
+  &__text {
+    display: block;
+    margin-bottom: 24rpx;
+    font-size: 28rpx;
+    line-height: 1.9;
+    color: #474b4d;
+    overflow-wrap: anywhere;
+  }
+  &__email {
+    display: block;
+    padding: 32rpx 0;
+    font-size: 32rpx;
+    color: #8b692c;
+  }
+}
+
+.about-page__body {
+  flex: 1;
+  position: relative;
+  margin-top: -32rpx;
+  border-radius: 36rpx 36rpx 0 0;
+  background: $color-home-paper;
+  min-height: calc(100vh - 200rpx);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 40rpx calc(40rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+.about-page__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 104rpx;
+  gap: 28rpx;
+}
+.about-page__mark {
+  width: 148rpx;
+  height: 148rpx;
+  border-radius: 50%;
+  background: $color-home-ink;
+  border: 2rpx solid $color-home-gold;
+  font-family: serif;
+  color: $color-home-gold-soft;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 76rpx;
+}
+.about-page__name {
+  margin-top: 20rpx;
+  font-size: 42rpx;
+  font-weight: 500;
+  letter-spacing: 6rpx;
+  color: $color-home-ink;
+}
+.about-page__tagline {
+  font-size: 26rpx;
+  color: $color-home-muted;
+}
+.about-page__version {
+  font-size: 28rpx;
+  color: $color-home-secondary;
+}
+.about-page__privacy {
+  margin: auto 0 0;
+  padding: 24rpx;
+  background: transparent;
+  color: $color-home-secondary;
+  font-size: 28rpx;
+  &::after {
+    border: 0;
+  }
+}

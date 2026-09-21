@@ -1,24 +1,26 @@
 import { useState } from 'react';
-import { Button, Image, Input, Text, View } from '@tarojs/components';
+import { Button, Form, Image, Input, Text, View } from '@tarojs/components';
+import { supportsWechatLogin } from '../../platform/identity';
 import type { Profile } from '../../features/identity/session';
 import type { IdentityAction } from '../../features/identity/use-identity';
-import avatar from '../../assets/tab/profile-active.png';
 
 export interface ProfileViewProps {
   profile: Profile | null;
   pendingAction: IdentityAction | null;
   error: string;
-  canLogin: boolean;
-  onLogin: () => Promise<boolean>;
-  onSaveNickname: (nickname: string) => Promise<boolean>;
+  onOpenLogin: () => void;
+  onOpenInformation: (section: 'privacy' | 'about') => void;
+  onSaveNickname: (nickname: string, avatarPath?: string) => Promise<boolean>;
   onLogout: () => Promise<boolean>;
   onRetry: () => Promise<boolean>;
 }
 
 export function ProfileView(props: Readonly<ProfileViewProps>) {
-  const { profile, pendingAction, error, canLogin } = props;
+  const { profile, pendingAction, error } = props;
   const [editing, setEditing] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [draft, setDraft] = useState('');
+  const [avatarDraft, setAvatarDraft] = useState('');
   const [notice, setNotice] = useState('');
   const busy = pendingAction !== null;
   const name = profile?.nickname || '观潮家用户';
@@ -27,12 +29,22 @@ export function ProfileView(props: Readonly<ProfileViewProps>) {
     !trimmed || [...trimmed].length > 32 || /[\u0000-\u001f\u007f-\u009f]/.test(trimmed);
   function edit() {
     setDraft(profile?.nickname || '');
+    setAvatarDraft('');
     setNotice('');
     setEditing(true);
   }
-  async function save() {
-    if (busy || invalid) return;
-    const saved = await props.onSaveNickname(trimmed);
+  async function save(submitted?: string) {
+    const nameToSave = (submitted ?? draft).trim();
+    if (
+      busy ||
+      !nameToSave ||
+      [...nameToSave].length > 32 ||
+      /[\u0000-\u001f\u007f-\u009f]/.test(nameToSave)
+    ) {
+      setNotice('请填写有效昵称，最多 32 个字符');
+      return;
+    }
+    const saved = await props.onSaveNickname(nameToSave, avatarDraft || undefined);
     if (saved) {
       setEditing(false);
       setNotice('个人资料已更新');
@@ -46,19 +58,36 @@ export function ProfileView(props: Readonly<ProfileViewProps>) {
     }
   }
   return (
-    <View className='profile-page__body'>
-      <View className='profile-page__identity'>
+    <View
+      className={`profile-page__body${accountOpen ? ' profile-page__body--account' : ' profile-page__body--landing'}`}
+    >
+      <Button
+        className='profile-page__identity profile-page__identity-button'
+        disabled={busy}
+        onClick={() => {
+          if (profile) setAccountOpen(true);
+          else props.onOpenLogin();
+        }}
+      >
         <View className='profile-page__portrait'>
-          <Image className='profile-page__avatar' src={avatar} mode='aspectFit' />
+          {profile?.avatarSource ? (
+            <Image
+              className='profile-page__saved-avatar'
+              src={profile.avatarSource}
+              mode='aspectFill'
+            />
+          ) : (
+            <View className='profile-page__person' aria-hidden>
+              <View className='profile-page__person-head' />
+              <View className='profile-page__person-body' />
+            </View>
+          )}
         </View>
         <View className='profile-page__identity-copy'>
-          <Text className='profile-page__name'>{profile ? name : '欢迎来到观潮家'}</Text>
-          <Text className='profile-page__state'>
-            {profile ? '微信账号已登录' : '读懂全球政经变化'}
-          </Text>
+          <Text className='profile-page__name'>{profile ? name : '登录/注册'}</Text>
         </View>
-      </View>
-      {profile ? (
+      </Button>
+      {profile && accountOpen ? (
         <>
           <View className='profile-page__card'>
             <View className='profile-page__card-heading'>
@@ -75,12 +104,42 @@ export function ProfileView(props: Readonly<ProfileViewProps>) {
               )}
             </View>
             {editing ? (
-              <>
+              <Form onSubmit={(event) => void save(String(event.detail.value?.nickname ?? ''))}>
+                {supportsWechatLogin && (
+                  <>
+                    <Button
+                      className='profile-page__avatar-picker'
+                      openType='chooseAvatar'
+                      disabled={busy}
+                      onChooseAvatar={(event) => {
+                        const detail = event.detail as { avatarUrl?: string };
+                        if (detail.avatarUrl) {
+                          setAvatarDraft(detail.avatarUrl);
+                          setNotice('');
+                        }
+                      }}
+                    >
+                      {(avatarDraft || profile.avatarSource) && (
+                        <Image
+                          className='profile-page__saved-avatar'
+                          src={avatarDraft || profile.avatarSource || ''}
+                          mode='aspectFill'
+                        />
+                      )}
+                      <Text>{avatarDraft ? '重新选择头像' : '选择微信头像'}</Text>
+                    </Button>
+                    <Text className='profile-page__hint'>
+                      头像和昵称仅用于观潮家个人资料展示，选择后点击保存。可从关于页查看隐私政策。
+                    </Text>
+                  </>
+                )}
+
                 <Text className='profile-page__label'>昵称</Text>
                 <Input
                   className='profile-page__input'
                   aria-label='昵称'
-                  type='text'
+                  name='nickname'
+                  type={supportsWechatLogin ? 'nickname' : 'text'}
                   value={draft}
                   maxlength={32}
                   placeholder='输入你的昵称'
@@ -88,9 +147,9 @@ export function ProfileView(props: Readonly<ProfileViewProps>) {
                   focus
                   onInput={(event) => setDraft(event.detail.value)}
                   confirmType='done'
-                  onConfirm={() => void save()}
+                  onBlur={(event) => setDraft(event.detail.value)}
                 />
-                <Text className='profile-page__hint'>昵称最多 32 个字符</Text>
+                <Text className='profile-page__hint'>可选用微信昵称或自行填写，最多 32 个字符</Text>
                 <View className='profile-page__actions'>
                   <Button
                     className='profile-page__button profile-page__button--quiet'
@@ -105,13 +164,17 @@ export function ProfileView(props: Readonly<ProfileViewProps>) {
                   <Button
                     className='profile-page__button'
                     hoverClass='profile-page__pressed'
-                    disabled={busy || invalid || trimmed === profile.nickname}
-                    onClick={() => void save()}
+                    disabled={
+                      busy ||
+                      (!supportsWechatLogin && invalid) ||
+                      (!supportsWechatLogin && trimmed === profile.nickname && !avatarDraft)
+                    }
+                    formType='submit'
                   >
                     {pendingAction === 'nickname' ? '保存中…' : '保存修改'}
                   </Button>
                 </View>
-              </>
+              </Form>
             ) : (
               <View className='profile-page__detail-row'>
                 <Text className='profile-page__detail-label'>昵称</Text>
@@ -140,30 +203,11 @@ export function ProfileView(props: Readonly<ProfileViewProps>) {
             </View>
           )}
         </>
-      ) : (
-        <View className='profile-page__card profile-page__card--login'>
-          <Text className='profile-page__heading'>登录观潮家</Text>
-          <Text className='profile-page__description'>
-            使用微信账号快捷登录，保存你的个人资料。
-          </Text>
-          <Button
-            className='profile-page__button'
-            hoverClass='profile-page__pressed'
-            disabled={busy || !canLogin}
-            onClick={() => void props.onLogin()}
-          >
-            {pendingAction === 'login'
-              ? '正在登录…'
-              : pendingAction === 'refresh'
-                ? '正在检查登录状态…'
-                : canLogin
-                  ? '微信登录'
-                  : '请在微信小程序中登录'}
-          </Button>
-          <Text className='profile-page__hint profile-page__hint--center'>
-            无需填写手机号 · 未登录也可浏览推理
-          </Text>
-        </View>
+      ) : null}
+      {accountOpen && !editing && (
+        <Button className='profile-page__phone-login' onClick={() => setAccountOpen(false)}>
+          返回我的
+        </Button>
       )}
       {error ? (
         <View className='profile-page__error' role='alert'>
@@ -179,10 +223,16 @@ export function ProfileView(props: Readonly<ProfileViewProps>) {
           )}
         </View>
       ) : null}
-      <View className='profile-page__footer'>
-        <Text>观潮家</Text>
-        <Text className='profile-page__footer-caption'>读懂全球政经变化</Text>
-      </View>
+      {!accountOpen && (
+        <Button
+          className='profile-page__about-row'
+          onClick={() => props.onOpenInformation('about')}
+        >
+          <Text className='profile-page__about-mark'>观</Text>
+          <Text>关于观潮家</Text>
+          <Text className='profile-page__about-arrow'>›</Text>
+        </Button>
+      )}
     </View>
   );
 }
