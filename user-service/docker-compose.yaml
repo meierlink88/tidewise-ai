@@ -7,8 +7,6 @@ services:
       USER_DATABASE_URL: ${USER_DATABASE_URL:?runtime database DSN required}
       USER_DATABASE_NAME: ${USER_DATABASE_NAME:?explicit target required}
       USER_SERVICE_TOKEN: ${USER_SERVICE_TOKEN:?service caller token required}
-      WECHAT_APP_ID: ${WECHAT_APP_ID:?WeChat AppID required}
-      WECHAT_APP_SECRET: ${WECHAT_APP_SECRET:?WeChat secret required}
     ports:
       - '127.0.0.1:9015:9015'
     read_only: true
@@ -25,6 +23,16 @@ services:
     command: [-dir, /app/migrations]
     environment:
       USER_DATABASE_URL: ${USER_MIGRATION_DATABASE_URL:?migration owner DSN required}
+      USER_DATABASE_NAME: ${USER_DATABASE_NAME:?explicit target required}
+    healthcheck:
+      disable: true
+  user-configure:
+    image: ${USER_SERVICE_IMAGE:?set an immutable User Service image}
+    profiles: [operations]
+    entrypoint: [/app/configure-wechat]
+    command: []
+    environment:
+      USER_DATABASE_URL: ${USER_MIGRATION_DATABASE_URL:?configuration writer DSN required}
       USER_DATABASE_NAME: ${USER_DATABASE_NAME:?explicit target required}
     healthcheck:
       disable: true

@@ -19,3 +19,6 @@ User Domain Service 拥有用户身份、微信身份与业务会话，源码在
 
 用户资料增加 nickname：最多 32 个 Unicode 字符，未设置为空字符串，既有用户通过 migration 2 补列。
 登录与验票返回当前昵称，重复登录保留已有昵称。微信 code 登录不自动获取昵称；本次不新增昵称编辑接口。
+
+微信应用凭据改由 User 私有 `user_configurations` 字典表保存，见 [ADR-0068](../../adr/0068-user-wechat-configuration-dictionary.md)。
+`wechat_miniapp` 配置在服务启动时读取，修改后重启；不再读取微信环境变量，不提供公开字典查询接口。

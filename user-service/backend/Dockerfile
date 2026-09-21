@@ -3,7 +3,7 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY user-service/backend ./user-service/backend
-RUN CGO_ENABLED=0 go build -trimpath -o /out/server ./user-service/backend/cmd/server && CGO_ENABLED=0 go build -trimpath -o /out/dbmigrate ./user-service/backend/cmd/dbmigrate
+RUN CGO_ENABLED=0 go build -trimpath -o /out/server ./user-service/backend/cmd/server && CGO_ENABLED=0 go build -trimpath -o /out/dbmigrate ./user-service/backend/cmd/dbmigrate && CGO_ENABLED=0 go build -trimpath -o /out/configure-wechat ./user-service/backend/cmd/configure-wechat
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates wget && addgroup -S tidewise && adduser -S -G tidewise tidewise
