@@ -1,6 +1,10 @@
 package server
 
 import (
+	stockapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/stock"
+	stockbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/stock"
+	stockservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/stock"
+
 	"bytes"
 	"context"
 	"database/sql"
@@ -554,4 +558,46 @@ func productionContractError(t *testing.T, handler http.Handler, method, path, t
 		t.Fatalf("%s %s error envelope=%#v, want code %s", method, path, envelope, wantCode)
 	}
 	return envelope
+}
+
+func TestStockSearchHTTPAuthAndValidation(t *testing.T) {
+	auth, err := NewAuthenticator([]Credential{
+		{Secret: "stock-reader", Principal: dataapi.Principal{Identity: "miniapp", Scopes: []string{ScopeStockRead}}},
+		{Secret: "wrong-scope", Principal: dataapi.Principal{Identity: "other", Scopes: []string{ScopeCompanyRead}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := NewHTTPServer(testConfig(), serverTestDataService{}, research.Service{}, serverTestEventService{}, serverTestEvidenceService{}, serverTestCountryService{}, serverTestIndustryService{}, serverTestConceptService{}, serverTestChainNodeService{}, serverTestIndustryChainService{}, serverTestOrganizationService{}, serverTestSourceService{}, serverTestCompanyService{}, serverTestReportService{}, auth, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	useCase, err := stockbiz.NewUseCase(stockSearchRepository{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	app, err := stockservice.NewService(useCase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stockapi.RegisterHTTPServer(server, app)
+	path := dataapi.APIPrefix + "/stocks?q=000001"
+	productionContractError(t, server, http.MethodGet, path, "", "", "stock-noauth", 401, "UNAUTHENTICATED")
+	productionContractError(t, server, http.MethodGet, path, "wrong-scope", "", "stock-scope", 403, "FORBIDDEN")
+	for _, query := range []string{"", "?q=%20", "?q=x&q=y", "?q=x&exchange=XX", "?q=x&page_size=101", "?q=x&offset=-1", "?q=x&unknown=1"} {
+		productionContractError(t, server, http.MethodGet, dataapi.APIPrefix+"/stocks"+query, "stock-reader", "", "stock-invalid", 400, "INVALID_REQUEST")
+	}
+	response := productionContractRequest(t, server, http.MethodGet, path, "stock-reader", "", "stock-valid", 200)
+	result := response["result"].(map[string]any)
+	items := result["items"].([]any)
+	if len(items) != 1 || items[0].(map[string]any)["symbol"] != "000001.SZ" || items[0].(map[string]any)["exchange_name"] != "深圳证券交易所" {
+		t.Fatal(response)
+	}
+}
+
+type stockSearchRepository struct{}
+
+func (stockSearchRepository) Upsert(context.Context, []stockbiz.Stock) error { return nil }
+func (stockSearchRepository) Search(_ context.Context, q stockbiz.Query) (stockbiz.Page, error) {
+	return stockbiz.Page{Items: []stockbiz.Stock{{ID: "STK11111111-1111-5111-8111-111111111111", Code: "000001", Exchange: "SZ", Name: "平安银行", Board: "主板", AsOf: time.Date(2026, 9, 21, 0, 0, 0, 0, time.UTC)}}}, nil
 }
