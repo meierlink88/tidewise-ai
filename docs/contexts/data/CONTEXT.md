@@ -682,3 +682,20 @@ Data 独占独立 `stock` 主数据，使用 STK 身份与交易所/六位代码
 `GET /api/data/v1/stocks` 提供按代码、完整代码或简称字面量子串搜索，必填 q，支持交易所过滤；page_size 1–100（默认20），offset 0–10000（默认0），精确代码优先、exchange/code/id 排序。响应 items/has_more，每条含内部ID、code、symbol、name、exchange、exchange_name、board、as_of。只提供交互搜索，不承诺多页一致快照；由 Miniapp Backend 用服务令牌及 data.stocks.read 消费。当前没有小程序搜索UI和用户自选关系，Data 不保存用户身份或会话。
 
 发布顺序为 migration 94 → 显式初始化 → 更新 Data 服务及读取接口。Data readiness 会拒绝未知迁移，回退必须使用携带 migration 94 的兼容镜像并保留 stock 数据，不能直接换回只认识 schema 93 的旧镜像。
+
+### 股票档案字段（#536）
+
+`stock` 增加十个可空业务字段：`full_name`、`former_name`、`list_date`、`established`、
+`industry_l1`、`industry_l2`、`main_business`、`main_product_type`、`index_core`、`concepts`。
+前两类日期使用 DATE；主营收入构成为有序 JSONB `{name,pct}` 数组，pct 为百分数，允许负值且
+不要求合计100，不推导财年。其余集合为有序 TEXT[]，SQL NULL 表示未知，空数组表示已知为空。
+曾用名保留来源原文，不拆解更名历史。指数与题材独立，题材不携带权重；行业和题材是来源描述，
+不自动生成 Company、Industry 或 Concept 对象/关系。
+
+不增加 profile_source、profile_schema_version、main_business_year 或 profile_as_of；沿用
+as_of 作为记录快照日期、updated_at 作为记录更新时间。migration 95 仅增列及类型形状约束，
+不导入样本、不回填现有5565条记录、不修改基础字段和时间戳。当前搜索 DTO 与旧初始化器仍只
+处理基础目录字段，不负责读取或发布新增档案；后续档案导入需要另行版本化合同。
+
+新增列对显式列 SQL 向后兼容，但旧镜像 readiness 会拒绝 ledger 95；运行及应用回退必须使用
+识别 migration 95 的兼容镜像，并保留新增列和数据，不执行 down。
