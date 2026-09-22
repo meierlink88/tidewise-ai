@@ -75,7 +75,7 @@ func New(r Repository, p Provider, appid string, ttl time.Duration, now func() t
 	}
 	return &UseCase{r, p, appid, ttl, now}
 }
-func tokenHash(token string) ([]byte, error) {
+func TokenHash(token string) ([]byte, error) {
 	raw, err := base64.RawURLEncoding.Strict().DecodeString(token)
 	if err != nil || len(raw) != 32 || len(token) != 43 {
 		return nil, ErrUnauthenticated
@@ -90,7 +90,7 @@ func (u *UseCase) Login(ctx context.Context, code, previous string, opt LoginOpt
 	var previousHash []byte
 	if previous != "" {
 		var err error
-		previousHash, err = tokenHash(previous)
+		previousHash, err = TokenHash(previous)
 		if err != nil {
 			return LoginResult{}, err
 		}
@@ -111,7 +111,7 @@ func (u *UseCase) Login(ctx context.Context, code, previous string, opt LoginOpt
 		return LoginResult{}, ErrUnavailable
 	}
 	token := base64.RawURLEncoding.EncodeToString(bytes)
-	hash, _ := tokenHash(token)
+	hash, _ := TokenHash(token)
 	now := u.now().UTC()
 	var session Session
 	for attempt := 0; attempt < 3; attempt++ {
@@ -149,7 +149,7 @@ func (u *UseCase) Login(ctx context.Context, code, previous string, opt LoginOpt
 	return LoginResult{session, token}, nil
 }
 func (u *UseCase) Verify(ctx context.Context, token string) (Session, error) {
-	hash, err := tokenHash(token)
+	hash, err := TokenHash(token)
 	if err != nil {
 		return Session{}, err
 	}
@@ -166,7 +166,7 @@ func (u *UseCase) Verify(ctx context.Context, token string) (Session, error) {
 	return s, nil
 }
 func (u *UseCase) Revoke(ctx context.Context, token string) error {
-	hash, err := tokenHash(token)
+	hash, err := TokenHash(token)
 	if err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func (u *UseCase) UpdateNickname(ctx context.Context, token, nickname string, av
 	if !utf8.ValidString(nickname) || utf8.RuneCountInString(nickname) < 1 || utf8.RuneCountInString(nickname) > 32 || strings.IndexFunc(nickname, unicode.IsControl) >= 0 {
 		return Session{}, ErrInvalidNickname
 	}
-	hash, err := tokenHash(token)
+	hash, err := TokenHash(token)
 	if err != nil {
 		return Session{}, err
 	}
@@ -219,7 +219,7 @@ func (u *UseCase) UpdateNickname(ctx context.Context, token, nickname string, av
 
 // Avatar is private to the current session owner; it is never part of normal identity reads.
 func (u *UseCase) Avatar(ctx context.Context, token string) ([]byte, error) {
-	hash, err := tokenHash(token)
+	hash, err := TokenHash(token)
 	if err != nil {
 		return nil, err
 	}
@@ -277,3 +277,5 @@ func normalizeAvatar(raw []byte) ([]byte, error) {
 	}
 	return output.Bytes(), nil
 }
+
+func tokenHash(token string) ([]byte, error) { return TokenHash(token) }

@@ -157,7 +157,6 @@ USER_SERVICE_TOKEN=<与 User Service 相同的私有调用凭据>
 日志/备份保存周期、人工隐私请求处理流程及未成年人处理规则；自有政策不能替代微信后台指引配置。
 本次没有部署 UAT，也不更改真实用户或导入微信凭据。
 
-
 ### 头像资料（#530）
 
 migration 6 新增私有 user_avatars。发布前先执行完整迁移，并给 runtime 账号该表
@@ -166,3 +165,15 @@ SELECT/INSERT/UPDATE/DELETE 权限（迁移与运行账号分离的环境）；�
 资料保存可带 base64 JPEG/PNG（最多2MiB，2048x2048）；User统一归一化为最长边256的JPEG，
 不存微信临时路径。头像专用读取仅限当前会话所有者。普通用户接口不读取图片。
 小程序后台隐私保护指引需声明主动选择头像、昵称的用途；本文不代表已更新微信后台。
+
+## 公司跟踪（#535，schema 7）
+
+`user_watchlist` 保存当前用户对 Data stock 的引用；不复制公司名称、行业或主题。
+先执行完整 User migration，再为实际 runtime 角色授予此表 SELECT/INSERT/DELETE 权限，
+随后部署 User → Miniapp Backend → 小程序。启动 readiness 要求 schema >= 7 且可读新表。
+旧 User 可回退，保留新表；不要执行 down 或清空用户关系。
+
+私有 `/api/user/v1/watchlist/list|check|add|remove` 只接受服务 Bearer 与 JSON session_token，
+不接受 user_id。关系查询/操作在锁定用户与会话的事务内完成，禁用、撤销、过期和 AppID
+不匹配会阻止操作。重复 add/remove 幂等，不因名称变化或资料查询失败删除用户关系。
+本能力继续使用已有隐私入口与人工账号删除流程，不新增自动注销 API。

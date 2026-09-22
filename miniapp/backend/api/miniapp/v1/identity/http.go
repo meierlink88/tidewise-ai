@@ -3,32 +3,17 @@ package identity
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
+
 	"encoding/json"
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	v1 "github.com/meierlink88/tidewise-ai/miniapp/backend/api/miniapp/v1"
 	"io"
 	"mime"
 	"net/http"
-	"strings"
+
 	"time"
 )
 
-func token(ctx kratoshttp.Context, optional bool) (string, error) {
-	h := ctx.Request().Header.Get("Authorization")
-	if h == "" && optional {
-		return "", nil
-	}
-	if !strings.HasPrefix(h, "Bearer ") {
-		return "", v1.IdentityError(401, "UNAUTHENTICATED")
-	}
-	t := strings.TrimPrefix(h, "Bearer ")
-	b, e := base64.RawURLEncoding.Strict().DecodeString(t)
-	if e != nil || len(b) != 32 || len(t) != 43 {
-		return "", v1.IdentityError(401, "UNAUTHENTICATED")
-	}
-	return t, nil
-}
 func bind(ctx kratoshttp.Context, value any) error {
 	media, _, e := mime.ParseMediaType(ctx.Request().Header.Get("Content-Type"))
 	if e != nil || media != "application/json" {
@@ -88,7 +73,7 @@ func RegisterHTTPServer(server *kratoshttp.Server, s Service) {
 	router := server.Route(v1.APIPrefix + "/auth")
 	router.GET("/avatar", func(ctx kratoshttp.Context) error {
 		return call(ctx, "avatar", func(c context.Context) (any, error) {
-			t, e := token(ctx, false)
+			t, e := v1.SessionToken(ctx, false)
 			if e != nil {
 				return nil, e
 			}
@@ -101,7 +86,7 @@ func RegisterHTTPServer(server *kratoshttp.Server, s Service) {
 			if e := bind(ctx, &r); e != nil {
 				return nil, e
 			}
-			t, e := token(ctx, true)
+			t, e := v1.SessionToken(ctx, true)
 			if e != nil {
 				return nil, e
 			}
@@ -110,7 +95,7 @@ func RegisterHTTPServer(server *kratoshttp.Server, s Service) {
 	})
 	router.GET("/me", func(ctx kratoshttp.Context) error {
 		return call(ctx, "me", func(c context.Context) (any, error) {
-			t, e := token(ctx, false)
+			t, e := v1.SessionToken(ctx, false)
 			if e != nil {
 				return nil, e
 			}
@@ -119,7 +104,7 @@ func RegisterHTTPServer(server *kratoshttp.Server, s Service) {
 	})
 	router.POST("/logout", func(ctx kratoshttp.Context) error {
 		return call(ctx, "logout", func(c context.Context) (any, error) {
-			t, e := token(ctx, false)
+			t, e := v1.SessionToken(ctx, false)
 			if e != nil {
 				return nil, e
 			}
@@ -132,7 +117,7 @@ func RegisterHTTPServer(server *kratoshttp.Server, s Service) {
 			if e := bind(ctx, &r); e != nil {
 				return nil, e
 			}
-			t, e := token(ctx, false)
+			t, e := v1.SessionToken(ctx, false)
 			if e != nil {
 				return nil, e
 			}

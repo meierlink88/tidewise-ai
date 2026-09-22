@@ -39,14 +39,15 @@ paths:
       x-required-service-scope: data.stocks.read
       x-retry-policy: no-automatic-retry
       x-timeout-budget-ms: 5000
-      summary: 按股票代码或简称搜索主数据
-      description: q 去首尾空白，按字面量匹配代码、完整代码或简称；精确代码优先，其后按 exchange/code/id 排序。分页不提供一致性快照。拒绝重复及未知参数。
+      summary: 按股票代码、简称、拼音首字母或 ID 批量查询主数据
+      description: q 与 ids 二选一。q 去首尾空白，字面量匹配代码、简称和不区分大小写的首字母；精确代码优先，其后 exchange/code/id。ids 为逗号分隔且不重复的最多100个 stock ID，不得与其他业务参数共用；返回存在的项目，按 exchange/code/id 排序。分页不提供一致性快照。公司字段为可空来源事实；concepts 保持原顺序。拒绝重复及未知参数。
       parameters:
+        - { name: ids, in: query, schema: { type: string, maxLength: 3999 } }
         - $ref: '#/components/parameters/RequestID'
         - {
             name: q,
             in: query,
-            required: true,
+            required: false,
             schema: { type: string, minLength: 1, maxLength: 64 }
           }
         - { name: exchange, in: query, schema: { type: string, enum: [SH, SZ, BJ] } }
@@ -2513,6 +2514,20 @@ components:
       additionalProperties: false
       required: [id, code, symbol, name, exchange, exchange_name, board, as_of]
       properties:
+        full_name:
+          type: string
+          nullable: true
+        industry_l1:
+          type: string
+          nullable: true
+        industry_l2:
+          type: string
+          nullable: true
+        concepts:
+          type: array
+          items:
+            type: string
+          nullable: true
         id:
           {
             type: string,

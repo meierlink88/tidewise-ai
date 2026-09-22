@@ -31,7 +31,7 @@ func TestOpenAPIContractExposesOperationsAndReportRoutes(t *testing.T) {
 		"/api/miniapp/v1/reports/home": "getReportHome",
 		"/api/miniapp/v1/reports/{report_id}/evidences": "listReportEvidences",
 	}
-	if len(paths) != len(want)+5 {
+	if len(paths) != len(want)+8 {
 		t.Fatalf("paths = %v, want %v", sortedKeys(paths), sortedKeys(want))
 	}
 	for path, method := range map[string]string{"wechat/login": "post", "me": "get", "logout": "post", "profile": "patch", "avatar": "get"} {
@@ -40,6 +40,20 @@ func TestOpenAPIContractExposesOperationsAndReportRoutes(t *testing.T) {
 			t.Fatal("identity route missing explicit security", path)
 		}
 	}
+	for path, methods := range map[string][]string{
+		"/api/miniapp/v1/tracking": {"get"}, "/api/miniapp/v1/tracking/search": {"get"}, "/api/miniapp/v1/tracking/{stock_id}": {"put", "delete"},
+	} {
+		for _, method := range methods {
+			op := object(t, object(t, paths[path], path)[method], method)
+			if _, ok := op["security"]; !ok {
+				t.Fatal("tracking security missing", path)
+			}
+			if _, ok := object(t, op["responses"], "responses")["503"]; !ok {
+				t.Fatal("tracking failure missing", path)
+			}
+		}
+	}
+	assertRequired(t, schema(t, document, "TrackingCompany"), "id", "title", "stock_name", "symbol", "industry_label", "industry_path", "concepts", "is_followed")
 	seenOperations := map[string]bool{}
 	for path, expectedOperation := range want {
 		operation := object(t, object(t, paths[path], "path "+path)["get"], "GET "+path)

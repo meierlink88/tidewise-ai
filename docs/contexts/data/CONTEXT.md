@@ -699,3 +699,16 @@ as_of 作为记录快照日期、updated_at 作为记录更新时间。migration
 
 新增列对显式列 SQL 向后兼容，但旧镜像 readiness 会拒绝 ledger 95；运行及应用回退必须使用
 识别 migration 95 的兼容镜像，并保留新增列和数据，不执行 down。
+
+## Stock 公司资料检索（#535）
+
+Stock 主数据仍与正式 Company 分离。股票搜索新增可派生 name_initials，
+由 Data Adapter 使用固定 go-pinyin v0.21.0（MIT）和受控简称词组处理；
+不在客户端部署拼音字典。GET stocks 支持 q 或 ids 批量读取，返回 full_name、
+industry_l1/l2、concepts 领域事实，不提供 UI 标题、个人状态或主题权重。
+migration96 只加可空索引字段；stock-initialize -reindex 显式回填所有已有名称，
+目录写入同步生成索引；回填不会改变业务 as_of。
+stock-profiles -file 接受用户提供的 v4 样本，严格验证后原子发布至已有 stock。
+不新增来源/版本/财年字段；保持数组顺序、null/空数组、负pct和非100%合计。
+旧日期拒绝，同日期已有资料冲突拒绝，相同内容重放不写入；空资料可首次补全。
+无全市场资料推测或额外抓取。

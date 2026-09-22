@@ -8,6 +8,7 @@ require (
 	github.com/go-kratos/kratos/v3 v3.0.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.9.2
+	github.com/mozillazg/go-pinyin v0.21.0
 	github.com/pressly/goose/v3 v3.24.3
 	github.com/swaggest/swgui v1.8.9
 	gopkg.in/yaml.v3 v3.0.1

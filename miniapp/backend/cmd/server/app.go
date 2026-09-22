@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	trackingapi "github.com/meierlink88/tidewise-ai/miniapp/backend/api/miniapp/v1/tracking"
+	trackingbiz "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/biz/tracking"
+	trackingdata "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/data/tracking"
+	trackingservice "github.com/meierlink88/tidewise-ai/miniapp/backend/internal/service/tracking"
 	"log/slog"
 	"time"
 
@@ -49,6 +53,12 @@ func buildApp(config conf.RuntimeConfig, logger *slog.Logger) (*kratos.App, func
 	}
 	identity := identityservice.New(identitybiz.New(userClient))
 	httpServer := server.NewHTTPServer(config, logger, application, identity)
+	trackingRepo, err := trackingdata.New(dataClient, config.UserService.BaseURL, config.UserService.IdentityToken)
+	if err != nil {
+		_ = dataClient.Close()
+		return nil, nil, err
+	}
+	trackingapi.RegisterHTTPServer(httpServer, trackingservice.New(trackingbiz.New(trackingRepo)))
 	cleanup := func(context.Context) error { return dataClient.Close() }
 	return newApp(httpServer, logger), cleanup, nil
 }
