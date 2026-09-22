@@ -489,7 +489,7 @@ jobs:
 
       - name: Build and push Data Service
         if: needs.plan-release.outputs.deploy_data == 'true'
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: data-service/backend/Dockerfile
@@ -500,7 +500,7 @@ jobs:
 
       - name: Build and push Miniapp Backend Service
         if: needs.plan-release.outputs.deploy_miniapp == 'true'
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: miniapp/backend/Dockerfile
@@ -511,7 +511,7 @@ jobs:
 
       - name: Build and push Admin Portal Backend Service
         if: needs.plan-release.outputs.deploy_adminportal == 'true'
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: admin-portal/backend/Dockerfile
@@ -522,7 +522,7 @@ jobs:
 
       - name: Build and push Admin Portal Frontend
         if: needs.plan-release.outputs.deploy_admin == 'true'
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: admin-portal/frontend/Dockerfile
@@ -534,7 +534,7 @@ jobs:
       - name: Build and push report backup client to SWR
         if: inputs.deployment_mode == 'data_88_cutover' || inputs.deployment_mode == 'data_91_cutover' || inputs.deployment_mode == 'data_93_cutover'
         id: report-backup-client
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .uat-control/infra/uat
           file: .uat-control/infra/uat/report-backup-client.Dockerfile
@@ -557,7 +557,7 @@ jobs:
 
       - name: Build and push immutable UAT deployment bundle
         id: deploy-bundle-image
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ${{ steps.deploy-bundle.outputs.context }}
           file: .uat-control/infra/uat/deploy-bundle.Dockerfile
