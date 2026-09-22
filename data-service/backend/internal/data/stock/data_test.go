@@ -91,3 +91,59 @@ func TestCatalogImportReplayConflictAndSearch(t *testing.T) {
 		t.Fatalf("readback count %d err %v", i, rows.Err())
 	}
 }
+
+func TestBusinessFieldsPreserveUnknownEmptyAndCatalogCompatibility(t *testing.T) {
+	db := fixture.OpenIsolated(t, "stock_business", "../../../migrations", 0)
+	ctx := context.Background()
+	s, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := biz.Stock{ID: "STKf4a8eb61-c352-5980-91b1-9da6eba8f8af", Code: "000001", Name: "平安银行", Exchange: "SZ", Board: "主板", AsOf: time.Date(2026, 9, 21, 0, 0, 0, 0, time.UTC)}
+	if err := s.Upsert(ctx, []biz.Stock{item}); err != nil {
+		t.Fatal(err)
+	}
+	var unknown bool
+	if err := db.QueryRow(`SELECT full_name IS NULL AND former_name IS NULL AND list_date IS NULL AND established IS NULL AND industry_l1 IS NULL AND industry_l2 IS NULL AND main_business IS NULL AND main_product_type IS NULL AND index_core IS NULL AND concepts IS NULL FROM stock WHERE id=$1`, item.ID).Scan(&unknown); err != nil || !unknown {
+		t.Fatalf("unknown fields: %v, %v", unknown, err)
+	}
+	if _, err := db.Exec(`UPDATE stock SET main_business='[]', main_product_type='{}', index_core='{}', concepts='{}' WHERE id=$1`, item.ID); err != nil {
+		t.Fatal(err)
+	}
+	var empty bool
+	if err := db.QueryRow(`SELECT main_business='[]'::jsonb AND cardinality(main_product_type)=0 AND cardinality(index_core)=0 AND cardinality(concepts)=0 FROM stock WHERE id=$1`, item.ID).Scan(&empty); err != nil || !empty {
+		t.Fatalf("known empty: %v, %v", empty, err)
+	}
+	// Negative eliminations and non-100 totals are source facts, not invalid weights.
+	if _, err := db.Exec(`UPDATE stock SET full_name='测试银行股份有限公司', former_name='甲公司,乙公司', list_date='1991-04-03', established='1987-12-22', industry_l1='金融', industry_l2='银行', main_business='[{"name":"利息收入:贷款","pct":120.25},{"name":"抵销","pct":-14.17}]', main_product_type=ARRAY['贷款','存款'], index_core=ARRAY['沪深300'], concepts=ARRAY['跨境支付','银'] WHERE id=$1`, item.ID); err != nil {
+		t.Fatal(err)
+	}
+	profileSQL := `SELECT jsonb_build_array(full_name,former_name,list_date,established,industry_l1,industry_l2,main_business,main_product_type,index_core,concepts)::text FROM stock WHERE id=$1`
+	var before, after string
+	if err := db.QueryRow(profileSQL, item.ID).Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+	item.AsOf = item.AsOf.Add(24 * time.Hour)
+	if err := s.Upsert(ctx, []biz.Stock{item}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRow(profileSQL, item.ID).Scan(&after); err != nil || after != before {
+		t.Fatalf("catalog overwrote profile: %v", err)
+	}
+	page, err := s.Search(ctx, biz.Query{Text: "000001", Limit: 20})
+	if err != nil || len(page.Items) != 1 || page.Items[0].ID != item.ID {
+		t.Fatalf("catalog search: %v %v", page, err)
+	}
+	for _, invalid := range []string{`null`, `{}`, `[null]`, `[1]`, `[{}]`, `[{"name":"收入"}]`, `[{"pct":1}]`, `[{"name":null,"pct":1}]`, `[{"name":" ","pct":1}]`, `[{"name":[],"pct":1}]`, `[{"name":"收入","pct":"1"}]`, `[{"name":"收入","pct":null}]`, `[{"name":"收入","pct":[1]}]`} {
+		if _, err := db.Exec(`UPDATE stock SET main_business=$1::jsonb WHERE id=$2`, invalid, item.ID); err == nil {
+			t.Errorf("accepted malformed breakdown %s", invalid)
+		}
+	}
+	for _, column := range []string{"main_product_type", "index_core", "concepts"} {
+		for _, invalid := range []string{`ARRAY['x',NULL]`, `ARRAY[['x'],['y']]`} {
+			if _, err := db.Exec(`UPDATE stock SET `+column+`=`+invalid+` WHERE id=$1`, item.ID); err == nil {
+				t.Errorf("accepted invalid %s: %s", column, invalid)
+			}
+		}
+	}
+}
