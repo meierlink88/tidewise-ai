@@ -132,7 +132,7 @@ func TestPostgresLoginLifecycleAndConcurrency(t *testing.T) {
 	if err = data.Ready(context.Background(), db); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.Exec("TRUNCATE user_avatars,user_sessions,wechat_identities,users"); err != nil {
+	if _, err = db.Exec("TRUNCATE user_watchlist,user_avatars,user_sessions,wechat_identities,users"); err != nil {
 		t.Fatal(err)
 	}
 	provider := adapter.NewWechat("app", "secret", transport(func(r *http.Request) (*http.Response, error) {

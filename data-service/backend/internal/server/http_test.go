@@ -597,6 +597,9 @@ func TestStockSearchHTTPAuthAndValidation(t *testing.T) {
 
 type stockSearchRepository struct{}
 
+func (stockSearchRepository) PublishProfiles(context.Context, stockbiz.ProfileBatch) error {
+	return nil
+}
 func (stockSearchRepository) Upsert(context.Context, []stockbiz.Stock) error { return nil }
 func (stockSearchRepository) Search(_ context.Context, q stockbiz.Query) (stockbiz.Page, error) {
 	return stockbiz.Page{Items: []stockbiz.Stock{{ID: "STK11111111-1111-5111-8111-111111111111", Code: "000001", Exchange: "SZ", Name: "平安银行", Board: "主板", AsOf: time.Date(2026, 9, 21, 0, 0, 0, 0, time.UTC)}}}, nil
