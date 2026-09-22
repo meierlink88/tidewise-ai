@@ -672,3 +672,13 @@ ADR-0064 / Issue #488：`chain_node` 物理表无损更名为 `industry_chain_no
 ### Report v6 统一推导（#498）
 
 当前三板块新合同使用相同的 `detail.reasonings[]`，支持多套推导、指标区块及报告内影响资产。Evidence 继续由 Data 验证并投影。不可变归档与分拆存储保持；旧报告仅离线转换，Miniapp 选择 v6 报告。详见 [v6 合同](report-publication-v6.md) 与 [ADR-0066](../../adr/0066-unify-report-reasonings.md)。部署状态不由本文推断。
+
+## 股票主数据（#533）
+
+Data 独占独立 `stock` 主数据，使用 STK 身份与交易所/六位代码自然键；Company 表保持公司主体含义，不自动建立公司关联。目录包含证券简称、交易所、上市板块及来源快照日期，交易所名称由受控 SH/SZ/BJ 映射。初始附件含 689009.SH CDR，按用户提供清单保留。
+
+显式 Data CLI 校验清单后原子 upsert；同一清单重放保持身份和时间戳，旧日期或同日冲突拒绝，不删除清单外对象。代码变更视为新业务键；未来更名/退市/代码迁移需来源和独立审阅，不自动推断。该目录不承诺实时上市状态。
+
+`GET /api/data/v1/stocks` 提供按代码、完整代码或简称字面量子串搜索，必填 q，支持交易所过滤；page_size 1–100（默认20），offset 0–10000（默认0），精确代码优先、exchange/code/id 排序。响应 items/has_more，每条含内部ID、code、symbol、name、exchange、exchange_name、board、as_of。只提供交互搜索，不承诺多页一致快照；由 Miniapp Backend 用服务令牌及 data.stocks.read 消费。当前没有小程序搜索UI和用户自选关系，Data 不保存用户身份或会话。
+
+发布顺序为 migration 94 → 显式初始化 → 更新 Data 服务及读取接口。Data readiness 会拒绝未知迁移，回退必须使用携带 migration 94 的兼容镜像并保留 stock 数据，不能直接换回只认识 schema 93 的旧镜像。

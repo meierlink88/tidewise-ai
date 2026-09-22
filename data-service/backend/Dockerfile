@@ -16,6 +16,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/organiz
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/region-catalog-publish ./data-service/backend/cmd/region-catalog-publish
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/geopolitical-catalog-publish ./data-service/backend/cmd/geopolitical-catalog-publish
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/company-catalog-publish ./data-service/backend/cmd/company-catalog-publish
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/stock-initialize ./data-service/backend/cmd/stock-initialize
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/source-initialize ./data-service/backend/cmd/source-initialize
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/source-research-rss-initialize ./data-service/backend/cmd/source-research-rss-initialize
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/source-import ./data-service/backend/cmd/source-import
@@ -37,6 +38,7 @@ COPY --from=builder /out/organization-catalog-publish /usr/local/bin/organizatio
 COPY --from=builder /out/region-catalog-publish /usr/local/bin/region-catalog-publish
 COPY --from=builder /out/geopolitical-catalog-publish /usr/local/bin/geopolitical-catalog-publish
 COPY --from=builder /out/company-catalog-publish /usr/local/bin/company-catalog-publish
+COPY --from=builder /out/stock-initialize /usr/local/bin/stock-initialize
 COPY --from=builder /out/source-initialize /usr/local/bin/source-initialize
 COPY --from=builder /out/source-research-rss-initialize /usr/local/bin/source-research-rss-initialize
 COPY --from=builder /out/source-import /usr/local/bin/source-import

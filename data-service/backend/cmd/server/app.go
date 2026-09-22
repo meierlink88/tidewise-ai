@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	stockapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/stock"
+	stockbiz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/stock"
+	stockdata "github.com/meierlink88/tidewise-ai/data-service/backend/internal/data/stock"
+	stockservice "github.com/meierlink88/tidewise-ai/data-service/backend/internal/service/stock"
 	"log/slog"
 	"time"
 
@@ -237,10 +241,23 @@ func buildApp(config conf.Config, logger *slog.Logger) (*kratos.App, func(contex
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure Report API service: %w", err))
 	}
+	stockStore, err := stockdata.NewStore(db)
+	if err != nil {
+		return nil, nil, closeBuildResources(err)
+	}
+	stockUseCase, err := stockbiz.NewUseCase(stockStore)
+	if err != nil {
+		return nil, nil, closeBuildResources(err)
+	}
+	stockApplication, err := stockservice.NewService(stockUseCase)
+	if err != nil {
+		return nil, nil, closeBuildResources(err)
+	}
 	httpServer, err := server.NewHTTPServer(config, runtimeHealthApplication, researchApplication, eventApplication, evidenceApplication, countryApplication, industryApplication, conceptApplication, chainNodeApplication, industryChainApplication, organizationApplication, sourceApplication, companyApplication, reportApplication, authenticator, logger)
 	if err != nil {
 		return nil, nil, closeBuildResources(fmt.Errorf("configure HTTP server: %w", err))
 	}
+	stockapi.RegisterHTTPServer(httpServer, stockApplication)
 
 	return newApp(httpServer, logger), func(ctx context.Context) error {
 		return db.Close()
@@ -274,6 +291,7 @@ func buildAuthenticator(config conf.Config) (*server.Authenticator, error) {
 				server.ScopeSourceRead,
 				server.ScopeSourceWrite,
 				server.ScopeCompanyRead,
+				server.ScopeStockRead,
 				server.ScopeReportRead,
 				server.ScopeReportPublish,
 			}},

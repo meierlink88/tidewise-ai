@@ -27,9 +27,51 @@ tags:
   - name: Concept
   - name: Organization
   - name: Source
+  - name: Stock
   - name: Report
 
 paths:
+  /api/data/v1/stocks:
+    get:
+      tags: [Stock]
+      operationId: searchStocks
+      x-client-drift-anchor: data.v1.searchStocks
+      x-required-service-scope: data.stocks.read
+      x-retry-policy: no-automatic-retry
+      x-timeout-budget-ms: 5000
+      summary: 按股票代码或简称搜索主数据
+      description: q 去首尾空白，按字面量匹配代码、完整代码或简称；精确代码优先，其后按 exchange/code/id 排序。分页不提供一致性快照。拒绝重复及未知参数。
+      parameters:
+        - $ref: '#/components/parameters/RequestID'
+        - {
+            name: q,
+            in: query,
+            required: true,
+            schema: { type: string, minLength: 1, maxLength: 64 }
+          }
+        - { name: exchange, in: query, schema: { type: string, enum: [SH, SZ, BJ] } }
+        - {
+            name: page_size,
+            in: query,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+          }
+        - {
+            name: offset,
+            in: query,
+            schema: { type: integer, minimum: 0, maximum: 10000, default: 0 }
+          }
+      responses:
+        '200':
+          description: 股票搜索结果；无匹配时 items 为空数组
+          headers: { X-Request-ID: { $ref: '#/components/headers/RequestID' } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StockSearchEnvelope' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
   /healthz:
     get:
       tags: [Operations]
@@ -2466,6 +2508,36 @@ components:
             $ref: '#/components/schemas/ErrorEnvelope'
 
   schemas:
+    Stock:
+      type: object
+      additionalProperties: false
+      required: [id, code, symbol, name, exchange, exchange_name, board, as_of]
+      properties:
+        id:
+          {
+            type: string,
+            pattern: '^STK[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+          }
+        code: { type: string, pattern: '^[0-9]{6}$' }
+        symbol: { type: string, pattern: '^[0-9]{6}\.(SH|SZ|BJ)$' }
+        name: { type: string, minLength: 1, maxLength: 64 }
+        exchange: { type: string, enum: [SH, SZ, BJ] }
+        exchange_name: { type: string, enum: [上海证券交易所, 深圳证券交易所, 北京证券交易所] }
+        board: { type: string, enum: [主板, 科创板, 创业板, 北交所] }
+        as_of: { type: string, format: date }
+    StockSearchEnvelope:
+      type: object
+      additionalProperties: false
+      required: [request_id, result]
+      properties:
+        request_id: { type: string }
+        result:
+          type: object
+          additionalProperties: false
+          required: [items, has_more]
+          properties:
+            items: { type: array, items: { $ref: '#/components/schemas/Stock' } }
+            has_more: { type: boolean }
     SourceID:
       type: string
       pattern: '^SRC[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'

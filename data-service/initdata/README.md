@@ -256,3 +256,18 @@ recovery points before publication, verify the complete authenticated management
 snapshot afterward, and retain the export for the coordinated rollback window. Do not run the
 initializer before importing an existing AgentOS set, do not let deployment invoke either command,
 and never operate Data and AgentOS as concurrent Source writers.
+
+## A 股股票目录（#533）
+
+`stocks-a-share-20260921.json` 仅格式化保存用户提供的 5,565 条股票清单（SH 2,320 / SZ 2,901 / BJ 344），来源与截至日期以文件 meta 为准，不代表实时清单。包括附件标注的 CDR；不扩充未知公司属性。
+
+先执行 migration 94，再在确认 Data 数据库配置后显式执行：
+
+```sh
+go run ./data-service/backend/cmd/stock-initialize -check-only -file data-service/initdata/stocks-a-share-20260921.json
+go run ./data-service/backend/cmd/stock-initialize -file data-service/initdata/stocks-a-share-20260921.json
+```
+
+命令沿用 Data `LoadDatabaseOperation` 配置；check-only 不连接数据库。普通执行完整验证后在一个事务 upsert；重复导入不生成重复对象，不删除旧对象，较早或同日冲突快照拒绝。迁移与种子发布独立；UAT 不随本地初始化自动更新。
+
+源附件 SHA-256：`e59e334203b6b8c4d92dd029ca4d63f4acbdc09fa0bd46206ed7190259ede22b`；仓库 JSON 仅调整排版，与源附件解码后完全一致。

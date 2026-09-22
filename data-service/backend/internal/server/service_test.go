@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	stockapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/stock"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -574,6 +575,7 @@ func TestEveryBusinessOperationHasAnAuthenticationScope(t *testing.T) {
 	businessOperations = append(businessOperations, organizationapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, sourceapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, companyapi.BusinessOperations()...)
+	businessOperations = append(businessOperations, stockapi.BusinessOperations()...)
 	businessOperations = append(businessOperations, reportapi.BusinessOperations()...)
 	for _, operation := range businessOperations {
 		if _, exists := openAPIOperations[operation]; !exists {

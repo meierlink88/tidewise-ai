@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"fmt"
+	stockapi "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/stock"
 	"strings"
 	"unicode/utf8"
 
@@ -48,6 +49,7 @@ const (
 	ScopeOrganizationWrite    = "data.organizations.write"
 	ScopeSourceRead           = "data.sources.read"
 	ScopeSourceWrite          = "data.sources.write"
+	ScopeStockRead            = "data.stocks.read"
 	ScopeCompanyRead          = "data.companies.read"
 	ScopeReportRead           = "data.reports.read"
 	ScopeReportPublish        = "data.reports.publish"
@@ -172,6 +174,8 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeSourceRead, true
 	case sourceapi.OperationCreate, sourceapi.OperationUpdate, sourceapi.OperationDelete:
 		return ScopeSourceWrite, true
+	case stockapi.OperationSearch:
+		return ScopeStockRead, true
 	case companyapi.OperationList:
 		return ScopeCompanyRead, true
 	case reportapi.OperationPublishReport:
