@@ -271,3 +271,26 @@ go run ./data-service/backend/cmd/stock-initialize -file data-service/initdata/s
 命令沿用 Data `LoadDatabaseOperation` 配置；check-only 不连接数据库。普通执行完整验证后在一个事务 upsert；重复导入不生成重复对象，不删除旧对象，较早或同日冲突快照拒绝。迁移与种子发布独立；UAT 不随本地初始化自动更新。
 
 源附件 SHA-256：`e59e334203b6b8c4d92dd029ca4d63f4acbdc09fa0bd46206ed7190259ede22b`；仓库 JSON 仅调整排版，与源附件解码后完全一致。
+
+## Stock 公司资料与首字母检索（#535）
+
+部署前应用 schema 96，再使用目标环境配置显式回填派生搜索字段：
+
+```sh
+go run ./data-service/backend/cmd/stock-initialize -reindex
+go run ./data-service/backend/cmd/stock-profiles -check-only -file <provided-v4-sample.json>
+go run ./data-service/backend/cmd/stock-profiles -file <provided-v4-sample.json>
+```
+
+命令位于仓库根执行；镜像内对应 `/usr/local/bin/stock-initialize` 与 `stock-profiles`。
+环境、数据库与身份配置沿用 Data 运维命令；不通过 migration 自动导入本地样本。
+`stock-profiles` 只更新已有 exchange/code，原子导入完整记录，日期不允许倒退；同日期已有
+资料冲突拒绝，相同内容重放不修改 updated_at。数组保留来源顺序，null 与 [] 不合并。
+当前用户提供的是 300 条 SAMPLE v4，不代表全市场已补全；其余公司使用股票简称作为标题。
+
+首字母使用固定 go-pinyin v0.21.0（MIT），仅在服务端使用；保留 ASCII/ST 前缀，受控处理
+银行、重庆、长江/长城等常见多音词组。不是声母或全文拼音，不承诺所有罕见名称的多音变体。
+更新词组规则后重新运行 `-reindex`，不会改动公司事实日期。
+新 Data API 保留原搜索字段并添加可空公司字段；新增 ids 参数供 BFF 批量读取。
+发布顺序为 Data schema/回填/资料发布 → Data → User schema/权限/User → BFF → Miniapp。
+回滚保留 additive schema，Data 镜像须认识目标 Goose ledger，避免旧镜像 readiness 拒绝未知版本。

@@ -2,6 +2,10 @@ package main
 
 import (
 	"context"
+	watchapi "github.com/meierlink88/tidewise-ai/user-service/backend/api/user/v1/watchlist"
+	watchbiz "github.com/meierlink88/tidewise-ai/user-service/backend/internal/biz/watchlist"
+	watchdata "github.com/meierlink88/tidewise-ai/user-service/backend/internal/data/watchlist"
+	watchservice "github.com/meierlink88/tidewise-ai/user-service/backend/internal/service/watchlist"
 	"log/slog"
 	"time"
 
@@ -31,5 +35,6 @@ func buildApp(ctx context.Context, c conf.Config, logger *slog.Logger) (*kratos.
 	}
 	usecase := biz.New(adapter.NewRepository(db), adapter.NewWechat(credentials.AppID, credentials.AppSecret, nil), credentials.AppID, c.SessionTTL(), time.Now)
 	httpServer := server.New(c.Address, c.ServiceToken, service.New(usecase), func(ctx context.Context) error { return data.Ready(ctx, db) }, logger)
+	watchapi.RegisterHTTPServer(httpServer, watchservice.New(watchbiz.New(watchdata.New(db), credentials.AppID, time.Now)))
 	return kratos.New(kratos.Name("tidewise-user-service"), kratos.Version("v1"), kratos.Logger(logger), kratos.StopTimeout(10*time.Second), kratos.Server(httpServer)), func() { db.Close() }, nil
 }

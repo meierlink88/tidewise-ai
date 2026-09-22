@@ -80,6 +80,8 @@ func operation(path string) string {
 		return "avatar"
 	case "/api/user/v1/profiles/nickname":
 		return "nickname"
+	case "/api/user/v1/watchlist/list", "/api/user/v1/watchlist/check", "/api/user/v1/watchlist/add", "/api/user/v1/watchlist/remove":
+		return "watchlist"
 	case "/api/user/v1/sessions/revoke":
 		return "revoke"
 	default:

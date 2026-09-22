@@ -94,3 +94,4 @@
 000093	high	schema	verify legacy memberships have been separately backfilled before dropping scalar domain columns; coordinate catalog writers
 000094	normal	schema	add independent stock catalog; initialize through explicit Data CLI after migration
 000095	normal	schema	add ten nullable stock business fields without backfill; preserve stock identities and existing catalog/API behavior
+000096	normal	schema	add nullable stock search initials; explicit reindex before Data/BFF rollout

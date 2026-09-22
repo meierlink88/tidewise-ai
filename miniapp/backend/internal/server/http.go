@@ -181,6 +181,9 @@ func operationForRequest(request *http.Request) string {
 	case "/docs", "/openapi.yaml":
 		return "miniapp.docs"
 	}
+	if request.URL.Path == v1.APIPrefix+"/tracking" || strings.HasPrefix(request.URL.Path, v1.APIPrefix+"/tracking/") {
+		return "miniapp.tracking"
+	}
 	if strings.HasPrefix(request.URL.Path, v1.APIPrefix+"/auth/") {
 		return "miniapp.identity"
 	}

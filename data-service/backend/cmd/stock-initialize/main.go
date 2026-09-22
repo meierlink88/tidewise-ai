@@ -16,15 +16,23 @@ import (
 func run() error {
 	file := flag.String("file", "", "stock catalog JSON path (required)")
 	check := flag.Bool("check-only", false, "validate without connecting to database")
+	reindex := flag.Bool("reindex", false, "rebuild initials for all existing stock names")
 	flag.Parse()
-	if *file == "" {
+	if *file == "" && !*reindex {
 		return biz.ErrInvalid
 	}
-	f, err := os.Open(*file)
-	if err != nil {
-		return err
+	var f *os.File
+	var err error
+	if !*reindex {
+		f, err = os.Open(*file)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
 	}
-	defer f.Close()
+	if *reindex && (*check || *file != "") {
+		return biz.ErrInvalid
+	}
 	if *check {
 		items, err := biz.DecodeCatalog(f)
 		if err == nil {
@@ -45,6 +53,13 @@ func run() error {
 	defer db.Close()
 	repo, err := stockdata.NewStore(db)
 	if err != nil {
+		return err
+	}
+	if *reindex {
+		count, err := repo.Reindex(ctx)
+		if err == nil {
+			fmt.Printf("reindexed %d stocks\n", count)
+		}
 		return err
 	}
 	u, err := biz.NewUseCase(repo)

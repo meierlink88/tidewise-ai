@@ -10,16 +10,20 @@ const OperationSearch = "data.v1.searchStocks"
 
 func BusinessOperations() []string { return []string{OperationSearch} }
 
-type Request struct{ Query, Exchange, PageSize, Offset string }
+type Request struct{ Query, Exchange, PageSize, Offset, IDs string }
 type Item struct {
-	ID           string `json:"id"`
-	Code         string `json:"code"`
-	Symbol       string `json:"symbol"`
-	Name         string `json:"name"`
-	Exchange     string `json:"exchange"`
-	ExchangeName string `json:"exchange_name"`
-	Board        string `json:"board"`
-	AsOf         string `json:"as_of"`
+	FullName     *string  `json:"full_name"`
+	IndustryL1   *string  `json:"industry_l1"`
+	IndustryL2   *string  `json:"industry_l2"`
+	Concepts     []string `json:"concepts"`
+	ID           string   `json:"id"`
+	Code         string   `json:"code"`
+	Symbol       string   `json:"symbol"`
+	Name         string   `json:"name"`
+	Exchange     string   `json:"exchange"`
+	ExchangeName string   `json:"exchange_name"`
+	Board        string   `json:"board"`
+	AsOf         string   `json:"as_of"`
 }
 type Page struct {
 	Items   []Item `json:"items"`

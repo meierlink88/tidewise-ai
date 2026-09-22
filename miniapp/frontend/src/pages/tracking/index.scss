@@ -1,0 +1,287 @@
+@use '../../styles/tokens' as *;
+.tracking-page {
+  min-height: 100vh;
+  background: $color-home-card;
+  color: $color-home-ink;
+}
+.tracking-page,
+.tracking-overlay-scope {
+  button {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 8rpx;
+    line-height: 1.5;
+    font-weight: 400;
+    color: inherit;
+    &::after {
+      border: 0;
+    }
+  }
+}
+.tracking-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 16rpx 38rpx 24rpx;
+  background: $color-home-card;
+  border-bottom: 1rpx solid $color-home-border;
+}
+.tracking-caption {
+  font-size: 24rpx;
+  color: $color-home-muted;
+  margin-bottom: 20rpx;
+}
+.tracking-search-line {
+  display: flex;
+  align-items: center;
+  gap: 22rpx;
+}
+.tracking-search {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  min-width: 0;
+  flex: 1;
+  background: $color-home-paper;
+  border: 1rpx solid $color-home-border;
+  border-radius: 16rpx;
+  padding: 0 20rpx;
+  height: 82rpx;
+  input {
+    font-size: 25rpx;
+    flex: 1;
+    min-width: 0;
+    color: $color-home-ink;
+  }
+}
+.tracking-search-icon {
+  font-size: 40rpx;
+  color: $color-home-muted;
+}
+.tracking-page .tracking-clear {
+  min-width: 56rpx;
+  height: 76rpx;
+  font-size: 36rpx;
+  color: $color-home-muted;
+}
+.tracking-page .tracking-cancel {
+  font-size: 25rpx;
+  min-height: 80rpx;
+  display: flex;
+  align-items: center;
+}
+.tracking-content {
+  padding: 0 38rpx calc(30rpx + env(safe-area-inset-bottom));
+}
+.tracking-list-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 10rpx;
+  padding: 18rpx 0;
+  font-size: 20rpx;
+  color: $color-home-muted;
+  border-bottom: 1rpx solid $color-home-border;
+}
+.tracking-company {
+  padding: 22rpx 0 8rpx;
+  border-bottom: 1rpx solid $color-home-border;
+}
+.tracking-page .tracking-title {
+  display: block;
+  text-align: left;
+  width: 100%;
+  font-size: 31rpx;
+  line-height: 1.45;
+  font-weight: 600;
+  white-space: normal;
+  word-break: break-all;
+}
+.tracking-tags {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  margin-top: 10rpx;
+  min-height: 48rpx;
+}
+.tracking-industry,
+.tracking-concept {
+  display: inline-block;
+  min-width: 0;
+  border-radius: 7rpx;
+  font-size: 20rpx;
+  line-height: 34rpx;
+  padding: 2rpx 12rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tracking-industry {
+  color: $color-tracking-industry;
+  background: $color-tracking-industry-surface;
+  max-width: 40%;
+}
+.tracking-concept {
+  color: $color-tracking-concept;
+  background: $color-tracking-concept-surface;
+  max-width: 32%;
+}
+.tracking-page .tracking-more-tags {
+  color: $color-tracking-concept;
+  font-size: 21rpx;
+  flex-shrink: 0;
+  min-width: 54rpx;
+  min-height: 60rpx;
+}
+.tracking-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  min-height: 64rpx;
+  font-size: 21rpx;
+  color: $color-home-muted;
+  font-variant-numeric: tabular-nums;
+  > text {
+    flex: 1;
+    min-width: 0;
+  }
+}
+.tracking-page .tracking-remove {
+  min-width: 118rpx;
+  min-height: 64rpx;
+  font-size: 21rpx;
+  color: $color-home-muted;
+  flex-shrink: 0;
+}
+.tracking-page .tracking-add,
+.tracking-page .tracking-followed {
+  padding: 10rpx 18rpx;
+  font-size: 22rpx;
+  min-width: 120rpx;
+  min-height: 64rpx;
+  flex-shrink: 0;
+}
+.tracking-page .tracking-add {
+  background: $color-home-ink;
+  color: $color-home-card;
+}
+.tracking-page .tracking-followed {
+  background: $color-home-paper;
+  color: $color-home-muted;
+}
+.tracking-message {
+  padding: 28rpx 0;
+  text-align: center;
+  font-size: 22rpx;
+  color: $color-home-muted;
+}
+.tracking-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+  padding: 80rpx 10rpx;
+  text-align: center;
+  font-size: 24rpx;
+  line-height: 1.8;
+  color: $color-home-muted;
+}
+.tracking-empty-title {
+  font-size: 32rpx;
+  color: $color-home-ink;
+  font-weight: 500;
+}
+.tracking-page .tracking-login,
+.tracking-page .tracking-load {
+  padding: 16rpx 32rpx;
+  font-size: 26rpx;
+  min-height: 80rpx;
+  border: 1rpx solid $color-home-border;
+  margin: 18rpx auto;
+}
+.tracking-error {
+  background: $color-home-paper;
+  color: $color-home-high;
+  padding: 20rpx;
+  font-size: 24rpx;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  button {
+    min-width: 84rpx;
+    min-height: 70rpx;
+    font-size: 24rpx;
+  }
+}
+.tracking-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: $layer-overlay;
+  background: $color-overlay-scrim;
+  display: flex;
+  align-items: flex-end;
+}
+.tracking-sheet {
+  background: $color-home-card;
+  width: 100%;
+  border-radius: 28rpx 28rpx 0 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tracking-overlay-scope .tracking-sheet-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 38rpx;
+  font-size: 27rpx;
+  border-bottom: 1rpx solid $color-home-border;
+  button {
+    font-size: 40rpx;
+    width: 80rpx;
+    min-height: 80rpx;
+  }
+}
+.tracking-sheet-scroll {
+  height: 55vh;
+  max-height: 65vh;
+}
+.tracking-sheet-body {
+  padding: 30rpx 38rpx 50rpx;
+  font-size: 27rpx;
+  line-height: 1.7;
+}
+.tracking-detail-title {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 600;
+  word-break: break-all;
+}
+.tracking-detail-reference {
+  display: block;
+  font-size: 23rpx;
+  color: $color-home-muted;
+  margin-top: 10rpx;
+}
+.tracking-detail-label {
+  color: $color-home-muted;
+  font-size: 24rpx;
+  margin: 32rpx 0 14rpx;
+}
+.tracking-all-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+  .tracking-concept {
+    max-width: 100%;
+    white-space: normal;
+    font-size: 24rpx;
+    line-height: 1.6;
+    padding: 6rpx 16rpx;
+  }
+}
+.tracking-detail-note {
+  font-size: 22rpx;
+  color: $color-home-muted;
+  margin-top: 22rpx;
+}

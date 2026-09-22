@@ -147,3 +147,74 @@ func TestBusinessFieldsPreserveUnknownEmptyAndCatalogCompatibility(t *testing.T)
 		}
 	}
 }
+
+func TestInitialsAndProfileBatchRead(t *testing.T) {
+	for name, want := range map[string]string{"平安银行": "PAYH", "贵州茅台": "GZMT", "重庆银行": "CQYH", "长江电力": "CJDL", "ST中安": "STZA", "XD厦门银行": "XDXMYH"} {
+		if got := Initials(name); got != want {
+			t.Fatalf("%s: %s != %s", name, got, want)
+		}
+	}
+	db := fixture.OpenIsolated(t, "stock_profile", "../../../migrations", 0)
+	ctx := context.Background()
+	s, _ := NewStore(db)
+	f, err := os.Open("../../../../initdata/stocks-a-share-20260921.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	all, err := biz.DecodeCatalog(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Upsert(ctx, all); err != nil {
+		t.Fatal(err)
+	}
+	u, _ := biz.NewUseCase(s)
+	for _, q := range []string{"PAYH", "payh", "gzmt"} {
+		p, e := u.Search(ctx, biz.Query{Text: q, Limit: 20})
+		if e != nil || len(p.Items) == 0 {
+			t.Fatalf("%s %v", q, e)
+		}
+	}
+	full, l1, l2 := "平安银行股份有限公司", "金融", "银行"
+	profile := biz.Profile{Code: "000001", Name: "平安银行", Exchange: "SZ", Board: "主板", FullName: &full, IndustryL1: &l1, IndustryL2: &l2, Concepts: []string{"跨境支付", "银"}, IndexCore: []string{}, MainProductType: []string{"银行"}}
+	batch := biz.ProfileBatch{AsOf: time.Date(2026, 9, 22, 0, 0, 0, 0, time.UTC), Items: []biz.Profile{profile}}
+	if err = s.PublishProfiles(ctx, batch); err != nil {
+		t.Fatal(err)
+	}
+	var before string
+	if err = db.QueryRow("SELECT md5(row_to_json(s)::text) FROM stock s WHERE code='000001' AND exchange='SZ'").Scan(&before); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.PublishProfiles(ctx, batch); err != nil {
+		t.Fatal(err)
+	}
+	var after string
+	if err = db.QueryRow("SELECT md5(row_to_json(s)::text) FROM stock s WHERE code='000001' AND exchange='SZ'").Scan(&after); err != nil || before != after {
+		t.Fatal("replay modified row", err)
+	}
+	p, err := u.Search(ctx, biz.Query{Text: "000001", Limit: 20})
+	if err != nil || len(p.Items) != 1 {
+		t.Fatal(p, err)
+	}
+	id := p.Items[0].ID
+	p, err = u.Search(ctx, biz.Query{IDs: []string{id}})
+	if err != nil || len(p.Items) != 1 || p.Items[0].FullName == nil || *p.Items[0].FullName != full || len(p.Items[0].Concepts) != 2 {
+		t.Fatal(p, err)
+	}
+	if _, err = u.Search(ctx, biz.Query{IDs: []string{id, id}}); !errors.Is(err, biz.ErrInvalid) {
+		t.Fatal("duplicate IDs accepted")
+	}
+	batch.Items[0].Concepts = []string{"new"}
+	if err = s.PublishProfiles(ctx, batch); !errors.Is(err, biz.ErrConflict) {
+		t.Fatal("same-date conflict accepted", err)
+	}
+	batch.AsOf = batch.AsOf.Add(-24 * time.Hour)
+	if err = s.PublishProfiles(ctx, batch); !errors.Is(err, biz.ErrConflict) {
+		t.Fatal("stale profile accepted", err)
+	}
+	count, err := s.Reindex(ctx)
+	if err != nil || count != 5565 {
+		t.Fatal(count, err)
+	}
+}

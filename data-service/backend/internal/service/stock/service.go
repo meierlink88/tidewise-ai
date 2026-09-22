@@ -3,6 +3,7 @@ package stock
 import (
 	"context"
 	"errors"
+	"strings"
 
 	v1 "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1"
 	api "github.com/meierlink88/tidewise-ai/data-service/backend/api/data/v1/stock"
@@ -29,7 +30,11 @@ func (s *Service) Search(ctx context.Context, r *api.Request) (*v1.Response[api.
 	if err != nil {
 		return nil, err
 	}
-	result, err := s.useCase.Search(ctx, biz.Query{Text: r.Query, Exchange: r.Exchange, Limit: limit, Offset: offset})
+	var ids []string
+	if r.IDs != "" {
+		ids = strings.Split(r.IDs, ",")
+	}
+	result, err := s.useCase.Search(ctx, biz.Query{IDs: ids, Text: r.Query, Exchange: r.Exchange, Limit: limit, Offset: offset})
 	if errors.Is(err, context.Canceled) {
 		return nil, err
 	}
@@ -41,7 +46,7 @@ func (s *Service) Search(ctx context.Context, r *api.Request) (*v1.Response[api.
 	}
 	items := make([]api.Item, 0, len(result.Items))
 	for _, item := range result.Items {
-		items = append(items, api.Item{ID: item.ID, Code: item.Code, Symbol: item.Code + "." + item.Exchange, Name: item.Name, Exchange: item.Exchange, ExchangeName: biz.ExchangeName(item.Exchange), Board: item.Board, AsOf: item.AsOf.Format("2006-01-02")})
+		items = append(items, api.Item{FullName: item.FullName, IndustryL1: item.IndustryL1, IndustryL2: item.IndustryL2, Concepts: item.Concepts, ID: item.ID, Code: item.Code, Symbol: item.Code + "." + item.Exchange, Name: item.Name, Exchange: item.Exchange, ExchangeName: biz.ExchangeName(item.Exchange), Board: item.Board, AsOf: item.AsOf.Format("2006-01-02")})
 	}
 	return &v1.Response[api.Page]{Status: 200, Result: api.Page{Items: items, HasMore: result.HasMore}}, nil
 }

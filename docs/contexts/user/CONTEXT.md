@@ -59,3 +59,14 @@ JPEG bytea、content_type、updated_at 和提交时的 privacy_version。普通�
 保留旧头像，不接受远程 URL。原图限2MiB且宽高各不超过2048，User解码重采样至最长边256、
 JPEG85且不超过128KiB，清除源元数据。微信 chooseAvatar/nickname 为主动填写，不是持续同步。
 迁移6先应用并授权runtime表DML，再部署User、BFF、前端；v5服务可回退并保留头像表。
+
+## 公司跟踪（#535）
+
+User 独立数据库 user_watchlist 持有 user_id、stock_id、added_at；主键(user_id,stock_id)，
+user_id 外键引用 users 并随账号删除级联。stock_id 仅为 Data 跨服务引用，不建立跨库外键。
+公司资料当前依附 stock；不假设 Stock 已关联正式 Company 实体。
+私有 watchlist/list、check、add、remove 均要求服务身份与用户会话，事务内锁定用户及会话，
+再验证 AppID、状态、有效期及撤销；调用方不能传入目标 user_id。
+唯一约束与用户锁保证并发幂等；重复添加保留时间，取消后重新添加取新时间并置顶。
+列表按 added_at DESC、stock_id ASC 游标分页，total 为当前用户关系总数。无默认示例跟踪。
+迁移7与运行角色表权限先于 User/BFF 发布；回退保留关系表。

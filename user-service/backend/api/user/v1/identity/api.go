@@ -2,6 +2,7 @@ package identity
 
 import (
 	"context"
+	v1 "github.com/meierlink88/tidewise-ai/user-service/backend/api/user/v1"
 	"time"
 )
 
@@ -33,12 +34,7 @@ type UserResponse struct {
 type RevokeResponse struct {
 	Revoked bool `json:"revoked"`
 }
-type Error struct {
-	Status int
-	Code   string
-}
-
-func (e *Error) Error() string { return e.Code }
+type Error = v1.Error
 
 type Service interface {
 	Avatar(context.Context, SessionRequest) (AvatarResponse, error)

@@ -7,6 +7,204 @@ info:
 security:
   - serviceIdentity: []
 paths:
+  /api/user/v1/watchlist/list:
+    post:
+      operationId: watchlist_list
+      description:
+        当前会话用户拥有的 stock 引用关系；禁止传入 user_id。授权与读写同一锁定事务。list 按 added_at DESC/stock_id
+        ASC keyset 分页；重复 add/remove 幂等；无 mutation 重试。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - session_token
+              properties:
+                session_token:
+                  type: string
+                  minLength: 43
+                  maxLength: 43
+                cursor:
+                  type: string
+                  maxLength: 512
+                page_size:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 20
+      responses:
+        '200':
+          description: '成功；Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - request_id
+                  - result
+                properties:
+                  request_id:
+                    type: string
+                  result:
+                    $ref: '#/components/schemas/WatchlistResult'
+        '400':
+          description: INVALID_REQUEST
+        '401':
+          description: UNAUTHENTICATED (User private API also SERVICE_UNAUTHENTICATED)
+        '403':
+          description: USER_DISABLED
+        '503':
+          description: Service unavailable; sanitized error envelope
+  /api/user/v1/watchlist/check:
+    post:
+      operationId: watchlist_check
+      description:
+        当前会话用户拥有的 stock 引用关系；禁止传入 user_id。授权与读写同一锁定事务。list 按 added_at DESC/stock_id
+        ASC keyset 分页；重复 add/remove 幂等；无 mutation 重试。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - session_token
+              properties:
+                session_token:
+                  type: string
+                  minLength: 43
+                  maxLength: 43
+                stock_ids:
+                  type: array
+                  items:
+                    type: string
+                    pattern: ^STK[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+                  maxItems: 100
+      responses:
+        '200':
+          description: '成功；Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - request_id
+                  - result
+                properties:
+                  request_id:
+                    type: string
+                  result:
+                    $ref: '#/components/schemas/WatchlistResult'
+        '400':
+          description: INVALID_REQUEST
+        '401':
+          description: UNAUTHENTICATED (User private API also SERVICE_UNAUTHENTICATED)
+        '403':
+          description: USER_DISABLED
+        '503':
+          description: Service unavailable; sanitized error envelope
+  /api/user/v1/watchlist/add:
+    post:
+      operationId: watchlist_add
+      description:
+        当前会话用户拥有的 stock 引用关系；禁止传入 user_id。授权与读写同一锁定事务。list 按 added_at DESC/stock_id
+        ASC keyset 分页；重复 add/remove 幂等；无 mutation 重试。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - session_token
+                - stock_id
+              properties:
+                session_token:
+                  type: string
+                  minLength: 43
+                  maxLength: 43
+                stock_id:
+                  type: string
+                  pattern: ^STK[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+      responses:
+        '200':
+          description: '成功；Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - request_id
+                  - result
+                properties:
+                  request_id:
+                    type: string
+                  result:
+                    $ref: '#/components/schemas/WatchlistResult'
+        '400':
+          description: INVALID_REQUEST
+        '401':
+          description: UNAUTHENTICATED (User private API also SERVICE_UNAUTHENTICATED)
+        '403':
+          description: USER_DISABLED
+        '503':
+          description: Service unavailable; sanitized error envelope
+  /api/user/v1/watchlist/remove:
+    post:
+      operationId: watchlist_remove
+      description:
+        当前会话用户拥有的 stock 引用关系；禁止传入 user_id。授权与读写同一锁定事务。list 按 added_at DESC/stock_id
+        ASC keyset 分页；重复 add/remove 幂等；无 mutation 重试。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - session_token
+                - stock_id
+              properties:
+                session_token:
+                  type: string
+                  minLength: 43
+                  maxLength: 43
+                stock_id:
+                  type: string
+                  pattern: ^STK[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+      responses:
+        '200':
+          description: '成功；Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - request_id
+                  - result
+                properties:
+                  request_id:
+                    type: string
+                  result:
+                    $ref: '#/components/schemas/WatchlistResult'
+        '400':
+          description: INVALID_REQUEST
+        '401':
+          description: UNAUTHENTICATED (User private API also SERVICE_UNAUTHENTICATED)
+        '403':
+          description: USER_DISABLED
+        '503':
+          description: Service unavailable; sanitized error envelope
   /api/user/v1/wechat/logins:
     post:
       operationId: wechat_logins
@@ -317,6 +515,38 @@ components:
       type: http
       scheme: bearer
   schemas:
+    WatchlistResult:
+      type: object
+      additionalProperties: false
+      required:
+        - total
+        - next_cursor
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - stock_id
+              - added_at
+            properties:
+              stock_id:
+                type: string
+                pattern: ^STK[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+              added_at:
+                type: string
+                format: date-time
+        stock_ids:
+          type: array
+          items:
+            type: string
+            pattern: ^STK[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+        total:
+          type: integer
+          minimum: 0
+        next_cursor:
+          type: string
     User:
       type: object
       additionalProperties: false

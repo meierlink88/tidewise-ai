@@ -11,6 +11,191 @@ tags:
   - name: Reports
   - name: Identity
 paths:
+  /api/miniapp/v1/tracking:
+    get:
+      operationId: listTrackedCompanies
+      tags:
+        - Tracking
+      security:
+        - UserSession: []
+      description:
+        公司展示投影。标题为公司全称，缺失退回股票简称；主题保持来源顺序，无权重。search.total 固定0不表达匹配总量，使用 has_more/offset；list
+        使用 total/next_cursor，has_more 固定false。拒绝重复/未知 query。总预算8秒，失败不返回假空列表。
+      parameters:
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: cursor
+          in: query
+          schema:
+            type: string
+            maxLength: 512
+      responses:
+        '200':
+          description: '成功；Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - request_id
+                  - result
+                properties:
+                  request_id:
+                    type: string
+                  result:
+                    $ref: '#/components/schemas/TrackingPage'
+        '400':
+          description: INVALID_REQUEST
+        '401':
+          description: UNAUTHENTICATED (User private API also SERVICE_UNAUTHENTICATED)
+        '403':
+          description: USER_DISABLED
+        '503':
+          description: Service unavailable; sanitized error envelope
+  /api/miniapp/v1/tracking/search:
+    get:
+      operationId: searchTrackingCompanies
+      tags:
+        - Tracking
+      security:
+        - {}
+        - UserSession: []
+      description:
+        公司展示投影。标题为公司全称，缺失退回股票简称；主题保持来源顺序，无权重。search.total 固定0不表达匹配总量，使用 has_more/offset；list
+        使用 total/next_cursor，has_more 固定false。拒绝重复/未知 query。总预算8秒，失败不返回假空列表。
+      parameters:
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 10000
+            default: 0
+      responses:
+        '200':
+          description: '成功；Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - request_id
+                  - result
+                properties:
+                  request_id:
+                    type: string
+                  result:
+                    $ref: '#/components/schemas/TrackingPage'
+        '400':
+          description: INVALID_REQUEST
+        '401':
+          description: UNAUTHENTICATED (User private API also SERVICE_UNAUTHENTICATED)
+        '403':
+          description: USER_DISABLED
+        '503':
+          description: Service unavailable; sanitized error envelope
+  /api/miniapp/v1/tracking/{stock_id}:
+    put:
+      operationId: addTrackedCompany
+      tags:
+        - Tracking
+      security:
+        - UserSession: []
+      description: 无请求正文或 query。幂等；添加校验 Data 主数据；取消不依赖 Data 可用性。
+      parameters:
+        - name: stock_id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: ^STK[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+      responses:
+        '200':
+          description: '成功；Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - request_id
+                  - result
+                properties:
+                  request_id:
+                    type: string
+                  result:
+                    $ref: '#/components/schemas/TrackingMutation'
+        '400':
+          description: INVALID_REQUEST
+        '401':
+          description: UNAUTHENTICATED (User private API also SERVICE_UNAUTHENTICATED)
+        '403':
+          description: USER_DISABLED
+        '503':
+          description: Service unavailable; sanitized error envelope
+        '404':
+          description: STOCK_NOT_FOUND
+    delete:
+      operationId: removeTrackedCompany
+      tags:
+        - Tracking
+      security:
+        - UserSession: []
+      description: 无请求正文或 query。幂等；添加校验 Data 主数据；取消不依赖 Data 可用性。
+      parameters:
+        - name: stock_id
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: ^STK[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+      responses:
+        '200':
+          description: '成功；Cache-Control: no-store'
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required:
+                  - request_id
+                  - result
+                properties:
+                  request_id:
+                    type: string
+                  result:
+                    $ref: '#/components/schemas/TrackingMutation'
+        '400':
+          description: INVALID_REQUEST
+        '401':
+          description: UNAUTHENTICATED (User private API also SERVICE_UNAUTHENTICATED)
+        '403':
+          description: USER_DISABLED
+        '503':
+          description: Service unavailable; sanitized error envelope
+        '404':
+          description: STOCK_NOT_FOUND
   /api/miniapp/v1/auth/wechat/login:
     post:
       tags:
@@ -386,6 +571,70 @@ components:
       description: Data Report 服务暂不可用或返回无效合同
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
   schemas:
+    TrackingCompany:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - stock_name
+        - symbol
+        - industry_label
+        - industry_path
+        - concepts
+        - is_followed
+      properties:
+        id:
+          type: string
+          pattern: ^STK[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+        title:
+          type: string
+        stock_name:
+          type: string
+        symbol:
+          type: string
+        industry_label:
+          type: string
+        industry_path:
+          type: string
+        concepts:
+          type: array
+          items:
+            type: string
+        is_followed:
+          type: boolean
+    TrackingPage:
+      type: object
+      additionalProperties: false
+      required:
+        - items
+        - total
+        - next_cursor
+        - has_more
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrackingCompany'
+        total:
+          type: integer
+          minimum: 0
+        next_cursor:
+          type: string
+        has_more:
+          type: boolean
+    TrackingMutation:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - is_followed
+      properties:
+        id:
+          type: string
+          pattern: ^STK[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+        is_followed:
+          type: boolean
     IdentityProfile:
       type: object
       required:
