@@ -4,7 +4,7 @@ import { Button, ScrollView, Text, View } from '@tarojs/components';
 import { RiskNotice } from '../../components/risk-notice';
 import { NavigationBar } from '../../platform/navigation-bar';
 import { getHomeChromeMetrics } from '../../platform/system-ui';
-import { openProfile } from '../../platform/identity';
+import { AccountNavButton } from '../identity/account-nav-button';
 import './preview.scss';
 import { OverlayRoot } from '../../platform/overlay-root';
 
@@ -27,19 +27,7 @@ export function PreviewPage({
       className={`preview-page${headerSearch ? ' preview-page--header-search' : ''}${filters ? ' preview-page--filtered' : ''}`}
     >
       <View className='preview-brand'>
-        <NavigationBar
-          title='观潮家'
-          chrome={chrome}
-          leading={
-            <Button
-              className='tidewise-button preview-profile'
-              ariaLabel='我的'
-              onClick={() => void openProfile()}
-            >
-              ◎
-            </Button>
-          }
-        />
+        <NavigationBar title='观潮家' chrome={chrome} leading={<AccountNavButton />} />
         <View className='preview-brand-copy'>
           {filters && <Text className='preview-simulation'>设计模拟</Text>}
           <View className='preview-between'>

@@ -22,47 +22,6 @@
   padding-top: 12rpx;
 }
 
-.home-nav__identity-button {
-  display: flex;
-  /* Reserve half the fixed-size title plus a gap on narrow screens. */
-  /* prettier-ignore */
-  max-width: calc(50vw - 64PX - 28rpx);
-  height: 72rpx;
-  align-items: center;
-  gap: 12rpx;
-  color: $color-card;
-}
-
-.home-nav__nickname {
-  min-width: 0;
-  overflow: hidden;
-  font-size: $font-report-label;
-  font-weight: 500;
-  line-height: 1.4;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.home-nav__avatar-frame {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  width: 60rpx;
-  height: 60rpx;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border: 2rpx solid rgba($color-home-gold, 0.72);
-  border-radius: 50%;
-  background: rgba($color-card, 0.16);
-}
-
-.home-nav__avatar {
-  width: 56rpx;
-  height: 56rpx;
-  border-radius: 50%;
-}
-
 .home-brief {
   display: flex;
   align-items: flex-end;
@@ -652,9 +611,6 @@
 .home-hero {
   background: $ui-brand-background;
   padding-bottom: 36rpx;
-}
-.home-nav__avatar-frame {
-  border-color: rgba(255, 255, 255, 0.35);
 }
 .home-brief {
   padding: 14rpx 32rpx 0;

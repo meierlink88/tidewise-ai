@@ -1,11 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDidShow } from '@tarojs/taro';
 import { Button, Image, Input, Text, View } from '@tarojs/components';
 import { NavigationBar } from '../../../platform/navigation-bar';
 import type { HomeChromeMetrics } from '../../../platform/system-ui';
-import { openProfile } from '../../../platform/identity';
-import { useIdentity } from '../../../features/identity/use-identity';
-import avatarImage from '../../../assets/nav-avatar.png';
+import { AccountNavButton } from '../../../features/identity/account-nav-button';
 import searchIcon from '../../../assets/icons/search.svg';
 import sendIcon from '../../../assets/icons/send.svg';
 
@@ -26,17 +24,6 @@ export function HomeHeader({
   onQueryChange,
   isSinglePage = false
 }: HomeHeaderProps) {
-  const identity = useIdentity();
-  const openingProfile = useRef(false);
-  async function enterProfile() {
-    if (openingProfile.current) return;
-    openingProfile.current = true;
-    try {
-      await openProfile();
-    } finally {
-      openingProfile.current = false;
-    }
-  }
   const [day, setDay] = useState(currentShanghaiDay);
   useDidShow(() => setDay(currentShanghaiDay()));
   useEffect(() => {
@@ -55,31 +42,7 @@ export function HomeHeader({
   return (
     <View className={isSinglePage ? 'home-hero home-hero--single-page' : 'home-hero'}>
       {!isSinglePage && (
-        <NavigationBar
-          title='观潮家'
-          chrome={chrome}
-          leading={
-            <Button
-              className='tidewise-button home-nav__identity-button'
-              hoverClass='none'
-              aria-label='个人中心'
-              onClick={() => void enterProfile()}
-            >
-              <View className='home-nav__avatar-frame'>
-                <Image
-                  className='home-nav__avatar'
-                  src={identity.profile?.avatarSource || avatarImage}
-                  mode='aspectFill'
-                />
-              </View>
-              {identity.profile && (
-                <Text className='home-nav__nickname'>
-                  {identity.profile.nickname || '观潮家用户'}
-                </Text>
-              )}
-            </Button>
-          }
-        />
+        <NavigationBar title='观潮家' chrome={chrome} leading={<AccountNavButton />} />
       )}
       <View className='home-brief'>
         <View className='home-brief__copy'>
