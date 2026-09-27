@@ -1,13 +1,38 @@
 .risk-notice {
-  display: inline-block;
+  display: flex;
+  align-items: flex-start;
+  gap: 14rpx;
   max-width: 100%;
   margin-top: 12rpx;
-  padding: 6rpx 14rpx;
-  border-radius: 8rpx;
-  background: rgba(255, 255, 255, 0.09);
-  color: #e4edf8;
+  padding: 12rpx 16rpx;
+  border: 1rpx solid rgba(232, 199, 128, 0.32);
+  border-radius: 10rpx;
+  background: rgba(12, 30, 53, 0.2);
+  color: #f5e1b6;
+}
+.risk-notice__icon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  /* prettier-ignore */
+  width: 16PX;
+  /* prettier-ignore */
+  height: 16PX;
+  /* prettier-ignore */
+  margin-top: 1PX;
+  /* prettier-ignore */
+  border: 1PX solid #edcd8d;
+  border-radius: 50%;
+  color: #edcd8d;
+  /* prettier-ignore */
+  font-size: 12PX;
+  font-weight: 600;
+  line-height: 1;
 }
 .risk-notice__copy {
+  flex: 1;
+  min-width: 0;
   display: block;
   /* Keep the compact notice readable even on narrow screens. */
   /* prettier-ignore */
