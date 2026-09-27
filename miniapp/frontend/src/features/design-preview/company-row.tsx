@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Taro from '@tarojs/taro';
-import { Button, Text, View } from '@tarojs/components';
+import { Button, Image, Text, View } from '@tarojs/components';
+import arrowIcon from '../../assets/icons/report-arrow-right-light-gold.svg';
 import type { Company } from './fixtures';
 import { PreviewSheet } from './shell';
 
@@ -26,17 +27,20 @@ export function PreviewCompanyRow({ company }: { company: Company }) {
   }
   return (
     <View className='preview-company'>
-      <View className='preview-between'>
+      <View className='preview-between preview-company-heading'>
         <Button className='tidewise-button preview-company-title' onClick={() => void open()}>
           {company.fullName}
         </Button>
-        {company.report && (
+        {followed ? (
+          <Text className='preview-company-tracking'>✓ 跟踪中</Text>
+        ) : (
           <Button
-            className='tidewise-button preview-close'
-            ariaLabel={'查看' + company.name + '报告样例'}
-            onClick={() => void open()}
+            className='tidewise-button preview-company-track'
+            ariaLabel={'模拟跟踪' + company.name}
+            onClick={() => setFollowed(true)}
           >
-            ›
+            <Text aria-hidden>＋</Text>
+            <Text>跟踪</Text>
           </Button>
         )}
       </View>
@@ -53,20 +57,22 @@ export function PreviewCompanyRow({ company }: { company: Company }) {
         <Text className='preview-muted'>
           {company.name} · {company.symbol}
         </Text>
-        {followed ? (
-          <Text className='preview-followed'>✓ 已跟踪</Text>
-        ) : (
-          <Button
-            className='tidewise-button preview-follow'
-            ariaLabel={'模拟跟踪' + company.name}
-            onClick={() => setFollowed(true)}
-          >
-            ＋ 跟踪
-          </Button>
-        )}
+        <Button
+          className='tidewise-button preview-company-report'
+          ariaLabel={'查看' + company.name + '洞察报告'}
+          onClick={() => void open()}
+        >
+          <Text>洞察报告</Text>
+          <Image
+            src={arrowIcon}
+            className='preview-company-report-arrow'
+            mode='scaleToFill'
+            aria-hidden
+          />
+        </Button>
       </View>
       {detail && (
-        <PreviewSheet title='公司详情' close={() => setDetail(false)}>
+        <PreviewSheet title='洞察报告' close={() => setDetail(false)}>
           <Text className='preview-muted'>设计模拟</Text>
           <Text className='preview-heading'>{company.fullName}</Text>
           <Text>
