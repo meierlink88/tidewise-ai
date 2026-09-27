@@ -643,6 +643,7 @@
 }
 .normalized-kicker {
   gap: 14rpx;
+  justify-content: space-between;
 }
 .normalized-story {
   border: 0;
@@ -722,10 +723,22 @@
   border-radius: 0;
 }
 .normalized-conclusion {
-  background: $ui-brand-soft;
-  border-color: $ui-line;
-  border-left-color: $ui-brand;
+  background: transparent;
+  border: 0;
+  border-left: 5rpx solid $ui-brand;
+  border-radius: 0;
+  padding: 0 0 0 20rpx;
   box-shadow: none;
+}
+.normalized-conclusion .normalized-section-label {
+  color: $ui-brand;
+  letter-spacing: 0;
+}
+.normalized-conclusion .normalized-evidence {
+  color: $ui-brand !important;
+}
+.normalized-scope {
+  color: $ui-muted;
 }
 .normalized-section-label {
   color: $ui-brand;
@@ -736,16 +749,49 @@
   line-height: 1.6;
 }
 .normalized-mechanism {
+  margin: 32rpx 0 0;
+  padding: 28rpx;
+  text-align: left;
+  box-shadow: none;
   background: $ui-brand;
   border-color: $ui-brand;
   border-radius: 16rpx;
 }
 .normalized-mechanism-label {
+  font-size: 24rpx;
+  font-weight: 400;
   color: rgba(255, 255, 255, 0.7);
 }
 .normalized-mechanism-text {
   font-size: 28rpx;
-  line-height: 1.6;
+  font-weight: 600;
+  line-height: 1.75;
+}
+.normalized-mechanism::before {
+  top: -32rpx;
+  height: 32rpx;
+  background: $ui-line;
+}
+.normalized-columns {
+  padding-top: 32rpx;
+  gap: 20rpx;
+}
+.normalized-columns::before,
+.normalized-columns::after,
+.normalized-support::before,
+.normalized-counter::before,
+.normalized-core-section::before,
+.normalized-node-detail::before {
+  display: none;
+}
+.normalized-support,
+.normalized-counter {
+  border-radius: 20rpx;
+  box-shadow: none;
+}
+.normalized-columns .normalized-prose {
+  font-size: 26rpx;
+  color: $ui-muted;
 }
 .normalized-core-section {
   background: $color-card;
@@ -755,6 +801,7 @@
 .normalized-node-detail {
   background: $ui-canvas;
   border-color: $ui-line;
+  box-shadow: none;
 }
 .normalized-prose {
   font-size: 27rpx;
