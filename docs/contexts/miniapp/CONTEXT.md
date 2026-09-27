@@ -328,3 +328,11 @@ Frontend feature Port 校验 wire，250ms防抖，请求代次/会话代次防�
   弹层，不引用目标端不存在的组件。
 - 没有后端/API/Schema/数据库/环境配置变更，无迁移。前端独立回滚；浏览器预览和测试
   不能代替微信授权、头像选择及目标设备滚动的真机验收。
+
+### 微信样式编译验收
+
+Taro 构建通过不等于微信 WXSS 编译通过。`preview:weapp` 在构建和产物校验后，
+使用已安装微信开发者工具的 `wcsc` 编译全部生成 WXSS；非默认安装位置通过
+`WXSS_COMPILER` 指定。独立检查为 `npm --workspace @tidewise/miniapp run verify:weapp-styles`。
+原型迁移不得把中文展示值直接拼为 CSS 类名；新闻类型保留中文显示与原颜色，
+内部使用 ASCII 类名，避免整个页面因 WXSS 语法错误白屏。

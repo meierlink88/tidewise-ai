@@ -3630,7 +3630,8 @@
     color: #64758f;
     font-weight: 500;
   }
-  .execution-price-table .lr-tbody .lr-tr:last-child > * {
+  .execution-price-table .lr-tbody .lr-tr:last-child > .lr-th,
+  .execution-price-table .lr-tbody .lr-tr:last-child > .lr-td {
     border-bottom: 0;
   }
   .execution-table-value {
@@ -4622,11 +4623,11 @@
     border-radius: 8rpx;
     padding: 4rpx 10rpx;
   }
-  .news-tag.kind-行业 {
+  .news-tag.kind-industry {
     background: #f7f0e4;
     color: #a28452;
   }
-  .news-tag.kind-评级 {
+  .news-tag.kind-rating {
     background: #f0edf8;
     color: #827499;
   }

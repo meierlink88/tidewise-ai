@@ -159,7 +159,18 @@ export default function NewsDetail() {
                       <View className='news-event-heading lr-div'>
                         <Text className='lr-time'>{e.date}</Text>
                         <Text className='lr-span'>
-                          <Text className={'news-tag kind-' + e.kind + ' lr-em'}>{e.kind}</Text>
+                          <Text
+                            className={
+                              'news-tag lr-em ' +
+                              (e.kind === '行业'
+                                ? 'kind-industry'
+                                : e.kind === '评级'
+                                  ? 'kind-rating'
+                                  : 'kind-announcement')
+                            }
+                          >
+                            {e.kind}
+                          </Text>
                           <Text className='lr-b'>{e.title}</Text>
                         </Text>
                       </View>
