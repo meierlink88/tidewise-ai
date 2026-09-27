@@ -313,7 +313,12 @@
   background: $color-card;
   color: $ui-ink;
 }
-.preview-page--header-search > .preview-scroll {
+.preview-page--header-search > .preview-list-notice {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  padding: 28rpx 32rpx 0;
+  box-shadow: 0 2rpx 0 white;
   margin-top: -24rpx;
   border-radius: 40rpx 40rpx 0 0;
   overflow: hidden;

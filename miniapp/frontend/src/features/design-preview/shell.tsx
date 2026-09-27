@@ -56,11 +56,13 @@ export function PreviewPage({
           <RiskNotice />
         </View>
       )}
-      <ScrollView scrollY className='preview-scroll'>
-        <View className='preview-content'>
-          {!filters && <RiskNotice />}
-          {children}
+      {!filters && (
+        <View className='preview-list-notice'>
+          <RiskNotice />
         </View>
+      )}
+      <ScrollView scrollY className='preview-scroll'>
+        <View className='preview-content'>{children}</View>
       </ScrollView>
     </View>
   );
