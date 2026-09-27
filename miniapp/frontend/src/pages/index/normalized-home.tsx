@@ -132,13 +132,6 @@ export function NormalizedHome({
             ))}
           </View>
         </ScrollView>
-        <View className='normalized-home-heading'>
-          <Text>今日推理主线</Text>
-          <Text className='normalized-home-total'>
-            {current ? '已加载 ' : ''}
-            {items.length} 条主线
-          </Text>
-        </View>
         <RiskNotice />
       </View>
       <ScrollView

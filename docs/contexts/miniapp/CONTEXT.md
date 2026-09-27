@@ -343,8 +343,10 @@ The My tab identity and personal-information row open `pages/profile/edit/index`
 
 ### Main-tab risk notice
 
-The user-approved risk notice appears below 今日推理主线 on the Home tab, below the market tabs on Macro, below the industry chips on Industry, and in a fixed area above the independently scrolling Company list. It uses a circular exclamation icon, dark-gold text and a pale warm background for contrast on the light content surface. The complete text wraps naturally with no dismiss, collapse, or click action. It is absent from the blue brand header, the bottom navigation area, My, and non-tab detail/edit pages. The notice is presentation copy and does not change data provenance or report generation contracts.
+The user-approved risk notice appears below the category tabs on the Home tab, below the market tabs on Macro, below the industry chips on Industry, and in a fixed area above the independently scrolling Company list. It uses a circular exclamation icon, dark-gold text and a pale warm background for contrast on the light content surface. The complete text wraps naturally with no dismiss, collapse, or click action. It is absent from the blue brand header, the bottom navigation area, My, and non-tab detail/edit pages. The notice is presentation copy and does not change data provenance or report generation contracts.
 
 Company preview cards separate actions: the top-right simulated tracking control changes from ＋ 跟踪 to ✓ 跟踪中. The bottom-right compact 洞察报告 button follows the Home impact-path button styling and opens only that company's report or the existing no-report state. The design fixture currently includes only the Xinquan report; simulated tracking remains separate from account-backed TrackingPort.
 
 Home, Macro, Industry and Company share AccountNavButton for the top-left account entry. It uses the existing useIdentity refresh contract, the current profile avatar/nickname, the Home guest avatar fallback, and the same guarded navigation to My. Shared styling preserves nickname truncation and space for the centered wordmark and native capsule.
+
+The Home feed omits the 今日推理主线 heading and loaded-count row. Macro and Industry omit the header 设计模拟 badge; existing in-content sample-data notices remain.

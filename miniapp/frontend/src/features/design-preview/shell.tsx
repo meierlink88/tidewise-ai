@@ -29,7 +29,6 @@ export function PreviewPage({
       <View className='preview-brand'>
         <NavigationBar title='观潮家' chrome={chrome} leading={<AccountNavButton />} />
         <View className='preview-brand-copy'>
-          {filters && <Text className='preview-simulation'>设计模拟</Text>}
           <View className='preview-between'>
             <Text className='preview-title'>{title}</Text>
             {!filters && <Text className='preview-simulation'>设计模拟</Text>}

@@ -1,5 +1,5 @@
 import Taro, { usePullDownRefresh } from '@tarojs/taro';
-import { Text, View } from '@tarojs/components';
+import { View } from '@tarojs/components';
 import { useMemo, useState } from 'react';
 import { RiskNotice } from '../../components/risk-notice';
 import { NormalizedHome } from './normalized-home';
@@ -131,9 +131,6 @@ export function IndexView({
       />
 
       <View className='home-content'>
-        <View className='home-section-heading'>
-          <Text className='home-section-heading__title'>今日推理主线</Text>
-        </View>
         <RiskNotice />
         <HomeReportState state={state} onRetry={onRetry} />
       </View>
