@@ -343,4 +343,4 @@ The My tab identity and personal-information row open `pages/profile/edit/index`
 
 ### Main-tab risk notice
 
-All five main tabs reserve a non-scrolling footer above native navigation for the user-approved compact notice “AI分析仅供参考，不构成投资建议。”. The shared RiskNotice uses small readable text with automatic wrapping and no dismiss, collapse, or click action. It occupies normal flex layout space so report content and navigation remain independently operable. Non-tab detail and edit pages retain their existing layout. The notice is presentation copy and does not change data provenance or report generation contracts.
+The four research tabs show “本平台引用数据均来源于公开资料，相关分析与结论均由AI 生成仅供参考，不构成任何投资建议或收益承诺，请独立判断。市场有风险，投资需谨慎。” below the header subtitle and above search or filters. RiskNotice uses small readable text on a subtle translucent blue-header inset, with natural wrapping and no dismiss, collapse, or click action. The My tab and all non-tab detail/edit pages do not show it. The notice is presentation copy and does not change data provenance or report generation contracts.

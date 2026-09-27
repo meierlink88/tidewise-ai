@@ -47,6 +47,7 @@ export function PreviewPage({
             {!filters && <Text className='preview-simulation'>设计模拟</Text>}
           </View>
           <Text className='preview-subtitle'>{subtitle}</Text>
+          <RiskNotice />
           {headerSearch}
         </View>
       </View>
@@ -54,7 +55,6 @@ export function PreviewPage({
       <ScrollView scrollY className='preview-scroll'>
         <View className='preview-content'>{children}</View>
       </ScrollView>
-      <RiskNotice />
     </View>
   );
 }

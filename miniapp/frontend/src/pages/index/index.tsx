@@ -1,7 +1,6 @@
 import Taro, { usePullDownRefresh } from '@tarojs/taro';
 import { Text, View } from '@tarojs/components';
 import { useMemo, useState } from 'react';
-import { RiskNotice } from '../../components/risk-notice';
 import { NormalizedHome } from './normalized-home';
 
 import type { ReportHome } from '../../features/reports/contract';
@@ -118,7 +117,6 @@ export function IndexView({
             refreshing={state.refreshing}
           />
         </View>
-        <RiskNotice />
       </View>
     );
   }
@@ -137,7 +135,6 @@ export function IndexView({
         </View>
         <HomeReportState state={state} onRetry={onRetry} />
       </View>
-      <RiskNotice />
     </View>
   );
 }

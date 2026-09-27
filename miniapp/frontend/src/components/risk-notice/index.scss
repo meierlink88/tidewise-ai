@@ -1,8 +1,11 @@
 .risk-notice {
-  flex: 0 0 auto;
-  padding: 16rpx 28rpx;
-  background: #f1f5f9;
-  color: #65758a;
+  display: inline-block;
+  max-width: 100%;
+  margin-top: 12rpx;
+  padding: 6rpx 14rpx;
+  border-radius: 8rpx;
+  background: rgba(255, 255, 255, 0.09);
+  color: #e4edf8;
 }
 .risk-notice__copy {
   display: block;
@@ -10,6 +13,9 @@
   /* prettier-ignore */
   font-size: 11PX;
   line-height: 1.65;
-  text-align: center;
+  text-align: left;
   overflow-wrap: anywhere;
+}
+.home-risk-notice {
+  margin: 0 32rpx;
 }
