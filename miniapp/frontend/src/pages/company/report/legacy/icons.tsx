@@ -1,7 +1,7 @@
 import { Text } from '@tarojs/components';
 
 export function ChevronDownIcon() {
-  return <Text aria-hidden>⌄</Text>;
+  return <Text className='lr-svg decision-chevron' aria-hidden />;
 }
 export function DotFilledIcon() {
   return <Text aria-hidden>•</Text>;

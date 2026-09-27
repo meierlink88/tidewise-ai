@@ -23,7 +23,7 @@ export function Disclosure({ children, className }: { children?: ReactNode; clas
       <Button
         ariaLabel={open ? '收起内容' : '展开内容'}
         onClick={() => setOpen(!open)}
-        className='tidewise-button'
+        className='tidewise-button disclosure-trigger'
       >
         {heading}
       </Button>

@@ -299,7 +299,11 @@ export default function InvestmentReport() {
         <Overview open={setTopic} />
       </ScrollView>
       {topic && (
-        <PreviewSheet title={topicNames[topic]} close={() => setTopic(null)}>
+        <PreviewSheet
+          title={topicNames[topic]}
+          subtitle={topic === 'decision' ? '新泉股份 · 2026.09.23 · 报告详情' : undefined}
+          close={() => setTopic(null)}
+        >
           <View className='legacy-report-detail'>
             <DetailBody key={topic} id={topic} />
           </View>

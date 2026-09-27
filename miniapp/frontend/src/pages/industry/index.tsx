@@ -15,7 +15,12 @@ export default function IndustryPage() {
       title='产业透析'
       subtitle='沿着产业链，理解价值如何传递'
       filters={
-        <PreviewTabs names={chains.map((c) => c.name)} selected={active} onChange={setActive} />
+        <PreviewTabs
+          variant='pills'
+          names={chains.map((c) => c.name)}
+          selected={active}
+          onChange={setActive}
+        />
       }
     >
       <Text className='preview-muted'>产业链全景</Text>

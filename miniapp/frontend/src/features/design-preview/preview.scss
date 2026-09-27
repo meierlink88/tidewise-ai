@@ -355,3 +355,80 @@
   align-items: center;
   justify-content: center;
 }
+
+.preview-page--filtered {
+  background: $ui-brand-background;
+
+  .preview-brand-copy {
+    padding-bottom: 40rpx;
+  }
+
+  .preview-brand-copy > .preview-simulation {
+    display: inline-block;
+    margin-bottom: 20rpx;
+  }
+
+  .preview-tabs {
+    border-bottom: 0;
+  }
+
+  .preview-filters {
+    border-bottom: 0;
+    border-radius: 40rpx 40rpx 0 0;
+    padding: 28rpx 32rpx 20rpx;
+    overflow: hidden;
+  }
+}
+
+.preview-tabs--pills {
+  gap: 16rpx;
+  border-bottom: 0;
+
+  .preview-tab {
+    flex: 0 0 auto;
+    min-width: 0;
+    padding: 24rpx 28rpx;
+    background: #f1f3f7;
+    border: 0;
+    border-radius: 12rpx;
+  }
+
+  .preview-tab.selected {
+    background: $ui-brand;
+    color: white;
+    font-weight: 400;
+  }
+}
+
+.preview-sheet--report {
+  background: white;
+
+  .preview-sheet-header {
+    padding: 24rpx;
+    border-bottom: 0;
+    gap: 24rpx;
+    align-items: flex-start;
+  }
+
+  .preview-sheet-subtitle {
+    display: block;
+    margin-top: 8rpx;
+    font-size: 26rpx;
+    font-weight: 400;
+    color: #777;
+  }
+
+  .preview-close {
+    flex-shrink: 0;
+    width: 68rpx;
+    height: 68rpx;
+    line-height: 64rpx;
+    border: 2rpx solid $ui-line;
+    border-radius: 50%;
+    font-weight: 400;
+  }
+
+  .preview-content {
+    padding: 0 24rpx calc(32rpx + env(safe-area-inset-bottom));
+  }
+}
