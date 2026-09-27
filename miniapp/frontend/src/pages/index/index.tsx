@@ -113,6 +113,8 @@ export function IndexView({
             query={query}
             onDetail={isSinglePage ? undefined : onOpenDetail}
             onEvidence={onOpenEvidence}
+            onRefresh={onRefresh}
+            refreshing={state.refreshing}
           />
         </View>
       </View>

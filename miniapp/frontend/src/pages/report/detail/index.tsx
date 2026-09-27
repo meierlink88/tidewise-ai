@@ -59,14 +59,15 @@ export default function ReportDetailPage() {
     resetPageScroll();
   }, [route, resource.state.status]);
 
-  usePullDownRefresh(async () => {
+  const refreshDetail = async () => {
     await resource.refresh();
     const latest = resource.snapshot();
     if ((latest.status === 'ready' || latest.status === 'empty') && latest.refreshFailed) {
       void Taro.showToast({ title: '刷新失败，已保留当前内容', icon: 'none', duration: 1800 });
     }
     void Taro.stopPullDownRefresh();
-  });
+  };
+  usePullDownRefresh(refreshDetail);
 
   const goBack = async () => {
     try {
@@ -78,7 +79,7 @@ export default function ReportDetailPage() {
   };
 
   return (
-    <>
+    <View className='detail-screen'>
       {!isSinglePage && (
         <View className='report-detail-navigation'>
           <NavigationBar
@@ -101,9 +102,10 @@ export default function ReportDetailPage() {
         state={resource.state}
         onRetry={() => void resource.retry()}
         onOpenEvidence={evidenceSheet.open}
+        onRefresh={() => void refreshDetail()}
       />
       <ReportEvidenceSheetHost controller={evidenceSheet} port={port} />
-    </>
+    </View>
   );
 }
 
@@ -127,10 +129,12 @@ export async function loadReportDetail(
 export function ReportDetailView({
   state,
   onRetry,
-  onOpenEvidence
+  onOpenEvidence,
+  onRefresh
 }: {
   state: ReportResourceState<LoadedReportDetail>;
   onRetry: () => void;
+  onRefresh?: () => void;
   onOpenEvidence: (route: ReportEvidenceRoute) => void;
 }) {
   if (state.status === 'idle' || state.status === 'loading') {
@@ -168,6 +172,8 @@ export function ReportDetailView({
       reportId={state.data.reportId}
       kind={state.data.kind}
       onEvidence={onOpenEvidence}
+      onRefresh={onRefresh}
+      refreshing={state.refreshing}
     />
   );
 }

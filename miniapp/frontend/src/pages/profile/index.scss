@@ -492,3 +492,129 @@
   border-radius: 28rpx 28rpx 0 0;
   box-sizing: border-box;
 }
+
+// Tidetell 2.0 presentation; enum-dependent selectors above remain unchanged.
+
+.account-page,
+.login-page {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: $color-card;
+  color: $ui-ink;
+}
+.account-page .account-header,
+.login-page .account-header {
+  flex-shrink: 0;
+  padding-bottom: 0;
+  background: $color-card;
+  border-bottom: 1rpx solid $ui-line;
+}
+.account-page .account-header .navigation-bar,
+.login-page .account-header .navigation-bar {
+  color: $ui-ink;
+}
+.profile-page--personal .profile-page__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 0 32rpx;
+  margin: 0;
+  border-radius: 0;
+  background: $color-card;
+}
+.profile-page--personal .profile-page__identity-button {
+  flex-shrink: 0;
+  flex-direction: row;
+  gap: 24rpx;
+  text-align: left;
+  padding: 28rpx 0;
+  margin: 0;
+  border-bottom: 1rpx solid $ui-line;
+}
+.profile-page--personal .profile-page__portrait {
+  width: 100rpx;
+  height: 100rpx;
+  box-shadow: none;
+  border: 0;
+  background: $ui-brand-soft;
+}
+.profile-page--personal .profile-page__name {
+  font-size: 36rpx;
+  color: $ui-ink;
+}
+.profile-page__scroll {
+  height: 0;
+  min-height: 0;
+  flex: 1;
+}
+.profile-page__person-head,
+.profile-page__person-body {
+  border-color: $ui-brand;
+}
+.profile-page__card {
+  margin-top: 24rpx;
+  padding: 24rpx;
+  border-radius: $ui-radius;
+  border-color: $ui-line;
+  background: $ui-canvas;
+}
+.profile-page__input {
+  border-color: $color-report-blue-200;
+  border-radius: 12rpx;
+}
+.profile-page__button {
+  border-radius: 12rpx;
+  background: $ui-brand;
+  border-color: $ui-brand;
+}
+.profile-page__button--quiet {
+  background: $color-card;
+  color: $ui-brand;
+  border-color: $ui-line;
+}
+.profile-page__edit,
+.profile-page__policy-link {
+  color: $ui-brand;
+}
+.profile-page--personal .profile-page__about-row {
+  border: 0;
+  border-bottom: 1rpx solid $ui-line;
+  border-radius: 0;
+  padding: 32rpx 0;
+  min-height: 120rpx;
+  box-shadow: none;
+  color: $ui-ink;
+}
+.profile-page--personal .profile-page__about-mark {
+  color: $ui-brand;
+  background: $ui-brand-soft;
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.profile-page__logout {
+  border-color: $ui-line;
+  border-radius: 12rpx;
+  background: $color-card;
+}
+.profile-page__session {
+  padding-bottom: 24rpx;
+}
+.information-scroll {
+  flex: 1;
+  min-height: 0;
+  height: 0;
+}
+.information-scroll .profile-page__body,
+.information-scroll .about-page__body {
+  margin: 0;
+  border-radius: 0;
+  background: $color-card;
+}

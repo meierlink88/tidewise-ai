@@ -35,6 +35,14 @@ vi.mock('@tarojs/components', () => ({
       children
     ),
   Text: 'span',
+  ScrollView: ({
+    children,
+    scrollY: _scrollY,
+    ...props
+  }: {
+    children?: ReactNode;
+    scrollY?: boolean;
+  }) => createElement('div', props, children),
   Checkbox: ({ children }: { children?: ReactNode }) => createElement('span', {}, children),
   CheckboxGroup: ({
     children,
@@ -204,7 +212,9 @@ it('keeps editing focused on personal details and disables invalid submissions',
 
 it('opens about from the landing page', async () => {
   await click('返回我的');
-  const entry = host.querySelector<HTMLButtonElement>('.profile-page__about-row');
+  const entry = Array.from(
+    host.querySelectorAll<HTMLButtonElement>('.profile-page__about-row')
+  ).find((node) => node.textContent?.includes('关于观潮家'));
   await act(async () => entry!.click());
   expect(props.onOpenInformation).toHaveBeenCalledWith('about');
 });

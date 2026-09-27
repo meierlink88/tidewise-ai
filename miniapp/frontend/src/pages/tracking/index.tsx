@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react';
-import { Button, Input, RootPortal, ScrollView, Text, View } from '@tarojs/components';
+import { Button, Input, ScrollView, Text, View } from '@tarojs/components';
 import { useDidHide } from '@tarojs/taro';
 import { useTracking } from '../../features/tracking/use-tracking';
 import type { Company } from '../../features/tracking/contract';
 import { openLogin, readSession } from '../../platform/identity';
 import { confirmUnfollow } from '../../platform/tracking';
 import './index.scss';
+import { OverlayRoot } from '../../platform/overlay-root';
 
 export default function TrackingPage() {
   const tracking = useTracking();
@@ -82,7 +83,7 @@ export default function TrackingPage() {
           )}
         </View>
       </View>
-      <View className='tracking-content'>
+      <ScrollView scrollY className='tracking-content'>
         <View className='tracking-list-label'>
           <Text>{searching ? '搜索结果' : '我跟踪的公司'}</Text>
           <Text>{searching ? '按公司了解，按代码查找' : '公司 / 行业 / 主题'}</Text>
@@ -186,8 +187,8 @@ export default function TrackingPage() {
             {searching ? '已展示全部匹配结果' : '以上是你跟踪的公司'}
           </View>
         )}
-      </View>
-      <RootPortal>
+      </ScrollView>
+      <OverlayRoot>
         <View className='tracking-overlay-scope'>
           {detail && (
             <View className='tracking-overlay' onClick={() => setDetail(null)} catchMove>
@@ -226,7 +227,7 @@ export default function TrackingPage() {
             </View>
           )}
         </View>
-      </RootPortal>
+      </OverlayRoot>
     </View>
   );
 }

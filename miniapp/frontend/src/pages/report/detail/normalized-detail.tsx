@@ -31,9 +31,13 @@ export function LegacyDetailView({
   detail,
   reportId,
   kind,
-  onEvidence: openEvidence
+  onEvidence: openEvidence,
+  onRefresh,
+  refreshing = false
 }: {
   detail: AnalysisDetail;
+  onRefresh?: () => void;
+  refreshing?: boolean;
   reportId: string;
   kind: AnalysisKind;
   onEvidence: (r: ReportEvidenceRoute) => void;
@@ -68,6 +72,8 @@ export function LegacyDetailView({
         <GeopoliticalBody
           key={`${reportId}:${detail.summary.local_key}`}
           reasonings={detail.reasonings}
+          onRefresh={onRefresh}
+          refreshing={refreshing}
           reportId={reportId}
           onEvidence={onEvidence}
         />
@@ -93,13 +99,27 @@ export function LegacyDetailView({
               ))}
             </View>
           </ScrollView>
-          <View
+          <ScrollView
+            scrollY
+            refresherEnabled={process.env.TARO_ENV === 'weapp'}
+            refresherTriggered={refreshing}
+            onRefresherRefresh={onRefresh}
             className={
-              current && current.type !== 'macro'
+              'normalized-detail-scroll ' +
+              (current && current.type !== 'macro'
                 ? 'normalized-chain-content'
-                : 'normalized-tree-panel'
+                : 'normalized-tree-panel')
             }
           >
+            {process.env.TARO_ENV !== 'weapp' && onRefresh && (
+              <Button
+                className='tidewise-button reading-refresh'
+                disabled={refreshing}
+                onClick={onRefresh}
+              >
+                {refreshing ? '正在刷新…' : '刷新'}
+              </Button>
+            )}
             {!current ? (
               <ReportStatePanel title='暂无因果链详情' description='' />
             ) : current.type === 'macro' ? (
@@ -128,7 +148,7 @@ export function LegacyDetailView({
                 onEvidence={onEvidence}
               />
             )}
-          </View>
+          </ScrollView>
         </View>
       )}
     </View>
@@ -397,6 +417,8 @@ export function NormalizedDetailView(props: Parameters<typeof LegacyDetailView>[
       kind={props.kind}
       reportId={props.reportId}
       onEvidence={props.onEvidence}
+      onRefresh={props.onRefresh}
+      refreshing={props.refreshing}
     />
   );
 }

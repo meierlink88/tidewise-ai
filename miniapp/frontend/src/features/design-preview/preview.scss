@@ -1,0 +1,304 @@
+@use '../../styles/tokens' as *;
+.preview-page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: $ui-canvas;
+  color: $ui-ink;
+}
+.preview-brand {
+  flex-shrink: 0;
+  background: $ui-brand-background;
+  color: white;
+}
+.preview-profile {
+  width: 80rpx;
+  height: 80rpx;
+  font-size: 48rpx;
+  line-height: 80rpx;
+}
+.preview-brand-copy {
+  padding: 18rpx 32rpx 36rpx;
+}
+.preview-title {
+  font-size: 42rpx;
+  font-weight: 650;
+}
+.preview-subtitle {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 25rpx;
+  color: rgba(255, 255, 255, 0.7);
+}
+.preview-simulation {
+  font-size: 21rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.3);
+  padding: 4rpx 10rpx;
+  border-radius: 6rpx;
+}
+.preview-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16rpx;
+}
+.preview-filters {
+  flex-shrink: 0;
+  background: white;
+}
+.preview-tabs {
+  display: flex;
+  border-bottom: 1rpx solid $ui-line;
+}
+.preview-tab {
+  flex: 1;
+  white-space: nowrap;
+  min-width: 140rpx;
+  text-align: center;
+  padding: 24rpx 16rpx;
+  font-size: 27rpx;
+  color: $ui-muted;
+  border-bottom: 4rpx solid transparent;
+  border-radius: 0;
+}
+.preview-tab.selected {
+  color: $ui-brand;
+  font-weight: 600;
+  border-bottom-color: $ui-brand;
+}
+.preview-scroll {
+  height: 0;
+  min-height: 0;
+  flex: 1;
+}
+.preview-content {
+  padding: 28rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  font-size: 28rpx;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.preview-heading {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 600;
+  margin: 16rpx 0;
+}
+.preview-muted,
+.preview-note {
+  color: $ui-muted;
+  font-size: 24rpx;
+}
+.preview-note {
+  display: block;
+  text-align: center;
+  padding: 24rpx 0;
+}
+.preview-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+  padding: 26rpx 0;
+  width: 100%;
+  border-bottom: 1rpx solid $ui-line;
+  border-radius: 0;
+  text-align: left;
+}
+.preview-row text {
+  display: block;
+}
+.preview-row-name {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+.preview-row-value {
+  margin-left: auto;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.preview-arrow {
+  color: $ui-muted;
+  font-size: 36rpx;
+}
+.preview-card {
+  padding: 24rpx;
+  margin: 24rpx 0;
+  background: white;
+  border: 1rpx solid $ui-line;
+  border-radius: $ui-radius;
+}
+.preview-rise {
+  color: $color-report-warming;
+}
+.preview-fall {
+  color: $color-report-chain-accent;
+}
+.preview-price {
+  font-size: 56rpx;
+  font-weight: 650;
+  display: block;
+}
+.preview-stats {
+  display: flex;
+  gap: 16rpx;
+  flex-wrap: wrap;
+}
+.preview-stat {
+  flex: 1;
+  min-width: 150rpx;
+  padding: 20rpx;
+  background: $ui-brand-soft;
+  border-radius: 12rpx;
+}
+.preview-stat text {
+  display: block;
+}
+.preview-order {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: $ui-brand-soft;
+  color: $ui-brand;
+  line-height: 64rpx;
+  text-align: center;
+  flex-shrink: 0;
+}
+.preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: $layer-overlay;
+  background: $color-overlay-scrim;
+  display: flex;
+  align-items: flex-end;
+}
+.preview-sheet {
+  height: 88vh;
+  width: 100%;
+  background: $ui-canvas;
+  border-radius: 32rpx 32rpx 0 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: $ui-ink;
+}
+.preview-sheet-header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx 32rpx;
+  background: white;
+  border-bottom: 1rpx solid $ui-line;
+  font-size: 32rpx;
+  font-weight: 600;
+}
+.preview-close {
+  width: 88rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+  text-align: center;
+  color: $ui-muted;
+  font-size: 44rpx;
+}
+.preview-search {
+  margin: 20rpx 32rpx;
+  padding: 16rpx 20rpx;
+  border-radius: 12rpx;
+  background: $ui-canvas;
+  font-size: 28rpx;
+}
+.preview-company {
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid $ui-line;
+}
+.preview-company-title {
+  font-size: 32rpx;
+  font-weight: 650;
+  text-align: left;
+  line-height: 1.5;
+  flex: 1;
+}
+.preview-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin: 14rpx 0;
+}
+.preview-tag {
+  font-size: 22rpx;
+  padding: 4rpx 10rpx;
+  border-radius: 6rpx;
+  color: $color-tracking-concept;
+  background: $color-tracking-concept-surface;
+}
+.preview-tag.industry {
+  color: $color-tracking-industry;
+  background: $color-tracking-industry-surface;
+}
+.preview-follow {
+  padding: 12rpx 24rpx;
+  color: white;
+  background: $ui-brand;
+  border-radius: 10rpx;
+  font-size: 24rpx;
+}
+.preview-followed {
+  font-size: 23rpx;
+  color: $ui-brand;
+  background: $ui-brand-soft;
+  padding: 4rpx 10rpx;
+  border-radius: 6rpx;
+}
+.preview-event {
+  padding: 24rpx;
+  border: 1rpx solid $ui-line;
+  background: white;
+  border-radius: $ui-radius;
+  margin: 16rpx 0 28rpx;
+}
+.preview-event-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+}
+.preview-event-tags text {
+  color: $color-evidence-tag-ink;
+  background: $color-evidence-tag-surface;
+  padding: 4rpx 10rpx;
+  border-radius: 6rpx;
+  font-size: 23rpx;
+}
+.preview-event-tags .action {
+  color: $color-evidence-action;
+  background: $color-evidence-action-surface;
+}
+.preview-event-summary {
+  display: block;
+  padding: 18rpx 0;
+}
+.preview-chart {
+  height: 200rpx;
+  display: flex;
+  align-items: flex-end;
+  gap: 16rpx;
+  padding: 20rpx;
+}
+.preview-chart-bar {
+  flex: 1;
+  background: $ui-brand;
+  border-radius: 6rpx 6rpx 0 0;
+}
+.preview-page .preview-content {
+  background: white;
+  min-height: 100%;
+}
+.preview-company-title {
+  min-width: 0;
+}
+.preview-follow {
+  flex: 0 0 auto;
+}
+.preview-profile {
+  color: white;
+}

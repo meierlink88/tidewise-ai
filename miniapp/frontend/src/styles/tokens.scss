@@ -132,3 +132,15 @@ $color-tracking-industry: #546a72;
 $color-tracking-industry-surface: #eaf0ef;
 $color-tracking-concept: #8a723e;
 $color-tracking-concept-surface: #f4efdf;
+
+// Tidetell 2.0 neutral/brand tokens. Existing semantic tokens above remain authoritative.
+$ui-brand: #194d87;
+$ui-brand-soft: #edf3fa;
+$ui-ink: #3c4050;
+$ui-muted: #777e91;
+$ui-canvas: #f5f7fa;
+$ui-line: #eaedf2;
+$ui-radius: 24rpx;
+$ui-brand-background:
+  radial-gradient(ellipse at 100% 110%, rgba(107, 153, 207, 0.16), transparent 65%),
+  linear-gradient(115deg, #164477, #24578e);

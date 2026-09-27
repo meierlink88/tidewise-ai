@@ -5,7 +5,7 @@ const storageKey = 'tidewise.identity.session.v1';
 export const supportsWechatLogin = process.env.TARO_ENV === 'weapp';
 export async function openProfile() {
   try {
-    await Taro.navigateTo({ url: '/pages/profile/index' });
+    await Taro.switchTab({ url: '/pages/profile/index' });
   } catch {
     void Taro.showToast({ title: '打开失败，请重试', icon: 'none' });
   }
@@ -77,7 +77,7 @@ export async function openLogin() {
 export async function leaveLogin() {
   try {
     if (Taro.getCurrentPages().length > 1) await Taro.navigateBack({ delta: 1 });
-    else await Taro.redirectTo({ url: '/pages/profile/index' });
+    else await Taro.switchTab({ url: '/pages/profile/index' });
   } catch {
     void Taro.showToast({ title: '返回失败，请重试', icon: 'none' });
   }

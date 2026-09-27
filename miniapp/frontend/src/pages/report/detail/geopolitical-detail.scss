@@ -296,3 +296,65 @@
   background: $color-report-surface-subtle !important;
   border-color: $color-border !important;
 }
+
+// Tidetell 2.0 presentation; enum-dependent selectors above remain unchanged.
+
+.geo-detail-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  background: $ui-canvas;
+  border-radius: 0;
+}
+.geo-detail-main::after {
+  display: none;
+}
+.geo-detail-main > .geo-detail-scroll {
+  flex-shrink: 0;
+  background: $color-card;
+}
+.geo-body-scroll {
+  height: 0;
+  min-height: 0;
+  flex: 1;
+}
+.geo-detail-reasoning-surface,
+.geo-detail-assets-surface {
+  margin: 24rpx;
+  border: 1rpx solid $ui-line;
+  border-radius: $ui-radius;
+  background: $color-card;
+}
+.geo-detail-block-head {
+  background: $ui-brand-soft;
+  border-color: $ui-line;
+  border-left-color: $ui-brand;
+  padding: 20rpx;
+}
+.geo-detail-title {
+  font-size: 30rpx;
+  line-height: 1.55;
+}
+.geo-detail-description {
+  font-size: 27rpx;
+  line-height: 1.65;
+  color: $ui-muted;
+}
+.geo-detail-question {
+  background: $ui-brand;
+  border-color: $ui-brand;
+}
+.geo-detail-question-label {
+  color: rgba(255, 255, 255, 0.72);
+}
+.geo-detail-asset-analysis {
+  background: $ui-canvas;
+  border-color: $ui-line;
+  padding: 20rpx;
+}
+.geo-detail-assets-surface {
+  margin-bottom: calc(24rpx + env(safe-area-inset-bottom));
+}

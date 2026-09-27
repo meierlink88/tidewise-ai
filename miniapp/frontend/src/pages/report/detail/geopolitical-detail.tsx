@@ -18,8 +18,14 @@ const directions = { warming: '升温', cooling: '降温', diverging: '分化', 
 
 export function GeopoliticalBody({
   reasonings,
+  onRefresh,
+  refreshing = false,
   ...evidence
-}: { reasonings: UnifiedReasoning[] } & EvidenceProps) {
+}: {
+  reasonings: UnifiedReasoning[];
+  onRefresh?: () => void;
+  refreshing?: boolean;
+} & EvidenceProps) {
   const [selected, setSelected] = useState(reasonings[0]?.local_key ?? '');
   const current = reasonings.find((r) => r.local_key === selected) ?? reasonings[0];
   return (
@@ -40,11 +46,28 @@ export function GeopoliticalBody({
           </View>
         </ScrollView>
       )}
-      {current ? (
-        <Reasoning key={current.local_key} reasoning={current} {...evidence} />
-      ) : (
-        <Text>暂无推导详情</Text>
-      )}
+      <ScrollView
+        scrollY
+        className='geo-body-scroll'
+        refresherEnabled={process.env.TARO_ENV === 'weapp'}
+        refresherTriggered={refreshing}
+        onRefresherRefresh={onRefresh}
+      >
+        {process.env.TARO_ENV !== 'weapp' && onRefresh && (
+          <Button
+            className='tidewise-button reading-refresh'
+            disabled={refreshing}
+            onClick={onRefresh}
+          >
+            {refreshing ? '正在刷新…' : '刷新'}
+          </Button>
+        )}
+        {current ? (
+          <Reasoning key={current.local_key} reasoning={current} {...evidence} />
+        ) : (
+          <Text>暂无推导详情</Text>
+        )}
+      </ScrollView>
     </View>
   );
 }

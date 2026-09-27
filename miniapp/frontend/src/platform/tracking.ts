@@ -10,3 +10,11 @@ export async function confirmUnfollow(title: string, symbol: string): Promise<bo
   });
   return result.confirm === true;
 }
+
+export async function openTracking() {
+  try {
+    await Taro.navigateTo({ url: '/pages/tracking/index' });
+  } catch {
+    void Taro.showToast({ title: '打开失败，请重试', icon: 'none' });
+  }
+}

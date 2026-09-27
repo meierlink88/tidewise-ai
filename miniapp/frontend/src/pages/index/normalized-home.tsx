@@ -38,9 +38,13 @@ export function NormalizedHome({
   group,
   query,
   onDetail,
-  onEvidence
+  onEvidence,
+  onRefresh,
+  refreshing = false
 }: {
   group: ReportHomeGroup;
+  onRefresh?: () => void;
+  refreshing?: boolean;
   query: string;
   onDetail?: (r: ReportDetailRoute) => void;
   onEvidence: (r: ReportEvidenceRoute) => void;
@@ -135,8 +139,24 @@ export function NormalizedHome({
           </Text>
         </View>
       </View>
-      <ScrollView key={kind} scrollY className='normalized-home-scroll'>
+      <ScrollView
+        key={kind}
+        scrollY
+        className='normalized-home-scroll'
+        refresherEnabled={process.env.TARO_ENV === 'weapp'}
+        refresherTriggered={refreshing}
+        onRefresherRefresh={onRefresh}
+      >
         <View className='normalized-home-list'>
+          {process.env.TARO_ENV !== 'weapp' && onRefresh && (
+            <Button
+              className='tidewise-button reading-refresh'
+              disabled={refreshing}
+              onClick={onRefresh}
+            >
+              {refreshing ? '正在刷新…' : '刷新'}
+            </Button>
+          )}
           {items.map(({ u, sourceKind }) => (
             <HomeCard
               key={`${sourceKind}:${u.local_key}`}

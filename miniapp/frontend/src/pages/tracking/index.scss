@@ -285,3 +285,53 @@
   color: $color-home-muted;
   margin-top: 22rpx;
 }
+
+// Tidetell 2.0 presentation; enum-dependent selectors above remain unchanged.
+
+.tracking-page {
+  display: flex;
+  height: 100vh;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: $color-card;
+  color: $ui-ink;
+}
+.tracking-header {
+  flex-shrink: 0;
+  position: relative;
+  background: $color-card;
+  border-color: $ui-line;
+  padding: 20rpx 32rpx;
+}
+.tracking-content {
+  height: 0;
+  min-height: 0;
+  flex: 1;
+  padding: 0 32rpx;
+}
+.tracking-search {
+  background: $ui-canvas;
+  border-color: $ui-line;
+  border-radius: 12rpx;
+}
+.tracking-company {
+  border-color: $ui-line;
+  padding: 24rpx 0;
+}
+.tracking-page .tracking-title {
+  color: $ui-ink;
+}
+.tracking-page .tracking-add {
+  background: $ui-brand;
+  border-radius: 10rpx;
+}
+.tracking-page .tracking-followed {
+  background: $ui-brand-soft;
+  color: $ui-brand;
+  border-radius: 8rpx;
+  min-height: 44rpx;
+}
+.tracking-sheet {
+  background: $color-card;
+}

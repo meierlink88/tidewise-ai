@@ -33,3 +33,31 @@ button,
   font: inherit;
   line-height: inherit;
 }
+
+.reading-refresh {
+  display: block;
+  padding: 12rpx 24rpx;
+  margin-left: auto;
+  font-size: 24rpx;
+  color: $ui-brand;
+  min-height: 64rpx;
+}
+
+.tidewise-button.reading-refresh {
+  width: auto;
+  padding: 8rpx 16rpx;
+  min-height: 60rpx;
+  line-height: 1.5;
+  background: transparent;
+  border: 0;
+  color: $ui-brand;
+  font-size: 24rpx;
+}
+
+// H5's native-tab emulation overlays 50 CSS pixels; real Miniapp viewports already exclude it.
+.taro_tabbar_page .home-page,
+.taro_tabbar_page .preview-page,
+.taro_tabbar_page .profile-page--personal {
+  /* prettier-ignore */
+  height: calc(100vh - 50PX - env(safe-area-inset-bottom));
+}

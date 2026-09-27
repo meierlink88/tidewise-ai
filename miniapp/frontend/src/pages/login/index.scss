@@ -74,3 +74,63 @@
     color: $color-home-secondary;
   }
 }
+
+// Tidetell 2.0 presentation; enum-dependent selectors above remain unchanged.
+
+.login-page__body {
+  flex: 1;
+  min-height: 0;
+  height: 0;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: $color-card;
+}
+.login-page__brand {
+  padding: 72rpx 0 0;
+  margin-bottom: 64rpx;
+}
+.login-page__mark {
+  background: $ui-brand;
+  border: 0;
+  border-radius: 40rpx;
+  color: $color-card;
+  width: 136rpx;
+  height: 136rpx;
+}
+.login-page__name {
+  font-weight: 600;
+  color: $ui-ink;
+}
+.login-page__body .profile-page__card--login {
+  margin: 0 28rpx 32rpx;
+  padding: 32rpx;
+  background: $ui-canvas;
+  border: 1rpx solid $ui-line;
+  border-radius: 28rpx;
+  box-shadow: none;
+}
+.login-page__body .profile-page__button {
+  background: $ui-brand;
+  border-color: $ui-brand;
+  border-radius: 12rpx;
+}
+.login-page__body .profile-page__phone-login {
+  border: 1rpx solid $color-report-blue-200;
+  border-radius: 12rpx;
+  background: $color-card;
+  color: $ui-brand;
+  margin-top: 28rpx;
+}
+.login-page__body .profile-page__hint {
+  padding-top: 24rpx;
+}
+.login-page__body .profile-page__policy-link {
+  color: $ui-brand;
+}
+
+.login-page__body .profile-page__button[disabled] {
+  background: $ui-line;
+  border-color: $ui-line;
+  color: $ui-muted;
+}
