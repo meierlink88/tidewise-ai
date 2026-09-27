@@ -1,0 +1,15 @@
+.risk-notice {
+  flex: 0 0 auto;
+  padding: 16rpx 28rpx;
+  background: #f1f5f9;
+  color: #65758a;
+}
+.risk-notice__copy {
+  display: block;
+  /* Keep the compact notice readable even on narrow screens. */
+  /* prettier-ignore */
+  font-size: 11PX;
+  line-height: 1.65;
+  text-align: center;
+  overflow-wrap: anywhere;
+}

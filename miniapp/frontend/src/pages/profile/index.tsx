@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import Taro from '@tarojs/taro';
 import { Button, Text, View } from '@tarojs/components';
+import { RiskNotice } from '../../components/risk-notice';
 import { NavigationBar } from '../../platform/navigation-bar';
 import { getHomeChromeMetrics } from '../../platform/system-ui';
 import {
@@ -90,6 +91,7 @@ export default function ProfilePage() {
           onOpenTracking={() => void openTracking()}
         />
       )}
+      <RiskNotice />
     </View>
   );
 }

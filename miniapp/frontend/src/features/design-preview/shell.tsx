@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import Taro from '@tarojs/taro';
 import { Button, ScrollView, Text, View } from '@tarojs/components';
+import { RiskNotice } from '../../components/risk-notice';
 import { NavigationBar } from '../../platform/navigation-bar';
 import { getHomeChromeMetrics } from '../../platform/system-ui';
 import { openProfile } from '../../platform/identity';
@@ -53,6 +54,7 @@ export function PreviewPage({
       <ScrollView scrollY className='preview-scroll'>
         <View className='preview-content'>{children}</View>
       </ScrollView>
+      <RiskNotice />
     </View>
   );
 }

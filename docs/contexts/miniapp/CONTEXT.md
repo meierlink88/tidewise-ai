@@ -340,3 +340,7 @@ Taro 构建通过不等于微信 WXSS 编译通过。`preview:weapp` 在构建�
 ### Personal profile editor
 
 The My tab identity and personal-information row open `pages/profile/edit/index`, a non-tab page with a white navigation bar, centered real avatar, nickname field, Save and Discard. It reuses the identity feature and existing WeChat avatar/nickname contracts. Save returns to the previous page; Discard never submits drafts. Each page retains the existing show-time identity refresh. WeChat offers chooseAvatar; tt/H5 explain that avatar selection requires WeChat. Prototype avatar presets are not production identity data.
+
+### Main-tab risk notice
+
+All five main tabs reserve a non-scrolling footer above native navigation for the user-approved compact notice “AI分析仅供参考，不构成投资建议。”. The shared RiskNotice uses small readable text with automatic wrapping and no dismiss, collapse, or click action. It occupies normal flex layout space so report content and navigation remain independently operable. Non-tab detail and edit pages retain their existing layout. The notice is presentation copy and does not change data provenance or report generation contracts.
