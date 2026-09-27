@@ -14,7 +14,12 @@ const state = vi.hoisted(() => ({
   saveNickname: vi.fn(),
   refresh: vi.fn()
 }));
-const nav = vi.hoisted(() => ({ tracking: vi.fn(), info: vi.fn(), confirm: vi.fn() }));
+const nav = vi.hoisted(() => ({
+  tracking: vi.fn(),
+  info: vi.fn(),
+  editor: vi.fn(),
+  confirm: vi.fn()
+}));
 vi.mock('../../features/identity/use-identity', () => ({ useIdentity: () => state }));
 vi.mock('../../platform/system-ui', () => ({ getHomeChromeMetrics: () => ({}) }));
 vi.mock('../../platform/navigation-bar', () => ({
@@ -24,6 +29,7 @@ vi.mock('../../platform/identity', () => ({
   supportsWechatLogin: true,
   leaveProfile: vi.fn(),
   openLogin: vi.fn(),
+  openProfileEditor: nav.editor,
   openProfileInformation: nav.info,
   confirmLogout: nav.confirm
 }));
@@ -47,22 +53,18 @@ vi.mock('../login/login-view', () => ({
 }));
 vi.mock('./profile-view', () => ({
   ProfileView: ({
-    onSaveNickname,
+    onOpenEditor,
     onLogout,
     onOpenTracking
   }: {
-    onSaveNickname: (name: string, path: string) => void;
+    onOpenEditor: () => void;
     onLogout: () => void;
     onOpenTracking: () => void;
   }) =>
     createElement(
       'div',
       {},
-      createElement(
-        'button',
-        { onClick: () => onSaveNickname('昵称', 'wxfile://draft') },
-        '保存资料'
-      ),
+      createElement('button', { onClick: onOpenEditor }, '保存资料'),
       createElement('button', { onClick: onLogout }, '退出登录'),
       createElement('button', { onClick: onOpenTracking }, '我的跟踪')
     )
@@ -103,7 +105,7 @@ it('keeps profile save, tracking and confirmed logout wired to real owners', asy
   state.profile = { user_id: 'real-user', nickname: '用户' };
   const host = await mount();
   await click(host, '保存资料');
-  expect(state.saveNickname).toHaveBeenCalledWith('昵称', 'wxfile://draft');
+  expect(nav.editor).toHaveBeenCalledOnce();
   await click(host, '我的跟踪');
   expect(nav.tracking).toHaveBeenCalledOnce();
   nav.confirm.mockResolvedValueOnce(false);

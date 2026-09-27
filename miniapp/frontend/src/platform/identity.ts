@@ -3,6 +3,8 @@ import { isSession, type Session } from '../features/identity/session';
 
 const storageKey = 'tidewise.identity.session.v1';
 export const supportsWechatLogin = process.env.TARO_ENV === 'weapp';
+// Taro H5 form buttons submit on touchend only; desktop previews need a click path.
+export const profileSubmitOnClick = process.env.TARO_ENV === 'h5';
 export async function openProfile() {
   try {
     await Taro.switchTab({ url: '/pages/profile/index' });
@@ -57,6 +59,23 @@ export async function openProfileInformation(section: 'privacy' | 'about') {
     await Taro.navigateTo({ url: `/pages/profile/information/index?section=${section}` });
   } catch {
     void Taro.showToast({ title: '打开失败，请重试', icon: 'none' });
+  }
+}
+
+export async function openProfileEditor() {
+  try {
+    await Taro.navigateTo({ url: '/pages/profile/edit/index' });
+  } catch {
+    void Taro.showToast({ title: '打开失败，请重试', icon: 'none' });
+  }
+}
+
+export async function leaveProfileEditor() {
+  try {
+    if (Taro.getCurrentPages().length > 1) await Taro.navigateBack({ delta: 1 });
+    else await Taro.switchTab({ url: '/pages/profile/index' });
+  } catch {
+    void Taro.showToast({ title: '返回失败，请重试', icon: 'none' });
   }
 }
 export async function copyPrivacyContact() {

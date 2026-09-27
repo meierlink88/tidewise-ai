@@ -7,6 +7,7 @@ import {
   confirmLogout,
   leaveProfile,
   openLogin,
+  openProfileEditor,
   openProfileInformation,
   supportsWechatLogin
 } from '../../platform/identity';
@@ -37,23 +38,32 @@ export default function ProfilePage() {
     }
   }
   return (
-    <View className='profile-page profile-page--personal account-page'>
-      <View className='profile-page__header account-header'>
-        <NavigationBar
-          title={identity.profile ? '观潮家' : '欢迎登录观潮家'}
-          chrome={chrome}
-          leading={
-            <Button
-              className='tidewise-button profile-page__back'
-              aria-label='返回推理'
-              hoverClass='none'
-              onClick={() => void leaveProfile()}
-            >
-              <View className='profile-page__chevron' />
-            </Button>
-          }
+    <View
+      className={`profile-page profile-page--personal account-page${identity.profile ? ' profile-page--signed-in' : ''}`}
+    >
+      {identity.profile ? (
+        <View
+          className='profile-page__brand-cap'
+          style={{ height: `${chrome.statusBarHeight + chrome.navigationBarHeight}px` }}
         />
-      </View>
+      ) : (
+        <View className='profile-page__header account-header'>
+          <NavigationBar
+            title='欢迎登录观潮家'
+            chrome={chrome}
+            leading={
+              <Button
+                className='tidewise-button profile-page__back'
+                aria-label='返回推理'
+                hoverClass='none'
+                onClick={() => void leaveProfile()}
+              >
+                <View className='profile-page__chevron' />
+              </Button>
+            }
+          />
+        </View>
+      )}
       {!identity.profile && identity.pendingAction === 'refresh' ? (
         <View className='profile-page__body'>
           <Text>正在检查登录状态…</Text>
@@ -74,7 +84,7 @@ export default function ProfilePage() {
           error={confirmationError || identity.error}
           onOpenLogin={() => void openLogin()}
           onOpenInformation={(section) => void openProfileInformation(section)}
-          onSaveNickname={identity.saveNickname}
+          onOpenEditor={() => void openProfileEditor()}
           onLogout={logout}
           onRetry={identity.refresh}
           onOpenTracking={() => void openTracking()}

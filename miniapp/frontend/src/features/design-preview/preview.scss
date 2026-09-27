@@ -302,3 +302,56 @@
 .preview-profile {
   color: white;
 }
+
+.preview-page--header-search .preview-brand-copy {
+  padding-bottom: 48rpx;
+}
+.preview-page--header-search .preview-search {
+  margin: 28rpx 0 0;
+  height: 80rpx;
+  padding: 0 24rpx;
+  background: $color-card;
+  color: $ui-ink;
+}
+.preview-page--header-search > .preview-scroll {
+  margin-top: -24rpx;
+  border-radius: 40rpx 40rpx 0 0;
+  overflow: hidden;
+  background: $color-card;
+}
+
+.preview-page--header-search .preview-search {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+.preview-search-icon {
+  width: 32rpx;
+  height: 32rpx;
+  flex-shrink: 0;
+}
+.preview-search-input {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  height: 80rpx;
+  font-size: 26rpx;
+}
+.preview-page--header-search .preview-company {
+  padding: 36rpx 0;
+}
+.preview-page--header-search .preview-company-title {
+  font-size: 36rpx;
+}
+.preview-page--header-search .preview-tags {
+  margin: 20rpx 0 24rpx;
+  gap: 12rpx;
+}
+.preview-page--header-search .preview-follow {
+  min-width: 144rpx;
+  min-height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

@@ -3,12 +3,16 @@ import { act, createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { ProfileView, type ProfileViewProps } from './profile-view';
+import { ProfileEditorView, type ProfileEditorViewProps } from './profile-editor-view';
 
 const capabilities = vi.hoisted(() => ({
   supported: false,
   choose: undefined as undefined | ((e: { detail: { avatarUrl: string } }) => void)
 }));
 vi.mock('../../platform/identity', () => ({
+  get profileSubmitOnClick() {
+    return !capabilities.supported;
+  },
   get supportsWechatLogin() {
     return capabilities.supported;
   }
@@ -109,8 +113,10 @@ vi.mock('@tarojs/components', () => ({
 }));
 let root: Root;
 let host: HTMLDivElement;
-let props: ProfileViewProps;
+let props: ProfileEditorViewProps & Omit<ProfileViewProps, 'profile'>;
+let editor = true;
 beforeEach(async () => {
+  editor = true;
   capabilities.supported = false;
   capabilities.choose = undefined;
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -127,22 +133,26 @@ beforeEach(async () => {
     pendingAction: null,
     error: '',
     onOpenLogin: vi.fn(),
+    onOpenEditor: vi.fn(),
+    onSaved: vi.fn(),
+    onCancel: vi.fn(),
     onOpenInformation: vi.fn(),
     onSaveNickname: vi.fn().mockResolvedValue(true),
     onLogout: vi.fn().mockResolvedValue(false),
     onRetry: vi.fn().mockResolvedValue(true)
   };
   await render();
-  await act(async () =>
-    host.querySelector<HTMLButtonElement>('.profile-page__identity-button')!.click()
-  );
 });
 afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
 });
 async function render() {
-  await act(async () => root.render(createElement(ProfileView, props)));
+  await act(async () =>
+    root.render(
+      editor ? createElement(ProfileEditorView, props) : createElement(ProfileView, props)
+    )
+  );
 }
 async function click(label: string) {
   const button = Array.from(host.querySelectorAll('button')).find(
@@ -158,44 +168,36 @@ async function input(value: string) {
     element.dispatchEvent(new Event('input', { bubbles: true }));
   });
 }
-it('separates personal details from the account session action', () => {
-  expect(host.textContent).toContain('个人资料');
+it('opens editing directly from both identity and personal information', async () => {
+  editor = false;
+  await render();
+  await act(async () =>
+    host.querySelector<HTMLButtonElement>('.profile-page__identity-button')!.click()
+  );
+  const row = Array.from(host.querySelectorAll<HTMLButtonElement>('button')).find((b) =>
+    b.textContent?.includes('头像与昵称')
+  )!;
+  await act(async () => row.click());
+  expect(props.onOpenEditor).toHaveBeenCalledTimes(2);
   expect(host.querySelector('input')).toBeNull();
-  expect(host.querySelector('.profile-page__card')?.textContent).not.toContain('退出登录');
-  expect(host.querySelector('.profile-page__session')?.textContent).toContain('退出登录');
 });
 it('cancels edits without writing personal data', async () => {
-  await click('编辑资料');
   await input('其他名字');
-  await click('取消');
+  await click('放弃修改');
   expect(props.onSaveNickname).not.toHaveBeenCalled();
-  expect(host.querySelector('input')).toBeNull();
-  await click('编辑资料');
-  expect(host.querySelector('input')?.value).toBe('david');
+  expect(props.onCancel).toHaveBeenCalledOnce();
 });
-it('keeps failed edits and closes with feedback after successful save', async () => {
+it('keeps failed edits and returns only after successful save', async () => {
   vi.mocked(props.onSaveNickname).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
-  await click('编辑资料');
   await input(' 新昵称 ');
   await click('保存修改');
   expect(host.querySelector('input')?.value).toBe(' 新昵称 ');
+  expect(props.onSaved).not.toHaveBeenCalled();
   await click('保存修改');
   expect(props.onSaveNickname).toHaveBeenLastCalledWith('新昵称', undefined);
-  expect(host.querySelector('input')).toBeNull();
-  expect(host.textContent).toContain('个人资料已更新');
+  expect(props.onSaved).toHaveBeenCalledOnce();
 });
-it('opens the separate login page from the guest identity header', async () => {
-  props.profile = null;
-  await render();
-  await click('登录/注册');
-  expect(props.onOpenLogin).toHaveBeenCalledOnce();
-  expect(host.textContent).not.toContain('我的服务');
-  expect(host.textContent).not.toContain('余额');
-  expect(host.textContent).not.toContain('手机号快捷登录');
-});
-
 it('keeps editing focused on personal details and disables invalid submissions', async () => {
-  await click('编辑资料');
   expect(host.textContent).not.toContain('退出登录');
   await input('   ');
   const save = Array.from(host.querySelectorAll('button')).find(
@@ -211,7 +213,8 @@ it('keeps editing focused on personal details and disables invalid submissions',
 });
 
 it('opens about from the landing page', async () => {
-  await click('返回我的');
+  editor = false;
+  await render();
   const entry = Array.from(
     host.querySelectorAll<HTMLButtonElement>('.profile-page__about-row')
   ).find((node) => node.textContent?.includes('关于观潮家'));
@@ -221,7 +224,7 @@ it('opens about from the landing page', async () => {
 
 it('keeps chosen avatar local until saving and preserves it after failure', async () => {
   capabilities.supported = true;
-  await click('编辑资料');
+  await render();
   await act(async () => capabilities.choose!({ detail: { avatarUrl: 'wxfile://tmp/avatar.jpg' } }));
   expect(props.onSaveNickname).not.toHaveBeenCalled();
   vi.mocked(props.onSaveNickname).mockResolvedValueOnce(false).mockResolvedValueOnce(true);
@@ -229,14 +232,22 @@ it('keeps chosen avatar local until saving and preserves it after failure', asyn
   expect(props.onSaveNickname).toHaveBeenLastCalledWith('david', 'wxfile://tmp/avatar.jpg');
   expect(host.querySelector('img')?.getAttribute('src')).toBe('wxfile://tmp/avatar.jpg');
   await click('保存修改');
-  expect(host.textContent).toContain('个人资料已更新');
+  expect(props.onSaved).toHaveBeenCalledOnce();
 });
 it('canceling discards the selected avatar without a write', async () => {
   capabilities.supported = true;
-  await click('编辑资料');
+  await render();
   await act(async () => capabilities.choose!({ detail: { avatarUrl: 'wxfile://tmp/avatar.jpg' } }));
-  await click('取消');
-  await click('编辑资料');
-  expect(host.querySelector('img')).toBeNull();
+  await click('放弃修改');
+  expect(props.onCancel).toHaveBeenCalledOnce();
   expect(props.onSaveNickname).not.toHaveBeenCalled();
+});
+
+it('opens privacy from the signed-in support group without changing account data', async () => {
+  editor = false;
+  await render();
+  await click('隐私政策');
+  expect(props.onOpenInformation).toHaveBeenCalledWith('privacy');
+  expect(props.onSaveNickname).not.toHaveBeenCalled();
+  expect(props.onLogout).not.toHaveBeenCalled();
 });

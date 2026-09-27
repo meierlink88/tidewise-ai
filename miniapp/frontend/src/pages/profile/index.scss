@@ -1,4 +1,5 @@
 @use '../../styles/tokens' as *;
+@use './profile-icons';
 
 .profile-page {
   min-height: 100vh;
@@ -169,7 +170,7 @@
     background: transparent;
     border-color: $color-home-border;
   }
-  &__button[disabled] {
+  &__button[disabled]:not([disabled='false']) {
     color: $color-home-secondary;
     background: $color-ivory-200;
     border-color: $color-home-border;
@@ -186,8 +187,8 @@
     border: 1rpx solid $color-home-border;
     border-radius: 20rpx;
   }
-  &__logout[disabled],
-  &__edit[disabled] {
+  &__logout[disabled]:not([disabled='false']),
+  &__edit[disabled]:not([disabled='false']) {
     opacity: 0.55;
   }
   &__pressed {
@@ -330,7 +331,7 @@
     font-size: 36rpx;
   }
 }
-.profile-page__phone-login[disabled] {
+.profile-page__phone-login[disabled]:not([disabled='false']) {
   color: #77746b;
   background: transparent;
   opacity: 0.65;
@@ -395,7 +396,7 @@
     &::after {
       border: 0;
     }
-    &[disabled] {
+    &[disabled]:not([disabled='false']) {
       background: transparent;
       opacity: 0.65;
     }
@@ -563,15 +564,18 @@
   background: $ui-canvas;
 }
 .profile-page__input {
+  display: flex;
+  align-items: center;
   border-color: $color-report-blue-200;
   border-radius: 12rpx;
 }
-.profile-page__button {
+.profile-page--personal .profile-page__button {
+  color: $color-card;
   border-radius: 12rpx;
   background: $ui-brand;
   border-color: $ui-brand;
 }
-.profile-page__button--quiet {
+.profile-page--personal .profile-page__button--quiet {
   background: $color-card;
   color: $ui-brand;
   border-color: $ui-line;
@@ -617,4 +621,108 @@
   margin: 0;
   border-radius: 0;
   background: $color-card;
+}
+
+// Signed-in profile follows the approved continuous white surface.
+.profile-page--signed-in {
+  background: $ui-brand;
+}
+.profile-page__brand-cap {
+  flex-shrink: 0;
+}
+.profile-page--signed-in .profile-page__body {
+  border-radius: 40rpx 40rpx 0 0;
+  padding: 0 24rpx;
+}
+.profile-page--signed-in .profile-page__identity-button {
+  padding: 44rpx 0;
+  gap: 28rpx;
+}
+.profile-page--signed-in .profile-page__portrait {
+  width: 112rpx;
+  height: 112rpx;
+}
+.profile-page--signed-in .profile-page__name {
+  font-size: 40rpx;
+}
+.profile-page__identity-copy {
+  flex: 1;
+}
+.profile-page--signed-in .profile-page__state {
+  font-size: 24rpx;
+  line-height: 1.65;
+  color: $ui-muted;
+  font-weight: 400;
+}
+.profile-page__group {
+  padding-top: 48rpx;
+}
+.profile-page__group:first-child {
+  padding-top: 36rpx;
+}
+.profile-page__group-title {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 600;
+  margin-bottom: 24rpx;
+}
+.profile-page--personal .profile-page__about-row {
+  width: 100%;
+  background: $color-card;
+  border: 0;
+  padding: 30rpx 0;
+  min-height: 152rpx;
+  gap: 24rpx;
+  text-align: left;
+}
+.profile-page--personal .profile-page__about-mark {
+  width: 76rpx;
+  height: 76rpx;
+  flex-shrink: 0;
+}
+.profile-page__row-copy {
+  flex: 1;
+  min-width: 0;
+  font-size: 30rpx;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.profile-page__row-note {
+  display: block;
+  font-size: 24rpx;
+  font-weight: 400;
+  color: $ui-muted;
+  margin-top: 10rpx;
+}
+.profile-page__row-chevron {
+  width: 32rpx;
+  height: 32rpx;
+  flex-shrink: 0;
+}
+.profile-page__person {
+  width: 58rpx;
+  height: 58rpx;
+}
+.profile-page__about-mark .profile-page__person,
+.profile-page__bookmark,
+.profile-page__info-icon,
+.profile-page__lock-icon {
+  width: 38rpx;
+  height: 38rpx;
+}
+.profile-page__body--landing .profile-page__session {
+  margin-top: 60rpx;
+  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
+}
+.profile-page__body--landing .profile-page__logout {
+  border: 0;
+  background: transparent;
+  color: $color-home-high;
+  gap: 16rpx;
+  font-size: 28rpx;
+}
+.profile-page__logout-icon {
+  width: 40rpx;
+  height: 40rpx;
+  flex-shrink: 0;
 }

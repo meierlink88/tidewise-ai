@@ -11,16 +11,18 @@ export function PreviewPage({
   title,
   subtitle,
   filters,
+  headerSearch,
   children
 }: {
   title: string;
   subtitle: string;
   filters?: ReactNode;
+  headerSearch?: ReactNode;
   children: ReactNode;
 }) {
   const chrome = useMemo(() => getHomeChromeMetrics(Taro), []);
   return (
-    <View className='preview-page'>
+    <View className={`preview-page${headerSearch ? ' preview-page--header-search' : ''}`}>
       <View className='preview-brand'>
         <NavigationBar
           title='观潮家'
@@ -41,6 +43,7 @@ export function PreviewPage({
             <Text className='preview-simulation'>设计模拟</Text>
           </View>
           <Text className='preview-subtitle'>{subtitle}</Text>
+          {headerSearch}
         </View>
       </View>
       {filters && <View className='preview-filters'>{filters}</View>}

@@ -336,3 +336,7 @@ Taro 构建通过不等于微信 WXSS 编译通过。`preview:weapp` 在构建�
 `WXSS_COMPILER` 指定。独立检查为 `npm --workspace @tidewise/miniapp run verify:weapp-styles`。
 原型迁移不得把中文展示值直接拼为 CSS 类名；新闻类型保留中文显示与原颜色，
 内部使用 ASCII 类名，避免整个页面因 WXSS 语法错误白屏。
+
+### Personal profile editor
+
+The My tab identity and personal-information row open `pages/profile/edit/index`, a non-tab page with a white navigation bar, centered real avatar, nickname field, Save and Discard. It reuses the identity feature and existing WeChat avatar/nickname contracts. Save returns to the previous page; Discard never submits drafts. Each page retains the existing show-time identity refresh. WeChat offers chooseAvatar; tt/H5 explain that avatar selection requires WeChat. Prototype avatar presets are not production identity data.

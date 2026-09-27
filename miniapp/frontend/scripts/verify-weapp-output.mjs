@@ -64,6 +64,7 @@ const expectedPages = [
   'pages/report/detail/index',
   'pages/profile/index',
   'pages/profile/information/index',
+  'pages/profile/edit/index',
   'pages/login/index',
   'pages/tracking/index'
 ];

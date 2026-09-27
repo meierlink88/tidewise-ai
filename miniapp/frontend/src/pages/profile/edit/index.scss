@@ -1,0 +1,139 @@
+@use '../../../styles/tokens' as *;
+@use '../profile-icons';
+
+.profile-editor {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: $color-card;
+  color: $ui-ink;
+}
+.profile-editor .navigation-bar {
+  color: $ui-ink;
+  flex-shrink: 0;
+  border-bottom: 1rpx solid $ui-line;
+}
+.profile-editor__back {
+  width: 88rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.profile-editor__back-icon {
+  width: 24rpx;
+  height: 24rpx;
+  border-left: 3rpx solid $ui-ink;
+  border-bottom: 3rpx solid $ui-ink;
+  transform: rotate(45deg);
+}
+.profile-editor__scroll {
+  height: 0;
+  min-height: 0;
+  flex: 1;
+}
+.profile-editor__content {
+  padding: 0 40rpx calc(40rpx + env(safe-area-inset-bottom));
+}
+.profile-editor__avatar-area {
+  padding: 84rpx 0 76rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.profile-editor .profile-editor__avatar-picker {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  color: $ui-muted;
+  background: transparent;
+}
+.profile-editor__portrait {
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $ui-brand-soft;
+  overflow: hidden;
+}
+.profile-editor__avatar {
+  width: 100%;
+  height: 100%;
+}
+.profile-editor .profile-page__person {
+  width: 76rpx;
+  height: 76rpx;
+}
+.profile-editor__avatar-label {
+  display: block;
+  color: $ui-muted;
+  font-size: 26rpx;
+  margin-top: 24rpx;
+}
+.profile-editor__label {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 600;
+  margin-bottom: 24rpx;
+}
+.profile-editor__input {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 96rpx;
+  padding: 0 28rpx;
+  border: 2rpx solid $ui-line;
+  border-radius: 12rpx;
+  background: $ui-canvas;
+  color: $ui-ink;
+  font-size: 30rpx;
+}
+.profile-editor__hint {
+  display: block;
+  font-size: 24rpx;
+  line-height: 1.65;
+  color: $ui-muted;
+  margin-top: 16rpx;
+}
+.profile-editor .profile-editor__save {
+  margin-top: 76rpx;
+  min-height: 92rpx;
+  width: 100%;
+  border-radius: 12rpx;
+  background: $ui-brand;
+  color: $color-card;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.profile-editor .profile-editor__cancel {
+  width: 100%;
+  min-height: 88rpx;
+  margin-top: 32rpx;
+  background: transparent;
+  color: $ui-ink;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.profile-editor .profile-editor__save[disabled]:not([disabled='false']) {
+  background: $ui-line;
+  color: $ui-muted;
+}
+.profile-editor .profile-editor__cancel[disabled]:not([disabled='false']),
+.profile-editor .profile-editor__avatar-picker[disabled]:not([disabled='false']) {
+  opacity: 0.55;
+}
+.profile-editor__error {
+  margin-top: 24rpx;
+  color: $color-home-high;
+  font-size: 26rpx;
+}
+.profile-editor__status {
+  padding-top: 48rpx;
+  font-size: 28rpx;
+}
