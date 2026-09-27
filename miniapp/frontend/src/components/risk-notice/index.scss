@@ -3,12 +3,12 @@
   align-items: flex-start;
   gap: 14rpx;
   max-width: 100%;
-  margin-top: 12rpx;
+  margin: 12rpx 0 16rpx;
   padding: 12rpx 16rpx;
-  border: 1rpx solid rgba(232, 199, 128, 0.32);
+  border: 1rpx solid #ead9b4;
   border-radius: 10rpx;
-  background: rgba(12, 30, 53, 0.2);
-  color: #f5e1b6;
+  background: #fbf7ed;
+  color: #80612b;
 }
 .risk-notice__icon {
   display: flex;
@@ -22,9 +22,9 @@
   /* prettier-ignore */
   margin-top: 1PX;
   /* prettier-ignore */
-  border: 1PX solid #edcd8d;
+  border: 1PX solid #a57b32;
   border-radius: 50%;
-  color: #edcd8d;
+  color: #a57b32;
   /* prettier-ignore */
   font-size: 12PX;
   font-weight: 600;
@@ -40,7 +40,4 @@
   line-height: 1.65;
   text-align: left;
   overflow-wrap: anywhere;
-}
-.home-risk-notice {
-  margin: 0 32rpx;
 }

@@ -47,13 +47,20 @@ export function PreviewPage({
             {!filters && <Text className='preview-simulation'>设计模拟</Text>}
           </View>
           <Text className='preview-subtitle'>{subtitle}</Text>
-          <RiskNotice />
           {headerSearch}
         </View>
       </View>
-      {filters && <View className='preview-filters'>{filters}</View>}
+      {filters && (
+        <View className='preview-filters'>
+          {filters}
+          <RiskNotice />
+        </View>
+      )}
       <ScrollView scrollY className='preview-scroll'>
-        <View className='preview-content'>{children}</View>
+        <View className='preview-content'>
+          {!filters && <RiskNotice />}
+          {children}
+        </View>
       </ScrollView>
     </View>
   );

@@ -9,6 +9,7 @@ import {
 import type { ReportHomeGroup } from '../../features/reports/contract';
 import type { ReportDetailRoute, ReportEvidenceRoute } from '../../features/reports/navigation';
 import { getReportPort } from '../../features/reports/port';
+import { RiskNotice } from '../../components/risk-notice';
 import evidenceIcon from '../../assets/icons/file-text-ink.svg';
 import arrowIcon from '../../assets/icons/report-arrow-right-light-gold.svg';
 import './normalized-home.scss';
@@ -138,6 +139,7 @@ export function NormalizedHome({
             {items.length} 条主线
           </Text>
         </View>
+        <RiskNotice />
       </View>
       <ScrollView
         key={kind}

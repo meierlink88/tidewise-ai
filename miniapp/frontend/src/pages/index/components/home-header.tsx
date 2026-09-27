@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDidShow } from '@tarojs/taro';
 import { Button, Image, Input, Text, View } from '@tarojs/components';
-import { RiskNotice } from '../../../components/risk-notice';
 import { NavigationBar } from '../../../platform/navigation-bar';
 import type { HomeChromeMetrics } from '../../../platform/system-ui';
 import { openProfile } from '../../../platform/identity';
@@ -90,9 +89,6 @@ export function HomeHeader({
           </Text>
         </View>
         {timeLabel ? <Text className='home-brief__window'>{timeLabel}</Text> : null}
-      </View>
-      <View className='home-risk-notice'>
-        <RiskNotice />
       </View>
       <View className='home-search-row'>
         <View className='home-search'>
