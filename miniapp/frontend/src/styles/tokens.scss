@@ -142,5 +142,14 @@ $ui-canvas: #f5f7fa;
 $ui-line: #eaedf2;
 $ui-radius: 24rpx;
 $ui-brand-background:
-  radial-gradient(ellipse at 100% 110%, rgba(107, 153, 207, 0.16), transparent 65%),
-  linear-gradient(115deg, #164477, #24578e);
+  radial-gradient(
+    ellipse 105% 150% at 112% 118%,
+    rgba(119, 164, 219, 0.055) 0 56%,
+    transparent 56.3%
+  ),
+  radial-gradient(
+    ellipse 100% 145% at 115% 125%,
+    rgba(119, 164, 219, 0.045) 0 75%,
+    transparent 75.3%
+  ),
+  linear-gradient(112deg, #153f70 0%, #194d87 48%, #2b5d96 100%);
