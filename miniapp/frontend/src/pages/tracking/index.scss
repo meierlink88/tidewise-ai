@@ -335,3 +335,21 @@
 .tracking-sheet {
   background: $color-card;
 }
+
+// Explicit classes also reach Taro H5 custom elements; tag selectors only reach native nodes.
+.tracking-search .tracking-input {
+  flex: 1;
+  min-width: 0;
+  width: 0;
+  font-size: 25rpx;
+  color: $ui-ink;
+}
+.tracking-meta .tracking-reference {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.tracking-page .tracking-cancel,
+.tracking-page .tracking-clear {
+  flex-shrink: 0;
+}

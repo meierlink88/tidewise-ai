@@ -59,6 +59,7 @@ export default function TrackingPage() {
           <View className='tracking-search'>
             <Text className='tracking-search-icon'>⌕</Text>
             <Input
+              className='tracking-input'
               value={tracking.query}
               maxlength={64}
               placeholder='股票代码 / 股票名称拼音首字母'
@@ -68,7 +69,7 @@ export default function TrackingPage() {
             />
             {tracking.query && (
               <Button
-                className='tracking-clear'
+                className='tidewise-button tracking-clear'
                 ariaLabel='清空搜索'
                 onClick={() => tracking.setQuery('')}
               >
@@ -77,7 +78,10 @@ export default function TrackingPage() {
             )}
           </View>
           {tracking.query && (
-            <Button className='tracking-cancel' onClick={() => tracking.setQuery('')}>
+            <Button
+              className='tidewise-button tracking-cancel'
+              onClick={() => tracking.setQuery('')}
+            >
               取消
             </Button>
           )}
@@ -92,6 +96,7 @@ export default function TrackingPage() {
           <View className='tracking-error'>
             <Text>{modalError || tracking.error}</Text>
             <Button
+              className='tidewise-button'
               onClick={() => {
                 setModalError('');
                 void tracking.retry();
@@ -103,7 +108,7 @@ export default function TrackingPage() {
         )}
         {items.map((item) => (
           <View key={item.id} className='tracking-company'>
-            <Button className='tracking-title' onClick={() => setDetail(item)}>
+            <Button className='tidewise-button tracking-title' onClick={() => setDetail(item)}>
               {item.title}
             </Button>
             {(item.industry_label || item.concepts.length > 0) && (
@@ -118,7 +123,7 @@ export default function TrackingPage() {
                 ))}
                 {item.concepts.length > 2 && (
                   <Button
-                    className='tracking-more-tags'
+                    className='tidewise-button tracking-more-tags'
                     ariaLabel='查看全部主题概念'
                     onClick={() => setDetail(item)}
                   >
@@ -128,12 +133,12 @@ export default function TrackingPage() {
               </View>
             )}
             <View className='tracking-meta'>
-              <Text>
+              <Text className='tracking-reference'>
                 {item.stock_name} · {item.symbol}
               </Text>
               {searching ? (
                 <Button
-                  className={item.is_followed ? 'tracking-followed' : 'tracking-add'}
+                  className={`tidewise-button ${item.is_followed ? 'tracking-followed' : 'tracking-add'}`}
                   disabled={item.is_followed || !!tracking.pending}
                   onClick={() => add(item)}
                 >
@@ -141,7 +146,7 @@ export default function TrackingPage() {
                 </Button>
               ) : (
                 <Button
-                  className='tracking-remove'
+                  className='tidewise-button tracking-remove'
                   disabled={!!tracking.pending || !!confirmation}
                   onClick={() => void remove(item)}
                 >
@@ -167,7 +172,7 @@ export default function TrackingPage() {
                 : '通过上方搜索，找到你想持续了解的公司'}
             </Text>
             {!searching && tracking.guest && (
-              <Button className='tracking-login' onClick={() => void openLogin()}>
+              <Button className='tidewise-button tracking-login' onClick={() => void openLogin()}>
                 登录 / 注册
               </Button>
             )}
@@ -175,7 +180,7 @@ export default function TrackingPage() {
         )}
         {tracking.hasMore && status !== 'loading' && (
           <Button
-            className='tracking-load'
+            className='tidewise-button tracking-load'
             disabled={!!tracking.pending}
             onClick={() => void tracking.loadMore()}
           >
@@ -195,7 +200,11 @@ export default function TrackingPage() {
               <View className='tracking-sheet' onClick={(event) => event.stopPropagation()}>
                 <View className='tracking-sheet-heading'>
                   <Text>公司资料</Text>
-                  <Button ariaLabel='关闭公司资料' onClick={() => setDetail(null)}>
+                  <Button
+                    className='tidewise-button'
+                    ariaLabel='关闭公司资料'
+                    onClick={() => setDetail(null)}
+                  >
                     ×
                   </Button>
                 </View>

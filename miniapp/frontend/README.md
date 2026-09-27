@@ -47,6 +47,28 @@ TARO_APP_REPORT_SOURCE=api npm run dev:h5
 Backend `http://127.0.0.1:9012`。可通过 `TARO_APP_H5_API_PROXY_TARGET` 覆盖代理目标。
 Miniapp Frontend 不保存 Data Service token，也不直接访问 Data Service。
 
+### UAT 联调
+
+2026-09-27 已验证 UAT HTTPS 入口 `https://tideai.tripwise.cn` 的首页报告接口可用。
+在 `miniapp/frontend` 目录运行以下命令；原生构建直接使用 HTTPS 入口：
+
+```bash
+TARO_APP_REPORT_SOURCE=api TARO_APP_MINIAPP_API_BASE_URL=https://tideai.tripwise.cn npm run build:weapp
+TARO_APP_REPORT_SOURCE=api TARO_APP_MINIAPP_API_BASE_URL=https://tideai.tripwise.cn npm run build:tt
+```
+
+浏览器联调需显式使用本地同源地址，并由开发代理访问 UAT，避免 `.env.local` 中的绝对地址绕过代理：
+
+```bash
+TARO_APP_REPORT_SOURCE=api \
+  TARO_APP_MINIAPP_API_BASE_URL=http://127.0.0.1:10086 \
+  TARO_APP_H5_API_PROXY_TARGET=https://tideai.tripwise.cn \
+  npm run dev:h5
+```
+
+打开 `http://127.0.0.1:10086/`。环境变量在构建时注入，修改地址后须重启开发服务或重新构建，
+仅刷新页面不会更新旧产物中的地址。此配置不改变接口路径、响应解析或登录会话逻辑。
+
 ## 验证
 
 ```bash
