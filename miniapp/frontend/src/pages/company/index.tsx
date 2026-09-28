@@ -1,4 +1,7 @@
 import { Button, Image, Input, Text, View } from '@tarojs/components';
+import trackingIcon from '../../assets/icons/bookmark-light.svg';
+import { openTracking } from '../../platform/tracking';
+import './index.scss';
 import searchIcon from '../../assets/company-search.svg';
 import { PreviewPage } from '../../features/design-preview/shell';
 import { CompanyCard } from '../../features/tracking/company-card';
@@ -13,31 +16,39 @@ export default function CompanyPage() {
   };
   return (
     <PreviewPage
-      title='公司洞察'
-      subtitle='从公司出发，看清价值与风险'
       simulation={false}
       onLoadMore={loadMore}
       headerSearch={
-        <View className='preview-search'>
-          <Image src={searchIcon} className='preview-search-icon' aria-hidden />
-          <Input
-            className='preview-search-input'
-            value={directory.query}
-            maxlength={64}
-            confirmType='search'
-            onInput={(e) => directory.setQuery(e.detail.value)}
-            onConfirm={() => void directory.retry()}
-            placeholder='公司名称 / 代码 / 拼音首字母'
-          />
-          {directory.query && (
-            <Button
-              className='tidewise-button company-search-clear'
-              ariaLabel='清空搜索'
-              onClick={() => directory.setQuery('')}
-            >
-              ×
-            </Button>
-          )}
+        <View className='company-header-actions'>
+          <View className='preview-search'>
+            <Image src={searchIcon} className='preview-search-icon' aria-hidden />
+            <Input
+              className='preview-search-input'
+              value={directory.query}
+              maxlength={64}
+              confirmType='search'
+              onInput={(e) => directory.setQuery(e.detail.value)}
+              onConfirm={() => void directory.retry()}
+              placeholder='名称 / 代码 / 拼音'
+            />
+            {directory.query && (
+              <Button
+                className='tidewise-button company-search-clear'
+                ariaLabel='清空搜索'
+                onClick={() => directory.setQuery('')}
+              >
+                ×
+              </Button>
+            )}
+          </View>
+          <Button
+            className='tidewise-button company-tracking-entry'
+            ariaLabel='我的跟踪'
+            onClick={() => void openTracking()}
+          >
+            <Image src={trackingIcon} className='company-tracking-entry__icon' aria-hidden />
+            <Text>我的跟踪</Text>
+          </Button>
         </View>
       }
     >
