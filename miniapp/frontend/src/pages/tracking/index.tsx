@@ -61,10 +61,6 @@ export default function TrackingPage() {
             void tracking.loadMore();
         }}
       >
-        <View className='tracking-list-label'>
-          <Text>我跟踪的公司</Text>
-          <Text>公司 / 行业 / 主题</Text>
-        </View>
         {(tracking.error || modalError) && (
           <View className='tracking-error'>
             <Text>{modalError || tracking.error}</Text>

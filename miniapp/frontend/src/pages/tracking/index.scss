@@ -25,15 +25,7 @@
   flex: 1;
   padding: 0 32rpx calc(30rpx + env(safe-area-inset-bottom));
 }
-.tracking-list-label {
-  display: flex;
-  justify-content: space-between;
-  gap: 10rpx;
-  padding: 18rpx 0;
-  font-size: 20rpx;
-  color: $color-home-muted;
-  border-bottom: 1rpx solid $ui-line;
-}
+
 .tracking-message {
   padding: 28rpx 0;
   text-align: center;
