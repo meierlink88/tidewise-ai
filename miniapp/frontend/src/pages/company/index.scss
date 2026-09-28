@@ -22,12 +22,13 @@
   box-sizing: border-box;
   gap: 8rpx;
   height: 80rpx;
-  padding: 0 4rpx;
-  border: 0;
-  border-radius: $radius-pill;
-  background: transparent;
+  padding: 0 18rpx;
+  border: 2rpx solid rgba($color-card, 0.24);
+  border-radius: 16rpx;
+  background: rgba($color-card, 0.12);
   color: $color-card;
   font-size: $font-report-meta;
+  font-weight: 500;
   white-space: nowrap;
 }
 
