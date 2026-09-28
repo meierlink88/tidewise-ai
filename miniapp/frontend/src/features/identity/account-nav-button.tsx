@@ -6,7 +6,7 @@ import avatarImage from '../../assets/nav-avatar.png';
 import './account-nav-button.scss';
 
 export function AccountNavButton() {
-  const identity = useIdentity();
+  const identity = useIdentity({ refreshOnMount: true });
   const openingProfile = useRef(false);
   async function enterProfile() {
     if (openingProfile.current) return;

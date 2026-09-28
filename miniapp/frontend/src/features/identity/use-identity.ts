@@ -7,7 +7,7 @@ import type { Profile, Session } from './session';
 
 export type IdentityAction = 'refresh' | 'login' | 'nickname' | 'logout';
 
-export function useIdentity() {
+export function useIdentity({ refreshOnMount = false }: { refreshOnMount?: boolean } = {}) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [pendingAction, setPendingAction] = useState<IdentityAction | null>(null);
   const busy = pendingAction !== null;
@@ -22,10 +22,14 @@ export function useIdentity() {
   }
   useEffect(() => {
     mounted.current = true;
+    // A header mounted after an async access check has missed the page's onShow.
+    if (refreshOnMount) void refresh();
     return () => {
       mounted.current = false;
     };
-  }, []);
+    // Refresh on activation only; refresh itself changes with each render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshOnMount]);
   async function run(kind: IdentityAction, action: () => Promise<void>): Promise<boolean> {
     if (pending.current) return false;
     pending.current = true;
