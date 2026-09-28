@@ -350,3 +350,11 @@ Company preview cards separate actions: the top-right simulated tracking control
 Home, Macro, Industry and Company share AccountNavButton for the top-left account entry. It uses the existing useIdentity refresh contract, the current profile avatar/nickname, the Home guest avatar fallback, and the same guarded navigation to My. Shared styling preserves nickname truncation and space for the centered wordmark and native capsule.
 
 The Home feed omits the 今日推理主线 heading and loaded-count row. Macro and Industry omit the header 设计模拟 badge; existing in-content sample-data notices remain.
+
+## 真实公司目录与个人跟踪（#542）
+
+本节替代 #540 公司洞察纯模拟与 #535 跟踪页内全市场搜索的规定。
+公司洞察从 tracking/search 读取真实 Stock 目录，q 省略或空白时分页浏览，非空时按代码、简称、全称或简称首字母检索。每页20，精确代码优先，其后 exchange/code/id；offset 分页不承诺快照一致性，不展示虚构匹配总数。游客可浏览，添加须登录；登录态返回当前会话的 is_followed，关系仍由 User 独占。
+我的跟踪仅读取 tracking 列表，按 added_at DESC、stock_id ASC 游标分页，保留确认取消与报告入口，空态引导公司洞察，不提供全市场搜索/添加。两页共享 CompanyCard 和 TrackingPort，目录模式不读取个人全列表；返回页面重新读取，写入失败不假装成功，保留防抖、重复提交与旧会话响应隔离。
+报告仍是样例：仅完整证券代码 603179.SH 打开已有新泉报告并标注样例，其他公司显示暂无报告样例；不新增真实报告 API，不用模拟公司 ID 写入关系。公司洞察保留固定风险提示和已确认视觉，移除整页设计模拟说明。
+部署顺序 Data → Miniapp Backend → Frontend。User Service、数据表、既有关系和账号均不变，无 migration 或数据发布。旧客户端继续兼容；新版前端遇旧版服务不能浏览目录时明确报错，不回退到模拟数据。

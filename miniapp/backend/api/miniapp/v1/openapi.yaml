@@ -67,7 +67,7 @@ paths:
         - {}
         - UserSession: []
       description:
-        公司展示投影。标题为公司全称，缺失退回股票简称；主题保持来源顺序，无权重。search.total 固定0不表达匹配总量，使用 has_more/offset；list
+        公司目录与搜索。省略 q 或空白 q 浏览目录；非空 q 匹配代码、简称、全称或简称首字母；精确代码优先，其后 exchange/code/id，分页不提供一致性快照。公司展示投影。标题为公司全称，缺失退回股票简称；主题保持来源顺序，无权重。search.total 固定0不表达匹配总量，使用 has_more/offset；list
         使用 total/next_cursor，has_more 固定false。拒绝重复/未知 query。总预算8秒，失败不返回假空列表。
       parameters:
         - name: page_size
@@ -79,10 +79,10 @@ paths:
             default: 20
         - name: q
           in: query
-          required: true
+          required: false
           schema:
             type: string
-            minLength: 1
+            minLength: 0
             maxLength: 64
         - name: offset
           in: query

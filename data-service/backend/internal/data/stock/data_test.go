@@ -59,6 +59,22 @@ func TestCatalogImportReplayConflictAndSearch(t *testing.T) {
 	if err != nil || !page.HasMore {
 		t.Fatalf("pagination %v %v", page, err)
 	}
+	uc, err := biz.NewUseCase(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := uc.Search(ctx, biz.Query{Limit: 2})
+	if err != nil || len(first.Items) != 2 || !first.HasMore {
+		t.Fatalf("browse first: %v %v", first, err)
+	}
+	next, err := uc.Search(ctx, biz.Query{Limit: 2, Offset: 2})
+	if err != nil || len(next.Items) != 2 || next.Items[0].ID != items[2].ID || first.Items[0].ID != items[0].ID {
+		t.Fatalf("browse next: %v %v", next, err)
+	}
+	last, err := uc.Search(ctx, biz.Query{Limit: 2, Offset: len(items) - 1})
+	if err != nil || len(last.Items) != 1 || last.HasMore {
+		t.Fatalf("browse last: %v %v", last, err)
+	}
 	changed := append([]biz.Stock(nil), items...)
 	changed[0].Name = "改名"
 	changed[0].AsOf = changed[0].AsOf.Add(24 * time.Hour)
@@ -117,6 +133,10 @@ func TestBusinessFieldsPreserveUnknownEmptyAndCatalogCompatibility(t *testing.T)
 	// Negative eliminations and non-100 totals are source facts, not invalid weights.
 	if _, err := db.Exec(`UPDATE stock SET full_name='测试银行股份有限公司', former_name='甲公司,乙公司', list_date='1991-04-03', established='1987-12-22', industry_l1='金融', industry_l2='银行', main_business='[{"name":"利息收入:贷款","pct":120.25},{"name":"抵销","pct":-14.17}]', main_product_type=ARRAY['贷款','存款'], index_core=ARRAY['沪深300'], concepts=ARRAY['跨境支付','银'] WHERE id=$1`, item.ID); err != nil {
 		t.Fatal(err)
+	}
+	fullName, err := s.Search(ctx, biz.Query{Text: "测试银行股份", Limit: 20})
+	if err != nil || len(fullName.Items) != 1 || fullName.Items[0].ID != item.ID {
+		t.Fatalf("full name search: %v %v", fullName, err)
 	}
 	profileSQL := `SELECT jsonb_build_array(full_name,former_name,list_date,established,industry_l1,industry_l2,main_business,main_product_type,index_core,concepts)::text FROM stock WHERE id=$1`
 	var before, after string

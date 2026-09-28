@@ -1,43 +1,100 @@
-import { useState } from 'react';
-import { Image, Input, Text, View } from '@tarojs/components';
+import { Button, Image, Input, Text, View } from '@tarojs/components';
 import searchIcon from '../../assets/company-search.svg';
-import { companies } from '../../features/design-preview/fixtures';
 import { PreviewPage } from '../../features/design-preview/shell';
-import { PreviewCompanyRow } from '../../features/design-preview/company-row';
+import { CompanyCard } from '../../features/tracking/company-card';
+import { useTracking } from '../../features/tracking/use-tracking';
+import { openLogin } from '../../platform/identity';
 
 export default function CompanyPage() {
-  const [query, setQuery] = useState('');
-  const items = companies.filter((c) =>
-    (c.fullName + c.name + c.symbol + c.initials + c.industry + c.tags.join(''))
-      .toUpperCase()
-      .includes(query.trim().toUpperCase())
-  );
+  const directory = useTracking(undefined, 'directory');
+  const loadMore = () => {
+    if (directory.hasMore && directory.searchStatus === 'ready' && !directory.pending)
+      void directory.loadMore();
+  };
   return (
     <PreviewPage
       title='公司洞察'
       subtitle='从公司出发，看清价值与风险'
+      simulation={false}
+      onLoadMore={loadMore}
       headerSearch={
         <View className='preview-search'>
           <Image src={searchIcon} className='preview-search-icon' aria-hidden />
           <Input
             className='preview-search-input'
-            value={query}
-            onInput={(e) => setQuery(e.detail.value)}
+            value={directory.query}
+            maxlength={64}
+            confirmType='search'
+            onInput={(e) => directory.setQuery(e.detail.value)}
+            onConfirm={() => void directory.retry()}
             placeholder='公司名称 / 代码 / 拼音首字母'
           />
+          {directory.query && (
+            <Button
+              className='tidewise-button company-search-clear'
+              ariaLabel='清空搜索'
+              onClick={() => directory.setQuery('')}
+            >
+              ×
+            </Button>
+          )}
         </View>
       }
     >
-      {items.map((c) => (
-        <PreviewCompanyRow company={c} key={c.id} />
-      ))}
-      {!items.length && (
-        <Text className='preview-note'>没有找到公司，试试公司名称、股票代码或拼音首字母。</Text>
+      {directory.error && (
+        <View className='preview-card'>
+          <Text>{directory.error}</Text>
+          <Button
+            className='tidewise-button company-directory-action'
+            onClick={() => void directory.retry()}
+          >
+            重试
+          </Button>
+          {directory.guest && (
+            <Button
+              className='tidewise-button company-directory-action'
+              onClick={() => void openLogin()}
+            >
+              登录 / 注册
+            </Button>
+          )}
+        </View>
       )}
-      <Text className='preview-note'>
-        设计模拟 · 示例跟踪不保存到账户。真实跟踪请进入“我的跟踪”。
-      </Text>
-      <Text className='preview-note'>报告沿用原始时点，行情并非实时数据</Text>
+      {directory.results.map((company) => (
+        <CompanyCard
+          key={company.id}
+          company={company}
+          busy={!!directory.pending}
+          pending={directory.pending === company.id}
+          onFollow={() => {
+            if (directory.guest) void openLogin();
+            else void directory.change(company, true);
+          }}
+        />
+      ))}
+      {directory.searchStatus === 'loading' && <Text className='preview-note'>加载中…</Text>}
+      {directory.searchStatus === 'ready' && !directory.results.length && (
+        <Text className='preview-note'>
+          {directory.query.trim()
+            ? '没有找到公司，试试公司名称、股票代码或拼音首字母。'
+            : '暂无公司资料'}
+        </Text>
+      )}
+      {directory.hasMore && directory.searchStatus === 'ready' && (
+        <Button
+          className='tidewise-button company-directory-action'
+          disabled={!!directory.pending}
+          onClick={loadMore}
+        >
+          加载更多
+        </Button>
+      )}
+      {!directory.hasMore && directory.results.length > 0 && directory.searchStatus === 'ready' && (
+        <Text className='preview-note'>
+          已展示全部{directory.query.trim() ? '匹配结果' : '公司'}
+        </Text>
+      )}
+      <Text className='preview-note'>洞察报告暂为样例展示，沿用原始时点，行情并非实时数据。</Text>
     </PreviewPage>
   );
 }

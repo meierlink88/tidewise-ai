@@ -1,0 +1,21 @@
+@use '../../styles/tokens' as *;
+
+// Taro H5 serializes disabled=false as an attribute; keep the action readable.
+.tidewise-button.preview-company-track {
+  color: $ui-brand;
+}
+.tidewise-button.company-action--busy {
+  opacity: 0.55;
+}
+.tidewise-button.company-directory-action {
+  min-height: 64rpx;
+  padding: 12rpx 24rpx;
+  color: $ui-brand;
+  font-size: 26rpx;
+}
+.tidewise-button.company-search-clear {
+  flex-shrink: 0;
+  min-width: 60rpx;
+  min-height: 64rpx;
+  color: $ui-muted;
+}

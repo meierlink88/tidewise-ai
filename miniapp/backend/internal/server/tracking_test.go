@@ -33,7 +33,7 @@ func TestTrackingHTTPAccountFlowAndFailures(t *testing.T) {
 			return
 		}
 		items := []map[string]any{}
-		if r.URL.Query().Get("q") != "" || r.URL.Query().Get("ids") == id {
+		if r.URL.Query().Get("ids") == "" || r.URL.Query().Get("ids") == id {
 			items = append(items, map[string]any{"id": id, "name": "平安银行", "symbol": "000001.SZ", "full_name": "平安银行股份有限公司", "industry_l1": "金融", "industry_l2": "银行", "concepts": []string{"跨境支付", "银"}})
 		}
 		json.NewEncoder(w).Encode(map[string]any{"request_id": "domain-request", "result": map[string]any{"items": items, "has_more": false}})
@@ -119,6 +119,8 @@ func TestTrackingHTTPAccountFlowAndFailures(t *testing.T) {
 		}
 		return envelope
 	}
+	request("GET", "/search?page_size=20&offset=0", "", "", 200)
+	request("GET", "/search?q=", "", "", 200)
 	guest := request("GET", "/search?q=PAYH", "", "", 200)
 	company := guest["items"].([]any)[0].(map[string]any)
 	if company["title"] != "平安银行股份有限公司" || company["industry_label"] != "银行" || company["is_followed"] != false {
@@ -131,7 +133,7 @@ func TestTrackingHTTPAccountFlowAndFailures(t *testing.T) {
 	if listed["total"] != float64(1) {
 		t.Fatal(listed)
 	}
-	searched := request("GET", "/search?q=000001", token, "", 200)
+	searched := request("GET", "/search", token, "", 200)
 	if searched["items"].([]any)[0].(map[string]any)["is_followed"] != true {
 		t.Fatal(searched)
 	}

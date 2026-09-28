@@ -31,7 +31,7 @@ export default function CompanyReportPage() {
         leading={
           <Button
             className='tidewise-button preview-close'
-            ariaLabel='返回公司列表'
+            ariaLabel='返回上一页'
             onClick={() => void back()}
           >
             ‹

@@ -85,7 +85,7 @@ func company(s Stock, followed bool) Company {
 }
 func (u *UseCase) Search(ctx context.Context, token, q string, limit, offset int) (Page, error) {
 	q = strings.TrimSpace(q)
-	if q == "" || utf8.RuneCountInString(q) > 64 || strings.IndexFunc(q, unicode.IsControl) >= 0 || limit < 1 || limit > 100 || offset < 0 || offset > 10000 {
+	if utf8.RuneCountInString(q) > 64 || strings.IndexFunc(q, unicode.IsControl) >= 0 || limit < 1 || limit > 100 || offset < 0 || offset > 10000 {
 		return Page{}, ErrInvalid
 	}
 	stocks, more, err := u.repo.Search(ctx, q, limit, offset)
