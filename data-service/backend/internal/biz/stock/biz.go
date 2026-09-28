@@ -53,9 +53,10 @@ type Catalog struct {
 	Stocks []Entry `json:"stocks"`
 }
 type Query struct {
-	Text, Exchange string
-	IDs            []string
-	Limit, Offset  int
+	Text, Exchange                    string
+	IDs                               []string
+	IndustryIDs, ConceptIDs, ChainIDs []string
+	Limit, Offset                     int
 }
 type Page struct {
 	Items   []Stock
@@ -65,6 +66,7 @@ type Repository interface {
 	Upsert(context.Context, []Stock) error
 	PublishProfiles(context.Context, ProfileBatch) error
 	Search(context.Context, Query) (Page, error)
+	Classifications(context.Context) (Classifications, error)
 }
 type UseCase struct{ repo Repository }
 
@@ -149,7 +151,36 @@ func (u *UseCase) Initialize(ctx context.Context, reader io.Reader) (int, error)
 	}
 	return len(items), nil
 }
+
+type Classification struct {
+	ID, Name string
+	ParentID *string
+}
+type Classifications struct{ Industries, Concepts, Chains []Classification }
+
+func (u *UseCase) Classifications(ctx context.Context) (Classifications, error) {
+	return u.repo.Classifications(ctx)
+}
 func (u *UseCase) Search(ctx context.Context, q Query) (Page, error) {
+	for _, f := range []struct {
+		ids  []string
+		kind coreid.Kind
+	}{{q.IndustryIDs, coreid.StockIndustry}, {q.ConceptIDs, coreid.StockConcept}, {q.ChainIDs, coreid.StockIndustryChain}} {
+		if len(f.ids) > 20 {
+			return Page{}, ErrInvalid
+		}
+		seen := map[string]bool{}
+		for _, id := range f.ids {
+			if !coreid.Is(id, f.kind) || seen[id] {
+				return Page{}, ErrInvalid
+			}
+			seen[id] = true
+		}
+	}
+	if len(q.IDs) > 0 && len(q.IndustryIDs)+len(q.ConceptIDs)+len(q.ChainIDs) > 0 {
+		return Page{}, ErrInvalid
+	}
+
 	if len(q.IDs) > 0 {
 		if len(q.IDs) > 100 || q.Text != "" || q.Exchange != "" || q.Offset != 0 {
 			return Page{}, ErrInvalid

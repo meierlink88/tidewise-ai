@@ -1,0 +1,158 @@
+@use '../../styles/tokens' as *;
+.company-filter-bar {
+  display: flex;
+  gap: 12rpx;
+  padding-bottom: 12rpx;
+}
+.tidewise-button.company-filter-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  min-width: 0;
+  padding: 18rpx 20rpx;
+  border: 1rpx solid $color-border;
+  border-radius: 14rpx;
+  background: $color-page-background;
+  color: $color-text-secondary;
+  font-size: $font-report-label;
+}
+.tidewise-button.company-filter-trigger.is-selected {
+  color: $color-blue-700;
+  border-color: $color-report-blue-border-subtle;
+  background: $color-report-blue-50;
+}
+.tidewise-button.company-filter-clear {
+  padding: 16rpx 0;
+  flex-shrink: 0;
+  font-size: $font-report-meta;
+  color: $color-text-secondary;
+}
+.company-filter-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: $layer-overlay;
+  display: flex;
+  align-items: flex-end;
+}
+.company-filter-backdrop {
+  position: absolute;
+  inset: 0;
+  background: $color-overlay-scrim;
+}
+.company-filter-panel {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 28rpx $spacing-page calc(24rpx + env(safe-area-inset-bottom));
+  border-radius: $radius-sheet $radius-sheet 0 0;
+  background: $color-card;
+  color: $color-text-primary;
+}
+.company-filter-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: $font-report-conclusion;
+  font-weight: 600;
+}
+.tidewise-button.company-filter-cancel {
+  padding: 16rpx;
+  font-size: $font-report-body;
+  color: $color-text-secondary;
+}
+.company-filter-help {
+  display: block;
+  padding: 14rpx 0;
+  color: $color-text-muted;
+  font-size: $font-report-meta;
+}
+.company-filter-search {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin: 12rpx 0;
+  padding: 20rpx;
+  border-radius: 16rpx;
+  background: $color-page-background;
+  input {
+    flex: 1;
+    min-width: 0;
+    font-size: $font-report-body;
+  }
+  button {
+    flex-shrink: 0;
+    padding: 0 8rpx;
+  }
+}
+.company-filter-options {
+  height: 46vh;
+}
+.tidewise-button.company-filter-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 22rpx 16rpx;
+  gap: 20rpx;
+  border-bottom: 1rpx solid $color-border;
+  text-align: left;
+  color: $color-text-primary;
+  font-size: $font-report-body;
+  white-space: normal;
+}
+.tidewise-button.company-filter-option.is-selected {
+  background: $color-report-blue-50;
+  color: $color-blue-700;
+}
+.company-filter-option-label {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.company-filter-parent {
+  display: block;
+  margin-top: 6rpx;
+  color: $color-text-muted;
+  font-size: $font-report-caption;
+}
+.company-filter-check {
+  flex-shrink: 0;
+  font-size: $font-report-lead;
+}
+.company-filter-message {
+  display: block;
+  padding: 10rpx 0;
+  color: $color-danger;
+  font-size: $font-report-meta;
+}
+.company-filter-footer {
+  display: flex;
+  gap: 20rpx;
+  padding-top: 24rpx;
+}
+.tidewise-button.company-filter-reset,
+.tidewise-button.company-filter-apply {
+  padding: 24rpx 16rpx;
+  border-radius: 16rpx;
+  font-size: $font-report-body;
+}
+.tidewise-button.company-filter-reset {
+  flex: 1;
+  background: $color-page-background;
+  color: $color-text-secondary;
+}
+.tidewise-button.company-filter-apply {
+  flex: 2;
+  background: $color-blue-700;
+  color: $color-card;
+}
+.tidewise-button.company-filter-apply[disabled] {
+  opacity: 0.5;
+}
+.tidewise-button.company-filter-retry {
+  padding: 24rpx;
+  color: $color-blue-700;
+  font-size: $font-report-body;
+}

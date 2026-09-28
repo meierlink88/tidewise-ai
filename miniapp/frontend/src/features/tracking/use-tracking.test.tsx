@@ -217,3 +217,24 @@ it('defers directory requests until page access is verified and discards data wh
   await act(async () => root.render(createElement(Harness)));
   expect(state.results).toEqual([]);
 });
+it('applies filters from page one, preserves them on pagination and rejects old filter responses', async () => {
+  mode = 'directory';
+  await act(async () => root.render(createElement(Harness)));
+  await act(async () => mock.show());
+  const old = deferred<Page>();
+  vi.mocked(port.search).mockReturnValueOnce(old.promise);
+  const first = {
+    industry_ids: ['SIND11111111-1111-5111-8111-111111111111'],
+    concept_ids: [],
+    industry_chain_ids: []
+  };
+  await act(async () => state.setFilters(first));
+  const next = { ...first, concept_ids: ['SCON11111111-1111-5111-8111-111111111111'] };
+  vi.mocked(port.search).mockResolvedValueOnce({ ...page([company]), has_more: true });
+  await act(async () => state.setFilters(next));
+  expect(port.search).toHaveBeenLastCalledWith('', '', 0, next);
+  await act(async () => old.resolve(page([])));
+  expect(state.results).toEqual([company]);
+  await act(async () => state.loadMore());
+  expect(port.search).toHaveBeenLastCalledWith('', '', 1, next);
+});

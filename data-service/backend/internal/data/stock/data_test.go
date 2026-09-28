@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -236,5 +237,71 @@ func TestInitialsAndProfileBatchRead(t *testing.T) {
 	count, err := s.Reindex(ctx)
 	if err != nil || count != 5565 {
 		t.Fatal(count, err)
+	}
+}
+
+func TestStockClassificationFiltersIntersectAndPaginate(t *testing.T) {
+	db := fixture.OpenIsolated(t, "stock_filters", "../../../migrations", 0)
+	store, err := NewStore(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	catalog, err := biz.DecodeCatalog(strings.NewReader(`{"meta":{"as_of":"2026-09-22","total":3,"by_exchange":{"SZ":3},"by_board":{"主板":3}},"stocks":[{"code":"000001.SZ","name":"甲银行","exchange":"SZ","board":"主板"},{"code":"000002.SZ","name":"乙科技","exchange":"SZ","board":"主板"},{"code":"000003.SZ","name":"丙科技","exchange":"SZ","board":"主板"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = store.Upsert(ctx, catalog); err != nil {
+		t.Fatal(err)
+	}
+	input := `{"meta":{"record_count":3,"universe":3},"stocks":[{"code":"000001","exchange":"SZ","industry_l1":"金融","industry_l2":"银行","market_concepts":[{"code":"1","name":"A"},{"code":"2","name":"B"}],"industry_chain":["X"]},{"code":"000002","exchange":"SZ","industry_l1":"技术","industry_l2":"软件","market_concepts":[{"code":"1","name":"A"}],"industry_chain":["Y"]},{"code":"000003","exchange":"SZ","industry_l1":"技术","industry_l2":"软件","market_concepts":[{"code":"2","name":"B"}],"industry_chain":["X"]}]}`
+	if _, err = biz.PublishClassifications(ctx, store, strings.NewReader(input), true); err != nil {
+		t.Fatal(err)
+	}
+	options, err := store.Classifications(ctx)
+	if err != nil || len(options.Industries) != 4 || len(options.Concepts) != 2 || len(options.Chains) != 2 {
+		t.Fatalf("options: %+v %v", options, err)
+	}
+	ids := map[string]string{}
+	for _, group := range [][]biz.Classification{options.Industries, options.Concepts, options.Chains} {
+		for _, x := range group {
+			ids[x.Name] = x.ID
+		}
+	}
+	u, _ := biz.NewUseCase(store)
+	for _, tc := range []struct {
+		name  string
+		q     biz.Query
+		codes string
+		more  bool
+	}{
+		{"unfiltered", biz.Query{Limit: 20}, "000001,000002,000003", false},
+		{"same_dimension_OR_no_duplicates", biz.Query{Limit: 20, ConceptIDs: []string{ids["A"], ids["B"]}}, "000001,000002,000003", false},
+		{"parent_and_child_no_duplicates", biz.Query{Limit: 20, IndustryIDs: []string{ids["技术"], ids["软件"]}}, "000002,000003", false},
+		{"cross_dimension_AND", biz.Query{Limit: 20, IndustryIDs: []string{ids["技术"]}, ConceptIDs: []string{ids["B"]}, ChainIDs: []string{ids["X"]}}, "000003", false},
+		{"empty_intersection", biz.Query{Limit: 20, IndustryIDs: []string{ids["金融"]}, ChainIDs: []string{ids["Y"]}}, "", false},
+		{"keyword_AND", biz.Query{Text: "乙", Limit: 20, ChainIDs: []string{ids["X"]}}, "", false},
+		{"first_page", biz.Query{Limit: 1, ConceptIDs: []string{ids["A"], ids["B"]}}, "000001", true},
+		{"next_page", biz.Query{Limit: 1, Offset: 1, ConceptIDs: []string{ids["A"], ids["B"]}}, "000002", true},
+		{"last_page", biz.Query{Limit: 1, Offset: 2, ConceptIDs: []string{ids["A"], ids["B"]}}, "000003", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p, e := u.Search(ctx, tc.q)
+			if e != nil {
+				t.Fatal(e)
+			}
+			codes := []string{}
+			for _, x := range p.Items {
+				codes = append(codes, x.Code)
+			}
+			if strings.Join(codes, ",") != tc.codes || p.HasMore != tc.more {
+				t.Fatalf("result %+v", p)
+			}
+		})
+	}
+	for _, q := range []biz.Query{{Limit: 20, ConceptIDs: []string{ids["X"]}}, {Limit: 20, ConceptIDs: []string{ids["A"], ids["A"]}}, {Limit: 20, IDs: []string{catalog[0].ID}, ChainIDs: []string{ids["X"]}}} {
+		if _, err = u.Search(ctx, q); err == nil {
+			t.Fatal("invalid combination accepted")
+		}
 	}
 }

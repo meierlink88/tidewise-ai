@@ -23,6 +23,7 @@ func TestOpenAPIContractFreezesNamespacePathsOperationsAndScopes(t *testing.T) {
 	document := loadContract(t)
 	paths := object(t, document["paths"], "paths")
 	want := map[string]operationContract{
+		namespace + "/stocks/classifications":                                                         {method: "get", operationID: "stockClassifications", driftAnchor: "data.v1.stockClassifications", scope: "data.stocks.read"},
 		namespace + "/stocks":                                                                         {method: "get", operationID: "searchStocks", driftAnchor: "data.v1.searchStocks", scope: "data.stocks.read"},
 		namespace + "/reports/{report_id}/analyses/{kind}":                                            {method: "get", operationID: "listReportAnalyses", driftAnchor: "data.v1.listReportAnalyses", scope: "data.reports.read"},
 		namespace + "/reports/{report_id}/analyses/{kind}/{analysis_key}":                             {method: "get", operationID: "getReportAnalysis", driftAnchor: "data.v1.getReportAnalysis", scope: "data.reports.read"},

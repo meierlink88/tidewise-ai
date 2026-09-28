@@ -746,3 +746,17 @@ migration 97 仅创建空表；`stock-classifications` 是独立、本地限定�
 本次执行范围仅本地 `tidewise_local`。发布前备份，按 schema 97 → 数据发布 →
 携带 schema 97 的兼容 Data 镜像启动顺序验证。旧镜像 readiness 会拒绝未知 schema；
 应用回退须使用认识 schema 97 的兼容版本，数据库不执行 destructive down。
+
+## Stock 分类查询（#548）
+
+Data 作为领域数据服务，提供 `GET /api/data/v1/stocks/classifications` 读取 S 行业、
+概念、产业链目录，包含稳定 ID、名称、行业 parent_id；不输出 UI 控件或用户跟踪态。
+沿用 data.stocks.read 服务权限。单语句一致读取三类目录，各最多 5000 项，超限返回
+503，不截断成成功结果；无目录时返回空数组。既有股票目录仍可独立读取。
+
+`GET /stocks` 增加 industry_ids、concept_ids、industry_chain_ids：逗号分隔、每维最多
+20 个不重复的对应类型 ID。维度内 OR，维度间 AND，与关键词及交易所条件 AND；
+未知但合法 ID 无匹配，错误类型/重复/空参数为 400。一级行业使用已发布的一级关联；
+多项匹配不重复返回股票。ids 批量读取不得与分类条件混用。排序、分页及 Stock 展示字段
+保留原合同，不提供跨请求分页快照。源 market_concepts 筛选与旧 concepts 展示字段保持
+不同语义，不合并两个来源体系。此能力要求 schema 97 及显式目录发布。

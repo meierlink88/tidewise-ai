@@ -581,6 +581,11 @@ func TestStockSearchHTTPAuthAndValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	stockapi.RegisterHTTPServer(server, app)
+	productionContractError(t, server, http.MethodGet, dataapi.APIPrefix+"/stocks/classifications", "", "", "filter-noauth", 401, "UNAUTHENTICATED")
+	productionContractError(t, server, http.MethodGet, dataapi.APIPrefix+"/stocks/classifications", "wrong-scope", "", "filter-scope", 403, "FORBIDDEN")
+	productionContractRequest(t, server, http.MethodGet, dataapi.APIPrefix+"/stocks/classifications", "stock-reader", "", "filter-catalog", 200)
+	productionContractError(t, server, http.MethodGet, dataapi.APIPrefix+"/stocks?concept_ids=bad", "stock-reader", "", "filter-invalid", 400, "INVALID_REQUEST")
+
 	for _, query := range []string{"?q=x&q=y", "?q=x&exchange=XX", "?q=x&page_size=101", "?q=x&offset=-1", "?q=x&unknown=1"} {
 		productionContractError(t, server, http.MethodGet, dataapi.APIPrefix+"/stocks"+query, "stock-reader", "", "stock-invalid", 400, "INVALID_REQUEST")
 	}
@@ -607,4 +612,8 @@ func (stockSearchRepository) PublishProfiles(context.Context, stockbiz.ProfileBa
 func (stockSearchRepository) Upsert(context.Context, []stockbiz.Stock) error { return nil }
 func (stockSearchRepository) Search(_ context.Context, q stockbiz.Query) (stockbiz.Page, error) {
 	return stockbiz.Page{Items: []stockbiz.Stock{{ID: "STK11111111-1111-5111-8111-111111111111", Code: "000001", Exchange: "SZ", Name: "平安银行", Board: "主板", AsOf: time.Date(2026, 9, 21, 0, 0, 0, 0, time.UTC)}}}, nil
+}
+
+func (stockSearchRepository) Classifications(context.Context) (stockbiz.Classifications, error) {
+	return stockbiz.Classifications{Industries: []stockbiz.Classification{}, Concepts: []stockbiz.Classification{}, Chains: []stockbiz.Classification{}}, nil
 }
