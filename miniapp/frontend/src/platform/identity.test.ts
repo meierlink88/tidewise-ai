@@ -4,22 +4,58 @@ import {
   openProfile,
   leaveProfile,
   openProfileEditor,
-  leaveProfileEditor
+  leaveProfileEditor,
+  parseResearchDestination,
+  requireResearchLogin,
+  leaveResearchLogin
 } from './identity';
 
-const { showModal, switchTab, navigateTo, navigateBack, reLaunch, getCurrentPages, showToast } =
-  vi.hoisted(() => ({
-    showModal: vi.fn(),
-    switchTab: vi.fn(),
-    navigateTo: vi.fn(),
-    navigateBack: vi.fn(),
-    reLaunch: vi.fn(),
-    getCurrentPages: vi.fn(),
-    showToast: vi.fn()
-  }));
-vi.mock('@tarojs/taro', () => ({
-  default: { showModal, switchTab, navigateTo, navigateBack, reLaunch, getCurrentPages, showToast }
+const {
+  showModal,
+  switchTab,
+  navigateTo,
+  navigateBack,
+  reLaunch,
+  getCurrentPages,
+  showToast,
+  redirectTo
+} = vi.hoisted(() => ({
+  showModal: vi.fn(),
+  redirectTo: vi.fn(),
+  switchTab: vi.fn(),
+  navigateTo: vi.fn(),
+  navigateBack: vi.fn(),
+  reLaunch: vi.fn(),
+  getCurrentPages: vi.fn(),
+  showToast: vi.fn()
 }));
+vi.mock('@tarojs/taro', () => ({
+  default: {
+    showModal,
+    switchTab,
+    navigateTo,
+    navigateBack,
+    reLaunch,
+    getCurrentPages,
+    showToast,
+    redirectTo
+  }
+}));
+it('only resumes allowlisted research routes and cancels to the public home', async () => {
+  expect(parseResearchDestination('https://example.com')).toBeUndefined();
+  expect(parseResearchDestination('__proto__')).toBeUndefined();
+  expect(parseResearchDestination('company')).toBe('company');
+  for (const target of ['macro', 'industry', 'company'] as const) {
+    await requireResearchLogin(target);
+    expect(redirectTo).toHaveBeenLastCalledWith({ url: `/pages/login/index?research=${target}` });
+    expect(await leaveResearchLogin(target, true)).toBe(true);
+    expect(switchTab).toHaveBeenLastCalledWith({ url: `/pages/${target}/index` });
+  }
+  await leaveResearchLogin('company', false);
+  expect(switchTab).toHaveBeenLastCalledWith({ url: '/pages/index/index' });
+  await leaveResearchLogin('companyReport', true);
+  expect(redirectTo).toHaveBeenLastCalledWith({ url: '/pages/company/report/index' });
+});
 it('requires an explicit confirmation and treats cancellation as no logout', async () => {
   showModal.mockResolvedValueOnce({ confirm: false, cancel: true });
   expect(await confirmLogout()).toBe(false);

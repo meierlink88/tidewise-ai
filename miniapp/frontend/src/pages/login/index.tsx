@@ -1,9 +1,15 @@
 import { useMemo, useRef } from 'react';
-import Taro from '@tarojs/taro';
+import Taro, { useRouter } from '@tarojs/taro';
 import { Button, View } from '@tarojs/components';
 import { NavigationBar } from '../../platform/navigation-bar';
 import { getHomeChromeMetrics } from '../../platform/system-ui';
-import { leaveLogin, openProfileInformation, supportsWechatLogin } from '../../platform/identity';
+import {
+  leaveLogin,
+  leaveResearchLogin,
+  parseResearchDestination,
+  openProfileInformation,
+  supportsWechatLogin
+} from '../../platform/identity';
 import { useIdentity } from '../../features/identity/use-identity';
 import { LoginView } from './login-view';
 import '../profile/index.scss';
@@ -12,12 +18,14 @@ import './index.scss';
 export default function LoginPage() {
   const chrome = useMemo(() => getHomeChromeMetrics(Taro), []);
   const identity = useIdentity();
+  const destination = parseResearchDestination(useRouter().params.research);
   const leaving = useRef(false);
   async function login(phoneCode?: string) {
     if (leaving.current) return false;
     if (!(await identity.login(phoneCode))) return false;
     leaving.current = true;
     try {
+      if (destination) return await leaveResearchLogin(destination, true);
       await leaveLogin();
     } finally {
       leaving.current = false;
@@ -33,8 +41,10 @@ export default function LoginPage() {
           leading={
             <Button
               className='tidewise-button profile-page__back'
-              aria-label='返回我的'
-              onClick={() => void leaveLogin()}
+              aria-label={destination ? '返回要闻解读' : '返回我的'}
+              onClick={() =>
+                void (destination ? leaveResearchLogin(destination, false) : leaveLogin())
+              }
             >
               <View className='profile-page__chevron' />
             </Button>

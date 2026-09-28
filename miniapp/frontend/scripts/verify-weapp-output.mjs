@@ -80,11 +80,11 @@ if (
     { pagePath: 'pages/index/index', text: '要闻解读' },
     { pagePath: 'pages/macro/index', text: '宏观指数' },
     { pagePath: 'pages/industry/index', text: '产业透析' },
-    { pagePath: 'pages/company/index', text: '公司洞察' },
+    { pagePath: 'pages/company/index', text: '企业洞察' },
     { pagePath: 'pages/profile/index', text: '我的' }
   ])
 ) {
-  throw new Error(`${platform} 底部菜单必须为要闻解读/宏观指数/产业透析/公司洞察/我的`);
+  throw new Error(`${platform} 底部菜单必须为要闻解读/宏观指数/产业透析/企业洞察/我的`);
 }
 if (appConfig.window?.navigationStyle !== 'custom') {
   throw new Error(`${platform} 首页必须使用自定义导航以适配原生状态栏`);

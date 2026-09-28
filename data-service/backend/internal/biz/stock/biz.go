@@ -163,7 +163,7 @@ func (u *UseCase) Search(ctx context.Context, q Query) (Page, error) {
 		return u.repo.Search(ctx, q)
 	}
 	q.Text = strings.TrimSpace(q.Text)
-	if q.Text == "" || utf8.RuneCountInString(q.Text) > 64 || strings.IndexFunc(q.Text, unicode.IsControl) >= 0 || q.Exchange != "" && ExchangeName(q.Exchange) == "" || q.Limit < 1 || q.Limit > 100 || q.Offset < 0 || q.Offset > 10000 {
+	if utf8.RuneCountInString(q.Text) > 64 || strings.IndexFunc(q.Text, unicode.IsControl) >= 0 || q.Exchange != "" && ExchangeName(q.Exchange) == "" || q.Limit < 1 || q.Limit > 100 || q.Offset < 0 || q.Offset > 10000 {
 		return Page{}, ErrInvalid
 	}
 	return u.repo.Search(ctx, q)

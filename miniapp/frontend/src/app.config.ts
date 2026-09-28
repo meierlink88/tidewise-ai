@@ -39,7 +39,7 @@ export default defineAppConfig({
       },
       {
         pagePath: 'pages/company/index',
-        text: '公司洞察',
+        text: '企业洞察',
         iconPath: 'assets/tab/company-normal.png',
         selectedIconPath: 'assets/tab/company-active.png'
       },

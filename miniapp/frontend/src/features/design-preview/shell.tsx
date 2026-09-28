@@ -13,12 +13,16 @@ export function PreviewPage({
   subtitle,
   filters,
   headerSearch,
+  simulation = true,
+  onLoadMore,
   children
 }: {
-  title: string;
-  subtitle: string;
+  title?: string;
+  subtitle?: string;
   filters?: ReactNode;
   headerSearch?: ReactNode;
+  simulation?: boolean;
+  onLoadMore?: () => void;
   children: ReactNode;
 }) {
   const chrome = useMemo(() => getHomeChromeMetrics(Taro), []);
@@ -29,11 +33,13 @@ export function PreviewPage({
       <View className='preview-brand'>
         <NavigationBar title='观潮家' chrome={chrome} leading={<AccountNavButton />} />
         <View className='preview-brand-copy'>
-          <View className='preview-between'>
-            <Text className='preview-title'>{title}</Text>
-            {!filters && <Text className='preview-simulation'>设计模拟</Text>}
-          </View>
-          <Text className='preview-subtitle'>{subtitle}</Text>
+          {title && (
+            <View className='preview-between'>
+              <Text className='preview-title'>{title}</Text>
+              {!filters && simulation && <Text className='preview-simulation'>设计模拟</Text>}
+            </View>
+          )}
+          {subtitle && <Text className='preview-subtitle'>{subtitle}</Text>}
           {headerSearch}
         </View>
       </View>
@@ -48,7 +54,7 @@ export function PreviewPage({
           <RiskNotice />
         </View>
       )}
-      <ScrollView scrollY className='preview-scroll'>
+      <ScrollView scrollY className='preview-scroll' onScrollToLower={onLoadMore}>
         <View className='preview-content'>{children}</View>
       </ScrollView>
     </View>

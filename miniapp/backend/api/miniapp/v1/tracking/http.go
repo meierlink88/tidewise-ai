@@ -34,7 +34,7 @@ func RegisterHTTPServer(server *kratoshttp.Server, s Service) {
 				defer cancel()
 				q := ctx.Query()
 				for key, values := range q {
-					if len(values) != 1 || values[0] == "" || (key != "page_size" && !(search && (key == "q" || key == "offset")) && !(!search && key == "cursor")) {
+					if len(values) != 1 || (values[0] == "" && !(search && key == "q")) || (key != "page_size" && !(search && (key == "q" || key == "offset")) && !(!search && key == "cursor")) {
 						return nil, v1.ErrInvalidRequest
 					}
 				}

@@ -350,3 +350,21 @@ Company preview cards separate actions: the top-right simulated tracking control
 Home, Macro, Industry and Company share AccountNavButton for the top-left account entry. It uses the existing useIdentity refresh contract, the current profile avatar/nickname, the Home guest avatar fallback, and the same guarded navigation to My. Shared styling preserves nickname truncation and space for the centered wordmark and native capsule.
 
 The Home feed omits the 今日推理主线 heading and loaded-count row. Macro and Industry omit the header 设计模拟 badge; existing in-content sample-data notices remain.
+
+## 真实公司目录与个人跟踪（#542）
+
+本节替代 #540 公司洞察纯模拟与 #535 跟踪页内全市场搜索的规定。
+公司洞察从 tracking/search 读取真实 Stock 目录，q 省略或空白时分页浏览，非空时按代码、简称、全称或简称首字母检索。每页20，精确代码优先，其后 exchange/code/id；offset 分页不承诺快照一致性，不展示虚构匹配总数。游客可浏览，添加须登录；登录态返回当前会话的 is_followed，关系仍由 User 独占。
+我的跟踪仅读取 tracking 列表，按 added_at DESC、stock_id ASC 游标分页，保留确认取消与报告入口，空态引导公司洞察，不提供全市场搜索/添加。两页共享 CompanyCard 和 TrackingPort，目录模式不读取个人全列表；返回页面重新读取，写入失败不假装成功，保留防抖、重复提交与旧会话响应隔离。
+报告仍是样例：仅完整证券代码 603179.SH 打开已有新泉报告并标注样例，其他公司显示暂无报告样例；不新增真实报告 API，不用模拟公司 ID 写入关系。公司洞察保留固定风险提示和已确认视觉，移除整页设计模拟说明。
+部署顺序 Data → Miniapp Backend → Frontend。User Service、数据表、既有关系和账号均不变，无 migration 或数据发布。旧客户端继续兼容；新版前端遇旧版服务不能浏览目录时明确报错，不回退到模拟数据。
+
+公司目录及我的跟踪均在 ScrollView 触底后自动加载下一页，不显示底部“加载更多”按钮；加载中与已加载完毕状态保留，失败由显式重试恢复，pending 时不重复翻页。
+
+### 研究板块登录入口控制与企业洞察命名（#542）
+
+本节替代上述三个研究 Tab 允许游客进入的前端规则：宏观指数、产业透析、企业洞察及独立企业报告样例页面每次显示时，通过既有 auth/me 验证登录。验证通过前不展示内容、不加载企业目录；无会话或会话失效打开现有登录页，登录成功返回白名单目标，取消返回要闻解读。页面隐藏后作废未完成验证并隐藏旧内容；网络失败保留凭据并显示重试。微信登录协议和隐私同意不变，抖音/H5 保留到微信登录提示，不模拟身份。
+
+用户可见“公司洞察”统一更名为“企业洞察”；内部 pages/company 路由、Stock 查询与报告样例合同不改。目录头部移除标题与副标题，搜索右侧“我的跟踪”入口与搜索一起固定。
+
+本变更是 Miniapp Frontend 入口控制，未将公开目录/报告 API 改为私有接口；BFF、Data、User 和数据库不变。要闻解读及其报告仍可游客阅读。前端可独立发布与回滚，真实微信授权/返回行为需目标端验收。

@@ -5,7 +5,12 @@ import { trackingAPI } from './api';
 import { TrackingError, type Company, type TrackingPort } from './contract';
 
 type Status = 'idle' | 'loading' | 'ready' | 'error';
-export function useTracking(port: TrackingPort = trackingAPI) {
+export function useTracking(
+  port: TrackingPort = trackingAPI,
+  mode: 'watchlist' | 'directory' = 'watchlist',
+  enabled?: boolean
+) {
+  const directory = mode === 'directory';
   const [query, setQueryState] = useState('');
   const [items, setItems] = useState<Company[]>([]);
   const [results, setResults] = useState<Company[]>([]);
@@ -85,7 +90,7 @@ export function useTracking(port: TrackingPort = trackingAPI) {
   async function search(offset = 0) {
     const q = queryRef.current.trim(),
       t = token.current;
-    if (!q) return;
+    if (!q && !directory) return;
     if (offset && searchBusy.current) return;
     const seq = ++searchSequence.current;
     searchBusy.current = true;
@@ -116,9 +121,9 @@ export function useTracking(port: TrackingPort = trackingAPI) {
     setResults([]);
     setMore(false);
     setError('');
-    setSearchStatus(value.trim() ? 'loading' : 'idle');
+    setSearchStatus(directory || value.trim() ? 'loading' : 'idle');
     clearTimeout(timer.current);
-    if (value.trim()) timer.current = setTimeout(() => void search(), 250);
+    if (directory || value.trim()) timer.current = setTimeout(() => void search(), 250);
   }
   function refresh() {
     clearTimeout(timer.current);
@@ -131,6 +136,7 @@ export function useTracking(port: TrackingPort = trackingAPI) {
     searchBusy.current = false;
     token.current = next;
     setGuest(!next);
+    if (!mutation.current) setPending('');
     setError('');
     if (changed || !next) {
       setItems([]);
@@ -139,11 +145,27 @@ export function useTracking(port: TrackingPort = trackingAPI) {
       setCursor('');
       setMore(false);
     }
-    if (next) void loadList();
+    if (next && !directory) void loadList();
     else setStatus('idle');
-    if (queryRef.current.trim()) void search();
+    if (directory || queryRef.current.trim()) void search();
   }
-  useDidShow(refresh);
+  useDidShow(() => {
+    if (enabled !== false) refresh();
+  });
+  useEffect(() => {
+    if (enabled === undefined) return;
+    if (enabled) refresh();
+    else {
+      mounted.current = false;
+      ++listSequence.current;
+      ++searchSequence.current;
+      clearTimeout(timer.current);
+      setItems([]);
+      setResults([]);
+    }
+    // The page access gate owns activation; query changes use the debounced path.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
   useDidHide(() => {
     mounted.current = false;
     ++listSequence.current;
@@ -162,24 +184,32 @@ export function useTracking(port: TrackingPort = trackingAPI) {
   async function change(item: Company, add: boolean) {
     if (mutation.current || !token.current || !current(token.current)) return;
     const t = token.current;
+    const writtenQuery = queryRef.current;
     mutation.current = true;
     setPending(item.id);
     setError('');
     // Invalidate in-flight reads that carry the old membership state.
     ++listSequence.current;
     ++searchSequence.current;
+    listBusy.current = false;
+    searchBusy.current = false;
     clearTimeout(timer.current);
     try {
       await port.change(t, item.id, add);
       if (!current(t)) return;
+      ++searchSequence.current;
+      searchBusy.current = false;
       setResults((old) => old.map((x) => (x.id === item.id ? { ...x, is_followed: add } : x)));
       if (!add) setItems((old) => old.filter((x) => x.id !== item.id));
-      await loadList();
-      if (current(t) && queryRef.current.trim()) await search();
+      if (!directory) await loadList();
+      if (directory && writtenQuery === queryRef.current) {
+        // A successful membership write does not discard already loaded catalog pages.
+        setSearchStatus('ready');
+      } else if (current(t) && (directory || queryRef.current.trim())) await search();
     } catch (e) {
       if (current(t)) {
         setStatus('error');
-        setSearchStatus(queryRef.current.trim() ? 'error' : 'idle');
+        setSearchStatus(directory || queryRef.current.trim() ? 'error' : 'idle');
         fail(e, t);
       }
     } finally {
@@ -199,9 +229,9 @@ export function useTracking(port: TrackingPort = trackingAPI) {
     error,
     pending,
     refresh,
-    retry: () => (query.trim() ? search() : loadList()),
-    loadMore: () => (query.trim() ? search(results.length) : loadList(cursor)),
-    hasMore: query.trim() ? more : !!cursor,
+    retry: () => (directory || query.trim() ? search() : loadList()),
+    loadMore: () => (directory || query.trim() ? search(results.length) : loadList(cursor)),
+    hasMore: directory || query.trim() ? more : !!cursor,
     change
   };
 }

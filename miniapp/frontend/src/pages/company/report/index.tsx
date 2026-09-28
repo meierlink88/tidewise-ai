@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import Taro from '@tarojs/taro';
 import { Button, View } from '@tarojs/components';
+import { useResearchAccess } from '../../../features/identity/use-research-access';
+import { ResearchAccessState } from '../../../features/identity/research-access-state';
 import { NavigationBar } from '../../../platform/navigation-bar';
 import { getHomeChromeMetrics } from '../../../platform/system-ui';
 import InvestmentReport from './legacy/InvestmentReport';
@@ -8,6 +10,7 @@ import './legacy/legacy.scss';
 import './index.scss';
 
 export default function CompanyReportPage() {
+  const access = useResearchAccess('companyReport');
   const chrome = useMemo(() => getHomeChromeMetrics(Taro), []);
   async function back() {
     try {
@@ -23,6 +26,7 @@ export default function CompanyReportPage() {
       });
     }
   }
+  if (!access.allowed) return <ResearchAccessState error={access.error} retry={access.retry} />;
   return (
     <View className='company-report-screen legacy-report'>
       <NavigationBar
@@ -31,7 +35,7 @@ export default function CompanyReportPage() {
         leading={
           <Button
             className='tidewise-button preview-close'
-            ariaLabel='返回公司列表'
+            ariaLabel='返回上一页'
             onClick={() => void back()}
           >
             ‹

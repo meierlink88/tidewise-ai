@@ -12,7 +12,7 @@ func RegisterHTTPServer(server *kratoshttp.Server, service Service) {
 	server.Route(v1.APIPrefix).GET("/stocks", func(ctx kratoshttp.Context) error {
 		q := ctx.Query()
 		for key, values := range q {
-			if len(values) != 1 || (key != "q" && key != "exchange" && key != "page_size" && key != "offset" && key != "ids") || values[0] == "" {
+			if len(values) != 1 || (key != "q" && key != "exchange" && key != "page_size" && key != "offset" && key != "ids") || (values[0] == "" && key != "q") {
 				return v1.NewPublicError(400, "INVALID_REQUEST", "invalid stock query", nil)
 			}
 		}

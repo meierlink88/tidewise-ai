@@ -581,17 +581,21 @@ func TestStockSearchHTTPAuthAndValidation(t *testing.T) {
 		t.Fatal(err)
 	}
 	stockapi.RegisterHTTPServer(server, app)
-	path := dataapi.APIPrefix + "/stocks?q=000001"
-	productionContractError(t, server, http.MethodGet, path, "", "", "stock-noauth", 401, "UNAUTHENTICATED")
-	productionContractError(t, server, http.MethodGet, path, "wrong-scope", "", "stock-scope", 403, "FORBIDDEN")
-	for _, query := range []string{"", "?q=%20", "?q=x&q=y", "?q=x&exchange=XX", "?q=x&page_size=101", "?q=x&offset=-1", "?q=x&unknown=1"} {
+	for _, query := range []string{"?q=x&q=y", "?q=x&exchange=XX", "?q=x&page_size=101", "?q=x&offset=-1", "?q=x&unknown=1"} {
 		productionContractError(t, server, http.MethodGet, dataapi.APIPrefix+"/stocks"+query, "stock-reader", "", "stock-invalid", 400, "INVALID_REQUEST")
 	}
-	response := productionContractRequest(t, server, http.MethodGet, path, "stock-reader", "", "stock-valid", 200)
-	result := response["result"].(map[string]any)
-	items := result["items"].([]any)
-	if len(items) != 1 || items[0].(map[string]any)["symbol"] != "000001.SZ" || items[0].(map[string]any)["exchange_name"] != "深圳证券交易所" {
-		t.Fatal(response)
+	for _, query := range []string{"", "?q=", "?q=%20", "?q=000001"} {
+		t.Run("query="+query, func(t *testing.T) {
+			path := dataapi.APIPrefix + "/stocks" + query
+			productionContractError(t, server, http.MethodGet, path, "", "", "stock-noauth", 401, "UNAUTHENTICATED")
+			productionContractError(t, server, http.MethodGet, path, "wrong-scope", "", "stock-scope", 403, "FORBIDDEN")
+			response := productionContractRequest(t, server, http.MethodGet, path, "stock-reader", "", "stock-valid", 200)
+			result := response["result"].(map[string]any)
+			items := result["items"].([]any)
+			if len(items) != 1 || items[0].(map[string]any)["symbol"] != "000001.SZ" || items[0].(map[string]any)["exchange_name"] != "深圳证券交易所" {
+				t.Fatal(response)
+			}
+		})
 	}
 }
 

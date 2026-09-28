@@ -1,0 +1,47 @@
+@use '../../styles/tokens' as *;
+
+.preview-company-tracking {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  white-space: nowrap;
+}
+.company-tracking-radar {
+  flex-shrink: 0;
+  width: 32rpx;
+  height: 32rpx;
+  animation: company-radar-scan 3s linear infinite;
+}
+@keyframes company-radar-scan {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .company-tracking-radar {
+    animation: none;
+  }
+}
+
+// Taro H5 serializes disabled=false as an attribute; keep the action readable.
+.tidewise-button.preview-company-track {
+  color: $ui-brand;
+}
+.tidewise-button.company-action--busy {
+  opacity: 0.55;
+}
+.tidewise-button.company-directory-action {
+  min-height: 64rpx;
+  padding: 12rpx 24rpx;
+  color: $ui-brand;
+  font-size: 26rpx;
+}
+.tidewise-button.company-search-clear {
+  flex-shrink: 0;
+  min-width: 60rpx;
+  min-height: 64rpx;
+  color: $ui-muted;
+}

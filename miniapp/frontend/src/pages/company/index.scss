@@ -1,0 +1,39 @@
+@use '../../styles/tokens' as *;
+
+.preview-page--header-search .company-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+
+  .preview-search {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 0 16rpx;
+    gap: 12rpx;
+  }
+}
+
+.tidewise-button.company-tracking-entry {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  gap: 8rpx;
+  height: 80rpx;
+  padding: 0 18rpx;
+  border: 2rpx solid rgba($color-card, 0.24);
+  border-radius: 16rpx;
+  background: rgba($color-card, 0.12);
+  color: $color-card;
+  font-size: $font-report-meta;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.company-tracking-entry__icon {
+  flex-shrink: 0;
+  width: 32rpx;
+  height: 32rpx;
+}

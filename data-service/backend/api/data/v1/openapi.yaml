@@ -40,7 +40,7 @@ paths:
       x-retry-policy: no-automatic-retry
       x-timeout-budget-ms: 5000
       summary: 按股票代码、简称、拼音首字母或 ID 批量查询主数据
-      description: q 与 ids 二选一。q 去首尾空白，字面量匹配代码、简称和不区分大小写的首字母；精确代码优先，其后 exchange/code/id。ids 为逗号分隔且不重复的最多100个 stock ID，不得与其他业务参数共用；返回存在的项目，按 exchange/code/id 排序。分页不提供一致性快照。公司字段为可空来源事实；concepts 保持原顺序。拒绝重复及未知参数。
+      description: 不传 ids 时，省略 q 或空白 q 分页浏览目录。非空 q 去首尾空白，字面量匹配代码、简称、公司全称和不区分大小写的简称首字母；精确代码优先，其后 exchange/code/id。ids 为逗号分隔且不重复的最多100个 stock ID，不得与其他业务参数共用；返回存在的项目，按 exchange/code/id 排序。分页不提供一致性快照。公司字段为可空来源事实；concepts 保持原顺序。拒绝重复及未知参数。
       parameters:
         - { name: ids, in: query, schema: { type: string, maxLength: 3999 } }
         - $ref: '#/components/parameters/RequestID'
@@ -48,7 +48,7 @@ paths:
             name: q,
             in: query,
             required: false,
-            schema: { type: string, minLength: 1, maxLength: 64 }
+            schema: { type: string, minLength: 0, maxLength: 64 }
           }
         - { name: exchange, in: query, schema: { type: string, enum: [SH, SZ, BJ] } }
         - {

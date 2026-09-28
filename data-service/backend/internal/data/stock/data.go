@@ -66,6 +66,7 @@ func (s *Store) Search(ctx context.Context, q stockbiz.Query) (stockbiz.Page, er
 	} else {
 		rows, err = s.db.QueryContext(ctx, `SELECT id,code,name,exchange,board,as_of,full_name,industry_l1,industry_l2,array_to_json(concepts) FROM stock
  WHERE ($2='' OR exchange=$2) AND (code LIKE '%'||$1||'%' ESCAPE '\' OR name ILIKE '%'||$1||'%' ESCAPE '\'
+ OR full_name ILIKE '%'||$1||'%' ESCAPE '\'
  OR name_initials LIKE '%'||upper($1)||'%' ESCAPE '\' OR code||'.'||exchange ILIKE '%'||$1||'%' ESCAPE '\')
  ORDER BY CASE WHEN code=$3 OR code||'.'||exchange=upper($3) THEN 0 ELSE 1 END,exchange,code,id LIMIT $4 OFFSET $5`, literal, q.Exchange, q.Text, q.Limit+1, q.Offset)
 	}

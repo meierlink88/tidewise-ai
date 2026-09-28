@@ -1,12 +1,16 @@
 import { useState } from 'react';
 import { Button, Text, View } from '@tarojs/components';
+import { useResearchAccess } from '../../features/identity/use-research-access';
+import { ResearchAccessState } from '../../features/identity/research-access-state';
 import { indices } from '../../features/design-preview/fixtures';
 import { PreviewPage, PreviewSheet, PreviewTabs } from '../../features/design-preview/shell';
 
 export default function MacroPage() {
+  const access = useResearchAccess('macro');
   const [market, setMarket] = useState(0);
   const [item, setItem] = useState<(typeof indices)[number] | null>(null);
   const markets = ['全部', 'A股', '港股', '美股'];
+  if (!access.allowed) return <ResearchAccessState error={access.error} retry={access.retry} />;
   return (
     <PreviewPage
       title='宏观指数'
