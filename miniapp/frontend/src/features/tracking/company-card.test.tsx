@@ -71,12 +71,7 @@ it('offers cancellation on the personal list and disables it while submitting', 
   const remove = vi.fn();
   await act(async () =>
     root.render(
-      <CompanyCard
-        company={{ ...company, is_followed: true }}
-        busy
-        pending
-        onRemove={remove}
-      />
+      <CompanyCard company={{ ...company, is_followed: true }} busy pending onRemove={remove} />
     )
   );
   const button = host.querySelector<HTMLButtonElement>('[aria-label="取消跟踪平安银行"]')!;
