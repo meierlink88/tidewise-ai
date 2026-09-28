@@ -23,7 +23,7 @@
   width: 80rpx;
   height: 80rpx;
   padding: 16rpx;
-  border: 3rpx solid $color-card;
+  border: 0;
   border-radius: $radius-pill;
   background: transparent;
   color: $color-card;
@@ -32,6 +32,6 @@
 }
 
 .company-tracking-entry__icon {
-  width: 42rpx;
-  height: 42rpx;
+  width: 48rpx;
+  height: 48rpx;
 }

@@ -1,7 +1,7 @@
 import { Button, Image, Input, Text, View } from '@tarojs/components';
 import { useResearchAccess } from '../../features/identity/use-research-access';
 import { ResearchAccessState } from '../../features/identity/research-access-state';
-import trackingIcon from '../../assets/icons/bookmark-light.svg';
+import trackingIcon from '../../assets/icons/watchlist-radar-light.svg';
 import { openTracking } from '../../platform/tracking';
 import './index.scss';
 import searchIcon from '../../assets/company-search.svg';
