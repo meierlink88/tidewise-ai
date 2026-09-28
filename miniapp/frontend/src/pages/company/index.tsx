@@ -85,7 +85,6 @@ export default function CompanyPage() {
           已展示全部{directory.query.trim() ? '匹配结果' : '公司'}
         </Text>
       )}
-      <Text className='preview-note'>洞察报告暂为样例展示，沿用原始时点，行情并非实时数据。</Text>
     </PreviewPage>
   );
 }
