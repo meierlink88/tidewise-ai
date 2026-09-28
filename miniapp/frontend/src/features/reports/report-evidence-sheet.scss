@@ -240,3 +240,87 @@
     transform: translateY(100%);
   }
 }
+
+// Tidetell 2.0 presentation; enum-dependent selectors above remain unchanged.
+
+.report-evidence-sheet__panel {
+  background: $ui-canvas;
+  height: 88vh;
+  max-height: 88vh;
+}
+.report-evidence-sheet__header,
+.report-evidence-sheet__handle-zone {
+  background: $color-card;
+}
+.report-evidence-sheet__header {
+  border-color: $ui-line;
+}
+.report-evidence-sheet__title {
+  color: $ui-ink;
+  font-size: 34rpx;
+}
+.report-evidence-sheet__subtitle {
+  color: $ui-muted;
+  font-size: 25rpx;
+}
+.report-evidence-sheet__close {
+  width: 88rpx;
+  height: 88rpx;
+  top: 24rpx;
+  right: 16rpx;
+  background: transparent;
+  border-radius: 0;
+  color: $ui-muted;
+}
+.report-evidence-sheet__close-icon {
+  width: 30rpx;
+  height: 30rpx;
+}
+.report-evidence-sheet__close-icon::before,
+.report-evidence-sheet__close-icon::after {
+  top: 14rpx;
+  width: 28rpx;
+  height: 3rpx;
+}
+.report-evidence-sheet__scroll {
+  height: 0;
+}
+.report-evidence-sheet__content {
+  padding: 24rpx 24rpx calc(28rpx + env(safe-area-inset-bottom));
+}
+.report-evidence-sheet__item:not(:last-child)::before {
+  background: $color-report-blue-200;
+}
+.report-evidence-sheet__dot {
+  border-color: $ui-brand;
+  background: $color-card;
+  width: 16rpx;
+  height: 16rpx;
+  left: -38rpx;
+}
+.report-evidence-sheet__time {
+  color: $ui-brand;
+  font-size: 25rpx;
+}
+.report-evidence-sheet__event-card {
+  margin-top: 14rpx;
+  border: 1rpx solid $ui-line;
+  background: $color-card;
+  border-radius: $ui-radius;
+  padding: 20rpx;
+}
+.report-evidence-sheet__summary {
+  padding: 0;
+  background: transparent;
+  color: $ui-ink;
+  font-size: 28rpx;
+  line-height: 1.75;
+}
+.report-evidence-sheet__semantic-tags {
+  margin-top: 0;
+}
+.report-evidence-sheet__keywords {
+  padding-top: 14rpx;
+  border-top: 1rpx solid $ui-line;
+  margin-top: 18rpx;
+}

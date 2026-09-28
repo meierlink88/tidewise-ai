@@ -1,17 +1,22 @@
 import { useMemo, useRef, useState } from 'react';
 import Taro from '@tarojs/taro';
-import { Button, View } from '@tarojs/components';
+import { Button, Text, View } from '@tarojs/components';
 import { NavigationBar } from '../../platform/navigation-bar';
 import { getHomeChromeMetrics } from '../../platform/system-ui';
 import {
   confirmLogout,
   leaveProfile,
   openLogin,
-  openProfileInformation
+  openProfileEditor,
+  openProfileInformation,
+  supportsWechatLogin
 } from '../../platform/identity';
 import { useIdentity } from '../../features/identity/use-identity';
 import { ProfileView } from './profile-view';
+import { LoginView } from '../login/login-view';
+import { openTracking } from '../../platform/tracking';
 import './index.scss';
+import '../login/index.scss';
 
 export default function ProfilePage() {
   const chrome = useMemo(() => getHomeChromeMetrics(Taro), []);
@@ -33,34 +38,58 @@ export default function ProfilePage() {
     }
   }
   return (
-    <View className='profile-page profile-page--personal account-page'>
-      <View className='profile-page__header account-header'>
-        <NavigationBar
-          title='我的'
-          chrome={chrome}
-          leading={
-            <Button
-              className='tidewise-button profile-page__back'
-              aria-label='返回推理'
-              hoverClass='none'
-              onClick={() => void leaveProfile()}
-            >
-              <View className='profile-page__chevron' />
-            </Button>
-          }
+    <View
+      className={`profile-page profile-page--personal account-page${identity.profile ? ' profile-page--signed-in' : ''}`}
+    >
+      {identity.profile ? (
+        <View
+          className='profile-page__brand-cap'
+          style={{ height: `${chrome.statusBarHeight + chrome.navigationBarHeight}px` }}
         />
-      </View>
-      <ProfileView
-        key={identity.profile?.user_id || 'guest'}
-        profile={identity.profile}
-        pendingAction={identity.pendingAction}
-        error={confirmationError || identity.error}
-        onOpenLogin={() => void openLogin()}
-        onOpenInformation={(section) => void openProfileInformation(section)}
-        onSaveNickname={identity.saveNickname}
-        onLogout={logout}
-        onRetry={identity.refresh}
-      />
+      ) : (
+        <View className='profile-page__header account-header'>
+          <NavigationBar
+            title='欢迎登录观潮家'
+            chrome={chrome}
+            leading={
+              <Button
+                className='tidewise-button profile-page__back'
+                aria-label='返回推理'
+                hoverClass='none'
+                onClick={() => void leaveProfile()}
+              >
+                <View className='profile-page__chevron' />
+              </Button>
+            }
+          />
+        </View>
+      )}
+      {!identity.profile && identity.pendingAction === 'refresh' ? (
+        <View className='profile-page__body'>
+          <Text>正在检查登录状态…</Text>
+        </View>
+      ) : !identity.profile ? (
+        <LoginView
+          pendingAction={identity.pendingAction}
+          error={identity.error}
+          canLogin={supportsWechatLogin}
+          onLogin={identity.login}
+          onOpenPrivacy={() => void openProfileInformation('privacy')}
+        />
+      ) : (
+        <ProfileView
+          key={identity.profile?.user_id || 'guest'}
+          profile={identity.profile}
+          pendingAction={identity.pendingAction}
+          error={confirmationError || identity.error}
+          onOpenLogin={() => void openLogin()}
+          onOpenInformation={(section) => void openProfileInformation(section)}
+          onOpenEditor={() => void openProfileEditor()}
+          onLogout={logout}
+          onRetry={identity.refresh}
+          onOpenTracking={() => void openTracking()}
+        />
+      )}
     </View>
   );
 }

@@ -9,6 +9,7 @@ import {
 import type { ReportHomeGroup } from '../../features/reports/contract';
 import type { ReportDetailRoute, ReportEvidenceRoute } from '../../features/reports/navigation';
 import { getReportPort } from '../../features/reports/port';
+import { RiskNotice } from '../../components/risk-notice';
 import evidenceIcon from '../../assets/icons/file-text-ink.svg';
 import arrowIcon from '../../assets/icons/report-arrow-right-light-gold.svg';
 import './normalized-home.scss';
@@ -38,9 +39,13 @@ export function NormalizedHome({
   group,
   query,
   onDetail,
-  onEvidence
+  onEvidence,
+  onRefresh,
+  refreshing = false
 }: {
   group: ReportHomeGroup;
+  onRefresh?: () => void;
+  refreshing?: boolean;
   query: string;
   onDetail?: (r: ReportDetailRoute) => void;
   onEvidence: (r: ReportEvidenceRoute) => void;
@@ -127,16 +132,26 @@ export function NormalizedHome({
             ))}
           </View>
         </ScrollView>
-        <View className='normalized-home-heading'>
-          <Text>今日推理主线</Text>
-          <Text className='normalized-home-total'>
-            {current ? '已加载 ' : ''}
-            {items.length} 条主线
-          </Text>
-        </View>
+        <RiskNotice />
       </View>
-      <ScrollView key={kind} scrollY className='normalized-home-scroll'>
+      <ScrollView
+        key={kind}
+        scrollY
+        className='normalized-home-scroll'
+        refresherEnabled={process.env.TARO_ENV === 'weapp'}
+        refresherTriggered={refreshing}
+        onRefresherRefresh={onRefresh}
+      >
         <View className='normalized-home-list'>
+          {process.env.TARO_ENV !== 'weapp' && onRefresh && (
+            <Button
+              className='tidewise-button reading-refresh'
+              disabled={refreshing}
+              onClick={onRefresh}
+            >
+              {refreshing ? '正在刷新…' : '刷新'}
+            </Button>
+          )}
           {items.map(({ u, sourceKind }) => (
             <HomeCard
               key={`${sourceKind}:${u.local_key}`}

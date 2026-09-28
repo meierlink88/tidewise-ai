@@ -1,6 +1,6 @@
 export default definePageConfig({
   navigationStyle: 'default',
-  navigationBarTitleText: '跟踪',
-  navigationBarBackgroundColor: '#f7f5ef',
+  navigationBarTitleText: '我的跟踪',
+  navigationBarBackgroundColor: '#ffffff',
   navigationBarTextStyle: 'black'
 });

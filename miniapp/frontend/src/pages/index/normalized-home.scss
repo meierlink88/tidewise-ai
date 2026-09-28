@@ -334,3 +334,145 @@
   color: $color-champagne-500;
   font-weight: 700;
 }
+
+// Tidetell 2.0 presentation; enum-dependent selectors above remain unchanged.
+
+.normalized-home-navigation {
+  background: $ui-canvas;
+}
+.normalized-home-tabs {
+  gap: 0;
+  border-bottom: 1rpx solid $ui-line;
+}
+.normalized-home-tab {
+  flex: 1;
+  border: 0 !important;
+  border-bottom: 4rpx solid transparent !important;
+  border-radius: 0 !important;
+  padding: 18rpx 8rpx !important;
+  background: transparent !important;
+  font-size: 26rpx !important;
+  color: $ui-muted !important;
+  box-shadow: none;
+}
+.normalized-home-tab.selected {
+  border-bottom-color: $ui-brand !important;
+  color: $ui-brand !important;
+  background: transparent !important;
+  box-shadow: none;
+}
+.normalized-home-heading {
+  padding: 20rpx 0 18rpx;
+  font-size: 32rpx;
+  color: $ui-ink;
+}
+.normalized-home-total {
+  font-size: 23rpx;
+  color: $ui-muted;
+}
+.normalized-home-card {
+  padding: 22rpx;
+  border-radius: $ui-radius;
+  background: $color-card;
+  box-shadow: none;
+  margin-bottom: 16rpx;
+}
+.normalized-home-card.impact-high {
+  box-shadow: none;
+}
+.normalized-card-story {
+  font-size: 23rpx;
+}
+.normalized-card-story-name {
+  color: $ui-muted;
+  border-left: 0;
+  padding-left: 0;
+}
+.normalized-card-time {
+  font-size: 21rpx;
+  color: $ui-muted;
+}
+.normalized-card-meta {
+  gap: 8rpx;
+  flex-wrap: wrap;
+}
+.normalized-card-conclusion {
+  font-size: 30rpx;
+  color: $ui-ink;
+  line-height: 1.55;
+}
+.normalized-card-logic {
+  background: $ui-brand-soft;
+  border: 0;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  line-height: 1.65;
+  font-weight: 400;
+  color: $ui-ink;
+  padding: 16rpx;
+}
+.normalized-anchor-area {
+  display: block;
+  margin: 18rpx 0;
+}
+.normalized-anchor-count {
+  display: flex;
+  gap: 6rpx;
+  align-items: center;
+  margin-bottom: 10rpx;
+}
+.normalized-anchor-number {
+  font-size: 26rpx;
+}
+.normalized-anchor-caption {
+  font-size: 23rpx;
+  color: $ui-muted;
+}
+.normalized-anchor-chips {
+  gap: 8rpx;
+}
+.normalized-anchor-chip {
+  padding: 6rpx 10rpx;
+  border-radius: 6rpx;
+  font-size: 23rpx;
+}
+.normalized-card-boundary {
+  font-size: 24rpx;
+  line-height: 1.65;
+  padding: 14rpx 16rpx;
+  margin: 16rpx 0;
+}
+.normalized-card-footer {
+  border-color: $ui-line;
+  padding-top: 12rpx;
+}
+.normalized-card-path {
+  border-radius: 12rpx !important;
+  background: $ui-brand !important;
+  border: 0 !important;
+  color: #fff !important;
+  padding: 12rpx 16rpx !important;
+  font-size: 24rpx !important;
+}
+.normalized-path-circle {
+  background: transparent;
+  border: 0;
+}
+.normalized-card-evidence {
+  font-size: 24rpx !important;
+  color: $ui-brand !important;
+}
+.normalized-home-list {
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+}
+.normalized-home-empty {
+  color: $ui-muted;
+  padding: 100rpx 24rpx;
+}
+
+.normalized-home-tabs {
+  display: flex;
+  width: 100%;
+  min-width: 100%;
+  padding: 0;
+}

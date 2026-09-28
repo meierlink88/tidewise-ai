@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import Taro from '@tarojs/taro';
-import { Button, Text, View } from '@tarojs/components';
+import { Button, ScrollView, Text, View } from '@tarojs/components';
 import { NavigationBar } from '../../../platform/navigation-bar';
 import { getHomeChromeMetrics } from '../../../platform/system-ui';
 import {
@@ -40,38 +40,40 @@ export default function InformationPage() {
           }
         />
       </View>
-      {about ? (
-        <View className='about-page__body'>
-          <View className='about-page__brand'>
-            <View className='about-page__mark'>观</View>
-            <Text className='about-page__name'>观潮家</Text>
-            <Text className='about-page__tagline'>读懂全球政经变化</Text>
-            {version && <Text className='about-page__version'>V{version}</Text>}
-          </View>
-          <Button
-            className='about-page__privacy'
-            onClick={() => void openProfileInformation('privacy')}
-          >
-            隐私政策
-          </Button>
-        </View>
-      ) : (
-        <View className='profile-page__body profile-information'>
-          <Text className='profile-information__title'>观潮家隐私政策</Text>
-          <Text className='profile-information__lead'>版本日期：{privacyVersion}</Text>
-          {privacySections.map(([heading, text]) => (
-            <View key={heading} className='profile-information__section'>
-              <Text className='profile-information__heading'>{heading}</Text>
-              <Text className='profile-information__text' selectable>
-                {text}
-              </Text>
+      <ScrollView scrollY className='information-scroll'>
+        {about ? (
+          <View className='about-page__body'>
+            <View className='about-page__brand'>
+              <View className='about-page__mark'>观</View>
+              <Text className='about-page__name'>观潮家</Text>
+              <Text className='about-page__tagline'>读懂全球政经变化</Text>
+              {version && <Text className='about-page__version'>V{version}</Text>}
             </View>
-          ))}
-          <Button className='profile-page__button' onClick={() => void copyPrivacyContact()}>
-            复制隐私联系邮箱
-          </Button>
-        </View>
-      )}
+            <Button
+              className='about-page__privacy'
+              onClick={() => void openProfileInformation('privacy')}
+            >
+              隐私政策
+            </Button>
+          </View>
+        ) : (
+          <View className='profile-page__body profile-information'>
+            <Text className='profile-information__title'>观潮家隐私政策</Text>
+            <Text className='profile-information__lead'>版本日期：{privacyVersion}</Text>
+            {privacySections.map(([heading, text]) => (
+              <View key={heading} className='profile-information__section'>
+                <Text className='profile-information__heading'>{heading}</Text>
+                <Text className='profile-information__text' selectable>
+                  {text}
+                </Text>
+              </View>
+            ))}
+            <Button className='profile-page__button' onClick={() => void copyPrivacyContact()}>
+              复制隐私联系邮箱
+            </Button>
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 }

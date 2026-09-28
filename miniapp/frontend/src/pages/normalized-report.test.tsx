@@ -131,7 +131,6 @@ describe('normalized report interaction', () => {
     );
     expect(host.querySelectorAll('.normalized-home-tab')).toHaveLength(4);
     expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(23);
-    expect(host.querySelector('.normalized-home-total')?.textContent).toBe('已加载 23 条主线');
     click(host.querySelectorAll('.normalized-card-path')[2]);
     expect(detail).toHaveBeenLastCalledWith({
       reportId,
@@ -146,10 +145,8 @@ describe('normalized report interaction', () => {
     await act(async () => host.querySelector<HTMLButtonElement>('.normalized-home-more')!.click());
     expect(read).toHaveBeenLastCalledWith(reportId, 'concept_analyses', 'legacy-next');
     expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(27);
-    expect(host.querySelector('.normalized-home-total')?.textContent).toBe('27 条主线');
     click(host.querySelectorAll('.normalized-home-tab')[3]);
     expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(25);
-    expect(host.querySelector('.normalized-home-total')?.textContent).toBe('25 条主线');
     click(host.querySelectorAll('.normalized-home-tab')[0]);
     expect(host.querySelector('.normalized-home-more')).toBeNull();
     click(host.querySelectorAll('.normalized-card-path')[25]);
@@ -241,7 +238,6 @@ describe('normalized report interaction', () => {
       )
     );
     expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(3);
-    expect(host.querySelector('.normalized-home-total')?.textContent).toBe('3 条主线');
     for (let i = 0; i < 3; i++) {
       click(host.querySelectorAll('.normalized-home-tab')[i + 1]);
       const group = fixture.groups[i],
@@ -276,10 +272,9 @@ describe('normalized report interaction', () => {
     const title = group.analysisGroups![1].items[0].title;
     render(title);
     expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(1);
-    expect(host.querySelector('.normalized-home-total')?.textContent).toBe('1 条主线');
     click(host.querySelectorAll('.normalized-home-tab')[1]);
     expect(host.textContent).toContain('暂无匹配的结论');
-    expect(host.querySelector('.normalized-home-total')?.textContent).toBe('0 条主线');
+    expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(0);
     render('');
     expect(host.querySelectorAll('.normalized-home-card')).toHaveLength(1);
     click(host.querySelectorAll('.normalized-home-tab')[0]);

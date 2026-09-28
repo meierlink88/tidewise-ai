@@ -8,6 +8,14 @@ let phoneHandler: ((e: { detail: { code?: string } }) => void) | undefined;
 vi.mock('@tarojs/components', () => ({
   View: ({ children, ...props }: { children?: ReactNode }) => createElement('div', props, children),
   Text: 'span',
+  ScrollView: ({
+    children,
+    scrollY: _scrollY,
+    ...props
+  }: {
+    children?: ReactNode;
+    scrollY?: boolean;
+  }) => createElement('div', props, children),
   Checkbox: ({ children }: { children?: ReactNode }) => createElement('span', {}, children),
   CheckboxGroup: ({
     children,

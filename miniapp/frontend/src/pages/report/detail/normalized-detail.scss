@@ -623,3 +623,190 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+// Tidetell 2.0 presentation; enum-dependent selectors above remain unchanged.
+
+.normalized-detail {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  color: $ui-ink;
+  background: $ui-canvas;
+}
+.normalized-hero {
+  padding: 20rpx 32rpx 24rpx;
+  background: $color-card;
+  color: $ui-ink;
+}
+.normalized-hero::before {
+  display: none;
+}
+.normalized-kicker {
+  gap: 14rpx;
+  justify-content: space-between;
+}
+.normalized-story {
+  border: 0;
+  border-radius: 8rpx;
+  background: $ui-brand-soft;
+  color: $ui-brand;
+  font-size: 24rpx;
+}
+.normalized-publication {
+  color: $ui-muted;
+  font-size: 23rpx;
+}
+.normalized-headline {
+  font-size: 32rpx;
+  line-height: 1.55;
+  margin-top: 14rpx;
+}
+.normalized-hero-logic {
+  border-left: 4rpx solid $ui-brand-soft;
+  padding-left: 14rpx;
+  margin-top: 16rpx;
+  color: $ui-muted;
+  font-size: 26rpx;
+  line-height: 1.6;
+}
+.normalized-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  border-radius: 0;
+  background: $ui-canvas;
+}
+.normalized-main::after {
+  display: none;
+}
+.normalized-tabs {
+  flex-shrink: 0;
+  margin: 0;
+  background: $color-card;
+  border-bottom: 1rpx solid $ui-line;
+}
+.normalized-tab {
+  padding: 18rpx 24rpx !important;
+  border-bottom: 4rpx solid transparent !important;
+}
+.normalized-tab.selected {
+  border-bottom-color: $ui-brand !important;
+  color: $ui-brand !important;
+}
+.normalized-tab.selected::before {
+  display: none;
+}
+.normalized-detail-scroll {
+  height: 0;
+  flex: 1;
+  min-height: 0;
+  box-sizing: border-box;
+}
+.normalized-detail-scroll > view {
+  padding: 24rpx;
+}
+.normalized-chain-content {
+  background: $ui-canvas;
+  padding: 0;
+}
+.normalized-tree-panel {
+  border: 1rpx solid $ui-line;
+  background: $color-card;
+  border-radius: $ui-radius;
+  box-shadow: none;
+}
+.normalized-main > .normalized-tree-panel {
+  border: 0;
+  border-radius: 0;
+}
+.normalized-conclusion {
+  background: transparent;
+  border: 0;
+  border-left: 5rpx solid $ui-brand;
+  border-radius: 0;
+  padding: 0 0 0 20rpx;
+  box-shadow: none;
+}
+.normalized-conclusion .normalized-section-label {
+  color: $ui-brand;
+  letter-spacing: 0;
+}
+.normalized-conclusion .normalized-evidence {
+  color: $ui-brand !important;
+}
+.normalized-scope {
+  color: $ui-muted;
+}
+.normalized-section-label {
+  color: $ui-brand;
+}
+.normalized-conclusion-text {
+  color: $ui-ink;
+  font-size: 30rpx;
+  line-height: 1.6;
+}
+.normalized-mechanism {
+  margin: 32rpx 0 0;
+  padding: 28rpx;
+  text-align: left;
+  box-shadow: none;
+  background: $ui-brand;
+  border-color: $ui-brand;
+  border-radius: 16rpx;
+}
+.normalized-mechanism-label {
+  font-size: 24rpx;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.7);
+}
+.normalized-mechanism-text {
+  font-size: 28rpx;
+  font-weight: 600;
+  line-height: 1.75;
+}
+.normalized-mechanism::before {
+  top: -32rpx;
+  height: 32rpx;
+  background: $ui-line;
+}
+.normalized-columns {
+  padding-top: 32rpx;
+  gap: 20rpx;
+}
+.normalized-columns::before,
+.normalized-columns::after,
+.normalized-support::before,
+.normalized-counter::before,
+.normalized-core-section::before,
+.normalized-node-detail::before {
+  display: none;
+}
+.normalized-support,
+.normalized-counter {
+  border-radius: 20rpx;
+  box-shadow: none;
+}
+.normalized-columns .normalized-prose {
+  font-size: 26rpx;
+  color: $ui-muted;
+}
+.normalized-core-section {
+  background: $color-card;
+  border-color: $ui-line;
+  border-radius: $ui-radius;
+}
+.normalized-node-detail {
+  background: $ui-canvas;
+  border-color: $ui-line;
+  box-shadow: none;
+}
+.normalized-prose {
+  font-size: 27rpx;
+  line-height: 1.65;
+}
+.normalized-core-section {
+  margin-bottom: calc(24rpx + env(safe-area-inset-bottom));
+}

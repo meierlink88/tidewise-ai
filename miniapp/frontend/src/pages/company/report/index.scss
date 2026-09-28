@@ -1,0 +1,12 @@
+@use '../../../styles/tokens' as *;
+.company-report-screen {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: $color-card;
+}
+.company-report-screen > .navigation-bar {
+  color: $ui-ink;
+  border-bottom: 1rpx solid $ui-line;
+}

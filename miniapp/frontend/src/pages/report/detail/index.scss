@@ -720,3 +720,22 @@
   border-bottom: 4rpx solid currentColor;
   transform: rotate(45deg);
 }
+
+// Tidetell 2.0 presentation; enum-dependent selectors above remain unchanged.
+
+.detail-screen {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: $ui-canvas;
+}
+.report-detail-navigation {
+  position: relative;
+  flex-shrink: 0;
+  background: $color-card;
+  border-bottom: 1rpx solid $ui-line;
+}
+.report-detail-navigation .navigation-bar {
+  color: $ui-ink;
+}

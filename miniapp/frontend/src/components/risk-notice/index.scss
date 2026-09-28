@@ -1,0 +1,43 @@
+.risk-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 14rpx;
+  max-width: 100%;
+  margin: 12rpx 0 16rpx;
+  padding: 12rpx 16rpx;
+  border: 1rpx solid #ead9b4;
+  border-radius: 10rpx;
+  background: #fbf7ed;
+  color: #80612b;
+}
+.risk-notice__icon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  /* prettier-ignore */
+  width: 16PX;
+  /* prettier-ignore */
+  height: 16PX;
+  /* prettier-ignore */
+  margin-top: 1PX;
+  /* prettier-ignore */
+  border: 1PX solid #a57b32;
+  border-radius: 50%;
+  color: #a57b32;
+  /* prettier-ignore */
+  font-size: 12PX;
+  font-weight: 600;
+  line-height: 1;
+}
+.risk-notice__copy {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  /* Keep the compact notice readable even on narrow screens. */
+  /* prettier-ignore */
+  font-size: 11PX;
+  line-height: 1.65;
+  text-align: left;
+  overflow-wrap: anywhere;
+}

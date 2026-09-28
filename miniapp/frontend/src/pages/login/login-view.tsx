@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Text, View, Checkbox, CheckboxGroup } from '@tarojs/components';
+import { Button, Text, View, ScrollView, Checkbox, CheckboxGroup } from '@tarojs/components';
 import type { IdentityAction } from '../../features/identity/use-identity';
 
 export interface LoginViewProps {
@@ -15,7 +15,7 @@ export function LoginView(props: Readonly<LoginViewProps>) {
   const [agreed, setAgreed] = useState(false);
   const [loginNotice, setLoginNotice] = useState('');
   return (
-    <View className='login-page__body'>
+    <ScrollView scrollY className='login-page__body'>
       <View className='login-page__brand'>
         <View className='login-page__mark'>
           <Text>观</Text>
@@ -34,18 +34,21 @@ export function LoginView(props: Readonly<LoginViewProps>) {
               value='privacy'
               checked={agreed}
               disabled={busy}
-              color='#aa8033'
+              color='#194d87'
               aria-label='同意隐私政策'
             >
               我已阅读并同意
             </Checkbox>
           </CheckboxGroup>
-          <Button className='profile-page__policy-link' onClick={props.onOpenPrivacy}>
+          <Button
+            className='tidewise-button profile-page__policy-link'
+            onClick={props.onOpenPrivacy}
+          >
             《观潮家隐私政策》
           </Button>
         </View>
         <Button
-          className='profile-page__button'
+          className='tidewise-button profile-page__button'
           hoverClass='profile-page__pressed'
           disabled={busy || !canLogin}
           onClick={() => {
@@ -66,7 +69,7 @@ export function LoginView(props: Readonly<LoginViewProps>) {
                 : '请在微信小程序中登录'}
         </Button>
         <Button
-          className='profile-page__phone-login'
+          className='tidewise-button profile-page__phone-login'
           disabled={busy || !canLogin}
           openType={canLogin && agreed ? 'getPhoneNumber' : undefined}
           onClick={() => {
@@ -98,6 +101,6 @@ export function LoginView(props: Readonly<LoginViewProps>) {
           {error}
         </View>
       )}
-    </View>
+    </ScrollView>
   );
 }

@@ -7,10 +7,10 @@ export default definePageConfig({
       }
     : {}),
   navigationBarTitleText: '深度分析',
-  navigationBarBackgroundColor: '#0b2035',
-  navigationBarTextStyle: 'white',
+  navigationBarBackgroundColor: '#ffffff',
+  navigationBarTextStyle: 'black',
   navigationStyle: 'custom',
-  enablePullDownRefresh: true,
+  enablePullDownRefresh: false,
   backgroundColor: '#f7f5ef',
   backgroundTextStyle: 'dark'
 });
