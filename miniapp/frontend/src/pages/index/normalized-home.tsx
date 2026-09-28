@@ -21,6 +21,12 @@ const categories = [
   'concept_analyses'
 ] as const;
 type Category = (typeof categories)[number];
+const categoryLabels: Record<Category, string> = {
+  all: '全部',
+  geopolitical_stories: '地缘',
+  macroeconomic_stories: '宏观',
+  concept_analyses: '产业链'
+};
 const allKinds: AnalysisKind[] = [
   'geopolitical_stories',
   'macroeconomic_stories',
@@ -127,7 +133,7 @@ export function NormalizedHome({
                 className={`tidewise-button normalized-home-tab ${kind === k ? 'selected' : ''}`}
                 onClick={() => setKind(k)}
               >
-                <Text>{k === 'all' ? '全部' : analysisLabels[k]}</Text>
+                <Text>{categoryLabels[k]}</Text>
               </Button>
             ))}
           </View>
@@ -222,7 +228,7 @@ function HomeCard({
           </Text>
           <Text className='normalized-card-story-name'>{u.title}</Text>
         </View>
-        <Text className='normalized-card-time'>{time} 发布</Text>
+        <Text className='normalized-card-time'>{time}</Text>
       </View>
       <Text className='normalized-card-conclusion'>{u.summary.conclusion}</Text>
       <View className='normalized-card-logic'>
@@ -266,7 +272,7 @@ function HomeCard({
           onClick={onEvidence}
         >
           <Image src={evidenceIcon} className='normalized-evidence-icon' mode='scaleToFill' />
-          <Text>{u.summary.evidence_count} 条政经事件</Text>
+          <Text>{u.summary.evidence_count} 条事件</Text>
         </Button>
         <Button
           className='tidewise-button normalized-card-path'
