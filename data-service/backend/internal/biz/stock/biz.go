@@ -3,8 +3,10 @@ package stock
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"regexp"
 	"sort"
@@ -316,4 +318,154 @@ func ProfileReplacement(previous, next Stock, hasProfile, different bool) (bool,
 		}
 	}
 	return true, nil
+}
+
+type classificationSource struct {
+	Meta struct {
+		RecordCount int `json:"record_count"`
+		Universe    int `json:"universe"`
+	} `json:"meta"`
+	Stocks []struct {
+		Code     string `json:"code"`
+		Exchange string `json:"exchange"`
+		L1       string `json:"industry_l1"`
+		L2       string `json:"industry_l2"`
+		Concepts []struct {
+			Code string `json:"code"`
+			Name string `json:"name"`
+		} `json:"market_concepts"`
+		Chains []string `json:"industry_chain"`
+	} `json:"stocks"`
+}
+
+func PublishClassifications(ctx context.Context, repository ClassificationRepository, reader io.Reader, apply bool) (ClassificationResult, error) {
+	var source classificationSource
+	limited := &io.LimitedReader{R: reader, N: (64 << 20) + 1}
+	decoder := json.NewDecoder(limited)
+	if err := decoder.Decode(&source); err != nil {
+		return ClassificationResult{}, fmt.Errorf("classification input: %w", ErrInvalid)
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); err != io.EOF {
+		return ClassificationResult{}, ErrInvalid
+	}
+	if limited.N == 0 {
+		return ClassificationResult{}, ErrInvalid
+	}
+	if len(source.Stocks) == 0 || source.Meta.RecordCount != len(source.Stocks) || source.Meta.Universe != len(source.Stocks) {
+		return ClassificationResult{}, ErrInvalid
+	}
+	symbols := make([]string, 0, len(source.Stocks))
+	seen := map[string]bool{}
+	codeNames := map[string]string{}
+	nameCodes := map[string]string{}
+	valid := func(s string) bool { return strings.TrimSpace(s) == s && s != "" }
+	for _, s := range source.Stocks {
+		symbol := s.Code + "." + s.Exchange
+		if len(s.Code) != 6 || ExchangeName(s.Exchange) == "" || seen[symbol] || !valid(s.L1) || !valid(s.L2) || s.Concepts == nil || s.Chains == nil {
+			return ClassificationResult{}, ErrInvalid
+		}
+		for _, ch := range s.Code {
+			if ch < '0' || ch > '9' {
+				return ClassificationResult{}, ErrInvalid
+			}
+		}
+		seen[symbol] = true
+		symbols = append(symbols, symbol)
+		cs := map[string]bool{}
+		for _, c := range s.Concepts {
+			if !valid(c.Code) || !valid(c.Name) || cs[c.Code] {
+				return ClassificationResult{}, ErrInvalid
+			}
+			if old, ok := codeNames[c.Code]; ok && old != c.Name {
+				return ClassificationResult{}, ErrConflict
+			}
+			if old, ok := nameCodes[c.Name]; ok && old != c.Code {
+				return ClassificationResult{}, ErrConflict
+			}
+			codeNames[c.Code] = c.Name
+			nameCodes[c.Name] = c.Code
+			cs[c.Code] = true
+		}
+		chs := map[string]bool{}
+		for _, c := range s.Chains {
+			if !valid(c) || chs[c] {
+				return ClassificationResult{}, ErrInvalid
+			}
+			chs[c] = true
+		}
+	}
+	ids, err := repository.ResolveClassificationStocks(ctx, symbols)
+	if err != nil {
+		return ClassificationResult{}, err
+	}
+	// All identifiers are allocated through Data's common generator. Errors are
+	// accumulated before any write rather than replaced with an empty identity.
+	var allocationError error
+	derive := func(kind coreid.Kind, parts ...string) string {
+		id, e := coreid.Derive(kind, "stock-classification-v1", parts...)
+		if e != nil {
+			allocationError = e
+		}
+		return id
+	}
+	p := ClassificationPublication{}
+	industries := map[string]ClassificationIndustry{}
+	concepts := map[string]ClassificationMaster{}
+	chains := map[string]ClassificationMaster{}
+	internalCode := func(parts ...string) string {
+		b, _ := json.Marshal(parts)
+		return fmt.Sprintf("local-%x", sha256.Sum256(b))
+	}
+	for _, s := range source.Stocks {
+		stockID, ok := ids[s.Code+"."+s.Exchange]
+		if !ok || !coreid.Is(stockID, coreid.Stock) {
+			return ClassificationResult{}, ErrInvalid
+		}
+		p.StockIDs = append(p.StockIDs, stockID)
+		rootID := derive(coreid.StockIndustry, "wind", s.L1)
+		leafID := derive(coreid.StockIndustry, "wind", s.L1, s.L2)
+		rootCode := internalCode(s.L1)
+		leafCode := internalCode(s.L1, s.L2)
+		industries[rootID] = ClassificationIndustry{ID: rootID, Name: s.L1, Code: rootCode, Path: []string{rootCode}}
+		industries[leafID] = ClassificationIndustry{ID: leafID, Name: s.L2, Code: leafCode, Parent: &rootID, Path: []string{rootCode, leafCode}}
+		for _, target := range []string{rootID, leafID} {
+			p.IndustryLinks = append(p.IndustryLinks, ClassificationLink{derive(coreid.StockIndustryLink, stockID, target), stockID, target})
+		}
+		for _, c := range s.Concepts {
+			id := derive(coreid.StockConcept, c.Name)
+			concepts[id] = ClassificationMaster{id, c.Name}
+			p.ConceptLinks = append(p.ConceptLinks, ClassificationLink{derive(coreid.StockConceptLink, stockID, id), stockID, id})
+		}
+		for _, c := range s.Chains {
+			id := derive(coreid.StockIndustryChain, c)
+			chains[id] = ClassificationMaster{id, c}
+			p.ChainLinks = append(p.ChainLinks, ClassificationLink{derive(coreid.StockIndustryChainLink, stockID, id), stockID, id})
+		}
+	}
+	if allocationError != nil {
+		return ClassificationResult{}, allocationError
+	}
+	for _, v := range industries {
+		p.Industries = append(p.Industries, v)
+	}
+	for _, v := range concepts {
+		p.Concepts = append(p.Concepts, v)
+	}
+	for _, v := range chains {
+		p.Chains = append(p.Chains, v)
+	}
+	sort.Slice(p.Industries, func(i, j int) bool {
+		a, b := p.Industries[i], p.Industries[j]
+		if len(a.Path) != len(b.Path) {
+			return len(a.Path) < len(b.Path)
+		}
+		return a.ID < b.ID
+	})
+	sort.Slice(p.Concepts, func(i, j int) bool { return p.Concepts[i].ID < p.Concepts[j].ID })
+	sort.Slice(p.Chains, func(i, j int) bool { return p.Chains[i].ID < p.Chains[j].ID })
+	if err = repository.PublishClassifications(ctx, p, apply); err != nil {
+		return ClassificationResult{}, err
+	}
+	return ClassificationResult{len(p.StockIDs), len(p.Industries), len(p.Concepts), len(p.Chains), len(p.IndustryLinks), len(p.ConceptLinks), len(p.ChainLinks), apply}, nil
 }
