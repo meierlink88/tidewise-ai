@@ -80,15 +80,6 @@ export default function CompanyPage() {
             : '暂无公司资料'}
         </Text>
       )}
-      {directory.hasMore && directory.searchStatus === 'ready' && (
-        <Button
-          className='tidewise-button company-directory-action'
-          disabled={!!directory.pending}
-          onClick={loadMore}
-        >
-          加载更多
-        </Button>
-      )}
       {!directory.hasMore && directory.results.length > 0 && directory.searchStatus === 'ready' && (
         <Text className='preview-note'>
           已展示全部{directory.query.trim() ? '匹配结果' : '公司'}

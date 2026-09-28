@@ -53,7 +53,14 @@ export default function TrackingPage() {
           <Text>{tracking.guest ? '关注公司，持续跟踪' : `已跟踪 ${tracking.total} 家公司`}</Text>
         </View>
       </View>
-      <ScrollView scrollY className='tracking-content'>
+      <ScrollView
+        scrollY
+        className='tracking-content'
+        onScrollToLower={() => {
+          if (tracking.hasMore && status === 'ready' && !tracking.pending && !confirmation)
+            void tracking.loadMore();
+        }}
+      >
         <View className='tracking-list-label'>
           <Text>我跟踪的公司</Text>
           <Text>公司 / 行业 / 主题</Text>
@@ -97,15 +104,6 @@ export default function TrackingPage() {
               </Button>
             )}
           </View>
-        )}
-        {tracking.hasMore && status !== 'loading' && (
-          <Button
-            className='tidewise-button tracking-load'
-            disabled={!!tracking.pending}
-            onClick={() => void tracking.loadMore()}
-          >
-            加载更多
-          </Button>
         )}
         {items.length > 0 && !tracking.hasMore && status === 'ready' && (
           <View className='tracking-message'>以上是你跟踪的公司</View>

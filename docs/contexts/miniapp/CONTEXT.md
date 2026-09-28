@@ -358,3 +358,5 @@ The Home feed omits the 今日推理主线 heading and loaded-count row. Macro a
 我的跟踪仅读取 tracking 列表，按 added_at DESC、stock_id ASC 游标分页，保留确认取消与报告入口，空态引导公司洞察，不提供全市场搜索/添加。两页共享 CompanyCard 和 TrackingPort，目录模式不读取个人全列表；返回页面重新读取，写入失败不假装成功，保留防抖、重复提交与旧会话响应隔离。
 报告仍是样例：仅完整证券代码 603179.SH 打开已有新泉报告并标注样例，其他公司显示暂无报告样例；不新增真实报告 API，不用模拟公司 ID 写入关系。公司洞察保留固定风险提示和已确认视觉，移除整页设计模拟说明。
 部署顺序 Data → Miniapp Backend → Frontend。User Service、数据表、既有关系和账号均不变，无 migration 或数据发布。旧客户端继续兼容；新版前端遇旧版服务不能浏览目录时明确报错，不回退到模拟数据。
+
+公司目录及我的跟踪均在 ScrollView 触底后自动加载下一页，不显示底部“加载更多”按钮；加载中与已加载完毕状态保留，失败由显式重试恢复，pending 时不重复翻页。
