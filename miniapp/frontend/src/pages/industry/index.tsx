@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import { Button, Text, View } from '@tarojs/components';
+import { useResearchAccess } from '../../features/identity/use-research-access';
+import { ResearchAccessState } from '../../features/identity/research-access-state';
 import { chains, companies } from '../../features/design-preview/fixtures';
 import { aiEvents } from '../../features/design-preview/events';
 import { PreviewPage, PreviewSheet, PreviewTabs } from '../../features/design-preview/shell';
 import { PreviewCompanyRow } from '../../features/design-preview/company-row';
 
 export default function IndustryPage() {
+  const access = useResearchAccess('industry');
   const [active, setActive] = useState(0);
   const [node, setNode] = useState<string[] | null>(null);
   const [events, setEvents] = useState(false);
   const chain = chains[active];
+  if (!access.allowed) return <ResearchAccessState error={access.error} retry={access.retry} />;
   return (
     <PreviewPage
       title='产业透析'

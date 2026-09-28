@@ -1,0 +1,17 @@
+@use '../../styles/tokens' as *;
+.research-access-state {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 180rpx $spacing-page 48rpx;
+  background: $ui-canvas;
+  color: $ui-muted;
+  text-align: center;
+  font-size: $font-report-body;
+}
+.tidewise-button.research-access-state__retry {
+  margin-top: 32rpx;
+  padding: 20rpx 40rpx;
+  background: $ui-brand;
+  color: $color-card;
+  border-radius: $ui-radius;
+}

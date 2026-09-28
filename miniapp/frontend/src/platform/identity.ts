@@ -101,3 +101,32 @@ export async function leaveLogin() {
     void Taro.showToast({ title: '返回失败，请重试', icon: 'none' });
   }
 }
+
+const researchDestinations = {
+  macro: '/pages/macro/index',
+  industry: '/pages/industry/index',
+  company: '/pages/company/index',
+  companyReport: '/pages/company/report/index'
+} as const;
+export type ResearchDestination = keyof typeof researchDestinations;
+export function parseResearchDestination(value: unknown): ResearchDestination | undefined {
+  return typeof value === 'string' &&
+    Object.prototype.hasOwnProperty.call(researchDestinations, value)
+    ? (value as ResearchDestination)
+    : undefined;
+}
+export async function requireResearchLogin(destination: ResearchDestination) {
+  // Replace the protected page so native Back cannot repeatedly reopen login.
+  await Taro.redirectTo({ url: `/pages/login/index?research=${destination}` });
+}
+export async function leaveResearchLogin(destination: ResearchDestination, authenticated: boolean) {
+  try {
+    const url = authenticated ? researchDestinations[destination] : '/pages/index/index';
+    if (authenticated && destination === 'companyReport') await Taro.redirectTo({ url });
+    else await Taro.switchTab({ url });
+    return true;
+  } catch {
+    void Taro.showToast({ title: '打开失败，请重试', icon: 'none' });
+    return false;
+  }
+}

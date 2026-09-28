@@ -7,7 +7,8 @@ import { TrackingError, type Company, type TrackingPort } from './contract';
 type Status = 'idle' | 'loading' | 'ready' | 'error';
 export function useTracking(
   port: TrackingPort = trackingAPI,
-  mode: 'watchlist' | 'directory' = 'watchlist'
+  mode: 'watchlist' | 'directory' = 'watchlist',
+  enabled?: boolean
 ) {
   const directory = mode === 'directory';
   const [query, setQueryState] = useState('');
@@ -148,7 +149,23 @@ export function useTracking(
     else setStatus('idle');
     if (directory || queryRef.current.trim()) void search();
   }
-  useDidShow(refresh);
+  useDidShow(() => {
+    if (enabled !== false) refresh();
+  });
+  useEffect(() => {
+    if (enabled === undefined) return;
+    if (enabled) refresh();
+    else {
+      mounted.current = false;
+      ++listSequence.current;
+      ++searchSequence.current;
+      clearTimeout(timer.current);
+      setItems([]);
+      setResults([]);
+    }
+    // The page access gate owns activation; query changes use the debounced path.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
   useDidHide(() => {
     mounted.current = false;
     ++listSequence.current;

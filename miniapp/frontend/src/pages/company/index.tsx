@@ -1,4 +1,6 @@
 import { Button, Image, Input, Text, View } from '@tarojs/components';
+import { useResearchAccess } from '../../features/identity/use-research-access';
+import { ResearchAccessState } from '../../features/identity/research-access-state';
 import trackingIcon from '../../assets/icons/bookmark-light.svg';
 import { openTracking } from '../../platform/tracking';
 import './index.scss';
@@ -9,11 +11,13 @@ import { useTracking } from '../../features/tracking/use-tracking';
 import { openLogin } from '../../platform/identity';
 
 export default function CompanyPage() {
-  const directory = useTracking(undefined, 'directory');
+  const access = useResearchAccess('company');
+  const directory = useTracking(undefined, 'directory', access.allowed);
   const loadMore = () => {
     if (directory.hasMore && directory.searchStatus === 'ready' && !directory.pending)
       void directory.loadMore();
   };
+  if (!access.allowed) return <ResearchAccessState error={access.error} retry={access.retry} />;
   return (
     <PreviewPage
       simulation={false}

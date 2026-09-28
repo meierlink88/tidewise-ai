@@ -90,9 +90,9 @@ export default function TrackingPage() {
             <Text className='tracking-empty-title'>
               {tracking.guest ? '登录后查看你的跟踪' : '还没有跟踪公司'}
             </Text>
-            <Text>到公司洞察发现并跟踪感兴趣的公司</Text>
+            <Text>到企业洞察发现并跟踪感兴趣的公司</Text>
             <Button className='tidewise-button tracking-login' onClick={() => void discover()}>
-              去公司洞察
+              去企业洞察
             </Button>
             {tracking.guest && (
               <Button className='tidewise-button tracking-login' onClick={() => void openLogin()}>

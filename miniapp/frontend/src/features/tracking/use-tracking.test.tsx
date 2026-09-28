@@ -41,6 +41,7 @@ const page = (items: Company[] = [], total = items.length): Page => ({
 });
 let port: TrackingPort;
 let mode: 'watchlist' | 'directory' = 'watchlist';
+let enabled: boolean | undefined;
 function deferred<T>() {
   let resolve!: (v: T) => void;
   let reject!: (e: Error) => void;
@@ -51,11 +52,12 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 function Harness() {
-  state = useTracking(port, mode);
+  state = useTracking(port, mode, enabled);
   return null;
 }
 beforeEach(async () => {
   mode = 'watchlist';
+  enabled = undefined;
   vi.useFakeTimers();
   vi.clearAllMocks();
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
@@ -197,4 +199,21 @@ it('keeps loaded directory pages after a persisted follow and rejects older memb
   expect(state.results[1].is_followed).toBe(true);
   expect(state.hasMore).toBe(true);
   expect(state.searchStatus).toBe('ready');
+});
+
+it('defers directory requests until page access is verified and discards data when disabled', async () => {
+  mode = 'directory';
+  enabled = false;
+  await act(async () => root.render(createElement(Harness)));
+  await act(async () => mock.show());
+  expect(port.search).not.toHaveBeenCalled();
+  mock.readSession.mockReturnValue({ session_token: 'signed-in' });
+  vi.mocked(port.search).mockResolvedValue(page([company]));
+  enabled = true;
+  await act(async () => root.render(createElement(Harness)));
+  expect(port.search).toHaveBeenCalledWith('', 'signed-in', 0);
+  expect(state.results).toHaveLength(1);
+  enabled = false;
+  await act(async () => root.render(createElement(Harness)));
+  expect(state.results).toEqual([]);
 });
