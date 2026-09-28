@@ -19,17 +19,19 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  gap: 8rpx;
+  box-sizing: border-box;
+  width: 80rpx;
   height: 80rpx;
-  padding: 0 16rpx;
-  border-radius: 16rpx;
-  background: rgba($color-card, 0.12);
+  padding: 16rpx;
+  border: 3rpx solid $color-card;
+  border-radius: $radius-pill;
+  background: transparent;
   color: $color-card;
   font-size: $font-report-meta;
   white-space: nowrap;
 }
 
 .company-tracking-entry__icon {
-  width: 30rpx;
-  height: 30rpx;
+  width: 42rpx;
+  height: 42rpx;
 }

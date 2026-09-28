@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Taro from '@tarojs/taro';
 import type { Company } from './contract';
 import arrowIcon from '../../assets/icons/report-arrow-right-light-gold.svg';
+import radarIcon from '../../assets/icons/tracking-radar.svg';
 import { PreviewSheet } from '../design-preview/shell';
 import '../design-preview/preview.scss';
 import './company-card.scss';
@@ -53,7 +54,15 @@ export function CompanyCard({
             <Text>{pending ? '处理中' : '取消跟踪'}</Text>
           </Button>
         ) : company.is_followed ? (
-          <Text className='preview-company-tracking'>✓ 跟踪中</Text>
+          <View className='preview-company-tracking'>
+            <Image
+              src={radarIcon}
+              className='company-tracking-radar'
+              mode='aspectFit'
+              aria-hidden
+            />
+            <Text>跟踪中</Text>
+          </View>
         ) : (
           <Button
             className={`tidewise-button preview-company-track${busy ? ' company-action--busy' : ''}`}

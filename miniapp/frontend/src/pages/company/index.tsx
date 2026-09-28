@@ -51,7 +51,6 @@ export default function CompanyPage() {
             onClick={() => void openTracking()}
           >
             <Image src={trackingIcon} className='company-tracking-entry__icon' aria-hidden />
-            <Text>我的跟踪</Text>
           </Button>
         </View>
       }
