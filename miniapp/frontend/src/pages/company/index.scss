@@ -20,9 +20,9 @@
   justify-content: center;
   flex-shrink: 0;
   box-sizing: border-box;
-  width: 80rpx;
+  gap: 8rpx;
   height: 80rpx;
-  padding: 16rpx;
+  padding: 0 4rpx;
   border: 0;
   border-radius: $radius-pill;
   background: transparent;
@@ -32,6 +32,7 @@
 }
 
 .company-tracking-entry__icon {
-  width: 48rpx;
-  height: 48rpx;
+  flex-shrink: 0;
+  width: 32rpx;
+  height: 32rpx;
 }
