@@ -22,6 +22,7 @@ export default function CompanyPage() {
   return (
     <PreviewPage
       simulation={false}
+      riskNoticeBeforeFilters
       filters={<CompanyFilters value={directory.filters} onApply={directory.setFilters} />}
       onLoadMore={loadMore}
       headerSearch={

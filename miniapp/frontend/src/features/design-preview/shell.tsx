@@ -12,6 +12,7 @@ export function PreviewPage({
   title,
   subtitle,
   filters,
+  riskNoticeBeforeFilters = false,
   headerSearch,
   simulation = true,
   onLoadMore,
@@ -20,6 +21,7 @@ export function PreviewPage({
   title?: string;
   subtitle?: string;
   filters?: ReactNode;
+  riskNoticeBeforeFilters?: boolean;
   headerSearch?: ReactNode;
   simulation?: boolean;
   onLoadMore?: () => void;
@@ -45,8 +47,9 @@ export function PreviewPage({
       </View>
       {filters && (
         <View className='preview-filters'>
+          {riskNoticeBeforeFilters && <RiskNotice />}
           {filters}
-          <RiskNotice />
+          {!riskNoticeBeforeFilters && <RiskNotice />}
         </View>
       )}
       {!filters && (
