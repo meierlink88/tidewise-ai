@@ -69,7 +69,7 @@ describe('home publication header', () => {
   });
   it('shows the current date without fabricating a cutoff without a report', () => {
     const html = renderToStaticMarkup(<HomeHeader {...props} />);
-    expect(html).toContain('全球政经事件');
+    expect(html).not.toContain('全球政经事件');
     expect(html).not.toContain('截至');
     expect(html).toContain('09.12 周六');
   });
