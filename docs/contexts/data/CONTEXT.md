@@ -716,3 +716,47 @@ stock-profiles -file 接受用户提供的 v4 样本，严格验证后原子发�
 ### 公司目录浏览（#542）
 
 本节替代 #533/#535 stocks 查询必须提供 q 或 ids 的限制：无 ids 时，省略 q 或空白 q 返回分页目录；非空 q 同时匹配 full_name、name、name_initials 和代码，通配符按字面量转义。保留精确代码优先，其后 exchange/code/id、page_size 1–100、offset 0–10000、items/has_more，分页不提供一致性快照。ids 查询及服务身份权限不变。不新增表、索引、用户状态或 Company 关联。
+
+## Stock 独立分类目录（#546）
+
+Data 拥有 `s_industry`、`s_concept`、`s_industry_chain` 三张独立目录表。表名带 `s_`，
+字段沿用原目录字段名，不增加字段前缀或 `source_system`。统一 ID 生成器分别分配
+SIND、SCON、SICH 身份；为四字母前缀，三个主键及行业父键长度扩展为 40。
+原 Industry、Concept、IndustryChain 研究对象及其关系继续独立存在。
+
+行业一级、二级共用 `s_industry`，二级通过 `parent_industry_id` 引用一级。
+来源只有名称：classification_system 为 wind，industry_code 是从层级路径确定生成的
+内部 `local-` 编码，不声称是官方行业编码。概念来自 `market_concepts`，产业链来自
+`industry_chain`；三类名称不能代替研究定义，缺失定义保持 NULL、review_status 为 candidate。
+产业链成员关系只表示来源分类，不携带研究影响、节点角色或 Signal 传播语义。
+
+Stock 通过 `stock_s_industry_links`、`stock_s_concept_links`、
+`stock_s_industry_chain_links` 建立 N:M 关联，关系字段为 `stock_id` 与
+`industry_id` / `concept_id` / `industry_chain_id`，不加字段前缀。
+行业同时关联一级与二级。关系具有独立 ID、端点唯一约束及限制删除的外键。
+既有 stock 资料字段、Company 及研究图关系均不由此次发布改写；现有 HTTP 查询不切换目录。
+
+migration 97 仅创建空表；`stock-classifications` 是独立、本地限定的数据发布入口，
+输入完整补充 JSON 和必填 SHA-256，默认只校验，`-apply` 才提交。它先校验全包、
+名称/概念代码一一对应、股票全部存在，再在一个事务中补充目录并精确同步包内股票关系。
+目录及关系 ID 由名称/层级与 Stock ID 稳定派生；匹配记录保留已有研究定义，身份冲突拒绝。
+空数组清除该股票对应分类关系，未出现在包内的股票关系与未引用的主数据保留。
+重复发布相同包不更新任何时间戳。任一步失败整包回滚。
+
+本次执行范围仅本地 `tidewise_local`。发布前备份，按 schema 97 → 数据发布 →
+携带 schema 97 的兼容 Data 镜像启动顺序验证。旧镜像 readiness 会拒绝未知 schema；
+应用回退须使用认识 schema 97 的兼容版本，数据库不执行 destructive down。
+
+## Stock 分类查询（#548）
+
+Data 作为领域数据服务，提供 `GET /api/data/v1/stocks/classifications` 读取 S 行业、
+概念、产业链目录，包含稳定 ID、名称、行业 parent_id；不输出 UI 控件或用户跟踪态。
+沿用 data.stocks.read 服务权限。单语句一致读取三类目录，各最多 5000 项，超限返回
+503，不截断成成功结果；无目录时返回空数组。既有股票目录仍可独立读取。
+
+`GET /stocks` 增加 industry_ids、concept_ids、industry_chain_ids：逗号分隔、每维最多
+20 个不重复的对应类型 ID。维度内 OR，维度间 AND，与关键词及交易所条件 AND；
+未知但合法 ID 无匹配，错误类型/重复/空参数为 400。一级行业使用已发布的一级关联；
+多项匹配不重复返回股票。ids 批量读取不得与分类条件混用。排序、分页及 Stock 展示字段
+保留原合同，不提供跨请求分页快照。源 market_concepts 筛选与旧 concepts 展示字段保持
+不同语义，不合并两个来源体系。此能力要求 schema 97 及显式目录发布。

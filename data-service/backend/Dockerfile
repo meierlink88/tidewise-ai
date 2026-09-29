@@ -22,6 +22,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/source-
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/source-research-rss-initialize ./data-service/backend/cmd/source-research-rss-initialize
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/source-import ./data-service/backend/cmd/source-import
 
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/stock-classifications ./data-service/backend/cmd/stock-classifications
+
 FROM alpine:3.20
 
 RUN addgroup -S tidewise && adduser -S -G tidewise tidewise
@@ -44,6 +46,7 @@ COPY --from=builder /out/stock-profiles /usr/local/bin/stock-profiles
 COPY --from=builder /out/source-initialize /usr/local/bin/source-initialize
 COPY --from=builder /out/source-research-rss-initialize /usr/local/bin/source-research-rss-initialize
 COPY --from=builder /out/source-import /usr/local/bin/source-import
+COPY --from=builder /out/stock-classifications /usr/local/bin/stock-classifications
 COPY data-service/backend/configs ./configs
 COPY data-service/backend/migrations ./migrations
 COPY data-service/initdata ./initdata

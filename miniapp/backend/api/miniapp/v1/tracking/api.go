@@ -24,8 +24,24 @@ type Mutation struct {
 	ID         string `json:"id"`
 	IsFollowed bool   `json:"is_followed"`
 }
+type Filters struct{ IndustryIDs, ConceptIDs, ChainIDs []string }
+type Option struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+type IndustryOption struct {
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	Children []Option `json:"children"`
+}
+type FilterOptions struct {
+	Industries []IndustryOption `json:"industries"`
+	Concepts   []Option         `json:"concepts"`
+	Chains     []Option         `json:"industry_chains"`
+}
 type Service interface {
-	Search(context.Context, string, string, int, int) (Page, error)
+	FilterOptions(context.Context) (FilterOptions, error)
+	Search(context.Context, string, string, int, int, Filters) (Page, error)
 	List(context.Context, string, string, int) (Page, error)
 	Change(context.Context, string, string, bool) (Mutation, error)
 }

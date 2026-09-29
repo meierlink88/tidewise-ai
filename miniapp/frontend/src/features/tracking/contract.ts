@@ -15,7 +15,7 @@ export interface Page {
   has_more: boolean;
 }
 export interface TrackingPort {
-  search(query: string, token: string, offset: number): Promise<Page>;
+  search(query: string, token: string, offset: number, filters?: CompanyFilters): Promise<Page>;
   list(token: string, cursor: string): Promise<Page>;
   change(token: string, id: string, add: boolean): Promise<void>;
 }
@@ -26,4 +26,27 @@ export class TrackingError extends Error {
   ) {
     super(message);
   }
+}
+
+export interface CompanyFilters {
+  industry_ids: string[];
+  concept_ids: string[];
+  industry_chain_ids: string[];
+}
+export const emptyFilters = (): CompanyFilters => ({
+  industry_ids: [],
+  concept_ids: [],
+  industry_chain_ids: []
+});
+export interface FilterOption {
+  id: string;
+  name: string;
+}
+export interface IndustryOption extends FilterOption {
+  children: FilterOption[];
+}
+export interface FilterOptions {
+  industries: IndustryOption[];
+  concepts: FilterOption[];
+  industry_chains: FilterOption[];
 }
