@@ -152,3 +152,60 @@ func TestTrackingHTTPAccountFlowAndFailures(t *testing.T) {
 		t.Fatal(listed)
 	}
 }
+
+func TestCompanyFiltersAggregateAndForwardDomainQuery(t *testing.T) {
+	industry := "SIND11111111-1111-5111-8111-111111111111"
+	child := "SIND22222222-2222-5222-8222-222222222222"
+	concept := "SCON11111111-1111-5111-8111-111111111111"
+	chain := "SICH11111111-1111-5111-8111-111111111111"
+	var received string
+	malformed := false
+	domain := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer filter-domain-test-token" {
+			t.Error("missing service identity")
+		}
+		if r.URL.Path == "/api/data/v1/stocks/classifications" {
+			parent := industry
+			if malformed {
+				parent = child
+			}
+			json.NewEncoder(w).Encode(map[string]any{"request_id": "catalog", "result": map[string]any{"industries": []map[string]any{{"id": industry, "name": "金融", "parent_id": nil}, {"id": child, "name": "银行", "parent_id": parent}}, "concepts": []map[string]any{{"id": concept, "name": "概念A", "parent_id": nil}}, "industry_chains": []map[string]any{{"id": chain, "name": "产业链X", "parent_id": nil}}}})
+			return
+		}
+		received = r.URL.RawQuery
+		io.WriteString(w, `{"request_id":"stocks","result":{"items":[],"has_more":false}}`)
+	}))
+	defer domain.Close()
+	client, err := data.NewHTTPClient(data.HTTPConfig{BaseURL: domain.URL, ServiceToken: "filter-domain-test-token", Timeout: time.Second, MaxReadAttempts: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	repo, _ := adapter.New(client, "", "")
+	router := NewHTTPServer(testRuntimeConfig(), testLogger(), nil)
+	api.RegisterHTTPServer(router, service.New(biz.New(repo)))
+	get := func(path string, status int) string {
+		t.Helper()
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, httptest.NewRequest("GET", "/api/miniapp/v1/tracking"+path, nil))
+		if w.Code != status {
+			t.Fatalf("%s: %d %s", path, w.Code, w.Body.String())
+		}
+		return w.Body.String()
+	}
+	body := get("/filters", 200)
+	if !strings.Contains(body, `"children":[{"id":"`+child) || strings.Contains(body, "parent_id") {
+		t.Fatal("BFF did not shape industry tree", body)
+	}
+	get("/search?q=银行&offset=20&industry_ids="+industry+"&concept_ids="+concept+"&industry_chain_ids="+chain, 200)
+	for _, part := range []string{"offset=20", "industry_ids=" + industry, "concept_ids=" + concept, "industry_chain_ids=" + chain} {
+		if !strings.Contains(received, part) {
+			t.Fatalf("lost filter %s in %s", part, received)
+		}
+	}
+	for _, path := range []string{"/filters?q=x", "/search?concept_ids=" + industry, "/search?concept_ids=" + concept + "," + concept, "/search?industry_ids=", "/search?concept_ids=" + concept + "&concept_ids=" + concept} {
+		get(path, 400)
+	}
+	malformed = true
+	get("/filters", 503)
+}

@@ -7,10 +7,11 @@ import (
 )
 
 const OperationSearch = "data.v1.searchStocks"
+const OperationClassifications = "data.v1.stockClassifications"
 
-func BusinessOperations() []string { return []string{OperationSearch} }
+func BusinessOperations() []string { return []string{OperationSearch, OperationClassifications} }
 
-type Request struct{ Query, Exchange, PageSize, Offset, IDs string }
+type Request struct{ Query, Exchange, PageSize, Offset, IDs, IndustryIDs, ConceptIDs, ChainIDs string }
 type Item struct {
 	FullName     *string  `json:"full_name"`
 	IndustryL1   *string  `json:"industry_l1"`
@@ -29,6 +30,17 @@ type Page struct {
 	Items   []Item `json:"items"`
 	HasMore bool   `json:"has_more"`
 }
+type Classification struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	ParentID *string `json:"parent_id"`
+}
+type Classifications struct {
+	Industries []Classification `json:"industries"`
+	Concepts   []Classification `json:"concepts"`
+	Chains     []Classification `json:"industry_chains"`
+}
 type Service interface {
+	Classifications(context.Context) (*v1.Response[Classifications], error)
 	Search(context.Context, *Request) (*v1.Response[Page], error)
 }

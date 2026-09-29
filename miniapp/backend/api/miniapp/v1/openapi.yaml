@@ -11,6 +11,20 @@ tags:
   - name: Reports
   - name: Identity
 paths:
+  /api/miniapp/v1/tracking/filters:
+    get:
+      operationId: getCompanyFilterOptions
+      security: []
+      summary: 读取企业洞察筛选选项
+      description: 每类最多5000条，超限503，不静默截断。拒绝所有query参数；空目录返回空数组。行业组织为两级树；概念和产业链为选项列表。Cache-Control no-store，预算8秒。
+      responses:
+        '200':
+          description: 分类目录
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StockFilterEnvelope' }
+        '400': { description: INVALID_REQUEST }
+        '503': { description: 分类服务不可用 }
   /api/miniapp/v1/tracking:
     get:
       operationId: listTrackedCompanies
@@ -70,6 +84,24 @@ paths:
         公司目录与搜索。省略 q 或空白 q 浏览目录；非空 q 匹配代码、简称、全称或简称首字母；精确代码优先，其后 exchange/code/id，分页不提供一致性快照。公司展示投影。标题为公司全称，缺失退回股票简称；主题保持来源顺序，无权重。search.total 固定0不表达匹配总量，使用 has_more/offset；list
         使用 total/next_cursor，has_more 固定false。拒绝重复/未知 query。总预算8秒，失败不返回假空列表。
       parameters:
+        - {
+            name: industry_ids,
+            in: query,
+            description: '逗号分隔的最多20个不重复SIND ID；同维度OR，跨维度AND，与关键词组合；未知有效ID无匹配',
+            schema: { type: string, maxLength: 819 }
+          }
+        - {
+            name: concept_ids,
+            in: query,
+            description: '逗号分隔的最多20个不重复SCON ID；同维度OR，跨维度AND，与关键词组合；未知有效ID无匹配',
+            schema: { type: string, maxLength: 819 }
+          }
+        - {
+            name: industry_chain_ids,
+            in: query,
+            description: '逗号分隔的最多20个不重复SICH ID；同维度OR，跨维度AND，与关键词组合；未知有效ID无匹配',
+            schema: { type: string, maxLength: 819 }
+          }
         - name: page_size
           in: query
           schema:
@@ -571,6 +603,66 @@ components:
       description: Data Report 服务暂不可用或返回无效合同
       content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
   schemas:
+    StockFilterOption:
+      {
+        'type': 'object',
+        'additionalProperties': false,
+        'required': ['id', 'name'],
+        'properties': { 'id': { 'type': 'string' }, 'name': { 'type': 'string' } }
+      }
+    StockFilterEnvelope:
+      {
+        'type': 'object',
+        'additionalProperties': false,
+        'required': ['request_id', 'result'],
+        'properties':
+          {
+            'request_id': { 'type': 'string' },
+            'result':
+              {
+                'type': 'object',
+                'additionalProperties': false,
+                'required': ['industries', 'concepts', 'industry_chains'],
+                'properties':
+                  {
+                    'industries':
+                      {
+                        'type': 'array',
+                        'maxItems': 5000,
+                        'items':
+                          {
+                            'type': 'object',
+                            'additionalProperties': false,
+                            'required': ['id', 'name', 'children'],
+                            'properties':
+                              {
+                                'id': { 'type': 'string' },
+                                'name': { 'type': 'string' },
+                                'children':
+                                  {
+                                    'type': 'array',
+                                    'maxItems': 5000,
+                                    'items': { '$ref': '#/components/schemas/StockFilterOption' }
+                                  }
+                              }
+                          }
+                      },
+                    'concepts':
+                      {
+                        'type': 'array',
+                        'maxItems': 5000,
+                        'items': { '$ref': '#/components/schemas/StockFilterOption' }
+                      },
+                    'industry_chains':
+                      {
+                        'type': 'array',
+                        'maxItems': 5000,
+                        'items': { '$ref': '#/components/schemas/StockFilterOption' }
+                      }
+                  }
+              }
+          }
+      }
     TrackingCompany:
       type: object
       additionalProperties: false

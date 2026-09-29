@@ -1,6 +1,12 @@
 import Taro from '@tarojs/taro';
 import { normalizeMiniappAPIBaseURL, unwrapMiniappAPIEnvelope } from '../../platform/miniapp-api';
-import { TrackingError, type Company, type Page, type TrackingPort } from './contract';
+import {
+  TrackingError,
+  type Company,
+  type Page,
+  type TrackingPort,
+  type FilterOptions
+} from './contract';
 
 const idPattern = /^STK[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 function object(v: unknown): v is Record<string, unknown> {
@@ -72,10 +78,16 @@ async function request(
   return result;
 }
 export const trackingAPI: TrackingPort = {
-  async search(query, token, offset) {
+  async search(query, token, offset, filters) {
+    const parameters = filters
+      ? Object.entries(filters)
+          .filter(([, ids]) => ids.length > 0)
+          .map(([key, ids]) => '&' + key + '=' + encodeURIComponent(ids.join(',')))
+          .join('')
+      : '';
     return parsePage(
       await request(
-        '/search?q=' + encodeURIComponent(query) + '&page_size=20&offset=' + offset,
+        '/search?q=' + encodeURIComponent(query) + '&page_size=20&offset=' + offset + parameters,
         token
       )
     );
@@ -95,3 +107,39 @@ export const trackingAPI: TrackingPort = {
       throw new TrackingError('操作结果异常，请刷新确认');
   }
 };
+
+export function parseFilterOptions(v: unknown): FilterOptions {
+  const valid = (items: unknown, prefix: string): items is { id: string; name: string }[] =>
+    Array.isArray(items) &&
+    items.length <= 5000 &&
+    items.every(
+      (x) =>
+        object(x) &&
+        typeof x.id === 'string' &&
+        new RegExp(
+          '^' + prefix + '[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+        ).test(x.id) &&
+        typeof x.name === 'string' &&
+        x.name.trim() !== ''
+    ) &&
+    new Set(items.map((x) => x.id)).size === items.length;
+  if (
+    !object(v) ||
+    !valid(v.concepts, 'SCON') ||
+    !valid(v.industry_chains, 'SICH') ||
+    !valid(v.industries, 'SIND')
+  )
+    throw new TrackingError('筛选选项暂不可用，请重试');
+  const industries = v.industries.map((x) => {
+    const item: unknown = x;
+    if (!object(item) || !valid(item.children, 'SIND'))
+      throw new TrackingError('行业选项异常，请重试');
+    return { id: x.id, name: x.name, children: item.children };
+  });
+  const ids = industries.flatMap((x) => [x.id, ...x.children.map((y) => y.id)]);
+  if (new Set(ids).size !== ids.length) throw new TrackingError('行业选项异常，请重试');
+  return { industries, concepts: v.concepts, industry_chains: v.industry_chains };
+}
+export async function loadFilterOptions(): Promise<FilterOptions> {
+  return parseFilterOptions(await request('/filters', ''));
+}

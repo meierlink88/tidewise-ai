@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { useDidHide, useDidShow } from '@tarojs/taro';
 import { clearSession, readSession } from '../../platform/identity';
 import { trackingAPI } from './api';
-import { TrackingError, type Company, type TrackingPort } from './contract';
+import {
+  TrackingError,
+  emptyFilters,
+  type CompanyFilters,
+  type Company,
+  type TrackingPort
+} from './contract';
 
 type Status = 'idle' | 'loading' | 'ready' | 'error';
 export function useTracking(
@@ -11,6 +17,8 @@ export function useTracking(
   enabled?: boolean
 ) {
   const directory = mode === 'directory';
+  const [filters, setFiltersState] = useState<CompanyFilters>(emptyFilters);
+  const filtersRef = useRef<CompanyFilters>(emptyFilters());
   const [query, setQueryState] = useState('');
   const [items, setItems] = useState<Company[]>([]);
   const [results, setResults] = useState<Company[]>([]);
@@ -97,7 +105,9 @@ export function useTracking(
     setSearchStatus('loading');
     setError('');
     try {
-      const p = await port.search(q, t, offset);
+      const p = await (Object.values(filtersRef.current).some((ids) => ids.length)
+        ? port.search(q, t, offset, filtersRef.current)
+        : port.search(q, t, offset));
       if (!current(t) || seq !== searchSequence.current) return;
       setResults((old) =>
         offset ? [...old, ...p.items.filter((x) => !old.some((y) => y.id === x.id))] : p.items
@@ -124,6 +134,18 @@ export function useTracking(
     setSearchStatus(directory || value.trim() ? 'loading' : 'idle');
     clearTimeout(timer.current);
     if (directory || value.trim()) timer.current = setTimeout(() => void search(), 250);
+  }
+  function setFilters(value: CompanyFilters) {
+    filtersRef.current = value;
+    setFiltersState(value);
+    ++searchSequence.current;
+    searchBusy.current = false;
+    clearTimeout(timer.current);
+    setResults([]);
+    setMore(false);
+    setError('');
+    setSearchStatus('loading');
+    void search();
   }
   function refresh() {
     clearTimeout(timer.current);
@@ -185,6 +207,7 @@ export function useTracking(
     if (mutation.current || !token.current || !current(token.current)) return;
     const t = token.current;
     const writtenQuery = queryRef.current;
+    const writtenFilters = filtersRef.current;
     mutation.current = true;
     setPending(item.id);
     setError('');
@@ -202,7 +225,7 @@ export function useTracking(
       setResults((old) => old.map((x) => (x.id === item.id ? { ...x, is_followed: add } : x)));
       if (!add) setItems((old) => old.filter((x) => x.id !== item.id));
       if (!directory) await loadList();
-      if (directory && writtenQuery === queryRef.current) {
+      if (directory && writtenQuery === queryRef.current && writtenFilters === filtersRef.current) {
         // A successful membership write does not discard already loaded catalog pages.
         setSearchStatus('ready');
       } else if (current(t) && (directory || queryRef.current.trim())) await search();
@@ -218,6 +241,8 @@ export function useTracking(
     }
   }
   return {
+    filters,
+    setFilters,
     query,
     setQuery,
     items,

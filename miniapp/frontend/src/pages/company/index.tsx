@@ -4,6 +4,7 @@ import { ResearchAccessState } from '../../features/identity/research-access-sta
 import trackingIcon from '../../assets/icons/watchlist-radar-light.svg';
 import { openTracking } from '../../platform/tracking';
 import './index.scss';
+import { CompanyFilters } from '../../features/tracking/company-filters';
 import searchIcon from '../../assets/company-search.svg';
 import { PreviewPage } from '../../features/design-preview/shell';
 import { CompanyCard } from '../../features/tracking/company-card';
@@ -21,6 +22,7 @@ export default function CompanyPage() {
   return (
     <PreviewPage
       simulation={false}
+      filters={<CompanyFilters value={directory.filters} onApply={directory.setFilters} />}
       onLoadMore={loadMore}
       headerSearch={
         <View className='company-header-actions'>
@@ -90,9 +92,11 @@ export default function CompanyPage() {
       {directory.searchStatus === 'loading' && <Text className='preview-note'>加载中…</Text>}
       {directory.searchStatus === 'ready' && !directory.results.length && (
         <Text className='preview-note'>
-          {directory.query.trim()
-            ? '没有找到公司，试试公司名称、股票代码或拼音首字母。'
-            : '暂无公司资料'}
+          {Object.values(directory.filters).some((ids) => ids.length)
+            ? '没有符合条件的企业，试试减少筛选条件。'
+            : directory.query.trim()
+              ? '没有找到公司，试试公司名称、股票代码或拼音首字母。'
+              : '暂无公司资料'}
         </Text>
       )}
       {!directory.hasMore && directory.results.length > 0 && directory.searchStatus === 'ready' && (

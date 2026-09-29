@@ -43,8 +43,8 @@ func page(p biz.Page, err error) (api.Page, error) {
 	}
 	return result, nil
 }
-func (s *Service) Search(ctx context.Context, t, q string, limit, offset int) (api.Page, error) {
-	return page(s.u.Search(ctx, t, q, limit, offset))
+func (s *Service) Search(ctx context.Context, t, q string, limit, offset int, filters api.Filters) (api.Page, error) {
+	return page(s.u.Search(ctx, t, q, limit, offset, biz.Filters{IndustryIDs: filters.IndustryIDs, ConceptIDs: filters.ConceptIDs, ChainIDs: filters.ChainIDs}))
 }
 func (s *Service) List(ctx context.Context, t, cursor string, limit int) (api.Page, error) {
 	return page(s.u.List(ctx, t, cursor, limit))
@@ -54,4 +54,23 @@ func (s *Service) Change(ctx context.Context, t, id string, add bool) (api.Mutat
 		return api.Mutation{}, failure(err)
 	}
 	return api.Mutation{ID: id, IsFollowed: add}, nil
+}
+
+func (s *Service) FilterOptions(ctx context.Context) (api.FilterOptions, error) {
+	c, err := s.u.FilterOptions(ctx)
+	if err != nil {
+		return api.FilterOptions{}, failure(err)
+	}
+	convert := func(items []biz.Option) []api.Option {
+		out := []api.Option{}
+		for _, x := range items {
+			out = append(out, api.Option{ID: x.ID, Name: x.Name})
+		}
+		return out
+	}
+	result := api.FilterOptions{Industries: []api.IndustryOption{}, Concepts: convert(c.Concepts), Chains: convert(c.Chains)}
+	for _, x := range c.Industries {
+		result.Industries = append(result.Industries, api.IndustryOption{ID: x.ID, Name: x.Name, Children: convert(x.Children)})
+	}
+	return result, nil
 }
