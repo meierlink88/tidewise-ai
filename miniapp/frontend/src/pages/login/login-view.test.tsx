@@ -4,6 +4,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { LoginView, type LoginViewProps } from './login-view';
 
+let phoneOpenType: string | undefined;
 let phoneHandler: ((e: { detail: { code?: string } }) => void) | undefined;
 vi.mock('@tarojs/components', () => ({
   View: ({ children, ...props }: { children?: ReactNode }) => createElement('div', props, children),
@@ -47,7 +48,10 @@ vi.mock('@tarojs/components', () => ({
     openType?: string;
     onGetPhoneNumber?: (e: { detail: { code?: string } }) => void;
   }) => {
-    if (onGetPhoneNumber) phoneHandler = onGetPhoneNumber;
+    if (onGetPhoneNumber) {
+      phoneHandler = onGetPhoneNumber;
+      phoneOpenType = _openType;
+    }
     return createElement('button', props, children);
   },
   Input: ({
@@ -103,14 +107,17 @@ async function agree() {
   await act(async () => host.querySelector<HTMLInputElement>('input[type=checkbox]')!.click());
 }
 it('requires explicit consent for primary login and does not check it when opening the policy', async () => {
-  await click('一键注册/登录');
+  expect(phoneOpenType).toBeUndefined();
+  await click('手机号快捷登录');
   expect(props.onLogin).not.toHaveBeenCalled();
   await click('《观潮家隐私政策》');
   expect(props.onOpenPrivacy).toHaveBeenCalledOnce();
   expect(host.querySelector<HTMLInputElement>('input')!.checked).toBe(false);
   await agree();
-  await click('一键注册/登录');
-  expect(props.onLogin).toHaveBeenCalledOnce();
+  expect(phoneOpenType).toBe('getPhoneNumber');
+  await click('手机号快捷登录');
+  expect(props.onLogin).not.toHaveBeenCalled();
+  expect(host.textContent).not.toContain('一键注册/登录');
 });
 it('handles canceled and successful phone authorization without bypassing consent', async () => {
   await act(async () => phoneHandler?.({ detail: { code: 'unconsented' } }));
@@ -127,8 +134,15 @@ it('disables login during pending work and on unsupported platforms', async () =
   await act(async () => root.render(createElement(LoginView, props)));
   const b = Array.from(host.querySelectorAll('button')).find((n) => n.textContent === '正在登录…');
   expect(b?.disabled).toBe(true);
+  expect(phoneOpenType).toBeUndefined();
+  await agree();
+  await act(async () => phoneHandler?.({ detail: { code: 'busy' } }));
+  expect(props.onLogin).not.toHaveBeenCalled();
   props.pendingAction = null;
   props.canLogin = false;
   await act(async () => root.render(createElement(LoginView, props)));
   expect(host.textContent).toContain('请在微信小程序中登录');
+  expect(phoneOpenType).toBeUndefined();
+  await act(async () => phoneHandler?.({ detail: { code: 'unsupported' } }));
+  expect(props.onLogin).not.toHaveBeenCalled();
 });
