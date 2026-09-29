@@ -68,8 +68,14 @@ func (r *Repository) stocks(ctx context.Context, q url.Values) ([]biz.Stock, boo
 	}
 	return result, envelope.Result.HasMore, nil
 }
-func (r *Repository) Search(ctx context.Context, q string, limit, offset int) ([]biz.Stock, bool, error) {
-	return r.stocks(ctx, url.Values{"q": {q}, "page_size": {strconv.Itoa(limit)}, "offset": {strconv.Itoa(offset)}})
+func (r *Repository) Search(ctx context.Context, q string, limit, offset int, filters biz.Filters) ([]biz.Stock, bool, error) {
+	values := url.Values{"q": {q}, "page_size": {strconv.Itoa(limit)}, "offset": {strconv.Itoa(offset)}}
+	for key, ids := range map[string][]string{"industry_ids": filters.IndustryIDs, "concept_ids": filters.ConceptIDs, "industry_chain_ids": filters.ChainIDs} {
+		if len(ids) > 0 {
+			values.Set(key, strings.Join(ids, ","))
+		}
+	}
+	return r.stocks(ctx, values)
 }
 func (r *Repository) Stocks(ctx context.Context, ids []string) ([]biz.Stock, error) {
 	if len(ids) == 0 {
@@ -193,4 +199,53 @@ func (r *Repository) Change(ctx context.Context, token, id string, add bool) err
 	}
 	_, err := r.user(ctx, op, userRequest{SessionToken: token, StockID: id})
 	return err
+}
+
+func (r *Repository) Classifications(ctx context.Context) (biz.Catalog, error) {
+	type option struct {
+		ID       string  `json:"id"`
+		Name     string  `json:"name"`
+		ParentID *string `json:"parent_id"`
+	}
+	var envelope struct {
+		RequestID string `json:"request_id"`
+		Result    *struct {
+			Industries []option `json:"industries"`
+			Concepts   []option `json:"concepts"`
+			Chains     []option `json:"industry_chains"`
+		} `json:"result"`
+	}
+	if r.data.GetJSON(ctx, data.DataAPIPrefix+"/stocks/classifications", &envelope) != nil || envelope.RequestID == "" || envelope.Result == nil {
+		return biz.Catalog{}, biz.ErrUnavailable
+	}
+	convert := func(items []option, prefix string) ([]biz.Option, error) {
+		if items == nil || len(items) > 5000 {
+			return nil, biz.ErrUnavailable
+		}
+		out := []biz.Option{}
+		seen := map[string]bool{}
+		for _, x := range items {
+			if !biz.ValidFilterIDs([]string{x.ID}, prefix) || seen[x.ID] || strings.TrimSpace(x.Name) == "" {
+				return nil, biz.ErrUnavailable
+			}
+			seen[x.ID] = true
+			if x.ParentID != nil && (prefix != "SIND" || !biz.ValidFilterIDs([]string{*x.ParentID}, "SIND") || *x.ParentID == x.ID) {
+				return nil, biz.ErrUnavailable
+			}
+			out = append(out, biz.Option{ID: x.ID, Name: x.Name, ParentID: x.ParentID})
+		}
+		return out, nil
+	}
+	result := biz.Catalog{}
+	var err error
+	if result.Industries, err = convert(envelope.Result.Industries, "SIND"); err != nil {
+		return result, err
+	}
+	if result.Concepts, err = convert(envelope.Result.Concepts, "SCON"); err != nil {
+		return result, err
+	}
+	if result.Chains, err = convert(envelope.Result.Chains, "SICH"); err != nil {
+		return result, err
+	}
+	return result, nil
 }

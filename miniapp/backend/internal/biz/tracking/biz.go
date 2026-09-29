@@ -41,8 +41,39 @@ type Page struct {
 	NextCursor string
 	HasMore    bool
 }
+type Filters struct{ IndustryIDs, ConceptIDs, ChainIDs []string }
+type Option struct {
+	ID, Name string
+	ParentID *string
+}
+type Catalog struct{ Industries, Concepts, Chains []Option }
+type IndustryOption struct {
+	ID, Name string
+	Children []Option
+}
+type FilterOptions struct {
+	Industries       []IndustryOption
+	Concepts, Chains []Option
+}
+
+func ValidFilterIDs(ids []string, prefix string) bool {
+	if len(ids) > 20 {
+		return false
+	}
+	seen := map[string]bool{}
+	pattern := regexp.MustCompile("^" + prefix + `[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
+	for _, id := range ids {
+		if !pattern.MatchString(id) || seen[id] {
+			return false
+		}
+		seen[id] = true
+	}
+	return true
+}
+
 type Repository interface {
-	Search(context.Context, string, int, int) ([]Stock, bool, error)
+	Classifications(context.Context) (Catalog, error)
+	Search(context.Context, string, int, int, Filters) ([]Stock, bool, error)
 	Stocks(context.Context, []string) ([]Stock, error)
 	List(context.Context, string, string, int) (Relations, error)
 	Check(context.Context, string, []string) ([]string, error)
@@ -83,12 +114,15 @@ func company(s Stock, followed bool) Company {
 	}
 	return Company{s.ID, title, s.Name, s.Symbol, industry, strings.Join(parts, " / "), concepts, followed}
 }
-func (u *UseCase) Search(ctx context.Context, token, q string, limit, offset int) (Page, error) {
+func (u *UseCase) Search(ctx context.Context, token, q string, limit, offset int, filters Filters) (Page, error) {
+	if !ValidFilterIDs(filters.IndustryIDs, "SIND") || !ValidFilterIDs(filters.ConceptIDs, "SCON") || !ValidFilterIDs(filters.ChainIDs, "SICH") {
+		return Page{}, ErrInvalid
+	}
 	q = strings.TrimSpace(q)
 	if utf8.RuneCountInString(q) > 64 || strings.IndexFunc(q, unicode.IsControl) >= 0 || limit < 1 || limit > 100 || offset < 0 || offset > 10000 {
 		return Page{}, ErrInvalid
 	}
-	stocks, more, err := u.repo.Search(ctx, q, limit, offset)
+	stocks, more, err := u.repo.Search(ctx, q, limit, offset, filters)
 	if err != nil {
 		return Page{}, err
 	}
@@ -165,4 +199,30 @@ func (u *UseCase) Change(ctx context.Context, token, id string, add bool) error 
 		}
 	}
 	return u.repo.Change(ctx, token, id, add)
+}
+
+// FilterOptions owns the UI hierarchy; Data owns the underlying identities and memberships.
+func (u *UseCase) FilterOptions(ctx context.Context) (FilterOptions, error) {
+	c, err := u.repo.Classifications(ctx)
+	if err != nil {
+		return FilterOptions{}, err
+	}
+	result := FilterOptions{Industries: []IndustryOption{}, Concepts: c.Concepts, Chains: c.Chains}
+	roots := map[string]int{}
+	for _, x := range c.Industries {
+		if x.ParentID == nil {
+			roots[x.ID] = len(result.Industries)
+			result.Industries = append(result.Industries, IndustryOption{ID: x.ID, Name: x.Name, Children: []Option{}})
+		}
+	}
+	for _, x := range c.Industries {
+		if x.ParentID != nil {
+			index, ok := roots[*x.ParentID]
+			if !ok {
+				return FilterOptions{}, ErrUnavailable
+			}
+			result.Industries[index].Children = append(result.Industries[index].Children, x)
+		}
+	}
+	return result, nil
 }

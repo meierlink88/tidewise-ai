@@ -174,7 +174,7 @@ func requiredScope(operation string) (string, bool) {
 		return ScopeSourceRead, true
 	case sourceapi.OperationCreate, sourceapi.OperationUpdate, sourceapi.OperationDelete:
 		return ScopeSourceWrite, true
-	case stockapi.OperationSearch:
+	case stockapi.OperationSearch, stockapi.OperationClassifications:
 		return ScopeStockRead, true
 	case companyapi.OperationList:
 		return ScopeCompanyRead, true

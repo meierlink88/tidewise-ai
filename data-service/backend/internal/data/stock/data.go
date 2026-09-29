@@ -65,10 +65,13 @@ func (s *Store) Search(ctx context.Context, q stockbiz.Query) (stockbiz.Page, er
 		rows, err = s.db.QueryContext(ctx, `SELECT id,code,name,exchange,board,as_of,full_name,industry_l1,industry_l2,array_to_json(concepts) FROM stock WHERE id=ANY($1) ORDER BY exchange,code,id`, q.IDs)
 	} else {
 		rows, err = s.db.QueryContext(ctx, `SELECT id,code,name,exchange,board,as_of,full_name,industry_l1,industry_l2,array_to_json(concepts) FROM stock
- WHERE ($2='' OR exchange=$2) AND (code LIKE '%'||$1||'%' ESCAPE '\' OR name ILIKE '%'||$1||'%' ESCAPE '\'
+ WHERE (cardinality($6::text[])=0 OR EXISTS(SELECT 1 FROM stock_s_industry_links l WHERE l.stock_id=stock.id AND l.industry_id=ANY($6)))
+ AND (cardinality($7::text[])=0 OR EXISTS(SELECT 1 FROM stock_s_concept_links l WHERE l.stock_id=stock.id AND l.concept_id=ANY($7)))
+ AND (cardinality($8::text[])=0 OR EXISTS(SELECT 1 FROM stock_s_industry_chain_links l WHERE l.stock_id=stock.id AND l.industry_chain_id=ANY($8)))
+ AND ($2='' OR exchange=$2) AND (code LIKE '%'||$1||'%' ESCAPE '\' OR name ILIKE '%'||$1||'%' ESCAPE '\'
  OR full_name ILIKE '%'||$1||'%' ESCAPE '\'
  OR name_initials LIKE '%'||upper($1)||'%' ESCAPE '\' OR code||'.'||exchange ILIKE '%'||$1||'%' ESCAPE '\')
- ORDER BY CASE WHEN code=$3 OR code||'.'||exchange=upper($3) THEN 0 ELSE 1 END,exchange,code,id LIMIT $4 OFFSET $5`, literal, q.Exchange, q.Text, q.Limit+1, q.Offset)
+ ORDER BY CASE WHEN code=$3 OR code||'.'||exchange=upper($3) THEN 0 ELSE 1 END,exchange,code,id LIMIT $4 OFFSET $5`, literal, q.Exchange, q.Text, q.Limit+1, q.Offset, nonNilIDs(q.IndustryIDs), nonNilIDs(q.ConceptIDs), nonNilIDs(q.ChainIDs))
 	}
 	if err != nil {
 		return stockbiz.Page{}, persistence(ctx, err)
@@ -202,4 +205,44 @@ func (s *Store) PublishProfiles(ctx context.Context, batch stockbiz.ProfileBatch
 		return persistence(ctx, err)
 	}
 	return nil
+}
+
+func nonNilIDs(ids []string) []string {
+	if ids == nil {
+		return []string{}
+	}
+	return ids
+}
+func (s *Store) Classifications(ctx context.Context) (stockbiz.Classifications, error) {
+	result := stockbiz.Classifications{Industries: []stockbiz.Classification{}, Concepts: []stockbiz.Classification{}, Chains: []stockbiz.Classification{}}
+	rows, err := s.db.QueryContext(ctx, `SELECT kind,id,name,parent_id FROM (
+ (SELECT 'industry' kind,id,name,parent_industry_id parent_id FROM s_industry ORDER BY name,id LIMIT 5001)
+ UNION ALL (SELECT 'concept',id,name,NULL FROM s_concept ORDER BY name,id LIMIT 5001)
+ UNION ALL (SELECT 'chain',id,name,NULL FROM s_industry_chain ORDER BY name,id LIMIT 5001)) t ORDER BY kind,name,id`)
+	if err != nil {
+		return result, persistence(ctx, err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var kind string
+		var item stockbiz.Classification
+		if err = rows.Scan(&kind, &item.ID, &item.Name, &item.ParentID); err != nil {
+			return result, persistence(ctx, err)
+		}
+		switch kind {
+		case "industry":
+			result.Industries = append(result.Industries, item)
+		case "concept":
+			result.Concepts = append(result.Concepts, item)
+		case "chain":
+			result.Chains = append(result.Chains, item)
+		}
+	}
+	if err = rows.Err(); err != nil {
+		return result, persistence(ctx, err)
+	}
+	if len(result.Industries) > 5000 || len(result.Concepts) > 5000 || len(result.Chains) > 5000 {
+		return stockbiz.Classifications{}, stockbiz.ErrPersistence
+	}
+	return result, nil
 }

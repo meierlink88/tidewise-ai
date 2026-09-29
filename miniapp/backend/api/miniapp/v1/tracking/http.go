@@ -5,6 +5,7 @@ import (
 	kratoshttp "github.com/go-kratos/kratos/v3/transport/http"
 	v1 "github.com/meierlink88/tidewise-ai/miniapp/backend/api/miniapp/v1"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -20,6 +21,17 @@ func number(raw string, defaultValue, min, max int) (int, error) {
 }
 func RegisterHTTPServer(server *kratoshttp.Server, s Service) {
 	route := server.Route(v1.APIPrefix + "/tracking")
+	route.GET("/filters", func(ctx kratoshttp.Context) error {
+		ctx.Response().Header().Set("Cache-Control", "no-store")
+		return v1.Call(ctx, "miniapp.tracking.filters", nil, func(parent context.Context) (any, error) {
+			if len(ctx.Query()) != 0 {
+				return nil, v1.ErrInvalidRequest
+			}
+			c, cancel := context.WithTimeout(parent, 8*time.Second)
+			defer cancel()
+			return s.FilterOptions(c)
+		})
+	})
 	for _, search := range []bool{false, true} {
 		path := ""
 		op := "list"
@@ -34,7 +46,7 @@ func RegisterHTTPServer(server *kratoshttp.Server, s Service) {
 				defer cancel()
 				q := ctx.Query()
 				for key, values := range q {
-					if len(values) != 1 || (values[0] == "" && !(search && key == "q")) || (key != "page_size" && !(search && (key == "q" || key == "offset")) && !(!search && key == "cursor")) {
+					if len(values) != 1 || (values[0] == "" && !(search && key == "q")) || (key != "page_size" && !(search && (key == "q" || key == "offset" || key == "industry_ids" || key == "concept_ids" || key == "industry_chain_ids")) && !(!search && key == "cursor")) {
 						return nil, v1.ErrInvalidRequest
 					}
 				}
@@ -51,7 +63,13 @@ func RegisterHTTPServer(server *kratoshttp.Server, s Service) {
 					if err != nil {
 						return nil, err
 					}
-					return s.Search(c, token, q.Get("q"), limit, offset)
+					split := func(key string) []string {
+						if q.Get(key) == "" {
+							return nil
+						}
+						return strings.Split(q.Get(key), ",")
+					}
+					return s.Search(c, token, q.Get("q"), limit, offset, Filters{IndustryIDs: split("industry_ids"), ConceptIDs: split("concept_ids"), ChainIDs: split("industry_chain_ids")})
 				}
 				return s.List(c, token, q.Get("cursor"), limit)
 			})

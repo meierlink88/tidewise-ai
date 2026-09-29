@@ -31,7 +31,7 @@ func TestOpenAPIContractExposesOperationsAndReportRoutes(t *testing.T) {
 		"/api/miniapp/v1/reports/home": "getReportHome",
 		"/api/miniapp/v1/reports/{report_id}/evidences": "listReportEvidences",
 	}
-	if len(paths) != len(want)+8 {
+	if len(paths) != len(want)+9 {
 		t.Fatalf("paths = %v, want %v", sortedKeys(paths), sortedKeys(want))
 	}
 	for path, method := range map[string]string{"wechat/login": "post", "me": "get", "logout": "post", "profile": "patch", "avatar": "get"} {
@@ -41,7 +41,7 @@ func TestOpenAPIContractExposesOperationsAndReportRoutes(t *testing.T) {
 		}
 	}
 	for path, methods := range map[string][]string{
-		"/api/miniapp/v1/tracking": {"get"}, "/api/miniapp/v1/tracking/search": {"get"}, "/api/miniapp/v1/tracking/{stock_id}": {"put", "delete"},
+		"/api/miniapp/v1/tracking/filters": {"get"}, "/api/miniapp/v1/tracking": {"get"}, "/api/miniapp/v1/tracking/search": {"get"}, "/api/miniapp/v1/tracking/{stock_id}": {"put", "delete"},
 	} {
 		for _, method := range methods {
 			op := object(t, object(t, paths[path], path)[method], method)

@@ -368,3 +368,23 @@ The Home feed omits the 今日推理主线 heading and loaded-count row. Macro a
 用户可见“公司洞察”统一更名为“企业洞察”；内部 pages/company 路由、Stock 查询与报告样例合同不改。目录头部移除标题与副标题，搜索右侧“我的跟踪”入口与搜索一起固定。
 
 本变更是 Miniapp Frontend 入口控制，未将公开目录/报告 API 改为私有接口；BFF、Data、User 和数据库不变。要闻解读及其报告仍可游客阅读。前端可独立发布与回滚，真实微信授权/返回行为需目标端验收。
+
+## 企业洞察分类筛选（#548）
+
+Miniapp Backend 面向 UI：`GET /api/miniapp/v1/tracking/filters` 把 Data 扁平行业目录
+组织为两级树，概念/产业链组织为 id/name 选项；校验下游 ID、重复和父子引用，异常
+返回 503，不用空列表掩盖失败。`tracking/search` 接受行业、概念、产业链 ID 多选，
+通过 Data REST 执行领域筛选，再按既有流程合并用户跟踪态。BFF 不直连数据库、
+不自行判断企业的行业归属；游客 API 可读，页面仍沿用现有 research access 登录门禁。
+
+前端企业洞察在搜索下方提供三个筛选入口。每维最多20项，同维度满足任一项，跨维度
+同时满足；行业支持一级/二级。弹层草稿在应用时提交，取消保持原结果，重置本类与全局
+清空分开。802 概念通过选项名称搜索和每次40项渲染控制列表规模；选项仅当前页面实例
+缓存，重新进入新实例重新读取，不缓存跨用户跟踪态。关键词与分类同时生效，条件变化
+立即作废旧请求并清空旧页，后续页携带相同条件；保留 empty/error/retry 和防重复跟踪。
+不改当前小程序 UAT API 配置，不自动发布 UAT。参考 Taro 官方 ScrollView 的定高纵向
+滚动合同，复用项目 OverlayRoot 和样式 token，weapp/tt 分别构建，真机验收单列。
+
+筛选弹层通过 platform/overlay-navigation 适配 Taro 官方 hideTabBar/showTabBar（支持
+weapp/tt/H5），打开时隐藏原生底部导航，关闭或卸载后恢复；隐藏失败关闭弹层并给出重试
+提示，恢复失败反馈给用户，防止原生导航遮挡确认按钮。
