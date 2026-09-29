@@ -6,7 +6,7 @@ export interface LoginViewProps {
   pendingAction: IdentityAction | null;
   canLogin: boolean;
   error: string;
-  onLogin: (phoneCode?: string) => Promise<boolean>;
+  onLogin: (phoneCode: string) => Promise<boolean>;
   onOpenPrivacy: () => void;
 }
 export function LoginView(props: Readonly<LoginViewProps>) {
@@ -51,13 +51,18 @@ export function LoginView(props: Readonly<LoginViewProps>) {
           className='tidewise-button profile-page__button'
           hoverClass='profile-page__pressed'
           disabled={busy || !canLogin}
+          openType={canLogin && agreed && !busy ? 'getPhoneNumber' : undefined}
           onClick={() => {
-            if (!agreed) {
-              setLoginNotice('请先阅读并勾选隐私政策');
+            if (!agreed) setLoginNotice('请先阅读并勾选隐私政策');
+          }}
+          onGetPhoneNumber={(event) => {
+            if (!agreed || busy || !canLogin) return;
+            if (!event.detail.code) {
+              setLoginNotice('未完成手机号授权，请重试');
               return;
             }
             setLoginNotice('');
-            void props.onLogin();
+            void props.onLogin(event.detail.code);
           }}
         >
           {pendingAction === 'login'
@@ -65,27 +70,8 @@ export function LoginView(props: Readonly<LoginViewProps>) {
             : pendingAction === 'refresh'
               ? '正在检查登录状态…'
               : canLogin
-                ? '一键注册/登录'
+                ? '手机号快捷登录'
                 : '请在微信小程序中登录'}
-        </Button>
-        <Button
-          className='tidewise-button profile-page__phone-login'
-          disabled={busy || !canLogin}
-          openType={canLogin && agreed ? 'getPhoneNumber' : undefined}
-          onClick={() => {
-            if (!agreed) setLoginNotice('请先阅读并勾选隐私政策');
-          }}
-          onGetPhoneNumber={(event) => {
-            if (!agreed || busy) return;
-            if (!event.detail.code) {
-              setLoginNotice('未完成手机号授权，你仍可使用一键登录');
-              return;
-            }
-            setLoginNotice('');
-            void props.onLogin(event.detail.code);
-          }}
-        >
-          手机号快捷登录
         </Button>
         {loginNotice ? (
           <View className='profile-page__login-notice' role='alert'>
