@@ -41,7 +41,7 @@ export default function LoginPage() {
           leading={
             <Button
               className='tidewise-button profile-page__back'
-              aria-label={destination ? '返回要闻解读' : '返回我的'}
+              aria-label={destination ? '返回今日主线' : '返回我的'}
               onClick={() =>
                 void (destination ? leaveResearchLogin(destination, false) : leaveLogin())
               }

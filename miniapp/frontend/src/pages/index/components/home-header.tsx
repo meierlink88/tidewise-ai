@@ -46,7 +46,6 @@ export function HomeHeader({
       )}
       <View className='home-brief'>
         <View className='home-brief__copy'>
-          <Text className='home-brief__title'>全球政经事件</Text>
           <Text className='home-brief__subtitle'>
             {dateLabel ? `${dateLabel} · ` : ''}读懂全球政经变化
           </Text>

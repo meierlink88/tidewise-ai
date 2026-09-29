@@ -21,7 +21,7 @@ export default defineAppConfig({
     list: [
       {
         pagePath: 'pages/index/index',
-        text: '要闻解读',
+        text: '今日主线',
         iconPath: 'assets/tab/reasoning-normal.png',
         selectedIconPath: 'assets/tab/reasoning-active.png'
       },

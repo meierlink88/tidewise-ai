@@ -36,14 +36,6 @@
   min-width: 0;
 }
 
-.home-brief__title {
-  display: block;
-  font-size: report-reading-font(38rpx);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  line-height: 1.25;
-}
-
 .home-brief__subtitle {
   display: block;
   margin-top: 4rpx;
@@ -619,10 +611,6 @@
 }
 .home-brief__copy {
   flex-basis: 350rpx;
-}
-.home-brief__title {
-  font-size: 40rpx;
-  letter-spacing: 0;
 }
 .home-brief__subtitle {
   color: rgba(255, 255, 255, 0.72);
