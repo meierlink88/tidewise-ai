@@ -13,7 +13,7 @@ export default function MacroPage() {
   if (!access.allowed) return <ResearchAccessState error={access.error} retry={access.retry} />;
   return (
     <PreviewPage
-      title='宏观指数'
+      title='市场脉搏'
       subtitle='从市场温度，观察宏观变化'
       filters={<PreviewTabs names={markets} selected={market} onChange={setMarket} />}
     >

@@ -27,7 +27,7 @@ export default defineAppConfig({
       },
       {
         pagePath: 'pages/macro/index',
-        text: '宏观指数',
+        text: '市场脉搏',
         iconPath: 'assets/tab/macro-normal.png',
         selectedIconPath: 'assets/tab/macro-active.png'
       },
