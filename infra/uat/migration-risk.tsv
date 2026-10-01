@@ -96,3 +96,4 @@
 000095	normal	schema	add ten nullable stock business fields without backfill; preserve stock identities and existing catalog/API behavior
 000096	normal	schema	add nullable stock search initials; explicit reindex before Data/BFF rollout
 000097	normal	schema	add isolated stock classification catalogs and links; explicit local data publication only
+000098	normal	schema	add stock daily quotes; explicit local initialization with checksum, preserve stock and relationships

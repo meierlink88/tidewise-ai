@@ -294,3 +294,29 @@ go run ./data-service/backend/cmd/stock-profiles -file <provided-v4-sample.json>
 新 Data API 保留原搜索字段并添加可空公司字段；新增 ids 参数供 BFF 批量读取。
 发布顺序为 Data schema/回填/资料发布 → Data → User schema/权限/User → BFF → Miniapp。
 回滚保留 additive schema，Data 镜像须认识目标 Goose ledger，避免旧镜像 readiness 拒绝未知版本。
+
+## Local stock daily quotes (#557)
+
+Use the user-supplied `A股个股列表-近10日K线.json` outside version control. The importer
+requires `meta.period=day`, matching universe/record_count, a `stocks` array with code/exchange/name
+and `kline` arrays containing date/open/high/low/close/volume/turnover/change_pct. Prices are
+source-declared unadjusted CNY; volume is lots, percentages retain their source units. Null rates
+are allowed; missing numeric fields, rounding, invalid OHLC, duplicate stock/dates and missing
+stock references reject the entire package. Exact decimals never pass through float64.
+
+After migration 98 and a compatible local Data image, execute inside that image with the source
+mounted read-only. Use an independently recorded SHA-256, not an unchecked generated argument:
+
+```sh
+stock-daily-quotes -file /input/kline.json -sha256 <reviewed-sha256>
+stock-daily-quotes -file /input/kline.json -sha256 <reviewed-sha256> -apply
+```
+
+The first command validates without writes. The second atomically inserts new quotes; identical
+replays do not update IDs or timestamps, conflicting content fails rather than overwriting.
+Only local `tidewise_local` is supported. Save stdout as an import receipt: it includes the source
+checksum/meta, stocks/rows/new/unchanged/status counts, applied flag and zero-price normalization
+list. A receipt is not a substitute for full readback, orphan checks, stock/relationship preservation
+and replay verification. No automatic correction, rolling-window deletion, UAT execution or
+source-data packaging is included. Zero open/high/low plus zero volume is a placeholder: the
+three prices become NULL, the close remains unchanged. Ordinary quote readers must exclude it.

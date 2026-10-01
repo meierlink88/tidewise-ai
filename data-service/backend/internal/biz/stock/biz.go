@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"regexp"
 	"sort"
 	"strings"
@@ -499,4 +500,224 @@ func PublishClassifications(ctx context.Context, repository ClassificationReposi
 		return ClassificationResult{}, err
 	}
 	return ClassificationResult{len(p.StockIDs), len(p.Industries), len(p.Concepts), len(p.Chains), len(p.IndustryLinks), len(p.ConceptLinks), len(p.ChainLinks), apply}, nil
+}
+
+const (
+	QuoteObserved          = "observed"
+	QuotePlaceholder       = "placeholder"
+	MaxDailyQuoteFileBytes = 32 * 1024 * 1024
+)
+
+// DailyQuote retains decimal values as canonical base-10 strings, never float64.
+// Nil prices are reserved for source placeholders; rates may be unknown.
+type DailyQuote struct {
+	ID        string  `json:"id"`
+	StockID   string  `json:"stock_id"`
+	Date      string  `json:"trade_date"`
+	Open      *string `json:"open_price"`
+	High      *string `json:"high_price"`
+	Low       *string `json:"low_price"`
+	Close     string  `json:"close_price"`
+	Volume    string  `json:"volume_lots"`
+	Turnover  *string `json:"turnover_rate_pct"`
+	ChangePct *string `json:"change_pct"`
+	Status    string  `json:"record_status"`
+}
+type DailyQuoteInput struct {
+	Symbol string
+	Quote  DailyQuote
+}
+
+type DailyQuoteBatch struct {
+	Meta    json.RawMessage
+	Symbols []string
+	Quotes  []DailyQuoteInput
+}
+
+var quoteDecimalPattern = regexp.MustCompile(`^-?(0|[1-9][0-9]*)(\.[0-9]+)?$`)
+
+// CanonicalQuoteDecimal rejects loss of precision instead of rounding at insertion.
+func CanonicalQuoteDecimal(value string, precision, scale int) (string, error) {
+	if !quoteDecimalPattern.MatchString(value) {
+		return "", ErrInvalid
+	}
+	negative := strings.HasPrefix(value, "-")
+	value = strings.TrimPrefix(value, "-")
+	parts := strings.SplitN(value, ".", 2)
+	whole := parts[0]
+	fraction := ""
+	if len(parts) == 2 {
+		fraction = strings.TrimRight(parts[1], "0")
+	}
+	if len(strings.TrimLeft(whole, "0")) > precision-scale || len(fraction) > scale {
+		return "", ErrInvalid
+	}
+	out := whole
+	if fraction != "" {
+		out += "." + fraction
+	}
+	if negative && out != "0" {
+		out = "-" + out
+	}
+	return out, nil
+}
+func quoteNumber(raw json.RawMessage, precision, scale int, nullable bool) (*string, error) {
+	if string(raw) == "null" && nullable {
+		return nil, nil
+	}
+	value, err := CanonicalQuoteDecimal(string(raw), precision, scale)
+	if err != nil {
+		return nil, err
+	}
+	return &value, nil
+}
+func compareQuoteDecimal(a, b string) int {
+	x, _ := new(big.Rat).SetString(a)
+	y, _ := new(big.Rat).SetString(b)
+	return x.Cmp(y)
+}
+func ValidateDailyQuote(q DailyQuote) error {
+	if _, err := time.Parse("2006-01-02", q.Date); err != nil {
+		return ErrInvalid
+	}
+	for _, f := range []struct {
+		value            *string
+		precision, scale int
+		required         bool
+	}{
+		{&q.Close, 20, 6, true}, {&q.Volume, 24, 6, true}, {q.Open, 20, 6, false}, {q.High, 20, 6, false}, {q.Low, 20, 6, false}, {q.Turnover, 20, 10, false}, {q.ChangePct, 20, 10, false},
+	} {
+		if f.value == nil {
+			if f.required {
+				return ErrInvalid
+			}
+			continue
+		}
+		if _, err := CanonicalQuoteDecimal(*f.value, f.precision, f.scale); err != nil {
+			return err
+		}
+	}
+	if compareQuoteDecimal(q.Close, "0") <= 0 || compareQuoteDecimal(q.Volume, "0") < 0 || (q.Turnover != nil && compareQuoteDecimal(*q.Turnover, "0") < 0) {
+		return ErrInvalid
+	}
+	switch q.Status {
+	case QuotePlaceholder:
+		if q.Open != nil || q.High != nil || q.Low != nil || compareQuoteDecimal(q.Volume, "0") != 0 {
+			return ErrInvalid
+		}
+	case QuoteObserved:
+		if q.Open == nil || q.High == nil || q.Low == nil {
+			return ErrInvalid
+		}
+		if compareQuoteDecimal(*q.Low, "0") <= 0 || compareQuoteDecimal(*q.High, *q.Low) < 0 || compareQuoteDecimal(*q.Open, *q.Low) < 0 || compareQuoteDecimal(*q.Open, *q.High) > 0 || compareQuoteDecimal(q.Close, *q.Low) < 0 || compareQuoteDecimal(q.Close, *q.High) > 0 {
+			return ErrInvalid
+		}
+	default:
+		return ErrInvalid
+	}
+	return nil
+}
+
+func DecodeDailyQuotes(reader io.Reader) (DailyQuoteBatch, error) {
+	var file struct {
+		Meta   json.RawMessage `json:"meta"`
+		Stocks []struct {
+			Code     string `json:"code"`
+			Exchange string `json:"exchange"`
+			Name     string `json:"name"`
+			Kline    []struct {
+				Date     string          `json:"date"`
+				Open     json.RawMessage `json:"open"`
+				High     json.RawMessage `json:"high"`
+				Low      json.RawMessage `json:"low"`
+				Close    json.RawMessage `json:"close"`
+				Volume   json.RawMessage `json:"volume"`
+				Turnover json.RawMessage `json:"turnover"`
+				Change   json.RawMessage `json:"change_pct"`
+			} `json:"kline"`
+		} `json:"stocks"`
+	}
+	raw, err := io.ReadAll(io.LimitReader(reader, MaxDailyQuoteFileBytes+1))
+	if err != nil || len(raw) > MaxDailyQuoteFileBytes {
+		return DailyQuoteBatch{}, ErrInvalid
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&file) != nil || decoder.Decode(new(any)) != io.EOF {
+		return DailyQuoteBatch{}, ErrInvalid
+	}
+	var meta struct {
+		Period   string `json:"period"`
+		Universe int    `json:"universe"`
+		Count    int    `json:"record_count"`
+		Limit    int    `json:"limit"`
+		Stats    *struct {
+			Rows          int `json:"K线条数合计"`
+			WithQuotes    int `json:"有K线股票数"`
+			WithoutQuotes int `json:"无K线股票数"`
+		} `json:"stats"`
+	}
+	if json.Unmarshal(file.Meta, &meta) != nil || meta.Period != "day" || len(file.Stocks) == 0 || meta.Count != len(file.Stocks) || meta.Universe != len(file.Stocks) {
+		return DailyQuoteBatch{}, ErrInvalid
+	}
+	batch := DailyQuoteBatch{Meta: file.Meta}
+	stocks := map[string]bool{}
+	keys := map[string]bool{}
+	for _, s := range file.Stocks {
+		symbol := s.Code + "." + s.Exchange
+		if !codePattern.MatchString(s.Code) || ExchangeName(s.Exchange) == "" || stocks[symbol] || s.Kline == nil || (meta.Limit > 0 && len(s.Kline) > meta.Limit) {
+			return DailyQuoteBatch{}, ErrInvalid
+		}
+		stocks[symbol] = true
+		batch.Symbols = append(batch.Symbols, symbol)
+		for _, r := range s.Kline {
+			key := symbol + "/" + r.Date
+			if keys[key] {
+				return DailyQuoteBatch{}, ErrInvalid
+			}
+			keys[key] = true
+			values := make([]*string, 7)
+			for i, f := range []struct {
+				raw      json.RawMessage
+				p, s     int
+				nullable bool
+			}{{r.Open, 20, 6, false}, {r.High, 20, 6, false}, {r.Low, 20, 6, false}, {r.Close, 20, 6, false}, {r.Volume, 24, 6, false}, {r.Turnover, 20, 10, true}, {r.Change, 20, 10, true}} {
+				values[i], err = quoteNumber(f.raw, f.p, f.s, f.nullable)
+				if err != nil {
+					return DailyQuoteBatch{}, fmt.Errorf("%s: %w", key, err)
+				}
+			}
+			q := DailyQuote{Date: r.Date, Open: values[0], High: values[1], Low: values[2], Close: *values[3], Volume: *values[4], Turnover: values[5], ChangePct: values[6], Status: QuoteObserved}
+			if *q.Open == "0" && *q.High == "0" && *q.Low == "0" && q.Volume == "0" {
+				q.Open = nil
+				q.High = nil
+				q.Low = nil
+				q.Status = QuotePlaceholder
+			}
+			if err = ValidateDailyQuote(q); err != nil {
+				return DailyQuoteBatch{}, fmt.Errorf("%s: %w", key, err)
+			}
+			batch.Quotes = append(batch.Quotes, DailyQuoteInput{Symbol: symbol, Quote: q})
+		}
+	}
+	if meta.Stats != nil {
+		with := 0
+		for _, s := range file.Stocks {
+			if len(s.Kline) > 0 {
+				with++
+			}
+		}
+		if meta.Stats.Rows != len(batch.Quotes) || meta.Stats.WithQuotes != with || meta.Stats.WithoutQuotes != len(file.Stocks)-with {
+			return DailyQuoteBatch{}, ErrInvalid
+		}
+	}
+	sort.Strings(batch.Symbols)
+	sort.Slice(batch.Quotes, func(i, j int) bool {
+		a, b := batch.Quotes[i], batch.Quotes[j]
+		if a.Symbol == b.Symbol {
+			return a.Quote.Date < b.Quote.Date
+		}
+		return a.Symbol < b.Symbol
+	})
+	return batch, nil
 }

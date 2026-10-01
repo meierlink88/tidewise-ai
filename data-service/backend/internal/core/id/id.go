@@ -35,6 +35,7 @@ const (
 	MacroEconomic               Kind = "MEC"
 	MacroEconomicDomain         Kind = "MCD"
 	Stock                       Kind = "STK"
+	StockDailyQuote             Kind = "SDQ"
 	StockIndustry               Kind = "SIND"
 	StockConcept                Kind = "SCON"
 	StockIndustryChain          Kind = "SICH"
@@ -163,7 +164,7 @@ func prefix(kind Kind) (string, error) {
 
 func registered(kind Kind) bool {
 	switch kind {
-	case StockIndustry, StockConcept, StockIndustryChain, StockIndustryLink, StockConceptLink, StockIndustryChainLink, Stock, GeopoliticRivalryDomainLink, MacroEconomicDomainLink, Entity, Industry, Concept, ChainNode, IndustryChain, EntityRelation, Country, Subdivision, Ministry, Institution, GeopoliticDomain, GeopoliticRivalry, MacroEconomic, MacroEconomicDomain, Company, CompanyIndustryLink, Region, Organization, OrganizationCategory, OrganizationFunction, OrganizationDomainTag,
+	case StockDailyQuote, StockIndustry, StockConcept, StockIndustryChain, StockIndustryLink, StockConceptLink, StockIndustryChainLink, Stock, GeopoliticRivalryDomainLink, MacroEconomicDomainLink, Entity, Industry, Concept, ChainNode, IndustryChain, EntityRelation, Country, Subdivision, Ministry, Institution, GeopoliticDomain, GeopoliticRivalry, MacroEconomic, MacroEconomicDomain, Company, CompanyIndustryLink, Region, Organization, OrganizationCategory, OrganizationFunction, OrganizationDomainTag,
 		OrganizationDomainTagLink, RawEvidence, Evidence, EvidenceCategory, RawEvidenceCategoryLink,
 		CountryRegionLink,
 		EventEvidenceLink, EventActorLink, EventAssetLink, Event, EventPublicationReceipt,
