@@ -436,3 +436,11 @@ NULL 与已知空数组。JSON 收入条目要求非空名称及数值 pct，字
 先用候选版本检查 pending，再在同一发布窗口迁移并更新 Data runtime；本地已存在目录不得
 重导样本或作为 UAT 来源。旧显式列查询/初始化仍兼容且不覆盖新列；但旧版本 readiness 不认识
 ledger 95，回退需使用携带95迁移的兼容镜像。锁等待上限5秒，失败事务回滚；不使用 down 删除档案。
+
+## Stock daily quotes (000098)
+
+Issue #557: additive, forward-only `stock_daily_quote`, SDQ identity, restricted stock FK,
+unique stock/date and exact decimal OHLC/volume/percent constraints. Schema only; no seed.
+Lock wait is bounded to five seconds. Back up the target, apply migration, run a Data image
+carrying ledger 98, then explicitly initialize through `stock-daily-quotes`. Application rollback
+must also carry ledger 98 for readiness and retain all quote data; do not run Down.

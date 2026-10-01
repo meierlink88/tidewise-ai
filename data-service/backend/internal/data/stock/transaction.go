@@ -2,8 +2,11 @@ package stock
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+
+	coreid "github.com/meierlink88/tidewise-ai/data-service/backend/internal/core/id"
 
 	biz "github.com/meierlink88/tidewise-ai/data-service/backend/internal/biz/stock"
 )
@@ -154,6 +157,118 @@ func (s *Store) PublishClassifications(ctx context.Context, p biz.Classification
 		}
 	}
 	if err = tx.Commit(); err != nil {
+		return biz.ErrPersistence
+	}
+	return nil
+}
+
+// WithDailyQuoteTransaction serializes the bounded local import with all quote
+// writers and protects stock identities; the Biz callback owns replay decisions.
+func (s *Store) WithDailyQuoteTransaction(ctx context.Context, apply bool, fn func(biz.DailyQuoteTransaction) error) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return persistence(ctx, err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err = tx.ExecContext(ctx, `SET LOCAL lock_timeout='5s'; LOCK TABLE stock IN SHARE MODE; LOCK TABLE stock_daily_quote IN SHARE ROW EXCLUSIVE MODE`); err != nil {
+		return persistence(ctx, err)
+	}
+	if err = fn(&dailyQuoteTransaction{tx: tx}); err != nil {
+		return err
+	}
+	if !apply {
+		if err = tx.Rollback(); err != nil {
+			return persistence(ctx, err)
+		}
+		return nil
+	}
+	if err = tx.Commit(); err != nil {
+		return persistence(ctx, err)
+	}
+	return nil
+}
+
+type dailyQuoteTransaction struct{ tx *sql.Tx }
+
+func (t *dailyQuoteTransaction) Stocks(ctx context.Context, symbols []string) (map[string]string, error) {
+	rows, err := t.tx.QueryContext(ctx, `SELECT code||'.'||exchange,id FROM stock WHERE code||'.'||exchange=ANY($1)`, symbols)
+	if err != nil {
+		return nil, persistence(ctx, err)
+	}
+	defer rows.Close()
+	result := map[string]string{}
+	for rows.Next() {
+		var symbol, id string
+		if err = rows.Scan(&symbol, &id); err != nil {
+			return nil, persistence(ctx, err)
+		}
+		if !coreid.Is(id, coreid.Stock) {
+			return nil, biz.ErrPersistence
+		}
+		result[symbol] = id
+	}
+	if err = rows.Err(); err != nil {
+		return nil, persistence(ctx, err)
+	}
+	return result, nil
+}
+
+const dailyQuoteRecordset = ` AS x(id text,stock_id text,trade_date date,open_price numeric,high_price numeric,low_price numeric,close_price numeric,volume_lots numeric,turnover_rate_pct numeric,change_pct numeric,record_status text)`
+
+func (t *dailyQuoteTransaction) Existing(ctx context.Context, quotes []biz.DailyQuote) ([]biz.DailyQuote, error) {
+	if len(quotes) == 0 {
+		return nil, nil
+	}
+	raw, err := json.Marshal(quotes)
+	if err != nil {
+		return nil, biz.ErrInvalid
+	}
+	rows, err := t.tx.QueryContext(ctx, `SELECT DISTINCT q.id,q.stock_id,q.trade_date::text,q.open_price::text,q.high_price::text,q.low_price::text,q.close_price::text,q.volume_lots::text,q.turnover_rate_pct::text,q.change_pct::text,q.record_status FROM stock_daily_quote q JOIN jsonb_to_recordset($1::jsonb)`+dailyQuoteRecordset+` ON q.stock_id=x.stock_id AND q.trade_date=x.trade_date`, string(raw))
+	if err != nil {
+		return nil, persistence(ctx, err)
+	}
+	defer rows.Close()
+	result := []biz.DailyQuote{}
+	for rows.Next() {
+		var q biz.DailyQuote
+		if err = rows.Scan(&q.ID, &q.StockID, &q.Date, &q.Open, &q.High, &q.Low, &q.Close, &q.Volume, &q.Turnover, &q.ChangePct, &q.Status); err != nil {
+			return nil, persistence(ctx, err)
+		}
+		for _, f := range []struct {
+			value *string
+			p, s  int
+		}{{q.Open, 20, 6}, {q.High, 20, 6}, {q.Low, 20, 6}, {&q.Close, 20, 6}, {&q.Volume, 24, 6}, {q.Turnover, 20, 10}, {q.ChangePct, 20, 10}} {
+			if f.value != nil {
+				*f.value, err = biz.CanonicalQuoteDecimal(*f.value, f.p, f.s)
+				if err != nil {
+					return nil, biz.ErrPersistence
+				}
+			}
+		}
+		if !coreid.Is(q.ID, coreid.StockDailyQuote) || !coreid.Is(q.StockID, coreid.Stock) || biz.ValidateDailyQuote(q) != nil {
+			return nil, biz.ErrPersistence
+		}
+		result = append(result, q)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, persistence(ctx, err)
+	}
+	return result, nil
+}
+func (t *dailyQuoteTransaction) Insert(ctx context.Context, quotes []biz.DailyQuote) error {
+	if len(quotes) == 0 {
+		return nil
+	}
+	raw, err := json.Marshal(quotes)
+	if err != nil {
+		return biz.ErrInvalid
+	}
+	result, err := t.tx.ExecContext(ctx, `INSERT INTO stock_daily_quote(id,stock_id,trade_date,open_price,high_price,low_price,close_price,volume_lots,turnover_rate_pct,change_pct,record_status) SELECT id,stock_id,trade_date,open_price,high_price,low_price,close_price,volume_lots,turnover_rate_pct,change_pct,record_status FROM jsonb_to_recordset($1::jsonb)`+dailyQuoteRecordset, string(raw))
+	if err != nil {
+		return persistence(ctx, err)
+	}
+	count, err := result.RowsAffected()
+	if err != nil || count != int64(len(quotes)) {
 		return biz.ErrPersistence
 	}
 	return nil
