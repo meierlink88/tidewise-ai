@@ -35,9 +35,10 @@
     display: inline-block;
     padding: 5rpx 12rpx;
     background: tokens.$color-report-group-background;
-    color: tokens.$color-text-secondary;
     border-radius: 8rpx;
-    font-size: 22rpx;
+    font-size: 18rpx;
+    line-height: 32rpx;
+    color: #748092;
   }
   .standard-metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -50,7 +51,7 @@
     display: flex;
     justify-content: space-between;
     gap: 8rpx;
-    font-size: 21rpx;
+    font-size: 18rpx;
     padding: 18rpx 0;
     color: tokens.$color-text-secondary;
   }
@@ -236,7 +237,7 @@
   .standard-region-bar > span {
     flex: none;
     min-width: 0;
-    font-size: 21rpx;
+    font-size: 18rpx;
     padding: 18rpx 0;
     text-align: center;
     background: tokens.$color-report-macro-accent;
@@ -317,7 +318,7 @@
     border-left: 6rpx solid #6d7fd0;
     padding: 20rpx 22rpx;
     border-radius: 4rpx 14rpx 14rpx 4rpx;
-    line-height: 1.6;
+    line-height: 1.5;
     margin: 0;
   }
   .allocation-strip > .lr-b .lr-small {
@@ -359,18 +360,30 @@
     color: #263244;
   }
   .logic-panel .standard-entry > .lr-b {
-    color: #263244;
-    font-weight: 600;
+    color: #24344b;
+    font-size: 26rpx;
+    font-weight: 650;
+    line-height: 1.65;
+  }
+  .logic-rejections .standard-entry > .lr-b {
+    font-size: 30rpx;
+    font-weight: 700;
   }
   .logic-panel .standard-entry .lr-p {
-    color: #6176a2;
+    color: #526bb2;
+    line-height: 1.7;
+  }
+  .logic-rejections .standard-entry .lr-p {
+    font-size: 24rpx;
+    color: #24344b;
+    line-height: 1.95;
   }
   .standard-average {
-    grid-template-columns: 130rpx minmax(0, 1fr) 74rpx;
-    gap: 20rpx;
-    padding: 20rpx 12rpx;
-    font-size: 24rpx;
-    color: #67778f;
+    grid-template-columns: 98rpx minmax(0, 1fr) 98rpx;
+    gap: 10rpx;
+    padding: 18rpx 8rpx;
+    font-size: 20rpx;
+    color: #788399;
   }
   .standard-track {
     height: 14rpx;
@@ -769,4 +782,158 @@
 .standard-report .standard-flow-axis > span {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+// Typography roles from tidetell2.0/legacy-report; scoped to the standard report.
+.standard-report {
+  .debate-labels .lr-span > text,
+  .debate-labels .lr-span > span {
+    font-size: 26rpx;
+    font-weight: 600;
+  }
+  .risk-decision-grid .lr-b {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0 6rpx;
+    min-height: 72rpx;
+    font-size: 24rpx;
+    font-weight: 650;
+    line-height: 36rpx;
+  }
+  .risk-summary .risk-decision-grid .lr-p {
+    font-size: 18rpx;
+    line-height: 28rpx;
+    color: #7b8797;
+    margin: 0;
+  }
+  .risk-decision-grid .risk-level-cell .lr-b {
+    font-size: 38rpx;
+    color: #ad711a;
+  }
+  .risk-decision-grid .risk-time-cell .lr-b {
+    font-size: 22rpx;
+    color: #12855a;
+  }
+  .risk-decision-grid .lr-b .lr-small {
+    font-size: 18rpx;
+    font-weight: 500;
+    color: #5b6675;
+    line-height: 1.55;
+  }
+  .standard-average.selected {
+    background: #edf0fa;
+    color: #405c9e;
+  }
+  .standard-average-caption > text:nth-child(2),
+  .standard-average-caption > span:nth-child(2) {
+    color: #aa8245;
+    font-weight: 500;
+  }
+  .standard-average > text:last-child,
+  .standard-average > span:last-child {
+    font-size: 20rpx;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+}
+.standard-report.legacy-report-detail {
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  .lr-h3,
+  .tech-heading .lr-b,
+  .tech-heading .lr-strong,
+  .tech-verdict > .lr-strong,
+  .tech-reasons .lr-b,
+  .tech-metrics .lr-strong,
+  .fund-inline .lr-b,
+  .fund-roe .lr-b {
+    font-weight: 700;
+  }
+  .tech-verdict .lr-p,
+  .tech-reasons .lr-p {
+    line-height: 1.45;
+  }
+  .tech-footnote.lr-p {
+    font-size: 20rpx;
+    color: #8a94a7;
+    line-height: 1.45;
+    margin: 12rpx 0 0;
+  }
+  .tech-chart-note.lr-p {
+    font-size: 20rpx;
+    color: #63728c;
+    line-height: 32rpx;
+    margin: 10rpx 0 0;
+  }
+  .standard-risk-response {
+    line-height: 1.45;
+    color: #7c889a;
+  }
+  &.risk-detail .standard-entry > .lr-b {
+    color: #202936;
+    font-weight: 700;
+  }
+  &.sentiment-detail .tech-metrics .lr-strong {
+    color: #158361;
+  }
+
+  &.risk-detail .tech-verdict .lr-p {
+    font-weight: 500;
+  }
+  &.risk-detail .standard-entry .lr-p {
+    font-size: 24rpx;
+    line-height: 1.45;
+  }
+  .tech-table .standard-entry {
+    display: grid;
+    grid-template-columns: 130rpx minmax(0, 1fr);
+    gap: 4rpx 16rpx;
+    padding: 20rpx;
+  }
+  .tech-table .standard-entry > .lr-b {
+    font-size: 22rpx;
+    font-weight: 400;
+    color: #8993a5;
+  }
+  .tech-table .standard-entry .lr-p {
+    margin: 0;
+    font-size: 24rpx;
+    font-weight: 700;
+    color: #202936;
+    line-height: 1.6;
+  }
+  .tech-table .standard-entry .lr-small {
+    grid-column: 2;
+    font-size: 20rpx;
+    color: #8893a5;
+  }
+  .standard-return-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .standard-return-grid > view,
+  .standard-return-grid > div {
+    padding: 18rpx 2rpx;
+    text-align: center;
+  }
+  .standard-return-grid > view:last-child,
+  .standard-return-grid > div:last-child {
+    border-right: 0;
+  }
+  .standard-return-grid .lr-span {
+    font-size: 18rpx;
+    color: #8c97a8;
+  }
+  .standard-return-grid .lr-b {
+    font-size: 20rpx;
+    font-weight: 700;
+  }
 }

@@ -57,8 +57,8 @@ function Section({
     </View>
   );
 }
-function Paragraph({ children }: { children: ReactNode }) {
-  return <View className='lr-p'>{children}</View>;
+function Paragraph({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <View className={`lr-p ${className}`.trim()}>{children}</View>;
 }
 function Tabs({
   names,
@@ -176,6 +176,7 @@ function Overview({ report, open }: { report: CompanyReport; open: (topic: Topic
     debate = report.debate.summary,
     risk = report.risk.summary;
   const riskScore = risk.risk_assessment;
+  const positionLines = text(risk.position_requirements).split('；');
   const bull = debate.bull_score,
     bear = debate.bear_score;
   const comparable =
@@ -324,9 +325,10 @@ function Overview({ report, open }: { report: CompanyReport; open: (topic: Topic
             <Text className='lr-b'>{text(risk.mandate)}</Text>
             <Paragraph>{text(risk.mandate_note)}</Paragraph>
           </View>
-          <View className='lr-div'>
+          <View className='risk-position-cell lr-div'>
             <Text className='lr-span'>仓位</Text>
-            <Paragraph>{text(risk.position_requirements)}</Paragraph>
+            <Text className='lr-b'>{positionLines[0]}</Text>
+            {positionLines.length > 1 && <Paragraph>{positionLines.slice(1).join('；')}</Paragraph>}
           </View>
           <View className='risk-time-cell lr-div'>
             <Text className='lr-span'>时机</Text>
@@ -351,7 +353,7 @@ function DecisionDetail({ value }: { value: CompanyReport['decision']['detail'] 
           ))}
         </Section>
       </View>
-      <View className='logic-panel'>
+      <View className='logic-panel logic-rejections'>
         <Section title='反证理由'>
           {value.rejections.map((reason, index) => (
             <Entry key={reason.reason_title ?? `missing-${index}`} title={reason.reason_title}>
@@ -434,15 +436,19 @@ function TechnicalDetail({
                 </Text>
               </Button>
             ))}
-            <Paragraph>{text(averages.moving_averages[average]?.comparison_note)}</Paragraph>
+            <Paragraph className='tech-chart-note'>
+              {text(averages.moving_averages[average]?.comparison_note)}
+            </Paragraph>
           </Section>
           <Section title={text(readings.momentum_volatility_volume.analysis_title)}>
-            {readings.momentum_volatility_volume.metric_groups.map((row, index) => (
-              <Entry key={row.group_name ?? `missing-${index}`} title={row.group_name}>
-                <Paragraph>{text(row.readings)}</Paragraph>
-                <Text className='lr-small'>{text(row.metric_note)}</Text>
-              </Entry>
-            ))}
+            <View className='tech-table lr-div'>
+              {readings.momentum_volatility_volume.metric_groups.map((row, index) => (
+                <Entry key={row.group_name ?? `missing-${index}`} title={row.group_name}>
+                  <Paragraph>{text(row.readings)}</Paragraph>
+                  <Text className='lr-small'>{text(row.metric_note)}</Text>
+                </Entry>
+              ))}
+            </View>
           </Section>
           <Section title='区间表现'>
             <View className='standard-return-grid'>
@@ -667,7 +673,7 @@ function FundamentalDetail({
                 </View>
               ))}
             </View>
-            <Paragraph>{text(six.roe_trend.basis_note)}</Paragraph>
+            <Paragraph className='tech-footnote'>{text(six.roe_trend.basis_note)}</Paragraph>
           </Section>
         </>
       ) : (
@@ -723,7 +729,9 @@ function FundamentalDetail({
                 </Text>
               </View>
             </View>
-            <Paragraph>{text(finance.profit_realization_threshold.calculation_note)}</Paragraph>
+            <Paragraph className='tech-footnote'>
+              {text(finance.profit_realization_threshold.calculation_note)}
+            </Paragraph>
           </Section>
           <View className='standard-finance-evidence'>
             <Section title='完整财务依据'>
