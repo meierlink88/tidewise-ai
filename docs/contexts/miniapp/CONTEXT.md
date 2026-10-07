@@ -388,3 +388,13 @@ Miniapp Backend 面向 UI：`GET /api/miniapp/v1/tracking/filters` 把 Data 扁�
 筛选弹层通过 platform/overlay-navigation 适配 Taro 官方 hideTabBar/showTabBar（支持
 weapp/tt/H5），打开时隐藏原生底部导航，关闭或卸载后恢复；隐藏失败关闭弹层并给出重试
 提示，恢复失败反馈给用户，防止原生导航遮挡确认按钮。
+
+## 企业报告标准结构 mock（#559）
+
+新泉股份报告样例使用 `features/design-preview/report-data/standard-report.json`，由
+`pages/company/report/standard` 的 Taro 组件按英文结构字段渲染。保留企业与报告信息、
+综合决策、四维分析、多空决议和风险探测；四维分析包含技术面、基本面、新闻面、情绪面。
+主页读取摘要，七个子详情读取对应详情。执行计划及内容框架已删除的字段不展示。
+均线、支撑阻力、六维评分、财务占比、资金和多空对比图从数字字段生成，空值与零值分别处理。
+本次仅替换已授权的新泉股份样例；603179.SH 入口、登录验证和样例标识保持现有规则。
+该 JSON 是展示样例，不定义正式 Data 或 Miniapp API，不写数据库，也不发布 UAT。

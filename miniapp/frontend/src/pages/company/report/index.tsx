@@ -5,7 +5,8 @@ import { useResearchAccess } from '../../../features/identity/use-research-acces
 import { ResearchAccessState } from '../../../features/identity/research-access-state';
 import { NavigationBar } from '../../../platform/navigation-bar';
 import { getHomeChromeMetrics } from '../../../platform/system-ui';
-import InvestmentReport from './legacy/InvestmentReport';
+import StandardReport from './standard/StandardReport';
+import standardReport from '../../../features/design-preview/report-data/standard-report.json';
 import './legacy/legacy.scss';
 import './index.scss';
 
@@ -42,7 +43,7 @@ export default function CompanyReportPage() {
           </Button>
         }
       />
-      <InvestmentReport />
+      <StandardReport report={standardReport} />
     </View>
   );
 }

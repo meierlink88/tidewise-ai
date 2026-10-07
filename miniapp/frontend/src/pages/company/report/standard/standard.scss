@@ -1,0 +1,308 @@
+@use '../../../../styles/tokens' as tokens;
+.standard-report {
+  color: tokens.$color-text-primary;
+  .lr-p {
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+  .summary-card {
+    margin-top: 24rpx;
+    width: 100%;
+  }
+  .hero-identity {
+    flex-wrap: wrap;
+    gap: 12rpx;
+  }
+  .identity-detail {
+    white-space: nowrap;
+  }
+  .hero-verdict {
+    text-align: left;
+  }
+  .standard-entry {
+    padding: 22rpx 0;
+    border-bottom: 1rpx solid tokens.$color-border;
+  }
+  .standard-entry:last-child {
+    border-bottom: 0;
+  }
+  .standard-entry .lr-b {
+    display: block;
+    font-size: 26rpx;
+    line-height: 1.6;
+  }
+  .standard-tag {
+    display: inline-block;
+    padding: 5rpx 12rpx;
+    background: tokens.$color-report-group-background;
+    color: tokens.$color-text-secondary;
+    border-radius: 8rpx;
+    font-size: 22rpx;
+  }
+  .standard-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .standard-metrics > .lr-div:only-child {
+    grid-column: 1 / -1;
+    border-right: 0;
+  }
+  .standard-average-caption {
+    display: flex;
+    justify-content: space-between;
+    gap: 8rpx;
+    font-size: 21rpx;
+    padding: 18rpx 0;
+    color: tokens.$color-text-secondary;
+  }
+  .standard-average {
+    display: grid;
+    grid-template-columns: 105rpx minmax(0, 1fr) 90rpx;
+    gap: 12rpx;
+    width: 100%;
+    align-items: center;
+    padding: 24rpx 10rpx;
+    font-size: 23rpx;
+    text-align: left;
+  }
+  .standard-track {
+    position: relative;
+    height: 12rpx;
+    background: tokens.$color-report-slate-200;
+    border-radius: 12rpx;
+  }
+  .standard-dot {
+    position: absolute;
+    height: 18rpx;
+    width: 18rpx;
+    top: -3rpx;
+    transform: translateX(-50%);
+    background: tokens.$color-text-muted;
+    border-radius: 50%;
+  }
+  .standard-current {
+    position: absolute;
+    height: 32rpx;
+    top: -10rpx;
+    width: 2rpx;
+    background: tokens.$color-champagne-500;
+  }
+  .standard-average.selected,
+  .standard-quality-row.selected {
+    background: tokens.$ui-brand-soft;
+    border-radius: 16rpx;
+    color: tokens.$ui-brand;
+  }
+  .selected .standard-dot {
+    background: tokens.$ui-brand;
+  }
+  .standard-return-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18rpx;
+    margin-top: 18rpx;
+  }
+  .standard-return-grid > view,
+  .standard-return-grid > div {
+    min-width: 0;
+  }
+  .standard-return-grid text,
+  .standard-return-grid span {
+    display: block;
+    line-height: 1.7;
+  }
+  .standard-price-map {
+    height: 560rpx;
+    position: relative;
+    margin: 45rpx 0;
+  }
+  .standard-gridline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-top: 1rpx solid tokens.$color-border;
+    color: tokens.$color-text-muted;
+    font-size: 20rpx;
+  }
+  .standard-gridline > text,
+  .standard-gridline > span {
+    position: relative;
+    top: -24rpx;
+  }
+  .standard-price-node {
+    position: absolute;
+    left: 30%;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 18rpx;
+    min-height: 44rpx;
+    transform: translateY(-50%);
+    text-align: left;
+    padding: 5rpx 12rpx;
+    font-size: 23rpx;
+  }
+  .standard-price-band {
+    display: block;
+    width: 16rpx;
+    min-height: 12rpx;
+    background: currentColor;
+    border-radius: 8rpx;
+    flex-shrink: 0;
+  }
+  .standard-price-node.resistance {
+    color: tokens.$color-report-warming;
+  }
+  .standard-price-node.support {
+    color: tokens.$color-report-chain-accent;
+  }
+  .standard-price-node.selected {
+    font-weight: 600;
+    outline: 2rpx solid tokens.$color-border;
+    border-radius: 12rpx;
+    background: tokens.$color-card;
+    z-index: 2;
+  }
+  .standard-close-line {
+    position: absolute;
+    left: 18%;
+    right: 0;
+    border-top: 2rpx dashed tokens.$color-champagne-500;
+    color: tokens.$color-champagne-500;
+    font-size: 19rpx;
+  }
+  .standard-close-line > text,
+  .standard-close-line > span {
+    position: absolute;
+    right: 0;
+    top: -30rpx;
+  }
+  .standard-quality {
+    border: 1rpx solid tokens.$color-border;
+    border-radius: 24rpx;
+    padding: 12rpx;
+    background: tokens.$color-card;
+    margin-top: 20rpx;
+  }
+  .standard-quality-row {
+    display: grid;
+    grid-template-columns: 155rpx minmax(0, 1fr) 65rpx;
+    align-items: center;
+    gap: 16rpx;
+    padding: 24rpx 12rpx;
+    width: 100%;
+    font-size: 25rpx;
+    text-align: left;
+  }
+  .standard-fill {
+    height: 100%;
+    background: tokens.$color-report-macro-accent;
+    display: block;
+    border-radius: 12rpx;
+  }
+  .standard-fill-negative {
+    background: tokens.$color-report-chain-accent;
+  }
+  .standard-offset {
+    margin: 25rpx 0;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16rpx;
+    font-size: 24rpx;
+  }
+  .standard-offset .standard-fill {
+    position: absolute;
+    top: 0;
+  }
+  .standard-signed-track::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: -4rpx;
+    height: 20rpx;
+    border-left: 1rpx solid tokens.$color-text-muted;
+  }
+  .standard-offset .standard-track {
+    grid-column: 1 / -1;
+  }
+  .standard-region-bar {
+    display: flex;
+    width: 100%;
+    border-radius: 14rpx;
+    overflow: hidden;
+    margin: 24rpx 0;
+    background: tokens.$color-report-slate-200;
+  }
+  .standard-region-bar > text,
+  .standard-region-bar > span {
+    flex: none;
+    min-width: 0;
+    font-size: 21rpx;
+    padding: 18rpx 0;
+    text-align: center;
+    background: tokens.$color-report-macro-accent;
+    color: tokens.$color-card;
+  }
+  .standard-region-bar > text:nth-child(even),
+  .standard-region-bar > span:nth-child(even) {
+    background: tokens.$ui-brand;
+  }
+  .standard-flow-legend {
+    display: flex;
+    gap: 28rpx;
+    font-size: 22rpx;
+    margin-top: 24rpx;
+  }
+  .standard-flow-chart {
+    display: flex;
+    height: 320rpx;
+    margin: 24rpx 0;
+  }
+  .standard-flow-column {
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
+  .standard-flow-column.selected {
+    background: tokens.$ui-brand-soft;
+    border-radius: 8rpx;
+  }
+  .standard-flow-area {
+    height: 270rpx;
+    position: relative;
+    border-bottom: 1rpx solid tokens.$color-border;
+  }
+  .standard-flow-area::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    border-top: 1rpx solid tokens.$color-border;
+  }
+  .standard-flow-bar {
+    position: absolute;
+    left: 20%;
+    width: 60%;
+    border-radius: 4rpx;
+    min-height: 0;
+  }
+  .standard-flow-bar.inflow {
+    background: tokens.$color-report-warming;
+  }
+  .standard-flow-bar.outflow {
+    background: tokens.$color-report-chain-accent;
+  }
+  .standard-flow-column .lr-small {
+    font-size: 19rpx;
+  }
+  .tech-tabs {
+    flex-wrap: wrap;
+  }
+  .tech-tabs .lr-button {
+    min-width: 0;
+  }
+  .sentiment-selected {
+    flex-wrap: wrap;
+    gap: 12rpx;
+  }
+}
