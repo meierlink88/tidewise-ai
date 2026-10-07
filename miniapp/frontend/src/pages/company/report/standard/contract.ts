@@ -230,7 +230,7 @@ export type CompanyReport = {
             readonly boundary_conclusion: string | null;
             readonly boundary_note: string | null;
           };
-          readonly robotics_completed_actions: ReadonlyArray<{
+          readonly completed_actions: ReadonlyArray<{
             readonly action_date: string | null;
             readonly action_name: string | null;
             readonly action_content: string | null;

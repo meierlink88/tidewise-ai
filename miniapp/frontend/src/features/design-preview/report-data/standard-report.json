@@ -375,7 +375,7 @@
             "boundary_conclusion": "布局不等于收入兑现",
             "boundary_note": "新泉未出现在 Optimus 审厂名单，2026 中报披露机器人业务“尚未开展业务”"
           },
-          "robotics_completed_actions": [
+          "completed_actions": [
             {
               "action_date": "2026.05",
               "action_name": "增资中科摩通",

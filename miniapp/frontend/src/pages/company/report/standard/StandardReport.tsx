@@ -812,17 +812,19 @@ function NewsDetail({ value }: { value: CompanyReport['four_dimensions']['detail
             </Text>
             <Paragraph>{text(value.business_progress.business_boundary.boundary_note)}</Paragraph>
           </View>
-          <Section title='机器人业务已发生事项'>
-            <View className='news-business'>
-              {value.business_progress.robotics_completed_actions.map((row, index) => (
-                <View className='lr-div' key={`${row.action_date}-${row.action_name ?? index}`}>
-                  <Text className='lr-time'>{text(row.action_date)}</Text>
-                  <Text className='lr-b'>{text(row.action_name)}</Text>
-                  <Paragraph>{text(row.action_content)}</Paragraph>
-                </View>
-              ))}
-            </View>
-          </Section>
+          {value.business_progress.completed_actions.length > 0 && (
+            <Section title='业务已发生事项'>
+              <View className='news-business'>
+                {value.business_progress.completed_actions.map((row, index) => (
+                  <View className='lr-div' key={`${row.action_date}-${row.action_name ?? index}`}>
+                    <Text className='lr-time'>{text(row.action_date)}</Text>
+                    <Text className='lr-b'>{text(row.action_name)}</Text>
+                    <Paragraph>{text(row.action_content)}</Paragraph>
+                  </View>
+                ))}
+              </View>
+            </Section>
+          )}
         </>
       )}
     </>

@@ -407,3 +407,11 @@ weapp/tt/H5），打开时隐藏原生底部导航，关闭或卸载后恢复；
 代码均显示“暂无报告”，不回退到其他公司的报告。登录白名单目标保持不变，合法
 symbol 经登录页带回详情；取消仍回今日主线。当前没有正式公司报告 API，未新增
 网络读取、数据库或 UAT 发布。
+
+### 企业报告通用业务事项（#559）
+
+新闻面 business_progress 的已发生事项统一使用 completed_actions，替代样例专属
+robotics_completed_actions。条目 action_date、action_name、action_content 不变；
+前端标题为“业务已发生事项”，无条目时隐藏整个事项区块。生成端 Schema、示例和
+字段要求同步修改，既有众泰 JSON/Markdown 仅更名、不改正文或评分。该展示合同
+尚无正式 API 消费，当前文件整体同步迁移，不提供旧字段别名；不改报告入口绑定。

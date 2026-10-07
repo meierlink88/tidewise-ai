@@ -152,3 +152,38 @@ it('filters news and switches between the same bull/bear argument structure', ()
   expect(host.querySelector('[role="dialog"]')?.textContent).toContain('成立理由');
   expect(host.querySelector('[role="dialog"]')?.textContent).not.toContain('反证与理由');
 });
+
+it('uses company-neutral completed actions and hides the entire section when empty', () => {
+  act(() => root.render(<StandardReport report={sample} />));
+  click('新闻面详情与逻辑');
+  click('业务进展');
+  const dialog = () => host.querySelector('[role="dialog"]')?.textContent;
+  expect(dialog()).toContain('业务已发生事项');
+  expect(dialog()).toContain('增资中科摩通');
+  expect(dialog()).not.toContain('机器人业务已发生事项');
+  click('关闭详情');
+  const report: CompanyReport = {
+    ...sample,
+    four_dimensions: {
+      ...sample.four_dimensions,
+      detail: {
+        ...sample.four_dimensions.detail,
+        news: {
+          ...sample.four_dimensions.detail.news,
+          business_progress: {
+            business_boundary: {
+              boundary_conclusion: '布局不等于收入兑现',
+              boundary_note: '整车业务说明'
+            },
+            completed_actions: []
+          }
+        }
+      }
+    }
+  };
+  act(() => root.render(<StandardReport report={report} />));
+  click('新闻面详情与逻辑');
+  click('业务进展');
+  expect(dialog()).toContain('整车业务说明');
+  expect(dialog()).not.toContain('业务已发生事项');
+});
