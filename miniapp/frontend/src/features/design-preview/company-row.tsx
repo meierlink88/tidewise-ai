@@ -3,20 +3,18 @@ import Taro from '@tarojs/taro';
 import { Button, Image, Text, View } from '@tarojs/components';
 import arrowIcon from '../../assets/icons/report-arrow-right-light-gold.svg';
 import type { Company } from './fixtures';
-import { PreviewSheet } from './shell';
+import { companyReportUrl } from '../company-report/route';
 
 // These IDs are design fixture IDs, never stock IDs accepted by TrackingPort.
 export function PreviewCompanyRow({ company }: { company: Company }) {
   const [followed, setFollowed] = useState(false);
-  const [detail, setDetail] = useState(false);
   async function open() {
-    if (!company.report) {
-      setDetail(true);
-      return;
-    }
     try {
       await Taro.navigateTo({
-        url: '/pages/company/report/index'
+        url: companyReportUrl(company.symbol, {
+          stockName: company.name,
+          companyName: company.fullName
+        })
       });
     } catch {
       void Taro.showToast({
@@ -71,19 +69,6 @@ export function PreviewCompanyRow({ company }: { company: Company }) {
           />
         </Button>
       </View>
-      {detail && (
-        <PreviewSheet title='洞察报告' close={() => setDetail(false)}>
-          <Text className='preview-muted'>设计模拟</Text>
-          <Text className='preview-heading'>{company.fullName}</Text>
-          <Text>
-            {company.name} · {company.symbol}
-          </Text>
-          <View className='preview-card'>
-            <Text className='preview-heading'>暂无投研推理报告</Text>
-            <Text>当前原型未保留这家公司的研究正文。</Text>
-          </View>
-        </PreviewSheet>
-      )}
     </View>
   );
 }

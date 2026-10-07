@@ -409,7 +409,27 @@
 }
 
 .preview-sheet--report {
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
   background: white;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 8rpx;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 84rpx;
+    height: 8rpx;
+    border-radius: 16rpx;
+    background: #c8cbc6;
+  }
 
   .preview-sheet-header {
     padding: 24rpx;
@@ -418,12 +438,19 @@
     align-items: flex-start;
   }
 
+  .preview-sheet-header > view > text:first-child {
+    font-size: 36rpx;
+    font-weight: 900;
+    color: #151515;
+  }
+
   .preview-sheet-subtitle {
     display: block;
     margin-top: 8rpx;
     font-size: 26rpx;
+    line-height: 1.35;
     font-weight: 400;
-    color: #777;
+    color: #737373;
   }
 
   .preview-close {

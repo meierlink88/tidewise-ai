@@ -10,6 +10,7 @@ import {
   openProfileInformation,
   supportsWechatLogin
 } from '../../platform/identity';
+import { parseCompanyReportNames } from '../../features/company-report/route';
 import { useIdentity } from '../../features/identity/use-identity';
 import { LoginView } from './login-view';
 import '../profile/index.scss';
@@ -18,14 +19,21 @@ import './index.scss';
 export default function LoginPage() {
   const chrome = useMemo(() => getHomeChromeMetrics(Taro), []);
   const identity = useIdentity();
-  const destination = parseResearchDestination(useRouter().params.research);
+  const params = useRouter().params;
+  const destination = parseResearchDestination(params.research);
   const leaving = useRef(false);
   async function login(phoneCode?: string) {
     if (leaving.current) return false;
     if (!(await identity.login(phoneCode))) return false;
     leaving.current = true;
     try {
-      if (destination) return await leaveResearchLogin(destination, true);
+      if (destination)
+        return await leaveResearchLogin(
+          destination,
+          true,
+          params.symbol,
+          parseCompanyReportNames(params.display)
+        );
       await leaveLogin();
     } finally {
       leaving.current = false;

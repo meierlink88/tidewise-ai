@@ -1,4 +1,5 @@
 import Taro from '@tarojs/taro';
+import { companyReportUrl, type CompanyReportNames } from '../features/company-report/route';
 import { isSession, type Session } from '../features/identity/session';
 
 const storageKey = 'tidewise.identity.session.v1';
@@ -115,13 +116,31 @@ export function parseResearchDestination(value: unknown): ResearchDestination | 
     ? (value as ResearchDestination)
     : undefined;
 }
-export async function requireResearchLogin(destination: ResearchDestination) {
+export async function requireResearchLogin(
+  destination: ResearchDestination,
+  reportSymbol?: string,
+  reportNames?: CompanyReportNames
+) {
   // Replace the protected page so native Back cannot repeatedly reopen login.
-  await Taro.redirectTo({ url: `/pages/login/index?research=${destination}` });
+  const reportQuery =
+    destination === 'companyReport'
+      ? companyReportUrl(reportSymbol, reportNames).split('?')[1]
+      : undefined;
+  const query = reportQuery ? `&${reportQuery}` : '';
+  await Taro.redirectTo({ url: `/pages/login/index?research=${destination}${query}` });
 }
-export async function leaveResearchLogin(destination: ResearchDestination, authenticated: boolean) {
+export async function leaveResearchLogin(
+  destination: ResearchDestination,
+  authenticated: boolean,
+  reportSymbol?: string,
+  reportNames?: CompanyReportNames
+) {
   try {
-    const url = authenticated ? researchDestinations[destination] : '/pages/index/index';
+    const url = authenticated
+      ? destination === 'companyReport'
+        ? companyReportUrl(reportSymbol, reportNames)
+        : researchDestinations[destination]
+      : '/pages/index/index';
     if (authenticated && destination === 'companyReport') await Taro.redirectTo({ url });
     else await Taro.switchTab({ url });
     return true;

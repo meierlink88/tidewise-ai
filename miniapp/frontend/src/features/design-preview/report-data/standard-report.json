@@ -1,0 +1,605 @@
+{
+  "report_info": {
+    "company_name": "新泉股份",
+    "stock_code": "603179.SH",
+    "report_date": "2026-09-23"
+  },
+  "decision": {
+    "summary": {
+      "core_conclusion": {
+        "core_conclusion": "已发生的事实，站在空头一侧——H1 归母 4.14 亿（同比 −1.90%）"
+      },
+      "direction": {
+        "direction": "防御倾向",
+        "direction_note": "风险优先"
+      },
+      "confidence": {
+        "confidence": "中高",
+        "confidence_note": "主理人判断"
+      },
+      "risk_level": {
+        "risk_level": "中高",
+        "risk_score_scale": {
+          "score": 7.0,
+          "max_score": 10
+        }
+      },
+      "position": {
+        "position_cap": "≤1/6",
+        "position_center": "≈1/8"
+      }
+    },
+    "detail": {
+      "decision_factors": [
+        {
+          "factor_title": "最高质量的证据是「已发生的事实」，且它站在空头一侧",
+          "key_data_summary": "H1 归母 −1.90% · 费用率 +2.02pct",
+          "evidence_type": "事实／计算值"
+        }
+      ],
+      "rejections": [
+        {
+          "reason_title": "不是 BUY",
+          "reason_content": "盈利拐点未被 H1 实测支持，建仓口径赔率约 1.2–1.7:1，低于 2:1"
+        }
+      ]
+    }
+  },
+  "four_dimensions": {
+    "summary": {
+      "technical": {
+        "score": 5.0,
+        "rating": "中性观察",
+        "core_judgment": "贴近SMA60，突破未确认",
+        "key_evidence_summary": "SMA60 40.92 · 突破未确认"
+      },
+      "fundamental": {
+        "score": 6.0,
+        "rating": "良好·下沿",
+        "core_judgment": "增收不增效",
+        "key_evidence_summary": "归母 4.14亿 · −1.90%"
+      },
+      "news": {
+        "score": 6.5,
+        "rating": "偏多",
+        "core_judgment": "行业催化，公司待兑现",
+        "key_evidence_summary": "09.10—09.23 无新增公告"
+      },
+      "sentiment": {
+        "score": 4.0,
+        "rating": "中性",
+        "core_judgment": "评级偏多，资金流出",
+        "key_evidence_summary": "10日净流出 9,933.59万"
+      }
+    },
+    "detail": {
+      "technical": {
+        "assessment": {
+          "score": 5.0,
+          "rating": "中性观察",
+          "score_note": "技术面评分",
+          "core_conclusion": "中期下跌趋势内的短期反抽",
+          "judgment_note": "正在 SMA60 处接受检验，盘中上穿、收盘未确认，尚不构成趋势反转证据"
+        },
+        "reasons": [
+          {
+            "reason_title": "中期趋势仍未扭转",
+            "reason_content": "SMA60 斜率 −0.628，仍在下行；盘中最高 41.70 曾上穿，但收盘 40.91 低于 SMA60 40.92"
+          }
+        ],
+        "key_metrics": [
+          {
+            "metric_name": "收盘／SMA60",
+            "metric_value": "40.91／40.92",
+            "metric_note": "仅差 0.01 元 · 突破未确认"
+          }
+        ],
+        "key_readings": {
+          "price_and_moving_averages": {
+            "close_price": 40.91,
+            "reading_basis": "同日快照 · 元",
+            "moving_averages": [
+              {
+                "average_name": "SMA60",
+                "average_value": 40.92,
+                "comparison_note": "收盘低于该均线 0.010 元"
+              },
+              {
+                "average_name": "SMA5",
+                "average_value": 40.34,
+                "comparison_note": "收盘高于该均线 0.570 元"
+              },
+              {
+                "average_name": "SMA20",
+                "average_value": 39.64,
+                "comparison_note": "收盘高于该均线 1.270 元"
+              },
+              {
+                "average_name": "SMA50",
+                "average_value": 39.446,
+                "comparison_note": "收盘高于该均线 1.464 元"
+              },
+              {
+                "average_name": "SMA10",
+                "average_value": 39.03,
+                "comparison_note": "收盘高于该均线 1.880 元"
+              }
+            ]
+          },
+          "momentum_volatility_volume": {
+            "analysis_title": "动能修复，量能未跟上",
+            "metric_groups": [
+              {
+                "group_name": "MACD",
+                "readings": "DIF +0.032／DEA −0.263",
+                "metric_note": "柱 +0.589 · 09.18 零轴下金叉，09.23 DIF 上穿零轴"
+              }
+            ]
+          },
+          "period_returns": [
+            {
+              "period": "5 日",
+              "return_pct": 11.32
+            },
+            {
+              "period": "10 日",
+              "return_pct": 2.69
+            },
+            {
+              "period": "20 日",
+              "return_pct": 9.04
+            },
+            {
+              "period": "60 日",
+              "return_pct": -17.98
+            },
+            {
+              "period": "年初至今",
+              "return_pct": -22.18
+            }
+          ]
+        },
+        "support_and_resistance": {
+          "price_map": {
+            "map_title": "支撑与阻力地图",
+            "price_basis": "同日价位 · 元",
+            "close_price": 40.91,
+            "levels": [
+              {
+                "level_code": "R0",
+                "level_type": "阻力",
+                "price_value": {
+                  "min": 40.92,
+                  "max": 40.92
+                },
+                "price_basis_note": "SMA60 · 当前检验位"
+              },
+              {
+                "level_code": "R1",
+                "level_type": "阻力",
+                "price_value": {
+                  "min": 41.7,
+                  "max": 41.7
+                },
+                "price_basis_note": "当日盘中高点"
+              },
+              {
+                "level_code": "R2",
+                "level_type": "阻力",
+                "price_value": {
+                  "min": 42.15,
+                  "max": 42.39
+                },
+                "price_basis_note": "三口径重合阻力带"
+              },
+              {
+                "level_code": "S1",
+                "level_type": "支撑",
+                "price_value": {
+                  "min": 40.34,
+                  "max": 40.34
+                },
+                "price_basis_note": "SMA5"
+              },
+              {
+                "level_code": "S3",
+                "level_type": "支撑",
+                "price_value": {
+                  "min": 39.64,
+                  "max": 39.64
+                },
+                "price_basis_note": "SMA20 / BOLL 中轨"
+              },
+              {
+                "level_code": "S6",
+                "level_type": "支撑",
+                "price_value": {
+                  "min": 38.59,
+                  "max": 38.78
+                },
+                "price_basis_note": "38.59 为原报告风险边界"
+              }
+            ]
+          },
+          "risk_boundary_note": {
+            "note_title": "观察位与风险边界分开阅读",
+            "note_content": "S2 距现价约 0.40×ATR，原报告归入噪音观察层；S3 39.64（约 0.60×ATR）作为加速确认位，38.59（约 1.09×ATR）为剩余仓位风险边界"
+          }
+        }
+      },
+      "fundamental": {
+        "assessment": {
+          "score": 6.0,
+          "rating": "良好（下沿）",
+          "score_note": "基本面质量总评",
+          "core_conclusion": "收增利减，增收不增效",
+          "conclusion_note": "毛利改善被费用上升完全对冲，净利率与 ROE 走低；境外与座椅业务增长是亮点"
+        },
+        "reasons": [
+          {
+            "reason_title": "收入增长，盈利质量承压",
+            "reason_content": "H1 营收同比 +7.45%，归母同比 −1.90%。毛利率提升 1.99 个百分点，期间费用率上升 2.02 个百分点，净利率仍下降"
+          }
+        ],
+        "key_metrics": [
+          {
+            "metric_name": "2026H1 营业收入",
+            "metric_value": "80.15 亿元",
+            "metric_note": "同比 +7.45%"
+          }
+        ],
+        "six_dimension_scores": {
+          "quality_profile": [
+            {
+              "dimension_name": "盈利能力",
+              "score": 5.5
+            },
+            {
+              "dimension_name": "成长性",
+              "score": 6.0
+            },
+            {
+              "dimension_name": "资产质量",
+              "score": 4.5
+            },
+            {
+              "dimension_name": "现金流",
+              "score": 4.0
+            },
+            {
+              "dimension_name": "杠杆",
+              "score": 4.5
+            },
+            {
+              "dimension_name": "估值",
+              "score": 5.5
+            }
+          ],
+          "margin_expense_comparison": {
+            "analysis_title": "毛利改善为何没有变成利润增长",
+            "gross_margin_change_pp": 1.99,
+            "expense_ratio_change_pp": 2.02,
+            "difference_note": "费用增幅超过毛利改善 0.03 个百分点",
+            "net_margin_pct": 5.17,
+            "net_margin_change_pp": -0.43,
+            "expense_ratio_pct": 13.26,
+            "prior_expense_ratio_pct": 11.24
+          },
+          "roe_trend": {
+            "trend_title": "ROE 逐级走低",
+            "basis_note": "2026H1 原始半年 ROE 为 5.46%；年化值沿用报告估算",
+            "history": [
+              {
+                "period": "2024",
+                "roe_pct": 17.99
+              },
+              {
+                "period": "2025",
+                "roe_pct": 13.62
+              },
+              {
+                "period": "2026H1 年化",
+                "roe_pct": 10.9
+              }
+            ]
+          }
+        },
+        "financial_readings": {
+          "growth_sources": {
+            "analysis_title": "增长来自哪里",
+            "period": "2026H1",
+            "business_highlights": "座椅业务同比 +65.57%；境外毛利率 27.6%，提升 4.8 个百分点",
+            "regional_revenue": [
+              {
+                "region_name": "境内",
+                "revenue_100m_cny": 59.0,
+                "revenue_share_pct": 73.62,
+                "revenue_yoy_pct": -1.4
+              },
+              {
+                "region_name": "境外",
+                "revenue_100m_cny": 21.15,
+                "revenue_share_pct": 26.38,
+                "revenue_yoy_pct": 43.34
+              }
+            ]
+          },
+          "profit_realization_threshold": {
+            "analysis_title": "利润兑现门槛",
+            "calculation_basis": "一致预期隐含计算",
+            "actual_metric_name": "最新单季归母增速",
+            "actual_metric_value": "+0.83%",
+            "actual_period_note": "2026Q2 · 已实现",
+            "required_metric_name": "H2 归母所需增速",
+            "required_metric_value": "+52.8%",
+            "required_period_note": "2026H2 · 隐含要求",
+            "calculation_note": "2026E 归母 10.14 亿 − H1 4.14 亿 = H2 需 6.00 亿；2025H2 为 3.93 亿。实际单季与预期半年属于不同期间"
+          },
+          "financial_evidence": [
+            {
+              "category_name": "营收",
+              "financial_content": "2026H1 营收 80.15 亿，同比增长 7.45%；2023—2025 年全年营收分别为 105.72、132.64、155.24 亿元"
+            }
+          ]
+        }
+      },
+      "news": {
+        "assessment": {
+          "score": 6.5,
+          "rating": "偏多（正面）",
+          "score_note": "新闻面评估",
+          "core_conclusion": "行业催化密集，公司兑现待证",
+          "conclusion_note": "机构评级偏积极，公告面未见负面；行业热度尚不能直接证明公司的业务兑现"
+        },
+        "reasons": [
+          {
+            "reason_title": "积极评级不等于深入覆盖",
+            "reason_content": "近 6 月评级 20 家次，调研仅 1 次；评级密度与调研强度不匹配"
+          }
+        ],
+        "event_timeline": {
+          "messages": {
+            "time_range_note": "2026 年",
+            "events": [
+              {
+                "event_date": "09.10—23",
+                "event_type": "公告",
+                "event_title": "报告检索窗口内无新增公告",
+                "event_content": "官方与第三方双通道均未见新增公告，最新可检索公告为 09.09；该结论对应报告当时的检索窗口"
+              }
+            ]
+          }
+        },
+        "business_progress": {
+          "business_boundary": {
+            "boundary_conclusion": "布局不等于收入兑现",
+            "boundary_note": "新泉未出现在 Optimus 审厂名单，2026 中报披露机器人业务“尚未开展业务”"
+          },
+          "completed_actions": [
+            {
+              "action_date": "2026.05",
+              "action_name": "增资中科摩通",
+              "action_content": "2,000 万元，持股比例 2.0636%"
+            }
+          ]
+        }
+      },
+      "sentiment": {
+        "assessment": {
+          "score": 4.0,
+          "rating": "中性",
+          "score_note": "情绪面评估",
+          "core_conclusion": "评级偏多，资金持续流出",
+          "conclusion_note": "单日流入尚未扭转区间流出，筹码趋于分散；陆股通是报告中唯一持续增持的类别"
+        },
+        "reasons": [
+          {
+            "reason_title": "评级与实际持仓出现反差",
+            "reason_content": "卖方评级 20 家次、机构零看空；主动偏股机构 39 家，减少 9 家，公募半年持股减少 34.3%"
+          }
+        ],
+        "key_metrics": [
+          {
+            "metric_name": "近 10 日主力净流出",
+            "metric_value": "9,933.59 万元",
+            "metric_note": "近 5 日净流出 4,915.92 万元"
+          }
+        ],
+        "daily_main_fund_flow": {
+          "period": "2026.09.09—2026.09.23",
+          "unit": "万元",
+          "daily_values": [
+            {
+              "trade_date": "2026-09-09",
+              "net_flow": -13675.7
+            },
+            {
+              "trade_date": "2026-09-10",
+              "net_flow": -1639.6
+            },
+            {
+              "trade_date": "2026-09-11",
+              "net_flow": -4058.3
+            },
+            {
+              "trade_date": "2026-09-14",
+              "net_flow": 4151.1
+            },
+            {
+              "trade_date": "2026-09-15",
+              "net_flow": -1116.9
+            },
+            {
+              "trade_date": "2026-09-16",
+              "net_flow": -2354.0
+            },
+            {
+              "trade_date": "2026-09-17",
+              "net_flow": 7147.2
+            },
+            {
+              "trade_date": "2026-09-18",
+              "net_flow": -2703.0
+            },
+            {
+              "trade_date": "2026-09-21",
+              "net_flow": -4798.4
+            },
+            {
+              "trade_date": "2026-09-22",
+              "net_flow": -6490.6
+            },
+            {
+              "trade_date": "2026-09-23",
+              "net_flow": 1928.9
+            }
+          ]
+        },
+        "key_readings": [
+          {
+            "item_name": "主力资金当日",
+            "reading_basis": "当日 09.23",
+            "reading_content": "NeoData 当日净流入 1,928.88 万元，同花顺净流入 1,796.43 万元，方向一致；主动主力净流出约 381 万元，报告解释为净流入来自被动挂单"
+          },
+          {
+            "item_name": "主力资金区间",
+            "reading_basis": null,
+            "reading_content": "近 5 日 −4,915.92 万元，近 10 日 −9,933.59 万元，近 20 日约 −1.10 亿元"
+          },
+          {
+            "item_name": "散户镜像",
+            "reading_basis": null,
+            "reading_content": "散户与主力完全镜像，近 10 日散户净买入约 0.99 亿元"
+          },
+          {
+            "item_name": "机构持仓",
+            "reading_basis": null,
+            "reading_content": "公募持股由 2025Q4 的 138,514,038 股变为 2026Q2 的 91,030,002 股；主动偏股机构 39 家，减少 9 家，持股比例 7.69%，下降 3.96 个百分点"
+          },
+          {
+            "item_name": "北向／陆股通",
+            "reading_basis": null,
+            "reading_content": "5,113,118 → 6,735,109 → 9,699,442 股，持续增持"
+          },
+          {
+            "item_name": "股东户数",
+            "reading_basis": null,
+            "reading_content": "2025Q4 的 23,156 户增至 2026Q2 的 53,014 户；环比 +50.05%，半年 +128.9%"
+          },
+          {
+            "item_name": "融资融券",
+            "reading_basis": null,
+            "reading_content": "融资余额由 09.09 的 22.77 亿元降至 09.22 的 22.16 亿元，下降 2.7%；融券余量降至 156,372 股"
+          },
+          {
+            "item_name": "盘口",
+            "reading_basis": null,
+            "reading_content": "09.23 委比 +74.08%，外盘 78,370 大于内盘 71,037；09:40—09:55 拉升至 41.70 元后回落至 40.08 元"
+          },
+          {
+            "item_name": "其他",
+            "reading_basis": null,
+            "reading_content": "近期龙虎榜未上榜，大宗交易无记录；2027.08.19 解禁 838.40 万股，占比 1.14%"
+          }
+        ]
+      }
+    }
+  },
+  "debate": {
+    "summary": {
+      "final_direction": "防御倾向",
+      "decision_summary": "费用抵消毛利改善，资金持续流出；多头利润兑现仍需验证",
+      "bull_score": {
+        "score": 37,
+        "max_score": 70
+      },
+      "bear_score": {
+        "score": 49,
+        "max_score": 70
+      }
+    },
+    "detail": {
+      "assessment": {
+        "final_direction": "防御倾向",
+        "decision_date": "2026-09-23",
+        "core_conclusion": "盈利与资金压力更明确，改善线索仍待兑现",
+        "conclusion_note": "费用增长抵消毛利改善，区间资金持续流出；单季盈利、海外与座椅业务虽有改善，尚不足以支持整体盈利趋势已经扭转"
+      },
+      "reasons": [
+        {
+          "reason_title": "改善与兑现之间仍有距离",
+          "reason_content": "最新单季归母同比 +0.83%，一致预期隐含 H2 需 +52.8%；局部改善不能直接外推为持续增长"
+        }
+      ],
+      "bear_arguments": [
+        {
+          "argument_title": "利润未兑现，费用侵蚀盈利",
+          "evidence_category": "财报",
+          "evidence": "H1 归母净利润同比 −1.90%；期间费用率上升 2.02 个百分点，毛利率上升 1.99 个百分点",
+          "supporting_reason": "费用率增幅超过毛利率改善幅度，盈利改善尚未体现在半年度归母净利润中"
+        }
+      ],
+      "bull_arguments": [
+        {
+          "argument_title": "Q2 单季盈利拐点已现",
+          "evidence_category": "财报",
+          "evidence": "归母同比由 −4.57% 改善至 +0.83%；营收同比由 +3.42% 升至 +11.04%",
+          "supporting_reason": "单季收入与利润同比均改善，利润同比转正，支持单季盈利改善的判断"
+        }
+      ]
+    }
+  },
+  "risk": {
+    "summary": {
+      "core_conclusion": "时间比价格重要，仓位是唯一的风控杠杆",
+      "risk_assessment": {
+        "score": 7.0,
+        "max_score": 10,
+        "level": "中高"
+      },
+      "assessment_basis": "以现价持有未来 3 个月",
+      "mandate": "资本保全优先",
+      "mandate_note": "保护组合免受不可对冲尾部损失",
+      "position_requirements": "≤1/6 上沿；中枢 ≈1/8；空仓者 0；不裸空",
+      "action_timing": "现价即减 + 09.30 强制",
+      "timing_note": "否决“等反弹”作为主路径"
+    },
+    "detail": {
+      "assessment": {
+        "risk_score": 7.0,
+        "risk_level": "中高风险",
+        "assessment_horizon": "未来 3 个月",
+        "core_conclusion": "资本保全优先",
+        "conclusion_note": "在无对冲工具、且有明确二元事件的窗口前，时间比价格重要，仓位是唯一的风控杠杆"
+      },
+      "reasons": [
+        {
+          "reason_title": "事件跳空，使价格触发来不及执行",
+          "risk_fact": "休市期间无法交易；复牌与三季报次日可能跳空，直接穿透 40.06／39.64 元等价格触发线",
+          "impact_mechanism": "触发价格不等于可以成交的价格，单靠到价后的动作无法覆盖跳空损失",
+          "response_requirement": "现价即减第一档，并在 09.30 收盘前完成至目标仓"
+        }
+      ],
+      "risk_inventory": {
+        "market_risks": [
+          {
+            "risk_title": "中期下跌趋势未反转，压力位未被有效突破",
+            "risk_content": "收盘 40.91 元低于 SMA60 的 40.92 元，盘中上穿但收盘未确认；SMA60 斜率 −0.628，仍在下行，上方存在多道反弹阻力"
+          }
+        ],
+        "company_risks": [
+          {
+            "risk_title": "利润兑现风险",
+            "risk_content": "H1 归母同比 −1.90%，一致预期隐含 H2 归母需同比 +52.8%；最新单季增速仅 +0.83%，后续利润兑现仍面临较高门槛"
+          }
+        ],
+        "macro_risks": [
+          {
+            "risk_title": "贸易与汇率",
+            "risk_content": "境外收入占比 26.38%，同比增长 43.34%；关税与汇率波动可能影响海外业务增长，H1 汇兑与减值各拖累约 0.9 亿元"
+          }
+        ]
+      }
+    }
+  }
+}

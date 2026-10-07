@@ -1,16 +1,25 @@
 import { useMemo } from 'react';
-import Taro from '@tarojs/taro';
+import Taro, { useRouter } from '@tarojs/taro';
 import { Button, View } from '@tarojs/components';
 import { useResearchAccess } from '../../../features/identity/use-research-access';
 import { ResearchAccessState } from '../../../features/identity/research-access-state';
 import { NavigationBar } from '../../../platform/navigation-bar';
 import { getHomeChromeMetrics } from '../../../platform/system-ui';
-import InvestmentReport from './legacy/InvestmentReport';
+import {
+  parseCompanyReportSymbol,
+  parseCompanyReportNames
+} from '../../../features/company-report/route';
+import { EmptyReport } from './empty-report';
+import StandardReport from './standard/StandardReport';
+import standardReport from '../../../features/design-preview/report-data/standard-report.json';
 import './legacy/legacy.scss';
 import './index.scss';
 
 export default function CompanyReportPage() {
-  const access = useResearchAccess('companyReport');
+  const params = useRouter().params;
+  const symbol = parseCompanyReportSymbol(params.symbol);
+  const names = symbol ? parseCompanyReportNames(params.display) : {};
+  const access = useResearchAccess('companyReport', symbol, names);
   const chrome = useMemo(() => getHomeChromeMetrics(Taro), []);
   async function back() {
     try {
@@ -30,7 +39,7 @@ export default function CompanyReportPage() {
   return (
     <View className='company-report-screen legacy-report'>
       <NavigationBar
-        title='投资推理 · 样例'
+        title='洞察报告'
         chrome={chrome}
         leading={
           <Button
@@ -42,7 +51,11 @@ export default function CompanyReportPage() {
           </Button>
         }
       />
-      <InvestmentReport />
+      {symbol === '603179.SH' ? (
+        <StandardReport report={standardReport} />
+      ) : (
+        <EmptyReport {...names} symbol={symbol} onBack={() => void back()} />
+      )}
     </View>
   );
 }

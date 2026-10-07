@@ -2,16 +2,12 @@ import { Button, Image, Text, View } from '@tarojs/components';
 import { useState } from 'react';
 import Taro from '@tarojs/taro';
 import type { Company } from './contract';
+import { companyReportUrl } from '../company-report/route';
 import arrowIcon from '../../assets/icons/report-arrow-right-light-gold.svg';
 import radarIcon from '../../assets/icons/tracking-radar.svg';
 import { PreviewSheet } from '../design-preview/shell';
 import '../design-preview/preview.scss';
 import './company-card.scss';
-
-// A sample is bound to its complete security symbol, never a name or list position.
-export function hasCompanySample(symbol: string) {
-  return symbol === '603179.SH';
-}
 
 export function CompanyCard({
   company,
@@ -26,14 +22,15 @@ export function CompanyCard({
   onFollow?: () => void;
   onRemove?: () => void;
 }) {
-  const [sheet, setSheet] = useState<'report' | 'company' | null>(null);
+  const [sheet, setSheet] = useState<'company' | null>(null);
   async function openReport() {
-    if (!hasCompanySample(company.symbol)) {
-      setSheet('report');
-      return;
-    }
     try {
-      await Taro.navigateTo({ url: '/pages/company/report/index' });
+      await Taro.navigateTo({
+        url: companyReportUrl(company.symbol, {
+          stockName: company.stock_name,
+          companyName: company.title
+        })
+      });
     } catch {
       void Taro.showToast({ title: '打开失败，请重试', icon: 'none' });
     }
@@ -112,32 +109,22 @@ export function CompanyCard({
         </Button>
       </View>
       {sheet && (
-        <PreviewSheet
-          title={sheet === 'report' ? '洞察报告' : '公司资料'}
-          close={() => setSheet(null)}
-        >
+        <PreviewSheet title='公司资料' close={() => setSheet(null)}>
           <Text className='preview-heading'>{company.title}</Text>
           <Text className='preview-muted'>
             {company.stock_name} · {company.symbol}
           </Text>
-          {sheet === 'report' ? (
-            <View className='preview-card'>
-              <Text className='preview-heading'>暂无报告样例</Text>
-              <Text>目前仅提供新泉股份的报告样例。</Text>
+          <View className='preview-card'>
+            <Text>{company.industry_path || '暂无行业资料'}</Text>
+            <View className='preview-tags'>
+              {company.concepts.map((tag, index) => (
+                <Text className='preview-tag' key={tag + index}>
+                  {tag}
+                </Text>
+              ))}
             </View>
-          ) : (
-            <View className='preview-card'>
-              <Text>{company.industry_path || '暂无行业资料'}</Text>
-              <View className='preview-tags'>
-                {company.concepts.map((tag, index) => (
-                  <Text className='preview-tag' key={tag + index}>
-                    {tag}
-                  </Text>
-                ))}
-              </View>
-              <Text className='preview-note'>主题按资料来源顺序展示，不代表权重或排名。</Text>
-            </View>
-          )}
+            <Text className='preview-note'>主题按资料来源顺序展示，不代表权重或排名。</Text>
+          </View>
         </PreviewSheet>
       )}
     </View>

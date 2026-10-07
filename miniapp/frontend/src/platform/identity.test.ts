@@ -93,3 +93,35 @@ it('opens a non-tab editor and returns direct entries to My', async () => {
   await leaveProfileEditor();
   expect(switchTab).toHaveBeenLastCalledWith({ url: '/pages/profile/index' });
 });
+
+it('retains company identity through login without allowing arbitrary return URLs', async () => {
+  await requireResearchLogin('companyReport', '000001.SZ');
+  expect(redirectTo).toHaveBeenLastCalledWith({
+    url: '/pages/login/index?research=companyReport&symbol=000001.SZ'
+  });
+  await leaveResearchLogin('companyReport', true, '000001.SZ');
+  expect(redirectTo).toHaveBeenLastCalledWith({
+    url: '/pages/company/report/index?symbol=000001.SZ'
+  });
+  await leaveResearchLogin('companyReport', true, '603179.SH');
+  expect(redirectTo).toHaveBeenLastCalledWith({
+    url: '/pages/company/report/index?symbol=603179.SH'
+  });
+  await leaveResearchLogin('companyReport', true, 'https://example.com');
+  expect(redirectTo).toHaveBeenLastCalledWith({ url: '/pages/company/report/index' });
+  await leaveResearchLogin('companyReport', false, '000001.SZ');
+  expect(switchTab).toHaveBeenLastCalledWith({ url: '/pages/index/index' });
+});
+
+it('preserves Chinese company labels across login without changing the allowlisted symbol', async () => {
+  const names = { stockName: '众泰汽车', companyName: '众泰汽车股份有限公司' };
+  await requireResearchLogin('companyReport', '000980.SZ', names);
+  const loginQuery = new URLSearchParams(redirectTo.mock.calls.at(-1)![0].url.split('?')[1]);
+  expect(loginQuery.get('research')).toBe('companyReport');
+  expect(loginQuery.get('symbol')).toBe('000980.SZ');
+  expect(JSON.parse(loginQuery.get('display')!)).toEqual(names);
+  await leaveResearchLogin('companyReport', true, '000980.SZ', names);
+  const reportQuery = new URLSearchParams(redirectTo.mock.calls.at(-1)![0].url.split('?')[1]);
+  expect(reportQuery.get('symbol')).toBe('000980.SZ');
+  expect(JSON.parse(reportQuery.get('display')!)).toEqual(names);
+});
