@@ -93,3 +93,22 @@ it('opens a non-tab editor and returns direct entries to My', async () => {
   await leaveProfileEditor();
   expect(switchTab).toHaveBeenLastCalledWith({ url: '/pages/profile/index' });
 });
+
+it('retains company identity through login without allowing arbitrary return URLs', async () => {
+  await requireResearchLogin('companyReport', '000001.SZ');
+  expect(redirectTo).toHaveBeenLastCalledWith({
+    url: '/pages/login/index?research=companyReport&symbol=000001.SZ'
+  });
+  await leaveResearchLogin('companyReport', true, '000001.SZ');
+  expect(redirectTo).toHaveBeenLastCalledWith({
+    url: '/pages/company/report/index?symbol=000001.SZ'
+  });
+  await leaveResearchLogin('companyReport', true, '603179.SH');
+  expect(redirectTo).toHaveBeenLastCalledWith({
+    url: '/pages/company/report/index?symbol=603179.SH'
+  });
+  await leaveResearchLogin('companyReport', true, 'https://example.com');
+  expect(redirectTo).toHaveBeenLastCalledWith({ url: '/pages/company/report/index' });
+  await leaveResearchLogin('companyReport', false, '000001.SZ');
+  expect(switchTab).toHaveBeenLastCalledWith({ url: '/pages/index/index' });
+});

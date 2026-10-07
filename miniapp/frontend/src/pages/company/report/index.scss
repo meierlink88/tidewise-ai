@@ -10,3 +10,13 @@
   color: $ui-ink;
   border-bottom: 1rpx solid $ui-line;
 }
+
+.company-report-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40rpx;
+  color: $color-text-muted;
+  font-size: 28rpx;
+}

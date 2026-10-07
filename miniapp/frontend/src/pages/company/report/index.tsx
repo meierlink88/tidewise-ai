@@ -1,17 +1,19 @@
 import { useMemo } from 'react';
-import Taro from '@tarojs/taro';
-import { Button, View } from '@tarojs/components';
+import Taro, { useRouter } from '@tarojs/taro';
+import { Button, Text, View } from '@tarojs/components';
 import { useResearchAccess } from '../../../features/identity/use-research-access';
 import { ResearchAccessState } from '../../../features/identity/research-access-state';
 import { NavigationBar } from '../../../platform/navigation-bar';
 import { getHomeChromeMetrics } from '../../../platform/system-ui';
+import { parseCompanyReportSymbol } from '../../../features/company-report/route';
 import StandardReport from './standard/StandardReport';
 import standardReport from '../../../features/design-preview/report-data/standard-report.json';
 import './legacy/legacy.scss';
 import './index.scss';
 
 export default function CompanyReportPage() {
-  const access = useResearchAccess('companyReport');
+  const symbol = parseCompanyReportSymbol(useRouter().params.symbol);
+  const access = useResearchAccess('companyReport', symbol);
   const chrome = useMemo(() => getHomeChromeMetrics(Taro), []);
   async function back() {
     try {
@@ -43,7 +45,13 @@ export default function CompanyReportPage() {
           </Button>
         }
       />
-      <StandardReport report={standardReport} />
+      {symbol === '603179.SH' ? (
+        <StandardReport report={standardReport} />
+      ) : (
+        <View className='company-report-empty'>
+          <Text>暂无报告</Text>
+        </View>
+      )}
     </View>
   );
 }

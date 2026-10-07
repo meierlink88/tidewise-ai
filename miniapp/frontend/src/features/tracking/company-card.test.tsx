@@ -36,7 +36,7 @@ beforeEach(() => {
   root = createRoot(host);
 });
 afterEach(() => act(() => root.unmount()));
-it('separates persisted tracking actions from sample report navigation', async () => {
+it('keeps tracking separate and navigates every company to its report detail', async () => {
   const follow = vi.fn();
   await act(async () =>
     root.render(<CompanyCard company={company} busy={false} pending={false} onFollow={follow} />)
@@ -49,8 +49,10 @@ it('separates persisted tracking actions from sample report navigation', async (
   await act(async () =>
     host.querySelector<HTMLButtonElement>('[aria-label="查看平安银行洞察报告"]')!.click()
   );
-  expect(host.textContent).toContain('暂无报告样例');
-  expect(navigateTo).not.toHaveBeenCalled();
+  expect(host.textContent).not.toContain('暂无报告样例');
+  expect(navigateTo).toHaveBeenLastCalledWith({
+    url: '/pages/company/report/index?symbol=000001.SZ'
+  });
   await act(async () =>
     root.render(
       <CompanyCard
@@ -65,7 +67,9 @@ it('separates persisted tracking actions from sample report navigation', async (
   await act(async () =>
     host.querySelector<HTMLButtonElement>('[aria-label="查看平安银行洞察报告"]')!.click()
   );
-  expect(navigateTo).toHaveBeenCalledWith({ url: '/pages/company/report/index' });
+  expect(navigateTo).toHaveBeenLastCalledWith({
+    url: '/pages/company/report/index?symbol=603179.SH'
+  });
 });
 it('offers cancellation on the personal list and disables it while submitting', async () => {
   const remove = vi.fn();
