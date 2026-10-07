@@ -31,7 +31,7 @@ export default function CompanyReportPage() {
   return (
     <View className='company-report-screen legacy-report'>
       <NavigationBar
-        title='投资推理 · 样例'
+        title='洞察报告'
         chrome={chrome}
         leading={
           <Button
