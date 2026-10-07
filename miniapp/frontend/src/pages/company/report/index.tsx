@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import Taro, { useRouter } from '@tarojs/taro';
-import { Button, Text, View } from '@tarojs/components';
+import { Button, View } from '@tarojs/components';
 import { useResearchAccess } from '../../../features/identity/use-research-access';
 import { ResearchAccessState } from '../../../features/identity/research-access-state';
 import { NavigationBar } from '../../../platform/navigation-bar';
 import { getHomeChromeMetrics } from '../../../platform/system-ui';
 import { parseCompanyReportSymbol } from '../../../features/company-report/route';
+import { EmptyReport } from './empty-report';
 import StandardReport from './standard/StandardReport';
 import standardReport from '../../../features/design-preview/report-data/standard-report.json';
 import './legacy/legacy.scss';
@@ -48,9 +49,7 @@ export default function CompanyReportPage() {
       {symbol === '603179.SH' ? (
         <StandardReport report={standardReport} />
       ) : (
-        <View className='company-report-empty'>
-          <Text>暂无报告</Text>
-        </View>
+        <EmptyReport symbol={symbol} onBack={() => void back()} />
       )}
     </View>
   );

@@ -13,10 +13,126 @@
 
 .company-report-empty {
   flex: 1;
+  min-height: 0;
+  background: $ui-canvas;
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+.company-report-empty__content {
+  min-height: 100%;
+  box-sizing: border-box;
+  padding: 36rpx $spacing-page calc(48rpx + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+}
+.company-report-empty__identity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+  margin-bottom: 28rpx;
+  padding: 0 8rpx;
+  color: $ui-muted;
+  font-size: $font-report-meta;
+  line-height: 1.5;
+}
+.company-report-empty__symbol {
+  color: $ui-ink;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+}
+.company-report-empty__card {
+  flex: 1;
+  min-height: 660rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 64rpx 32rpx;
+  border: 1rpx solid $ui-line;
+  border-radius: $ui-radius;
+  background: $color-card;
+  text-align: center;
+}
+.company-report-empty__illustration {
+  position: relative;
+  width: 216rpx;
+  height: 208rpx;
+  margin-bottom: 44rpx;
+}
+.company-report-empty__halo {
+  position: absolute;
+  inset: 12rpx 0 0;
+  border-radius: 50%;
+  background: $ui-brand-soft;
+}
+.company-report-empty__document {
+  position: absolute;
+  top: 0;
+  left: 48rpx;
+  width: 120rpx;
+  height: 156rpx;
+  box-sizing: border-box;
+  padding: 64rpx 22rpx 20rpx;
+  border: 3rpx solid $color-report-group-border;
+  border-radius: 12rpx;
+  background: $color-card;
+  box-shadow: 0 12rpx 24rpx rgba($ui-brand, 0.06);
+}
+.company-report-empty__fold {
+  position: absolute;
+  right: -3rpx;
+  top: -3rpx;
+  width: 34rpx;
+  height: 34rpx;
+  border-left: 3rpx solid $color-report-group-border;
+  border-bottom: 3rpx solid $color-report-group-border;
+  border-radius: 0 10rpx 0 8rpx;
+  background: $ui-brand-soft;
+}
+.company-report-empty__line {
+  height: 6rpx;
+  margin-bottom: 12rpx;
+  border-radius: $radius-pill;
+  background: $color-report-group-border;
+}
+.company-report-empty__line.short {
+  width: 60%;
+  background: $color-champagne-300;
+}
+.company-report-empty__title {
+  color: $ui-ink;
+  font-size: 44rpx;
+  font-weight: 650;
+  line-height: 1.4;
+}
+.company-report-empty__description {
+  margin-top: 20rpx;
+  color: $color-text-secondary;
+  font-size: $font-report-body;
+  line-height: 1.7;
+}
+.company-report-empty__back {
+  width: 100%;
+  max-width: 440rpx;
+  min-height: 88rpx;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40rpx;
-  color: $color-text-muted;
-  font-size: 28rpx;
+  margin-top: 48rpx;
+  border-radius: 16rpx;
+  background: $ui-brand;
+  color: $color-card;
+  font-size: $font-report-body;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.company-report-empty__back:active {
+  background: $color-report-primary-pressed;
+}
+.company-report-empty__hint {
+  margin-top: 24rpx;
+  color: $ui-muted;
+  font-size: $font-report-caption;
+  line-height: 1.6;
 }

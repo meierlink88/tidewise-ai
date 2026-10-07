@@ -22,6 +22,8 @@ vi.mock('@tarojs/taro', () => ({
 }));
 vi.mock('@tarojs/components', () => ({
   View: 'div',
+  ScrollView: ({ children, className }: { children: ReactNode; className?: string }) =>
+    createElement('div', { className }, children),
   Text: 'span',
   Button: ({ children, ariaLabel, ...props }: { children?: ReactNode; ariaLabel?: string }) =>
     createElement('button', { ...props, 'aria-label': ariaLabel }, children)
@@ -83,5 +85,24 @@ it('returns empty reports to the previous page, or company tab for direct entry'
   expect(state.navigateBack).toHaveBeenCalledOnce();
   state.pages = [{}];
   await act(async () => host.querySelector<HTMLButtonElement>('button')!.click());
+  expect(state.switchTab).toHaveBeenCalledWith({ url: '/pages/company/index' });
+});
+
+it('identifies the selected stock and returns from the empty-state action', async () => {
+  state.symbol = '000980.SZ';
+  act(() => root.render(<CompanyReportPage />));
+  expect(host.textContent).toContain('000980.SZ');
+  expect(host.textContent).toContain('当前暂无可展示的洞察报告内容');
+  await act(async () =>
+    host.querySelector<HTMLButtonElement>('[aria-label="返回股票列表"]')!.click()
+  );
+  expect(state.navigateBack).toHaveBeenCalledOnce();
+  state.symbol = 'bad-input';
+  act(() => root.render(<CompanyReportPage />));
+  expect(host.textContent).not.toContain('股票代码');
+  state.pages = [{}];
+  await act(async () =>
+    host.querySelector<HTMLButtonElement>('[aria-label="返回股票列表"]')!.click()
+  );
   expect(state.switchTab).toHaveBeenCalledWith({ url: '/pages/company/index' });
 });
