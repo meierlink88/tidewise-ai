@@ -24,6 +24,7 @@ vi.mock('@tarojs/components', () => {
   }
   return {
     View: element('div'),
+    Image: element('img'),
     Text: element('span'),
     Button: element('button'),
     ScrollView: element('section')

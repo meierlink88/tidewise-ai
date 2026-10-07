@@ -1,9 +1,13 @@
 import { useState, type ReactNode } from 'react';
-import { Button, ScrollView, Text, View } from '@tarojs/components';
+import { Button, Image, ScrollView, Text, View } from '@tarojs/components';
 import { PreviewSheet } from '../../../../features/design-preview/shell';
-import { OpenInNewWindowIcon } from '../legacy/icons';
+import openWindowIcon from '../../../../assets/icons/report-open-window.svg';
 import type { CompanyReport } from './contract';
 import './standard.scss';
+
+function OpenInNewWindowIcon() {
+  return <Image className='standard-open-icon lr-svg' src={openWindowIcon} aria-hidden />;
+}
 
 type Topic = 'decision' | 'technical' | 'fundamental' | 'news' | 'sentiment' | 'debate' | 'risk';
 const titles: Record<Topic, string> = {
@@ -34,10 +38,21 @@ function domain(values: ReadonlyArray<number | null>) {
 }
 const position = (value: number, range: { low: number; high: number }) =>
   ((value - range.low) / (range.high - range.low)) * 100;
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({
+  title,
+  note,
+  children
+}: {
+  title: string;
+  note?: string | null;
+  children: ReactNode;
+}) {
   return (
     <View className='tech-section lr-section'>
-      <View className='lr-h3'>{title}</View>
+      <View className='lr-h3'>
+        {title}
+        {note && <Text className='lr-small'>{note}</Text>}
+      </View>
       {children}
     </View>
   );
@@ -193,7 +208,9 @@ function Overview({ report, open }: { report: CompanyReport; open: (topic: Topic
           onClick={() => open('decision')}
           ariaLabel='查看综合决策'
         >
-          <Paragraph>{text(decision.core_conclusion.core_conclusion)}</Paragraph>
+          <View className='hero-conclusion lr-p'>
+            {text(decision.core_conclusion.core_conclusion)}
+          </View>
           <View className='verdict-grid lr-div'>
             <View className='verdict-cell sell-cell lr-div'>
               <Text className='lr-span'>方向</Text>
@@ -215,7 +232,9 @@ function Overview({ report, open }: { report: CompanyReport; open: (topic: Topic
           </View>
           <View className='allocation-strip lr-div'>
             <Text className='lr-span'>建议仓位</Text>
-            <Text className='lr-b'>{text(decision.position.position_cap)} 上沿</Text>
+            <Text className='lr-b'>
+              {text(decision.position.position_cap)} <Text className='lr-small'>上沿</Text>
+            </Text>
             <Text className='lr-span'>中枢 {text(decision.position.position_center)}</Text>
             <OpenInNewWindowIcon />
           </View>
@@ -294,7 +313,10 @@ function Overview({ report, open }: { report: CompanyReport; open: (topic: Topic
         <View className='risk-decision-grid lr-div'>
           <View className='risk-level-cell lr-div'>
             <Text className='lr-span'>风险水平</Text>
-            <Text className='lr-b'>{text(riskScore.level)}</Text>
+            <Text className='lr-b'>
+              {riskScore.score === null ? '未评分' : number(riskScore.score, 1)}{' '}
+              <Text className='lr-small'>/ {riskScore.max_score ?? '未提供'}</Text>
+            </Text>
             <Paragraph>{text(risk.assessment_basis)}</Paragraph>
           </View>
           <View className='lr-div'>
@@ -318,23 +340,27 @@ function Overview({ report, open }: { report: CompanyReport; open: (topic: Topic
 }
 function DecisionDetail({ value }: { value: CompanyReport['decision']['detail'] }) {
   return (
-    <>
-      <Section title='核心决策因素'>
-        {value.decision_factors.map((factor, index) => (
-          <Entry key={factor.factor_title ?? `missing-${index}`} title={factor.factor_title}>
-            <Paragraph>{text(factor.key_data_summary)}</Paragraph>
-            <Text className='standard-tag'>{text(factor.evidence_type)}</Text>
-          </Entry>
-        ))}
-      </Section>
-      <Section title='反证理由'>
-        {value.rejections.map((reason, index) => (
-          <Entry key={reason.reason_title ?? `missing-${index}`} title={reason.reason_title}>
-            <Paragraph>{text(reason.reason_content)}</Paragraph>
-          </Entry>
-        ))}
-      </Section>
-    </>
+    <View className='decision-logic'>
+      <View className='logic-panel'>
+        <Section title='核心决策因素'>
+          {value.decision_factors.map((factor, index) => (
+            <Entry key={factor.factor_title ?? `missing-${index}`} title={factor.factor_title}>
+              <Paragraph>{text(factor.key_data_summary)}</Paragraph>
+              <Text className='standard-tag'>{text(factor.evidence_type)}</Text>
+            </Entry>
+          ))}
+        </Section>
+      </View>
+      <View className='logic-panel'>
+        <Section title='反证理由'>
+          {value.rejections.map((reason, index) => (
+            <Entry key={reason.reason_title ?? `missing-${index}`} title={reason.reason_title}>
+              <Paragraph>{text(reason.reason_content)}</Paragraph>
+            </Entry>
+          ))}
+        </Section>
+      </View>
+    </View>
   );
 }
 function TechnicalDetail({
@@ -372,8 +398,7 @@ function TechnicalDetail({
       <Tabs names={['关键读数', '阻力与支撑']} value={tab} change={setTab} />
       {tab === 0 ? (
         <>
-          <Section title='价格与均线位置'>
-            <Text className='lr-small'>{text(averages.reading_basis)}</Text>
+          <Section title='价格与均线位置' note={averages.reading_basis}>
             <View className='standard-average-caption'>
               <Text>{averageRange ? number(averageRange.low) : '—'}</Text>
               <Text>收盘 {number(averages.close_price)}</Text>
@@ -436,17 +461,20 @@ function TechnicalDetail({
         </>
       ) : (
         <>
-          <Section title={text(map.map_title)}>
-            <Text className='lr-small'>{text(map.price_basis)}</Text>
+          <Section title={text(map.map_title)} note={map.price_basis}>
             <View className='price-ladder-legend lr-div'>
-              <Text>● 阻力</Text>
-              <Text>● 支撑</Text>
+              <Text className='standard-legend-resistance'>● 阻力</Text>
+              <Text className='standard-legend-support'>● 支撑</Text>
               <Text>━ 收盘价</Text>
             </View>
             {priceRange ? (
               <View className='standard-price-map'>
                 {[0, 25, 50, 75, 100].map((tick) => (
-                  <View key={tick} className='standard-gridline' style={{ top: `${tick}%` }}>
+                  <View
+                    key={tick}
+                    className='standard-gridline'
+                    style={{ top: `${10 + tick * 0.8}%` }}
+                  >
                     <Text>
                       {number(priceRange.high - (tick / 100) * (priceRange.high - priceRange.low))}
                     </Text>
@@ -455,9 +483,14 @@ function TechnicalDetail({
                 {map.close_price !== null && (
                   <View
                     className='standard-close-line'
-                    style={{ top: `${100 - position(map.close_price, priceRange)}%` }}
+                    style={{ top: `${10 + (100 - position(map.close_price, priceRange)) * 0.8}%` }}
                   >
-                    <Text>收盘 {number(map.close_price)}</Text>
+                    <Text>
+                      收盘 {number(map.close_price)}
+                      {active?.price_value.min !== null && active?.price_value.min !== undefined
+                        ? ` · 距 ${text(active.level_code)} ${number(Math.abs(map.close_price - active.price_value.min))}`
+                        : ''}
+                    </Text>
                   </View>
                 )}
                 {map.levels.map((row, index) => {
@@ -470,18 +503,20 @@ function TechnicalDetail({
                       key={row.level_code ?? `missing-${index}`}
                       ariaLabel={`${text(row.level_code)} ${row.level_type} 价位依据`}
                       className={`tidewise-button standard-price-node ${row.level_type === '阻力' ? 'resistance' : 'support'}${level === index ? ' selected' : ''}`}
-                      style={{ top: `${(top + bottom) / 2}%` }}
+                      style={{ top: `${10 + ((top + bottom) / 2) * 0.8}%` }}
                       onClick={() => setLevel(index)}
                     >
                       <Text
-                        className='standard-price-band'
-                        style={{ height: `${Math.max((bottom - top) * 2.8, 6)}rpx` }}
+                        className={`standard-price-band${bounds.min === bounds.max ? ' point' : ''}`}
+                        style={{ height: `${Math.max((bottom - top) * 4.48, 6)}rpx` }}
                       />
-                      <Text>{text(row.level_code)}</Text>
-                      <Text>
-                        {number(bounds.min)}
-                        {bounds.min !== bounds.max && `–${number(bounds.max)}`}
-                      </Text>
+                      <View className='standard-price-label'>
+                        <Text className='lr-small'>{text(row.level_code)}</Text>
+                        <Text className='lr-b'>
+                          {number(bounds.min)}
+                          {bounds.min !== bounds.max && `–${number(bounds.max)}`}
+                        </Text>
+                      </View>
                     </Button>
                   );
                 })}
@@ -490,16 +525,28 @@ function TechnicalDetail({
               <Paragraph>暂无有效价位</Paragraph>
             )}
             {active && (
-              <Entry title={`${text(active.level_type)} · ${text(active.level_code)}`}>
+              <View className='standard-price-evidence'>
+                <View>
+                  <Text>
+                    {text(active.level_type)} · {text(active.level_code)}
+                  </Text>
+                  <Text className='lr-b'>
+                    {number(active.price_value.min)}
+                    {active.price_value.max !== active.price_value.min &&
+                      `–${number(active.price_value.max)}`}
+                  </Text>
+                </View>
                 <Paragraph>{text(active.price_basis_note)}</Paragraph>
-              </Entry>
+              </View>
             )}
           </Section>
-          <Section title={text(value.support_and_resistance.risk_boundary_note.note_title)}>
-            <Paragraph>
-              {text(value.support_and_resistance.risk_boundary_note.note_content)}
-            </Paragraph>
-          </Section>
+          <View className='standard-price-boundary'>
+            <Section title={text(value.support_and_resistance.risk_boundary_note.note_title)}>
+              <Paragraph>
+                {text(value.support_and_resistance.risk_boundary_note.note_content)}
+              </Paragraph>
+            </Section>
+          </View>
         </>
       )}
     </>
@@ -538,8 +585,7 @@ function FundamentalDetail({
       <Tabs names={['六维评分', '财务读数']} value={tab} change={setTab} />
       {tab === 0 ? (
         <>
-          <Section title='六维质量画像'>
-            <Text className='lr-small'>同尺度 0—10 分</Text>
+          <Section title='六维质量画像' note='同尺度 0—10 分'>
             <View className='standard-quality'>
               {six.quality_profile.map((row, index) => (
                 <Button
@@ -566,46 +612,56 @@ function FundamentalDetail({
             )}
           </Section>
           <Section title={text(margins.analysis_title)}>
-            {[
-              { name: '毛利率变化', value: margins.gross_margin_change_pp },
-              { name: '期间费用率变化', value: margins.expense_ratio_change_pp }
-            ].map((row) => (
-              <View key={row.name} className='standard-offset'>
-                <Text>{row.name}</Text>
-                <Text>
-                  {row.value === null
-                    ? '未提供'
-                    : `${row.value > 0 ? '+' : ''}${row.value} 个百分点`}
-                </Text>
-                <View
-                  className={`standard-track${hasNegativeMargin ? ' standard-signed-track' : ''}`}
-                >
-                  <Text
-                    className={`standard-fill${row.value !== null && row.value < 0 ? ' standard-fill-negative' : ''}`}
-                    style={{
-                      width: `${(Math.abs(row.value ?? 0) / marginMax) * (hasNegativeMargin ? 50 : 100)}%`,
-                      left: hasNegativeMargin
-                        ? `${row.value !== null && row.value < 0 ? 50 - (Math.abs(row.value) / marginMax) * 50 : 50}%`
-                        : '0%'
-                    }}
-                  />
+            <View className='fund-offset'>
+              {[
+                { name: '毛利率变化', value: margins.gross_margin_change_pp },
+                { name: '期间费用率变化', value: margins.expense_ratio_change_pp }
+              ].map((row) => (
+                <View key={row.name} className='standard-offset'>
+                  <Text>{row.name}</Text>
+                  <Text>
+                    {row.value === null
+                      ? '未提供'
+                      : `${row.value > 0 ? '+' : ''}${row.value} 个百分点`}
+                  </Text>
+                  <View
+                    className={`standard-track${hasNegativeMargin ? ' standard-signed-track' : ''}`}
+                  >
+                    <Text
+                      className={`standard-fill${row.value !== null && row.value < 0 ? ' standard-fill-negative' : ''}`}
+                      style={{
+                        width: `${(Math.abs(row.value ?? 0) / marginMax) * (hasNegativeMargin ? 50 : 100)}%`,
+                        left: hasNegativeMargin
+                          ? `${row.value !== null && row.value < 0 ? 50 - (Math.abs(row.value) / marginMax) * 50 : 50}%`
+                          : '0%'
+                      }}
+                    />
+                  </View>
                 </View>
+              ))}
+              <Paragraph>{text(margins.difference_note)}</Paragraph>
+            </View>
+            <View className='fund-inline'>
+              <View className='lr-span'>
+                <Text>净利率</Text>
+                <Text className='lr-b'>{percent(margins.net_margin_pct)}</Text>
+                <Text className='lr-small'>
+                  同比 {margins.net_margin_change_pp ?? '未提供'} 个百分点
+                </Text>
               </View>
-            ))}
-            <Paragraph>{text(margins.difference_note)}</Paragraph>
-            <Paragraph>
-              净利率 {percent(margins.net_margin_pct)} · 同比{' '}
-              {margins.net_margin_change_pp ?? '未提供'} 个百分点
-            </Paragraph>
-            <Paragraph>
-              期间费用率 {percent(margins.expense_ratio_pct)} · 上年同期{' '}
-              {percent(margins.prior_expense_ratio_pct)}
-            </Paragraph>
+              <View className='lr-span'>
+                <Text>期间费用率</Text>
+                <Text className='lr-b'>{percent(margins.expense_ratio_pct)}</Text>
+                <Text className='lr-small'>
+                  上年同期 {percent(margins.prior_expense_ratio_pct)}
+                </Text>
+              </View>
+            </View>
           </Section>
           <Section title={text(six.roe_trend.trend_title)}>
-            <View className='standard-return-grid'>
+            <View className='fund-roe'>
               {six.roe_trend.history.map((row, index) => (
-                <View key={row.period ?? `missing-${index}`}>
+                <View className='lr-div' key={row.period ?? `missing-${index}`}>
                   <Text className='lr-small'>{text(row.period)}</Text>
                   <Text className='lr-b'>{percent(row.roe_pct)}</Text>
                 </View>
@@ -616,8 +672,10 @@ function FundamentalDetail({
         </>
       ) : (
         <>
-          <Section title={text(finance.growth_sources.analysis_title)}>
-            <Text className='lr-small'>{text(finance.growth_sources.period)}</Text>
+          <Section
+            title={text(finance.growth_sources.analysis_title)}
+            note={finance.growth_sources.period}
+          >
             <View className='standard-region-bar'>
               {finance.growth_sources.regional_revenue.map((row, index) => (
                 <Text
@@ -628,39 +686,54 @@ function FundamentalDetail({
                 </Text>
               ))}
             </View>
-            {finance.growth_sources.regional_revenue.map((row, index) => (
-              <Paragraph key={row.region_name ?? `missing-${index}`}>
-                {text(row.region_name)} {number(row.revenue_100m_cny)} 亿元 · 同比{' '}
-                {signed(row.revenue_yoy_pct)}
-              </Paragraph>
-            ))}
-            <Paragraph>{text(finance.growth_sources.business_highlights)}</Paragraph>
+            <View className='fund-inline'>
+              {finance.growth_sources.regional_revenue.map((row, index) => (
+                <View className='lr-span' key={row.region_name ?? `missing-${index}`}>
+                  <Text>{text(row.region_name)}</Text>
+                  <Text className='lr-b'>{number(row.revenue_100m_cny)} 亿</Text>
+                  <Text className='lr-small'>同比 {signed(row.revenue_yoy_pct)}</Text>
+                </View>
+              ))}
+            </View>
+            <View className='fund-highlight'>
+              {text(finance.growth_sources.business_highlights)}
+            </View>
           </Section>
-          <Section title={text(finance.profit_realization_threshold.analysis_title)}>
-            <Text className='lr-small'>
-              {text(finance.profit_realization_threshold.calculation_basis)}
-            </Text>
-            <Entry title={finance.profit_realization_threshold.actual_metric_name}>
-              <Paragraph>
-                {text(finance.profit_realization_threshold.actual_metric_value)} ·{' '}
-                {text(finance.profit_realization_threshold.actual_period_note)}
-              </Paragraph>
-            </Entry>
-            <Entry title={finance.profit_realization_threshold.required_metric_name}>
-              <Paragraph>
-                {text(finance.profit_realization_threshold.required_metric_value)} ·{' '}
-                {text(finance.profit_realization_threshold.required_period_note)}
-              </Paragraph>
-            </Entry>
+          <Section
+            title={text(finance.profit_realization_threshold.analysis_title)}
+            note={finance.profit_realization_threshold.calculation_basis}
+          >
+            <View className='fund-inline'>
+              <View className='lr-span'>
+                <Text>{text(finance.profit_realization_threshold.actual_metric_name)}</Text>
+                <Text className='lr-b'>
+                  {text(finance.profit_realization_threshold.actual_metric_value)}
+                </Text>
+                <Text className='lr-small'>
+                  {text(finance.profit_realization_threshold.actual_period_note)}
+                </Text>
+              </View>
+              <View className='lr-span'>
+                <Text>{text(finance.profit_realization_threshold.required_metric_name)}</Text>
+                <Text className='lr-b'>
+                  {text(finance.profit_realization_threshold.required_metric_value)}
+                </Text>
+                <Text className='lr-small'>
+                  {text(finance.profit_realization_threshold.required_period_note)}
+                </Text>
+              </View>
+            </View>
             <Paragraph>{text(finance.profit_realization_threshold.calculation_note)}</Paragraph>
           </Section>
-          <Section title='完整财务依据'>
-            {finance.financial_evidence.map((row, index) => (
-              <Entry key={row.category_name ?? `missing-${index}`} title={row.category_name}>
-                <Paragraph>{text(row.financial_content)}</Paragraph>
-              </Entry>
-            ))}
-          </Section>
+          <View className='standard-finance-evidence'>
+            <Section title='完整财务依据'>
+              {finance.financial_evidence.map((row, index) => (
+                <Entry key={row.category_name ?? `missing-${index}`} title={row.category_name}>
+                  <Paragraph>{text(row.financial_content)}</Paragraph>
+                </Entry>
+              ))}
+            </Section>
+          </View>
         </>
       )}
     </>
@@ -687,9 +760,19 @@ function NewsDetail({ value }: { value: CompanyReport['four_dimensions']['detail
       <Reasons rows={value.reasons} />
       <Tabs names={['事件时间轴', '业务进展']} value={tab} change={setTab} />
       {tab === 0 ? (
-        <Section title='消息来自哪里'>
-          <Text className='lr-small'>{text(messages.time_range_note)}</Text>
-          <Tabs names={filters} value={filter} change={setFilter} />
+        <Section title='消息来自哪里' note={messages.time_range_note}>
+          <View className='news-filters'>
+            {filters.map((name, index) => (
+              <Button
+                className={`tidewise-button lr-button${filter === index ? ' is-selected' : ''}`}
+                key={name}
+                onClick={() => setFilter(index)}
+                ariaLabel={`${name}${filter === index ? '，已选中' : ''}`}
+              >
+                {name}
+              </Button>
+            ))}
+          </View>
           <View className='news-timeline lr-div'>
             {events.map((event, index) => (
               <View
@@ -722,12 +805,15 @@ function NewsDetail({ value }: { value: CompanyReport['four_dimensions']['detail
             <Paragraph>{text(value.business_progress.business_boundary.boundary_note)}</Paragraph>
           </View>
           <Section title='机器人业务已发生事项'>
-            {value.business_progress.robotics_completed_actions.map((row, index) => (
-              <Entry key={`${row.action_date}-${row.action_name ?? index}`} title={row.action_name}>
-                <Text className='lr-small'>{text(row.action_date)}</Text>
-                <Paragraph>{text(row.action_content)}</Paragraph>
-              </Entry>
-            ))}
+            <View className='news-business'>
+              {value.business_progress.robotics_completed_actions.map((row, index) => (
+                <View className='lr-div' key={`${row.action_date}-${row.action_name ?? index}`}>
+                  <Text className='lr-time'>{text(row.action_date)}</Text>
+                  <Text className='lr-b'>{text(row.action_name)}</Text>
+                  <Paragraph>{text(row.action_content)}</Paragraph>
+                </View>
+              ))}
+            </View>
           </Section>
         </>
       )}
@@ -754,68 +840,88 @@ function SentimentDetail({
         note={a.conclusion_note}
       />
       <Reasons rows={value.reasons} />
-      <Metrics rows={value.key_metrics} />
-      <Section title='主力资金逐日净额'>
-        <Text className='lr-small'>
-          {text(flows.period)} · {flows.unit}
-        </Text>
-        <View className='standard-flow-legend'>
-          <Text className='positive'>红 · 净流入</Text>
-          <Text className='negative'>绿 · 净流出</Text>
-        </View>
-        <View className='standard-flow-chart'>
-          {flows.daily_values.map((row, index) => (
-            <Button
-              key={row.trade_date ?? `missing-${index}`}
-              className={`tidewise-button standard-flow-column${selected === index ? ' selected' : ''}`}
-              onClick={() => setSelected(index)}
-              ariaLabel={`${text(row.trade_date)} ${row.net_flow === null ? '未提供' : row.net_flow > 0 ? '净流入' : row.net_flow < 0 ? '净流出' : '零值'} ${number(row.net_flow, 1)} ${flows.unit}`}
-            >
-              <View className='standard-flow-area'>
-                <Text
-                  className={`standard-flow-bar${row.net_flow !== null && row.net_flow > 0 ? ' inflow' : ' outflow'}`}
-                  style={{
-                    height: `${(Math.abs(row.net_flow ?? 0) / max) * 45}%`,
-                    top:
-                      row.net_flow !== null && row.net_flow > 0
-                        ? `${50 - (row.net_flow / max) * 45}%`
-                        : '50%'
-                  }}
-                />
-              </View>
-              <Text className='lr-small'>{row.trade_date?.slice(-2) ?? '—'}</Text>
-            </Button>
-          ))}
-        </View>
-        {active && (
-          <View className='sentiment-selected lr-div'>
-            <Text>
-              {text(active.trade_date)} ·{' '}
-              {active.net_flow === null
-                ? '未提供'
-                : active.net_flow > 0
-                  ? '净流入'
-                  : active.net_flow < 0
-                    ? '净流出'
-                    : '零值'}
-            </Text>
-            <Text
-              className={`lr-b ${active.net_flow !== null && active.net_flow > 0 ? 'positive' : active.net_flow !== null && active.net_flow < 0 ? 'negative' : ''}`}
-            >
-              {active.net_flow !== null && active.net_flow > 0 ? '+' : ''}
-              {number(active.net_flow, 1)} {flows.unit}
-            </Text>
+      <View className='standard-sentiment-metrics'>
+        <Metrics rows={value.key_metrics} />
+      </View>
+      <Section title='主力资金逐日净额' note={flows.unit}>
+        <View className='standard-flow-container'>
+          <View className='standard-flow-legend'>
+            <Text className='positive'>红 · 净流入</Text>
+            <Text className='negative'>绿 · 净流出</Text>
           </View>
-        )}
-        {!active && <Paragraph>暂无资金读数</Paragraph>}
+          <View className='standard-flow-chart'>
+            {flows.daily_values.map((row, index) => (
+              <Button
+                key={row.trade_date ?? `missing-${index}`}
+                className={`tidewise-button standard-flow-column${selected === index ? ' selected' : ''}`}
+                onClick={() => setSelected(index)}
+                ariaLabel={`${text(row.trade_date)} ${row.net_flow === null ? '未提供' : row.net_flow > 0 ? '净流入' : row.net_flow < 0 ? '净流出' : '零值'} ${number(row.net_flow, 1)} ${flows.unit}`}
+              >
+                <View className='standard-flow-area'>
+                  <Text
+                    className={`standard-flow-bar${row.net_flow !== null && row.net_flow > 0 ? ' inflow' : ' outflow'}`}
+                    style={{
+                      height: `${(Math.abs(row.net_flow ?? 0) / max) * 45}%`,
+                      top:
+                        row.net_flow !== null && row.net_flow > 0
+                          ? `${50 - (row.net_flow / max) * 45}%`
+                          : '50%'
+                    }}
+                  />
+                </View>
+                <Text className='lr-small'>{row.trade_date?.slice(-2) ?? '—'}</Text>
+              </Button>
+            ))}
+          </View>
+          <View className='standard-flow-axis'>
+            <Text>{text(flows.daily_values[0]?.trade_date)}</Text>
+            <Text>{text(flows.period)}</Text>
+            <Text>{text(flows.daily_values[flows.daily_values.length - 1]?.trade_date)}</Text>
+          </View>
+          {active && (
+            <View className='sentiment-selected lr-div'>
+              <Text>
+                {text(active.trade_date)} ·{' '}
+                {active.net_flow === null
+                  ? '未提供'
+                  : active.net_flow > 0
+                    ? '净流入'
+                    : active.net_flow < 0
+                      ? '净流出'
+                      : '零值'}
+              </Text>
+              <Text
+                className={`lr-b ${active.net_flow !== null && active.net_flow > 0 ? 'positive' : active.net_flow !== null && active.net_flow < 0 ? 'negative' : ''}`}
+              >
+                {active.net_flow !== null && active.net_flow > 0 ? '+' : ''}
+                {number(active.net_flow, 1)} {flows.unit}
+              </Text>
+            </View>
+          )}
+          {!active && <Paragraph>暂无资金读数</Paragraph>}
+        </View>
       </Section>
       <Section title='关键读数'>
-        {value.key_readings.map((row, index) => (
-          <Entry key={`${row.item_name}-${row.reading_basis ?? index}`} title={row.item_name}>
-            {row.reading_basis && <Text className='lr-small'>{row.reading_basis}</Text>}
-            <Paragraph>{text(row.reading_content)}</Paragraph>
-          </Entry>
-        ))}
+        <View className='standard-readings-table'>
+          <View className='standard-reading-head'>
+            <Text>项目</Text>
+            <Text>值</Text>
+          </View>
+          {value.key_readings.map((row, index) => (
+            <View
+              className='standard-reading-row'
+              key={`${row.item_name}-${row.reading_basis ?? index}`}
+            >
+              <View>
+                <Text>{text(row.item_name)}</Text>
+                {row.reading_basis && <Text className='lr-small'>{row.reading_basis}</Text>}
+              </View>
+              <View>
+                <Paragraph>{text(row.reading_content)}</Paragraph>
+              </View>
+            </View>
+          ))}
+        </View>
       </Section>
     </>
   );
@@ -886,13 +992,19 @@ function RiskDetail({ value }: { value: CompanyReport['risk']['detail'] }) {
         note={a.conclusion_note}
       />
       <Section title='结论依据'>
-        {value.reasons.map((row, index) => (
-          <Entry key={row.reason_title ?? `missing-${index}`} title={row.reason_title}>
-            <Paragraph>{text(row.risk_fact)}</Paragraph>
-            <Paragraph>{text(row.impact_mechanism)}</Paragraph>
-            <Paragraph>{text(row.response_requirement)}</Paragraph>
-          </Entry>
-        ))}
+        <View className='tech-reasons'>
+          {value.reasons.map((row, index) => (
+            <View className='lr-div' key={row.reason_title ?? `missing-${index}`}>
+              <Text className='lr-span'>{String(index + 1).padStart(2, '0')}</Text>
+              <View className='lr-section'>
+                <Text className='lr-b'>{text(row.reason_title)}</Text>
+                <Paragraph>{text(row.risk_fact)}</Paragraph>
+                <Paragraph>{text(row.impact_mechanism)}</Paragraph>
+                <View className='standard-risk-response'>{text(row.response_requirement)}</View>
+              </View>
+            </View>
+          ))}
+        </View>
       </Section>
       <Section title='风险清单'>
         <Tabs names={['市场', '公司', '宏观']} value={group} change={setGroup} />
@@ -936,7 +1048,9 @@ export default function StandardReport({ report }: { report: CompanyReport }) {
           subtitle={`${text(report.report_info.company_name)} · ${text(report.report_info.report_date)} · 样例报告`}
           close={() => setTopic(null)}
         >
-          <View className='standard-report legacy-report-detail tech-detail lr-article'>
+          <View
+            className={`standard-report legacy-report-detail tech-detail ${topic}-detail lr-article`}
+          >
             <Detail key={topic} topic={topic} report={report} />
           </View>
         </PreviewSheet>

@@ -410,6 +410,19 @@
 
 .preview-sheet--report {
   background: white;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 8rpx;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 84rpx;
+    height: 8rpx;
+    border-radius: 16rpx;
+    background: #c8cbc6;
+  }
 
   .preview-sheet-header {
     padding: 24rpx;
