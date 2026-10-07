@@ -1,13 +1,30 @@
 import { Button, ScrollView, Text, View } from '@tarojs/components';
 
-export function EmptyReport({ symbol, onBack }: { symbol?: string; onBack: () => void }) {
+export function EmptyReport({
+  symbol,
+  stockName,
+  companyName,
+  onBack
+}: {
+  symbol?: string;
+  stockName?: string;
+  companyName?: string;
+  onBack: () => void;
+}) {
   return (
     <ScrollView scrollY className='company-report-empty'>
       <View className='company-report-empty__content'>
         {symbol && (
           <View className='company-report-empty__identity'>
-            <Text>股票代码</Text>
-            <Text className='company-report-empty__symbol'>{symbol}</Text>
+            <View className='company-report-empty__company'>
+              <View className='company-report-empty__stock-row'>
+                <Text className='company-report-empty__stock-name'>{stockName || '股票代码'}</Text>
+                <Text className='company-report-empty__symbol'>{symbol}</Text>
+              </View>
+              {companyName && (
+                <Text className='company-report-empty__company-name'>{companyName}</Text>
+              )}
+            </View>
           </View>
         )}
         <View className='company-report-empty__card'>

@@ -112,3 +112,16 @@ it('retains company identity through login without allowing arbitrary return URL
   await leaveResearchLogin('companyReport', false, '000001.SZ');
   expect(switchTab).toHaveBeenLastCalledWith({ url: '/pages/index/index' });
 });
+
+it('preserves Chinese company labels across login without changing the allowlisted symbol', async () => {
+  const names = { stockName: '众泰汽车', companyName: '众泰汽车股份有限公司' };
+  await requireResearchLogin('companyReport', '000980.SZ', names);
+  const loginQuery = new URLSearchParams(redirectTo.mock.calls.at(-1)![0].url.split('?')[1]);
+  expect(loginQuery.get('research')).toBe('companyReport');
+  expect(loginQuery.get('symbol')).toBe('000980.SZ');
+  expect(JSON.parse(loginQuery.get('display')!)).toEqual(names);
+  await leaveResearchLogin('companyReport', true, '000980.SZ', names);
+  const reportQuery = new URLSearchParams(redirectTo.mock.calls.at(-1)![0].url.split('?')[1]);
+  expect(reportQuery.get('symbol')).toBe('000980.SZ');
+  expect(JSON.parse(reportQuery.get('display')!)).toEqual(names);
+});

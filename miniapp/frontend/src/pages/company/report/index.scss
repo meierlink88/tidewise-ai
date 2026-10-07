@@ -136,3 +136,33 @@
   font-size: $font-report-caption;
   line-height: 1.6;
 }
+
+.company-report-empty__company {
+  width: 100%;
+  min-width: 0;
+}
+.company-report-empty__stock-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+.company-report-empty__stock-name {
+  min-width: 0;
+  color: $ui-ink;
+  font-size: $font-report-title;
+  font-weight: 650;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.company-report-empty__symbol {
+  flex-shrink: 0;
+}
+.company-report-empty__company-name {
+  display: block;
+  margin-top: 10rpx;
+  color: $ui-muted;
+  font-size: $font-report-meta;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}

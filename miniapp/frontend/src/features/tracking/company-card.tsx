@@ -25,7 +25,12 @@ export function CompanyCard({
   const [sheet, setSheet] = useState<'company' | null>(null);
   async function openReport() {
     try {
-      await Taro.navigateTo({ url: companyReportUrl(company.symbol) });
+      await Taro.navigateTo({
+        url: companyReportUrl(company.symbol, {
+          stockName: company.stock_name,
+          companyName: company.title
+        })
+      });
     } catch {
       void Taro.showToast({ title: '打开失败，请重试', icon: 'none' });
     }

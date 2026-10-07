@@ -10,6 +10,7 @@ import {
   openProfileInformation,
   supportsWechatLogin
 } from '../../platform/identity';
+import { parseCompanyReportNames } from '../../features/company-report/route';
 import { useIdentity } from '../../features/identity/use-identity';
 import { LoginView } from './login-view';
 import '../profile/index.scss';
@@ -26,7 +27,13 @@ export default function LoginPage() {
     if (!(await identity.login(phoneCode))) return false;
     leaving.current = true;
     try {
-      if (destination) return await leaveResearchLogin(destination, true, params.symbol);
+      if (destination)
+        return await leaveResearchLogin(
+          destination,
+          true,
+          params.symbol,
+          parseCompanyReportNames(params.display)
+        );
       await leaveLogin();
     } finally {
       leaving.current = false;

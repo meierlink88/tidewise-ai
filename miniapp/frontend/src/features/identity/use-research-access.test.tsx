@@ -52,7 +52,7 @@ it('does not expose a guest page and opens login with its destination', async ()
   await act(async () => mock.show());
   expect(state.allowed).toBe(false);
   expect(mock.me).not.toHaveBeenCalled();
-  expect(mock.requireResearchLogin).toHaveBeenCalledWith('company', undefined);
+  expect(mock.requireResearchLogin).toHaveBeenCalledWith('company', undefined, undefined);
 });
 it('allows verified users, hides on leave, and rechecks after logout', async () => {
   expect(state.allowed).toBe(false);
@@ -111,16 +111,25 @@ it('rechecks an open page when the stored session expires', async () => {
 
 it('carries the selected company through guest and expired-session login', async () => {
   function ReportHarness() {
-    state = useResearchAccess('companyReport', '000001.SZ');
+    state = useResearchAccess('companyReport', '000001.SZ', {
+      stockName: '平安银行',
+      companyName: '平安银行股份有限公司'
+    });
     return null;
   }
   await act(async () => root.render(createElement(ReportHarness)));
   mock.readSession.mockReturnValue(null);
   await act(async () => mock.show());
-  expect(mock.requireResearchLogin).toHaveBeenLastCalledWith('companyReport', '000001.SZ');
+  expect(mock.requireResearchLogin).toHaveBeenLastCalledWith('companyReport', '000001.SZ', {
+    stockName: '平安银行',
+    companyName: '平安银行股份有限公司'
+  });
   mock.readSession.mockReturnValue(session);
   mock.me.mockRejectedValueOnce(new IdentityError('expired', true));
   await act(async () => mock.show());
   expect(state.allowed).toBe(false);
-  expect(mock.requireResearchLogin).toHaveBeenLastCalledWith('companyReport', '000001.SZ');
+  expect(mock.requireResearchLogin).toHaveBeenLastCalledWith('companyReport', '000001.SZ', {
+    stockName: '平安银行',
+    companyName: '平安银行股份有限公司'
+  });
 });

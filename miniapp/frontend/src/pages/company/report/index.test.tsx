@@ -6,13 +6,14 @@ import CompanyReportPage from './index';
 
 const state = vi.hoisted(() => ({
   symbol: undefined as string | undefined,
+  display: undefined as string | undefined,
   allowed: true,
   navigateBack: vi.fn().mockResolvedValue(undefined),
   switchTab: vi.fn().mockResolvedValue(undefined),
   pages: [{}, {}]
 }));
 vi.mock('@tarojs/taro', () => ({
-  useRouter: () => ({ params: { symbol: state.symbol } }),
+  useRouter: () => ({ params: { symbol: state.symbol, display: state.display } }),
   default: {
     getCurrentPages: () => state.pages,
     navigateBack: state.navigateBack,
@@ -47,6 +48,7 @@ beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   state.allowed = true;
   state.symbol = undefined;
+  state.display = undefined;
   state.pages = [{}, {}];
   vi.clearAllMocks();
   host = document.createElement('div');
@@ -105,4 +107,18 @@ it('identifies the selected stock and returns from the empty-state action', asyn
     host.querySelector<HTMLButtonElement>('[aria-label="返回股票列表"]')!.click()
   );
   expect(state.switchTab).toHaveBeenCalledWith({ url: '/pages/company/index' });
+});
+
+it('shows the stock and full company names without borrowing another report identity', () => {
+  state.symbol = '000980.SZ';
+  state.display = encodeURIComponent(
+    JSON.stringify({ stockName: '众泰汽车', companyName: '众泰汽车股份有限公司' })
+  );
+  act(() => root.render(<CompanyReportPage />));
+  expect(host.textContent).toContain('众泰汽车');
+  expect(host.textContent).toContain('众泰汽车股份有限公司');
+  expect(host.textContent).toContain('000980.SZ');
+  state.symbol = 'bad';
+  act(() => root.render(<CompanyReportPage />));
+  expect(host.textContent).not.toContain('众泰汽车');
 });

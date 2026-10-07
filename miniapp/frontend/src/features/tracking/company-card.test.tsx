@@ -50,8 +50,12 @@ it('keeps tracking separate and navigates every company to its report detail', a
     host.querySelector<HTMLButtonElement>('[aria-label="查看平安银行洞察报告"]')!.click()
   );
   expect(host.textContent).not.toContain('暂无报告样例');
-  expect(navigateTo).toHaveBeenLastCalledWith({
-    url: '/pages/company/report/index?symbol=000001.SZ'
+  const url = navigateTo.mock.calls.at(-1)![0].url;
+  const params = new URLSearchParams(url.split('?')[1]);
+  expect(params.get('symbol')).toBe('000001.SZ');
+  expect(JSON.parse(params.get('display')!)).toEqual({
+    stockName: company.stock_name,
+    companyName: company.title
   });
   await act(async () =>
     root.render(
@@ -67,9 +71,9 @@ it('keeps tracking separate and navigates every company to its report detail', a
   await act(async () =>
     host.querySelector<HTMLButtonElement>('[aria-label="查看平安银行洞察报告"]')!.click()
   );
-  expect(navigateTo).toHaveBeenLastCalledWith({
-    url: '/pages/company/report/index?symbol=603179.SH'
-  });
+  expect(navigateTo.mock.calls.at(-1)![0].url).toContain(
+    '/pages/company/report/index?symbol=603179.SH&display='
+  );
 });
 it('offers cancellation on the personal list and disables it while submitting', async () => {
   const remove = vi.fn();

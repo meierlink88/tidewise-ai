@@ -6,9 +6,14 @@ import {
   requireResearchLogin,
   type ResearchDestination
 } from '../../platform/identity';
+import type { CompanyReportNames } from '../company-report/route';
 import { IdentityError, me } from './api';
 
-export function useResearchAccess(destination: ResearchDestination, reportSymbol?: string) {
+export function useResearchAccess(
+  destination: ResearchDestination,
+  reportSymbol?: string,
+  reportNames?: CompanyReportNames
+) {
   const [allowed, setAllowed] = useState(false);
   const [error, setError] = useState('');
   const sequence = useRef(0);
@@ -24,13 +29,13 @@ export function useResearchAccess(destination: ResearchDestination, reportSymbol
     const session = readSession();
     try {
       if (!session) {
-        await requireResearchLogin(destination, reportSymbol);
+        await requireResearchLogin(destination, reportSymbol, reportNames);
         return;
       }
       await me(session.session_token);
       if (seq !== sequence.current) return;
       if (readSession()?.session_token !== session.session_token) {
-        await requireResearchLogin(destination, reportSymbol);
+        await requireResearchLogin(destination, reportSymbol, reportNames);
         return;
       }
       setAllowed(true);
@@ -50,7 +55,7 @@ export function useResearchAccess(destination: ResearchDestination, reportSymbol
           }
         }
         try {
-          await requireResearchLogin(destination, reportSymbol);
+          await requireResearchLogin(destination, reportSymbol, reportNames);
         } catch {
           if (seq === sequence.current) setError('暂时无法打开登录页，请重试');
         }

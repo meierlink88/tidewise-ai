@@ -11,7 +11,10 @@ export function PreviewCompanyRow({ company }: { company: Company }) {
   async function open() {
     try {
       await Taro.navigateTo({
-        url: companyReportUrl(company.symbol)
+        url: companyReportUrl(company.symbol, {
+          stockName: company.name,
+          companyName: company.fullName
+        })
       });
     } catch {
       void Taro.showToast({
